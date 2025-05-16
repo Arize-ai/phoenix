@@ -26,6 +26,7 @@ from phoenix.auth import (
 from phoenix.config import (
     get_env_admins,
     get_env_default_admin_initial_password,
+    get_env_disable_basic_auth,
     get_env_oauth2_settings,
 )
 from phoenix.db import models
@@ -169,7 +170,8 @@ async def _ensure_admins(
     """
     if not (admins := get_env_admins()):
         return
-    oauth2_enforced = True
+    # TODO: refactor this to be cleaner to the auto_signum
+    oauth2_enforced = get_env_disable_basic_auth()
     oauth2_config = get_env_oauth2_settings()
     async with db() as session:
         existing_emails = set(

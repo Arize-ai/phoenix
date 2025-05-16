@@ -23,7 +23,7 @@ from phoenix.auth import (
     validate_email_format,
     validate_password_format,
 )
-from phoenix.config import get_env_enforce_oauth2, get_env_oauth2_settings
+from phoenix.config import get_env_disable_basic_auth, get_env_oauth2_settings
 from phoenix.db import enums, models
 from phoenix.server.api.auth import IsAdmin, IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
@@ -99,10 +99,9 @@ class UserMutationMixin:
         oauth2_client_id = None
         reset_password = True
         if not input.password:
-            oauth2_enforced = get_env_enforce_oauth2()
-            # If oauth2 is enforced, username and password are not required
-            if not oauth2_enforced:
-                raise ValueError("Username and password fields must be set if oauth2 is not enforced")
+            # TODO: switch this to an explicit auth method check
+            if not get_env_disable_basic_auth():
+                raise ValueError("Username and password fields must be set if basic auth is ")
             oauth2_clients = get_env_oauth2_settings()
             oauth2_client_id = oauth2_clients[0].client_id
             reset_password = False
