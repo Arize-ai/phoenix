@@ -1,4 +1,4 @@
-import React, { ReactElement } from "react";
+import { ReactElement } from "react";
 import { Meta, StoryFn } from "@storybook/react";
 
 import { Icon, Icons } from "@phoenix/components";

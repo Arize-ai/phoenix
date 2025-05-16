@@ -1,4 +1,4 @@
-import React, { ReactNode, Ref, useCallback } from "react";
+import { forwardRef, ReactNode, Ref, useCallback } from "react";
 import { Button as AriaButton, ButtonRenderProps } from "react-aria-components";
 import { css } from "@emotion/react";
 
@@ -47,5 +47,5 @@ function Button(props: ButtonProps, ref: Ref<HTMLButtonElement>) {
   );
 }
 
-const _Button = React.forwardRef(Button);
+const _Button = forwardRef(Button);
 export { _Button as Button };

@@ -7,7 +7,7 @@ import React, {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import {
   ColumnDef,
   flexRender,
@@ -31,10 +31,8 @@ import {
   ToggleButtonGroup,
   View,
 } from "@phoenix/components";
-import {
-  AnnotationLabel,
-  AnnotationTooltip,
-} from "@phoenix/components/annotation";
+import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
+import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { LoadMoreRow } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -44,16 +42,19 @@ import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
+import { Truncate } from "@phoenix/components/utility/Truncate";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
+import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
 
 import {
   SpansTable_spans$key,
   SpanStatusCode,
 } from "./__generated__/SpansTable_spans.graphql";
 import { SpansTableSpansQuery } from "./__generated__/SpansTableSpansQuery.graphql";
-import { AnnotationTooltipFilterActions } from "./AnnotationTooltipFilterActions";
 import { DEFAULT_PAGE_SIZE } from "./constants";
 import { ProjectFilterConfigButton } from "./ProjectFilterConfigButton";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
@@ -62,12 +63,7 @@ import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
 import { spansTableCSS } from "./styles";
-import {
-  ANNOTATIONS_COLUMN_PREFIX,
-  ANNOTATIONS_KEY_SEPARATOR,
-  DEFAULT_SORT,
-  getGqlSort,
-} from "./tableUtils";
+import { DEFAULT_SORT, getGqlSort, makeAnnotationColumnId } from "./tableUtils";
 
 type SpansTableProps = {
   project: SpansTable_spans$key;
@@ -89,35 +85,41 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
   table,
   hasNext,
   onLoadNext,
-  tableWidth,
   isLoadingNext,
 }: {
   table: Table<T>;
   hasNext: boolean;
   onLoadNext: () => void;
   isLoadingNext: boolean;
-  tableWidth: number;
 }) => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { traceId } = useParams();
+  const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
+        const isSelected =
+          selectedSpanNodeId === row.original.id ||
+          (!selectedSpanNodeId && row.original.trace.traceId === traceId);
         return (
           <tr
             key={row.id}
+            data-selected={isSelected}
             onClick={() =>
               navigate(
-                `${row.original.trace.traceId}?selectedSpanNodeId=${row.original.id}`
+                `${row.original.trace.traceId}?${SELECTED_SPAN_NODE_ID_PARAM}=${row.original.id}`
               )
             }
           >
             {row.getVisibleCells().map((cell) => {
+              const colSizeVar = `--col-${cell.column.id}-size`;
               return (
                 <td
                   key={cell.id}
                   style={{
-                    width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
-                    maxWidth: `calc(var(--col-${cell.column.id}-size) * 1px)`,
+                    width: `calc(var(${colSizeVar}) * 1px)`,
+                    maxWidth: `calc(var(${colSizeVar}) * 1px)`,
                     // prevent all wrapping, just show an ellipsis and let users expand if necessary
                     textWrap: "nowrap",
                     overflow: "hidden",
@@ -136,7 +138,6 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
         <LoadMoreRow
           onLoadMore={onLoadNext}
           key="load-more"
-          width={tableWidth}
           isLoadingNext={isLoadingNext}
         />
       ) : null}
@@ -213,10 +214,20 @@ export function SpansTable(props: SpansTableProps) {
                   value: truncatedValue
                 }
                 spanAnnotations {
+                  id
                   name
                   label
                   score
                   annotatorKind
+                  createdAt
+                }
+                spanAnnotationSummaries {
+                  labelFractions {
+                    fraction
+                    label
+                  }
+                  meanScore
+                  name
                 }
                 documentRetrievalMetrics {
                   evaluationName
@@ -224,6 +235,7 @@ export function SpansTable(props: SpansTableProps) {
                   precision
                   hit
                 }
+                ...AnnotationSummaryGroup
               }
             }
           }
@@ -231,6 +243,23 @@ export function SpansTable(props: SpansTableProps) {
       `,
       props.project
     );
+
+  const pagination = useTracePagination();
+  const setTraceSequence = pagination?.setTraceSequence;
+  useEffect(() => {
+    if (!setTraceSequence) {
+      return;
+    }
+    setTraceSequence(
+      data.spans.edges.map(({ span }) => ({
+        traceId: span.trace.traceId,
+        spanId: span.id,
+      }))
+    );
+    return () => {
+      setTraceSequence([]);
+    };
+  }, [data.spans.edges, setTraceSequence]);
 
   const annotationColumnVisibility = useTracingContext(
     (state) => state.annotationColumnVisibility
@@ -254,29 +283,34 @@ export function SpansTable(props: SpansTableProps) {
         header: name,
         columns: [
           {
-            header: `label`,
-            accessorKey: `${ANNOTATIONS_COLUMN_PREFIX}${ANNOTATIONS_KEY_SEPARATOR}label${ANNOTATIONS_KEY_SEPARATOR}${name}`,
+            header: `labels`,
+            accessorKey: makeAnnotationColumnId(name, "label"),
             cell: ({ row }) => {
-              const annotation = row.original.spanAnnotations.find(
+              const annotation = row.original.spanAnnotationSummaries.find(
                 (annotation) => annotation.name === name
               );
               if (!annotation) {
                 return null;
               }
-              return annotation.label;
+              return (
+                <SummaryValueLabels
+                  name={name}
+                  labelFractions={annotation.labelFractions}
+                />
+              );
             },
           } as ColumnDef<TableRow>,
           {
-            header: `score`,
-            accessorKey: `${ANNOTATIONS_COLUMN_PREFIX}${ANNOTATIONS_KEY_SEPARATOR}score${ANNOTATIONS_KEY_SEPARATOR}${name}`,
+            header: `mean score`,
+            accessorKey: makeAnnotationColumnId(name, "score"),
             cell: ({ row }) => {
-              const annotation = row.original.spanAnnotations.find(
+              const annotation = row.original.spanAnnotationSummaries.find(
                 (annotation) => annotation.name === name
               );
               if (!annotation) {
                 return null;
               }
-              return annotation.score;
+              return <MeanScore value={annotation.meanScore} fallback={null} />;
             },
           } as ColumnDef<TableRow>,
         ],
@@ -287,43 +321,29 @@ export function SpansTable(props: SpansTableProps) {
     {
       header: () => (
         <Flex direction="row" gap="size-50">
-          <span>feedback</span>
+          <span>annotations</span>
           <ContextualHelp>
             <Heading level={3} weight="heavy">
-              Feedback
+              Annotations
             </Heading>
             <Content>
-              Feedback includes evaluations and human annotations logged via the
-              API or set via the UI.
+              Evaluations and human annotations logged via the API or set via
+              the UI.
             </Content>
           </ContextualHelp>
         </Flex>
       ),
-      id: "feedback",
+      id: "annotations",
       accessorKey: "spanAnnotations",
       enableSorting: false,
 
       cell: ({ row }) => {
         return (
           <Flex direction="row" gap="size-50" wrap="wrap">
-            {row.original.spanAnnotations.map((annotation) => {
-              return (
-                <AnnotationTooltip
-                  key={annotation.name}
-                  annotation={annotation}
-                  layout="horizontal"
-                  width="500px"
-                  extra={
-                    <AnnotationTooltipFilterActions annotation={annotation} />
-                  }
-                >
-                  <AnnotationLabel
-                    annotation={annotation}
-                    annotationDisplayPreference="label"
-                  />
-                </AnnotationTooltip>
-              );
-            })}
+            <AnnotationSummaryGroupTokens
+              span={row.original}
+              showFilterActions
+            />
             {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
               return (
                 <>
@@ -409,7 +429,7 @@ export function SpansTable(props: SpansTableProps) {
         const span = row.original;
         const { traceId } = span.trace;
         return (
-          <Link to={`${traceId}?selectedSpanNodeId=${span.id}`}>
+          <Link to={`${traceId}?${SELECTED_SPAN_NODE_ID_PARAM}=${span.id}`}>
             {getValue() as string}
           </Link>
         );
@@ -566,17 +586,15 @@ export function SpansTable(props: SpansTableProps) {
    * and pass the column sizes down as CSS variables to the <table> element.
    * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
    */
-  const [columnSizeVars, tableWidth] = React.useMemo(() => {
+  const [columnSizeVars] = React.useMemo(() => {
     const headers = getFlatHeaders();
     const colSizes: { [key: string]: number } = {};
-    let tableWidth = 0;
     for (let i = 0; i < headers.length; i++) {
       const header = headers[i]!;
       colSizes[`--header-${header.id}-size`] = header.getSize();
       colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
-      tableWidth += header.getSize();
     }
-    return [colSizes, tableWidth];
+    return [colSizes];
     // Disabled lint as per tanstack docs linked above
     // eslint-disable-next-line react-compiler/react-compiler
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -646,6 +664,7 @@ export function SpansTable(props: SpansTableProps) {
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
                   <th
+                    colSpan={header.colSpan}
                     style={{
                       width: `calc(var(--header-${header.id}-size) * 1px)`,
                     }}
@@ -665,10 +684,12 @@ export function SpansTable(props: SpansTableProps) {
                             },
                           }}
                         >
-                          {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
+                          <Truncate maxWidth="100%">
+                            {flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                          </Truncate>
                           {header.column.getIsSorted() ? (
                             <Icon
                               className="sort-icon"
@@ -705,7 +726,6 @@ export function SpansTable(props: SpansTableProps) {
               table={table}
               hasNext={hasNext}
               onLoadNext={() => loadNext(PAGE_SIZE)}
-              tableWidth={tableWidth}
               isLoadingNext={isLoadingNext}
             />
           ) : (
@@ -713,7 +733,6 @@ export function SpansTable(props: SpansTableProps) {
               table={table}
               hasNext={hasNext}
               onLoadNext={() => loadNext(PAGE_SIZE)}
-              tableWidth={tableWidth}
               isLoadingNext={isLoadingNext}
             />
           )}

@@ -1,10 +1,11 @@
-import React, { Suspense } from "react";
+import { Suspense } from "react";
 import { PreloadedQuery, usePreloadedQuery } from "react-relay";
 import { Outlet } from "react-router";
 
 import { Loading } from "@phoenix/components/loading/Loading";
 import { SpanFilterConditionProvider } from "@phoenix/pages/project/SpanFilterConditionContext";
 import { TracesTable } from "@phoenix/pages/project/TracesTable";
+import { TracePaginationProvider } from "@phoenix/pages/trace/TracePaginationContext";
 import { TracingRoot } from "@phoenix/pages/TracingRoot";
 
 import { ProjectPageQueriesTracesQuery as ProjectPageTracesQueryType } from "./__generated__/ProjectPageQueriesTracesQuery.graphql";
@@ -35,14 +36,16 @@ export const ProjectTracesPage = () => {
 
   return (
     <TracingRoot>
-      <SpanFilterConditionProvider>
-        <Suspense fallback={<Loading />}>
-          <TracesTabContent tracesQueryReference={tracesQueryReference} />
+      <TracePaginationProvider>
+        <SpanFilterConditionProvider>
+          <Suspense fallback={<Loading />}>
+            <TracesTabContent tracesQueryReference={tracesQueryReference} />
+          </Suspense>
+        </SpanFilterConditionProvider>
+        <Suspense>
+          <Outlet />
         </Suspense>
-      </SpanFilterConditionProvider>
-      <Suspense>
-        <Outlet />
-      </Suspense>
+      </TracePaginationProvider>
     </TracingRoot>
   );
 };

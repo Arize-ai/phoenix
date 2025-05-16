@@ -1,4 +1,4 @@
-import React, { forwardRef, Ref } from "react";
+import { forwardRef, Ref } from "react";
 import { TagList as AriaTagList, TagListProps } from "react-aria-components";
 import { css } from "@emotion/react";
 

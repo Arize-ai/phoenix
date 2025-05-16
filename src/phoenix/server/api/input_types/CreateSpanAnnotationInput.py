@@ -4,6 +4,7 @@ import strawberry
 from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 
+from phoenix.server.api.types.AnnotationSource import AnnotationSource
 from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
 
 
@@ -16,3 +17,11 @@ class CreateSpanAnnotationInput:
     score: Optional[float] = None
     explanation: Optional[str] = None
     metadata: JSON = strawberry.field(default_factory=dict)
+    source: AnnotationSource
+    identifier: Optional[str] = strawberry.UNSET
+
+
+@strawberry.input
+class CreateSpanNoteInput:
+    span_id: GlobalID
+    note: str

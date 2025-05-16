@@ -4,6 +4,79 @@
  */
 
 export interface paths {
+    "/v1/annotation_configs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List annotation configurations
+         * @description Retrieve a paginated list of all annotation configurations in the system.
+         */
+        get: operations["list_annotation_configs_v1_annotation_configs_get"];
+        put?: never;
+        /** Create an annotation configuration */
+        post: operations["create_annotation_config_v1_annotation_configs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/annotation_configs/{config_identifier}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get an annotation configuration by ID or name */
+        get: operations["get_annotation_config_by_name_or_id_v1_annotation_configs__config_identifier__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/annotation_configs/{config_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update an annotation configuration */
+        put: operations["update_annotation_config_v1_annotation_configs__config_id__put"];
+        post?: never;
+        /** Delete an annotation configuration */
+        delete: operations["delete_annotation_config_v1_annotation_configs__config_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{project_identifier}/span_annotations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get span annotations for a list of span_ids. */
+        get: operations["listSpanAnnotationsBySpanIds"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/datasets": {
         parameters: {
             query?: never;
@@ -210,6 +283,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/experiments/{experiment_id}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List runs for an experiment */
+        get: operations["listExperimentRuns"];
+        put?: never;
+        /** Create run for an experiment */
+        post: operations["createExperimentRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/experiment_evaluations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create or update evaluation for an experiment run */
+        post: operations["upsertExperimentEvaluation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/span_annotations": {
         parameters: {
             query?: never;
@@ -219,7 +327,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create or update span annotations */
+        /** Create span annotations */
         post: operations["annotateSpans"];
         delete?: never;
         options?: never;
@@ -432,12 +540,94 @@ export interface components {
         /** AnnotateSpansRequestBody */
         AnnotateSpansRequestBody: {
             /** Data */
-            data: components["schemas"]["SpanAnnotation"][];
+            data: components["schemas"]["SpanAnnotationData"][];
         };
         /** AnnotateSpansResponseBody */
         AnnotateSpansResponseBody: {
             /** Data */
             data: components["schemas"]["InsertedSpanAnnotation"][];
+        };
+        /** CategoricalAnnotationConfig */
+        CategoricalAnnotationConfig: {
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "CATEGORICAL";
+            /** Description */
+            description?: string | null;
+            optimization_direction: components["schemas"]["OptimizationDirection"];
+            /** Values */
+            values: components["schemas"]["CategoricalAnnotationValue"][];
+            /** Id */
+            id: string;
+        };
+        /** CategoricalAnnotationConfigData */
+        CategoricalAnnotationConfigData: {
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "CATEGORICAL";
+            /** Description */
+            description?: string | null;
+            optimization_direction: components["schemas"]["OptimizationDirection"];
+            /** Values */
+            values: components["schemas"]["CategoricalAnnotationValue"][];
+        };
+        /** CategoricalAnnotationValue */
+        CategoricalAnnotationValue: {
+            /** Label */
+            label: string;
+            /** Score */
+            score?: number | null;
+        };
+        /** ContinuousAnnotationConfig */
+        ContinuousAnnotationConfig: {
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "CONTINUOUS";
+            /** Description */
+            description?: string | null;
+            optimization_direction: components["schemas"]["OptimizationDirection"];
+            /** Lower Bound */
+            lower_bound?: number | null;
+            /** Upper Bound */
+            upper_bound?: number | null;
+            /** Id */
+            id: string;
+        };
+        /** ContinuousAnnotationConfigData */
+        ContinuousAnnotationConfigData: {
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "CONTINUOUS";
+            /** Description */
+            description?: string | null;
+            optimization_direction: components["schemas"]["OptimizationDirection"];
+            /** Lower Bound */
+            lower_bound?: number | null;
+            /** Upper Bound */
+            upper_bound?: number | null;
+        };
+        /** CreateAnnotationConfigData */
+        CreateAnnotationConfigData: components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"];
+        /** CreateAnnotationConfigResponseBody */
+        CreateAnnotationConfigResponseBody: {
+            /** Data */
+            data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
         };
         /**
          * CreateExperimentRequestBody
@@ -471,11 +661,63 @@ export interface components {
              * @description Number of times the experiment should be repeated for each example
              * @default 1
              */
-            repetitions: number;
+            repetitions?: number;
         };
         /** CreateExperimentResponseBody */
         CreateExperimentResponseBody: {
             data: components["schemas"]["Experiment"];
+        };
+        /** CreateExperimentRunRequestBody */
+        CreateExperimentRunRequestBody: {
+            /**
+             * Dataset Example Id
+             * @description The ID of the dataset example used in the experiment run
+             */
+            dataset_example_id: string;
+            /**
+             * Output
+             * @description The output of the experiment task
+             */
+            output: unknown;
+            /**
+             * Repetition Number
+             * @description The repetition number of the experiment run
+             */
+            repetition_number: number;
+            /**
+             * Start Time
+             * Format: date-time
+             * @description The start time of the experiment run
+             */
+            start_time: string;
+            /**
+             * End Time
+             * Format: date-time
+             * @description The end time of the experiment run
+             */
+            end_time: string;
+            /**
+             * Trace Id
+             * @description The ID of the corresponding trace (if one exists)
+             */
+            trace_id?: string | null;
+            /**
+             * Error
+             * @description Optional error message if the experiment run encountered an error
+             */
+            error?: string | null;
+        };
+        /** CreateExperimentRunResponseBody */
+        CreateExperimentRunResponseBody: {
+            data: components["schemas"]["CreateExperimentRunResponseBodyData"];
+        };
+        /** CreateExperimentRunResponseBodyData */
+        CreateExperimentRunResponseBodyData: {
+            /**
+             * Id
+             * @description The ID of the newly created experiment run
+             */
+            id: string;
         };
         /** CreateProjectRequestBody */
         CreateProjectRequestBody: {
@@ -583,6 +825,11 @@ export interface components {
             /** Example Count */
             example_count: number;
         };
+        /** DeleteAnnotationConfigResponseBody */
+        DeleteAnnotationConfigResponseBody: {
+            /** Data */
+            data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
+        };
         /** Experiment */
         Experiment: {
             /**
@@ -629,6 +876,112 @@ export interface components {
              * @description The last update timestamp of the experiment
              */
             updated_at: string;
+        };
+        /** ExperimentEvaluationResult */
+        ExperimentEvaluationResult: {
+            /**
+             * Label
+             * @description The label assigned by the evaluation
+             */
+            label?: string | null;
+            /**
+             * Score
+             * @description The score assigned by the evaluation
+             */
+            score?: number | null;
+            /**
+             * Explanation
+             * @description Explanation of the evaluation result
+             */
+            explanation?: string | null;
+        };
+        /** ExperimentRunResponse */
+        ExperimentRunResponse: {
+            /**
+             * Dataset Example Id
+             * @description The ID of the dataset example used in the experiment run
+             */
+            dataset_example_id: string;
+            /**
+             * Output
+             * @description The output of the experiment task
+             */
+            output: unknown;
+            /**
+             * Repetition Number
+             * @description The repetition number of the experiment run
+             */
+            repetition_number: number;
+            /**
+             * Start Time
+             * Format: date-time
+             * @description The start time of the experiment run
+             */
+            start_time: string;
+            /**
+             * End Time
+             * Format: date-time
+             * @description The end time of the experiment run
+             */
+            end_time: string;
+            /**
+             * Trace Id
+             * @description The ID of the corresponding trace (if one exists)
+             */
+            trace_id?: string | null;
+            /**
+             * Error
+             * @description Optional error message if the experiment run encountered an error
+             */
+            error?: string | null;
+            /**
+             * Id
+             * @description The ID of the experiment run
+             */
+            id: string;
+            /**
+             * Experiment Id
+             * @description The ID of the experiment
+             */
+            experiment_id: string;
+        };
+        /** FreeformAnnotationConfig */
+        FreeformAnnotationConfig: {
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "FREEFORM";
+            /** Description */
+            description?: string | null;
+            /** Id */
+            id: string;
+        };
+        /** FreeformAnnotationConfigData */
+        FreeformAnnotationConfigData: {
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "FREEFORM";
+            /** Description */
+            description?: string | null;
+        };
+        /** GetAnnotationConfigResponseBody */
+        GetAnnotationConfigResponseBody: {
+            /** Data */
+            data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
+        };
+        /** GetAnnotationConfigsResponseBody */
+        GetAnnotationConfigsResponseBody: {
+            /** Data */
+            data: (components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"])[];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /** GetDatasetResponseBody */
         GetDatasetResponseBody: {
@@ -716,6 +1069,11 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
+        /** ListExperimentRunsResponseBody */
+        ListExperimentRunsResponseBody: {
+            /** Data */
+            data: components["schemas"]["ExperimentRunResponse"][];
+        };
         /** ListExperimentsResponseBody */
         ListExperimentsResponseBody: {
             /** Data */
@@ -726,6 +1084,11 @@ export interface components {
          * @enum {string}
          */
         ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE";
+        /**
+         * OptimizationDirection
+         * @enum {string}
+         */
+        OptimizationDirection: "MINIMIZE" | "MAXIMIZE" | "NONE";
         /** Project */
         Project: {
             /** Name */
@@ -1080,7 +1443,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN";
             /** @description The result of the annotation */
             result?: components["schemas"]["SpanAnnotationResult"] | null;
             /**
@@ -1090,6 +1453,65 @@ export interface components {
             metadata?: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Identifier
+             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
+             * @default
+             */
+            identifier?: string;
+            /** Id */
+            id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "API" | "APP";
+            /** User Id */
+            user_id: string | null;
+        };
+        /** SpanAnnotationData */
+        SpanAnnotationData: {
+            /**
+             * Span Id
+             * @description OpenTelemetry Span ID (hex format w/o 0x prefix)
+             */
+            span_id: string;
+            /**
+             * Name
+             * @description The name of the annotation
+             */
+            name: string;
+            /**
+             * Annotator Kind
+             * @description The kind of annotator used for the annotation
+             * @enum {string}
+             */
+            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            /** @description The result of the annotation */
+            result?: components["schemas"]["SpanAnnotationResult"] | null;
+            /**
+             * Metadata
+             * @description Metadata for the annotation
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Identifier
+             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
+             * @default
+             */
+            identifier?: string;
         };
         /** SpanAnnotationResult */
         SpanAnnotationResult: {
@@ -1108,6 +1530,13 @@ export interface components {
              * @description Explanation of the annotation result
              */
             explanation?: string | null;
+        };
+        /** SpanAnnotationsResponseBody */
+        SpanAnnotationsResponseBody: {
+            /** Data */
+            data: components["schemas"]["SpanAnnotation"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /** TextContentPart */
         TextContentPart: {
@@ -1157,6 +1586,11 @@ export interface components {
                 [key: string]: unknown;
             } | unknown[] | null;
         };
+        /** UpdateAnnotationConfigResponseBody */
+        UpdateAnnotationConfigResponseBody: {
+            /** Data */
+            data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
+        };
         /** UpdateProjectRequestBody */
         UpdateProjectRequestBody: {
             /** Description */
@@ -1174,6 +1608,68 @@ export interface components {
         /** UploadDatasetResponseBody */
         UploadDatasetResponseBody: {
             data: components["schemas"]["UploadDatasetData"];
+        };
+        /** UpsertExperimentEvaluationRequestBody */
+        UpsertExperimentEvaluationRequestBody: {
+            /**
+             * Experiment Run Id
+             * @description The ID of the experiment run being evaluated
+             */
+            experiment_run_id: string;
+            /**
+             * Name
+             * @description The name of the evaluation
+             */
+            name: string;
+            /**
+             * Annotator Kind
+             * @description The kind of annotator used for the evaluation
+             * @enum {string}
+             */
+            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            /**
+             * Start Time
+             * Format: date-time
+             * @description The start time of the evaluation in ISO format
+             */
+            start_time: string;
+            /**
+             * End Time
+             * Format: date-time
+             * @description The end time of the evaluation in ISO format
+             */
+            end_time: string;
+            /** @description The result of the evaluation */
+            result: components["schemas"]["ExperimentEvaluationResult"];
+            /**
+             * Error
+             * @description Optional error message if the evaluation encountered an error
+             */
+            error?: string | null;
+            /**
+             * Metadata
+             * @description Metadata for the evaluation
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Trace Id
+             * @description Optional trace ID for tracking
+             */
+            trace_id?: string | null;
+        };
+        /** UpsertExperimentEvaluationResponseBody */
+        UpsertExperimentEvaluationResponseBody: {
+            data: components["schemas"]["UpsertExperimentEvaluationResponseBodyData"];
+        };
+        /** UpsertExperimentEvaluationResponseBodyData */
+        UpsertExperimentEvaluationResponseBodyData: {
+            /**
+             * Id
+             * @description The ID of the upserted experiment evaluation
+             */
+            id: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -1193,6 +1689,275 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    list_annotation_configs_v1_annotation_configs_get: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination (base64-encoded annotation config ID) */
+                cursor?: string | null;
+                /** @description Maximum number of configs to return */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A list of annotation configurations with pagination information */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetAnnotationConfigsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_annotation_config_v1_annotation_configs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAnnotationConfigData"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateAnnotationConfigResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_annotation_config_by_name_or_id_v1_annotation_configs__config_identifier__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ID or name of the annotation configuration */
+                config_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetAnnotationConfigResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_annotation_config_v1_annotation_configs__config_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ID of the annotation configuration */
+                config_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAnnotationConfigData"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateAnnotationConfigResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_annotation_config_v1_annotation_configs__config_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ID of the annotation configuration */
+                config_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeleteAnnotationConfigResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listSpanAnnotationsBySpanIds: {
+        parameters: {
+            query: {
+                /** @description One or more span id to fetch annotations for */
+                span_ids: string[];
+                /** @description A cursor for pagination */
+                cursor?: string | null;
+                /** @description The maximum number of annotations to return in a single request */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpanAnnotationsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Project or spans not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid parameters */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
     listDatasets: {
         parameters: {
             query?: {
@@ -1854,6 +2619,159 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listExperimentRuns: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Experiment runs retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListExperimentRunsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Experiment not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    createExperimentRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateExperimentRunRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Experiment run created successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateExperimentRunResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Experiment or dataset example not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upsertExperimentEvaluation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpsertExperimentEvaluationRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpsertExperimentEvaluationResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Experiment run not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -1,4 +1,3 @@
-import React from "react";
 import { css } from "@emotion/react";
 
 import { Item, Picker, PickerProps } from "@arizeai/components";

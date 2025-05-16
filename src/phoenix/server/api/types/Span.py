@@ -1,11 +1,14 @@
 import json
 from asyncio import gather
+from collections import defaultdict
 from collections.abc import Mapping
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Iterable, Optional, cast
 
 import numpy as np
+import pandas as pd
 import strawberry
 from openinference.semconv.trace import SpanAttributes
 from strawberry import ID, UNSET
@@ -21,10 +24,15 @@ from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_output,
 )
 from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
+from phoenix.server.api.input_types.SpanAnnotationFilter import (
+    SpanAnnotationFilter,
+    satisfies_filter,
+)
 from phoenix.server.api.input_types.SpanAnnotationSort import (
     SpanAnnotationColumn,
     SpanAnnotationSort,
 )
+from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalMetrics
 from phoenix.server.api.types.Evaluation import DocumentEvaluation
 from phoenix.server.api.types.ExampleRevisionInterface import ExampleRevision
@@ -490,11 +498,16 @@ class Span(Node):
         self,
         info: Info[Context, None],
         sort: Optional[SpanAnnotationSort] = UNSET,
+        filter: Optional[SpanAnnotationFilter] = None,
     ) -> list[SpanAnnotation]:
         span_id = self.span_rowid
         annotations = await info.context.data_loaders.span_annotations.load(span_id)
         sort_key = SpanAnnotationColumn.name.value
         sort_descending = False
+        if filter:
+            annotations = [
+                annotation for annotation in annotations if satisfies_filter(annotation, filter)
+            ]
         if sort:
             sort_key = sort.col.value
             sort_descending = sort.dir is SortDir.desc
@@ -502,6 +515,71 @@ class Span(Node):
             key=lambda annotation: getattr(annotation, sort_key), reverse=sort_descending
         )
         return [to_gql_span_annotation(annotation) for annotation in annotations]
+
+    @strawberry.field(description=("Notes associated with the span."))  # type: ignore
+    async def span_notes(
+        self,
+        info: Info[Context, None],
+    ) -> list[SpanAnnotation]:
+        span_id = self.span_rowid
+        annotations = await info.context.data_loaders.span_annotations.load(span_id)
+        annotations = [annotation for annotation in annotations if annotation.name == "note"]
+        annotations.sort(key=lambda annotation: getattr(annotation, "created_at"), reverse=False)
+        return [to_gql_span_annotation(annotation) for annotation in annotations]
+
+    @strawberry.field(description="Summarizes each annotation (by name) associated with the span")  # type: ignore
+    async def span_annotation_summaries(
+        self,
+        info: Info[Context, None],
+        filter: Optional[SpanAnnotationFilter] = None,
+    ) -> list[AnnotationSummary]:
+        """
+        Retrieves and summarizes annotations associated with this span.
+
+        This method aggregates annotation data by name and label, calculating metrics
+        such as count of occurrences and sum of scores. The results are organized
+        into a structured format that can be easily converted to a DataFrame.
+
+        Args:
+            info: GraphQL context information
+            filter: Optional filter to apply to annotations before processing
+
+        Returns:
+            A list of AnnotationSummary objects, each containing:
+            - name: The name of the annotation
+            - data: A list of dictionaries with label statistics
+        """
+        # Load all annotations for this span from the data loader
+        annotations = await info.context.data_loaders.span_annotations.load(self.span_rowid)
+
+        # Apply filter if provided to narrow down the annotations
+        if filter:
+            annotations = [
+                annotation for annotation in annotations if satisfies_filter(annotation, filter)
+            ]
+
+        @dataclass
+        class Metrics:
+            record_count: int = 0
+            label_count: int = 0
+            score_sum: float = 0
+            score_count: int = 0
+
+        summaries: defaultdict[str, defaultdict[Optional[str], Metrics]] = defaultdict(
+            lambda: defaultdict(Metrics)
+        )
+        for annotation in annotations:
+            metrics = summaries[annotation.name][annotation.label]
+            metrics.record_count += 1
+            metrics.label_count += int(annotation.label is not None)
+            metrics.score_sum += annotation.score or 0
+            metrics.score_count += int(annotation.score is not None)
+
+        result: list[AnnotationSummary] = []
+        for name, label_metrics in summaries.items():
+            rows = [{"label": label, **asdict(metrics)} for label, metrics in label_metrics.items()]
+            result.append(AnnotationSummary(name=name, df=pd.DataFrame(rows), simple_avg=True))
+        return result
 
     @strawberry.field(
         description="Evaluations of the documents associated with the span, e.g. "

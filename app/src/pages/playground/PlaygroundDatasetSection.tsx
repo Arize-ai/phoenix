@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate } from "react-router";
 

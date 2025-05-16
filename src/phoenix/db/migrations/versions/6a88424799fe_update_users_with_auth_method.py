@@ -16,7 +16,7 @@ This approach allows us to:
 - Remove legacy constraints
 
 Revision ID: 6a88424799fe
-Revises: bc8fea3c2bc8
+Revises: 8a3764fe7f1a
 Create Date: 2025-05-01 08:08:22.700715
 
 """
@@ -28,7 +28,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "6a88424799fe"
-down_revision: Union[str, None] = "bc8fea3c2bc8"
+down_revision: Union[str, None] = "8a3764fe7f1a"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

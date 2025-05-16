@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-mcp",
-  "version": "2.1.2",
+  "version": "2.1.5",
   "description": "A MCP server for Arize Phoenix",
   "bin": {
     "@arizeai/phoenix-mcp": "./build/index.js"

@@ -1,9 +1,4 @@
-import React, {
-  startTransition,
-  useDeferredValue,
-  useEffect,
-  useState,
-} from "react";
+import { startTransition, useDeferredValue, useEffect, useState } from "react";
 import { useParams } from "react-router";
 import {
   autocompletion,

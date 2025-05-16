@@ -1,5 +1,3 @@
-import React from "react";
-
 import { ExternalLink, Heading, Text, View } from "@phoenix/components";
 import { IsAdmin, IsAuthenticated } from "@phoenix/components/auth";
 import { CodeWrap } from "@phoenix/components/code/CodeWrap";

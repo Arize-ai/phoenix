@@ -1,9 +1,4 @@
-import React, {
-  ReactNode,
-  startTransition,
-  useCallback,
-  useState,
-} from "react";
+import { ReactNode, startTransition, useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import { Dialog, DialogContainer } from "@arizeai/components";
@@ -52,6 +47,7 @@ export function SpanAnnotationActionMenu(props: SpanAnnotationActionMenuProps) {
             node(id: $spanId) {
               ... on Span {
                 ...SpanAnnotationsEditor_spanAnnotations
+                ...SpanFeedback_annotations
               }
             }
           }

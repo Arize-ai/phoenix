@@ -1,5 +1,6 @@
-import React, {
+import {
   startTransition,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -93,7 +94,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
     () => data.datasets.edges.map((edge) => edge.node),
     [data]
   );
-  const fetchMoreOnBottomReached = React.useCallback(
+  const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
         const { scrollHeight, scrollTop, clientHeight } = containerRefElement;

@@ -1,4 +1,4 @@
-import React, { ChangeEvent } from "react";
+import { ChangeEvent } from "react";
 import { css } from "@emotion/react";
 
 import { Shape, ShapeIcon } from "./ShapeIcon";

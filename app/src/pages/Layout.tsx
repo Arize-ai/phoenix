@@ -1,4 +1,4 @@
-import React, { Suspense, useCallback, useMemo } from "react";
+import { Suspense, useCallback, useMemo } from "react";
 import { Outlet, useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
@@ -14,6 +14,7 @@ import {
   TopNavbar,
 } from "@phoenix/components/nav";
 import { useNotifyError } from "@phoenix/contexts";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
@@ -74,6 +75,7 @@ export function Layout() {
 }
 
 function SideNav() {
+  const isDashboardsEnabled = useFeatureFlag("dashboards");
   const hasInferences = useMemo(() => {
     return window.Config.hasInferences;
   }, []);
@@ -99,7 +101,7 @@ function SideNav() {
       <Flex direction="column" justifyContent="space-between" flex="1 1 auto">
         <ul css={sideLinksCSS}>
           {hasInferences && (
-            <li>
+            <li key="model">
               <NavLink
                 to="/model"
                 text="Model"
@@ -114,28 +116,37 @@ function SideNav() {
               leadingVisual={<Icon svg={<Icons.GridOutline />} />}
             />
           </li>
-          <li>
+          {isDashboardsEnabled && (
+            <li key="dashboards">
+              <NavLink
+                to="/dashboards"
+                text="Dashboards"
+                leadingVisual={<Icon svg={<Icons.BarChartOutline />} />}
+              />
+            </li>
+          )}
+          <li key="datasets">
             <NavLink
               to="/datasets"
               text="Datasets"
               leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
             />
           </li>
-          <li>
+          <li key="playground">
             <NavLink
               to="/playground"
               text="Playground"
               leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
             />
           </li>
-          <li>
+          <li key="prompts">
             <NavLink
               to="/prompts"
               text="Prompts"
               leadingVisual={<Icon svg={<Icons.MessageSquareOutline />} />}
             />
           </li>
-          <li>
+          <li key="apis">
             <NavLink
               to="/apis"
               text="APIs"
@@ -144,36 +155,36 @@ function SideNav() {
           </li>
         </ul>
         <ul css={bottomLinksCSS}>
-          <li>
+          <li key="settings">
             <NavLink
               to="/settings/general"
               text="Settings"
               leadingVisual={<Icon svg={<Icons.SettingsOutline />} />}
             />
           </li>
-          <li>
+          <li key="docs">
             <DocsLink />
           </li>
-          <li>
+          <li key="support">
             <NavLink
               to="/support"
               text="Support"
               leadingVisual={<Icon svg={<Icons.LifeBuoy />} />}
             />
           </li>
-          <li>
+          <li key="theme-toggle">
             <ThemeToggle />
           </li>
           {authenticationEnabled && (
             <>
-              <li>
+              <li key="profile">
                 <NavLink
                   to="/profile"
                   text="Profile"
                   leadingVisual={<Icon svg={<Icons.PersonOutline />} />}
                 />
               </li>
-              <li>
+              <li key="logout">
                 <NavButton
                   text="Log Out"
                   leadingVisual={<Icon svg={<Icons.LogOut />} />}

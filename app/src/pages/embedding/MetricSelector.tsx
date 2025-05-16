@@ -1,4 +1,4 @@
-import React, { Key, useCallback, useTransition } from "react";
+import { Key, useCallback, useTransition } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import {

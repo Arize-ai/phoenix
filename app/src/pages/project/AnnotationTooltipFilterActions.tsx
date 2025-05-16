@@ -1,15 +1,16 @@
-import React, { PropsWithChildren, useMemo } from "react";
+import { useMemo } from "react";
 import { css } from "@emotion/react";
 
-import { Text, View } from "@phoenix/components";
+import { Token } from "@phoenix/components";
 
 import { useSpanFilterCondition } from "./SpanFilterConditionContext";
 
 type AnnotationTooltipFilterActionsProps = {
+  className?: string;
   annotation: {
     name: string;
-    label: string | null;
-    score: number | null;
+    label?: string | null;
+    score?: number | null;
   };
 };
 
@@ -28,100 +29,64 @@ export function AnnotationTooltipFilterActions(
   props: AnnotationTooltipFilterActionsProps
 ) {
   const { appendFilterCondition } = useSpanFilterCondition();
-  const { annotation } = props;
+  const { annotation, className } = props;
   const { name, label, score } = annotation;
 
   const filters = useMemo(() => {
     const filters: FilterDefinition[] = [];
-    if (label != null) {
-      filters.push({
-        filterName: "Match label",
-        filterCondition: `annotations['${name}'].label == "${label}"`,
-      });
-      filters.push({
-        filterName: "Exclude label",
-        filterCondition: `annotations['${name}'].label != "${label}"`,
-      });
-    }
     if (typeof score === "number") {
       filters.push({
-        filterName: "Greater than score",
+        filterName: "greater than",
         filterCondition: `annotations['${name}'].score > ${score}`,
       });
       filters.push({
-        filterName: "Less than score",
+        filterName: "less than",
         filterCondition: `annotations['${name}'].score < ${score}`,
       });
       filters.push({
-        filterName: "Equals score",
+        filterName: "equals",
         filterCondition: `annotations['${name}'].score == ${score}`,
+      });
+    } else if (label != null) {
+      filters.push({
+        filterName: "match",
+        filterCondition: `annotations['${name}'].label == "${label}"`,
+      });
+      filters.push({
+        filterName: "exclude",
+        filterCondition: `annotations['${name}'].label != "${label}"`,
       });
     }
     return filters;
   }, [name, label, score]);
-  return (
-    <View
-      borderStartWidth="thin"
-      borderColor="dark"
-      paddingStart="size-200"
-      paddingEnd="size-100"
-      marginStart="size-200"
-      width={300}
-    >
-      <Text weight="heavy">Filters</Text>
 
-      <ul
-        css={css`
-          display: flex;
-          flex-direction: row;
-          gap: var(--ac-global-dimension-size-100);
-          color: var(--ac-global-color-primary);
-          padding: var(--ac-global-dimension-size-100) 0;
-          flex-wrap: wrap;
-        `}
-      >
-        {filters.map((filter) => (
-          <li key={filter.filterName}>
-            <FilterItem
-              onClick={() => {
-                appendFilterCondition(filter.filterCondition);
-              }}
-            >
-              {filter.filterName}
-            </FilterItem>
-          </li>
-        ))}
-      </ul>
-    </View>
-  );
-}
+  if (filters.length === 0) {
+    return null;
+  }
 
-function FilterItem({
-  onClick,
-  children,
-}: PropsWithChildren<{ onClick: () => void }>) {
   return (
-    <button
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onClick();
-      }}
-      className="button--reset"
+    <ul
+      className={className}
       css={css`
-        color: var(--ac-global-text-color-900);
-        border: 1px solid var(--ac-global-color-grey-300);
-        border-radius: 4px;
-        padding: var(--ac-global-dimension-size-50)
-          var(--ac-global-dimension-size-100);
-        cursor: pointer;
-        transition: background-color 0.2s;
-        &:hover {
-          background-color: var(--ac-global-color-gray-300);
-        }
+        display: flex;
+        height: 100%;
+        flex-direction: row;
+        gap: var(--ac-global-dimension-size-100);
+
+        flex-wrap: wrap;
       `}
     >
-      {children}
-    </button>
+      {filters.map((filter) => (
+        <li key={filter.filterName}>
+          <Token
+            onPress={() => {
+              appendFilterCondition(filter.filterCondition);
+            }}
+          >
+            {filter.filterName}
+          </Token>
+        </li>
+      ))}
+    </ul>
   );
 }

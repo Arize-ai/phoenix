@@ -1,4 +1,4 @@
-import React from "react";
+import { useMemo } from "react";
 
 import { MetadataLabel } from "@phoenix/pages/project/MetadataLabel";
 import {
@@ -17,7 +17,7 @@ export const MetadataTableCell = ({ metadata }: MetadataTableCellProps) => {
 
   // Try to parse the metadata and stringify it
   // This is intended to work with object metadata but will technically work for arrays as well
-  const [parsedMetadata, stringifiedMetadata] = React.useMemo(() => {
+  const [parsedMetadata, stringifiedMetadata] = useMemo(() => {
     try {
       if (typeof metadata !== "string") {
         throw new Error("Metadata is not a string");

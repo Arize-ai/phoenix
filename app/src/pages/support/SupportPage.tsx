@@ -1,4 +1,4 @@
-import React, { ReactNode } from "react";
+import { ReactNode } from "react";
 import { css } from "@emotion/react";
 
 import { Flex, Heading, Icon, Icons, Text, View } from "@phoenix/components";

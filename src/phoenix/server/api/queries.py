@@ -19,6 +19,7 @@ from phoenix.config import (
     getenv,
 )
 from phoenix.db import enums, models
+from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.helpers import SupportedSQLDialect, exclude_experiment_projects
 from phoenix.db.models import DatasetExample as OrmExample
 from phoenix.db.models import DatasetExampleRevision as OrmRevision
@@ -42,6 +43,9 @@ from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.input_types.Coordinates import InputCoordinate2D, InputCoordinate3D
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
+from phoenix.server.api.input_types.ProjectFilter import ProjectFilter
+from phoenix.server.api.input_types.ProjectSort import ProjectColumn, ProjectSort
+from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -65,14 +69,17 @@ from phoenix.server.api.types.node import from_global_id, from_global_id_with_ex
 from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
+from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
 from phoenix.server.api.types.Prompt import Prompt, to_gql_prompt_from_orm
 from phoenix.server.api.types.PromptLabel import PromptLabel, to_gql_prompt_label
 from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version
 from phoenix.server.api.types.PromptVersionTag import PromptVersionTag, to_gql_prompt_version_tag
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span
+from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_annotation
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
 from phoenix.server.api.types.Trace import Trace
+from phoenix.server.api.types.TraceAnnotation import TraceAnnotation, to_gql_trace_annotation
 from phoenix.server.api.types.User import User, to_gql_user
 from phoenix.server.api.types.UserApiKey import UserApiKey, to_gql_api_key
 from phoenix.server.api.types.UserRole import UserRole
@@ -225,6 +232,8 @@ class Query:
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        sort: Optional[ProjectSort] = UNSET,
+        filter: Optional[ProjectFilter] = UNSET,
     ) -> Connection[Project]:
         args = ConnectionArgs(
             first=first,
@@ -232,7 +241,25 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        stmt = select(models.Project).order_by(models.Project.id)
+        stmt = select(models.Project)
+
+        if sort and sort.col is ProjectColumn.endTime:
+            # For end time sorting, we need to use a correlated subquery
+            # The end_time comes from the Trace model, and we need to get the max end_time for
+            # each project
+            end_time_subq = (
+                select(func.max(models.Trace.end_time))
+                .where(models.Trace.project_rowid == models.Project.id)
+                .scalar_subquery()
+            )
+            stmt = stmt.order_by(
+                end_time_subq.desc() if sort.dir is SortDir.desc else end_time_subq.asc()
+            )
+        elif sort:
+            sort_col = getattr(models.Project, sort.col.value)
+            stmt = stmt.order_by(sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc())
+        if filter:
+            stmt = stmt.where(getattr(models.Project, filter.col.value).ilike(f"%{filter.value}%"))
         stmt = exclude_experiment_projects(stmt)
         async with info.context.db() as session:
             projects = await session.stream_scalars(stmt)
@@ -588,6 +615,26 @@ class Query:
                 if not (prompt_version_tag := await session.get(models.PromptVersionTag, node_id)):
                     raise NotFound(f"Unknown prompt version tag: {id}")
             return to_gql_prompt_version_tag(prompt_version_tag)
+        elif type_name == ProjectTraceRetentionPolicy.__name__:
+            async with info.context.db() as session:
+                db_policy = await session.scalar(
+                    select(models.ProjectTraceRetentionPolicy).filter_by(id=node_id)
+                )
+                if not db_policy:
+                    raise NotFound(f"Unknown project trace retention policy: {id}")
+            return ProjectTraceRetentionPolicy(id=db_policy.id, db_policy=db_policy)
+        elif type_name == SpanAnnotation.__name__:
+            async with info.context.db() as session:
+                span_annotation = await session.get(models.SpanAnnotation, node_id)
+                if not span_annotation:
+                    raise NotFound(f"Unknown span annotation: {id}")
+            return to_gql_span_annotation(span_annotation)
+        elif type_name == TraceAnnotation.__name__:
+            async with info.context.db() as session:
+                trace_annotation = await session.get(models.TraceAnnotation, node_id)
+                if not trace_annotation:
+                    raise NotFound(f"Unknown trace annotation: {id}")
+            return to_gql_trace_annotation(trace_annotation)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field
@@ -656,6 +703,28 @@ class Query:
                 data=data,
                 args=args,
             )
+
+    @strawberry.field
+    async def annotation_configs(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = None,
+        after: Optional[str] = None,
+        before: Optional[str] = None,
+    ) -> Connection[AnnotationConfig]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        async with info.context.db() as session:
+            configs = await session.stream_scalars(
+                select(models.AnnotationConfig).order_by(models.AnnotationConfig.name)
+            )
+            data = [to_gql_annotation_config(config) async for config in configs]
+            return connection_from_list(data=data, args=args)
 
     @strawberry.field
     def clusters(
@@ -784,6 +853,45 @@ class Query:
         return to_gql_clusters(
             clustered_events=clustered_events,
         )
+
+    @strawberry.field
+    async def default_project_trace_retention_policy(
+        self,
+        info: Info[Context, None],
+    ) -> ProjectTraceRetentionPolicy:
+        stmt = select(models.ProjectTraceRetentionPolicy).filter_by(
+            id=DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
+        )
+        async with info.context.db() as session:
+            db_policy = await session.scalar(stmt)
+        assert db_policy
+        return ProjectTraceRetentionPolicy(id=db_policy.id, db_policy=db_policy)
+
+    @strawberry.field
+    async def project_trace_retention_policies(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 100,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[ProjectTraceRetentionPolicy]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        stmt = select(models.ProjectTraceRetentionPolicy).order_by(
+            models.ProjectTraceRetentionPolicy.id
+        )
+        async with info.context.db() as session:
+            result = await session.stream_scalars(stmt)
+            data = [
+                ProjectTraceRetentionPolicy(id=db_policy.id, db_policy=db_policy)
+                async for db_policy in result
+            ]
+        return connection_from_list(data=data, args=args)
 
     @strawberry.field(
         description="The allocated storage capacity of the database in bytes. "

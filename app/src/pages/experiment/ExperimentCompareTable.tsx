@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import {
   CellContext,
   ColumnDef,
@@ -56,6 +56,7 @@ import {
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
@@ -133,6 +134,7 @@ const annotationTooltipExtraCSS = css`
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const { datasetId, experimentIds, displayFullText } = props;
   const [filterCondition, setFilterCondition] = useState("");
+  const [, setSearchParams] = useSearchParams();
 
   const data = useLazyLoadQuery<ExperimentCompareTableQuery>(
     graphql`
@@ -525,6 +527,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
             type="slideOver"
             onDismiss={() => {
               setDialog(null);
+              setSearchParams((searchParams) => {
+                searchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+                return searchParams;
+              });
             }}
           >
             {dialog}

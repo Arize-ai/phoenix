@@ -1,4 +1,4 @@
-import React, { forwardRef, Ref } from "react";
+import { forwardRef, Ref } from "react";
 import {
   SearchField as AriaSearchField,
   SearchFieldProps as AriaSearchFieldProps,

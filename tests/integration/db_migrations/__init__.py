@@ -2,15 +2,16 @@ from __future__ import annotations
 
 import os
 import re
-from dataclasses import dataclass
-from typing import Literal, Optional
+from typing import Literal, Optional, TypedDict
 
 import pytest
 from alembic import command
 from alembic.config import Config
 from phoenix.config import ENV_PHOENIX_SQL_DATABASE_SCHEMA, get_env_database_schema
 from sqlalchemy import Connection, Engine, Row, text
-from typing_extensions import assert_never
+from typing_extensions import TypeAlias, assert_never
+
+_DBBackend: TypeAlias = Literal["sqlite", "postgresql"]
 
 
 def _up(engine: Engine, alembic_config: Config, revision: str) -> None:
@@ -18,7 +19,8 @@ def _up(engine: Engine, alembic_config: Config, revision: str) -> None:
         alembic_config.attributes["connection"] = conn
         command.upgrade(alembic_config, revision)
     engine.dispose()
-    assert _version_num(engine) == (revision,)
+    actual = _version_num(engine)
+    assert actual == (revision,)
 
 
 def _down(engine: Engine, alembic_config: Config, revision: str) -> None:
@@ -40,8 +42,7 @@ def _version_num(engine: Engine) -> Optional[Row[tuple[str]]]:
         return conn.execute(stmt).first()
 
 
-@dataclass(frozen=True)
-class _TableSchemaInfo:
+class _TableSchemaInfo(TypedDict):
     """Schema information for a database table.
 
     This class encapsulates all schema-related information for a database table,
@@ -65,7 +66,7 @@ def _get_table_schema_info(
     conn: Connection,
     table_name: str,
     db_backend: Literal["sqlite", "postgresql"],
-) -> _TableSchemaInfo:
+) -> Optional[_TableSchemaInfo]:
     """Get schema information for a database table.
 
     Retrieves comprehensive schema information for a table, including its columns,
@@ -88,14 +89,32 @@ def _get_table_schema_info(
         db_backend: Type of database backend ('sqlite' or 'postgresql')
 
     Returns:
-        _TableSchemaInfo object containing all schema information for the table
+        _TableSchemaInfo object containing all schema information for the table, or None if the table doesn't exist
 
     Raises:
         sqlalchemy.exc.SQLAlchemyError: If database queries fail
         AssertionError: If table definition parsing fails
-    """
+    """  # noqa: E501
     if db_backend == "postgresql":
         assert (schema := get_env_database_schema())
+        # Check if table exists
+        table_exists = conn.execute(
+            text(
+                """
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM pg_class c
+                    JOIN pg_namespace n ON n.oid = c.relnamespace
+                    WHERE c.relname = :table_name
+                    AND n.nspname = :schema
+                )
+                """
+            ),
+            {"table_name": table_name, "schema": schema},
+        ).scalar_one()
+        if not table_exists:
+            return None
+
         # Get column names
         columns_result = conn.execute(
             text(
@@ -149,6 +168,21 @@ def _get_table_schema_info(
         ).fetchall()
         constraint_names = {con[0] for con in constraints_result}
     elif db_backend == "sqlite":
+        # Check if table exists
+        table_exists = conn.execute(
+            text(
+                """
+                SELECT EXISTS (
+                    SELECT 1 FROM sqlite_master
+                    WHERE type = 'table' AND name = :table_name
+                )
+                """
+            ),
+            {"table_name": table_name},
+        ).scalar_one()
+        if not table_exists:
+            return None
+
         # Get column names and primary key info
         columns_result = conn.execute(text(f"PRAGMA table_info({table_name})")).fetchall()
         column_names = {col[1] for col in columns_result}
@@ -207,82 +241,6 @@ def _get_table_schema_info(
     )
 
 
-def _verify_table_schema_info(
-    initial_info: _TableSchemaInfo,
-    final_info: _TableSchemaInfo,
-    context: str = "migration roundtrip",
-) -> None:
-    """Verify that schema information matches between two states.
-
-    Compares schema information before and after a migration to ensure that:
-    1. The table names match exactly
-    2. The column names match exactly
-    3. The index names match exactly
-    4. The constraint names match exactly
-
-    If any differences are found, detailed error messages are printed showing:
-    - The initial and final states
-    - Any extra elements in the final state
-    - Any missing elements in the final state
-
-    Args:
-        initial_info: Schema information from the initial state
-        final_info: Schema information from the final state to verify
-        context: Context string for error messages (e.g., "migration roundtrip", "upgrade", etc.)
-
-    Raises:
-        AssertionError: If any schema elements don't match between initial and final states
-    """
-    assert (
-        initial_info.table_name == final_info.table_name
-    ), f"Table name mismatch: initial={initial_info.table_name}, final={final_info.table_name}"
-
-    # Verify column names
-    if final_info.column_names != initial_info.column_names:
-        print(f"\nColumn name mismatch in {final_info.table_name}:")
-        print(f"Initial columns: {sorted(initial_info.column_names)}")
-        print(f"Final columns: {sorted(final_info.column_names)}")
-        print("Extra columns:", sorted(final_info.column_names - initial_info.column_names))
-        print("Missing columns:", sorted(initial_info.column_names - final_info.column_names))
-    assert final_info.column_names == initial_info.column_names, (
-        f"Column name mismatch after {context} in {final_info.table_name}. "
-        f"Extra columns: {sorted(final_info.column_names - initial_info.column_names)}, "
-        f"Missing columns: {sorted(initial_info.column_names - final_info.column_names)}"
-    )
-
-    # Verify index names
-    if final_info.index_names != initial_info.index_names:
-        print(f"\nIndex name mismatch in {final_info.table_name}:")
-        print(f"Initial indices: {sorted(initial_info.index_names)}")
-        print(f"Final indices: {sorted(final_info.index_names)}")
-        print("Extra indices:", sorted(final_info.index_names - initial_info.index_names))
-        print("Missing indices:", sorted(initial_info.index_names - final_info.index_names))
-    assert final_info.index_names == initial_info.index_names, (
-        f"Index name mismatch after {context} in {final_info.table_name}. "
-        f"Extra indices: {sorted(final_info.index_names - initial_info.index_names)}, "
-        f"Missing indices: {sorted(initial_info.index_names - final_info.index_names)}"
-    )
-
-    # Verify constraint names
-    if final_info.constraint_names != initial_info.constraint_names:
-        print(f"\nConstraint name mismatch in {final_info.table_name}:")
-        print(f"Initial constraints: {sorted(initial_info.constraint_names)}")
-        print(f"Final constraints: {sorted(final_info.constraint_names)}")
-        print(
-            "Extra constraints:",
-            sorted(final_info.constraint_names - initial_info.constraint_names),
-        )
-        print(
-            "Missing constraints:",
-            sorted(initial_info.constraint_names - final_info.constraint_names),
-        )
-    assert final_info.constraint_names == initial_info.constraint_names, (
-        f"Constraint name mismatch after {context} in {final_info.table_name}. "
-        f"Extra constraints: {sorted(final_info.constraint_names - initial_info.constraint_names)}, "  # noqa: E501
-        f"Missing constraints: {sorted(initial_info.constraint_names - final_info.constraint_names)}"  # noqa: E501
-    )
-
-
 def _verify_clean_state(engine: Engine) -> None:
     """Verify that the database is in a clean state before running migrations.
 
@@ -295,7 +253,7 @@ def _verify_clean_state(engine: Engine) -> None:
 
     Raises:
         AssertionError: If the database is not in a clean state (i.e., if the
-                       alembic_version table exists)
+            alembic_version table exists)
     """
     with pytest.raises(BaseException, match="alembic_version"):
         _version_num(engine)

@@ -1,4 +1,3 @@
-import React from "react";
 import { Heading } from "react-aria-components";
 import { graphql, useFragment } from "react-relay";
 

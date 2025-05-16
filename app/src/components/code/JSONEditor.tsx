@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { defaultKeymap } from "@codemirror/commands";
 import { json, jsonLanguage, jsonParseLinter } from "@codemirror/lang-json";
 import { linter } from "@codemirror/lint";

@@ -1,4 +1,3 @@
-import React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
@@ -106,14 +105,8 @@ export function SessionDetails(props: SessionDetailsProps) {
                     cumulativeTokenCountPrompt
                     latencyMs
                     startTime
-                    spanAnnotations {
-                      name
-                      label
-                      score
-                      explanation
-                      annotatorKind
-                    }
                     spanId
+                    ...AnnotationSummaryGroup
                   }
                 }
               }

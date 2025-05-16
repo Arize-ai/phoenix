@@ -1,5 +1,4 @@
 /* eslint-disable deprecate/import */
-import React from "react";
 import { Meta } from "@storybook/react";
 import { css } from "@emotion/react";
 

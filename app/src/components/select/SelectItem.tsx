@@ -1,4 +1,4 @@
-import React, { forwardRef, ReactNode } from "react";
+import { forwardRef, ReactNode } from "react";
 import { ListBoxItem, ListBoxItemProps } from "react-aria-components";
 
 import { Flex, Icon, Icons } from "@phoenix/components";

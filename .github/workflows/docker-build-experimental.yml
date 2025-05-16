@@ -1,5 +1,6 @@
 name: Publish experimental Docker image
-
+permissions:
+  contents: read
 on:
   push:
     branches:
@@ -11,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        variant: [root, nonroot, debug]
+        variant: [debug]
     permissions:
       packages: write
       contents: read
