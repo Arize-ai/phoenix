@@ -264,8 +264,6 @@ redirect to the IDP and the invocation of the callback URL during the OAuth2
 authorization code flow.
 """
 
-"""The default path for Phoenix cookies."""
-
 class Token(str): ...
 
 

@@ -566,7 +566,7 @@ class Query:
                     raise NotFound(f"Unknown experiment run: {id}")
             return to_gql_experiment_run(run)
         elif type_name == User.__name__:
-            if int((user := info.context.user).identity) != node_id and not user.is_admin and False:
+            if int((user := info.context.user).identity) != node_id and not user.is_admin:
                 raise Unauthorized(MSG_ADMIN_ONLY)
             async with info.context.db() as session:
                 if not (
