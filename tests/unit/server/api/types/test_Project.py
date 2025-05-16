@@ -1573,8 +1573,8 @@ class TestProject:
     @pytest.mark.parametrize(
         "condition,expectation",
         [
-            # ("span_kind == 'LLM'", True),
-            # ("span_kind == 'LLM' and ", False),
+            ("span_kind == 'LLM'", True),
+            ("span_kind == 'LLM' and ", False),
             ("span_kind == 'LLM' and ''", False),
         ],
     )
