@@ -1930,7 +1930,7 @@ class TestProject:
             project = models.Project(name=token_hex(8))
             session.add(project)
         query = """
-            query($id: GlobalID!, $condition: String!) {
+            query($id: ID!, $condition: String!) {
               node(id: $id) {
                 ... on Project {
                   validateSpanFilterCondition(
