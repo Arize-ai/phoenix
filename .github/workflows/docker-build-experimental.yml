@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - feat/version-10
+      - span-query-optimization
+      - feat/openid-only
 
 jobs:
   push_to_registry:
