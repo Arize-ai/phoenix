@@ -560,9 +560,9 @@ class Project(Node):
             stmt = span_filter(select(models.Span))
             dialect = info.context.db.dialect
             if dialect is SupportedSQLDialect.POSTGRESQL:
-                str(stmt.compile(dialect=sqlite.dialect()))
+                str(stmt.compile(dialect=sqlite.dialect()))  # type: ignore[no-untyped-call]
             elif dialect is SupportedSQLDialect.SQLITE:
-                str(stmt.compile(dialect=postgresql.dialect()))
+                str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
             else:
                 assert_never(dialect)
             return ValidationResult(is_valid=True, error_message=None)
