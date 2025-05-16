@@ -1570,6 +1570,46 @@ class TestProject:
             assert [e["node"]["id"] for e in res["edges"]] == expected
             cursor = res["edges"][0]["cursor"]
 
+    @pytest.mark.parametrize(
+        "expectation,condition",
+        [
+            (True, "span_kind == 'LLM'"),
+            (False, "span_kind == 'LLM' and "),
+            (False, "span_kind == 'LLM' and ''"),
+        ],
+    )
+    async def test_validate_span_filter_condition(
+        self,
+        condition: str,
+        expectation: bool,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            project = models.Project(name=token_hex(8))
+            session.add(project)
+        query = """
+            query($id: GlobalID!, $condition: String!) {
+              node(id: $id) {
+                ... on Project {
+                  validateSpanFilterCondition(
+                    condition: $condition
+                  ) {
+                    isValid
+                  }
+                }
+              }
+            }
+        """
+        project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+        response = await gql_client.execute(
+            query=query,
+            variables={"id": project_gid, "condition": condition},
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        assert data["node"]["validateSpanFilterCondition"]["isValid"] == expectation
+
 
 @pytest.mark.parametrize(
     "sort_col, sort_dir, expected_order",
