@@ -303,16 +303,21 @@ async def _get_existing_oauth2_user(
     user_info: UserInfo,
 ) -> models.User:
     """
-    Signs in an existing user with OAuth2 credentials by looking up the user by email.
+    Signs in an existing user with OAuth2 credentials.
 
-    This function attempts to find a user with the provided email and verifies that:
-    1. The user exists
-    2. The user does not have a password set (password_hash is None)
-    3. The user has OAuth2 credentials set
-    4. The user's OAuth2 credentials match the provided ones, or are temporary placeholders
+    This function attempts to find a user in two ways:
+    1. First by OAuth2 credentials (client_id and user_id)
+    2. If not found, then by email
 
-    If the user has temporary OAuth2 credentials (prefixed with TBD_OAUTH2_CLIENT_ID_ or
-    TBD_OAUTH2_USER_ID_), these are updated with the actual credentials from the OAuth2 provider.
+    When found by OAuth2 credentials:
+    - Updates the user's email if it has changed from the IDP info
+
+    When found by email:
+    - Verifies the user is an OAuth2 user (no password set)
+    - Verifies either:
+        a) The user has no OAuth2 credentials set yet, or
+        b) The user's OAuth2 credentials match the provided ones
+    - Updates the user's OAuth2 credentials if they were not set
 
     Args:
         session: The database session
@@ -326,20 +331,29 @@ async def _get_existing_oauth2_user(
         SignInNotAllowed: When sign-in is not allowed for the user (user doesn't exist, has a
             password, or has mismatched OAuth2 credentials)
     """  # noqa: E501
-    email = user_info.email
-    stmt = select(models.User).filter_by(email=email).options(joinedload(models.User.role))
-    user = await session.scalar(stmt)
-    if (
-        user is None
-        or not isinstance(user, models.OAuth2User)
-        or (user.oauth2_client_id and user.oauth2_client_id != oauth2_client_id)
-        or (user.oauth2_user_id and user.oauth2_user_id != user_info.idp_user_id)
+    if user := await _get_user(
+        session,
+        oauth2_client_id=oauth2_client_id,
+        idp_user_id=user_info.idp_user_id,
     ):
-        raise SignInNotAllowed(f"Sign in is not allowed for {email}.")
-    if user.oauth2_client_id is None:
-        user.oauth2_client_id = oauth2_client_id
-    if user.oauth2_user_id is None:
-        user.oauth2_user_id = user_info.idp_user_id
+        if user.email != user_info.email:
+            user.email = user_info.email
+    else:
+        email = user_info.email
+        stmt = select(models.User).filter_by(email=email).options(joinedload(models.User.role))
+        user = await session.scalar(stmt)
+        if (
+            user is None
+            or not isinstance(user, models.OAuth2User)
+            or (
+                user.oauth2_client_id == oauth2_client_id
+                and user.oauth2_user_id != user_info.idp_user_id
+            )
+        ):
+            raise SignInNotAllowed("Sign in is not allowed.")
+        if user.oauth2_user_id is None or user.oauth2_client_id != oauth2_client_id:
+            user.oauth2_client_id = oauth2_client_id
+            user.oauth2_user_id = user_info.idp_user_id
     if user in session.dirty:
         await session.flush()
     return user

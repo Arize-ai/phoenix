@@ -1,9 +1,9 @@
 from secrets import token_hex
 from typing import Optional
 
-import httpx
 import pytest
 from sqlalchemy import insert, select
+from starlette.types import ASGIApp
 
 from phoenix.db import models
 from phoenix.server.api.routers.oauth2 import (
@@ -17,7 +17,7 @@ from phoenix.server.types import DbSessionFactory
 @pytest.mark.parametrize(
     "user,oauth2_client_id,user_info,allowed",
     [
-        # User with password hash cannot sign in with OAuth2
+        # User with password hash cannot sign in with OAuth2 (must use password auth)
         pytest.param(
             models.User(
                 user_role_id=1,
@@ -39,7 +39,7 @@ from phoenix.server.types import DbSessionFactory
             False,
             id="user_with_password_hash",
         ),
-        # User with matching OAuth2 credentials can sign in
+        # User with matching OAuth2 credentials can sign in (direct OAuth2 lookup)
         pytest.param(
             models.User(
                 user_role_id=1,
@@ -61,7 +61,8 @@ from phoenix.server.types import DbSessionFactory
             True,
             id="user_with_matching_oauth2_credentials",
         ),
-        # User with different OAuth2 client ID cannot sign in
+        # User with different OAuth2 client ID can sign in (found by email,
+        # credentials updated)
         pytest.param(
             models.User(
                 user_role_id=1,
@@ -80,10 +81,11 @@ from phoenix.server.types import DbSessionFactory
                 username=None,
                 profile_picture_url=None,
             ),
-            False,
+            True,
             id="user_with_different_oauth2_client_id",
         ),
-        # User with different OAuth2 user ID cannot sign in
+        # User with different OAuth2 user ID cannot sign in (client IDs match,
+        # user IDs must match)
         pytest.param(
             models.User(
                 user_role_id=1,
@@ -105,7 +107,8 @@ from phoenix.server.types import DbSessionFactory
             False,
             id="user_with_different_oauth2_user_id",
         ),
-        # User with placeholder OAuth2 client ID can sign in with any client ID
+        # User with missing OAuth2 client ID can sign in (found by email,
+        # credentials updated)
         pytest.param(
             models.User(
                 user_role_id=1,
@@ -125,9 +128,10 @@ from phoenix.server.types import DbSessionFactory
                 profile_picture_url=None,
             ),
             True,
-            id="user_with_placeholder_client_id",
+            id="user_with_missing_oauth2_client_id",
         ),
-        # User with placeholder OAuth2 user ID can sign in with any user ID
+        # User with missing OAuth2 user ID cannot sign in (client IDs match,
+        # user IDs required)
         pytest.param(
             models.User(
                 user_role_id=1,
@@ -146,10 +150,11 @@ from phoenix.server.types import DbSessionFactory
                 username=None,
                 profile_picture_url=None,
             ),
-            True,
-            id="user_with_placeholder_user_id",
+            False,
+            id="user_with_missing_oauth2_user_id",
         ),
-        # User with placeholder OAuth2 client ID but different user ID cannot sign in
+        # User with missing OAuth2 client ID but different user ID can sign in
+        # (found by email, all credentials updated)
         pytest.param(
             models.User(
                 user_role_id=1,
@@ -168,10 +173,11 @@ from phoenix.server.types import DbSessionFactory
                 username=None,
                 profile_picture_url=None,
             ),
-            False,
-            id="user_with_placeholder_client_id_and_different_user_id",
+            True,
+            id="user_with_missing_oauth2_client_id_and_different_user_id",
         ),
-        # User with placeholder OAuth2 user ID but different client ID cannot sign in
+        # User with missing OAuth2 user ID but different client ID can sign in
+        # (found by email, all credentials updated)
         pytest.param(
             models.User(
                 user_role_id=1,
@@ -190,10 +196,79 @@ from phoenix.server.types import DbSessionFactory
                 username=None,
                 profile_picture_url=None,
             ),
-            False,
-            id="user_with_placeholder_user_id_and_different_client_id",
+            True,
+            id="user_with_missing_oauth2_user_id_and_different_client_id",
         ),
-        # Non-existent user cannot sign in
+        # User found by email with no OAuth2 credentials can sign in
+        # (credentials will be set)
+        pytest.param(
+            models.User(
+                user_role_id=1,
+                username=token_hex(8),
+                password_hash=None,
+                password_salt=None,
+                reset_password=False,
+                oauth2_client_id=None,
+                oauth2_user_id=None,
+                auth_method="OAUTH2",
+            ),
+            "123456789012-abcdef.apps.googleusercontent.com",
+            UserInfo(
+                idp_user_id="118234567890123456789",
+                email=f"{token_hex(8)}@example.com",
+                username=None,
+                profile_picture_url=None,
+            ),
+            True,
+            id="user_found_by_email_no_oauth2_credentials",
+        ),
+        # User found by email with matching OAuth2 credentials can sign in
+        # (no updates needed)
+        pytest.param(
+            models.User(
+                user_role_id=1,
+                username=token_hex(8),
+                password_hash=None,
+                password_salt=None,
+                reset_password=False,
+                oauth2_client_id="123456789012-abcdef.apps.googleusercontent.com",
+                oauth2_user_id="118234567890123456789",
+                auth_method="OAUTH2",
+            ),
+            "123456789012-abcdef.apps.googleusercontent.com",
+            UserInfo(
+                idp_user_id="118234567890123456789",
+                email=f"{token_hex(8)}@example.com",
+                username=None,
+                profile_picture_url=None,
+            ),
+            True,
+            id="user_found_by_email_matching_oauth2_credentials",
+        ),
+        # User found by email with different OAuth2 credentials can sign in
+        # (credentials will be updated)
+        pytest.param(
+            models.User(
+                user_role_id=1,
+                username=token_hex(8),
+                password_hash=None,
+                password_salt=None,
+                reset_password=False,
+                oauth2_client_id="987654321098-xyzdef.apps.googleusercontent.com",
+                oauth2_user_id="118234567890987654321",
+                auth_method="OAUTH2",
+            ),
+            "123456789012-abcdef.apps.googleusercontent.com",
+            UserInfo(
+                idp_user_id="118234567890123456789",
+                email=f"{token_hex(8)}@example.com",
+                username=None,
+                profile_picture_url=None,
+            ),
+            True,
+            id="user_found_by_email_different_oauth2_credentials",
+        ),
+        # Non-existent user cannot sign in (no user found by OAuth2 or email)
         pytest.param(
             None,
             "123456789012-abcdef.apps.googleusercontent.com",
@@ -209,7 +284,7 @@ from phoenix.server.types import DbSessionFactory
     ],
 )
 async def test_get_existing_oauth2_user(
-    httpx_client: httpx.AsyncClient,  # include this fixture to initialize the app
+    app: ASGIApp,
     db: DbSessionFactory,
     user: Optional[models.User],
     oauth2_client_id: str,
