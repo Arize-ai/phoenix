@@ -23,6 +23,7 @@ from phoenix.auth import (
     validate_email_format,
     validate_password_format,
 )
+from phoenix.config import get_env_enforce_oauth2, get_env_oauth2_settings
 from phoenix.db import enums, models
 from phoenix.server.api.auth import IsAdmin, IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
@@ -40,7 +41,7 @@ logger = logging.getLogger(__name__)
 class CreateUserInput:
     email: str
     username: str
-    password: str
+    password: Optional[str] = UNSET
     role: UserRoleInput
     send_welcome_email: Optional[bool] = False
 
@@ -93,15 +94,29 @@ class UserMutationMixin:
         input: CreateUserInput,
     ) -> UserMutationPayload:
         validate_email_format(email := input.email)
-        validate_password_format(password := input.password)
-        salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
-        password_hash = await info.context.hash_password(password, salt)
+        password_hash = None
+        salt = None
+        oauth2_client_id = None
+        reset_password = True
+        if not input.password:
+            oauth2_enforced = get_env_enforce_oauth2()
+            # If oauth2 is enforced, username and password are not required
+            if not oauth2_enforced:
+                raise ValueError("Username and password fields must be set if oauth2 is not enforced")
+            oauth2_clients = get_env_oauth2_settings()
+            oauth2_client_id = oauth2_clients[0].client_id
+            reset_password = False
+        else:
+            validate_password_format(password := input.password)
+            salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
+            password_hash = await info.context.hash_password(password, salt)
         user = models.User(
-            reset_password=True,
+            reset_password=reset_password,
             username=input.username,
             email=email,
             password_hash=password_hash,
             password_salt=salt,
+            oauth2_client_id=oauth2_client_id,
         )
         async with AsyncExitStack() as stack:
             session = await stack.enter_async_context(info.context.db())

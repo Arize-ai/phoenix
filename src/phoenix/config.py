@@ -139,6 +139,7 @@ ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT = (
 # Authentication settings
 ENV_PHOENIX_ENABLE_AUTH = "PHOENIX_ENABLE_AUTH"
 ENV_PHOENIX_ENFORCE_OAUTH2 = "PHOENIX_OAUTH2_ENFORCE"
+ENV_PHOENIX_ENABLE_OAUTH2_JIT = "PHOENIX_ENABLE_OAUTH2_JIT"
 ENV_PHOENIX_DISABLE_RATE_LIMIT = "PHOENIX_DISABLE_RATE_LIMIT"
 ENV_PHOENIX_SECRET = "PHOENIX_SECRET"
 """
@@ -161,6 +162,7 @@ be updated manually in the application.
 """
 ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY"
 ENV_PHOENIX_USE_SECURE_COOKIES = "PHOENIX_USE_SECURE_COOKIES"
+ENV_PHOENIX_COOKIES_PATH = "PHOENIX_COOKIES_PATH"
 ENV_PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES = "PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES"
 """
 The duration, in minutes, before access tokens expire.
@@ -637,6 +639,12 @@ def get_env_enforce_oauth2() -> bool:
     """
     return _bool_val(ENV_PHOENIX_ENFORCE_OAUTH2, False)
 
+def get_env_oauth2_jit() -> bool:
+    """
+    Gets the value of the ENV_PHOENIX_ENABLE_OAUTH2_JIT environment variable.
+    """
+    return _bool_val(ENV_PHOENIX_ENABLE_OAUTH2_JIT, True)
+
 def get_env_disable_rate_limit() -> bool:
     """
     Gets the value of the PHOENIX_DISABLE_RATE_LIMIT environment variable.
@@ -686,6 +694,11 @@ def get_env_default_admin_initial_password() -> str:
 
     return getenv(ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD) or DEFAULT_ADMIN_PASSWORD
 
+def get_env_cookies_path() -> str:
+    """
+    Gets the value of the PHOENIX_COOKIE_PATH environment variable.
+    """
+    return getenv(ENV_PHOENIX_COOKIES_PATH, "/")
 
 def get_env_phoenix_use_secure_cookies() -> bool:
     return _bool_val(ENV_PHOENIX_USE_SECURE_COOKIES, False)
@@ -701,13 +714,13 @@ def get_env_auth_settings() -> tuple[bool, Optional[str]]:
     """
     enable_auth = get_env_enable_auth()
     phoenix_secret = get_env_phoenix_secret()
-    enable_oauth = get_env_enforce_oauth2()
+    enforce_oauth = get_env_enforce_oauth2()
     if enable_auth and not phoenix_secret:
         raise ValueError(
             f"`{ENV_PHOENIX_SECRET}` must be set when "
             f"auth is enabled with `{ENV_PHOENIX_ENABLE_AUTH}`"
         )
-    return enable_auth, phoenix_secret, enable_oauth
+    return enable_auth, phoenix_secret, enforce_oauth
 
 
 def get_env_password_reset_token_expiry() -> timedelta:

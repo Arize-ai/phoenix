@@ -50,7 +50,7 @@ const userTableRowCSS = css`
 `;
 
 const isDefaultAdminUser = (user: { email: string; username: string }) =>
-  user.email === "admin@localhost" || user.username === "admin" || true;
+  user.email === "admin@localhost" || user.username === "admin";
 
 export function UsersTable({ query }: { query: UsersTable_users$key }) {
   const [dialog, setDialog] = useState<ReactNode>(null);

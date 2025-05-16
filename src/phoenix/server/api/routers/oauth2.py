@@ -32,7 +32,7 @@ from phoenix.auth import (
     set_oauth2_state_cookie,
     set_refresh_token_cookie,
 )
-from phoenix.config import get_env_disable_rate_limit
+from phoenix.config import get_env_disable_rate_limit, get_env_auth_settings, get_env_enforce_oauth2, get_env_oauth2_jit
 from phoenix.db import models
 from phoenix.db.enums import UserRole
 from phoenix.server.bearer_auth import create_access_and_refresh_tokens
@@ -123,7 +123,7 @@ async def login(
             max_age=timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES),
         )
         return response
-    except err:
+    except Exception as err:
         print(f"Error during OAuth2 login: {err}")
         raise err
 
@@ -181,6 +181,8 @@ async def create_tokens(
                 user_info=user_info,
             )
     except EmailAlreadyInUse as error:
+        return _redirect_to_login(request=request, error=str(error))
+    except NotInvited as error:
         return _redirect_to_login(request=request, error=str(error))
     access_token, refresh_token = await create_access_and_refresh_tokens(
         user=user,
@@ -248,8 +250,13 @@ async def _ensure_user_exists_and_is_up_to_date(
         session,
         oauth2_client_id=oauth2_client_id,
         idp_user_id=user_info.idp_user_id,
+        email=user_info.email,
     )
     if user is None:
+        if not get_env_oauth2_jit():
+            raise NotInvited(
+                "User not found. Please contact your administrator to create an account."
+            )
         user = await _create_user(session, oauth2_client_id=oauth2_client_id, user_info=user_info)
     elif user.email != user_info.email:
         user = await _update_user_email(session, user_id=user.id, email=user_info.email)
@@ -257,7 +264,7 @@ async def _ensure_user_exists_and_is_up_to_date(
 
 
 async def _get_user(
-    session: AsyncSession, /, *, oauth2_client_id: str, idp_user_id: str
+    session: AsyncSession, /, *, oauth2_client_id: str, idp_user_id: str, email: Optional[str] = None
 ) -> Optional[models.User]:
     """
     Retrieves the user uniquely identified by the given OAuth2 client ID and IDP
@@ -273,6 +280,27 @@ async def _get_user(
         )
         .options(joinedload(models.User.role))
     )
+    if user is None and email is not None:
+        # Fall back to email if user is not found by IDP user ID
+        user = await session.scalar(
+            select(models.User)
+            .where(
+                and_(
+                    models.User.oauth2_client_id == oauth2_client_id,
+                    models.User.email == email,
+                    models.User.oauth2_user_id == None,
+                )
+            )
+            .options(joinedload(models.User.role))
+        )
+        if user is None:
+            return user
+        # Update the IDP user ID to the one from the IDP
+        await session.execute(
+            update(models.User)
+            .where(models.User.id == user.id)
+            .values(oauth2_user_id=idp_user_id)
+        )
     return user
 
 
@@ -372,11 +400,15 @@ class EmailAlreadyInUse(Exception):
     pass
 
 
+class NotInvited(Exception):
+    pass
+
 def _redirect_to_login(*, request: Request, error: str) -> RedirectResponse:
     """
     Creates a RedirectResponse to the login page to display an error message.
     """
-    login_path = _prepend_root_path_if_exists(request=request, path="/login")
+    oauth2_enforced = get_env_enforce_oauth2()
+    login_path = _prepend_root_path_if_exists(request=request, path="/login" if not oauth2_enforced else "/logout")
     url = URL(login_path).include_query_params(error=error)
     response = RedirectResponse(url=url)
     response = delete_oauth2_state_cookie(response)

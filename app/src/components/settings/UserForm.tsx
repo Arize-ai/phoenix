@@ -21,8 +21,8 @@ const MIN_PASSWORD_LENGTH = 4;
 export type UserFormParams = {
   email: string;
   username: string;
-  password: string;
-  confirmPassword: string;
+  password?: string;
+  confirmPassword?: string;
   role: UserRole;
 };
 
@@ -47,8 +47,8 @@ export function UserForm({
     defaultValues: {
       email: email ?? "",
       username: username ?? "",
-      password: password ?? "",
-      confirmPassword: "",
+      password: password ?? undefined,
+      confirmPassword: undefined,
       role: role ?? UserRole.MEMBER,
     },
   });
@@ -102,36 +102,36 @@ export function UserForm({
                 </TextField>
               )}
             />
+            <Controller
+              name="username"
+              control={control}
+              rules={{
+                required: "Username is required",
+              }}
+              render={({
+                field: { name, onChange, onBlur, value },
+                fieldState: { invalid, error },
+              }) => (
+                <TextField
+                  name={name}
+                  isRequired
+                  onChange={onChange}
+                  isInvalid={invalid}
+                  onBlur={onBlur}
+                  value={value}
+                >
+                  <Label>Username</Label>
+                  <Input />
+                  {error ? (
+                    <FieldError>{error?.message}</FieldError>
+                  ) : (
+                    <Text slot="description">A unique username.</Text>
+                  )}
+                </TextField>
+              )}
+            />
             {emailOnly ? null : (
               <>
-                <Controller
-                  name="username"
-                  control={control}
-                  rules={{
-                    required: "Username is required",
-                  }}
-                  render={({
-                    field: { name, onChange, onBlur, value },
-                    fieldState: { invalid, error },
-                  }) => (
-                    <TextField
-                      name={name}
-                      isRequired
-                      onChange={onChange}
-                      isInvalid={invalid}
-                      onBlur={onBlur}
-                      value={value}
-                    >
-                      <Label>Username</Label>
-                      <Input />
-                      {error ? (
-                        <FieldError>{error?.message}</FieldError>
-                      ) : (
-                        <Text slot="description">A unique username.</Text>
-                      )}
-                    </TextField>
-                  )}
-                />
                 <Controller
                   name="password"
                   control={control}

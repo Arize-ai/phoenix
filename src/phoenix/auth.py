@@ -10,7 +10,7 @@ from typing import Any, Literal, Optional, Protocol
 from starlette.responses import Response
 from typing_extensions import TypeVar
 
-from phoenix.config import get_env_phoenix_use_secure_cookies
+from phoenix.config import get_env_phoenix_use_secure_cookies, get_env_cookies_path
 
 ResponseType = TypeVar("ResponseType", bound=Response)
 
@@ -131,6 +131,7 @@ def _set_cookie(
         httponly=True,
         samesite=samesite,
         max_age=int(cookie_max_age.total_seconds()),
+        path=get_env_cookies_path(),
     )
     return response
 
@@ -263,6 +264,7 @@ redirect to the IDP and the invocation of the callback URL during the OAuth2
 authorization code flow.
 """
 
+"""The default path for Phoenix cookies."""
 
 class Token(str): ...
 

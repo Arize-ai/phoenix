@@ -29,6 +29,7 @@ export function LogoutPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const returnUrl = searchParams.get("returnUrl");
   const message = "You have been logged out";
+  const error = searchParams.get("error");
   return (
     <AuthLayout>
       <Flex direction="column" gap="size-200" alignItems="center">
@@ -36,15 +37,20 @@ export function LogoutPage() {
           <PhoenixLogo />
         </View>
       </Flex>
-      {message && (
+      {!error && message && (
         <View paddingBottom="size-100">
           <Alert variant="success">{message}</Alert>
+        </View>
+      )}
+      {error && (
+        <View paddingBottom="size-100">
+          <Alert variant="danger">{error}</Alert>
         </View>
       )}
       {hasOAuth2Idps && (
         <>
           <ul css={oAuthLoginButtonListCSS}>
-            {oAuth2Idps.slice(0,1).map((idp) => (
+            {oAuth2Idps.slice(0, 1).map((idp) => (
               <li key={idp.name}>
                 <OAuth2Login
                   key={idp.name}
