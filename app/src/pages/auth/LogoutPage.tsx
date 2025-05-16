@@ -1,4 +1,3 @@
-import React from "react";
 import { useSearchParams } from "react-router";
 import { css } from "@emotion/react";
 
@@ -7,13 +6,6 @@ import { Alert, Flex, View } from "@phoenix/components";
 import { AuthLayout } from "./AuthLayout";
 import { OAuth2Login } from "./OAuth2Login";
 import { PhoenixLogo } from "./PhoenixLogo";
-
-const separatorCSS = css`
-  text-align: center;
-  margin-top: var(--ac-global-dimension-size-200);
-  margin-bottom: var(--ac-global-dimension-size-200);
-  color: var(--ac-global-text-color-700);
-`;
 
 const oAuthLoginButtonListCSS = css`
   display: flex;
@@ -26,7 +18,7 @@ const oAuthLoginButtonListCSS = css`
 export function LogoutPage() {
   const oAuth2Idps = window.Config.oAuth2Idps;
   const hasOAuth2Idps = oAuth2Idps.length > 0;
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const returnUrl = searchParams.get("returnUrl");
   const message = "You have been logged out";
   const error = searchParams.get("error");
