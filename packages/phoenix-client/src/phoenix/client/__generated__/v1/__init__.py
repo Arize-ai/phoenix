@@ -320,14 +320,6 @@ class ValidationError(TypedDict):
     type: str
 
 
-class PhoenixServerApiRoutersV1ExperimentRunsCreateExperimentResponseBody(TypedDict):
-    data: CreateExperimentRunResponseBodyData
-
-
-class PhoenixServerApiRoutersV1ExperimentsCreateExperimentResponseBody(TypedDict):
-    data: Experiment
-
-
 class AnnotateSpansResponseBody(TypedDict):
     data: Sequence[InsertedSpanAnnotation]
 
@@ -370,6 +362,14 @@ class ContinuousAnnotationConfigData(TypedDict):
 
 class CreateAnnotationConfigResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
+
+
+class CreateExperimentResponseBody(TypedDict):
+    data: Experiment
+
+
+class CreateExperimentRunResponseBody(TypedDict):
+    data: CreateExperimentRunResponseBodyData
 
 
 class CreateProjectResponseBody(TypedDict):
