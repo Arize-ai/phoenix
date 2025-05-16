@@ -8,6 +8,7 @@ import strawberry
 from aioitertools.itertools import islice
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import desc, distinct, func, or_, select
+from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.sql.expression import tuple_
 from strawberry import ID, UNSET, Private, lazy
@@ -530,19 +531,46 @@ class Project(Node):
         return info.context.last_updated_at.get(self._table, self.project_rowid)
 
     @strawberry.field
-    async def validate_span_filter_condition(self, condition: str) -> ValidationResult:
+    async def validate_span_filter_condition(
+        self,
+        info: Info[Context, None],
+        condition: str,
+    ) -> ValidationResult:
+        """Validates a span filter condition by attempting to compile it for both SQLite and PostgreSQL.
+
+        This method checks if the provided filter condition is syntactically valid and can be compiled
+        into SQL queries for both SQLite and PostgreSQL databases. It does not execute the query,
+        only validates its syntax. Any exception during compilation (syntax errors, invalid expressions,
+        etc.) will result in an invalid validation result.
+
+        Args:
+            condition (str): The span filter condition string to validate.
+
+        Returns:
+            ValidationResult: A result object containing:
+                - is_valid (bool): True if the condition is valid, False otherwise
+                - error_message (Optional[str]): Error message if validation fails, None if valid
+        """  # noqa: E501
         # This query is too expensive to run on every validation
         # valid_eval_names = await self.span_annotation_names()
         try:
-            SpanFilter(
+            span_filter = SpanFilter(
                 condition=condition,
                 # valid_eval_names=valid_eval_names,
             )
+            stmt = span_filter(select(models.Span))
+            dialect = info.context.db.dialect
+            if dialect is SupportedSQLDialect.POSTGRESQL:
+                str(stmt.compile(dialect=sqlite.dialect()))  # type: ignore[no-untyped-call]
+            elif dialect is SupportedSQLDialect.SQLITE:
+                str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
+            else:
+                assert_never(dialect)
             return ValidationResult(is_valid=True, error_message=None)
-        except SyntaxError as e:
+        except Exception as e:
             return ValidationResult(
                 is_valid=False,
-                error_message=e.msg,
+                error_message=str(e),
             )
 
     @strawberry.field
