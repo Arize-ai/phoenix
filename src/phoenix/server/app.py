@@ -210,7 +210,7 @@ class AppConfig(NamedTuple):
     authentication_enabled: bool
     """ Whether authentication is enabled """
     oauth2_idps: Sequence[OAuth2Idp]
-    oauth2_enforced: bool = False
+    basic_auth_disabled: bool = False
 
 
 class Static(StaticFiles):
@@ -238,8 +238,9 @@ class Static(StaticFiles):
     async def get_response(self, path: str, scope: Scope) -> Response:
         response = None
 
-        # Redirect to the login page if authentication is enabled
-        if path == "login" and self._app_config.oauth2_enforced:
+        # Redirect to the oauth2 login page if basic auth is disabled and auto_signin is enabled
+        # TODO: this needs to be refactored to be cleaner
+        if path == "login" and self._app_config.basic_auth_disabled:
             request = Request(scope)
             return RedirectResponse(
                 url=f"/oauth2/{self._app_config.oauth2_idps[0]['name']}/login?returnUrl={request.query_params['returnUrl'] or '/'}",
@@ -267,7 +268,7 @@ class Static(StaticFiles):
                     "manifest": self._web_manifest,
                     "authentication_enabled": self._app_config.authentication_enabled,
                     "oauth2_idps": self._app_config.oauth2_idps,
-                    "oauth2_enforced": self._app_config.oauth2_enforced,
+                    "basic_auth_disabled": self._app_config.basic_auth_disabled,
                 },
             )
         except Exception as e:
@@ -778,7 +779,7 @@ def create_app(
     scaffolder_config: Optional[ScaffolderConfig] = None,
     email_sender: Optional[EmailSender] = None,
     oauth2_client_configs: Optional[list[OAuth2ClientConfig]] = None,
-    oauth2_enforced: bool = False,
+    basic_auth_disabled: bool = False,
     bulk_inserter_factory: Optional[Callable[..., BulkInserter]] = None,
     allowed_origins: Optional[list[str]] = None,
 ) -> FastAPI:
@@ -948,7 +949,7 @@ def create_app(
                     authentication_enabled=authentication_enabled,
                     web_manifest_path=web_manifest_path,
                     oauth2_idps=oauth2_idps,
-                    oauth2_enforced=oauth2_enforced,
+                    basic_auth_disabled=basic_auth_disabled,
                 ),
             ),
             name="static",

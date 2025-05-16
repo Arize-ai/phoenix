@@ -103,8 +103,8 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 |  🚀 Phoenix Server 🚀
 |  Phoenix UI: {{ ui_path }}
 |  Authentication: {{ auth_enabled }}
-{%- if oauth2_enforced %}
-|  OAuth2: Enforced
+{%- if basic_auth_disabled %}
+|  Basic Auth: Disabled
 {%- endif %}
 {%- if auth_enabled_for_http or auth_enabled_for_grpc %}
 {%- if tls_enabled_for_http %}
