@@ -10,7 +10,7 @@ from typing import Any, Literal, Optional, Protocol
 from starlette.responses import Response
 from typing_extensions import TypeVar
 
-from phoenix.config import get_env_phoenix_use_secure_cookies, get_env_cookies_path
+from phoenix.config import get_env_cookies_path, get_env_phoenix_use_secure_cookies
 
 ResponseType = TypeVar("ResponseType", bound=Response)
 
@@ -263,6 +263,7 @@ The default amount of time in minutes that can elapse between the initial
 redirect to the IDP and the invocation of the callback URL during the OAuth2
 authorization code flow.
 """
+
 
 class Token(str): ...
 

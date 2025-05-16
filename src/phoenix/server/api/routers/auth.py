@@ -31,7 +31,12 @@ from phoenix.auth import (
     set_refresh_token_cookie,
     validate_password_format,
 )
-from phoenix.config import get_base_url, get_env_disable_rate_limit, get_env_enforce_oauth2, get_env_host_root_path
+from phoenix.config import (
+    get_base_url,
+    get_env_disable_basic_auth,
+    get_env_disable_rate_limit,
+    get_env_host_root_path,
+)
 from phoenix.db import enums, models
 from phoenix.server.bearer_auth import PhoenixUser, create_access_and_refresh_tokens
 from phoenix.server.email.types import EmailSender
@@ -68,10 +73,10 @@ router = APIRouter(prefix="/auth", include_in_schema=False, dependencies=auth_de
 
 @router.post("/login")
 async def login(request: Request) -> Response:
-    if get_env_enforce_oauth2():
+    if get_env_disable_basic_auth():
         raise HTTPException(
             status_code=HTTP_404_NOT_FOUND,
-            detail="OAuth2 only - login is not supported in this version",
+            detail="Basic auth is disabled in this version",
         )
     assert isinstance(access_token_expiry := request.app.state.access_token_expiry, timedelta)
     assert isinstance(refresh_token_expiry := request.app.state.refresh_token_expiry, timedelta)
@@ -197,10 +202,10 @@ async def refresh_tokens(request: Request) -> Response:
 
 @router.post("/password-reset-email")
 async def initiate_password_reset(request: Request) -> Response:
-    if get_env_enforce_oauth2():
+    if get_env_disable_basic_auth():
         raise HTTPException(
             status_code=HTTP_404_NOT_FOUND,
-            detail="OAuth2 only - login is not supported in this version",
+            detail="Basic auth is disabled in this version",
         )
     data = await request.json()
     if not (email := data.get("email")):
