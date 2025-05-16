@@ -33,7 +33,6 @@ from phoenix.auth import (
     set_refresh_token_cookie,
 )
 from phoenix.config import (
-    get_env_disable_login_form,
     get_env_disable_rate_limit,
     get_env_oauth2_jit,
 )
@@ -410,10 +409,7 @@ def _redirect_to_login(*, request: Request, error: str) -> RedirectResponse:
     """
     Creates a RedirectResponse to the login page to display an error message.
     """
-    disable_login_form = get_env_disable_login_form()
-    login_path = _prepend_root_path_if_exists(
-        request=request, path="/login" if not disable_login_form else "/logout"
-    )
+    login_path = _prepend_root_path_if_exists(request=request, path="/logout")
     url = URL(login_path).include_query_params(error=error)
     response = RedirectResponse(url=url)
     response = delete_oauth2_state_cookie(response)
