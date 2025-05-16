@@ -1571,11 +1571,11 @@ class TestProject:
             cursor = res["edges"][0]["cursor"]
 
     @pytest.mark.parametrize(
-        "condition,expectation",
+        "expectation,condition",
         [
-            ("span_kind == 'LLM'", True),
-            ("span_kind == 'LLM' and ", False),
-            ("span_kind == 'LLM' and ''", False),
+            (True, "span_kind == 'LLM'"),
+            (False, "span_kind == 'LLM' and "),
+            (False, "span_kind == 'LLM' and ''"),
         ],
     )
     async def test_validate_span_filter_condition(
