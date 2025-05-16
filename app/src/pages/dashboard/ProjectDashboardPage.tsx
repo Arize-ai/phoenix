@@ -3,6 +3,7 @@ import { useLoaderData } from "react-router";
 import { css } from "@emotion/react";
 
 import { Flex, Heading, View } from "@phoenix/components";
+import { ConnectedLastNTimeRangePicker } from "@phoenix/components/datetime";
 
 import { DashboardBarChart } from "./DashboardBarChart";
 import { DashboardPanel } from "./DashboardPanel";
@@ -11,8 +12,8 @@ const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const layouts: Layouts = {
   lg: [
-    { i: "a", x: 0, y: 0, w: 6, h: 4 },
-    { i: "b", x: 6, y: 0, w: 6, h: 4 },
+    { i: "a", x: 0, y: 0, w: 12, h: 4 },
+    { i: "b", x: 0, y: 4, w: 12, h: 4 },
   ],
 };
 
@@ -39,6 +40,7 @@ export function ProjectDashboardPage() {
           alignItems="center"
         >
           <Heading level={1}>Dashboard: {project.name}</Heading>
+          <ConnectedLastNTimeRangePicker />
         </Flex>
       </View>
 
@@ -54,7 +56,10 @@ export function ProjectDashboardPage() {
         draggableHandle=".dashboard-panel-header"
       >
         <div key="a">
-          <DashboardPanel title="Grid Item A">
+          <DashboardPanel
+            title="Trace Counts"
+            subtitle="number of traces over time"
+          >
             <DashboardBarChart />
           </DashboardPanel>
         </div>

@@ -1,23 +1,28 @@
 import { forwardRef } from "react";
 import { css } from "@emotion/react";
 
-import { Heading, View } from "@phoenix/components";
+import { Heading, Text, View } from "@phoenix/components";
 
 interface DashboardPanelHeaderProps {
   title: string;
+  subtitle?: string;
 }
 
-function DashboardPanelHeader({ title }: DashboardPanelHeaderProps) {
+function DashboardPanelHeader({ title, subtitle }: DashboardPanelHeaderProps) {
   return (
     <div
       css={css`
         padding: var(--ac-global-dimension-size-100)
           var(--ac-global-dimension-size-200);
         border-bottom: 1px solid var(--ac-global-color-grey-200);
+        display: flex;
+        flex-direction: row;
+        gap: var(--ac-global-dimension-size-100);
       `}
       className="dashboard-panel-header"
     >
       <Heading>{title}</Heading>
+      {subtitle && <Text>{subtitle}</Text>}
     </div>
   );
 }

@@ -19,7 +19,11 @@ import {
   ProjectDashboardPage,
 } from "./pages/dashboard";
 import { projectDashboardLoaderQuery$data } from "./pages/dashboard/__generated__/projectDashboardLoaderQuery.graphql";
-import { dashboardsLoader, DashboardsPage } from "./pages/dashboards";
+import {
+  dashboardsLoader,
+  DashboardsPage,
+  DashboardsRoot,
+} from "./pages/dashboards";
 import { datasetLoaderQuery$data } from "./pages/dataset/__generated__/datasetLoaderQuery.graphql";
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
 import { Layout } from "./pages/Layout";
@@ -182,7 +186,11 @@ const router = createBrowserRouter(
               </Route>
             </Route>
           </Route>
-          <Route path="/dashboards" handle={{ crumb: () => "dashboards" }}>
+          <Route
+            path="/dashboards"
+            handle={{ crumb: () => "dashboards" }}
+            element={<DashboardsRoot />}
+          >
             <Route
               index
               element={<DashboardsPage />}

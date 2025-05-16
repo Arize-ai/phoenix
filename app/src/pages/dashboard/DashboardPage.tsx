@@ -10,6 +10,7 @@ import {
   ToggleButton,
   View,
 } from "@phoenix/components";
+import { ConnectedLastNTimeRangePicker } from "@phoenix/components/datetime";
 
 import { DashboardBarChart } from "./DashboardBarChart";
 import { DashboardPanel } from "./DashboardPanel";
@@ -59,11 +60,14 @@ export function DashboardPage() {
           alignItems="center"
         >
           <Heading level={1}>Dashboard Title</Heading>
-          <ToggleButton
-            leadingVisual={<Icon svg={<Icons.EditOutline />} />}
-            isSelected={isEditing}
-            onChange={(selected) => setIsEditing(selected)}
-          />
+          <Flex direction="row" gap="size-100">
+            <ToggleButton
+              leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+              isSelected={isEditing}
+              onChange={(selected) => setIsEditing(selected)}
+            />
+            <ConnectedLastNTimeRangePicker />
+          </Flex>
         </Flex>
       </View>
       <div data-editable={isEditing} css={gridContainerCSS}>
