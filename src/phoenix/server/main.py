@@ -102,6 +102,7 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 |
 |  🚀 Phoenix Server 🚀
 |  Phoenix UI: {{ ui_path }}
+|
 |  Authentication: {{ auth_enabled }}
 {%- if basic_auth_disabled %}
 |  Basic Auth: Disabled
@@ -403,7 +404,7 @@ def main() -> None:
 
     oauth2_client_configs = get_env_oauth2_settings()
     if auth_settings["enable_auth"] and (
-        not auth_settings["disable_basic_auth"] or len(oauth2_client_configs) == 0
+        auth_settings["disable_basic_auth"] and len(oauth2_client_configs) == 0
     ):
         raise ValueError(
             "Auth2 is the only supported auth method but no OAuth2 client configs are provided."
@@ -438,6 +439,7 @@ def main() -> None:
         export_path=export_path,
         model=model,
         authentication_enabled=auth_settings["enable_auth"],
+        basic_auth_disabled=auth_settings["disable_basic_auth"],
         umap_params=umap_params,
         corpus=corpus_model,
         debug=args.debug,

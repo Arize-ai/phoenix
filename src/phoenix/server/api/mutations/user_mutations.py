@@ -101,7 +101,9 @@ class UserMutationMixin:
         if not input.password:
             # TODO: switch this to an explicit auth method check
             if not get_env_disable_basic_auth():
-                raise ValueError("Username and password fields must be set if basic auth is ")
+                raise ValueError(
+                    "Username and password fields must be set if basic auth is enabled"
+                )
             oauth2_clients = get_env_oauth2_settings()
             oauth2_client_id = oauth2_clients[0].client_id
             reset_password = False

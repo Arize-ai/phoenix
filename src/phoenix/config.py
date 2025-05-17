@@ -562,7 +562,7 @@ def _bool_val(env_var: str, default: Optional[bool] = None) -> Optional[bool]:
     assert (lower := value.lower()) in (
         "true",
         "false",
-    ), f"{env_var} must be set to TRUE or FALSE (case-insensitive)"
+    ), f"{env_var} must be set to TRUE or FALSE (case-insensitive). Got: {value}"
     return lower == "true"
 
 

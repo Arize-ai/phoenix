@@ -253,6 +253,7 @@ class Static(StaticFiles):
             # Fallback to to the index.html
             request = Request(scope)
 
+            print(self._app_config.basic_auth_disabled)
             response = templates.TemplateResponse(
                 "index.html",
                 context={
