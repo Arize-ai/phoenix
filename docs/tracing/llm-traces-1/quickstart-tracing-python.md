@@ -12,10 +12,6 @@ This example uses options 1 and 2.
 
 ## Launch Phoenix
 
-{% hint style="info" %}
-Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](https://docs.arize.com/phoenix/learn#what-is-my-phoenix-endpoint)
-{% endhint %}
-
 ### Using Phoenix Cloud
 
 1. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
@@ -31,6 +27,10 @@ PHOENIX_ENDPOINT = "https://app.phoenix.arize.com/v1/traces"
 
 os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
 ```
+
+{% hint style="warning" %}
+Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](https://docs.arize.com/phoenix/learn#what-is-my-phoenix-endpoint)
+{% endhint %}
 
 ### Using Self-hosted Phoenix
 
