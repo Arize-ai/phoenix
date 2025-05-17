@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ed9c1fb1575de46ea84c04c0ce3a4ba0>>
+ * @generated SignedSource<<2c565894a48180a9e2a2bbff18b5dfdf>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -179,10 +179,6 @@ return {
                     "type": "PromptVersion",
                     "abstractKey": null
                   },
-                  {
-                    "kind": "TypeDiscriminator",
-                    "abstractKey": "__isNode"
-                  },
                   (v3/*: any*/)
                 ],
                 "storageKey": null
@@ -196,16 +192,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f649353c182b494e5d15015c95ecc083",
+    "cacheID": "bfc7b301944fc8273b56810aa777401c",
     "id": null,
     "metadata": {},
     "name": "NewPromptVersionTagDialogMutation",
     "operationKind": "mutation",
-    "text": "mutation NewPromptVersionTagDialogMutation(\n  $input: SetPromptVersionTagInput!\n  $promptVersionId: GlobalID!\n) {\n  setPromptVersionTag(input: $input) {\n    query {\n      node(id: $promptVersionId) {\n        __typename\n        ...PromptVersionTagsList_data\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n\nfragment PromptVersionTagsList_data on PromptVersion {\n  tags {\n    id\n    name\n  }\n}\n"
+    "text": "mutation NewPromptVersionTagDialogMutation(\n  $input: SetPromptVersionTagInput!\n  $promptVersionId: ID!\n) {\n  setPromptVersionTag(input: $input) {\n    query {\n      node(id: $promptVersionId) {\n        __typename\n        ...PromptVersionTagsList_data\n        id\n      }\n    }\n  }\n}\n\nfragment PromptVersionTagsList_data on PromptVersion {\n  tags {\n    id\n    name\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c057a8cd7cddac787f887e505ff0f9e6";
+(node as any).hash = "a6e4352854be2ab5fd0c10368a3469ad";
 
 export default node;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b0cf890478c5f65fb40e119c4af162af>>
+ * @generated SignedSource<<ee5b40a7d9afe12123bc0e82d28fd443>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -96,7 +96,8 @@ v8 = [
     "kind": "ScalarField",
     "name": "__typename",
     "storageKey": null
-  }
+  },
+  (v4/*: any*/)
 ],
 v9 = {
   "alias": null,
@@ -394,12 +395,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "18059ac8df6b3c15d5e4bc04ca2c9877",
+    "cacheID": "c4ca588a9d6e4666b2fe13fb5df8520c",
     "id": null,
     "metadata": {},
     "name": "ModelPageQuery",
     "operationKind": "query",
-    "text": "query ModelPageQuery(\n  $startTime: DateTime!\n  $endTime: DateTime!\n) {\n  ...ModelSchemaTable_dimensions_3uKjWt\n  ...ModelEmbeddingsTable_embeddingDimensions_3uKjWt\n}\n\nfragment ModelEmbeddingsTable_embeddingDimensions_3uKjWt on Query {\n  model {\n    embeddingDimensions(first: 50) {\n      edges {\n        embedding: node {\n          id\n          name\n          euclideanDistance: driftMetric(metric: euclideanDistance, timeRange: {start: $startTime, end: $endTime})\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n\nfragment ModelSchemaTable_dimensions_3uKjWt on Query {\n  model {\n    dimensions(first: 50) {\n      edges {\n        dimension: node {\n          id\n          name\n          type\n          dataType\n          cardinality: dataQualityMetric(metric: cardinality, timeRange: {start: $startTime, end: $endTime})\n          percentEmpty: dataQualityMetric(metric: percentEmpty, timeRange: {start: $startTime, end: $endTime})\n          min: dataQualityMetric(metric: min, timeRange: {start: $startTime, end: $endTime})\n          mean: dataQualityMetric(metric: mean, timeRange: {start: $startTime, end: $endTime})\n          max: dataQualityMetric(metric: max, timeRange: {start: $startTime, end: $endTime})\n          psi: driftMetric(metric: psi, timeRange: {start: $startTime, end: $endTime})\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
+    "text": "query ModelPageQuery(\n  $startTime: DateTime!\n  $endTime: DateTime!\n) {\n  ...ModelSchemaTable_dimensions_3uKjWt\n  ...ModelEmbeddingsTable_embeddingDimensions_3uKjWt\n}\n\nfragment ModelEmbeddingsTable_embeddingDimensions_3uKjWt on Query {\n  model {\n    embeddingDimensions(first: 50) {\n      edges {\n        embedding: node {\n          id\n          name\n          euclideanDistance: driftMetric(metric: euclideanDistance, timeRange: {start: $startTime, end: $endTime})\n        }\n        cursor\n        node {\n          __typename\n          id\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n\nfragment ModelSchemaTable_dimensions_3uKjWt on Query {\n  model {\n    dimensions(first: 50) {\n      edges {\n        dimension: node {\n          id\n          name\n          type\n          dataType\n          cardinality: dataQualityMetric(metric: cardinality, timeRange: {start: $startTime, end: $endTime})\n          percentEmpty: dataQualityMetric(metric: percentEmpty, timeRange: {start: $startTime, end: $endTime})\n          min: dataQualityMetric(metric: min, timeRange: {start: $startTime, end: $endTime})\n          mean: dataQualityMetric(metric: mean, timeRange: {start: $startTime, end: $endTime})\n          max: dataQualityMetric(metric: max, timeRange: {start: $startTime, end: $endTime})\n          psi: driftMetric(metric: psi, timeRange: {start: $startTime, end: $endTime})\n        }\n        cursor\n        node {\n          __typename\n          id\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
   }
 };
 })();

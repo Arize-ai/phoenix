@@ -591,10 +591,7 @@ function ProjectItem({
 }
 
 const PROJECT_METRICS_QUERY = graphql`
-  query ProjectsPageProjectMetricsQuery(
-    $id: GlobalID!
-    $timeRange: TimeRange!
-  ) {
+  query ProjectsPageProjectMetricsQuery($id: ID!, $timeRange: TimeRange!) {
     project: node(id: $id) {
       ... on Project {
         traceCount(timeRange: $timeRange)

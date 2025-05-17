@@ -193,9 +193,9 @@ function SpanAnnotationsList(props: {
   const data = useLazyLoadQuery<SpanAnnotationsEditorSpanAnnotationsListQuery>(
     graphql`
       query SpanAnnotationsEditorSpanAnnotationsListQuery(
-        $projectId: GlobalID!
-        $spanId: GlobalID!
-        $filterUserIds: [GlobalID]
+        $projectId: ID!
+        $spanId: ID!
+        $filterUserIds: [ID]
       ) {
         project: node(id: $projectId) {
           id
@@ -250,7 +250,7 @@ function SpanAnnotationsList(props: {
   const span = useFragment<SpanAnnotationsEditor_spanAnnotations$key>(
     graphql`
       fragment SpanAnnotationsEditor_spanAnnotations on Span
-      @argumentDefinitions(filterUserIds: { type: "[GlobalID]" }) {
+      @argumentDefinitions(filterUserIds: { type: "[ID]" }) {
         id
         filteredSpanAnnotations: spanAnnotations(
           filter: {
@@ -293,11 +293,11 @@ function SpanAnnotationsList(props: {
   const [commitDeleteAnnotation] =
     useMutation<SpanAnnotationsEditorDeleteAnnotationMutation>(graphql`
       mutation SpanAnnotationsEditorDeleteAnnotationMutation(
-        $spanId: GlobalID!
-        $annotationIds: [GlobalID!]!
-        $filterUserIds: [GlobalID]
+        $spanId: ID!
+        $annotationIds: [ID!]!
+        $filterUserIds: [ID]
         $timeRange: TimeRange!
-        $projectId: GlobalID!
+        $projectId: ID!
       ) {
         deleteSpanAnnotations(input: { annotationIds: $annotationIds }) {
           query {
@@ -371,15 +371,15 @@ function SpanAnnotationsList(props: {
   const [commitEdit] = useMutation<SpanAnnotationsEditorEditAnnotationMutation>(
     graphql`
       mutation SpanAnnotationsEditorEditAnnotationMutation(
-        $spanId: GlobalID!
-        $annotationId: GlobalID!
+        $spanId: ID!
+        $annotationId: ID!
         $name: String!
         $label: String
         $score: Float
         $explanation: String
-        $filterUserIds: [GlobalID]
+        $filterUserIds: [ID]
         $timeRange: TimeRange!
-        $projectId: GlobalID!
+        $projectId: ID!
       ) {
         patchSpanAnnotations(
           input: [
@@ -466,10 +466,10 @@ function SpanAnnotationsList(props: {
       mutation SpanAnnotationsEditorCreateAnnotationMutation(
         $name: String!
         $input: CreateSpanAnnotationInput!
-        $spanId: GlobalID!
-        $filterUserIds: [GlobalID]
+        $spanId: ID!
+        $filterUserIds: [ID]
         $timeRange: TimeRange!
-        $projectId: GlobalID!
+        $projectId: ID!
       ) {
         createSpanAnnotations(input: [$input]) {
           query {

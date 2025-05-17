@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e0d4f4858ca1b48c792445a3048bcb65>>
+ * @generated SignedSource<<3951fb0219aff790c47e90f6cf0f7dee>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -149,10 +149,6 @@ return {
         "plural": false,
         "selections": [
           (v5/*: any*/),
-          {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
           (v6/*: any*/),
           {
             "kind": "InlineFragment",
@@ -291,12 +287,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "2c3626e6f163549362727204bc50686b",
+    "cacheID": "c867c2c9c74b0c472ca6763b8fc50752",
     "id": null,
     "metadata": {},
     "name": "AnnotationSummaryValueQuery",
     "operationKind": "query",
-    "text": "query AnnotationSummaryValueQuery(\n  $annotationName: String!\n  $timeRange: TimeRange!\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...AnnotationSummaryValueFragment_4BTVrq\n    __isNode: __typename\n    id\n  }\n}\n\nfragment AnnotationSummaryValueFragment_4BTVrq on Project {\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          annotationType\n          id\n          optimizationDirection\n          name\n          values {\n            label\n            score\n          }\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  spanAnnotationSummary(annotationName: $annotationName, timeRange: $timeRange) {\n    name\n    labelFractions {\n      label\n      fraction\n    }\n    meanScore\n  }\n  id\n}\n"
+    "text": "query AnnotationSummaryValueQuery(\n  $annotationName: String!\n  $timeRange: TimeRange!\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...AnnotationSummaryValueFragment_4BTVrq\n    id\n  }\n}\n\nfragment AnnotationSummaryValueFragment_4BTVrq on Project {\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          annotationType\n          id\n          optimizationDirection\n          name\n          values {\n            label\n            score\n          }\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  spanAnnotationSummary(annotationName: $annotationName, timeRange: $timeRange) {\n    name\n    labelFractions {\n      label\n      fraction\n    }\n    meanScore\n  }\n  id\n}\n"
   }
 };
 })();

@@ -19,7 +19,7 @@ export function DeletePromptDialog({
 }) {
   const [commit, isCommitting] = useMutation<DeletePromptDialogMutation>(
     graphql`
-      mutation DeletePromptDialogMutation($promptId: GlobalID!) {
+      mutation DeletePromptDialogMutation($promptId: ID!) {
         deletePrompt(input: { promptId: $promptId }) {
           query {
             ...PromptsTable_prompts

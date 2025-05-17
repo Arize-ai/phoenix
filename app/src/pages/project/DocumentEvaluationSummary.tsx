@@ -25,7 +25,7 @@ export function DocumentEvaluationSummary({
     graphql`
       query DocumentEvaluationSummaryQuery(
         $evaluationName: String!
-        $id: GlobalID!
+        $id: ID!
         $timeRange: TimeRange!
       ) {
         project: node(id: $id) {

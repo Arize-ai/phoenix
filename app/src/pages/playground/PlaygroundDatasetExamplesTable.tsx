@@ -705,7 +705,7 @@ export function PlaygroundDatasetExamplesTable({
 
   const { dataset } = useLazyLoadQuery<PlaygroundDatasetExamplesTableQuery>(
     graphql`
-      query PlaygroundDatasetExamplesTableQuery($datasetId: GlobalID!) {
+      query PlaygroundDatasetExamplesTableQuery($datasetId: ID!) {
         dataset: node(id: $datasetId) {
           ...PlaygroundDatasetExamplesTableFragment
         }
@@ -723,7 +723,7 @@ export function PlaygroundDatasetExamplesTable({
       fragment PlaygroundDatasetExamplesTableFragment on Dataset
       @refetchable(queryName: "PlaygroundDatasetExamplesTableRefetchQuery")
       @argumentDefinitions(
-        datasetVersionId: { type: "GlobalID" }
+        datasetVersionId: { type: "ID" }
         after: { type: "String", defaultValue: null }
         first: { type: "Int", defaultValue: 20 }
       ) {

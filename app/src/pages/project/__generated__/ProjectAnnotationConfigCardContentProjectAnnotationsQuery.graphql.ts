@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<61a77afc2c44d5c28e070a8b90857b88>>
+ * @generated SignedSource<<f3c663a6d8f0418fba333b7768369559>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -94,10 +94,6 @@ return {
         "plural": false,
         "selections": [
           (v2/*: any*/),
-          {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
           (v3/*: any*/),
           {
             "kind": "InlineFragment",
@@ -168,12 +164,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0430655c8d0f76f4f7e080bca9e31315",
+    "cacheID": "55ea4da3484ae5175d964a89d943e42b",
     "id": null,
     "metadata": {},
     "name": "ProjectAnnotationConfigCardContentProjectAnnotationsQuery",
     "operationKind": "query",
-    "text": "query ProjectAnnotationConfigCardContentProjectAnnotationsQuery(\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectAnnotationConfigCardContent_project_annotations\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigCardContent_project_annotations on Project {\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  id\n}\n"
+    "text": "query ProjectAnnotationConfigCardContentProjectAnnotationsQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectAnnotationConfigCardContent_project_annotations\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigCardContent_project_annotations on Project {\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  id\n}\n"
   }
 };
 })();
