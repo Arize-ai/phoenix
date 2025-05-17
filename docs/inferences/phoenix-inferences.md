@@ -122,7 +122,7 @@ _Optional - try the following exercises to familiarize yourself more with Phoeni
 * [ ] Change the colorization of your plot - e.g. select Color By ‘correctness’, and ‘dimension'
 * [ ] Describe in words an insight you've gathered from this visualization
 
-_Discuss your answers in our_ [_community_](https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q)_!_
+_Discuss your answers in our_ [_community_](https://arize-ai.slack.com/join/shared_invite/zt-2w57bhem8-hq24MB6u7yE_ZF_ilOYSBw#/shared-invite/email)_!_
 
 ### Step 6 (Optional): Add comparison data
 
@@ -217,7 +217,7 @@ _Optional - try the following exercises to familiarize yourself more with Phoeni
 * [ ] Export the selected cluster from Phoenix
 * [ ] Describe in words the process you went through to understand increased drift in your production data
 
-_Discuss your answers in our_ [_community_](https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q)_!_
+_Discuss your answers in our_ [_community_](https://arize-ai.slack.com/join/shared_invite/zt-2w57bhem8-hq24MB6u7yE_ZF_ilOYSBw#/shared-invite/email)_!_
 
 ### Step 7 (Optional): Export data
 
