@@ -284,7 +284,7 @@ def _get_expected_post_upgrade_schema(db_backend: DBBackend) -> _TableSchemaInfo
     # Add the auth_method CHECK constraint and remove legacy constraints
     constraint_names = set(pre_upgrade["constraint_names"])
     constraint_names.add("ck_users_`auth_method`")
-    constraint_names.add("ck_users_`auth_method_password`")
+    constraint_names.add("ck_users_`auth_method_and_password`")
     constraint_names.remove("ck_users_`exactly_one_auth_method`")
     constraint_names.remove("ck_users_`oauth2_client_id_and_user_id`")
 

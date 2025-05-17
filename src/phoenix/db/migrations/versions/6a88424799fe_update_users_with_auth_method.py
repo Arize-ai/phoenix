@@ -49,7 +49,7 @@ def upgrade() -> None:
     SQLite and PostgreSQL databases.
     """
     with op.batch_alter_table("users") as batch_op:
-        # For SQLite, first add the column with a simple default
+        # For SQLite, first add the column as nullable
         batch_op.add_column(sa.Column("auth_method", sa.String, nullable=True))
 
     with op.batch_alter_table("users") as batch_op:
@@ -62,22 +62,12 @@ def upgrade() -> None:
         batch_op.alter_column("auth_method", nullable=False, existing_nullable=True)
 
         # Add CHECK constraint to ensure only valid values are allowed
-        batch_op.create_check_constraint("auth_method", "auth_method IN ('LOCAL', 'OAUTH2')")
+        batch_op.create_check_constraint("valid_auth_method", "auth_method IN ('LOCAL', 'OAUTH2')")
         batch_op.create_check_constraint(
-            "auth_method_password",
+            "auth_method_and_password",
             "(auth_method = 'LOCAL' AND password_hash IS NOT NULL) OR "
             "(auth_method = 'OAUTH2' AND password_hash IS NULL)",
         )
-
-        # No index added: small user base makes full scans efficient
-        # Scaling considerations:
-        # - < 1,000 users: current approach optimal
-        # - 1,000-10,000: monitor query performance
-        # - > 10,000: consider adding index if auth queries are frequent
-        # Add index when:
-        # - Auth-related queries take >100ms
-        # - User count reaches ~5,000 with frequent auth queries
-        # - Many concurrent users or complex auth-related joins
 
         # Drop the old constraints that are no longer needed
         # These are replaced by the new auth_method column and its CHECK constraint
@@ -101,17 +91,17 @@ def downgrade() -> None:
         # Recreate the old constraints that were dropped in upgrade
         # Order matters: recreate constraints before dropping new ones
         batch_op.create_check_constraint(
-            "oauth2_client_id_and_user_id",
-            "(oauth2_client_id IS NULL) = (oauth2_user_id IS NULL)",
-        )
-        batch_op.create_check_constraint(
             "exactly_one_auth_method",
             "(password_hash IS NULL) != (oauth2_client_id IS NULL)",
+        )
+        batch_op.create_check_constraint(
+            "oauth2_client_id_and_user_id",
+            "(oauth2_client_id IS NULL) = (oauth2_user_id IS NULL)",
         )
 
         # Drop the CHECK constraint and column
         # Order matters: drop constraint before dropping column
         # This prevents any constraint violations during the process
-        batch_op.drop_constraint("auth_method", type_="check")
-        batch_op.drop_constraint("auth_method_password", type_="check")
+        batch_op.drop_constraint("auth_method_and_password", type_="check")
+        batch_op.drop_constraint("valid_auth_method", type_="check")
         batch_op.drop_column("auth_method")

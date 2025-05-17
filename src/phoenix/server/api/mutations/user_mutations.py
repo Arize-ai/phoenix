@@ -26,7 +26,7 @@ from phoenix.auth import (
 from phoenix.db import enums, models
 from phoenix.server.api.auth import IsAdmin, IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import Conflict, NotFound, Unauthorized
+from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound, Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from phoenix.server.api.types.AuthMethod import AuthMethod
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -49,9 +49,9 @@ class CreateUserInput:
     def __post_init__(self) -> None:
         if self.auth_method is AuthMethod.OAUTH2:
             if self.password:
-                raise ValueError("Password is not allowed for OAuth2 authentication")
+                raise BadRequest("Password is not allowed for OAuth2 authentication")
         elif not self.password:
-            raise ValueError("Password is required for local authentication")
+            raise BadRequest("Password is required for local authentication")
 
 
 @strawberry.input
@@ -62,9 +62,9 @@ class PatchViewerInput:
 
     def __post_init__(self) -> None:
         if not self.new_username and not self.new_password:
-            raise ValueError("At least one field must be set")
+            raise BadRequest("At least one field must be set")
         if self.new_password and not self.current_password:
-            raise ValueError("current_password is required when modifying password")
+            raise BadRequest("current_password is required when modifying password")
         if self.new_password:
             PASSWORD_REQUIREMENTS.validate(self.new_password)
 
@@ -78,7 +78,7 @@ class PatchUserInput:
 
     def __post_init__(self) -> None:
         if not self.new_role and not self.new_username and not self.new_password:
-            raise ValueError("At least one field must be set")
+            raise BadRequest("At least one field must be set")
         if self.new_password:
             PASSWORD_REQUIREMENTS.validate(self.new_password)
 

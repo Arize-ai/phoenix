@@ -1182,7 +1182,7 @@ class User(Base):
         CheckConstraint(
             "(auth_method = 'LOCAL' AND password_hash IS NOT NULL) OR "
             "(auth_method = 'OAUTH2' AND password_hash IS NULL)",
-            name="auth_method_password",
+            name="auth_method_and_password",
         ),
         UniqueConstraint(
             "oauth2_client_id",
