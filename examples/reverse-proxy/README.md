@@ -20,18 +20,17 @@ pip install arize-phoenix
 
 Set the `PHOENIX_HOST_ROOT_PATH` environment variable to match the root path in the configuration files above.
 
-```   
+```
 export PHOENIX_HOST_ROOT_PATH="/phoenix_root_path"
 ```
 
 Run Phoenix with
 
 ```
-python -m phoenix.server.main serve
+phoenix serve
 ```
 
 You should now be able to access the Phoenix UI via the `traefik` proxy at http://127.0.0.1:9999/phoenix_root_path.
-
 
 ## References
 

@@ -120,9 +120,14 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 |  Log traces:
 |    - gRPC: {{ grpc_path }}
 |    - HTTP: {{ http_path }}
-|  Storage: {{ storage }}
+|  Storage:
+|    - DB: {{ storage }}
 {%- if schema %}
 |    - Schema: {{ schema }}
+{%- endif %}
+{%- if root_path %}
+|  Proxy:
+|    - Root Path: {{ root_path }}
 {%- endif %}
 """)
 
@@ -395,6 +400,7 @@ def main() -> None:
         tls_enabled_for_grpc=tls_enabled_for_grpc,
         tls_verify_client=tls_verify_client,
         allowed_origins=allowed_origins,
+        root_path=host_root_path,
     )
     if sys.platform.startswith("win"):
         msg = codecs.encode(msg, "ascii", errors="ignore").decode("ascii").strip()
