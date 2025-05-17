@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bec6b06f8ed044a3478385549e6647fc>>
+ * @generated SignedSource<<2ea47b278b274055451cc9cd544adbd6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -176,10 +176,6 @@ return {
         "plural": false,
         "selections": [
           (v6/*: any*/),
-          {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
           (v2/*: any*/),
           {
             "kind": "InlineFragment",
@@ -273,16 +269,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0c6ef22f77939481932f07f0e45a3154",
+    "cacheID": "c276ca07c754114aa64bc34ec26f1174",
     "id": null,
     "metadata": {},
     "name": "ProjectAnnotationConfigCardContentQuery",
     "operationKind": "query",
-    "text": "query ProjectAnnotationConfigCardContentQuery(\n  $projectId: GlobalID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      ...ProjectAnnotationConfigCardContent_project_annotations\n    }\n    __isNode: __typename\n    id\n  }\n  allAnnotationConfigs: annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n      }\n    }\n  }\n}\n\nfragment ProjectAnnotationConfigCardContent_project_annotations on Project {\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  id\n}\n"
+    "text": "query ProjectAnnotationConfigCardContentQuery(\n  $projectId: ID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      ...ProjectAnnotationConfigCardContent_project_annotations\n    }\n    id\n  }\n  allAnnotationConfigs: annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n      }\n    }\n  }\n}\n\nfragment ProjectAnnotationConfigCardContent_project_annotations on Project {\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ed210ab30e8d40d669d27c7f83ada5b8";
+(node as any).hash = "57a24bc659f8d1c2e7e761194c83231d";
 
 export default node;

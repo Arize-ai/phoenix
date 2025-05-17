@@ -47,7 +47,7 @@ class TestProjectTraceRetentionPolicyMutations:
                 }
             }
         }
-        query GetNode($id: GlobalID!) {
+        query GetNode($id: ID!) {
             node(id: $id) {
                 ... on Project {
                     traceRetentionPolicy {

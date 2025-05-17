@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f806faae2d637e9db61c69c97f9049ea>>
+ * @generated SignedSource<<01debc16b2023ea947e38ab48cffb900>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -326,10 +326,6 @@ return {
             "type": "Project",
             "abstractKey": null
           },
-          {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
           (v2/*: any*/)
         ],
         "storageKey": null
@@ -375,16 +371,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7792df44b11d7c01914571891c1009b7",
+    "cacheID": "1a712d6939eff6b3fc74c42fdf542bda",
     "id": null,
     "metadata": {},
     "name": "AnnotationConfigListQuery",
     "operationKind": "query",
-    "text": "query AnnotationConfigListQuery(\n  $projectId: GlobalID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      ...AnnotationConfigListProjectAnnotationConfigFragment\n    }\n    __isNode: __typename\n    id\n  }\n  allAnnotationConfigs: annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          description\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          lowerBound\n          upperBound\n        }\n      }\n    }\n  }\n}\n\nfragment AnnotationConfigListProjectAnnotationConfigFragment on Project {\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n          description\n        }\n        ... on CategoricalAnnotationConfig {\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          lowerBound\n          upperBound\n          optimizationDirection\n        }\n        ... on FreeformAnnotationConfig {\n          name\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query AnnotationConfigListQuery(\n  $projectId: ID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      ...AnnotationConfigListProjectAnnotationConfigFragment\n    }\n    id\n  }\n  allAnnotationConfigs: annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          description\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          lowerBound\n          upperBound\n        }\n      }\n    }\n  }\n}\n\nfragment AnnotationConfigListProjectAnnotationConfigFragment on Project {\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n          description\n        }\n        ... on CategoricalAnnotationConfig {\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          lowerBound\n          upperBound\n          optimizationDirection\n        }\n        ... on FreeformAnnotationConfig {\n          name\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "32dd48d013b5aa0bc2176d67ca2271f8";
+(node as any).hash = "17e291625e2df97c80e95916c0df269d";
 
 export default node;

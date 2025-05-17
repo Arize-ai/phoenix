@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<25b005a46ac9bd56c8e3de984c1ddca5>>
+ * @generated SignedSource<<b4520c6894d4330f5a445fc4f069fd68>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -28,6 +28,13 @@ var v0 = [
   }
 ],
 v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -80,13 +87,7 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "id",
-                    "storageKey": null
-                  },
+                  (v1/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -101,7 +102,7 @@ return {
                     "name": "description",
                     "storageKey": null
                   },
-                  (v1/*: any*/),
+                  (v2/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -110,6 +111,7 @@ return {
                     "name": "version",
                     "plural": false,
                     "selections": [
+                      (v2/*: any*/),
                       (v1/*: any*/)
                     ],
                     "storageKey": null
@@ -138,7 +140,8 @@ return {
                     "kind": "ScalarField",
                     "name": "__typename",
                     "storageKey": null
-                  }
+                  },
+                  (v1/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -185,12 +188,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "191e9b9974109498195fdef708db636b",
+    "cacheID": "9a3e6a185a7a63d9d2c115e80e22b495",
     "id": null,
     "metadata": {},
     "name": "promptsLoaderQuery",
     "operationKind": "query",
-    "text": "query promptsLoaderQuery {\n  ...PromptsTable_prompts\n}\n\nfragment PromptsTable_prompts on Query {\n  prompts(first: 100) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        createdAt\n        version {\n          createdAt\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query promptsLoaderQuery {\n  ...PromptsTable_prompts\n}\n\nfragment PromptsTable_prompts on Query {\n  prompts(first: 100) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        createdAt\n        version {\n          createdAt\n          id\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

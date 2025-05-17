@@ -18,7 +18,7 @@ async def test_experiment_resolver_returns_sequence_number(
     interlaced_experiments: list[int],
 ) -> None:
     query = """
-      query ($experimentId: GlobalID!) {
+      query ($experimentId: ID!) {
         experiment: node(id: $experimentId) {
           ... on Experiment {
             sequenceNumber
@@ -46,7 +46,7 @@ async def test_runs_resolver_returns_runs_for_experiment(
     dataset_with_experiment_runs: Any,
 ) -> None:
     query = """
-      query ($experimentId: GlobalID!) {
+      query ($experimentId: ID!) {
         experiment: node(id: $experimentId) {
           ... on Experiment {
             runs {
@@ -121,7 +121,7 @@ async def test_run_count_resolver_returns_correct_counts(
     experiments_with_runs_and_annotations: Any,
 ) -> None:
     query = """
-      query ($datasetId: GlobalID!) {
+      query ($datasetId: ID!) {
         dataset: node(id: $datasetId) {
           ... on Dataset {
             experiments {
@@ -176,7 +176,7 @@ async def test_average_run_latency_resolver_returns_correct_values(
     experiments_with_runs_and_annotations: Any,
 ) -> None:
     query = """
-      query ($datasetId: GlobalID!) {
+      query ($datasetId: ID!) {
         dataset: node(id: $datasetId) {
           ... on Dataset {
             experiments {
@@ -233,7 +233,7 @@ class TestExperimentAnnotationSummaries:
         experiments_with_runs_and_annotations: Any,
     ) -> None:
         query = """
-          query ($datasetId: GlobalID!) {
+          query ($datasetId: ID!) {
             dataset: node(id: $datasetId) {
               ... on Dataset {
                 experiments {
@@ -329,7 +329,7 @@ class TestExperimentAnnotationSummaries:
         experiments_with_runs_and_annotations: Any,
     ) -> None:
         query = """
-          query ($datasetId: GlobalID!) {
+          query ($datasetId: ID!) {
             dataset: node(id: $datasetId) {
               ... on Dataset {
                 experimentAnnotationSummaries {
@@ -388,7 +388,7 @@ async def test_error_rate_returns_expected_values(
     experiments_with_runs: Any,
 ) -> None:
     query = """
-      query ($datasetId: GlobalID!) {
+      query ($datasetId: ID!) {
         dataset: node(id: $datasetId) {
           ... on Dataset {
             experiments {

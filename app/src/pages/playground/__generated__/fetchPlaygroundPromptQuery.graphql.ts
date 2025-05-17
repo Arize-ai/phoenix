@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<27d2244f7f39017ec188b6ee92c378e7>>
+ * @generated SignedSource<<59d7deefbf27eee8c0790b62d245db5a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -400,10 +400,6 @@ return {
         "plural": false,
         "selections": [
           (v7/*: any*/),
-          {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
           (v2/*: any*/),
           {
             "kind": "InlineFragment",
@@ -422,16 +418,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9beefbb59de3e9b98d785c3fd78b15d5",
+    "cacheID": "3d4a14b5f7a3b1c5629e3bf47645a2b4",
     "id": null,
     "metadata": {},
     "name": "fetchPlaygroundPromptQuery",
     "operationKind": "query",
-    "text": "query fetchPlaygroundPromptQuery(\n  $promptId: GlobalID!\n) {\n  prompt: node(id: $promptId) {\n    __typename\n    ... on Prompt {\n      id\n      name\n      createdAt\n      description\n      version {\n        id\n        description\n        modelName\n        modelProvider\n        invocationParameters\n        templateType\n        templateFormat\n        responseFormat {\n          definition\n        }\n        template {\n          __typename\n          ... on PromptChatTemplate {\n            messages {\n              role\n              content {\n                __typename\n                ... on TextContentPart {\n                  text {\n                    text\n                  }\n                }\n                ... on ToolCallContentPart {\n                  toolCall {\n                    toolCallId\n                    toolCall {\n                      name\n                      arguments\n                    }\n                  }\n                }\n                ... on ToolResultContentPart {\n                  toolResult {\n                    toolCallId\n                    result\n                  }\n                }\n              }\n            }\n          }\n        }\n        tools {\n          definition\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query fetchPlaygroundPromptQuery(\n  $promptId: ID!\n) {\n  prompt: node(id: $promptId) {\n    __typename\n    ... on Prompt {\n      id\n      name\n      createdAt\n      description\n      version {\n        id\n        description\n        modelName\n        modelProvider\n        invocationParameters\n        templateType\n        templateFormat\n        responseFormat {\n          definition\n        }\n        template {\n          __typename\n          ... on PromptChatTemplate {\n            messages {\n              role\n              content {\n                __typename\n                ... on TextContentPart {\n                  text {\n                    text\n                  }\n                }\n                ... on ToolCallContentPart {\n                  toolCall {\n                    toolCallId\n                    toolCall {\n                      name\n                      arguments\n                    }\n                  }\n                }\n                ... on ToolResultContentPart {\n                  toolResult {\n                    toolCallId\n                    result\n                  }\n                }\n              }\n            }\n          }\n        }\n        tools {\n          definition\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "84755f12352e245574192de304d654d5";
+(node as any).hash = "5b21b9860cae9ec899aaa18ba9c73787";
 
 export default node;

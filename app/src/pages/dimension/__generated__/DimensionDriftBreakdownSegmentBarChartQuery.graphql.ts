@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<83836b2254a1fadeb5dec4ae3447aff5>>
+ * @generated SignedSource<<65276f62cb3c58b3032cddd0d6c51240>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -340,16 +340,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7d11d88f419003f5ee8cd9d11312e427",
+    "cacheID": "2e05d1ca13480861b72938edd162c36f",
     "id": null,
     "metadata": {},
     "name": "DimensionDriftBreakdownSegmentBarChartQuery",
     "operationKind": "query",
-    "text": "query DimensionDriftBreakdownSegmentBarChartQuery(\n  $dimensionId: GlobalID!\n  $timeRange: TimeRange!\n) {\n  dimension: node(id: $dimensionId) {\n    __typename\n    id\n    ... on Dimension {\n      segmentsComparison(primaryTimeRange: $timeRange) {\n        segments {\n          bin {\n            __typename\n            ... on NominalBin {\n              __typename\n              name\n            }\n            ... on IntervalBin {\n              __typename\n              range {\n                start\n                end\n              }\n            }\n            ... on MissingValueBin {\n              __typename\n            }\n          }\n          counts {\n            primaryValue\n            referenceValue\n          }\n        }\n        totalCounts {\n          primaryValue\n          referenceValue\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query DimensionDriftBreakdownSegmentBarChartQuery(\n  $dimensionId: ID!\n  $timeRange: TimeRange!\n) {\n  dimension: node(id: $dimensionId) {\n    __typename\n    id\n    ... on Dimension {\n      segmentsComparison(primaryTimeRange: $timeRange) {\n        segments {\n          bin {\n            __typename\n            ... on NominalBin {\n              __typename\n              name\n            }\n            ... on IntervalBin {\n              __typename\n              range {\n                start\n                end\n              }\n            }\n            ... on MissingValueBin {\n              __typename\n            }\n          }\n          counts {\n            primaryValue\n            referenceValue\n          }\n        }\n        totalCounts {\n          primaryValue\n          referenceValue\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6bb76e3cce4ee28c333e485b3aa2dffd";
+(node as any).hash = "f42c6bfff21c628edc1e297e0a0462d4";
 
 export default node;

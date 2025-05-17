@@ -47,7 +47,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
     }
   `);
   const [commitDeleteTraces, isDeletingTraces] = useMutation(graphql`
-    mutation SpanSelectionToolbarDeleteTracesMutation($traceIds: [GlobalID!]!) {
+    mutation SpanSelectionToolbarDeleteTracesMutation($traceIds: [ID!]!) {
       deleteTraces(traceIds: $traceIds) {
         __typename
       }

@@ -41,7 +41,7 @@ export function DimensionPage() {
   const data = useLazyLoadQuery<DimensionPageQuery>(
     graphql`
       query DimensionPageQuery(
-        $dimensionId: GlobalID!
+        $dimensionId: ID!
         $timeRange: TimeRange!
         $hasReference: Boolean!
       ) {

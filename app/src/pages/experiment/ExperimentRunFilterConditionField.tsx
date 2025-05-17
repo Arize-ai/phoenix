@@ -178,7 +178,7 @@ async function isConditionValid(condition: string, experimentIds: string[]) {
       graphql`
         query ExperimentRunFilterConditionFieldValidationQuery(
           $condition: String!
-          $experimentIds: [GlobalID!]!
+          $experimentIds: [ID!]!
         ) {
           validateExperimentRunFilterCondition(
             condition: $condition

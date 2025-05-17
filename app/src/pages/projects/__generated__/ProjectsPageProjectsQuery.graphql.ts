@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c71ed1ccdf67eb1afeb7c0d1f0b5cc75>>
+ * @generated SignedSource<<c8b16535855ce9899471aef1ea978b0e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -79,7 +79,14 @@ v1 = [
     "name": "sort",
     "variableName": "sort"
   }
-];
+],
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
@@ -126,13 +133,7 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "id",
-                    "storageKey": null
-                  },
+                  (v2/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -192,7 +193,8 @@ return {
                     "kind": "ScalarField",
                     "name": "__typename",
                     "storageKey": null
-                  }
+                  },
+                  (v2/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -242,12 +244,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7a4089a41352e9d5b2684a7b81f07abc",
+    "cacheID": "4ce729574f508383c8126b9947ee799c",
     "id": null,
     "metadata": {},
     "name": "ProjectsPageProjectsQuery",
     "operationKind": "query",
-    "text": "query ProjectsPageProjectsQuery(\n  $after: String = null\n  $filter: ProjectFilter = null\n  $first: Int = 50\n  $sort: ProjectSort = null\n) {\n  ...ProjectsPageProjectsFragment_3JsJJ3\n}\n\nfragment ProjectsPageProjectsFragment_3JsJJ3 on Query {\n  projects(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        endTime\n        startTime\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ProjectsPageProjectsQuery(\n  $after: String = null\n  $filter: ProjectFilter = null\n  $first: Int = 50\n  $sort: ProjectSort = null\n) {\n  ...ProjectsPageProjectsFragment_3JsJJ3\n}\n\nfragment ProjectsPageProjectsFragment_3JsJJ3 on Query {\n  projects(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        endTime\n        startTime\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
