@@ -20,6 +20,8 @@ pip install arize-phoenix-client openai
 
 You'll need to specify your Phoenix endpoint before you can interact with the Client. The easiest way to do this is through an environment variable.
 
+{% include "../../.gitbook/includes/having-trouble-finding-your....md" %}
+
 ```python
 import os
 
