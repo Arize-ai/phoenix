@@ -26,6 +26,8 @@ from phoenix.auth import (
 from phoenix.config import (
     get_env_admins,
     get_env_default_admin_initial_password,
+    get_env_disable_basic_auth,
+    get_env_oauth2_settings,
 )
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
@@ -168,6 +170,9 @@ async def _ensure_admins(
     """
     if not (admins := get_env_admins()):
         return
+    # TODO: refactor this to be cleaner to the auto_signum
+    oauth2_enforced = get_env_disable_basic_auth()
+    oauth2_config = get_env_oauth2_settings()
     async with db() as session:
         existing_emails = set(
             await session.scalars(
@@ -196,14 +201,23 @@ async def _ensure_admins(
         )
         assert admin_role_id is not None, "Admin role not found in database"
         for email, username in admins.items():
-            values = dict(
-                user_role_id=admin_role_id,
-                username=username,
-                email=email,
-                password_salt=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
-                password_hash=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
-                reset_password=True,
-            )
+            if not oauth2_enforced:
+                values = dict(
+                    user_role_id=admin_role_id,
+                    username=username,
+                    email=email,
+                    password_salt=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
+                    password_hash=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
+                    reset_password=True,
+                )
+            else:
+                values = dict(
+                    user_role_id=admin_role_id,
+                    username=username,
+                    email=email,
+                    oauth2_client_id=oauth2_config[0].client_id,
+                    reset_password=False,
+                )
             await session.execute(insert(models.User).values(values))
     if email_sender is None:
         return

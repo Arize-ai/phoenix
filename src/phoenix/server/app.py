@@ -35,7 +35,7 @@ from starlette.middleware import Middleware
 from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
-from starlette.responses import JSONResponse, PlainTextResponse, Response
+from starlette.responses import JSONResponse, PlainTextResponse, Response, RedirectResponse
 from starlette.staticfiles import StaticFiles
 from starlette.status import HTTP_401_UNAUTHORIZED
 from starlette.templating import Jinja2Templates
@@ -210,6 +210,7 @@ class AppConfig(NamedTuple):
     authentication_enabled: bool
     """ Whether authentication is enabled """
     oauth2_idps: Sequence[OAuth2Idp]
+    basic_auth_disabled: bool = False
 
 
 class Static(StaticFiles):
@@ -236,6 +237,14 @@ class Static(StaticFiles):
 
     async def get_response(self, path: str, scope: Scope) -> Response:
         response = None
+
+        # Redirect to the oauth2 login page if basic auth is disabled and auto_signin is enabled
+        # TODO: this needs to be refactored to be cleaner
+        if path == "login" and self._app_config.basic_auth_disabled:
+            request = Request(scope)
+            return RedirectResponse(
+                url=f"/oauth2/{self._app_config.oauth2_idps[0]['name']}/login?returnUrl={request.query_params['returnUrl'] or '/'}",
+            )
         try:
             response = await super().get_response(path, scope)
         except HTTPException as e:
@@ -244,6 +253,7 @@ class Static(StaticFiles):
             # Fallback to to the index.html
             request = Request(scope)
 
+            print(self._app_config.basic_auth_disabled)
             response = templates.TemplateResponse(
                 "index.html",
                 context={
@@ -259,6 +269,7 @@ class Static(StaticFiles):
                     "manifest": self._web_manifest,
                     "authentication_enabled": self._app_config.authentication_enabled,
                     "oauth2_idps": self._app_config.oauth2_idps,
+                    "basic_auth_disabled": self._app_config.basic_auth_disabled,
                 },
             )
         except Exception as e:
@@ -769,6 +780,7 @@ def create_app(
     scaffolder_config: Optional[ScaffolderConfig] = None,
     email_sender: Optional[EmailSender] = None,
     oauth2_client_configs: Optional[list[OAuth2ClientConfig]] = None,
+    basic_auth_disabled: bool = False,
     bulk_inserter_factory: Optional[Callable[..., BulkInserter]] = None,
     allowed_origins: Optional[list[str]] = None,
 ) -> FastAPI:
@@ -938,6 +950,7 @@ def create_app(
                     authentication_enabled=authentication_enabled,
                     web_manifest_path=web_manifest_path,
                     oauth2_idps=oauth2_idps,
+                    basic_auth_disabled=basic_auth_disabled,
                 ),
             ),
             name="static",

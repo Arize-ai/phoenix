@@ -1198,10 +1198,6 @@ class User(Base):
             name="password_hash_and_salt",
         ),
         CheckConstraint(
-            "(oauth2_client_id IS NULL) = (oauth2_user_id IS NULL)",
-            name="oauth2_client_id_and_user_id",
-        ),
-        CheckConstraint(
             "(password_hash IS NULL) != (oauth2_client_id IS NULL)",
             name="exactly_one_auth_method",
         ),
