@@ -122,7 +122,7 @@ export function DimensionQuantilesTimeSeries({
   const data = useLazyLoadQuery<DimensionQuantilesTimeSeriesQuery>(
     graphql`
       query DimensionQuantilesTimeSeriesQuery(
-        $dimensionId: GlobalID!
+        $dimensionId: ID!
         $timeRange: TimeRange!
         $granularity: Granularity!
       ) {

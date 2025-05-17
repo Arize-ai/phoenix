@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e54178173b67da8894ad1c98b3644fba>>
+ * @generated SignedSource<<5afafd18d74075a1686c8a4c423aa27b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -46,7 +46,14 @@ v1 = [
     "name": "first",
     "variableName": "first"
   }
-];
+],
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
@@ -93,13 +100,7 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "id",
-                    "storageKey": null
-                  },
+                  (v2/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -131,7 +132,8 @@ return {
                     "kind": "ScalarField",
                     "name": "__typename",
                     "storageKey": null
-                  }
+                  },
+                  (v2/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -178,12 +180,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "26ec0494b8a0104e9eee275995df8b88",
+    "cacheID": "b1c0d4dac4422f3e6fa1eefe59401c76",
     "id": null,
     "metadata": {},
     "name": "ProjectDashboardsTableProjectsQuery",
     "operationKind": "query",
-    "text": "query ProjectDashboardsTableProjectsQuery(\n  $after: String = null\n  $first: Int = 50\n) {\n  ...ProjectDashboardsTable_projects_2HEEH6\n}\n\nfragment ProjectDashboardsTable_projects_2HEEH6 on Query {\n  projects(first: $first, after: $after) {\n    edges {\n      project: node {\n        id\n        name\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ProjectDashboardsTableProjectsQuery(\n  $after: String = null\n  $first: Int = 50\n) {\n  ...ProjectDashboardsTable_projects_2HEEH6\n}\n\nfragment ProjectDashboardsTable_projects_2HEEH6 on Query {\n  projects(first: $first, after: $after) {\n    edges {\n      project: node {\n        id\n        name\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

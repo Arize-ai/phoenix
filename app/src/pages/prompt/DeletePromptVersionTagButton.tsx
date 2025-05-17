@@ -30,7 +30,7 @@ export function DeletePromptVersionTagButton({
     useMutation<DeletePromptVersionTagButtonMutation>(graphql`
       mutation DeletePromptVersionTagButtonMutation(
         $input: DeletePromptVersionTagInput!
-        $promptId: GlobalID!
+        $promptId: ID!
       ) {
         deletePromptVersionTag(input: $input) {
           query {

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3ea5dc8999482cf5f40c9298cd26284a>>
+ * @generated SignedSource<<170b0ae01df983830e7f33b3f5fe8e63>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -26,7 +26,14 @@ var v0 = [
     "name": "first",
     "value": 50
   }
-];
+],
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": [],
@@ -73,13 +80,7 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "id",
-                    "storageKey": null
-                  },
+                  (v1/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -111,7 +112,8 @@ return {
                     "kind": "ScalarField",
                     "name": "__typename",
                     "storageKey": null
-                  }
+                  },
+                  (v1/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -158,12 +160,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a7ef0710be7178a709edd96d3a88f0f6",
+    "cacheID": "4644a4f13fed205537d5cc9e1b4f1df8",
     "id": null,
     "metadata": {},
     "name": "dashboardsLoaderQuery",
     "operationKind": "query",
-    "text": "query dashboardsLoaderQuery {\n  ...ProjectDashboardsTable_projects\n}\n\nfragment ProjectDashboardsTable_projects on Query {\n  projects(first: 50) {\n    edges {\n      project: node {\n        id\n        name\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query dashboardsLoaderQuery {\n  ...ProjectDashboardsTable_projects\n}\n\nfragment ProjectDashboardsTable_projects on Query {\n  projects(first: 50) {\n    edges {\n      project: node {\n        id\n        name\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

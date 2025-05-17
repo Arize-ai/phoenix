@@ -54,7 +54,7 @@ export function TraceDetails(props: TraceDetailsProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const data = useLazyLoadQuery<TraceDetailsQuery>(
     graphql`
-      query TraceDetailsQuery($traceId: ID!, $id: GlobalID!) {
+      query TraceDetailsQuery($traceId: ID!, $id: ID!) {
         project: node(id: $id) {
           ... on Project {
             trace(traceId: $traceId) {

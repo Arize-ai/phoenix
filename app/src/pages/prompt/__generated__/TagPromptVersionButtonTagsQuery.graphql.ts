@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a41a2681294f79b34f19c5aeb15117c9>>
+ * @generated SignedSource<<d3d75e20284729d2e8dfbd1fa713551e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -116,10 +116,6 @@ v7 = {
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
-},
-v8 = {
-  "kind": "TypeDiscriminator",
-  "abstractKey": "__isNode"
 };
 return {
   "fragment": {
@@ -172,7 +168,6 @@ return {
         "selections": [
           (v7/*: any*/),
           (v4/*: any*/),
-          (v8/*: any*/),
           (v2/*: any*/)
         ],
         "storageKey": null
@@ -187,7 +182,6 @@ return {
         "selections": [
           (v7/*: any*/),
           (v6/*: any*/),
-          (v8/*: any*/),
           (v2/*: any*/)
         ],
         "storageKey": null
@@ -195,16 +189,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "51965c86ef2f0e2192aed200cd90bef9",
+    "cacheID": "07290a8880ce785c72cb316417da40f0",
     "id": null,
     "metadata": {},
     "name": "TagPromptVersionButtonTagsQuery",
     "operationKind": "query",
-    "text": "query TagPromptVersionButtonTagsQuery(\n  $promptId: GlobalID!\n  $versionId: GlobalID!\n) {\n  prompt: node(id: $promptId) {\n    __typename\n    ... on Prompt {\n      versionTags {\n        id\n        name\n      }\n    }\n    __isNode: __typename\n    id\n  }\n  promptVersion: node(id: $versionId) {\n    __typename\n    ... on PromptVersion {\n      tags {\n        id\n        name\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query TagPromptVersionButtonTagsQuery(\n  $promptId: ID!\n  $versionId: ID!\n) {\n  prompt: node(id: $promptId) {\n    __typename\n    ... on Prompt {\n      versionTags {\n        id\n        name\n      }\n    }\n    id\n  }\n  promptVersion: node(id: $versionId) {\n    __typename\n    ... on PromptVersion {\n      tags {\n        id\n        name\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "62f9ce0c869fb321ed64215c26ee5e56";
+(node as any).hash = "6f96cbb8864a597a74d85547a9b49ed0";
 
 export default node;

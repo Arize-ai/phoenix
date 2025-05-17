@@ -69,8 +69,8 @@ export const ProjectRetentionPolicyCard = ({
     useMutation<ProjectRetentionPolicyCardSetProjectRetentionPolicyMutation>(
       graphql`
         mutation ProjectRetentionPolicyCardSetProjectRetentionPolicyMutation(
-          $projectId: GlobalID!
-          $policyId: GlobalID!
+          $projectId: ID!
+          $policyId: ID!
         ) {
           patchProjectTraceRetentionPolicy(
             input: { id: $policyId, addProjects: [$projectId] }

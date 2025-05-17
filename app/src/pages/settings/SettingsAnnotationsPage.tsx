@@ -40,9 +40,6 @@ const SettingsAnnotations = ({
         query {
           ...AnnotationConfigTableFragment
         }
-        annotationConfigs {
-          __typename
-        }
       }
     }
   `);

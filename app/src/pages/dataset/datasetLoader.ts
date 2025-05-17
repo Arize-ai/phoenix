@@ -13,7 +13,7 @@ export async function datasetLoader(args: LoaderFunctionArgs) {
   return await fetchQuery<datasetLoaderQuery>(
     RelayEnvironment,
     graphql`
-      query datasetLoaderQuery($id: GlobalID!) {
+      query datasetLoaderQuery($id: ID!) {
         dataset: node(id: $id) {
           id
           ... on Dataset {

@@ -86,7 +86,7 @@ class TestProjectTraceRetentionPolicy:
         2. ProjectTraceRetentionPolicy -> Projects relationship
         """
         # GraphQL query to test both directions of the relationship
-        node_query = """query ($id: GlobalID!) {
+        node_query = """query ($id: ID!) {
             node(id: $id) {
                 ... on Project {
                     traceRetentionPolicy {
