@@ -12,6 +12,10 @@ This example uses options 1 and 2.
 
 ## Launch Phoenix
 
+{% hint style="info" %}
+Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](https://docs.arize.com/phoenix/learn#what-is-my-phoenix-endpoint)
+{% endhint %}
+
 ### Using Phoenix Cloud
 
 1. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
