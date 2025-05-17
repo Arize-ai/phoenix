@@ -1,10 +1,11 @@
 ---
 description: Use Phoenix and OpenAI Agents SDK for powerful multi-agent tracing
+hidden: true
 ---
 
 # OpenAI Agents SDK
 
-## 1. Launch Phoenix
+## Launch Phoenix
 
 We have several code samples below on different ways to integrate with OpenAI, based on how you want to use Phoenix.
 
@@ -113,13 +114,13 @@ By default, notebook instances do not have persistent storage, so your traces wi
 {% endtab %}
 {% endtabs %}
 
-## 2. Install
+## Install
 
 ```bash
 pip install openinference-instrumentation-openai-agents openai-agents
 ```
 
-## 3. Set up Tracing
+## Set up Tracing
 
 Add your OpenAI API key as an environment variable:
 

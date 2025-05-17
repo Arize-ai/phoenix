@@ -1,5 +1,6 @@
 ---
 description: Instrument and observe your DSPy application via the DSPyInstrumentor
+hidden: true
 ---
 
 # DSPy

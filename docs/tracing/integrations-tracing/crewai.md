@@ -1,5 +1,6 @@
 ---
 description: Instrument multi agent applications using CrewAI
+hidden: true
 ---
 
 # CrewAI

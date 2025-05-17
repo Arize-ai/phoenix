@@ -2,6 +2,7 @@
 description: >-
   How to use the python OpenAIInstrumentor to trace OpenAI LLM and embedding
   calls
+hidden: true
 ---
 
 # OpenAI

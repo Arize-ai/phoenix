@@ -20,6 +20,8 @@ pip install arize-phoenix-client openai
 
 You'll need to specify your Phoenix endpoint before you can interact with the Client. The easiest way to do this is through an environment variable.
 
+{% include "../../.gitbook/includes/having-trouble-finding-your....md" %}
+
 ```python
 import os
 
@@ -138,4 +140,4 @@ Congratulations! You can now create, update, access and use prompts using the Ph
 From here, check out:
 
 * How to use your prompts in [Prompt Playground](../overview-prompts/prompt-playground.md)
-* Prompt iteration [Use Cases](../use-cases-prompts.md)
+* Prompt iteration [Use Cases](https://docs.arize.com/phoenix/cookbook/prompt-engineering/prompt-optimization)

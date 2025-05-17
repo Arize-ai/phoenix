@@ -1,5 +1,6 @@
 ---
 description: Instrument LLM applications built with Haystack
+hidden: true
 ---
 
 # Haystack

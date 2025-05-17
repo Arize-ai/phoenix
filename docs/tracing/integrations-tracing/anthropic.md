@@ -1,5 +1,6 @@
 ---
 description: Instrument LLM calls made using Anthropic's SDK
+hidden: true
 ---
 
 # Anthropic

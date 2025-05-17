@@ -1,5 +1,6 @@
 ---
 description: Trace your Flowise application using Phoenix
+hidden: true
 ---
 
 # Flowise

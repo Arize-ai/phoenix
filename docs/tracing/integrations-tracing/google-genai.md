@@ -1,11 +1,9 @@
 ---
-description: Instrument LLM applications built with Groq
+description: Instrument LLM calls made using the Google Gen AI Python SDK
 hidden: true
 ---
 
-# Groq
-
-[Groq](http://groq.com/) provides low latency and lightning-fast inference for AI models. Arize supports instrumenting Groq API calls, including role types such as system, user, and assistant messages, as well as tool use. You can create a free GroqCloud account and [generate a Groq API Key here](https://console.groq.com) to get started.
+# Google GenAI
 
 ## Launch Phoenix
 
@@ -59,7 +57,7 @@ import os
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
 ```
 
-See [Terminal](../../environments.md#terminal) for more details
+See [Terminal](../../environments.md#terminal) for more details.
 {% endtab %}
 
 {% tab title="Docker" %}
@@ -108,7 +106,7 @@ import phoenix as px
 px.launch_app()
 ```
 
-{% hint style="info" %}
+{% hint style="warning" %}
 By default, notebook instances do not have persistent storage, so your traces will disappear after the notebook is closed. See [self-hosting](https://docs.arize.com/phoenix/self-hosting) or use one of the other deployment options to retain traces.
 {% endhint %}
 {% endtab %}
@@ -117,12 +115,18 @@ By default, notebook instances do not have persistent storage, so your traces wi
 ## Install
 
 ```bash
-pip install openinference-instrumentation-groq groq
+pip install openinference-instrumentation-google-genai google-genai
 ```
 
 ## Setup
 
-Connect to your Phoenix instance using the register function.
+Set the `GEMINI_API_KEY` environment variable. To use the GenAI SDK with Vertex AI instead of the Developer API, refer to Google's [guide](https://cloud.google.com/vertex-ai/generative-ai/docs/sdks/overview) on setting the required environment variables.
+
+```python
+export GEMINI_API_KEY=[your_key_here]
+```
+
+Use the register function to connect your application to Phoenix.
 
 ```python
 from phoenix.otel import register
@@ -134,38 +138,23 @@ tracer_provider = register(
 )
 ```
 
-## Run Groq
+## Observe
 
-A simple Groq application that is now instrumented
+Now that you have tracing setup, all GenAI SDK requests will be streamed to Phoenix for observability and evaluation.
 
 ```python
 import os
-from groq import Groq
+from google import genai
 
-client = Groq(
-    # This is the default and can be omitted
-    api_key=os.environ.get("GROQ_API_KEY"),
-)
+def send_message_multi_turn() -> tuple[str, str]:
+    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    chat = client.chats.create(model="gemini-2.0-flash-001")
+    response1 = chat.send_message("What is the capital of France?")
+    response2 = chat.send_message("Why is the sky blue?")
 
-chat_completion = client.chat.completions.create(
-    messages=[
-        {
-            "role": "user",
-            "content": "Explain the importance of low latency LLMs",
-        }
-    ],
-    model="mixtral-8x7b-32768",
-)
-print(chat_completion.choices[0].message.content)
+    return response1.text or "", response2.text or ""
 ```
 
-## Observe
-
-Now that you have tracing setup, all invocations of pipelines will be streamed to your running Phoenix for observability and evaluation.
-
-## Resources:
-
-* [Example Chat Completions](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-groq/examples/chat_completions.py)
-* [Example Async Chat Completions](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-groq/examples/async_chat_completions.py)
-* [Tutorial](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/groq_tracing_tutorial.ipynb)
-* [OpenInference package](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-groq)
+{% hint style="info" %}
+This instrumentation will support tool calling soon. Refer to [this page](https://pypi.org/project/openinference-instrumentation-google-genai/#description) for the status.&#x20;
+{% endhint %}
