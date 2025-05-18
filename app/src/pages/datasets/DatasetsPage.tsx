@@ -11,6 +11,7 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 
 import { DatasetsPageQuery } from "./__generated__/DatasetsPageQuery.graphql";
 import { DatasetFromCSVForm } from "./DatasetFromCSVForm";
+import { DatasetFromJSONForm } from "./DatasetFromJSONForm";
 import { DatasetsTable } from "./DatasetsTable";
 
 export function DatasetsPage() {
@@ -64,6 +65,7 @@ type CreateDatasetActionMenu = {
 enum CreateDatasetAction {
   NEW = "newDataset",
   FROM_CSV = "datasetFromCSV",
+  FROM_JSON = "datasetFromJSON",
 }
 
 function CreateDatasetActionMenu({
@@ -133,6 +135,36 @@ function CreateDatasetActionMenu({
       </Dialog>
     );
   };
+  const onCreateDatasetFromJSON = () => {
+    setDialog(
+      <Dialog size="M" title="New Dataset from JSON">
+        <DatasetFromJSONForm
+          onDatasetCreated={(newDataset) => {
+            notifySuccess({
+              title: "Dataset created",
+              message: `${newDataset.name} has been successfully created.`,
+              action: {
+                text: "Go to Dataset",
+                onClick: () => {
+                  navigate(`/datasets/${newDataset.id}`);
+                },
+              },
+            });
+            setDialog(null);
+            onDatasetCreated();
+          }}
+          onDatasetCreateError={(error) => {
+            const formattedError =
+              getErrorMessagesFromRelayMutationError(error);
+            notifyError({
+              title: "Dataset creation failed",
+              message: formattedError?.[0] ?? error.message,
+            });
+          }}
+        />
+      </Dialog>
+    );
+  };
   return (
     <>
       <ActionMenu
@@ -147,11 +179,15 @@ function CreateDatasetActionMenu({
             case CreateDatasetAction.FROM_CSV:
               onCreateDatasetFromCSV();
               break;
+            case CreateDatasetAction.FROM_JSON:
+              onCreateDatasetFromJSON();
+              break;
           }
         }}
       >
         <Item key={CreateDatasetAction.NEW}>New Dataset</Item>
         <Item key={CreateDatasetAction.FROM_CSV}>Dataset from CSV</Item>
+        <Item key={CreateDatasetAction.FROM_JSON}>Dataset from JSON</Item>
       </ActionMenu>
       <DialogContainer
         type="modal"
