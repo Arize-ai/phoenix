@@ -10,7 +10,7 @@ This migration:
    - NOT NULL constraint on auth_method
    - 'valid_auth_method': ensures only 'LOCAL' or 'OAUTH2' values
    - 'local_auth_no_oauth': ensures LOCAL users do not have OAuth2 credentials
-   - 'oauth_auth_no_password': ensures OAUTH2 users do not have password credentials
+   - 'oauth2_auth_no_password': ensures OAUTH2 users do not have password credentials
 4. Removes legacy constraints that are replaced by the new column:
    - 'exactly_one_auth_method': replaced by auth_method column and its constraints
    - 'oauth2_client_id_and_user_id': replaced by auth_method column and its constraints
@@ -67,7 +67,7 @@ def upgrade() -> None:
     4. Adds CHECK constraints to ensure data integrity:
        - 'valid_auth_method': ensures only 'LOCAL' or 'OAUTH2' values
        - 'local_auth_no_oauth': ensures auth_method matches credentials
-       - 'oauth_auth_no_password': ensures auth_method matches credentials
+       - 'oauth2_auth_no_password': ensures auth_method matches credentials
     5. Removes legacy constraints that are replaced by the new column:
        - 'exactly_one_auth_method'
        - 'oauth2_client_id_and_user_id'
@@ -116,7 +116,7 @@ def upgrade() -> None:
             "auth_method != 'LOCAL' OR oauth2_client_id IS NULL",
         )
         batch_op.create_check_constraint(
-            "oauth_auth_no_password",
+            "oauth2_auth_no_password",
             "auth_method != 'OAUTH2' OR password_hash IS NULL",
         )
 
@@ -129,7 +129,7 @@ def downgrade() -> None:
        - 'oauth2_client_id_and_user_id': ensures OAuth2 credentials are consistent
        - 'exactly_one_auth_method': ensures exactly one auth method is set
     2. Removes the auth_method column and its associated CHECK constraints:
-       - 'oauth_auth_no_password'
+       - 'oauth2_auth_no_password'
        - 'local_auth_no_oauth'
        - 'valid_auth_method'
     3. Recreates the single column indices to maintain backward compatibility:
@@ -146,7 +146,7 @@ def downgrade() -> None:
     # This ensures the downgrade works on both SQLite and PostgreSQL
     with op.batch_alter_table("users") as batch_op:
         # Drop the CHECK constraint and column
-        batch_op.drop_constraint("oauth_auth_no_password", type_="check")
+        batch_op.drop_constraint("oauth2_auth_no_password", type_="check")
         batch_op.drop_constraint("local_auth_no_oauth", type_="check")
         batch_op.drop_constraint("valid_auth_method", type_="check")
 

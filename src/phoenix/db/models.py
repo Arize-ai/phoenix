@@ -1185,7 +1185,7 @@ class User(Base):
         ),
         CheckConstraint(
             "auth_method != 'OAUTH2' OR password_hash IS NULL",
-            name="oauth_auth_no_password",
+            name="oauth2_auth_no_password",
         ),
         UniqueConstraint(
             "oauth2_client_id",

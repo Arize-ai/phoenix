@@ -221,8 +221,8 @@ def test_user_auth_method_migration(
             conn.commit()
         error_message = str(exc_info.value)
         assert (
-            "oauth_auth_no_password" in error_message
-        ), "Expected oauth_auth_no_password constraint violation"
+            "oauth2_auth_no_password" in error_message
+        ), "Expected oauth2_auth_no_password constraint violation"
         conn.rollback()
 
     # Test downgrade
