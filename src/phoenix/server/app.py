@@ -211,6 +211,7 @@ class AppConfig(NamedTuple):
     """ Whether authentication is enabled """
     oauth2_idps: Sequence[OAuth2Idp]
     basic_auth_disabled: bool = False
+    login_form_disabled: bool = False
     auto_login_idp_name: Optional[str] = None
 
 
@@ -258,8 +259,6 @@ class Static(StaticFiles):
                 raise e
             # Fallback to to the index.html
             request = Request(scope)
-
-            print(self._app_config.basic_auth_disabled)
             response = templates.TemplateResponse(
                 "index.html",
                 context={
@@ -276,6 +275,7 @@ class Static(StaticFiles):
                     "authentication_enabled": self._app_config.authentication_enabled,
                     "oauth2_idps": self._app_config.oauth2_idps,
                     "basic_auth_disabled": self._app_config.basic_auth_disabled,
+                    "login_form_disabled": self._app_config.login_form_disabled,
                     "auto_login_idp_name": self._app_config.auto_login_idp_name,
                 },
             )
@@ -788,6 +788,7 @@ def create_app(
     email_sender: Optional[EmailSender] = None,
     oauth2_client_configs: Optional[list[OAuth2ClientConfig]] = None,
     basic_auth_disabled: bool = False,
+    login_form_disabled: bool = False,
     bulk_inserter_factory: Optional[Callable[..., BulkInserter]] = None,
     allowed_origins: Optional[list[str]] = None,
 ) -> FastAPI:
@@ -961,6 +962,7 @@ def create_app(
                     web_manifest_path=web_manifest_path,
                     oauth2_idps=oauth2_idps,
                     basic_auth_disabled=basic_auth_disabled,
+                    login_form_disabled=login_form_disabled,
                     auto_login_idp_name=auto_login_idp_name,
                 ),
             ),
