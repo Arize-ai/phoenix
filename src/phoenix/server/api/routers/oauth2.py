@@ -335,10 +335,14 @@ async def _get_existing_oauth2_user(
         SignInNotAllowed: When sign-in is not allowed for the user (user doesn't exist, has a
             password, or has mismatched OAuth2 credentials)
     """  # noqa: E501
-    email = user_info.email
-    username = user_info.username
-    oauth2_user_id = user_info.idp_user_id
-    profile_picture_url = user_info.profile_picture_url
+    if not (email := (user_info.email or "").strip()):
+        raise ValueError("Email is required.")
+    if not (oauth2_user_id := (user_info.idp_user_id or "").strip()):
+        raise ValueError("OAuth2 user ID is required.")
+    if not (oauth2_client_id := (oauth2_client_id or "").strip()):
+        raise ValueError("OAuth2 client ID is required.")
+    username = (user_info.username or "").strip()
+    profile_picture_url = (user_info.profile_picture_url or "").strip()
     stmt = select(models.User).options(joinedload(models.User.role))
     if user := await session.scalar(
         stmt.filter_by(oauth2_client_id=oauth2_client_id, oauth2_user_id=oauth2_user_id)
