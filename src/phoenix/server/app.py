@@ -248,10 +248,10 @@ class Static(StaticFiles):
             and self._app_config.auto_login_idp_name
         ):
             request = Request(scope)
-            return RedirectResponse(
-                url=f"/oauth2/{self._app_config.auto_login_idp_name}/login?"
-                f"returnUrl={request.query_params['returnUrl'] or '/'}",
-            )
+            url = f"/oauth2/{self._app_config.auto_login_idp_name}/login"
+            if return_url := request.query_params.get("returnUrl"):
+                url += f"?returnUrl={return_url}"
+            return RedirectResponse(url=url)
         try:
             response = await super().get_response(path, scope)
         except HTTPException as e:
