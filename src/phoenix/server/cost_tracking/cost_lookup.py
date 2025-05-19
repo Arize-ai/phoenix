@@ -106,7 +106,9 @@ class ModelCostLookup:
             del self._model_map[pattern]
         self._cache.clear()
 
-    def get_cost(self, provider: Optional[str], model_name: str) -> ModelTokenCost:
+    def get_cost(
+        self, provider: Optional[str], model_name: str
+    ) -> list[tuple[str, ModelTokenCost]]:
         key = (provider, model_name)
         if key in self._cache:
             return self._cache[key]
@@ -125,18 +127,20 @@ class ModelCostLookup:
 
         return sum(len(regex_dict) for regex_dict in self._provider_model_map.values())
 
-    def _lookup_cost(self, provider: Optional[str], model_name: str) -> ModelTokenCost:
+    def _lookup_cost(
+        self, provider: Optional[str], model_name: str
+    ) -> list[tuple[str, ModelTokenCost]]:
         assert isinstance(model_name, str), "Lookup key must be a str"
         # 1) Provider-specific lookup
         if provider is not None:
             override_cost = self._lookup_override(provider, model_name)
             if override_cost is not None:
-                return override_cost
+                return [(provider, override_cost)]
 
             regex_dict = self._provider_model_map.get(provider)
             if regex_dict is None:
                 raise KeyError(provider)
-            return regex_dict[model_name]
+            return [(provider, regex_dict[model_name])]
 
         # 2) provider-agnostic lookup
         provider_cost_map: dict[str, ModelTokenCost] = {}
