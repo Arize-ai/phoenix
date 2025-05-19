@@ -206,6 +206,7 @@ async def _ensure_admins(
             if not disable_basic_auth:
                 user.password_salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
                 user.password_hash = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
+                user.auth_method = "LOCAL"
                 user.reset_password = True
             session.add(user)
         await session.flush()
