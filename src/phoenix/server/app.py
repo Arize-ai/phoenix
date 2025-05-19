@@ -56,6 +56,7 @@ from phoenix.config import (
     get_env_gql_extension_paths,
     get_env_grpc_interceptor_paths,
     get_env_host,
+    get_env_host_root_path,
     get_env_port,
     server_instrumentation_is_enabled,
     verify_server_environment_variables,
@@ -248,7 +249,10 @@ class Static(StaticFiles):
             and self._app_config.auto_login_idp_name
         ):
             request = Request(scope)
-            url = f"/oauth2/{self._app_config.auto_login_idp_name}/login"
+            url = str(
+                Path(get_env_host_root_path())
+                / f"oauth2/{self._app_config.auto_login_idp_name}/login"
+            )
             if return_url := request.query_params.get("returnUrl"):
                 url += f"?returnUrl={return_url}"
             return RedirectResponse(url=url)
