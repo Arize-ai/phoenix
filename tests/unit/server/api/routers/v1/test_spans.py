@@ -13,6 +13,7 @@ from phoenix import Client as LegacyClient
 from phoenix import TraceDataset
 from phoenix.client import Client
 from phoenix.db import models
+from phoenix.server.api.routers.v1.spans import AnyValue, OtlpSpan, Status
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanQuery
 
@@ -206,7 +207,17 @@ async def test_span_search_basic(
     resp = await httpx_client.get("v1/projects/search-test/spans")
     assert resp.is_success
     data = resp.json()
-    assert len(data["data"]) == 3
+    spans = [OtlpSpan.model_validate(s) for s in data["data"]]
+    assert len(spans) == 3
+    # Verify the spans have the expected structure
+    for span in spans:
+        assert isinstance(span.span_id, str)
+        assert isinstance(span.trace_id, str)
+        assert isinstance(span.name, str)
+        assert isinstance(span.start_time_unix_nano, (int, str))
+        assert isinstance(span.end_time_unix_nano, (int, str))
+        assert isinstance(span.attributes, (list, type(None)))
+        assert isinstance(span.status, (Status, type(None)))
 
 
 async def test_span_search_annotation_filter(
@@ -218,7 +229,17 @@ async def test_span_search_annotation_filter(
     )
     assert resp.is_success
     data = resp.json()
-    assert len(data["data"]) == 2
+    spans = [OtlpSpan.model_validate(s) for s in data["data"]]
+    assert len(spans) == 2
+    # Verify the spans have the expected structure
+    for span in spans:
+        assert isinstance(span.span_id, str)
+        assert isinstance(span.trace_id, str)
+        assert isinstance(span.name, str)
+        assert isinstance(span.start_time_unix_nano, (int, str))
+        assert isinstance(span.end_time_unix_nano, (int, str))
+        assert isinstance(span.attributes, (list, type(None)))
+        assert isinstance(span.status, (Status, type(None)))
 
 
 async def test_span_search_time_slice(
@@ -232,8 +253,18 @@ async def test_span_search_time_slice(
     )
     assert resp.is_success
     data = resp.json()
+    spans = [OtlpSpan.model_validate(s) for s in data["data"]]
     # spans 1 and 2 fall in range
-    assert len(data["data"]) == 2
+    assert len(spans) == 2
+    # Verify the spans have the expected structure
+    for span in spans:
+        assert isinstance(span.span_id, str)
+        assert isinstance(span.trace_id, str)
+        assert isinstance(span.name, str)
+        assert isinstance(span.start_time_unix_nano, (int, str))
+        assert isinstance(span.end_time_unix_nano, (int, str))
+        assert isinstance(span.attributes, (list, type(None)))
+        assert isinstance(span.status, (Status, type(None)))
 
 
 async def test_span_search_sort_direction(
@@ -246,8 +277,10 @@ async def test_span_search_sort_direction(
         "v1/projects/search-test/spans", params={"sort_direction": "asc"}
     )
     assert resp_desc.is_success and resp_asc.is_success
-    ids_desc = [s["spanId"] for s in resp_desc.json()["data"]]
-    ids_asc = [s["spanId"] for s in resp_asc.json()["data"]]
+    spans_desc = [OtlpSpan.model_validate(s) for s in resp_desc.json()["data"]]
+    spans_asc = [OtlpSpan.model_validate(s) for s in resp_asc.json()["data"]]
+    ids_desc = [s.span_id for s in spans_desc]
+    ids_asc = [s.span_id for s in spans_asc]
     assert ids_desc == list(reversed(ids_asc))
 
 
@@ -260,7 +293,8 @@ async def test_span_search_pagination(
     )
     assert resp1.is_success
     body1 = resp1.json()
-    assert len(body1["data"]) == 2 and body1["next_cursor"]
+    spans1 = [OtlpSpan.model_validate(s) for s in body1["data"]]
+    assert len(spans1) == 2 and body1["next_cursor"]
 
     cursor = body1["next_cursor"]
     # Second page
@@ -270,4 +304,46 @@ async def test_span_search_pagination(
     )
     assert resp2.is_success
     body2 = resp2.json()
-    assert len(body2["data"]) == 1 and body2["next_cursor"] is None
+    spans2 = [OtlpSpan.model_validate(s) for s in body2["data"]]
+    assert len(spans2) == 1 and body2["next_cursor"] is None
+
+    # Verify the spans have the expected structure
+    for spans in [spans1, spans2]:
+        for span in spans:
+            assert isinstance(span.span_id, str)
+            assert isinstance(span.trace_id, str)
+            assert isinstance(span.name, str)
+            assert isinstance(span.start_time_unix_nano, (int, str))
+            assert isinstance(span.end_time_unix_nano, (int, str))
+            assert isinstance(span.attributes, (list, type(None)))
+            assert isinstance(span.status, (Status, type(None)))
+
+
+async def test_span_attributes_conversion(
+    httpx_client: httpx.AsyncClient, project_with_a_single_trace_and_span: None
+) -> None:
+    """Test that span attributes are properly converted to OTLP format."""
+    resp = await httpx_client.get("v1/projects/project-name/spans")
+    assert resp.is_success
+    data = resp.json()
+    spans = [OtlpSpan.model_validate(s) for s in data["data"]]
+    assert len(spans) == 1
+
+    span = spans[0]
+    assert span.attributes is not None
+    # Find the input and output attributes
+    input_attr = next((attr for attr in span.attributes if attr.key == "input.value"), None)
+    output_attr = next((attr for attr in span.attributes if attr.key == "output.value"), None)
+
+    assert input_attr is not None
+    assert output_attr is not None
+
+    # Verify the input attribute value
+    assert input_attr.value is not None
+    assert isinstance(input_attr.value, AnyValue)
+    assert input_attr.value.string_value == "chain-span-input-value"
+
+    # Verify the output attribute value
+    assert output_attr.value is not None
+    assert isinstance(output_attr.value, AnyValue)
+    assert output_attr.value.string_value == "chain-span-output-value"

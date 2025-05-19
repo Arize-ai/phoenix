@@ -8,7 +8,7 @@ from typing import Annotated, Any, Literal, Optional, Union
 
 import pandas as pd
 from fastapi import APIRouter, Header, HTTPException, Path, Query
-from pydantic import BaseModel, ConfigDict, Extra, Field
+from pydantic import BaseModel, Extra, Field
 from sqlalchemy import select
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
@@ -115,9 +115,15 @@ class StatusCode(IntEnum):
 
 
 class Status(BaseModel):
-    code: StatusCode  # serialized as its int value
-    message: Optional[str] = None
-    model_config = ConfigDict(populate_by_name=True)
+    class Config:
+        extra = Extra.forbid
+
+    code: Optional[Annotated[int, Field(ge=-2147483648, le=2147483647)]] = Field(
+        None, description="The status code."
+    )
+    message: Optional[str] = Field(
+        None, description="A developer-facing human readable error message."
+    )
 
 
 class Kind(Enum):
@@ -386,6 +392,32 @@ async def _json_multipart(
     yield f"--{boundary_token}--\r\n"
 
 
+def _to_any_value(value: Any) -> AnyValue:
+    if value is None:
+        return AnyValue()
+    elif isinstance(value, bool):
+        return AnyValue(bool_value=value)
+    elif isinstance(value, int):
+        return AnyValue(int_value=value)
+    elif isinstance(value, float):
+        if value in (float("inf"), float("-inf"), float("nan")):
+            return AnyValue(double_value=str(value))
+        return AnyValue(double_value=value)
+    elif isinstance(value, str):
+        return AnyValue(string_value=value)
+    elif isinstance(value, bytes):
+        return AnyValue(bytes_value=value.hex())
+    elif isinstance(value, (list, tuple)):
+        # TODO: Implement array_value when ArrayValue model is added
+        return AnyValue()
+    elif isinstance(value, dict):
+        # TODO: Implement kvlist_value when KeyValueList model is added
+        return AnyValue()
+    else:
+        # For any other type, convert to string
+        return AnyValue(string_value=str(value))
+
+
 @router.get(
     "/projects/{project_identifier}/spans",
     operation_id="spanSearch",
@@ -484,10 +516,11 @@ async def span_search(
         except KeyError:
             status_code_enum = StatusCode.UNSET
 
-        attributes_kv: list[KeyValue] = [
-            KeyValue(key=k, value=v)
-            for k, v in flatten(span_orm.attributes or {}, recurse_on_sequence=True)
-        ]
+        # Convert attributes to KeyValue list
+        attributes_kv: list[KeyValue] = []
+        if span_orm.attributes:
+            for k, v in flatten(span_orm.attributes or {}, recurse_on_sequence=True):
+                attributes_kv.append(KeyValue(key=k, value=_to_any_value(v)))
 
         start_ns = (
             int(span_orm.start_time.timestamp() * 1_000_000_000) if span_orm.start_time else None
@@ -500,11 +533,10 @@ async def span_search(
                 span_id=span_orm.span_id,
                 parent_span_id=span_orm.parent_id,
                 name=span_orm.name,
-                kind=0,  # UNSPECIFIED; OpenInference does not set OTLP SpanKind
                 start_time_unix_nano=start_ns,
                 end_time_unix_nano=end_ns,
                 attributes=attributes_kv,
-                events=span_orm.events or [],
+                # events=None,  # TODO: Add events
                 status=Status(code=status_code_enum, message=span_orm.status_message or None),
             )
         )
