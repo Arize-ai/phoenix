@@ -1149,8 +1149,8 @@ class User(Base):
     password_hash: Mapped[Optional[bytes]]
     password_salt: Mapped[Optional[bytes]]
     reset_password: Mapped[bool]
-    oauth2_client_id: Mapped[Optional[str]] = mapped_column(index=True, nullable=True)
-    oauth2_user_id: Mapped[Optional[str]] = mapped_column(index=True, nullable=True)
+    oauth2_client_id: Mapped[Optional[str]]
+    oauth2_user_id: Mapped[Optional[str]]
     auth_method: Mapped[AuthMethod] = mapped_column(
         CheckConstraint("auth_method IN ('LOCAL', 'OAUTH2')", name="valid_auth_method")
     )
@@ -1180,9 +1180,12 @@ class User(Base):
             name="password_hash_and_salt",
         ),
         CheckConstraint(
-            "(auth_method = 'LOCAL' AND password_hash IS NOT NULL) OR "
-            "(auth_method = 'OAUTH2' AND password_hash IS NULL)",
-            name="auth_method_and_password",
+            "auth_method != 'LOCAL' OR oauth2_client_id IS NULL",
+            name="local_auth_no_oauth",
+        ),
+        CheckConstraint(
+            "auth_method != 'OAUTH2' OR password_hash IS NULL",
+            name="oauth_auth_no_password",
         ),
         UniqueConstraint(
             "oauth2_client_id",
