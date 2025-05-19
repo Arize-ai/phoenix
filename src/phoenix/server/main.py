@@ -92,7 +92,7 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 
 |
 |  🌎 Join our Community 🌎
-|  https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q
+|  https://arize-ai.slack.com/join/shared_invite/zt-2w57bhem8-hq24MB6u7yE_ZF_ilOYSBw#/shared-invite/email
 |
 |  ⭐️ Leave us a Star ⭐️
 |  https://github.com/Arize-ai/phoenix

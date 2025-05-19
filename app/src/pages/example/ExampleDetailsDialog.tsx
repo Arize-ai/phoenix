@@ -34,7 +34,7 @@ export function ExampleDetailsDialog({
   const [fetchKey, setFetchKey] = useState(0);
   const data = useLazyLoadQuery<ExampleDetailsDialogQuery>(
     graphql`
-      query ExampleDetailsDialogQuery($exampleId: GlobalID!) {
+      query ExampleDetailsDialogQuery($exampleId: ID!) {
         example: node(id: $exampleId) {
           ... on DatasetExample {
             id

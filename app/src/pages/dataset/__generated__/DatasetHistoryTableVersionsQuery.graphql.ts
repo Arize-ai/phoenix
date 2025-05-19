@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<493cbbd77b909ef54400b8606c21cce9>>
+ * @generated SignedSource<<ee3ac6fb6cc11130f636165d4a242227>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -118,10 +118,6 @@ return {
         "plural": false,
         "selections": [
           (v3/*: any*/),
-          {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
           (v4/*: any*/),
           {
             "kind": "InlineFragment",
@@ -226,12 +222,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e8e3a05b4e86c8eaeea98172405fdc7e",
+    "cacheID": "adbbc367bb0082b7de0428488e0b2173",
     "id": null,
     "metadata": {},
     "name": "DatasetHistoryTableVersionsQuery",
     "operationKind": "query",
-    "text": "query DatasetHistoryTableVersionsQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetHistoryTable_versions_2HEEH6\n    __isNode: __typename\n    id\n  }\n}\n\nfragment DatasetHistoryTable_versions_2HEEH6 on Dataset {\n  versions(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        description\n        createdAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query DatasetHistoryTableVersionsQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetHistoryTable_versions_2HEEH6\n    id\n  }\n}\n\nfragment DatasetHistoryTable_versions_2HEEH6 on Dataset {\n  versions(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        description\n        createdAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();

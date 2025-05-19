@@ -89,7 +89,7 @@ type UMAPPointsEntry = NonNullable<
 
 const EmbeddingPageUMAPQuery = graphql`
   query EmbeddingPageUMAPQuery(
-    $id: GlobalID!
+    $id: ID!
     $timeRange: TimeRange!
     $minDist: Float!
     $nNeighbors: Int!

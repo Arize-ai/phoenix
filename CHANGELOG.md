@@ -1,5 +1,24 @@
 # Changelog
 
+## [9.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v9.4.0...arize-phoenix-v9.5.0) (2025-05-17)
+
+
+### Features
+
+* **dashboards:** dashboard panel ([#7564](https://github.com/Arize-ai/phoenix/issues/7564)) ([cb8cd07](https://github.com/Arize-ai/phoenix/commit/cb8cd078e463c7300c0a3e72f0bae3df159f1875))
+* graphql query for hourly span count timeseries ([#6997](https://github.com/Arize-ai/phoenix/issues/6997)) ([fe6a80a](https://github.com/Arize-ai/phoenix/commit/fe6a80aaa939ebe445af04c17e46b2c29080bc60))
+
+
+### Bug Fixes
+
+* check sql validity of filter expression ([#7581](https://github.com/Arize-ai/phoenix/issues/7581)) ([12a0620](https://github.com/Arize-ai/phoenix/commit/12a062081a0bc402ba8068ca8a10414232c6d623))
+* remove GlobalID as custom scalar from GraphQL schema ([#7544](https://github.com/Arize-ai/phoenix/issues/7544)) ([4a0659a](https://github.com/Arize-ai/phoenix/commit/4a0659a76715ce73df082b2d6aab95e26b9866a2))
+
+
+### Documentation
+
+* update docstring for experiment evaluators ([#7575](https://github.com/Arize-ai/phoenix/issues/7575)) ([4fa5c57](https://github.com/Arize-ai/phoenix/commit/4fa5c57aa4ee92da50fb898e2372bda35ef1d592))
+
 ## [9.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v9.3.0...arize-phoenix-v9.4.0) (2025-05-15)
 
 

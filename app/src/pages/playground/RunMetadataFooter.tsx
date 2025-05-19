@@ -19,7 +19,7 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
   const [, setSearchParams] = useSearchParams();
   const data = useLazyLoadQuery<RunMetadataFooterQuery>(
     graphql`
-      query RunMetadataFooterQuery($spanId: GlobalID!) {
+      query RunMetadataFooterQuery($spanId: ID!) {
         span: node(id: $spanId) {
           id
           ... on Span {

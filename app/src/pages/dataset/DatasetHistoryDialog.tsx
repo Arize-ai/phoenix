@@ -10,7 +10,7 @@ export function DatasetHistoryDialog(props: { datasetId: string }) {
   const { datasetId } = props;
   const data = useLazyLoadQuery<DatasetHistoryDialogQuery>(
     graphql`
-      query DatasetHistoryDialogQuery($datasetId: GlobalID!) {
+      query DatasetHistoryDialogQuery($datasetId: ID!) {
         dataset: node(id: $datasetId) {
           ... on Dataset {
             id

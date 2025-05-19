@@ -846,7 +846,7 @@ def _delete_users(
     users: Iterable[Union[_GqlId, _User]],
 ) -> None:
     user_ids = [u.gid if isinstance(u, _User) else u for u in users]
-    query = "mutation($userIds:[GlobalID!]!){deleteUsers(input:{userIds:$userIds})}"
+    query = "mutation($userIds:[ID!]!){deleteUsers(input:{userIds:$userIds})}"
     _, headers = _gql(auth, query=query, variables=dict(userIds=user_ids))
     assert not headers.get("set-cookie")
 
@@ -975,7 +975,7 @@ def _delete_api_key(
 def _will_be_asked_to_reset_password(
     user: _User,
 ) -> bool:
-    query = "query($gid:GlobalID!){node(id:$gid){... on User{passwordNeedsReset}}}"
+    query = "query($gid:ID!){node(id:$gid){... on User{passwordNeedsReset}}}"
     variables = dict(gid=user.gid)
     resp_dict, _ = user.log_in().gql(query, variables)
     return cast(bool, resp_dict["data"]["node"]["passwordNeedsReset"])

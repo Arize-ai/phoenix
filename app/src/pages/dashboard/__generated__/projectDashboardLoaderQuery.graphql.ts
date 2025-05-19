@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2f3648376c03ebc71e1f135c7713b1a2>>
+ * @generated SignedSource<<17ba97032fc5a990b5570fee1bec4707>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -104,10 +104,6 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
           (v2/*: any*/),
           {
             "kind": "InlineFragment",
@@ -123,16 +119,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a59e189a29ac839de46519a54fcec863",
+    "cacheID": "0887353c068bc5b99dc87040ca8328fc",
     "id": null,
     "metadata": {},
     "name": "projectDashboardLoaderQuery",
     "operationKind": "query",
-    "text": "query projectDashboardLoaderQuery(\n  $projectId: GlobalID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      id\n      name\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query projectDashboardLoaderQuery(\n  $projectId: ID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      id\n      name\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3d42916b60cd20478b139e12f6760d93";
+(node as any).hash = "0db45a204ecd1b95387ed3978ab69779";
 
 export default node;

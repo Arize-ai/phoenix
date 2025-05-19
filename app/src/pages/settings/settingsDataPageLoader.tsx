@@ -9,6 +9,7 @@ export async function settingsDataPageLoader() {
     RelayEnvironment,
     graphql`
       query settingsDataPageLoaderQuery {
+        __id
         ...RetentionPoliciesTable_policies
       }
     `,
