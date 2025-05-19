@@ -10,7 +10,7 @@ import {
 } from "../types/datasets";
 import type {
   Evaluator,
-  Experiment,
+  ExperimentInfo,
   ExperimentEvaluationRun,
   ExperimentRun,
   ExperimentRunID,
@@ -143,7 +143,7 @@ export async function runExperiment({
   let projectName = `${dataset.name}-exp-${new Date().toISOString()}`;
   // initialize the tracer into scope
   let taskTracer: Tracer;
-  let experiment: Experiment;
+  let experiment: ExperimentInfo;
   if (isDryRun) {
     experiment = {
       id: localId(),
@@ -373,7 +373,7 @@ export async function evaluateExperiment({
   experiment,
   evaluators,
   client: _client,
-  logger,
+  logger = console,
   concurrency = 5,
   dryRun = false,
 }: {
@@ -386,9 +386,9 @@ export async function evaluateExperiment({
   /** The client to use */
   client?: PhoenixClient;
   /** The logger to use */
-  logger: Logger;
+  logger?: Logger;
   /** The number of evaluators to run in parallel */
-  concurrency: number;
+  concurrency?: number;
   /**
    * Whether to run the evaluation as a dry run
    * If a number is provided, the evaluation will be run for the first n runs

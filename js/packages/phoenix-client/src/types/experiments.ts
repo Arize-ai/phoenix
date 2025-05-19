@@ -5,7 +5,7 @@ import { Example } from "./datasets";
 /**
  * An experiment is a set of task runs on a dataset version
  */
-export interface Experiment extends Node {
+export interface ExperimentInfo extends Node {
   datasetId: string;
   datasetVersionId: string;
   /**
@@ -31,7 +31,7 @@ export interface ExperimentRunsMap {
 /**
  * An experiment that has been run and been recorded on the server
  */
-export interface RanExperiment extends Experiment, ExperimentRunsMap {
+export interface RanExperiment extends ExperimentInfo, ExperimentRunsMap {
   evaluationRuns?: ExperimentEvaluationRun[];
 }
 
