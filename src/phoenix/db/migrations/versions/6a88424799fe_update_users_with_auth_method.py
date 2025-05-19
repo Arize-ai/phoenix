@@ -2,10 +2,18 @@
 
 This migration:
 1. Adds a new 'auth_method' column to the users table that indicates whether a user
-   authenticates via local password ('local') or external OAuth2 ('external')
-2. Migrates existing authentication data to populate the new column
-3. Adds appropriate constraints to ensure data integrity
-4. Removes legacy constraints that are replaced by the new column
+   authenticates via local password ('LOCAL') or external OAuth2 ('OAUTH2')
+2. Migrates existing authentication data to populate the new column:
+   - Sets 'LOCAL' for users with password_hash
+   - Sets 'OAUTH2' for users with OAuth2 credentials
+3. Adds appropriate constraints to ensure data integrity:
+   - NOT NULL constraint on auth_method
+   - 'valid_auth_method': ensures only 'LOCAL' or 'OAUTH2' values
+   - 'local_auth_no_oauth': ensures LOCAL users do not have OAuth2 credentials
+   - 'oauth_auth_no_password': ensures OAUTH2 users do not have password credentials
+4. Removes legacy constraints that are replaced by the new column:
+   - 'exactly_one_auth_method': replaced by auth_method column and its constraints
+   - 'oauth2_client_id_and_user_id': replaced by auth_method column and its constraints
 
 The migration uses batch_alter_table to ensure compatibility with both SQLite and PostgreSQL.
 This approach allows us to:
@@ -14,6 +22,12 @@ This approach allows us to:
 - Make the column NOT NULL after populating
 - Add appropriate constraints
 - Remove legacy constraints
+
+The downgrade path:
+1. Recreates the legacy constraints:
+   - 'exactly_one_auth_method': ensures exactly one auth method is set
+   - 'oauth2_client_id_and_user_id': ensures OAuth2 credentials are consistent
+2. Removes the auth_method column and its associated constraints
 
 Revision ID: 6a88424799fe
 Revises: 8a3764fe7f1a
@@ -42,11 +56,19 @@ def upgrade() -> None:
        - 'LOCAL' for users with password_hash
        - 'OAUTH2' for users with OAuth2 credentials
     3. Makes the column NOT NULL after populating
-    4. Adds a CHECK constraint to ensure valid values
-    5. Removes legacy constraints that are replaced by the new column
+    4. Adds CHECK constraints to ensure data integrity:
+       - 'valid_auth_method': ensures only 'LOCAL' or 'OAUTH2' values
+       - 'local_auth_no_oauth': ensures LOCAL users do not have OAuth2 credentials
+       - 'oauth_auth_no_password': ensures OAUTH2 users do not have password credentials
+    5. Removes legacy constraints that are replaced by the new column:
+       - 'exactly_one_auth_method'
+       - 'oauth2_client_id_and_user_id'
 
     The implementation uses batch_alter_table for compatibility with both
     SQLite and PostgreSQL databases.
+
+    Raises:
+        sqlalchemy.exc.SQLAlchemyError: If database operations fail
     """
     with op.batch_alter_table("users") as batch_op:
         # For SQLite, first add the column as nullable
@@ -61,47 +83,62 @@ def upgrade() -> None:
         # Make the column non-nullable
         batch_op.alter_column("auth_method", nullable=False, existing_nullable=True)
 
-        # Add CHECK constraint to ensure only valid values are allowed
-        batch_op.create_check_constraint("valid_auth_method", "auth_method IN ('LOCAL', 'OAUTH2')")
-        batch_op.create_check_constraint(
-            "auth_method_and_password",
-            "(auth_method = 'LOCAL' AND password_hash IS NOT NULL) OR "
-            "(auth_method = 'OAUTH2' AND password_hash IS NULL)",
-        )
-
-        # Drop the old constraints that are no longer needed
-        # These are replaced by the new auth_method column and its CHECK constraint
-        batch_op.drop_constraint("oauth2_client_id_and_user_id", type_="check")
+        # Drop both old constraints as they're now redundant
+        # exactly_one_auth_method is covered by the new auth_method constraints
+        # oauth2_client_id_and_user_id is covered by the new auth_method constraints
         batch_op.drop_constraint("exactly_one_auth_method", type_="check")
+        batch_op.drop_constraint("oauth2_client_id_and_user_id", type_="check")
+
+        # Add CHECK constraint to ensure only valid values are allowed
+        batch_op.create_check_constraint(
+            "valid_auth_method",
+            "auth_method IN ('LOCAL', 'OAUTH2')",
+        )
+        batch_op.create_check_constraint(
+            "local_auth_no_oauth",
+            "auth_method != 'LOCAL' OR oauth2_client_id IS NULL",
+        )
+        batch_op.create_check_constraint(
+            "oauth_auth_no_password",
+            "auth_method != 'OAUTH2' OR password_hash IS NULL",
+        )
 
 
 def downgrade() -> None:
     """Downgrade the database schema by removing the auth_method column.
 
     This function:
-    1. Recreates the legacy constraints that were removed in the upgrade
-    2. Removes the auth_method column and its associated CHECK constraint
+    1. Recreates the legacy constraints that were removed in the upgrade:
+       - 'oauth2_client_id_and_user_id': ensures OAuth2 credentials are consistent
+       - 'exactly_one_auth_method': ensures exactly one auth method is set
+    2. Removes the auth_method column and its associated CHECK constraints:
+       - 'oauth_auth_no_password'
+       - 'local_auth_no_oauth'
+       - 'valid_auth_method'
 
     The implementation uses batch_alter_table to ensure compatibility with both
     SQLite and PostgreSQL databases.
+
+    Raises:
+        sqlalchemy.exc.SQLAlchemyError: If database operations fail
     """
     # Use batch_alter_table for SQLite compatibility
     # This ensures the downgrade works on both SQLite and PostgreSQL
     with op.batch_alter_table("users") as batch_op:
-        # Recreate the old constraints that were dropped in upgrade
-        # Order matters: recreate constraints before dropping new ones
-        batch_op.create_check_constraint(
-            "exactly_one_auth_method",
-            "(password_hash IS NULL) != (oauth2_client_id IS NULL)",
-        )
+        # Recreate both old constraints that were dropped in upgrade
         batch_op.create_check_constraint(
             "oauth2_client_id_and_user_id",
             "(oauth2_client_id IS NULL) = (oauth2_user_id IS NULL)",
+        )
+        batch_op.create_check_constraint(
+            "exactly_one_auth_method",
+            "(password_hash IS NULL) != (oauth2_client_id IS NULL)",
         )
 
         # Drop the CHECK constraint and column
         # Order matters: drop constraint before dropping column
         # This prevents any constraint violations during the process
-        batch_op.drop_constraint("auth_method_and_password", type_="check")
+        batch_op.drop_constraint("oauth_auth_no_password", type_="check")
+        batch_op.drop_constraint("local_auth_no_oauth", type_="check")
         batch_op.drop_constraint("valid_auth_method", type_="check")
         batch_op.drop_column("auth_method")
