@@ -1,4 +1,5 @@
 import re
+import sys
 import unittest.mock as mock
 
 import pytest
@@ -228,6 +229,10 @@ def test_cache_busted_on_override(cost_lookup: ModelCostLookup) -> None:
     assert cost_lookup._cache
 
 
+@pytest.mark.xfail(
+    sys.version_info[:2] == (3, 9),
+    reason="Python 3.9 has a bug with unittest.mock when combining wraps and autospec",
+)
 def test_cache_hit_avoids_recompute(cost_lookup: ModelCostLookup) -> None:
     cost_lookup.add_pattern(
         provider="openai",
