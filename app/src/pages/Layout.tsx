@@ -87,7 +87,7 @@ function SideNav() {
       method: "POST",
     });
     if (response.ok) {
-      navigate(window.Config.oAuth2Enforced ? "/logout":"/login");
+      navigate(window.Config.basicAuthDisabled ? "/logout" : "/login");
       return;
     }
     notifyError({
