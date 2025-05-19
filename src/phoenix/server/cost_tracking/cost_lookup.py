@@ -72,7 +72,7 @@ class RegexDict:
 
 
 class ModelCostLookup:
-    __slots__ = ("_provider_model_map", "_model_map", "_overrides", "_cache")
+    __slots__ = ("_provider_model_map", "_model_map", "_overrides", "_cache", "_max_cache_size")
 
     def __init__(self) -> None:
         # Each provider maps to a *RegexDict* of (pattern -> cost).
@@ -83,6 +83,7 @@ class ModelCostLookup:
         self._overrides: list[tuple[Optional[str], re.Pattern, ModelTokenCost]] = []
         # Cache for computed costs keyed by (provider, model_name).
         self._cache: dict[tuple[Optional[str], str], Any] = {}
+        self._max_cache_size = 100
 
     def add_pattern(
         self, provider: Optional[str], pattern: re.Pattern, cost: ModelTokenCost
@@ -111,9 +112,15 @@ class ModelCostLookup:
     ) -> list[tuple[str, ModelTokenCost]]:
         key = (provider, model_name)
         if key in self._cache:
-            return self._cache[key]
+            value = self._cache.pop(key)
+            self._cache[key] = value
+            return value
 
         result = self._lookup_cost(provider, model_name)
+
+        if len(self._cache) >= self._max_cache_size:
+            self._cache.pop(next(iter(self._cache)))
+
         self._cache[key] = result
         return result
 
