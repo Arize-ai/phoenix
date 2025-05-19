@@ -100,6 +100,8 @@ class ModelCostLookup:
         """Remove a previously-registered model pattern."""
 
         assert isinstance(pattern, re.Pattern), "pattern must be a compiled regex"
+        if provider not in self._provider_model_map:
+            return
         del self._provider_model_map[provider][pattern]
         self._model_map[pattern].discard(provider)
         if not self._provider_model_map[provider]:
