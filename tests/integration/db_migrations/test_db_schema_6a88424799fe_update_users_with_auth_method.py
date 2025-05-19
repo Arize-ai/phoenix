@@ -145,8 +145,6 @@ class TestUsers(DBSchemaComparisonTest):
         index_names = {
             "ix_users_username",
             "ix_users_email",
-            "ix_users_oauth2_client_id",
-            "ix_users_oauth2_user_id",
             "ix_users_user_role_id",
         }
         constraint_names = {

@@ -14,6 +14,10 @@ This migration:
 4. Removes legacy constraints that are replaced by the new column:
    - 'exactly_one_auth_method': replaced by auth_method column and its constraints
    - 'oauth2_client_id_and_user_id': replaced by auth_method column and its constraints
+5. Drops redundant single column indices:
+   - 'ix_users_oauth2_client_id' and 'ix_users_oauth2_user_id' are removed as they are
+     redundant with the unique constraint 'uq_users_oauth2_client_id_oauth2_user_id',
+     which already provides the necessary composite index for lookups
 
 The migration uses batch_alter_table to ensure compatibility with both SQLite and PostgreSQL.
 This approach allows us to:
@@ -22,12 +26,16 @@ This approach allows us to:
 - Make the column NOT NULL after populating
 - Add appropriate constraints
 - Remove legacy constraints
+- Drop redundant indices
 
 The downgrade path:
 1. Recreates the legacy constraints:
    - 'exactly_one_auth_method': ensures exactly one auth method is set
    - 'oauth2_client_id_and_user_id': ensures OAuth2 credentials are consistent
 2. Removes the auth_method column and its associated constraints
+3. Recreates the single column indices to maintain backward compatibility:
+   - 'ix_users_oauth2_client_id'
+   - 'ix_users_oauth2_user_id'
 
 Revision ID: 6a88424799fe
 Revises: 8a3764fe7f1a
@@ -58,11 +66,15 @@ def upgrade() -> None:
     3. Makes the column NOT NULL after populating
     4. Adds CHECK constraints to ensure data integrity:
        - 'valid_auth_method': ensures only 'LOCAL' or 'OAUTH2' values
-       - 'local_auth_no_oauth': ensures LOCAL users do not have OAuth2 credentials
-       - 'oauth_auth_no_password': ensures OAUTH2 users do not have password credentials
+       - 'local_auth_no_oauth': ensures auth_method matches credentials
+       - 'oauth_auth_no_password': ensures auth_method matches credentials
     5. Removes legacy constraints that are replaced by the new column:
        - 'exactly_one_auth_method'
        - 'oauth2_client_id_and_user_id'
+    6. Drops redundant single column indices:
+       - 'ix_users_oauth2_client_id' and 'ix_users_oauth2_user_id' are removed as they are
+         redundant with the unique constraint 'uq_users_oauth2_client_id_oauth2_user_id',
+         which already provides the necessary composite index for lookups
 
     The implementation uses batch_alter_table for compatibility with both
     SQLite and PostgreSQL databases.
@@ -88,6 +100,10 @@ def upgrade() -> None:
         # oauth2_client_id_and_user_id is covered by the new auth_method constraints
         batch_op.drop_constraint("exactly_one_auth_method", type_="check")
         batch_op.drop_constraint("oauth2_client_id_and_user_id", type_="check")
+
+        # Drop redundant single column indices
+        batch_op.drop_index("ix_users_oauth2_client_id")
+        batch_op.drop_index("ix_users_oauth2_user_id")
 
         # Add CHECK constraint to ensure only valid values are allowed
         batch_op.create_check_constraint(
@@ -115,6 +131,9 @@ def downgrade() -> None:
        - 'oauth_auth_no_password'
        - 'local_auth_no_oauth'
        - 'valid_auth_method'
+    3. Recreates the single column indices to maintain backward compatibility:
+       - 'ix_users_oauth2_client_id'
+       - 'ix_users_oauth2_user_id'
 
     The implementation uses batch_alter_table to ensure compatibility with both
     SQLite and PostgreSQL databases.
@@ -125,6 +144,15 @@ def downgrade() -> None:
     # Use batch_alter_table for SQLite compatibility
     # This ensures the downgrade works on both SQLite and PostgreSQL
     with op.batch_alter_table("users") as batch_op:
+        # Drop the CHECK constraint and column
+        batch_op.drop_constraint("oauth_auth_no_password", type_="check")
+        batch_op.drop_constraint("local_auth_no_oauth", type_="check")
+        batch_op.drop_constraint("valid_auth_method", type_="check")
+
+        # Recreate single column indices
+        batch_op.create_index("ix_users_oauth2_user_id", ["oauth2_user_id"])
+        batch_op.create_index("ix_users_oauth2_client_id", ["oauth2_client_id"])
+
         # Recreate both old constraints that were dropped in upgrade
         batch_op.create_check_constraint(
             "oauth2_client_id_and_user_id",
@@ -135,10 +163,5 @@ def downgrade() -> None:
             "(password_hash IS NULL) != (oauth2_client_id IS NULL)",
         )
 
-        # Drop the CHECK constraint and column
-        # Order matters: drop constraint before dropping column
-        # This prevents any constraint violations during the process
-        batch_op.drop_constraint("oauth_auth_no_password", type_="check")
-        batch_op.drop_constraint("local_auth_no_oauth", type_="check")
-        batch_op.drop_constraint("valid_auth_method", type_="check")
+        # Remove added column
         batch_op.drop_column("auth_method")
