@@ -2,13 +2,13 @@ import warnings
 from asyncio import get_running_loop
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
-from enum import IntEnum
+from enum import Enum, IntEnum
 from secrets import token_urlsafe
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, Union
 
 import pandas as pd
 from fastapi import APIRouter, Header, HTTPException, Path, Query
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Extra, Field, conint, constr
 from sqlalchemy import select
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
@@ -24,8 +24,8 @@ from phoenix.db.insertion.types import Precursors
 from phoenix.server.api.routers.utils import df_to_bytes
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanAnnotationInsertEvent
-from phoenix.trace.dsl import SpanQuery as SpanQuery_
 from phoenix.trace.attributes import flatten
+from phoenix.trace.dsl import SpanQuery as SpanQuery_
 from phoenix.utilities.json import encode_df_as_json_string
 
 from .models import V1RoutesBaseModel
@@ -76,11 +76,36 @@ class QuerySpansRequestBody(V1RoutesBaseModel):
     )
 
 
-class KeyValue(BaseModel):
-    key: str
-    value: Any
+class DoubleValue(Enum):
+    Infinity = "Infinity"
+    field_Infinity = "-Infinity"
+    NaN = "NaN"
 
-    model_config = ConfigDict(populate_by_name=True)
+
+class AnyValue(BaseModel):
+    class Config:
+        extra = Extra.forbid
+
+    array_value: None = None  # TODO: Add ArrayValue model
+    bool_value: Optional[bool] = None
+    bytes_value: Optional[constr(regex=r"^[A-Za-z0-9+/]*={0,2}$")] = None
+    double_value: Optional[Union[float, DoubleValue, str]] = None
+    int_value: Optional[
+        Union[
+            conint(ge=-9223372036854775808, lt=9223372036854775808),
+            constr(regex=r"^-?[0-9]+$"),
+        ]
+    ] = None
+    kvlist_value: None = None  # TODO: Add KeyValueList model
+    string_value: Optional[str] = None
+
+
+class KeyValue(BaseModel):
+    class Config:
+        extra = Extra.forbid
+
+    key: Optional[str] = None
+    value: Optional[AnyValue] = None
 
 
 class StatusCode(IntEnum):
@@ -95,18 +120,172 @@ class Status(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+class Kind(Enum):
+    SPAN_KIND_UNSPECIFIED = "SPAN_KIND_UNSPECIFIED"
+    SPAN_KIND_INTERNAL = "SPAN_KIND_INTERNAL"
+    SPAN_KIND_SERVER = "SPAN_KIND_SERVER"
+    SPAN_KIND_CLIENT = "SPAN_KIND_CLIENT"
+    SPAN_KIND_PRODUCER = "SPAN_KIND_PRODUCER"
+    SPAN_KIND_CONSUMER = "SPAN_KIND_CONSUMER"
+
+
 class OtlpSpan(BaseModel):
-    trace_id: str = Field(alias="traceId")
-    span_id: str = Field(alias="spanId")
-    parent_span_id: Optional[str] = Field(default=None, alias="parentSpanId")
-    name: Optional[str] = None
-    kind: int = 0  # SpanKind enum value. We default to UNSPECIFIED
-    start_time_unix_nano: Optional[int] = Field(default=None, alias="startTimeUnixNano")
-    end_time_unix_nano: Optional[int] = Field(default=None, alias="endTimeUnixNano")
-    attributes: list[KeyValue] = Field(default_factory=list)
-    events: list[dict[str, Any]] = Field(default_factory=list)
-    status: Status = Field(...)
-    model_config = ConfigDict(populate_by_name=True)
+    class Config:
+        extra = Extra.forbid
+
+    attributes: Optional[list[KeyValue]] = Field(
+        None,
+        description=(
+            "attributes is a collection of key/value pairs. Note, global attributes like server "
+            "name can be set using the resource API. Examples of attributes:\n\n"
+            '    "/http/user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) '
+            'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"\n'
+            '    "/http/server_latency": 300\n'
+            '    "example.com/myattribute": true\n'
+            '    "example.com/score": 10.239\n\n'
+            "The OpenTelemetry API specification further restricts the allowed value types:\n"
+            "https://github.com/open-telemetry/opentelemetry-specification/blob/main/"
+            "specification/common/README.md#attribute\n"
+            "Attribute keys MUST be unique (it is not allowed to have more than one attribute "
+            "with the same key)."
+        ),
+    )
+    dropped_attributes_count: Optional[conint(ge=0, le=4294967295)] = Field(
+        None,
+        description=(
+            "dropped_attributes_count is the number of attributes that were discarded. Attributes "
+            "can be discarded because their keys are too long or because there are too many "
+            "attributes. If this value is 0, then no attributes were dropped."
+        ),
+    )
+    dropped_events_count: Optional[conint(ge=0, le=4294967295)] = Field(
+        None,
+        description=(
+            "dropped_events_count is the number of dropped events. If the value is 0, then no "
+            "events were dropped."
+        ),
+    )
+    dropped_links_count: Optional[conint(ge=0, le=4294967295)] = Field(
+        None,
+        description=(
+            "dropped_links_count is the number of dropped links after the maximum size was "
+            "enforced. If this value is 0, then no links were dropped."
+        ),
+    )
+    end_time_unix_nano: Optional[
+        Union[conint(ge=0, lt=18446744073709551616), constr(regex=r"^[0-9]+$")]
+    ] = Field(
+        None,
+        description=(
+            "end_time_unix_nano is the end time of the span. On the client side, this is the time "
+            "kept by the local machine where the span execution ends. On the server side, this is "
+            "the time when the server application handler stops running.\n"
+            "Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.\n\n"
+            "This field is semantically required and it is expected that end_time >= start_time."
+        ),
+    )
+    events: None = None  # TODO: Add Event model
+    flags: Optional[conint(ge=0, le=4294967295)] = Field(
+        None,
+        description=(
+            "Flags, a bit field.\n\n"
+            "Bits 0-7 (8 least significant bits) are the trace flags as defined in W3C Trace "
+            "Context specification. To read the 8-bit W3C trace flag, use "
+            "`flags & SPAN_FLAGS_TRACE_FLAGS_MASK`.\n\n"
+            "See https://www.w3.org/TR/trace-context-2/#trace-flags for the flag definitions.\n\n"
+            "Bits 8 and 9 represent the 3 states of whether a span's parent is remote. The states "
+            "are (unknown, is not remote, is remote).\n"
+            "To read whether the value is known, use "
+            "`(flags & SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK) != 0`.\n"
+            "To read whether the span is remote, use "
+            "`(flags & SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK) != 0`.\n\n"
+            "When creating span messages, if the message is logically forwarded from another "
+            "source with an equivalent flags fields (i.e., usually another OTLP span message), the "
+            "field SHOULD be copied as-is. If creating from a source that does not have an "
+            "equivalent flags field (such as a runtime representation of an OpenTelemetry span), "
+            "the high 22 bits MUST be set to zero.\n"
+            "Readers MUST NOT assume that bits 10-31 (22 most significant bits) will be zero.\n\n"
+            "[Optional]."
+        ),
+    )
+    kind: Optional[Union[Kind, conint(ge=-2147483648, le=2147483647)]] = Field(
+        Kind.SPAN_KIND_INTERNAL,  # INTERNAL because OpenInference uses its own SpanKind attribute
+        description=(
+            "Distinguishes between spans generated in a particular context. For example, two spans "
+            "with the same name may be distinguished using `CLIENT` (caller) and `SERVER` (callee) "
+            "to identify queueing latency associated with the span."
+        ),
+    )
+    links: None = None  # TODO: Add Link model
+    name: Optional[str] = Field(
+        None,
+        description=(
+            "A description of the span's operation.\n\n"
+            "For example, the name can be a qualified method name or a file name and a line number "
+            "where the operation is called. A best practice is to use the same display name at the "
+            "same call point in an application. This makes it easier to correlate spans in "
+            "different traces.\n\n"
+            "This field is semantically required to be set to non-empty string. Empty value is "
+            "equivalent to an unknown span name.\n\n"
+            "This field is required."
+        ),
+    )
+    parent_span_id: Optional[constr(regex=r"^[A-Za-z0-9+/]*={0,2}$")] = Field(
+        None,
+        description=(
+            "The `span_id` of this span's parent span. If this is a root span, then this field "
+            "must be empty. The ID is an 8-byte array."
+        ),
+    )
+    span_id: Optional[constr(regex=r"^[A-Za-z0-9+/]*={0,2}$")] = Field(
+        None,
+        description=(
+            "A unique identifier for a span within a trace, assigned when the span is created. The "
+            "ID is an 8-byte array. An ID with all zeroes OR of length other than 8 bytes is "
+            "considered invalid (empty string in OTLP/JSON is zero-length and thus is also "
+            "invalid).\n\n"
+            "This field is required."
+        ),
+    )
+    start_time_unix_nano: Optional[
+        Union[conint(ge=0, lt=18446744073709551616), constr(regex=r"^[0-9]+$")]
+    ] = Field(
+        None,
+        description=(
+            "start_time_unix_nano is the start time of the span. On the client side, this is the "
+            "time kept by the local machine where the span execution starts. On the server side, "
+            "this is the time when the server's application handler starts running.\n"
+            "Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.\n\n"
+            "This field is semantically required and it is expected that end_time >= start_time."
+        ),
+    )
+    status: Optional[Status] = Field(
+        None,
+        description=(
+            "An optional final status for this span. Semantically when Status isn't set, it means "
+            "span's status code is unset, i.e. assume STATUS_CODE_UNSET (code = 0)."
+        ),
+    )
+    trace_id: Optional[constr(regex=r"^[A-Za-z0-9+/]*={0,2}$")] = Field(
+        None,
+        description=(
+            "A unique identifier for a trace. All spans from the same trace share the same "
+            "`trace_id`. The ID is a 16-byte array. An ID with all zeroes OR of length other than "
+            "16 bytes is considered invalid (empty string in OTLP/JSON is zero-length and thus is "
+            "also invalid).\n\n"
+            "This field is required."
+        ),
+    )
+    trace_state: Optional[str] = Field(
+        None,
+        description=(
+            "trace_state conveys information about request position in multiple distributed "
+            "tracing graphs. It is a trace_state in w3c-trace-context format: "
+            "https://www.w3.org/TR/trace-context/#tracestate-header\n"
+            "See also https://github.com/w3c/distributed-tracing for more details about this "
+            "field."
+        ),
+    )
 
 
 class SpanSearchResponseBody(PaginatedResponseBody[OtlpSpan]):
