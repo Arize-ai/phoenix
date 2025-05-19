@@ -25,6 +25,7 @@ from phoenix.server.api.routers.utils import df_to_bytes
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanAnnotationInsertEvent
 from phoenix.trace.dsl import SpanQuery as SpanQuery_
+from phoenix.trace.attributes import flatten
 from phoenix.utilities.json import encode_df_as_json_string
 
 from .models import V1RoutesBaseModel
@@ -299,7 +300,8 @@ async def span_search(
             status_code_enum = StatusCode.UNSET
 
         attributes_kv: list[KeyValue] = [
-            KeyValue(key=k, value=v) for k, v in (span_orm.attributes or {}).items()
+            KeyValue(key=k, value=v)
+            for k, v in flatten(span_orm.attributes or {}, recurse_on_sequence=True)
         ]
 
         start_ns = (
