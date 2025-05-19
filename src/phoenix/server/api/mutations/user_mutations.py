@@ -23,12 +23,13 @@ from phoenix.auth import (
     validate_email_format,
     validate_password_format,
 )
-from phoenix.config import get_env_disable_basic_auth, get_env_oauth2_settings
+from phoenix.config import get_env_disable_basic_auth
 from phoenix.db import enums, models
 from phoenix.server.api.auth import IsAdmin, IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import Conflict, NotFound, Unauthorized
+from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound, Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
+from phoenix.server.api.types.AuthMethod import AuthMethod
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.User import User, to_gql_user
 from phoenix.server.bearer_auth import PhoenixUser
@@ -44,6 +45,16 @@ class CreateUserInput:
     password: Optional[str] = UNSET
     role: UserRoleInput
     send_welcome_email: Optional[bool] = False
+    auth_method: Optional[AuthMethod] = AuthMethod.LOCAL
+
+    def __post_init__(self) -> None:
+        if self.auth_method is AuthMethod.OAUTH2:
+            if self.password:
+                raise BadRequest("Password is not allowed for OAuth2 authentication")
+        elif get_env_disable_basic_auth():
+            raise BadRequest("Basic auth is disabled: OAuth2 authentication only")
+        elif not self.password:
+            raise BadRequest("Password is required for local authentication")
 
 
 @strawberry.input
@@ -54,9 +65,9 @@ class PatchViewerInput:
 
     def __post_init__(self) -> None:
         if not self.new_username and not self.new_password:
-            raise ValueError("At least one field must be set")
+            raise BadRequest("At least one field must be set")
         if self.new_password and not self.current_password:
-            raise ValueError("current_password is required when modifying password")
+            raise BadRequest("current_password is required when modifying password")
         if self.new_password:
             PASSWORD_REQUIREMENTS.validate(self.new_password)
 
@@ -70,7 +81,7 @@ class PatchUserInput:
 
     def __post_init__(self) -> None:
         if not self.new_role and not self.new_username and not self.new_password:
-            raise ValueError("At least one field must be set")
+            raise BadRequest("At least one field must be set")
         if self.new_password:
             PASSWORD_REQUIREMENTS.validate(self.new_password)
 
@@ -93,32 +104,25 @@ class UserMutationMixin:
         info: Info[Context, None],
         input: CreateUserInput,
     ) -> UserMutationPayload:
-        validate_email_format(email := input.email)
-        password_hash = None
-        salt = None
-        oauth2_client_id = None
-        reset_password = True
-        if not input.password:
-            # TODO: switch this to an explicit auth method check
-            if not get_env_disable_basic_auth():
-                raise ValueError(
-                    "Username and password fields must be set if basic auth is enabled"
-                )
-            oauth2_clients = get_env_oauth2_settings()
-            oauth2_client_id = oauth2_clients[0].client_id
-            reset_password = False
+        user: models.User
+        if input.auth_method is AuthMethod.OAUTH2:
+            user = models.OAuth2User(
+                username=input.username,
+                email=input.email,
+            )
         else:
-            validate_password_format(password := input.password)
+            assert input.password
+            validate_email_format(input.email)
+            validate_password_format(input.password)
             salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
-            password_hash = await info.context.hash_password(password, salt)
-        user = models.User(
-            reset_password=reset_password,
-            username=input.username,
-            email=email,
-            password_hash=password_hash,
-            password_salt=salt,
-            oauth2_client_id=oauth2_client_id,
-        )
+            password_hash = await info.context.hash_password(input.password, salt)
+            user = models.LocalUser(
+                reset_password=True,
+                username=input.username,
+                email=input.email,
+                password_hash=password_hash,
+                password_salt=salt,
+            )
         async with AsyncExitStack() as stack:
             session = await stack.enter_async_context(info.context.db())
             user_role_id = await session.scalar(_select_role_id_by_name(input.role.value))
@@ -166,7 +170,7 @@ class UserMutationMixin:
                     raise NotFound(f"Role {input.new_role.value} not found")
                 user.user_role_id = user_role_id
             if password := input.new_password:
-                if user.auth_method != enums.AuthMethod.LOCAL.value:
+                if user.auth_method != "LOCAL":
                     raise Conflict("Cannot modify password for non-local user")
                 validate_password_format(password)
                 user.password_salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
@@ -199,7 +203,7 @@ class UserMutationMixin:
                 raise NotFound("User not found")
             stack.enter_context(session.no_autoflush)
             if password := input.new_password:
-                if user.auth_method != enums.AuthMethod.LOCAL.value:
+                if user.auth_method != "LOCAL":
                     raise Conflict("Cannot modify password for non-local user")
                 if not (
                     current_password := input.current_password

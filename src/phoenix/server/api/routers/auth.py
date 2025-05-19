@@ -11,6 +11,7 @@ from sqlalchemy.orm import joinedload
 from starlette.status import (
     HTTP_204_NO_CONTENT,
     HTTP_401_UNAUTHORIZED,
+    HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
     HTTP_422_UNPROCESSABLE_ENTITY,
     HTTP_503_SERVICE_UNAVAILABLE,
@@ -37,7 +38,7 @@ from phoenix.config import (
     get_env_disable_rate_limit,
     get_env_host_root_path,
 )
-from phoenix.db import enums, models
+from phoenix.db import models
 from phoenix.server.bearer_auth import PhoenixUser, create_access_and_refresh_tokens
 from phoenix.server.email.types import EmailSender
 from phoenix.server.rate_limiters import ServerRateLimiter, fastapi_ip_rate_limiter
@@ -74,10 +75,7 @@ router = APIRouter(prefix="/auth", include_in_schema=False, dependencies=auth_de
 @router.post("/login")
 async def login(request: Request) -> Response:
     if get_env_disable_basic_auth():
-        raise HTTPException(
-            status_code=HTTP_404_NOT_FOUND,
-            detail="Basic auth is disabled in this version",
-        )
+        raise HTTPException(status_code=HTTP_403_FORBIDDEN)
     assert isinstance(access_token_expiry := request.app.state.access_token_expiry, timedelta)
     assert isinstance(refresh_token_expiry := request.app.state.refresh_token_expiry, timedelta)
     token_store: TokenStore = request.app.state.get_token_store()
@@ -203,10 +201,7 @@ async def refresh_tokens(request: Request) -> Response:
 @router.post("/password-reset-email")
 async def initiate_password_reset(request: Request) -> Response:
     if get_env_disable_basic_auth():
-        raise HTTPException(
-            status_code=HTTP_404_NOT_FOUND,
-            detail="Basic auth is disabled in this version",
-        )
+        raise HTTPException(status_code=HTTP_403_FORBIDDEN)
     data = await request.json()
     if not (email := data.get("email")):
         raise MISSING_EMAIL
@@ -222,7 +217,7 @@ async def initiate_password_reset(request: Request) -> Response:
                 joinedload(models.User.password_reset_token).load_only(models.PasswordResetToken.id)
             )
         )
-    if user is None or user.auth_method != enums.AuthMethod.LOCAL.value:
+    if user is None or user.auth_method != "LOCAL":
         # Withold privileged information
         return Response(status_code=HTTP_204_NO_CONTENT)
     token_store: TokenStore = request.app.state.get_token_store()
@@ -245,11 +240,8 @@ async def initiate_password_reset(request: Request) -> Response:
 
 @router.post("/password-reset")
 async def reset_password(request: Request) -> Response:
-    if get_env_enforce_oauth2():
-        raise HTTPException(
-            status_code=HTTP_404_NOT_FOUND,
-            detail="OAuth2 only - login is not supported in this version",
-        )
+    if get_env_disable_basic_auth():
+        raise HTTPException(status_code=HTTP_403_FORBIDDEN)
     data = await request.json()
     if not (password := data.get("password")):
         raise MISSING_PASSWORD
@@ -264,7 +256,7 @@ async def reset_password(request: Request) -> Response:
     assert (user_id := claims.subject)
     async with request.app.state.db() as session:
         user = await session.scalar(select(models.User).filter_by(id=int(user_id)))
-    if user is None or user.auth_method != enums.AuthMethod.LOCAL.value:
+    if user is None or user.auth_method != "LOCAL":
         # Withold privileged information
         return Response(status_code=HTTP_204_NO_CONTENT)
     validate_password_format(password)

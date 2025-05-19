@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import Any
+from typing import Any, Optional
 
 from authlib.integrations.base_client import BaseApp
 from authlib.integrations.base_client.async_app import AsyncOAuth2Mixin
@@ -19,13 +19,19 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
 
     client_cls = AsyncHttpxOAuth2Client
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *args: Any, allow_sign_up: bool, **kwargs: Any) -> None:
         super().__init__(framework=None, *args, **kwargs)
+        self._allow_sign_up = allow_sign_up
+
+    @property
+    def allow_sign_up(self) -> bool:
+        return self._allow_sign_up
 
 
 class OAuth2Clients:
     def __init__(self) -> None:
         self._clients: dict[str, OAuth2Client] = {}
+        self._auto_login_client: Optional[OAuth2Client] = None
 
     def add_client(self, config: OAuth2ClientConfig) -> None:
         if (idp_name := config.idp_name) in self._clients:
@@ -35,8 +41,13 @@ class OAuth2Clients:
             client_secret=config.client_secret,
             server_metadata_url=config.oidc_config_url,
             client_kwargs={"scope": "openid email profile"},
+            allow_sign_up=config.allow_sign_up,
+            auto_login=config.auto_login,
         )
-        assert isinstance(client, OAuth2Client)
+        if config.auto_login:
+            if self._auto_login_client:
+                raise ValueError("only one auto-login client is allowed")
+            self._auto_login_client = client
         self._clients[config.idp_name] = client
 
     def get_client(self, idp_name: str) -> OAuth2Client:

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import os
 import re
@@ -140,10 +142,14 @@ ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT = (
 ENV_PHOENIX_ENABLE_AUTH = "PHOENIX_ENABLE_AUTH"
 ENV_PHOENIX_DISABLE_BASIC_AUTH = "PHOENIX_DISABLE_BASIC_AUTH"
 """
-To disable basic auth
-This can be helpful in setups where authentication is handled entirely through OATH2
+Forbid login via password and disable the creation of local users, which log in via passwords.
+This can be helpful in setups where authentication is handled entirely through OAUTH2.
 """
-ENV_PHOENIX_ENABLE_OAUTH2_JIT = "PHOENIX_ENABLE_OAUTH2_JIT"
+ENV_PHOENIX_DISABLE_LOGIN_FORM = "PHOENIX_PHOENIX_DISABLE_LOGIN_FORM"
+"""
+Hide the login form via password. This can be helpful in setups where authentication
+is handled entirely through OAUTH2.
+"""
 ENV_PHOENIX_DISABLE_RATE_LIMIT = "PHOENIX_DISABLE_RATE_LIMIT"
 ENV_PHOENIX_SECRET = "PHOENIX_SECRET"
 """
@@ -643,11 +649,11 @@ def get_env_disable_basic_auth() -> bool:
     return _bool_val(ENV_PHOENIX_DISABLE_BASIC_AUTH, False)
 
 
-def get_env_oauth2_jit() -> bool:
+def get_env_disable_login_form() -> bool:
     """
-    Gets the value of the ENV_PHOENIX_ENABLE_OAUTH2_JIT environment variable.
+    Gets the value of the ENV_PHOENIX_DISABLE_LOGIN_FORM environment variable.
     """
-    return _bool_val(ENV_PHOENIX_ENABLE_OAUTH2_JIT, True)
+    return _bool_val(ENV_PHOENIX_DISABLE_LOGIN_FORM, False)
 
 
 def get_env_disable_rate_limit() -> bool:
@@ -876,6 +882,8 @@ class OAuth2ClientConfig:
     client_id: str
     client_secret: str
     oidc_config_url: str
+    allow_sign_up: bool
+    auto_login: bool
 
     @classmethod
     def from_env(cls, idp_name: str) -> "OAuth2ClientConfig":
@@ -907,6 +915,8 @@ class OAuth2ClientConfig:
                 f"An OpenID Connect configuration URL must be set for the {idp_name} OAuth2 IDP "
                 f"via the {oidc_config_url_env_var} environment variable"
             )
+        allow_sign_up = get_env_oauth2_allow_sign_up(idp_name)
+        auto_login = get_env_oauth2_auto_login(idp_name)
         parsed_oidc_config_url = urlparse(oidc_config_url)
         is_local_oidc_config_url = parsed_oidc_config_url.hostname in ("localhost", "127.0.0.1")
         if parsed_oidc_config_url.scheme != "https" and not is_local_oidc_config_url:
@@ -923,22 +933,98 @@ class OAuth2ClientConfig:
             client_id=client_id,
             client_secret=client_secret,
             oidc_config_url=oidc_config_url,
+            allow_sign_up=allow_sign_up,
+            auto_login=auto_login,
         )
 
 
 def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
     """
-    Get OAuth2 settings from environment variables.
-    """
+    Retrieves and validates OAuth2/OpenID Connect (OIDC) identity provider configurations from environment variables.
 
+    This function scans the environment for OAuth2 configuration variables and returns a list of
+    configured identity providers. It supports multiple identity providers simultaneously.
+
+    Environment Variable Pattern:
+        PHOENIX_OAUTH2_{IDP_NAME}_{CONFIG_TYPE}
+
+    Required Environment Variables for each IDP:
+        - PHOENIX_OAUTH2_{IDP_NAME}_CLIENT_ID: The OAuth2 client ID issued by the identity provider
+        - PHOENIX_OAUTH2_{IDP_NAME}_CLIENT_SECRET: The OAuth2 client secret issued by the identity provider
+        - PHOENIX_OAUTH2_{IDP_NAME}_OIDC_CONFIG_URL: The OpenID Connect configuration URL (must be HTTPS)
+
+    Optional Environment Variables:
+        - PHOENIX_OAUTH2_{IDP_NAME}_DISPLAY_NAME: A user-friendly name for the identity provider
+        - PHOENIX_OAUTH2_{IDP_NAME}_ALLOW_SIGN_UP: Whether to allow new user registration (defaults to True)
+        When set to False, the system will check if the user exists in the database by their email address.
+        If the user does not exist or has a password set, they will be redirected to the login page with
+        an error message.
+
+    Returns:
+        list[OAuth2ClientConfig]: A list of configured OAuth2 identity providers, sorted alphabetically by IDP name.
+            Each OAuth2ClientConfig contains the validated configuration for one identity provider.
+
+    Raises:
+        ValueError: If required environment variables are missing or invalid.
+            Specifically, if the OIDC configuration URL is not HTTPS (except for localhost).
+
+    Example:
+        To configure Google as an identity provider, set these environment variables:
+        PHOENIX_OAUTH2_GOOGLE_CLIENT_ID=your_client_id
+        PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET=your_client_secret
+        PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL=https://accounts.google.com/.well-known/openid-configuration
+        PHOENIX_OAUTH2_GOOGLE_DISPLAY_NAME=Google (optional)
+        PHOENIX_OAUTH2_GOOGLE_ALLOW_SIGN_UP=true (optional, defaults to true)
+    """  # noqa: E501
     idp_names = set()
     pattern = re.compile(
-        r"^PHOENIX_OAUTH2_(\w+)_(DISPLAY_NAME|CLIENT_ID|CLIENT_SECRET|OIDC_CONFIG_URL)$"
+        r"^PHOENIX_OAUTH2_(\w+)_(DISPLAY_NAME|CLIENT_ID|CLIENT_SECRET|OIDC_CONFIG_URL|ALLOW_SIGN_UP|AUTO_LOGIN)$"  # noqa: E501
     )
     for env_var in os.environ:
         if (match := pattern.match(env_var)) is not None and (idp_name := match.group(1).lower()):
             idp_names.add(idp_name)
     return [OAuth2ClientConfig.from_env(idp_name) for idp_name in sorted(idp_names)]
+
+
+def get_env_oauth2_allow_sign_up(idp_name: str) -> bool:
+    """Retrieves the allow_sign_up setting for a specific OAuth2 identity provider.
+
+    This function determines whether new user registration is allowed for the specified identity provider.
+    When set to False, the system will check if the user exists in the database by their email address.
+    If the user does not exist or has a password set, they will be redirected to the login page with
+    an error message.
+
+    Parameters:
+        idp_name (str): The name of the identity provider (e.g., 'google', 'aws_cognito', 'microsoft_entra_id')
+
+    Returns:
+        bool: True if new user registration is allowed (default), False otherwise
+
+    Environment Variable:
+        PHOENIX_OAUTH2_{IDP_NAME}_ALLOW_SIGN_UP: Controls whether new user registration is allowed (defaults to True if not set)
+    """  # noqa: E501
+    env_var = f"PHOENIX_OAUTH2_{idp_name}_ALLOW_SIGN_UP".upper()
+    return _bool_val(env_var, True)
+
+
+def get_env_oauth2_auto_login(idp_name: str) -> bool:
+    """Retrieves the auto_login setting for a specific OAuth2 identity provider.
+
+    This function determines whether users should be automatically logged in when accessing the OAuth2
+    identity provider's login page. When set to True, users will be redirected to the identity provider's
+    login page without first seeing the application's login page.
+
+    Parameters:
+        idp_name (str): The name of the identity provider (e.g., 'google', 'aws_cognito', 'microsoft_entra_id')
+
+    Returns:
+        bool: True if auto-login is enabled, False otherwise (defaults to False if not set)
+
+    Environment Variable:
+        PHOENIX_OAUTH2_{IDP_NAME}_AUTO_LOGIN: Controls whether auto-login is enabled (defaults to False if not set)
+    """  # noqa: E501
+    env_var = f"PHOENIX_OAUTH2_{idp_name}_AUTO_LOGIN".upper()
+    return _bool_val(env_var, False)
 
 
 PHOENIX_DIR = Path(__file__).resolve().parent

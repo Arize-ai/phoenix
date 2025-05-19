@@ -35,7 +35,7 @@ from starlette.middleware import Middleware
 from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
-from starlette.responses import JSONResponse, PlainTextResponse, Response, RedirectResponse
+from starlette.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response
 from starlette.staticfiles import StaticFiles
 from starlette.status import HTTP_401_UNAUTHORIZED
 from starlette.templating import Jinja2Templates
@@ -211,6 +211,7 @@ class AppConfig(NamedTuple):
     """ Whether authentication is enabled """
     oauth2_idps: Sequence[OAuth2Idp]
     basic_auth_disabled: bool = False
+    auto_login_idp_name: Optional[str] = None
 
 
 class Static(StaticFiles):
@@ -238,12 +239,17 @@ class Static(StaticFiles):
     async def get_response(self, path: str, scope: Scope) -> Response:
         response = None
 
-        # Redirect to the oauth2 login page if basic auth is disabled and auto_signin is enabled
+        # Redirect to the oauth2 login page if basic auth is disabled and auto_login is enabled
         # TODO: this needs to be refactored to be cleaner
-        if path == "login" and self._app_config.basic_auth_disabled:
+        if (
+            path == "login"
+            and self._app_config.basic_auth_disabled
+            and self._app_config.auto_login_idp_name
+        ):
             request = Request(scope)
             return RedirectResponse(
-                url=f"/oauth2/{self._app_config.oauth2_idps[0]['name']}/login?returnUrl={request.query_params['returnUrl'] or '/'}",
+                url=f"/oauth2/{self._app_config.auto_login_idp_name}/login?"
+                f"returnUrl={request.query_params['returnUrl'] or '/'}",
             )
         try:
             response = await super().get_response(path, scope)
@@ -270,6 +276,7 @@ class Static(StaticFiles):
                     "authentication_enabled": self._app_config.authentication_enabled,
                     "oauth2_idps": self._app_config.oauth2_idps,
                     "basic_auth_disabled": self._app_config.basic_auth_disabled,
+                    "auto_login_idp_name": self._app_config.auto_login_idp_name,
                 },
             )
         except Exception as e:
@@ -936,6 +943,9 @@ def create_app(
             OAuth2Idp(name=config.idp_name, displayName=config.idp_display_name)
             for config in oauth2_client_configs or []
         ]
+        auto_login_idp_name = next(
+            (config.idp_name for config in (oauth2_client_configs or []) if config.auto_login), None
+        )
         app.mount(
             "/",
             app=Static(
@@ -951,6 +961,7 @@ def create_app(
                     web_manifest_path=web_manifest_path,
                     oauth2_idps=oauth2_idps,
                     basic_auth_disabled=basic_auth_disabled,
+                    auto_login_idp_name=auto_login_idp_name,
                 ),
             ),
             name="static",
