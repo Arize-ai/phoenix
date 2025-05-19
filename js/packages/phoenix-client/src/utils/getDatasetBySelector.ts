@@ -1,8 +1,6 @@
 import invariant from "tiny-invariant";
 import { PhoenixClient } from "../client";
-import { Example } from "../types/datasets";
-
-import { Dataset } from "../types/datasets";
+import { Example, Dataset } from "../types/datasets";
 
 /**
  * Parameters for the getDatasetLike function
@@ -21,6 +19,8 @@ export type GetDatasetLikeParams = {
  * If the input is a string, assume it is a dataset id and fetch the dataset from the client.
  * If the input is an array of examples, create a new dataset from the examples then return it.
  * If the input is a dataset, return it as is.
+ *
+ * TODO: move this into /datasets
  *
  * @param params - The parameters to get a dataset.
  * @returns The dataset.
