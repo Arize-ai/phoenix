@@ -202,6 +202,7 @@ async def _ensure_admins(
                 user_role_id=admin_role_id,
                 username=username,
                 email=email,
+                reset_password=False,
             )
             if not disable_basic_auth:
                 user.password_salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
