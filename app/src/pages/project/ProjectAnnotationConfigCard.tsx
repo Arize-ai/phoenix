@@ -162,7 +162,7 @@ const ProjectAnnotationConfigCardContent = (
 
   const data = useLazyLoadQuery<ProjectAnnotationConfigCardContentQuery>(
     graphql`
-      query ProjectAnnotationConfigCardContentQuery($projectId: GlobalID!) {
+      query ProjectAnnotationConfigCardContentQuery($projectId: ID!) {
         project: node(id: $projectId) {
           ... on Project {
             ...ProjectAnnotationConfigCardContent_project_annotations
@@ -213,8 +213,8 @@ const ProjectAnnotationConfigCardContent = (
     useMutation<ProjectAnnotationConfigCardContentAddAnnotationConfigToProjectMutation>(
       graphql`
         mutation ProjectAnnotationConfigCardContentAddAnnotationConfigToProjectMutation(
-          $projectId: GlobalID!
-          $annotationConfigId: GlobalID!
+          $projectId: ID!
+          $annotationConfigId: ID!
         ) {
           addAnnotationConfigToProject(
             input: {
@@ -234,8 +234,8 @@ const ProjectAnnotationConfigCardContent = (
     useMutation<ProjectAnnotationConfigCardContentRemoveAnnotationConfigFromProjectMutation>(
       graphql`
         mutation ProjectAnnotationConfigCardContentRemoveAnnotationConfigFromProjectMutation(
-          $projectId: GlobalID!
-          $annotationConfigId: GlobalID!
+          $projectId: ID!
+          $annotationConfigId: ID!
         ) {
           removeAnnotationConfigFromProject(
             input: {

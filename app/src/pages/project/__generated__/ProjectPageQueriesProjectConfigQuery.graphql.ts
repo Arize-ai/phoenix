@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c2c332e528c2005726660513a783de55>>
+ * @generated SignedSource<<b54556bf55ac09b064801aacde837afa>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -269,16 +269,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "4ae7b5450bfc4c428bd6560495cf1f01",
+    "cacheID": "21b6f510ef6ac701854b1c2f750f30ad",
     "id": null,
     "metadata": {},
     "name": "ProjectPageQueriesProjectConfigQuery",
     "operationKind": "query",
-    "text": "query ProjectPageQueriesProjectConfigQuery(\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    id\n    ...ProjectConfigPage_projectConfigCard\n    ...ProjectRetentionPolicyCard_policy\n  }\n  ...ProjectRetentionPolicyCard_query\n}\n\nfragment ProjectConfigPage_projectConfigCard on Project {\n  id\n  name\n  gradientStartColor\n  gradientEndColor\n}\n\nfragment ProjectRetentionPolicyCard_policy on Project {\n  id\n  name\n  traceRetentionPolicy {\n    id\n    name\n    cronExpression\n    rule {\n      __typename\n      ... on TraceRetentionRuleMaxDays {\n        maxDays\n      }\n      ... on TraceRetentionRuleMaxCount {\n        maxCount\n      }\n      ... on TraceRetentionRuleMaxDaysOrCount {\n        maxDays\n        maxCount\n      }\n    }\n  }\n}\n\nfragment ProjectRetentionPolicyCard_query on Query {\n  ...ProjectTraceRetentionPolicySelectFragment\n}\n\nfragment ProjectTraceRetentionPolicySelectFragment on Query {\n  projectTraceRetentionPolicies {\n    edges {\n      node {\n        id\n        name\n        cronExpression\n        rule {\n          __typename\n          ... on TraceRetentionRuleMaxCount {\n            maxCount\n          }\n          ... on TraceRetentionRuleMaxDays {\n            maxDays\n          }\n          ... on TraceRetentionRuleMaxDaysOrCount {\n            maxDays\n            maxCount\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query ProjectPageQueriesProjectConfigQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    id\n    ...ProjectConfigPage_projectConfigCard\n    ...ProjectRetentionPolicyCard_policy\n  }\n  ...ProjectRetentionPolicyCard_query\n}\n\nfragment ProjectConfigPage_projectConfigCard on Project {\n  id\n  name\n  gradientStartColor\n  gradientEndColor\n}\n\nfragment ProjectRetentionPolicyCard_policy on Project {\n  id\n  name\n  traceRetentionPolicy {\n    id\n    name\n    cronExpression\n    rule {\n      __typename\n      ... on TraceRetentionRuleMaxDays {\n        maxDays\n      }\n      ... on TraceRetentionRuleMaxCount {\n        maxCount\n      }\n      ... on TraceRetentionRuleMaxDaysOrCount {\n        maxDays\n        maxCount\n      }\n    }\n  }\n}\n\nfragment ProjectRetentionPolicyCard_query on Query {\n  ...ProjectTraceRetentionPolicySelectFragment\n}\n\nfragment ProjectTraceRetentionPolicySelectFragment on Query {\n  projectTraceRetentionPolicies {\n    edges {\n      node {\n        id\n        name\n        cronExpression\n        rule {\n          __typename\n          ... on TraceRetentionRuleMaxCount {\n            maxCount\n          }\n          ... on TraceRetentionRuleMaxDays {\n            maxDays\n          }\n          ... on TraceRetentionRuleMaxDaysOrCount {\n            maxDays\n            maxCount\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b1036aea3db1dd0348858521f91637ef";
+(node as any).hash = "3d4a317421ae07c5ad4ddd7f22b99771";
 
 export default node;

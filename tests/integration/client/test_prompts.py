@@ -300,7 +300,7 @@ class TestResponseFormat:
 
 
 class TestUserId:
-    QUERY = "query($versionId:GlobalID!){node(id:$versionId){... on PromptVersion{user{id}}}}"
+    QUERY = "query($versionId:ID!){node(id:$versionId){... on PromptVersion{user{id}}}}"
 
     def test_client(self, _get_user: _GetUser, monkeypatch: pytest.MonkeyPatch) -> None:
         u = _get_user(_MEMBER).log_in()
@@ -1060,7 +1060,7 @@ class TestClient:
         assert tags[0]["description"] == tag_description1
 
         # Verify tag is associated with the correct user
-        query = "query($id:GlobalID!){node(id:$id){... on PromptVersionTag{user{id username}}}}"
+        query = "query($id:ID!){node(id:$id){... on PromptVersionTag{user{id username}}}}"
         res, _ = _gql(u1, query=query, variables={"id": tags[0]["id"]})
         if use_phoenix_admin_secret:
             assert res["data"]["node"]["user"]["username"] == "system"
@@ -1112,7 +1112,7 @@ class TestClient:
         assert tags[0]["description"] == tag_description2
 
         # Verify tag is associated with the correct user
-        query = "query($id:GlobalID!){node(id:$id){... on PromptVersionTag{user{id}}}}"
+        query = "query($id:ID!){node(id:$id){... on PromptVersionTag{user{id}}}}"
         res, _ = _gql(u2, query=query, variables={"id": tags[0]["id"]})
         assert res["data"]["node"]["user"]["id"] == u2.gid
 

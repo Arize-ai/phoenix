@@ -1301,7 +1301,7 @@ class TestSpanAnnotations:
         }
       }
 
-      query GetSpanAnnotation($annotationId: GlobalID!) {
+      query GetSpanAnnotation($annotationId: ID!) {
         spanAnnotation: node(id: $annotationId) {
           ... on SpanAnnotation {
             ...SpanAnnotationFields
@@ -1467,7 +1467,7 @@ class TestTraceAnnotations:
         }
       }
 
-      query GetTraceAnnotation($annotationId: GlobalID!) {
+      query GetTraceAnnotation($annotationId: ID!) {
         traceAnnotation: node(id: $annotationId) {
           ... on TraceAnnotation {
             ...TraceAnnotationFields

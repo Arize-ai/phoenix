@@ -14,7 +14,7 @@ export async function projectDashboardLoader(args: LoaderFunctionArgs) {
   const loaderData = await fetchQuery<projectDashboardLoaderQuery>(
     RelayEnvironment,
     graphql`
-      query projectDashboardLoaderQuery($projectId: GlobalID!) {
+      query projectDashboardLoaderQuery($projectId: ID!) {
         project: node(id: $projectId) {
           ... on Project {
             id

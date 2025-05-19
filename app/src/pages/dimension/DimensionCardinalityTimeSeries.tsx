@@ -77,7 +77,7 @@ export function DimensionCardinalityTimeSeries({
   const data = useLazyLoadQuery<DimensionCardinalityTimeSeriesQuery>(
     graphql`
       query DimensionCardinalityTimeSeriesQuery(
-        $dimensionId: GlobalID!
+        $dimensionId: ID!
         $timeRange: TimeRange!
         $granularity: Granularity!
       ) {

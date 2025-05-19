@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<96288ea3d91fa42f461c4e06625c468e>>
+ * @generated SignedSource<<5f2926201c7936e9d5009c94a619911d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -104,10 +104,6 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
           (v2/*: any*/),
           {
             "kind": "InlineFragment",
@@ -123,16 +119,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "cff0ac130f1ef79784f7bef4161ac60d",
+    "cacheID": "6f34962d234c6eb9fc0812628dd9a905",
     "id": null,
     "metadata": {},
     "name": "embeddingLoaderQuery",
     "operationKind": "query",
-    "text": "query embeddingLoaderQuery(\n  $id: GlobalID!\n) {\n  embedding: node(id: $id) {\n    __typename\n    ... on EmbeddingDimension {\n      id\n      name\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query embeddingLoaderQuery(\n  $id: ID!\n) {\n  embedding: node(id: $id) {\n    __typename\n    ... on EmbeddingDimension {\n      id\n      name\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c049e57d92943f64b5e751e0daa89dc8";
+(node as any).hash = "96d029150ec0c7e5419c2efa0ee67fc5";
 
 export default node;

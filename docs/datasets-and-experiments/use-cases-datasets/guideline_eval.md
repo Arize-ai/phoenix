@@ -7,7 +7,7 @@
         |
         <a href="https://github.com/Arize-ai/phoenix">GitHub</a>
         |
-        <a href="https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q">Community</a>
+        <a href="https://arize-ai.slack.com/join/shared_invite/zt-2w57bhem8-hq24MB6u7yE_ZF_ilOYSBw#/shared-invite/email">Community</a>
     </p>
 </center>
 <h1 align="center">Guideline Eval</h1>

@@ -192,7 +192,7 @@ export function SpanDetails({
   const { viewer } = useViewer();
   const { span } = useLazyLoadQuery<SpanDetailsQuery>(
     graphql`
-      query SpanDetailsQuery($id: GlobalID!, $filterUserIds: [GlobalID]) {
+      query SpanDetailsQuery($id: ID!, $filterUserIds: [ID]) {
         span: node(id: $id) {
           __typename
           ... on Span {

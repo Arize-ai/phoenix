@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -20,10 +19,9 @@ import { RetentionPoliciesTable } from "./RetentionPoliciesTable";
 import { settingsDataPageLoader } from "./settingsDataPageLoader";
 
 export function SettingsDataPage() {
-  const [fetchKey, setFetchKey] = useState(0);
   const loaderData = useLoaderData<typeof settingsDataPageLoader>();
   invariant(loaderData, "loaderData is required");
-
+  const queryId = loaderData.__id;
   return (
     <Card
       title="Retention Policies"
@@ -44,8 +42,8 @@ export function SettingsDataPage() {
                   <>
                     <Heading slot="title">New Retention Policy</Heading>
                     <CreateRetentionPolicy
+                      queryId={queryId}
                       onCreate={() => {
-                        setFetchKey(fetchKey + 1);
                         close();
                       }}
                     />
@@ -57,7 +55,7 @@ export function SettingsDataPage() {
         </CanManageRetentionPolicy>
       }
     >
-      <RetentionPoliciesTable query={loaderData} fetchKey={fetchKey} />
+      <RetentionPoliciesTable query={loaderData} />
     </Card>
   );
 }
