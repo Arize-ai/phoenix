@@ -567,6 +567,23 @@ export interface components {
             /** Data */
             data: components["schemas"]["InsertedSpanAnnotation"][];
         };
+        /** AnyValue */
+        AnyValue: {
+            /** Array Value */
+            array_value?: null;
+            /** Bool Value */
+            bool_value?: boolean | null;
+            /** Bytes Value */
+            bytes_value?: string | null;
+            /** Double Value */
+            double_value?: number | components["schemas"]["DoubleValue"] | string | null;
+            /** Int Value */
+            int_value?: number | string | null;
+            /** Kvlist Value */
+            kvlist_value?: null;
+            /** String Value */
+            string_value?: string | null;
+        };
         /** CategoricalAnnotationConfig */
         CategoricalAnnotationConfig: {
             /** Name */
@@ -850,6 +867,11 @@ export interface components {
             /** Data */
             data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
         };
+        /**
+         * DoubleValue
+         * @enum {string}
+         */
+        DoubleValue: "Infinity" | "-Infinity" | "NaN";
         /** Experiment */
         Experiment: {
             /**
@@ -1065,10 +1087,14 @@ export interface components {
         /** KeyValue */
         KeyValue: {
             /** Key */
-            key: string;
-            /** Value */
-            value: unknown;
+            key?: string | null;
+            value?: components["schemas"]["AnyValue"] | null;
         };
+        /**
+         * Kind
+         * @enum {string}
+         */
+        Kind: "SPAN_KIND_UNSPECIFIED" | "SPAN_KIND_INTERNAL" | "SPAN_KIND_SERVER" | "SPAN_KIND_CLIENT" | "SPAN_KIND_PRODUCER" | "SPAN_KIND_CONSUMER";
         /** ListDatasetExamplesData */
         ListDatasetExamplesData: {
             /** Dataset Id */
@@ -1118,30 +1144,117 @@ export interface components {
         OptimizationDirection: "MINIMIZE" | "MAXIMIZE" | "NONE";
         /** OtlpSpan */
         OtlpSpan: {
-            /** Traceid */
-            traceId: string;
-            /** Spanid */
-            spanId: string;
-            /** Parentspanid */
-            parentSpanId?: string | null;
-            /** Name */
-            name?: string | null;
+            /**
+             * Attributes
+             * @description attributes is a collection of key/value pairs. Note, global attributes like server name can be set using the resource API. Examples of attributes:
+             *
+             *         "/http/user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"
+             *         "/http/server_latency": 300
+             *         "example.com/myattribute": true
+             *         "example.com/score": 10.239
+             *
+             *     The OpenTelemetry API specification further restricts the allowed value types:
+             *     https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute
+             *     Attribute keys MUST be unique (it is not allowed to have more than one attribute with the same key).
+             */
+            attributes?: components["schemas"]["KeyValue"][] | null;
+            /**
+             * Dropped Attributes Count
+             * @description dropped_attributes_count is the number of attributes that were discarded. Attributes can be discarded because their keys are too long or because there are too many attributes. If this value is 0, then no attributes were dropped.
+             */
+            dropped_attributes_count?: number | null;
+            /**
+             * Dropped Events Count
+             * @description dropped_events_count is the number of dropped events. If the value is 0, then no events were dropped.
+             */
+            dropped_events_count?: number | null;
+            /**
+             * Dropped Links Count
+             * @description dropped_links_count is the number of dropped links after the maximum size was enforced. If this value is 0, then no links were dropped.
+             */
+            dropped_links_count?: number | null;
+            /**
+             * End Time Unix Nano
+             * @description end_time_unix_nano is the end time of the span. On the client side, this is the time kept by the local machine where the span execution ends. On the server side, this is the time when the server application handler stops running.
+             *     Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
+             *
+             *     This field is semantically required and it is expected that end_time >= start_time.
+             */
+            end_time_unix_nano?: number | string | null;
+            /** Events */
+            events?: null;
+            /**
+             * Flags
+             * @description Flags, a bit field.
+             *
+             *     Bits 0-7 (8 least significant bits) are the trace flags as defined in W3C Trace Context specification. To read the 8-bit W3C trace flag, use `flags & SPAN_FLAGS_TRACE_FLAGS_MASK`.
+             *
+             *     See https://www.w3.org/TR/trace-context-2/#trace-flags for the flag definitions.
+             *
+             *     Bits 8 and 9 represent the 3 states of whether a span's parent is remote. The states are (unknown, is not remote, is remote).
+             *     To read whether the value is known, use `(flags & SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK) != 0`.
+             *     To read whether the span is remote, use `(flags & SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK) != 0`.
+             *
+             *     When creating span messages, if the message is logically forwarded from another source with an equivalent flags fields (i.e., usually another OTLP span message), the field SHOULD be copied as-is. If creating from a source that does not have an equivalent flags field (such as a runtime representation of an OpenTelemetry span), the high 22 bits MUST be set to zero.
+             *     Readers MUST NOT assume that bits 10-31 (22 most significant bits) will be zero.
+             *
+             *     [Optional].
+             */
+            flags?: number | null;
             /**
              * Kind
-             * @default 0
+             * @description Distinguishes between spans generated in a particular context. For example, two spans with the same name may be distinguished using `CLIENT` (caller) and `SERVER` (callee) to identify queueing latency associated with the span.
+             * @default SPAN_KIND_INTERNAL
              */
-            kind?: number;
-            /** Starttimeunixnano */
-            startTimeUnixNano?: number | null;
-            /** Endtimeunixnano */
-            endTimeUnixNano?: number | null;
-            /** Attributes */
-            attributes?: components["schemas"]["KeyValue"][];
-            /** Events */
-            events?: {
-                [key: string]: unknown;
-            }[];
-            status: components["schemas"]["Status"];
+            kind?: components["schemas"]["Kind"] | number | null;
+            /** Links */
+            links?: null;
+            /**
+             * Name
+             * @description A description of the span's operation.
+             *
+             *     For example, the name can be a qualified method name or a file name and a line number where the operation is called. A best practice is to use the same display name at the same call point in an application. This makes it easier to correlate spans in different traces.
+             *
+             *     This field is semantically required to be set to non-empty string. Empty value is equivalent to an unknown span name.
+             *
+             *     This field is required.
+             */
+            name?: string | null;
+            /**
+             * Parent Span Id
+             * @description The `span_id` of this span's parent span. If this is a root span, then this field must be empty. The ID is an 8-byte array.
+             */
+            parent_span_id?: string | null;
+            /**
+             * Span Id
+             * @description A unique identifier for a span within a trace, assigned when the span is created. The ID is an 8-byte array. An ID with all zeroes OR of length other than 8 bytes is considered invalid (empty string in OTLP/JSON is zero-length and thus is also invalid).
+             *
+             *     This field is required.
+             */
+            span_id?: string | null;
+            /**
+             * Start Time Unix Nano
+             * @description start_time_unix_nano is the start time of the span. On the client side, this is the time kept by the local machine where the span execution starts. On the server side, this is the time when the server's application handler starts running.
+             *     Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
+             *
+             *     This field is semantically required and it is expected that end_time >= start_time.
+             */
+            start_time_unix_nano?: number | string | null;
+            /** @description An optional final status for this span. Semantically when Status isn't set, it means span's status code is unset, i.e. assume STATUS_CODE_UNSET (code = 0). */
+            status?: components["schemas"]["Status"] | null;
+            /**
+             * Trace Id
+             * @description A unique identifier for a trace. All spans from the same trace share the same `trace_id`. The ID is a 16-byte array. An ID with all zeroes OR of length other than 16 bytes is considered invalid (empty string in OTLP/JSON is zero-length and thus is also invalid).
+             *
+             *     This field is required.
+             */
+            trace_id?: string | null;
+            /**
+             * Trace State
+             * @description trace_state conveys information about request position in multiple distributed tracing graphs. It is a trace_state in w3c-trace-context format: https://www.w3.org/TR/trace-context/#tracestate-header
+             *     See also https://github.com/w3c/distributed-tracing for more details about this field.
+             */
+            trace_state?: string | null;
         };
         /** Project */
         Project: {
@@ -1604,15 +1717,17 @@ export interface components {
         };
         /** Status */
         Status: {
-            code: components["schemas"]["StatusCode"];
-            /** Message */
+            /**
+             * Code
+             * @description The status code.
+             */
+            code?: number | null;
+            /**
+             * Message
+             * @description A developer-facing human readable error message.
+             */
             message?: string | null;
         };
-        /**
-         * StatusCode
-         * @enum {integer}
-         */
-        StatusCode: 0 | 1 | 2;
         /** TextContentPart */
         TextContentPart: {
             /**
