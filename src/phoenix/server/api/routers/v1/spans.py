@@ -4,11 +4,11 @@ from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 from enum import Enum, IntEnum
 from secrets import token_urlsafe
-from typing import Any, Literal, Optional, Union
+from typing import Annotated, Any, Literal, Optional, Union
 
 import pandas as pd
 from fastapi import APIRouter, Header, HTTPException, Path, Query
-from pydantic import BaseModel, ConfigDict, Extra, Field, conint, constr
+from pydantic import BaseModel, ConfigDict, Extra, Field
 from sqlalchemy import select
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
@@ -88,12 +88,12 @@ class AnyValue(BaseModel):
 
     array_value: None = None  # TODO: Add ArrayValue model
     bool_value: Optional[bool] = None
-    bytes_value: Optional[constr(regex=r"^[A-Za-z0-9+/]*={0,2}$")] = None
+    bytes_value: Optional[Annotated[str, Field(pattern=r"^[A-Za-z0-9+/]*={0,2}$")]] = None
     double_value: Optional[Union[float, DoubleValue, str]] = None
     int_value: Optional[
         Union[
-            conint(ge=-9223372036854775808, lt=9223372036854775808),
-            constr(regex=r"^-?[0-9]+$"),
+            Annotated[int, Field(ge=-9223372036854775808, lt=9223372036854775808)],
+            Annotated[str, Field(pattern=r"^-?[0-9]+$")],
         ]
     ] = None
     kvlist_value: None = None  # TODO: Add KeyValueList model
@@ -150,7 +150,7 @@ class OtlpSpan(BaseModel):
             "with the same key)."
         ),
     )
-    dropped_attributes_count: Optional[conint(ge=0, le=4294967295)] = Field(
+    dropped_attributes_count: Optional[Annotated[int, Field(ge=0, le=4294967295)]] = Field(
         None,
         description=(
             "dropped_attributes_count is the number of attributes that were discarded. Attributes "
@@ -158,14 +158,14 @@ class OtlpSpan(BaseModel):
             "attributes. If this value is 0, then no attributes were dropped."
         ),
     )
-    dropped_events_count: Optional[conint(ge=0, le=4294967295)] = Field(
+    dropped_events_count: Optional[Annotated[int, Field(ge=0, le=4294967295)]] = Field(
         None,
         description=(
             "dropped_events_count is the number of dropped events. If the value is 0, then no "
             "events were dropped."
         ),
     )
-    dropped_links_count: Optional[conint(ge=0, le=4294967295)] = Field(
+    dropped_links_count: Optional[Annotated[int, Field(ge=0, le=4294967295)]] = Field(
         None,
         description=(
             "dropped_links_count is the number of dropped links after the maximum size was "
@@ -173,7 +173,10 @@ class OtlpSpan(BaseModel):
         ),
     )
     end_time_unix_nano: Optional[
-        Union[conint(ge=0, lt=18446744073709551616), constr(regex=r"^[0-9]+$")]
+        Union[
+            Annotated[int, Field(ge=0, lt=18446744073709551616)],
+            Annotated[str, Field(pattern=r"^[0-9]+$")],
+        ]
     ] = Field(
         None,
         description=(
@@ -185,7 +188,7 @@ class OtlpSpan(BaseModel):
         ),
     )
     events: None = None  # TODO: Add Event model
-    flags: Optional[conint(ge=0, le=4294967295)] = Field(
+    flags: Optional[Annotated[int, Field(ge=0, le=4294967295)]] = Field(
         None,
         description=(
             "Flags, a bit field.\n\n"
@@ -208,7 +211,7 @@ class OtlpSpan(BaseModel):
             "[Optional]."
         ),
     )
-    kind: Optional[Union[Kind, conint(ge=-2147483648, le=2147483647)]] = Field(
+    kind: Optional[Union[Kind, Annotated[int, Field(ge=-2147483648, le=2147483647)]]] = Field(
         Kind.SPAN_KIND_INTERNAL,  # INTERNAL because OpenInference uses its own SpanKind attribute
         description=(
             "Distinguishes between spans generated in a particular context. For example, two spans "
@@ -230,14 +233,14 @@ class OtlpSpan(BaseModel):
             "This field is required."
         ),
     )
-    parent_span_id: Optional[constr(regex=r"^[A-Za-z0-9+/]*={0,2}$")] = Field(
+    parent_span_id: Optional[Annotated[str, Field(pattern=r"^[A-Za-z0-9+/]*={0,2}$")]] = Field(
         None,
         description=(
             "The `span_id` of this span's parent span. If this is a root span, then this field "
             "must be empty. The ID is an 8-byte array."
         ),
     )
-    span_id: Optional[constr(regex=r"^[A-Za-z0-9+/]*={0,2}$")] = Field(
+    span_id: Optional[Annotated[str, Field(pattern=r"^[A-Za-z0-9+/]*={0,2}$")]] = Field(
         None,
         description=(
             "A unique identifier for a span within a trace, assigned when the span is created. The "
@@ -248,7 +251,10 @@ class OtlpSpan(BaseModel):
         ),
     )
     start_time_unix_nano: Optional[
-        Union[conint(ge=0, lt=18446744073709551616), constr(regex=r"^[0-9]+$")]
+        Union[
+            Annotated[int, Field(ge=0, lt=18446744073709551616)],
+            Annotated[str, Field(pattern=r"^[0-9]+$")],
+        ]
     ] = Field(
         None,
         description=(
@@ -266,7 +272,7 @@ class OtlpSpan(BaseModel):
             "span's status code is unset, i.e. assume STATUS_CODE_UNSET (code = 0)."
         ),
     )
-    trace_id: Optional[constr(regex=r"^[A-Za-z0-9+/]*={0,2}$")] = Field(
+    trace_id: Optional[Annotated[str, Field(pattern=r"^[A-Za-z0-9+/]*={0,2}$")]] = Field(
         None,
         description=(
             "A unique identifier for a trace. All spans from the same trace share the same "
