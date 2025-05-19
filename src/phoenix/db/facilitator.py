@@ -13,7 +13,6 @@ from sqlalchemy import (
     insert,
     select,
 )
-from typing_extensions import assert_never
 
 from phoenix import config
 from phoenix.auth import (
@@ -175,18 +174,20 @@ async def _ensure_admins(
                 select(models.User.email).where(models.User.email.in_(admins.keys()))
             )
         )
-        admins = {email: user for email, user in admins.items() if email not in existing_emails}
+        admins = {
+            email: username for email, username in admins.items() if email not in existing_emails
+        }
         if not admins:
             return
         existing_usernames = set(
             await session.scalars(
-                select(models.User.username).where(
-                    models.User.username.in_(user.username for user in admins.values())
-                )
+                select(models.User.username).where(models.User.username.in_(admins.values()))
             )
         )
         admins = {
-            email: user for email, user in admins.items() if user.username not in existing_usernames
+            email: username
+            for email, username in admins.items()
+            if username not in existing_usernames
         }
         if not admins:
             return
@@ -194,32 +195,21 @@ async def _ensure_admins(
             select(models.UserRole.id).filter_by(name=UserRole.ADMIN.value)
         )
         assert admin_role_id is not None, "Admin role not found in database"
-        user: models.User
-        for email, (username, auth_method) in admins.items():
-            if auth_method == "LOCAL":
-                # Generate a random password hash and salt
-                user = models.LocalUser(
-                    email=email,
-                    username=username,
-                    password_salt=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
-                    password_hash=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
-                )
-            elif auth_method == "OAUTH2":
-                user = models.OAuth2User(
-                    email=email,
-                    username=username,
-                )
-            else:
-                assert_never(auth_method)
-            user.user_role_id = admin_role_id
+        for email, username in admins.items():
+            user = models.User(
+                user_role_id=admin_role_id,
+                username=username,
+                email=email,
+                password_salt=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
+                password_hash=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
+                reset_password=True,
+            )
             session.add(user)
+        await session.flush()
     if email_sender is None:
         return
     for exc in await gather(
-        *(
-            email_sender.send_welcome_email(email, username)
-            for email, (username, _) in admins.items()
-        ),
+        *(email_sender.send_welcome_email(email, username) for email, username in admins.items()),
         return_exceptions=True,
     ):
         if isinstance(exc, Exception):

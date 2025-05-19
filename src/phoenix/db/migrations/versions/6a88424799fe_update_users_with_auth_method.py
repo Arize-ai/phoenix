@@ -101,7 +101,8 @@ def upgrade() -> None:
         batch_op.drop_constraint("exactly_one_auth_method", type_="check")
         batch_op.drop_constraint("oauth2_client_id_and_user_id", type_="check")
 
-        # Drop redundant single column indices
+        # Drop redundant single column indices, because a composite index already
+        # exists in the uniqueness constraint for (client_id, user_id)
         batch_op.drop_index("ix_users_oauth2_client_id")
         batch_op.drop_index("ix_users_oauth2_user_id")
 

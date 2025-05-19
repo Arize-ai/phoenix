@@ -9,7 +9,7 @@ from datetime import timedelta
 from enum import Enum
 from importlib.metadata import version
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, NamedTuple, Optional, Union, cast, overload
+from typing import Any, Optional, Union, cast, overload
 from urllib.parse import quote_plus, urljoin, urlparse
 
 import wrapt
@@ -19,9 +19,6 @@ from starlette.datastructures import URL
 from phoenix.utilities.logging import log_a_list
 
 from .utilities.re import parse_env_headers
-
-if TYPE_CHECKING:
-    from phoenix.db.models import AuthMethod
 
 logger = logging.getLogger(__name__)
 
@@ -188,15 +185,13 @@ headers, those values will not be validated.
 ENV_PHOENIX_ADMINS = "PHOENIX_ADMINS"
 """
 A semicolon-separated list of username and email address pairs to create as admin users on startup.
-The format is `username=email` or `username=email(AUTH_METHOD)`, where AUTH_METHOD is either 'LOCAL' or 'OAUTH2'.
-For example: `John Doe=john@example.com;Doe, Jane=jane@example.com(OAUTH2)`.
-
-If no auth method is specified, it defaults to 'LOCAL'. The password for each user will be randomly generated
-and will need to be reset via SMTP. The application will not start if this environment variable is set but cannot be
-parsed or contains invalid emails. If the username or email address already exists in the database, the user
-record will not be modified, e.g., changed from non-admin to admin. Changing this environment variable for the
-next startup will not undo any records created in previous startups.
-"""  # noqa: E501
+The format is `username=email`, e.g., `John Doe=john@example.com;Doe, Jane=jane@example.com`.
+The password for each user will be randomly generated and will need to be reset. The application
+will not start if this environment variable is set but cannot be parsed or contains invalid emails.
+If the username or email address already exists in the database, the user record will not be
+modified, e.g., changed from non-admin to admin. Changing this environment variable for the next
+startup will not undo any records created in previous startups.
+"""
 ENV_PHOENIX_ROOT_URL = "PHOENIX_ROOT_URL"
 """
 This is the full URL used to access Phoenix from a web browser. This setting is important when
@@ -768,34 +763,18 @@ def get_env_csrf_trusted_origins() -> list[str]:
     return sorted(set(origins))
 
 
-class EnvPhoenixAdmin(NamedTuple):
-    username: str
-    auth_method: AuthMethod
-
-
-def get_env_admins() -> dict[str, EnvPhoenixAdmin]:
+def get_env_admins() -> dict[str, str]:
     """
-    Parse the PHOENIX_ADMINS environment variable to extract the semicolon-separated pairs of
-    username and email, with optional auth method specification in parentheses.
-
-    The format is `username=email` or `username=email(AUTH_METHOD)`, where AUTH_METHOD is
-    either 'LOCAL' or 'OAUTH2' (case-insensitive). If no auth method is specified, it
-    defaults to 'LOCAL'.
-
-    Examples:
-        - "John Doe=john@example.com" -> LOCAL auth
-        - "Jane Smith=jane@example.com(LOCAL)" -> LOCAL auth
-        - "Bob Wilson=bob@example.com(OAUTH2)" -> OAUTH2 auth
+    Parse the PHOENIX_ADMINS environment variable to extract the comma separated pairs of
+    username and email. The last equal sign (=) in each pair is used to separate the username from
+    the email.
 
     Returns:
-        dict: A dictionary mapping email addresses to EnvPhoenixAdmin objects containing username
-            and auth_method
+        dict: A dictionary mapping email addresses to usernames
 
     Raises:
-        ValueError: If the environment variable cannot be parsed, contains invalid email addresses,
-            or contains invalid auth methods. Valid auth methods are 'LOCAL' and 'OAUTH2'
-            (case-insensitive).
-    """  # noqa E501
+        ValueError: If the environment variable cannot be parsed or contains invalid email addresses
+    """
     if not (env_value := getenv(ENV_PHOENIX_ADMINS)):
         return {}
     usernames = set()
@@ -811,26 +790,10 @@ def get_env_admins() -> dict[str, EnvPhoenixAdmin]:
         if last_equals_pos == -1:
             raise ValueError(
                 f"Invalid format in {ENV_PHOENIX_ADMINS}: '{pair}'. "
-                f"Expected format: 'username=email', 'username=email(LOCAL)', "
-                f"or 'username=email(OAUTH2)'"
+                f"Expected format: 'username=email'"
             )
         username = pair[:last_equals_pos].strip()
-        email_part = pair[last_equals_pos + 1 :].strip()
-
-        # Check for auth method specification in parentheses
-        if match := re.match(r"(?P<email>.*)\((?P<auth_method>\w+)\)$", email_part, re.IGNORECASE):
-            email_addr = match.group("email").strip()
-            auth_method_str = match.group("auth_method")
-            if auth_method_str.upper() not in ("LOCAL", "OAUTH2"):
-                raise ValueError(
-                    f"Invalid auth method in {ENV_PHOENIX_ADMINS}: '{auth_method_str}'. "
-                    f"Valid values are 'LOCAL' and 'OAUTH2' (case-insensitive)."
-                )
-            auth_method = cast("AuthMethod", auth_method_str.upper())
-        else:
-            email_addr = email_part
-            auth_method = "LOCAL"  # Default to LOCAL
-
+        email_addr = pair[last_equals_pos + 1 :].strip()
         try:
             email_addr = validate_email(email_addr, check_deliverability=False).normalized
         except EmailNotValidError:
@@ -841,10 +804,7 @@ def get_env_admins() -> dict[str, EnvPhoenixAdmin]:
             raise ValueError(f"Duplicate email in {ENV_PHOENIX_ADMINS}: '{email_addr}'")
         usernames.add(username)
         emails.add(email_addr)
-        ans[email_addr] = EnvPhoenixAdmin(
-            username=username,
-            auth_method=auth_method,
-        )
+        ans[email_addr] = username
     return ans
 
 
