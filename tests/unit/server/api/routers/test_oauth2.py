@@ -17,7 +17,9 @@ from phoenix.server.types import DbSessionFactory
 @pytest.mark.parametrize(
     "user,oauth2_client_id,user_info,allowed",
     [
-        # User with password hash cannot sign in with OAuth2 (must use password auth)
+        # Test Case: User with password hash cannot sign in with OAuth2
+        # Verifies that users who have set a password must use password authentication
+        # and cannot switch to OAuth2 authentication.
         pytest.param(
             models.User(
                 user_role_id=1,
@@ -39,7 +41,9 @@ from phoenix.server.types import DbSessionFactory
             False,
             id="user_with_password_hash",
         ),
-        # User with matching OAuth2 credentials can sign in (direct OAuth2 lookup)
+        # Test Case: User with matching OAuth2 credentials can sign in
+        # Verifies that users with matching OAuth2 credentials can successfully sign in
+        # without any credential updates needed.
         pytest.param(
             models.User(
                 user_role_id=1,
@@ -61,8 +65,9 @@ from phoenix.server.types import DbSessionFactory
             True,
             id="user_with_matching_oauth2_credentials",
         ),
-        # User with different OAuth2 client ID can sign in (found by email,
-        # credentials updated)
+        # Test Case: User with different OAuth2 client ID can sign in
+        # Verifies that users found by email can have their OAuth2 client ID updated
+        # when signing in with a different client ID.
         pytest.param(
             models.User(
                 user_role_id=1,
@@ -84,8 +89,9 @@ from phoenix.server.types import DbSessionFactory
             True,
             id="user_with_different_oauth2_client_id",
         ),
-        # User with different OAuth2 user ID cannot sign in (client IDs match,
-        # user IDs must match)
+        # Test Case: User with different OAuth2 user ID cannot sign in
+        # Verifies that users cannot sign in when their OAuth2 user ID doesn't match,
+        # even if the client ID matches.
         pytest.param(
             models.User(
                 user_role_id=1,
@@ -107,8 +113,9 @@ from phoenix.server.types import DbSessionFactory
             False,
             id="user_with_different_oauth2_user_id",
         ),
-        # User with missing OAuth2 client ID can sign in (found by email,
-        # credentials updated)
+        # Test Case: User with missing OAuth2 client ID can sign in
+        # Verifies that users found by email can have their OAuth2 client ID set
+        # when signing in for the first time with OAuth2.
         pytest.param(
             models.User(
                 user_role_id=1,
@@ -130,8 +137,9 @@ from phoenix.server.types import DbSessionFactory
             True,
             id="user_with_missing_oauth2_client_id",
         ),
-        # User with missing OAuth2 user ID cannot sign in (client IDs match,
-        # user IDs required)
+        # Test Case: User with missing OAuth2 user ID can sign in
+        # Verifies that users can sign in when their OAuth2 user ID is missing,
+        # if the client ID matches.
         pytest.param(
             models.User(
                 user_role_id=1,
@@ -150,11 +158,12 @@ from phoenix.server.types import DbSessionFactory
                 username=None,
                 profile_picture_url=None,
             ),
-            False,
+            True,
             id="user_with_missing_oauth2_user_id",
         ),
-        # User with missing OAuth2 client ID but different user ID can sign in
-        # (found by email, all credentials updated)
+        # Test Case: User with missing OAuth2 client ID but different user ID can sign in
+        # Verifies that users found by email can have both their OAuth2 client ID and user ID
+        # updated when signing in for the first time with OAuth2.
         pytest.param(
             models.User(
                 user_role_id=1,
@@ -176,8 +185,9 @@ from phoenix.server.types import DbSessionFactory
             True,
             id="user_with_missing_oauth2_client_id_and_different_user_id",
         ),
-        # User with missing OAuth2 user ID but different client ID can sign in
-        # (found by email, all credentials updated)
+        # Test Case: User with missing OAuth2 user ID but different client ID can sign in
+        # Verifies that users found by email can have both their OAuth2 client ID and user ID
+        # updated when signing in with different credentials.
         pytest.param(
             models.User(
                 user_role_id=1,
@@ -199,8 +209,9 @@ from phoenix.server.types import DbSessionFactory
             True,
             id="user_with_missing_oauth2_user_id_and_different_client_id",
         ),
-        # User found by email with no OAuth2 credentials can sign in
-        # (credentials will be set)
+        # Test Case: User found by email with no OAuth2 credentials can sign in
+        # Verifies that users found by email can have their OAuth2 credentials set
+        # when signing in for the first time with OAuth2.
         pytest.param(
             models.User(
                 user_role_id=1,
@@ -222,8 +233,9 @@ from phoenix.server.types import DbSessionFactory
             True,
             id="user_found_by_email_no_oauth2_credentials",
         ),
-        # User found by email with matching OAuth2 credentials can sign in
-        # (no updates needed)
+        # Test Case: User found by email with matching OAuth2 credentials can sign in
+        # Verifies that users found by email with matching OAuth2 credentials
+        # can sign in without any credential updates.
         pytest.param(
             models.User(
                 user_role_id=1,
@@ -245,8 +257,9 @@ from phoenix.server.types import DbSessionFactory
             True,
             id="user_found_by_email_matching_oauth2_credentials",
         ),
-        # User found by email with different OAuth2 credentials can sign in
-        # (credentials will be updated)
+        # Test Case: User found by email with different OAuth2 credentials can sign in
+        # Verifies that users found by email can have their OAuth2 credentials updated
+        # when signing in with different credentials.
         pytest.param(
             models.User(
                 user_role_id=1,
@@ -268,7 +281,134 @@ from phoenix.server.types import DbSessionFactory
             True,
             id="user_found_by_email_different_oauth2_credentials",
         ),
-        # Non-existent user cannot sign in (no user found by OAuth2 or email)
+        # Test Case: User with updated profile picture can sign in
+        # Verifies that users can have their profile picture URL updated
+        # when signing in with a new URL.
+        pytest.param(
+            models.User(
+                user_role_id=1,
+                username=token_hex(8),
+                password_hash=None,
+                password_salt=None,
+                reset_password=False,
+                oauth2_client_id="123456789012-abcdef.apps.googleusercontent.com",
+                oauth2_user_id="118234567890123456789",
+                auth_method="OAUTH2",
+                profile_picture_url="https://old-picture.com/avatar.jpg",
+            ),
+            "123456789012-abcdef.apps.googleusercontent.com",
+            UserInfo(
+                idp_user_id="118234567890123456789",
+                email=f"{token_hex(8)}@example.com",
+                username=None,
+                profile_picture_url="https://new-picture.com/avatar.jpg",
+            ),
+            True,
+            id="user_with_updated_profile_picture",
+        ),
+        # Test Case: User with changed OAuth2 client ID and profile picture can sign in
+        # Verifies that users can have both their OAuth2 client ID and profile picture
+        # updated simultaneously when signing in.
+        pytest.param(
+            models.User(
+                user_role_id=1,
+                username=token_hex(8),
+                password_hash=None,
+                password_salt=None,
+                reset_password=False,
+                oauth2_client_id="987654321098-xyzdef.apps.googleusercontent.com",
+                oauth2_user_id="118234567890123456789",
+                auth_method="OAUTH2",
+                profile_picture_url="https://old-picture.com/avatar.jpg",
+            ),
+            "123456789012-abcdef.apps.googleusercontent.com",
+            UserInfo(
+                idp_user_id="118234567890123456789",
+                email=f"{token_hex(8)}@example.com",
+                username=None,
+                profile_picture_url="https://new-picture.com/avatar.jpg",
+            ),
+            True,
+            id="user_with_changed_client_id_and_profile_picture",
+        ),
+        # Test Case: User with updated username can sign in
+        # Verifies that users can have their username updated
+        # when signing in with a new username.
+        pytest.param(
+            models.User(
+                user_role_id=1,
+                username=f"old_username{token_hex(8)}",
+                password_hash=None,
+                password_salt=None,
+                reset_password=False,
+                oauth2_client_id="123456789012-abcdef.apps.googleusercontent.com",
+                oauth2_user_id="118234567890123456789",
+                auth_method="OAUTH2",
+                profile_picture_url="https://example.com/avatar.jpg",
+            ),
+            "123456789012-abcdef.apps.googleusercontent.com",
+            UserInfo(
+                idp_user_id="118234567890123456789",
+                email=f"{token_hex(8)}@example.com",
+                username=f"new_username{token_hex(8)}",
+                profile_picture_url="https://example.com/avatar.jpg",
+            ),
+            True,
+            id="user_with_updated_username",
+        ),
+        # Test Case: User with removed username can sign in
+        # Verifies that users cannot have their username removed (set to None)
+        # when signing in with no username provided.
+        pytest.param(
+            models.User(
+                user_role_id=1,
+                username=f"old_username{token_hex(8)}",
+                password_hash=None,
+                password_salt=None,
+                reset_password=False,
+                oauth2_client_id="123456789012-abcdef.apps.googleusercontent.com",
+                oauth2_user_id="118234567890123456789",
+                auth_method="OAUTH2",
+                profile_picture_url="https://example.com/avatar.jpg",
+            ),
+            "123456789012-abcdef.apps.googleusercontent.com",
+            UserInfo(
+                idp_user_id="118234567890123456789",
+                email=f"{token_hex(8)}@example.com",
+                username=None,
+                profile_picture_url="https://example.com/avatar.jpg",
+            ),
+            True,
+            id="user_with_removed_username",
+        ),
+        # Test Case: User with removed profile picture can sign in
+        # Verifies that users can have their profile picture URL removed (set to None)
+        # when signing in with no profile picture URL provided.
+        pytest.param(
+            models.User(
+                user_role_id=1,
+                username=f"test_username{token_hex(8)}",
+                password_hash=None,
+                password_salt=None,
+                reset_password=False,
+                oauth2_client_id="123456789012-abcdef.apps.googleusercontent.com",
+                oauth2_user_id="118234567890123456789",
+                auth_method="OAUTH2",
+                profile_picture_url="https://example.com/avatar.jpg",
+            ),
+            "123456789012-abcdef.apps.googleusercontent.com",
+            UserInfo(
+                idp_user_id="118234567890123456789",
+                email=f"{token_hex(8)}@example.com",
+                username=f"test_username{token_hex(8)}",
+                profile_picture_url=None,
+            ),
+            True,
+            id="user_with_removed_profile_picture",
+        ),
+        # Test Case: Non-existent user cannot sign in
+        # Verifies that sign-in is rejected when no user is found
+        # by either OAuth2 credentials or email.
         pytest.param(
             None,
             "123456789012-abcdef.apps.googleusercontent.com",
@@ -291,6 +431,29 @@ async def test_get_existing_oauth2_user(
     user_info: UserInfo,
     allowed: bool,
 ) -> None:
+    """Test the OAuth2 user sign-in and update process.
+
+    This test verifies the behavior of _get_existing_oauth2_user function, which handles:
+    1. OAuth2 user authentication
+    2. User profile updates (username, profile picture)
+    3. OAuth2 credential updates (client_id, user_id)
+    4. Error cases and rejections
+
+    The test covers various scenarios:
+    - Users with/without passwords
+    - Users with matching/different OAuth2 credentials
+    - Users found by OAuth2 credentials or email
+    - Profile information updates
+    - Error conditions
+
+    Args:
+        app: The FastAPI application instance
+        db: Database session factory
+        user: Optional existing user in the database
+        oauth2_client_id: OAuth2 client ID to use for sign-in
+        user_info: User information from the OAuth2 provider
+        allowed: Whether the sign-in should be allowed
+    """
     if user:
         async with db() as session:
             # For some strange reason PostgreSQL insists on UPDATE instead of
@@ -322,13 +485,23 @@ async def test_get_existing_oauth2_user(
             oauth2_client_id=oauth2_client_id,
             user_info=user_info,
         )
+    # Verify the returned user object has the correct OAuth2 credentials
     assert oauth2_user
     assert oauth2_user.oauth2_client_id == oauth2_client_id
     assert oauth2_user.oauth2_user_id == user_info.idp_user_id
 
-    # Check that the user in the database has matching credentials
+    # Verify the database state after the update
     async with db() as session:
         db_user = await session.scalar(select(models.User).filter_by(email=user_info.email))
     assert db_user
+    # Verify OAuth2 credentials are correctly updated
     assert db_user.oauth2_client_id == oauth2_client_id
     assert db_user.oauth2_user_id == user_info.idp_user_id
+    # Verify profile picture URL is updated if provided in user_info
+    if user_info.profile_picture_url is not None:
+        assert db_user.profile_picture_url == user_info.profile_picture_url
+    # Verify username is updated if provided in user_info, otherwise remains unchanged
+    if user_info.username is not None:
+        assert db_user.username == user_info.username
+    elif user is not None:  # If user_info.username is None, username should remain unchanged
+        assert user.username

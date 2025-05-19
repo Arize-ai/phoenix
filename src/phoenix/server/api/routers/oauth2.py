@@ -203,16 +203,20 @@ async def create_tokens(
 class UserInfo:
     idp_user_id: str
     email: str
-    username: Optional[str]
-    profile_picture_url: Optional[str]
+    username: Optional[str] = None
+    profile_picture_url: Optional[str] = None
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "idp_user_id", self.idp_user_id.strip())
-        object.__setattr__(self, "email", self.email.strip())
-        if username := self.username:
-            object.__setattr__(self, "username", username.strip())
-        if profile_picture_url := self.profile_picture_url:
-            object.__setattr__(self, "profile_picture_url", profile_picture_url.strip())
+        if not (idp_user_id := (self.idp_user_id or "").strip()):
+            raise ValueError("idp_user_id cannot be empty")
+        object.__setattr__(self, "idp_user_id", idp_user_id)
+        if not (email := (self.email or "").strip()):
+            raise ValueError("email cannot be empty")
+        object.__setattr__(self, "email", email)
+        if username := (self.username or "").strip():
+            object.__setattr__(self, "username", username)
+        if profile_picture_url := (self.profile_picture_url or "").strip():
+            object.__setattr__(self, "profile_picture_url", profile_picture_url)
 
 
 def _validate_token_data(token_data: dict[str, Any]) -> None:
@@ -331,29 +335,31 @@ async def _get_existing_oauth2_user(
         SignInNotAllowed: When sign-in is not allowed for the user (user doesn't exist, has a
             password, or has mismatched OAuth2 credentials)
     """  # noqa: E501
-    if user := await _get_user(
-        session,
-        oauth2_client_id=oauth2_client_id,
-        idp_user_id=user_info.idp_user_id,
+    email = user_info.email
+    username = user_info.username
+    oauth2_user_id = user_info.idp_user_id
+    profile_picture_url = user_info.profile_picture_url
+    stmt = select(models.User).options(joinedload(models.User.role))
+    if user := await session.scalar(
+        stmt.filter_by(oauth2_client_id=oauth2_client_id, oauth2_user_id=oauth2_user_id)
     ):
-        if user.email != user_info.email:
-            user.email = user_info.email
+        if email and email != user.email:
+            user.email = email
     else:
-        email = user_info.email
-        stmt = select(models.User).filter_by(email=email).options(joinedload(models.User.role))
-        user = await session.scalar(stmt)
-        if (
-            user is None
-            or not isinstance(user, models.OAuth2User)
-            or (
-                user.oauth2_client_id == oauth2_client_id
-                and user.oauth2_user_id != user_info.idp_user_id
-            )
-        ):
+        user = await session.scalar(stmt.filter_by(email=email))
+        if user is None or not isinstance(user, models.OAuth2User):
             raise SignInNotAllowed("Sign in is not allowed.")
-        if user.oauth2_user_id is None or user.oauth2_client_id != oauth2_client_id:
+        if oauth2_client_id != user.oauth2_client_id:
             user.oauth2_client_id = oauth2_client_id
-            user.oauth2_user_id = user_info.idp_user_id
+            user.oauth2_user_id = oauth2_user_id
+        elif not user.oauth2_user_id:
+            user.oauth2_user_id = oauth2_user_id
+        elif oauth2_user_id != user.oauth2_user_id:
+            raise SignInNotAllowed("Sign in is not allowed.")
+    if username and username != user.username:
+        user.username = username
+    if profile_picture_url != user.profile_picture_url:
+        user.profile_picture_url = profile_picture_url
     if user in session.dirty:
         await session.flush()
     return user
