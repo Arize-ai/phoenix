@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 2.0.0
+
+### Major Changes
+
+- 118e881: feat: add support for dataset creation and the ability to re-run experiments
+
 ## 1.3.0
 
 ### Minor Changes
