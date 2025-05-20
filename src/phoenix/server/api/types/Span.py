@@ -44,7 +44,7 @@ from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_
 from phoenix.server.api.types.SpanIOValue import SpanIOValue, truncate_value
 from phoenix.trace.attributes import get_attribute_value
 
-from .TokenPromptDetails import TokenPromptDetails
+from .TokenCountPromptDetails import TokenCountPromptDetails
 
 if TYPE_CHECKING:
     from phoenix.server.api.types.Project import Project
@@ -357,7 +357,7 @@ class Span(Node):
     async def token_prompt_details(
         self,
         info: Info[Context, None],
-    ) -> TokenPromptDetails:
+    ) -> TokenCountPromptDetails:
         if self.db_span:
             attributes = self.db_span.attributes
         else:
@@ -389,7 +389,7 @@ class Span(Node):
         if isinstance(raw_audio, int):
             audio = raw_audio
 
-        return TokenPromptDetails(
+        return TokenCountPromptDetails(
             cache_read=cache_read,
             cache_write=cache_write,
             audio=audio,
