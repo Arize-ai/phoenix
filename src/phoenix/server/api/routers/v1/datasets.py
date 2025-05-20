@@ -3,6 +3,7 @@ import gzip
 import io
 import json
 import logging
+import urllib
 import zlib
 from asyncio import QueueFull
 from collections import Counter
@@ -817,10 +818,11 @@ async def get_dataset_csv(
     except ValueError as e:
         raise HTTPException(detail=str(e), status_code=HTTP_422_UNPROCESSABLE_ENTITY)
     content = await run_in_threadpool(_get_content_csv, examples)
+    encoded_dataset_name = urllib.parse.quote(dataset_name)
     return Response(
         content=content,
         headers={
-            "content-disposition": f'attachment; filename="{dataset_name}.csv"',
+            "content-disposition": f'attachment; filename="{encoded_dataset_name}.csv"',
             "content-type": "text/csv",
         },
     )
