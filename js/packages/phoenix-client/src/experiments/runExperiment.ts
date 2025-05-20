@@ -216,7 +216,7 @@ export async function runExperiment({
       datasetId: dataset.id,
       experimentId: experiment.id,
     });
-    
+
     logger.info(`📊 View dataset: ${datasetUrl}`);
     logger.info(`📺 View dataset experiments: ${datasetExperimentsUrl}`);
     logger.info(`🔗 View this experiment: ${experimentUrl}`);
@@ -267,7 +267,7 @@ export async function runExperiment({
   ranExperiment.evaluationRuns = evaluationRuns;
 
   logger.info(`✅ Experiment ${experiment.id} completed`);
-  
+
   if (!isDryRun && client.config.baseUrl) {
     const experimentUrl = getExperimentUrl({
       baseUrl: client.config.baseUrl,
