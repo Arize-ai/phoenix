@@ -142,6 +142,33 @@ async def project_with_a_single_trace_and_span(
 
 
 @pytest.fixture
+async def project_with_a_single_trace_and_span_with_events(
+    project_with_a_single_trace_and_span: None,
+    db: DbSessionFactory,
+) -> None:
+    """
+    Contains a project with a single trace and a single span that has events.
+    """
+    async with db() as session:
+        span = await session.scalar(
+            select(models.Span).where(models.Span.span_id == "7e2f08cb43bbf521")
+        )
+        span.events = [
+            {
+                "name": "test_event",
+                "timestamp": "2021-01-01T00:00:15.000000+00:00",
+                "attributes": {
+                    "string_attr": "test_value",
+                    "bool_attr": True,
+                    "int_attr": 42,
+                    "float_attr": 3.14,
+                },
+            }
+        ]
+        await session.commit()
+
+
+@pytest.fixture
 async def span_search_test_data(db: DbSessionFactory) -> None:
     """Insert three spans with different times and annotations for filter tests."""
 
@@ -347,3 +374,45 @@ async def test_span_attributes_conversion(
     assert output_attr.value is not None
     assert isinstance(output_attr.value, AnyValue)
     assert output_attr.value.string_value == "chain-span-output-value"
+
+
+async def test_span_events_conversion(
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span_with_events: None,
+) -> None:
+    """Test that span events are properly converted to OTLP format."""
+    resp = await httpx_client.get("v1/projects/project-name/spans")
+    assert resp.is_success
+    data = resp.json()
+    spans = [OtlpSpan.model_validate(s) for s in data["data"]]
+    assert len(spans) == 1
+
+    span = spans[0]
+    assert span.events is not None
+    assert len(span.events) == 1
+
+    event = span.events[0]
+    assert event.name == "test_event"
+    assert event.time_unix_nano == 1609459215000000000
+    assert event.attributes is not None
+    assert len(event.attributes) == 4
+
+    string_attr = next((attr for attr in event.attributes if attr.key == "string_attr"), None)
+    assert string_attr is not None
+    assert string_attr.value is not None
+    assert string_attr.value.string_value == "test_value"
+
+    bool_attr = next((attr for attr in event.attributes if attr.key == "bool_attr"), None)
+    assert bool_attr is not None
+    assert bool_attr.value is not None
+    assert bool_attr.value.bool_value is True
+
+    int_attr = next((attr for attr in event.attributes if attr.key == "int_attr"), None)
+    assert int_attr is not None
+    assert int_attr.value is not None
+    assert int_attr.value.int_value == 42
+
+    float_attr = next((attr for attr in event.attributes if attr.key == "float_attr"), None)
+    assert float_attr is not None
+    assert float_attr.value is not None
+    assert float_attr.value.double_value == 3.14
