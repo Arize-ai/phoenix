@@ -29,7 +29,7 @@ os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
 ```
 
 {% hint style="warning" %}
-Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](https://docs.arize.com/phoenix/learn#what-is-my-phoenix-endpoint)
+Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](https://docs.arize.com/phoenix/learn/faqs/what-is-my-phoenix-endpoint)
 {% endhint %}
 
 ### Using Self-hosted Phoenix
