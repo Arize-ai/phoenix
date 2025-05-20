@@ -1,0 +1,2 @@
+[per-file-ignores]
+"tutorials/**/*.py" = ["E402"]
