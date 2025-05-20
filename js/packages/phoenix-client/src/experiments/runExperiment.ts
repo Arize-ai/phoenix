@@ -32,6 +32,11 @@ import {
 import { ensureString } from "../utils/ensureString";
 import type { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 import { objectAsAttributes } from "../utils/objectAsAttributes";
+import {
+  getDatasetUrl,
+  getDatasetExperimentsUrl,
+  getExperimentUrl,
+} from "../utils/urls";
 
 /**
  * Parameters for running an experiment.
@@ -197,6 +202,26 @@ export async function runExperiment({
     );
   }
 
+  if (!isDryRun && client.config.baseUrl) {
+    const datasetUrl = getDatasetUrl({
+      baseUrl: client.config.baseUrl,
+      datasetId: dataset.id,
+    });
+    const datasetExperimentsUrl = getDatasetExperimentsUrl({
+      baseUrl: client.config.baseUrl,
+      datasetId: dataset.id,
+    });
+    const experimentUrl = getExperimentUrl({
+      baseUrl: client.config.baseUrl,
+      datasetId: dataset.id,
+      experimentId: experiment.id,
+    });
+    
+    logger.info(`📊 View dataset: ${datasetUrl}`);
+    logger.info(`📺 View dataset experiments: ${datasetExperimentsUrl}`);
+    logger.info(`🔗 View this experiment: ${experimentUrl}`);
+  }
+
   logger.info(
     `🧪 Starting experiment "${experimentName || `<unnamed>`}" on dataset "${dataset.id}" with task "${task.name}" and ${evaluators?.length ?? 0} ${pluralize(
       "evaluator",
@@ -242,6 +267,15 @@ export async function runExperiment({
   ranExperiment.evaluationRuns = evaluationRuns;
 
   logger.info(`✅ Experiment ${experiment.id} completed`);
+  
+  if (!isDryRun && client.config.baseUrl) {
+    const experimentUrl = getExperimentUrl({
+      baseUrl: client.config.baseUrl,
+      datasetId: dataset.id,
+      experimentId: experiment.id,
+    });
+    logger.info(`🔍 View results: ${experimentUrl}`);
+  }
 
   return ranExperiment;
 }
@@ -444,6 +478,15 @@ export async function evaluateExperiment({
       evaluators?.length ?? 0
     )}`
   );
+
+  if (!isDryRun && client.config.baseUrl) {
+    const experimentUrl = getExperimentUrl({
+      baseUrl: client.config.baseUrl,
+      datasetId: experiment.datasetId,
+      experimentId: experiment.id,
+    });
+    logger.info(`🔗 View experiment evaluation: ${experimentUrl}`);
+  }
   type EvaluationId = string;
   const evaluationRuns: Record<EvaluationId, ExperimentEvaluationRun> = {};
 
