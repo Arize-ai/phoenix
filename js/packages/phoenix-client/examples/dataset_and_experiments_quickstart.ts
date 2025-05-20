@@ -4,6 +4,7 @@ import { createClient } from '../src';
 import { runExperiment, asEvaluator } from '../src/experiments';
 import { AnnotatorKind } from '../src/types/annotations';
 import { Example } from '../src/types/datasets';
+import { createDataset } from '../src/datasets/createDataset';
 
 // Replace with your actual OpenAI API key
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -28,30 +29,33 @@ async function main() {
   // First, create a dataset via the API
   console.log('Creating dataset...');
   
-  // Create examples directly as an array
+  // Create examples without id field since it's not expected in the Example type
   const examples = [
     {
-      id: `example-1`,
-      updatedAt: new Date(),
       input: { question: "What is Paul Graham known for?" },
       output: { answer: "Co-founding Y Combinator and writing on startups and techology." },
       metadata: { topic: "tech" }
     },
     {
-      id: `example-2`,
-      updatedAt: new Date(),
       input: { question: "What companies did Elon Musk found?" },
       output: { answer: "Tesla, SpaceX, Neuralink, The Boring Company, and co-founded PayPal." },
       metadata: { topic: "entrepreneurs" }
     },
     {
-      id: `example-3`,
-      updatedAt: new Date(),
       input: { question: "What is Moore's Law?" },
       output: { answer: "The observation that the number of transistors in a dense integrated circuit doubles about every two years." },
       metadata: { topic: "computing" }
     }
   ] as Example[];
+  
+  // Create a dataset with the examples
+  console.log('Creating dataset with examples...');
+  const { datasetId } = await createDataset({
+    client,
+    name: 'quickstart-dataset',
+    description: 'Dataset for quickstart example',
+    examples: examples,
+  });
   
   // Define task function that will be evaluated
   const taskPromptTemplate = "Answer in a few words: {question}";
@@ -200,11 +204,11 @@ async function main() {
   // Run the experiment with selected evaluators
   console.log('Running experiment...');
   
-  // Pass datasetId instead of the array of examples
+  // Use datasetId instead of the array of examples
   const experiment = await runExperiment({
     client,
     experimentName: "initial-experiment",
-    dataset: examples,
+    dataset: { datasetId }, // Use the string dataset ID
     task,
     evaluators: [jaccardSimilarity, accuracy],
     logger: console,
@@ -218,7 +222,7 @@ async function main() {
   const updatedExperiment = await runExperiment({
     client,
     experimentName: experiment.id, // Use the same experiment ID
-    dataset: examples, // Use the array of examples
+    dataset: { datasetId }, // Use the string dataset ID
     task: async () => "", // No-op task since we're just evaluating
     evaluators: [containsKeyword, conciseness],
     logger: console
