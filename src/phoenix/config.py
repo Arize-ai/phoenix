@@ -145,11 +145,6 @@ ENV_PHOENIX_DISABLE_BASIC_AUTH = "PHOENIX_DISABLE_BASIC_AUTH"
 Forbid login via password and disable the creation of local users, which log in via passwords.
 This can be helpful in setups where authentication is handled entirely through OAUTH2.
 """
-ENV_PHOENIX_DISABLE_LOGIN_FORM = "PHOENIX_PHOENIX_DISABLE_LOGIN_FORM"
-"""
-Hide the login form via password. This can be helpful in setups where authentication
-is handled entirely through OAUTH2.
-"""
 ENV_PHOENIX_DISABLE_RATE_LIMIT = "PHOENIX_DISABLE_RATE_LIMIT"
 ENV_PHOENIX_SECRET = "PHOENIX_SECRET"
 """
@@ -647,13 +642,6 @@ def get_env_disable_basic_auth() -> bool:
     Gets the value of the ENV_PHOENIX_DISABLE_BASIC_AUTH environment variable.
     """
     return _bool_val(ENV_PHOENIX_DISABLE_BASIC_AUTH, False)
-
-
-def get_env_disable_login_form() -> bool:
-    """
-    Gets the value of the ENV_PHOENIX_DISABLE_LOGIN_FORM environment variable.
-    """
-    return _bool_val(ENV_PHOENIX_DISABLE_LOGIN_FORM, False)
 
 
 def get_env_disable_rate_limit() -> bool:
