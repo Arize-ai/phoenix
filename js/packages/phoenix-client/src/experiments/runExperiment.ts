@@ -137,7 +137,7 @@ export async function runExperiment({
   invariant(dataset.examples.length > 0, `Dataset has no examples`);
   const nExamples =
     typeof dryRun === "number"
-      ? Math.max(dryRun, dataset.examples.length)
+      ? Math.min(dryRun, dataset.examples.length)
       : dataset.examples.length;
 
   let projectName = `${dataset.name}-exp-${new Date().toISOString()}`;
