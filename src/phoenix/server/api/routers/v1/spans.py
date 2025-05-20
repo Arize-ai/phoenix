@@ -560,6 +560,35 @@ async def span_search(
             for k, v in flatten(span_orm.attributes or {}, recurse_on_sequence=True):
                 attributes_kv.append(KeyValue(key=k, value=_to_any_value(v)))
 
+        # Convert events to OTLP Event list
+        events: Optional[list[Event]] = None
+        if span_orm.events:
+            events = []
+            for event in span_orm.events:
+                # Convert event attributes to KeyValue list
+                event_attributes: list[KeyValue] = []
+                if event.get("attributes"):
+                    for k, v in flatten(event["attributes"], recurse_on_sequence=True):
+                        event_attributes.append(KeyValue(key=k, value=_to_any_value(v)))
+
+                # Convert event time to nanoseconds
+                event_time = event.get("time")
+                time_unix_nano = None
+                if event_time:
+                    if isinstance(event_time, datetime):
+                        time_unix_nano = int(event_time.timestamp() * 1_000_000_000)
+                    elif isinstance(event_time, (int, str)):
+                        time_unix_nano = event_time
+
+                events.append(
+                    Event(
+                        name=event.get("name"),
+                        attributes=event_attributes,
+                        time_unix_nano=time_unix_nano,
+                        dropped_attributes_count=event.get("dropped_attributes_count"),
+                    )
+                )
+
         start_ns = (
             int(span_orm.start_time.timestamp() * 1_000_000_000) if span_orm.start_time else None
         )
@@ -574,7 +603,7 @@ async def span_search(
                 start_time_unix_nano=start_ns,
                 end_time_unix_nano=end_ns,
                 attributes=attributes_kv,
-                # events=None,  # TODO: Add events
+                events=events,
                 status=Status(code=status_code_enum, message=span_orm.status_message or None),
             )
         )
