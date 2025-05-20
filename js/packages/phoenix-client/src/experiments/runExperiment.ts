@@ -36,7 +36,7 @@ import {
   getDatasetUrl,
   getDatasetExperimentsUrl,
   getExperimentUrl,
-} from "../utils/urls";
+} from "../utils/urlUtils";
 
 /**
  * Parameters for running an experiment.

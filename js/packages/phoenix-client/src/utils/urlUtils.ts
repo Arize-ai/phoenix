@@ -7,8 +7,8 @@
  * @param baseUrl The base URL of the Phoenix API
  * @returns The base URL for the Phoenix web UI
  */
-export function getWebBaseUrl(baseUrl: string): string {
-  return baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
+function getWebBaseUrl(baseUrl: string): string {
+  return new URL(baseUrl).toString();
 }
 
 /**
