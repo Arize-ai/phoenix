@@ -249,7 +249,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       {
         header: "input",
         accessorKey: "input",
-        minWidth: 500,
+        minWidth: 200,
+        maxWidth: 800,
         cell: ({ row }) => {
           return (
             <CellWithControlsWrap
