@@ -565,20 +565,25 @@ async def span_search(
         if span_orm.events:
             events = []
             for event in span_orm.events:
-                # Convert event attributes to KeyValue list
                 event_attributes: list[KeyValue] = []
                 if event.get("attributes"):
                     for k, v in flatten(event["attributes"], recurse_on_sequence=True):
                         event_attributes.append(KeyValue(key=k, value=_to_any_value(v)))
 
-                # Convert event time to nanoseconds
-                event_time = event.get("time")
+                # Convert event timestamp to nanoseconds
+                event_time = event.get("timestamp")
                 time_unix_nano = None
                 if event_time:
                     if isinstance(event_time, datetime):
                         time_unix_nano = int(event_time.timestamp() * 1_000_000_000)
-                    elif isinstance(event_time, (int, str)):
-                        time_unix_nano = event_time
+                    elif isinstance(event_time, str):
+                        try:
+                            dt = datetime.fromisoformat(event_time)
+                            time_unix_nano = int(dt.timestamp() * 1_000_000_000)
+                        except ValueError:
+                            pass
+                    elif isinstance(event_time, (int, float)):
+                        time_unix_nano = int(event_time)
 
                 events.append(
                     Event(
