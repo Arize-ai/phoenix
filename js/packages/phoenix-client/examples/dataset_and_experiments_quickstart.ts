@@ -28,41 +28,16 @@ async function main() {
   // First, create a dataset via the API
   console.log('Creating dataset...');
   
-  // Create the dataset by uploading to the /v1/datasets/upload endpoint
-  const datasetResponse = await client.POST("/v1/datasets/upload", {
-    params: {
-      query: {
-        sync: true // Make sure we wait for the dataset to be created
-      }
-    },
-    body: {
-      name: "test-dataset",
-      description: "Dataset for testing experiments",
-      action: "create",
-      inputs: [
-        {
-          question: "What is Paul Graham known for?"
-        }
-      ],
-      outputs: [
-        {
-          answer: "Co-founding Y Combinator and writing on startups and techology."
-        }
-      ],
-      metadata: [
-        { 
-          topic: "tech"
-        }
-      ]
+  // Create examples directly as an array
+  const examples = [
+    {
+      id: `example-${Date.now()}`,
+      updatedAt: new Date(),
+      input: { question: "What is Paul Graham known for?" },
+      output: { answer: "Co-founding Y Combinator and writing on startups and techology." },
+      metadata: { topic: "tech" }
     }
-  });
-  
-  if (!datasetResponse.data?.data) {
-    throw new Error("Failed to create dataset");
-  }
-  
-  const datasetId = datasetResponse.data.data.dataset_id;
-  console.log(`Created dataset with ID: ${datasetId}`);
+  ] as Example[];
   
   // Define task function that will be evaluated
   const taskPromptTemplate = "Answer in a few words: {question}";
@@ -215,7 +190,7 @@ async function main() {
   const experiment = await runExperiment({
     client,
     experimentName: "initial-experiment",
-    dataset: datasetId, // Use the dataset ID instead of array of examples
+    dataset: examples,
     task,
     evaluators: [jaccardSimilarity, accuracy],
     logger: console,
@@ -229,7 +204,7 @@ async function main() {
   const updatedExperiment = await runExperiment({
     client,
     experimentName: experiment.id, // Use the same experiment ID
-    dataset: datasetId, // Use the dataset ID
+    dataset: examples, // Use the array of examples
     task: async () => "", // No-op task since we're just evaluating
     evaluators: [containsKeyword, conciseness],
     logger: console

@@ -49,7 +49,42 @@ export async function getDatasetBySelector({
     return datasetWithExamples;
   }
   if (Array.isArray(dataset)) {
-    throw new Error("TODO: implement dataset creation from examples");
+    // Create a dataset from the examples
+    if (dataset.length === 0) {
+      return null;
+    }
+
+    // Extract inputs, outputs, and metadata from examples
+    const inputs = dataset.map(example => example.input || {});
+    const outputs = dataset.map(example => example.output || {});
+    const metadata = dataset.map(example => example.metadata || {});
+
+    // Create a unique dataset name
+    const datasetName = `dataset-${Date.now()}`;
+    
+    // Create the dataset via the API
+    const datasetResponse = await client.POST("/v1/datasets/upload", {
+      params: {
+        query: {
+          sync: true // Wait for the dataset to be created
+        }
+      },
+      body: {
+        name: datasetName,
+        description: "Dataset created from examples",
+        action: "create",
+        inputs,
+        outputs,
+        metadata
+      }
+    });
+
+    const responseData = datasetResponse.data?.data;
+    invariant(responseData, "Failed to create dataset from examples");
+    
+    // Get the full dataset with examples
+    const datasetId = responseData.dataset_id;
+    return await getDatasetBySelector({ dataset: datasetId, client });
   }
   return dataset;
 }
