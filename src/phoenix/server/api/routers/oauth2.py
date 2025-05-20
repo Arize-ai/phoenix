@@ -310,22 +310,28 @@ async def _get_existing_oauth2_user(
     oauth2_client_id: str,
     user_info: UserInfo,
 ) -> models.User:
-    """
-    Signs in an existing user with OAuth2 credentials.
+    """Signs in an existing user with OAuth2 credentials.
 
-    This function attempts to find a user in two ways:
-    1. First by OAuth2 credentials (client_id and user_id)
-    2. If not found, then by email
+    This function handles OAuth2 authentication for existing users. It follows a two-step process:
 
-    When found by OAuth2 credentials:
-    - Updates the user's email if it has changed from the IDP info
+    1. First Attempt: Find user by OAuth2 credentials
+       - Searches for a user with matching oauth2_client_id and oauth2_user_id
+       - If found, updates email if it has changed from IDP info
+       - If not found, proceeds to step 2
 
-    When found by email:
-    - Verifies the user is an OAuth2 user (no password set)
-    - Verifies either:
-        a) The user has no OAuth2 credentials set yet, or
-        b) The user's OAuth2 credentials match the provided ones
-    - Updates the user's OAuth2 credentials if they were not set
+    2. Second Attempt: Find user by email
+       - Searches for a user with matching email
+       - Verifies the user is an OAuth2 user (no password set)
+       - Handles OAuth2 credential updates in three cases:
+         a) Different OAuth2 client: Updates both client and user IDs
+         b) Same client but missing user ID: Sets the user ID
+         c) Same client but different user ID: Rejects sign-in
+
+    Profile Updates:
+    - Email: Updated if different from IDP info
+    - Profile Picture: Updated if provided in user_info
+    - Username: Never updated (remains unchanged)
+    - OAuth2 Credentials: Updated based on the three cases above
 
     Args:
         session: The database session
@@ -336,8 +342,11 @@ async def _get_existing_oauth2_user(
         The signed-in user
 
     Raises:
-        SignInNotAllowed: When sign-in is not allowed for the user (user doesn't exist, has a
-            password, or has mismatched OAuth2 credentials)
+        ValueError: If required fields (email, oauth2_user_id, oauth2_client_id) are empty
+        SignInNotAllowed: When sign-in is not allowed because:
+            - User doesn't exist
+            - User has a password set
+            - User has mismatched OAuth2 credentials
     """  # noqa: E501
     if not (email := (user_info.email or "").strip()):
         raise ValueError("Email is required.")
@@ -345,7 +354,6 @@ async def _get_existing_oauth2_user(
         raise ValueError("OAuth2 user ID is required.")
     if not (oauth2_client_id := (oauth2_client_id or "").strip()):
         raise ValueError("OAuth2 client ID is required.")
-    username = (user_info.username or "").strip()
     profile_picture_url = (user_info.profile_picture_url or "").strip()
     stmt = select(models.User).options(joinedload(models.User.role))
     if user := await session.scalar(
@@ -357,15 +365,16 @@ async def _get_existing_oauth2_user(
         user = await session.scalar(stmt.filter_by(email=email))
         if user is None or not isinstance(user, models.OAuth2User):
             raise SignInNotAllowed("Sign in is not allowed.")
+        # Case 1: Different OAuth2 client - update both client and user IDs
         if oauth2_client_id != user.oauth2_client_id:
             user.oauth2_client_id = oauth2_client_id
             user.oauth2_user_id = oauth2_user_id
+        # Case 2: Same client but missing user ID - set the user ID
         elif not user.oauth2_user_id:
             user.oauth2_user_id = oauth2_user_id
+        # Case 3: Same client but different user ID - reject sign-in
         elif oauth2_user_id != user.oauth2_user_id:
             raise SignInNotAllowed("Sign in is not allowed.")
-    if username and username != user.username:
-        user.username = username
     if profile_picture_url != user.profile_picture_url:
         user.profile_picture_url = profile_picture_url
     if user in session.dirty:

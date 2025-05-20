@@ -331,56 +331,6 @@ from phoenix.server.types import DbSessionFactory
             True,
             id="user_with_changed_client_id_and_profile_picture",
         ),
-        # Test Case: User with updated username can sign in
-        # Verifies that users can have their username updated
-        # when signing in with a new username.
-        pytest.param(
-            models.User(
-                user_role_id=1,
-                username=f"old_username{token_hex(8)}",
-                password_hash=None,
-                password_salt=None,
-                reset_password=False,
-                oauth2_client_id="123456789012-abcdef.apps.googleusercontent.com",
-                oauth2_user_id="118234567890123456789",
-                auth_method="OAUTH2",
-                profile_picture_url="https://example.com/avatar.jpg",
-            ),
-            "123456789012-abcdef.apps.googleusercontent.com",
-            UserInfo(
-                idp_user_id="118234567890123456789",
-                email=f"{token_hex(8)}@example.com",
-                username=f"new_username{token_hex(8)}",
-                profile_picture_url="https://example.com/avatar.jpg",
-            ),
-            True,
-            id="user_with_updated_username",
-        ),
-        # Test Case: User with removed username can sign in
-        # Verifies that users cannot have their username removed (set to None)
-        # when signing in with no username provided.
-        pytest.param(
-            models.User(
-                user_role_id=1,
-                username=f"old_username{token_hex(8)}",
-                password_hash=None,
-                password_salt=None,
-                reset_password=False,
-                oauth2_client_id="123456789012-abcdef.apps.googleusercontent.com",
-                oauth2_user_id="118234567890123456789",
-                auth_method="OAUTH2",
-                profile_picture_url="https://example.com/avatar.jpg",
-            ),
-            "123456789012-abcdef.apps.googleusercontent.com",
-            UserInfo(
-                idp_user_id="118234567890123456789",
-                email=f"{token_hex(8)}@example.com",
-                username=None,
-                profile_picture_url="https://example.com/avatar.jpg",
-            ),
-            True,
-            id="user_with_removed_username",
-        ),
         # Test Case: User with removed profile picture can sign in
         # Verifies that users can have their profile picture URL removed (set to None)
         # when signing in with no profile picture URL provided.
@@ -435,7 +385,7 @@ async def test_get_existing_oauth2_user(
 
     This test verifies the behavior of _get_existing_oauth2_user function, which handles:
     1. OAuth2 user authentication
-    2. User profile updates (username, profile picture)
+    2. User profile updates (profile picture)
     3. OAuth2 credential updates (client_id, user_id)
     4. Error cases and rejections
 
@@ -500,8 +450,5 @@ async def test_get_existing_oauth2_user(
     # Verify profile picture URL is updated if provided in user_info
     if user_info.profile_picture_url is not None:
         assert db_user.profile_picture_url == user_info.profile_picture_url
-    # Verify username is updated if provided in user_info, otherwise remains unchanged
-    if user_info.username is not None:
-        assert db_user.username == user_info.username
-    elif user is not None:  # If user_info.username is None, username should remain unchanged
-        assert user.username
+    # Verify username remains unchanged
+    assert db_user.username == user.username
