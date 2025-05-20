@@ -8,7 +8,7 @@ from typing import Annotated, Any, Literal, Optional, Union
 
 import pandas as pd
 from fastapi import APIRouter, Header, HTTPException, Path, Query
-from pydantic import BaseModel, Extra, Field
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
@@ -83,8 +83,7 @@ class DoubleValue(Enum):
 
 
 class AnyValue(BaseModel):
-    class Config:
-        extra = Extra.forbid
+    model_config = {"extra": "forbid"}
 
     array_value: None = None  # TODO: Add ArrayValue model
     bool_value: Optional[bool] = None
@@ -101,8 +100,7 @@ class AnyValue(BaseModel):
 
 
 class KeyValue(BaseModel):
-    class Config:
-        extra = Extra.forbid
+    model_config = {"extra": "forbid"}
 
     key: Optional[str] = None
     value: Optional[AnyValue] = None
@@ -115,8 +113,7 @@ class StatusCode(IntEnum):
 
 
 class Status(BaseModel):
-    class Config:
-        extra = Extra.forbid
+    model_config = {"extra": "forbid"}
 
     code: Optional[Annotated[int, Field(ge=-2147483648, le=2147483647)]] = Field(
         None, description="The status code."
@@ -135,9 +132,47 @@ class Kind(Enum):
     SPAN_KIND_CONSUMER = "SPAN_KIND_CONSUMER"
 
 
+class Event(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    attributes: Optional[list[KeyValue]] = Field(
+        None,
+        description=(
+            "attributes is a collection of attribute key/value pairs on the event. "
+            "Attribute keys MUST be unique (it is not allowed to have more than one "
+            "attribute with the same key)."
+        ),
+    )
+    dropped_attributes_count: Optional[Annotated[int, Field(ge=0, le=4294967295)]] = Field(
+        None,
+        description=(
+            "dropped_attributes_count is the number of dropped attributes. If the value is 0, "
+            "then no attributes were dropped."
+        ),
+    )
+    name: Optional[str] = Field(
+        None,
+        description=(
+            "name of the event. "
+            "This field is semantically required to be set to non-empty string."
+        ),
+    )
+    time_unix_nano: Optional[
+        Union[
+            Annotated[int, Field(ge=0, lt=18446744073709551616)],
+            Annotated[str, Field(pattern=r"^[0-9]+$")],
+        ]
+    ] = Field(
+        None,
+        description=(
+            "time_unix_nano is the time the event occurred. "
+            "Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970."
+        ),
+    )
+
+
 class OtlpSpan(BaseModel):
-    class Config:
-        extra = Extra.forbid
+    model_config = {"extra": "forbid"}
 
     attributes: Optional[list[KeyValue]] = Field(
         None,
@@ -193,7 +228,10 @@ class OtlpSpan(BaseModel):
             "This field is semantically required and it is expected that end_time >= start_time."
         ),
     )
-    events: None = None  # TODO: Add Event model
+    events: Optional[list[Event]] = Field(
+        None,
+        description=("events is a collection of Event items. " "A span with no events is valid."),
+    )
     flags: Optional[Annotated[int, Field(ge=0, le=4294967295)]] = Field(
         None,
         description=(
