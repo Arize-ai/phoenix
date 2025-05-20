@@ -131,12 +131,10 @@ def test_user_auth_method_migration(
                 text(
                     """
                     INSERT INTO users (
-                        user_role_id, username, email, auth_method,
-                        password_hash, password_salt, reset_password
+                        user_role_id, username, email, auth_method, reset_password
                     )
                     VALUES (
-                        :role_id, :username, :email, 'INVALID',
-                        :password_hash, :password_salt, false
+                        :role_id, :username, :email, 'INVALID', false
                     )
                     """
                 ),
@@ -144,16 +142,12 @@ def test_user_auth_method_migration(
                     "role_id": role_id,
                     "username": f"invalid_auth_{token_hex(4)}",
                     "email": f"invalid_auth_{token_hex(4)}@example.com",
-                    "password_hash": b"test_hash",
-                    "password_salt": b"test_salt",
                 },
             )
-            conn.commit()
         error_message = str(exc_info.value)
         assert (
             "valid_auth_method" in error_message
         ), "Expected valid_auth_method constraint violation"
-        conn.rollback()
 
     with _engine.connect() as conn:
         # Test LOCAL auth with OAuth2 credentials
@@ -183,12 +177,10 @@ def test_user_auth_method_migration(
                     "user_id": f"test_user_{token_hex(4)}",
                 },
             )
-            conn.commit()
         error_message = str(exc_info.value)
         assert (
-            "local_auth_no_oauth" in error_message
-        ), "Expected local_auth_no_oauth constraint violation"
-        conn.rollback()
+            "local_auth_has_password_no_oauth" in error_message
+        ), "Expected local_auth_has_password_no_oauth constraint violation"
 
     with _engine.connect() as conn:
         # Test OAUTH2 auth with password credentials
@@ -218,12 +210,10 @@ def test_user_auth_method_migration(
                     "user_id": f"test_user_{token_hex(4)}",
                 },
             )
-            conn.commit()
         error_message = str(exc_info.value)
         assert (
-            "oauth2_auth_no_password" in error_message
-        ), "Expected oauth2_auth_no_password constraint violation"
-        conn.rollback()
+            "non_local_auth_has_no_password" in error_message
+        ), "Expected non_local_auth_has_no_password constraint violation"
 
     # Test downgrade
     _down(_engine, _alembic_config, "8a3764fe7f1a")
@@ -234,8 +224,10 @@ def test_user_auth_method_migration(
         local_user = conn.execute(
             text(
                 """
-                SELECT password_hash IS NOT NULL as has_password,
-                       oauth2_client_id IS NOT NULL as has_oauth
+                SELECT password_hash IS NOT NULL as has_password_hash,
+                       password_salt IS NOT NULL as has_password_salt,
+                       oauth2_client_id IS NOT NULL as has_oauth2_client_id,
+                       oauth2_user_id IS NOT NULL as has_oauth2_user_id
                 FROM users
                 WHERE id = :id
                 """
@@ -244,14 +236,18 @@ def test_user_auth_method_migration(
         ).first()
         assert local_user is not None
         assert bool(local_user[0]), "Local user should still have password_hash"
-        assert not bool(local_user[1]), "Local user should still not have oauth2_client_id"
+        assert bool(local_user[1]), "Local user should still have password_salt"
+        assert not bool(local_user[2]), "Local user should still not have oauth2_client_id"
+        assert not bool(local_user[3]), "Local user should still not have oauth2_user_id"
 
     with _engine.connect() as conn:
         oauth_user = conn.execute(
             text(
                 """
-                SELECT password_hash IS NOT NULL as has_password,
-                       oauth2_client_id IS NOT NULL as has_oauth
+                SELECT password_hash IS NOT NULL as has_password_hash,
+                       password_salt IS NOT NULL as has_password_salt,
+                       oauth2_client_id IS NOT NULL as has_oauth2_client_id,
+                       oauth2_user_id IS NOT NULL as has_oauth2_user_id
                 FROM users
                 WHERE id = :id
                 """
@@ -259,8 +255,10 @@ def test_user_auth_method_migration(
             {"id": oauth_user_id},
         ).first()
         assert oauth_user is not None
-        assert not bool(oauth_user[0]), "OAuth user should still not have password_hash"
-        assert bool(oauth_user[1]), "OAuth user should still have oauth2_client_id"
+        assert not bool(oauth_user[0]), "OAuth2 user should still not have password_hash"
+        assert not bool(oauth_user[1]), "OAuth2 user should still not have password_salt"
+        assert bool(oauth_user[2]), "OAuth2 user should still have oauth2_client_id"
+        assert bool(oauth_user[3]), "OAuth2 user should still have oauth2_user_id"
 
 
 def _create_local_user(

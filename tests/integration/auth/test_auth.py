@@ -31,6 +31,7 @@ from opentelemetry.sdk.trace.export import SpanExportResult
 from phoenix.config import get_base_url, get_env_phoenix_admin_secret, get_env_root_url
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
+from starlette.datastructures import Secret
 from strawberry.relay import GlobalID
 from typing_extensions import assert_never
 
@@ -1201,15 +1202,15 @@ class TestSpanExporters:
         if use_admin_secret:
             assert (api_key := get_env_phoenix_admin_secret())
         else:
-            api_key = ""
+            api_key = Secret("")
         if method == "headers":
             # Must use all lower case for `authorization` because
             # otherwise it would crash the gRPC receiver.
-            headers = dict(authorization=f"Bearer {api_key}")
+            headers = dict(authorization=f"Bearer {str(api_key)}")
         elif method == "setenv":
             monkeypatch.setenv(
                 OTEL_EXPORTER_OTLP_TRACES_HEADERS,
-                f"Authorization=Bearer {api_key}",
+                f"Authorization=Bearer {str(api_key)}",
             )
         else:
             assert_never(method)

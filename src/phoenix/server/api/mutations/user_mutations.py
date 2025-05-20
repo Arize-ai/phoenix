@@ -9,6 +9,7 @@ from sqlalchemy import Boolean, Select, and_, case, cast, delete, distinct, func
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
+from starlette.datastructures import Secret
 from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.types import Info
@@ -66,10 +67,15 @@ class PatchViewerInput:
     def __post_init__(self) -> None:
         if not self.new_username and not self.new_password:
             raise BadRequest("At least one field must be set")
-        if self.new_password and not self.current_password:
-            raise BadRequest("current_password is required when modifying password")
         if self.new_password:
-            PASSWORD_REQUIREMENTS.validate(self.new_password)
+            if get_env_disable_basic_auth():
+                raise BadRequest("Basic auth is disabled: OAuth2 authentication only")
+            if not self.current_password:
+                raise BadRequest("current_password is required when modifying password")
+            try:
+                PASSWORD_REQUIREMENTS.validate(self.new_password)
+            except ValueError as e:
+                raise BadRequest(str(e))
 
 
 @strawberry.input
@@ -83,7 +89,12 @@ class PatchUserInput:
         if not self.new_role and not self.new_username and not self.new_password:
             raise BadRequest("At least one field must be set")
         if self.new_password:
-            PASSWORD_REQUIREMENTS.validate(self.new_password)
+            if get_env_disable_basic_auth():
+                raise BadRequest("Basic auth is disabled: OAuth2 authentication only")
+            try:
+                PASSWORD_REQUIREMENTS.validate(self.new_password)
+            except ValueError as e:
+                raise BadRequest(str(e))
 
 
 @strawberry.input
@@ -107,19 +118,18 @@ class UserMutationMixin:
         user: models.User
         if input.auth_method is AuthMethod.OAUTH2:
             user = models.OAuth2User(
-                username=input.username,
                 email=input.email,
+                username=input.username,
             )
         else:
             assert input.password
             validate_email_format(input.email)
             validate_password_format(input.password)
             salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
-            password_hash = await info.context.hash_password(input.password, salt)
+            password_hash = await info.context.hash_password(Secret(input.password), salt)
             user = models.LocalUser(
-                reset_password=True,
-                username=input.username,
                 email=input.email,
+                username=input.username,
                 password_hash=password_hash,
                 password_salt=salt,
             )
@@ -173,8 +183,9 @@ class UserMutationMixin:
                 if user.auth_method != "LOCAL":
                     raise Conflict("Cannot modify password for non-local user")
                 validate_password_format(password)
-                user.password_salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
-                user.password_hash = await info.context.hash_password(password, user.password_salt)
+                salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
+                user.password_salt = salt
+                user.password_hash = await info.context.hash_password(Secret(password), salt)
                 user.reset_password = True
             if username := input.new_username:
                 user.username = username
@@ -207,11 +218,12 @@ class UserMutationMixin:
                     raise Conflict("Cannot modify password for non-local user")
                 if not (
                     current_password := input.current_password
-                ) or not await info.context.is_valid_password(current_password, user):
+                ) or not await info.context.is_valid_password(Secret(current_password), user):
                     raise Conflict("Valid current password is required to modify password")
                 validate_password_format(password)
-                user.password_salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
-                user.password_hash = await info.context.hash_password(password, user.password_salt)
+                salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
+                user.password_salt = salt
+                user.password_hash = await info.context.hash_password(Secret(password), salt)
                 user.reset_password = False
             if username := input.new_username:
                 user.username = username

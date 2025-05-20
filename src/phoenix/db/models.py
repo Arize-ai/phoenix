@@ -1176,16 +1176,14 @@ class User(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "(password_hash IS NULL) = (password_salt IS NULL)",
-            name="password_hash_and_salt",
+            "auth_method != 'LOCAL' "
+            "OR (password_hash IS NOT NULL AND password_salt IS NOT NULL "
+            "AND oauth2_client_id IS NULL AND oauth2_user_id IS NULL)",
+            name="local_auth_has_password_no_oauth",
         ),
         CheckConstraint(
-            "auth_method != 'LOCAL' OR oauth2_client_id IS NULL",
-            name="local_auth_no_oauth",
-        ),
-        CheckConstraint(
-            "auth_method != 'OAUTH2' OR password_hash IS NULL",
-            name="oauth2_auth_no_password",
+            "auth_method = 'LOCAL' OR (password_hash IS NULL AND password_salt IS NULL)",
+            name="non_local_auth_has_no_password",
         ),
         UniqueConstraint(
             "oauth2_client_id",
@@ -1193,14 +1191,6 @@ class User(Base):
         ),
         dict(sqlite_autoincrement=True),
     )
-
-    def __init__(self, **kwargs: Any) -> None:
-        if "auth_method" not in kwargs:
-            if kwargs.get("password_hash") and kwargs.get("password_salt"):
-                kwargs["auth_method"] = "LOCAL"
-            else:
-                kwargs["auth_method"] = "OAUTH2"
-        super().__init__(**kwargs)
 
 
 class LocalUser(User):
@@ -1216,12 +1206,14 @@ class LocalUser(User):
         password_hash: bytes,
         password_salt: bytes,
         reset_password: bool = True,
+        user_role_id: Optional[int] = None,
     ) -> None:
         if not password_hash or not password_salt:
             raise ValueError("password_hash and password_salt are required for LocalUser")
         super().__init__(
-            email=email,
-            username=username,
+            email=email.strip(),
+            username=username.strip(),
+            user_role_id=user_role_id,
             password_hash=password_hash,
             password_salt=password_salt,
             reset_password=reset_password,
@@ -1239,10 +1231,12 @@ class OAuth2User(User):
         *,
         email: str,
         username: str,
+        user_role_id: Optional[int] = None,
     ) -> None:
         super().__init__(
-            email=email,
-            username=username,
+            email=email.strip(),
+            username=username.strip(),
+            user_role_id=user_role_id,
             reset_password=False,
             auth_method="OAUTH2",
         )

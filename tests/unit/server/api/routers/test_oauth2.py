@@ -1,5 +1,5 @@
 from secrets import token_hex
-from typing import Optional
+from typing import Any, Optional
 
 import pytest
 from sqlalchemy import insert, select
@@ -21,7 +21,7 @@ from phoenix.server.types import DbSessionFactory
         # Verifies that users who have set a password must use password authentication
         # and cannot switch to OAuth2 authentication.
         pytest.param(
-            models.User(
+            dict(
                 user_role_id=1,
                 username=token_hex(8),
                 password_hash=b"password_hash",
@@ -45,7 +45,7 @@ from phoenix.server.types import DbSessionFactory
         # Verifies that users with matching OAuth2 credentials can successfully sign in
         # without any credential updates needed.
         pytest.param(
-            models.User(
+            dict(
                 user_role_id=1,
                 username=token_hex(8),
                 password_hash=None,
@@ -69,7 +69,7 @@ from phoenix.server.types import DbSessionFactory
         # Verifies that users found by email can have their OAuth2 client ID updated
         # when signing in with a different client ID.
         pytest.param(
-            models.User(
+            dict(
                 user_role_id=1,
                 username=token_hex(8),
                 password_hash=None,
@@ -93,7 +93,7 @@ from phoenix.server.types import DbSessionFactory
         # Verifies that users cannot sign in when their OAuth2 user ID doesn't match,
         # even if the client ID matches.
         pytest.param(
-            models.User(
+            dict(
                 user_role_id=1,
                 username=token_hex(8),
                 password_hash=None,
@@ -117,7 +117,7 @@ from phoenix.server.types import DbSessionFactory
         # Verifies that users found by email can have their OAuth2 client ID set
         # when signing in for the first time with OAuth2.
         pytest.param(
-            models.User(
+            dict(
                 user_role_id=1,
                 username=token_hex(8),
                 password_hash=None,
@@ -141,7 +141,7 @@ from phoenix.server.types import DbSessionFactory
         # Verifies that users can sign in when their OAuth2 user ID is missing,
         # if the client ID matches.
         pytest.param(
-            models.User(
+            dict(
                 user_role_id=1,
                 username=token_hex(8),
                 password_hash=None,
@@ -165,7 +165,7 @@ from phoenix.server.types import DbSessionFactory
         # Verifies that users found by email can have both their OAuth2 client ID and user ID
         # updated when signing in for the first time with OAuth2.
         pytest.param(
-            models.User(
+            dict(
                 user_role_id=1,
                 username=token_hex(8),
                 password_hash=None,
@@ -189,7 +189,7 @@ from phoenix.server.types import DbSessionFactory
         # Verifies that users found by email can have both their OAuth2 client ID and user ID
         # updated when signing in with different credentials.
         pytest.param(
-            models.User(
+            dict(
                 user_role_id=1,
                 username=token_hex(8),
                 password_hash=None,
@@ -213,7 +213,7 @@ from phoenix.server.types import DbSessionFactory
         # Verifies that users found by email can have their OAuth2 credentials set
         # when signing in for the first time with OAuth2.
         pytest.param(
-            models.User(
+            dict(
                 user_role_id=1,
                 username=token_hex(8),
                 password_hash=None,
@@ -237,7 +237,7 @@ from phoenix.server.types import DbSessionFactory
         # Verifies that users found by email with matching OAuth2 credentials
         # can sign in without any credential updates.
         pytest.param(
-            models.User(
+            dict(
                 user_role_id=1,
                 username=token_hex(8),
                 password_hash=None,
@@ -261,7 +261,7 @@ from phoenix.server.types import DbSessionFactory
         # Verifies that users found by email can have their OAuth2 credentials updated
         # when signing in with different credentials.
         pytest.param(
-            models.User(
+            dict(
                 user_role_id=1,
                 username=token_hex(8),
                 password_hash=None,
@@ -285,7 +285,7 @@ from phoenix.server.types import DbSessionFactory
         # Verifies that users can have their profile picture URL updated
         # when signing in with a new URL.
         pytest.param(
-            models.User(
+            dict(
                 user_role_id=1,
                 username=token_hex(8),
                 password_hash=None,
@@ -310,7 +310,7 @@ from phoenix.server.types import DbSessionFactory
         # Verifies that users can have both their OAuth2 client ID and profile picture
         # updated simultaneously when signing in.
         pytest.param(
-            models.User(
+            dict(
                 user_role_id=1,
                 username=token_hex(8),
                 password_hash=None,
@@ -335,7 +335,7 @@ from phoenix.server.types import DbSessionFactory
         # Verifies that users can have their profile picture URL removed (set to None)
         # when signing in with no profile picture URL provided.
         pytest.param(
-            models.User(
+            dict(
                 user_role_id=1,
                 username=f"test_username{token_hex(8)}",
                 password_hash=None,
@@ -376,7 +376,7 @@ from phoenix.server.types import DbSessionFactory
 async def test_get_existing_oauth2_user(
     app: ASGIApp,
     db: DbSessionFactory,
-    user: Optional[models.User],
+    user: Optional[dict[str, Any]],
     oauth2_client_id: str,
     user_info: UserInfo,
     allowed: bool,
@@ -411,14 +411,14 @@ async def test_get_existing_oauth2_user(
             await session.execute(
                 insert(models.User).values(
                     email=user_info.email,
-                    user_role_id=user.user_role_id,
-                    username=user.username,
-                    password_hash=user.password_hash,
-                    password_salt=user.password_salt,
-                    reset_password=user.reset_password,
-                    oauth2_client_id=user.oauth2_client_id,
-                    oauth2_user_id=user.oauth2_user_id,
-                    auth_method=user.auth_method,
+                    user_role_id=user.get("user_role_id"),
+                    username=user.get("username"),
+                    password_hash=user.get("password_hash"),
+                    password_salt=user.get("password_salt"),
+                    reset_password=user.get("reset_password"),
+                    oauth2_client_id=user.get("oauth2_client_id"),
+                    oauth2_user_id=user.get("oauth2_user_id"),
+                    auth_method=user.get("auth_method"),
                 )
             )
     async with db() as session:
@@ -451,4 +451,4 @@ async def test_get_existing_oauth2_user(
     if user_info.profile_picture_url is not None:
         assert db_user.profile_picture_url == user_info.profile_picture_url
     # Verify username remains unchanged
-    assert db_user.username == user.username
+    assert db_user.username == user.get("username")

@@ -394,8 +394,8 @@ def main() -> None:
         http_path=urljoin(root_path, "v1/traces"),
         storage=get_printable_db_url(db_connection_str),
         schema=get_env_database_schema(),
-        auth_enabled=auth_settings["enable_auth"],
-        disable_basic_auth=auth_settings["disable_basic_auth"],
+        auth_enabled=auth_settings.enable_auth,
+        disable_basic_auth=auth_settings.disable_basic_auth,
         tls_enabled_for_http=tls_enabled_for_http,
         tls_enabled_for_grpc=tls_enabled_for_grpc,
         tls_verify_client=tls_verify_client,
@@ -403,8 +403,8 @@ def main() -> None:
     )
 
     oauth2_client_configs = get_env_oauth2_settings()
-    if auth_settings["enable_auth"] and (
-        auth_settings["disable_basic_auth"] and len(oauth2_client_configs) == 0
+    if auth_settings.enable_auth and (
+        auth_settings.disable_basic_auth and len(oauth2_client_configs) == 0
     ):
         raise ValueError(
             "Auth2 is the only supported auth method but no OAuth2 client configs are provided."
@@ -438,8 +438,8 @@ def main() -> None:
         db=factory,
         export_path=export_path,
         model=model,
-        authentication_enabled=auth_settings["enable_auth"],
-        basic_auth_disabled=auth_settings["disable_basic_auth"],
+        authentication_enabled=auth_settings.enable_auth,
+        basic_auth_disabled=auth_settings.disable_basic_auth,
         umap_params=umap_params,
         corpus=corpus_model,
         debug=args.debug,
@@ -451,7 +451,7 @@ def main() -> None:
         initial_evaluations=fixture_evals,
         startup_callbacks=[lambda: print(msg)],
         shutdown_callbacks=instrumentation_cleanups,
-        secret=auth_settings["phoenix_secret"],
+        secret=auth_settings.phoenix_secret,
         password_reset_token_expiry=get_env_password_reset_token_expiry(),
         access_token_expiry=get_env_access_token_expiry(),
         refresh_token_expiry=get_env_refresh_token_expiry(),

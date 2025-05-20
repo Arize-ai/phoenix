@@ -9,8 +9,9 @@ This migration:
 3. Adds appropriate constraints to ensure data integrity:
    - NOT NULL constraint on auth_method
    - 'valid_auth_method': ensures only 'LOCAL' or 'OAUTH2' values
-   - 'local_auth_no_oauth': ensures LOCAL users do not have OAuth2 credentials
-   - 'oauth2_auth_no_password': ensures OAUTH2 users do not have password credentials
+   - 'local_auth_has_password_no_oauth': ensures LOCAL users have password credentials and
+     do not have OAuth2 credentials
+   - 'non_local_auth_has_no_password': ensures OAUTH2 users do not have password credentials
 4. Removes legacy constraints that are replaced by the new column:
    - 'exactly_one_auth_method': replaced by auth_method column and its constraints
    - 'oauth2_client_id_and_user_id': replaced by auth_method column and its constraints
@@ -41,7 +42,7 @@ Revision ID: 6a88424799fe
 Revises: 8a3764fe7f1a
 Create Date: 2025-05-01 08:08:22.700715
 
-"""
+"""  # noqa: E501
 
 from typing import Sequence, Union
 
@@ -66,9 +67,11 @@ def upgrade() -> None:
     3. Makes the column NOT NULL after populating
     4. Adds CHECK constraints to ensure data integrity:
        - 'valid_auth_method': ensures only 'LOCAL' or 'OAUTH2' values
-       - 'local_auth_no_oauth': ensures auth_method matches credentials
-       - 'oauth2_auth_no_password': ensures auth_method matches credentials
+       - 'local_auth_has_password_no_oauth': ensures LOCAL users have password credentials and
+          do not have OAuth2 credentials
+       - 'non_local_auth_has_no_password': ensures OAUTH2 users do not have password credentials
     5. Removes legacy constraints that are replaced by the new column:
+       - 'password_hash_and_salt'
        - 'exactly_one_auth_method'
        - 'oauth2_client_id_and_user_id'
     6. Drops redundant single column indices:
@@ -81,7 +84,7 @@ def upgrade() -> None:
 
     Raises:
         sqlalchemy.exc.SQLAlchemyError: If database operations fail
-    """
+    """  # noqa: E501
     with op.batch_alter_table("users") as batch_op:
         # For SQLite, first add the column as nullable
         batch_op.add_column(sa.Column("auth_method", sa.String, nullable=True))
@@ -96,8 +99,7 @@ def upgrade() -> None:
         batch_op.alter_column("auth_method", nullable=False, existing_nullable=True)
 
         # Drop both old constraints as they're now redundant
-        # exactly_one_auth_method is covered by the new auth_method constraints
-        # oauth2_client_id_and_user_id is covered by the new auth_method constraints
+        batch_op.drop_constraint("password_hash_and_salt", type_="check")
         batch_op.drop_constraint("exactly_one_auth_method", type_="check")
         batch_op.drop_constraint("oauth2_client_id_and_user_id", type_="check")
 
@@ -112,12 +114,14 @@ def upgrade() -> None:
             "auth_method IN ('LOCAL', 'OAUTH2')",
         )
         batch_op.create_check_constraint(
-            "local_auth_no_oauth",
-            "auth_method != 'LOCAL' OR oauth2_client_id IS NULL",
+            "local_auth_has_password_no_oauth",
+            "auth_method != 'LOCAL' "
+            "OR (password_hash IS NOT NULL AND password_salt IS NOT NULL "
+            "AND oauth2_client_id IS NULL AND oauth2_user_id IS NULL)",
         )
         batch_op.create_check_constraint(
-            "oauth2_auth_no_password",
-            "auth_method != 'OAUTH2' OR password_hash IS NULL",
+            "non_local_auth_has_no_password",
+            "auth_method = 'LOCAL' OR (password_hash IS NULL AND password_salt IS NULL)",
         )
 
 
@@ -128,9 +132,10 @@ def downgrade() -> None:
     1. Recreates the legacy constraints that were removed in the upgrade:
        - 'oauth2_client_id_and_user_id': ensures OAuth2 credentials are consistent
        - 'exactly_one_auth_method': ensures exactly one auth method is set
+       - 'password_hash_and_salt': ensures password_hash and password_salt are consistent
     2. Removes the auth_method column and its associated CHECK constraints:
-       - 'oauth2_auth_no_password'
-       - 'local_auth_no_oauth'
+       - 'non_local_auth_has_no_password'
+       - 'local_auth_has_password_no_oauth'
        - 'valid_auth_method'
     3. Recreates the single column indices to maintain backward compatibility:
        - 'ix_users_oauth2_client_id'
@@ -141,13 +146,13 @@ def downgrade() -> None:
 
     Raises:
         sqlalchemy.exc.SQLAlchemyError: If database operations fail
-    """
+    """  # noqa: E501
     # Use batch_alter_table for SQLite compatibility
     # This ensures the downgrade works on both SQLite and PostgreSQL
     with op.batch_alter_table("users") as batch_op:
         # Drop the CHECK constraint and column
-        batch_op.drop_constraint("oauth2_auth_no_password", type_="check")
-        batch_op.drop_constraint("local_auth_no_oauth", type_="check")
+        batch_op.drop_constraint("non_local_auth_has_no_password", type_="check")
+        batch_op.drop_constraint("local_auth_has_password_no_oauth", type_="check")
         batch_op.drop_constraint("valid_auth_method", type_="check")
 
         # Recreate single column indices
@@ -162,6 +167,10 @@ def downgrade() -> None:
         batch_op.create_check_constraint(
             "exactly_one_auth_method",
             "(password_hash IS NULL) != (oauth2_client_id IS NULL)",
+        )
+        batch_op.create_check_constraint(
+            "password_hash_and_salt",
+            "(password_hash IS NULL) = (password_salt IS NULL)",
         )
 
         # Remove added column

@@ -7,6 +7,7 @@ from enum import Enum, auto
 from hashlib import pbkdf2_hmac
 from typing import Any, Literal, Optional, Protocol
 
+from starlette.datastructures import Secret
 from starlette.responses import Response
 from typing_extensions import TypeVar
 
@@ -15,7 +16,7 @@ from phoenix.config import get_env_cookies_path, get_env_phoenix_use_secure_cook
 ResponseType = TypeVar("ResponseType", bound=Response)
 
 
-def compute_password_hash(*, password: str, salt: bytes) -> bytes:
+def compute_password_hash(*, password: Secret, salt: bytes) -> bytes:
     """
     Salts and hashes a password using PBKDF2, HMAC and SHA256.
 
@@ -26,11 +27,11 @@ def compute_password_hash(*, password: str, salt: bytes) -> bytes:
         bytes: the hashed password
     """
     assert salt
-    password_bytes = password.encode("utf-8")
+    password_bytes = str(password).encode("utf-8")
     return pbkdf2_hmac("sha256", password_bytes, salt, NUM_ITERATIONS)
 
 
-def is_valid_password(*, password: str, salt: bytes, password_hash: bytes) -> bool:
+def is_valid_password(*, password: Secret, salt: bytes, password_hash: bytes) -> bool:
     """
     Determines whether the password is valid by salting and hashing the password
     and comparing against the existing hash value.

@@ -355,7 +355,7 @@ class TestGetEnvPhoenixAdminSecret:
                 {
                     "PHOENIX_ADMIN_SECRET": None,
                 },
-                None,
+                "",
                 id="not_set",
             ),
             pytest.param(
@@ -372,14 +372,14 @@ class TestGetEnvPhoenixAdminSecret:
         self,
         monkeypatch: MonkeyPatch,
         env_vars: dict[str, Optional[str]],
-        expected_result: Optional[str],
+        expected_result: str,
     ) -> None:
         for key, value in env_vars.items():
             if value is None:
                 monkeypatch.delenv(key, raising=False)
             else:
                 monkeypatch.setenv(key, value)
-        assert get_env_phoenix_admin_secret() == expected_result
+        assert str(get_env_phoenix_admin_secret()) == expected_result
 
     @pytest.mark.parametrize(
         "env_vars",

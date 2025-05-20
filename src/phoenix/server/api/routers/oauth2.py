@@ -15,7 +15,7 @@ from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
-from starlette.datastructures import URL, URLPath
+from starlette.datastructures import URL, Secret, URLPath
 from starlette.responses import RedirectResponse
 from starlette.routing import Router
 from starlette.status import HTTP_302_FOUND
@@ -597,7 +597,7 @@ def _get_create_tokens_endpoint(*, request: Request, origin_url: str, idp_name: 
 
 
 def _generate_state_for_oauth2_authorization_code_flow(
-    *, secret: str, origin_url: str, return_url: Optional[str]
+    *, secret: Secret, origin_url: str, return_url: Optional[str]
 ) -> str:
     """
     Generates a JWT whose payload contains both an OAuth2 state (generated using
@@ -613,7 +613,7 @@ def _generate_state_for_oauth2_authorization_code_flow(
     )
     if return_url is not None:
         payload["return_url"] = return_url
-    jwt_bytes: bytes = jwt.encode(header=header, payload=payload, key=secret)
+    jwt_bytes: bytes = jwt.encode(header=header, payload=payload, key=str(secret))
     return jwt_bytes.decode()
 
 
@@ -627,11 +627,11 @@ class _OAuth2StatePayload(TypedDict):
     return_url: NotRequired[str]
 
 
-def _parse_state_payload(*, secret: str, state: str) -> _OAuth2StatePayload:
+def _parse_state_payload(*, secret: Secret, state: str) -> _OAuth2StatePayload:
     """
     Validates the JWT signature and parses the return URL from the OAuth2 state.
     """
-    payload = jwt.decode(s=state, key=secret)
+    payload = jwt.decode(s=state, key=str(secret))
     if _is_oauth2_state_payload(payload):
         return payload
     raise ValueError("Invalid OAuth2 state payload.")

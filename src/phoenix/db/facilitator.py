@@ -112,7 +112,7 @@ async def _ensure_user_roles(db: DbSessionFactory) -> None:
         if (system_role := UserRole.SYSTEM.value) not in existing_roles and (
             system_role_id := role_ids.get(system_role)
         ) is not None:
-            system_user = models.User(
+            system_user = models.LocalUser(
                 user_role_id=system_role_id,
                 username=DEFAULT_SYSTEM_USERNAME,
                 email=DEFAULT_SYSTEM_EMAIL,
@@ -129,7 +129,7 @@ async def _ensure_user_roles(db: DbSessionFactory) -> None:
             compute = partial(compute_password_hash, password=password, salt=salt)
             loop = asyncio.get_running_loop()
             hash_ = await loop.run_in_executor(None, compute)
-            admin_user = models.User(
+            admin_user = models.LocalUser(
                 user_role_id=admin_role_id,
                 username=DEFAULT_ADMIN_USERNAME,
                 email=DEFAULT_ADMIN_EMAIL,
@@ -197,18 +197,21 @@ async def _ensure_admins(
             select(models.UserRole.id).filter_by(name=UserRole.ADMIN.value)
         )
         assert admin_role_id is not None, "Admin role not found in database"
+        user: models.User
         for email, username in admins.items():
-            user = models.User(
-                user_role_id=admin_role_id,
-                username=username,
-                email=email,
-                reset_password=False,
-            )
             if not disable_basic_auth:
-                user.password_salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
-                user.password_hash = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
-                user.auth_method = "LOCAL"
-                user.reset_password = True
+                user = models.LocalUser(
+                    email=email,
+                    username=username,
+                    password_salt=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
+                    password_hash=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
+                )
+            else:
+                user = models.OAuth2User(
+                    email=email,
+                    username=username,
+                )
+            user.user_role_id = admin_role_id
             session.add(user)
         await session.flush()
     if email_sender is None:

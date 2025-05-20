@@ -149,9 +149,8 @@ class TestUsers(DBSchemaComparisonTest):
         }
         constraint_names = {
             "ck_users_`valid_auth_method`",
-            "ck_users_`local_auth_no_oauth`",
-            "ck_users_`oauth2_auth_no_password`",
-            "ck_users_`password_hash_and_salt`",
+            "ck_users_`local_auth_has_password_no_oauth`",
+            "ck_users_`non_local_auth_has_no_password`",
             "uq_users_oauth2_client_id_oauth2_user_id",
             "pk_users",
             "fk_users_user_role_id_user_roles",

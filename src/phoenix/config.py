@@ -9,12 +9,12 @@ from datetime import timedelta
 from enum import Enum
 from importlib.metadata import version
 from pathlib import Path
-from typing import Any, Optional, TypedDict, Union, cast, overload
+from typing import Any, NamedTuple, Optional, Union, cast, overload
 from urllib.parse import quote_plus, urljoin, urlparse
 
 import wrapt
 from email_validator import EmailNotValidError, validate_email
-from starlette.datastructures import URL
+from starlette.datastructures import URL, Secret
 
 from phoenix.utilities.logging import log_a_list
 
@@ -651,29 +651,29 @@ def get_env_disable_rate_limit() -> bool:
     return _bool_val(ENV_PHOENIX_DISABLE_RATE_LIMIT, False)
 
 
-def get_env_phoenix_secret() -> Optional[str]:
+def get_env_phoenix_secret() -> Secret:
     """
     Gets the value of the PHOENIX_SECRET environment variable
     and performs validation.
     """
     phoenix_secret = getenv(ENV_PHOENIX_SECRET)
     if phoenix_secret is None:
-        return None
+        return Secret("")
     from phoenix.auth import REQUIREMENTS_FOR_PHOENIX_SECRET
 
     REQUIREMENTS_FOR_PHOENIX_SECRET.validate(phoenix_secret, "Phoenix secret")
-    return phoenix_secret
+    return Secret(phoenix_secret)
 
 
-def get_env_phoenix_admin_secret() -> Optional[str]:
+def get_env_phoenix_admin_secret() -> Secret:
     """
     Gets the value of the PHOENIX_ADMIN_SECRET environment variable
     and performs validation.
     """
     phoenix_admin_secret = getenv(ENV_PHOENIX_ADMIN_SECRET)
     if phoenix_admin_secret is None:
-        return None
-    if (phoenix_secret := get_env_phoenix_secret()) is None:
+        return Secret("")
+    if not (phoenix_secret := get_env_phoenix_secret()):
         raise ValueError(
             f"`{ENV_PHOENIX_ADMIN_SECRET}` must be not be set without "
             f"setting `{ENV_PHOENIX_SECRET}`."
@@ -681,17 +681,17 @@ def get_env_phoenix_admin_secret() -> Optional[str]:
     from phoenix.auth import REQUIREMENTS_FOR_PHOENIX_SECRET
 
     REQUIREMENTS_FOR_PHOENIX_SECRET.validate(phoenix_admin_secret, "Phoenix secret")
-    if phoenix_admin_secret == phoenix_secret:
+    if phoenix_admin_secret == str(phoenix_secret):
         raise ValueError(
             f"`{ENV_PHOENIX_ADMIN_SECRET}` must be different from `{ENV_PHOENIX_SECRET}`"
         )
-    return phoenix_admin_secret
+    return Secret(phoenix_admin_secret)
 
 
-def get_env_default_admin_initial_password() -> str:
+def get_env_default_admin_initial_password() -> Secret:
     from phoenix.auth import DEFAULT_ADMIN_PASSWORD
 
-    return getenv(ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD) or DEFAULT_ADMIN_PASSWORD
+    return Secret(getenv(ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD) or DEFAULT_ADMIN_PASSWORD)
 
 
 def get_env_cookies_path() -> str:
@@ -709,10 +709,11 @@ def get_env_phoenix_api_key() -> Optional[str]:
     return getenv(ENV_PHOENIX_API_KEY)
 
 
-class AuthSettings(TypedDict):
+class AuthSettings(NamedTuple):
     enable_auth: bool
-    phoenix_secret: Optional[str]
     disable_basic_auth: bool
+    phoenix_secret: Secret
+    phoenix_admin_secret: Secret
 
 
 def get_env_auth_settings() -> AuthSettings:
@@ -720,18 +721,20 @@ def get_env_auth_settings() -> AuthSettings:
     Gets auth settings and performs validation.
     """
     enable_auth = get_env_enable_auth()
-    phoenix_secret = get_env_phoenix_secret()
     disable_basic_auth = get_env_disable_basic_auth()
+    phoenix_secret = get_env_phoenix_secret()
+    phoenix_admin_secret = get_env_phoenix_admin_secret()
     if enable_auth and not phoenix_secret:
         raise ValueError(
             f"`{ENV_PHOENIX_SECRET}` must be set when "
             f"auth is enabled with `{ENV_PHOENIX_ENABLE_AUTH}`"
         )
-    return {
-        "enable_auth": enable_auth,
-        "phoenix_secret": phoenix_secret,
-        "disable_basic_auth": disable_basic_auth,
-    }
+    return AuthSettings(
+        enable_auth=enable_auth,
+        disable_basic_auth=disable_basic_auth,
+        phoenix_secret=phoenix_secret,
+        phoenix_admin_secret=phoenix_admin_secret,
+    )
 
 
 def get_env_password_reset_token_expiry() -> timedelta:
