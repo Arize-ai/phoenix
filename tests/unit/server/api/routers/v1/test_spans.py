@@ -153,6 +153,8 @@ async def project_with_a_single_trace_and_span_with_events(
         span = await session.scalar(
             select(models.Span).where(models.Span.span_id == "7e2f08cb43bbf521")
         )
+        assert span is not None
+        assert span.events is None
         span.events = [
             {
                 "name": "test_event",
