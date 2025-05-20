@@ -25,8 +25,6 @@ import {
   Dialog,
   DialogContainer,
   Item,
-  Tooltip,
-  TooltipTrigger,
 } from "@arizeai/components";
 
 import {
@@ -256,28 +254,27 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           return (
             <CellWithControlsWrap
               controls={
-                <TooltipTrigger>
-                  <Button
-                    size="S"
-                    aria-label="View example details"
-                    leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
-                    onPress={() => {
-                      startTransition(() => {
-                        setDialog(
-                          <Suspense>
-                            <ExampleDetailsDialog
-                              exampleId={row.original.example.id}
-                              onDismiss={() => {
-                                setDialog(null);
-                              }}
-                            />
-                          </Suspense>
-                        );
-                      });
-                    }}
-                  />
-                  <Tooltip>View Example</Tooltip>
-                </TooltipTrigger>
+                <Button
+                  size="S"
+                  aria-label="View example details"
+                  leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
+                  onPress={() => {
+                    startTransition(() => {
+                      setDialog(
+                        <Suspense>
+                          <ExampleDetailsDialog
+                            exampleId={row.original.example.id}
+                            onDismiss={() => {
+                              setDialog(null);
+                            }}
+                          />
+                        </Suspense>
+                      );
+                    });
+                  }}
+                >
+                  View Example
+                </Button>
               }
             >
               <PaddedCell>
@@ -355,52 +352,50 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         const projectId = run?.trace?.projectId;
         if (traceId && projectId) {
           traceButton = (
-            <TooltipTrigger>
-              <Button
-                variant="default"
-                className="trace-button"
-                size="S"
-                aria-label="View run trace"
-                leadingVisual={<Icon svg={<Icons.Trace />} />}
-                onPress={() => {
-                  startTransition(() => {
-                    setDialog(
-                      <TraceDetailsDialog
-                        traceId={traceId}
-                        projectId={projectId}
-                        title={`Experiment Run Trace`}
-                      />
-                    );
-                  });
-                }}
-              />
-              <Tooltip>View Trace</Tooltip>
-            </TooltipTrigger>
+            <Button
+              variant="default"
+              className="trace-button"
+              size="S"
+              aria-label="View run trace"
+              leadingVisual={<Icon svg={<Icons.Trace />} />}
+              onPress={() => {
+                startTransition(() => {
+                  setDialog(
+                    <TraceDetailsDialog
+                      traceId={traceId}
+                      projectId={projectId}
+                      title={`Experiment Run Trace`}
+                    />
+                  );
+                });
+              }}
+            >
+              View Trace
+            </Button>
           );
         }
         const runControls = (
           <>
-            <TooltipTrigger>
-              <Button
-                variant="default"
-                className="expand-button"
-                size="S"
-                aria-label="View example run details"
-                leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
-                onPress={() => {
-                  startTransition(() => {
-                    setDialog(
-                      <SelectedExampleDialog
-                        selectedExample={row.original}
-                        datasetId={datasetId}
-                        experimentInfoById={experimentInfoById}
-                      />
-                    );
-                  });
-                }}
-              />
-              <Tooltip>View run details</Tooltip>
-            </TooltipTrigger>
+            <Button
+              variant="default"
+              className="expand-button"
+              size="S"
+              aria-label="View example run details"
+              leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
+              onPress={() => {
+                startTransition(() => {
+                  setDialog(
+                    <SelectedExampleDialog
+                      selectedExample={row.original}
+                      datasetId={datasetId}
+                      experimentInfoById={experimentInfoById}
+                    />
+                  );
+                });
+              }}
+            >
+              Experiment Run
+            </Button>
             {traceButton}
           </>
         );
@@ -425,7 +420,15 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   }, [experimentIds, experimentInfoById, datasetId, displayFullText]);
 
   const columns = useMemo(() => {
-    return [...baseColumns, ...experimentColumns];
+    return [
+      ...baseColumns,
+      ...experimentColumns,
+      // Always add a padding column to the end of the table
+      {
+        header: "",
+        id: "padding",
+      },
+    ];
   }, [baseColumns, experimentColumns]);
 
   const table = useReactTable<TableRow>({

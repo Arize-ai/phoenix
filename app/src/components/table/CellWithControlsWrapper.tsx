@@ -23,8 +23,8 @@ const cellWithControlsWrapCSS = css`
 
 const cellControlsCSS = css`
   position: absolute;
-  top: -23px;
-  right: 0px;
+  top: -16px;
+  right: 16px;
   display: flex;
   flex-direction: row;
   gap: var(--ac-global-dimension-static-size-100);
