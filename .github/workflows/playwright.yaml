@@ -5,8 +5,14 @@ permissions:
 on:
   push:
     branches: [main, feat/annotations]
+    paths:
+      - "src/**"
+      - "app/**"
   pull_request:
     branches: [main, feat/annotations]
+    paths:
+      - "src/**"
+      - "app/**"
 jobs:
   e2e-test:
     timeout-minutes: 60

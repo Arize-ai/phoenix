@@ -22,6 +22,10 @@
       "import": "./dist/esm/experiments/index.js",
       "require": "./dist/src/experiments/index.js"
     },
+    "./datasets": {
+      "import": "./dist/esm/datasets/index.js",
+      "require": "./dist/src/datasets/index.js"
+    },
     "./utils/*": {
       "import": "./dist/esm/utils/*.js",
       "require": "./dist/src/utils/*.js"

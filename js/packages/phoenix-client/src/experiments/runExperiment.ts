@@ -2,17 +2,23 @@ import { queue } from "async";
 import invariant from "tiny-invariant";
 import { createClient, type PhoenixClient } from "../client";
 import { ClientFn } from "../types/core";
-import { Dataset, Example } from "../types/datasets";
+import {
+  Dataset,
+  DatasetSelector,
+  Example,
+  ExampleWithId,
+} from "../types/datasets";
 import type {
   Evaluator,
-  Experiment,
+  ExperimentInfo,
   ExperimentEvaluationRun,
   ExperimentRun,
+  ExperimentRunID,
   ExperimentTask,
   RanExperiment,
 } from "../types/experiments";
 import { type Logger } from "../types/logger";
-import { getDatasetBySelector } from "../utils/getDatasetBySelector";
+import { getDataset } from "../datasets/getDataset";
 import { pluralize } from "../utils/pluralize";
 import { promisifyResult } from "../utils/promisifyResult";
 import { AnnotatorKind } from "../types/annotations";
@@ -44,12 +50,13 @@ export type RunExperimentParams = ClientFn & {
   experimentDescription?: string;
   /**
    * Experiment metadata
+   * E.x. modelName
    */
   experimentMetadata?: Record<string, unknown>;
   /**
    * The dataset to run the experiment on
    */
-  dataset: Dataset | string | Example[];
+  dataset: DatasetSelector;
   /**
    * The task to run
    */
@@ -112,9 +119,9 @@ export type RunExperimentParams = ClientFn & {
 export async function runExperiment({
   experimentName,
   experimentDescription,
-  experimentMetadata,
+  experimentMetadata = {},
   client: _client,
-  dataset: _dataset,
+  dataset: DatasetSelector,
   task,
   evaluators,
   logger = console,
@@ -125,24 +132,25 @@ export async function runExperiment({
   let provider: NodeTracerProvider | undefined;
   const isDryRun = typeof dryRun === "number" || dryRun === true;
   const client = _client ?? createClient();
-  const dataset = await getDatasetBySelector({ dataset: _dataset, client });
+  const dataset = await getDataset({ dataset: DatasetSelector, client });
   invariant(dataset, `Dataset not found`);
   invariant(dataset.examples.length > 0, `Dataset has no examples`);
   const nExamples =
     typeof dryRun === "number"
-      ? Math.max(dryRun, dataset.examples.length)
+      ? Math.min(dryRun, dataset.examples.length)
       : dataset.examples.length;
 
   let projectName = `${dataset.name}-exp-${new Date().toISOString()}`;
   // initialize the tracer into scope
   let taskTracer: Tracer;
-  let experiment: Experiment;
+  let experiment: ExperimentInfo;
   if (isDryRun) {
     experiment = {
       id: localId(),
       datasetId: dataset.id,
       datasetVersionId: dataset.versionId,
       projectName,
+      metadata: experimentMetadata,
     };
     taskTracer = createNoOpProvider().getTracer("no-op");
   } else {
@@ -165,9 +173,10 @@ export async function runExperiment({
     projectName = experimentResponse.project_name ?? projectName;
     experiment = {
       id: experimentResponse.id,
-      datasetId: dataset.id,
-      datasetVersionId: dataset.versionId,
+      datasetId: experimentResponse.dataset_id,
+      datasetVersionId: experimentResponse.dataset_version_id,
       projectName,
+      metadata: experimentResponse.metadata,
     };
     // Initialize the tracer, now that we have a project name
     const baseUrl = client.config.baseUrl;
@@ -189,16 +198,14 @@ export async function runExperiment({
   }
 
   logger.info(
-    `🧪 Starting experiment "${experimentName}" on dataset "${dataset.id}" with task "${task.name}" and ${evaluators?.length ?? 0} ${pluralize(
+    `🧪 Starting experiment "${experimentName || `<unnamed>`}" on dataset "${dataset.id}" with task "${task.name}" and ${evaluators?.length ?? 0} ${pluralize(
       "evaluator",
       evaluators?.length ?? 0
     )} and ${concurrency} concurrent runs`
   );
 
-  // Run task against all examples, for each repetition
-  type ExperimentRunId = string;
-  const runs: Record<ExperimentRunId, ExperimentRun> = {};
-  await runTask({
+  const runs: Record<ExperimentRunID, ExperimentRun> = {};
+  await runTaskWithExamples({
     client,
     experimentId: experiment.id,
     task,
@@ -242,7 +249,7 @@ export async function runExperiment({
 /**
  * Run a task against n examples in a dataset.
  */
-function runTask({
+function runTaskWithExamples({
   client,
   experimentId,
   task,
@@ -274,9 +281,9 @@ function runTask({
   nExamples: number;
   /** TraceProvider instance that will be used to create spans from task calls */
   tracer: Tracer;
-}) {
+}): Promise<void> {
   logger.info(`🔧 Running task "${task.name}" on dataset "${dataset.id}"`);
-  const run = async (example: Example) => {
+  const run = async (example: ExampleWithId) => {
     return tracer.startActiveSpan(`Task: ${task.name}`, async (span) => {
       logger.info(
         `🔧 Running task "${task.name}" on example "${example.id} of dataset "${dataset.id}"`
@@ -366,13 +373,12 @@ export async function evaluateExperiment({
   experiment,
   evaluators,
   client: _client,
-  logger,
+  logger = console,
   concurrency = 5,
   dryRun = false,
 }: {
   /**
    * The experiment to evaluate
-   * @todo also accept Experiment, and attempt to fetch the runs from the server
    **/
   experiment: RanExperiment;
   /** The evaluators to use */
@@ -380,9 +386,9 @@ export async function evaluateExperiment({
   /** The client to use */
   client?: PhoenixClient;
   /** The logger to use */
-  logger: Logger;
+  logger?: Logger;
   /** The number of evaluators to run in parallel */
-  concurrency: number;
+  concurrency?: number;
   /**
    * Whether to run the evaluation as a dry run
    * If a number is provided, the evaluation will be run for the first n runs
@@ -414,8 +420,8 @@ export async function evaluateExperiment({
     typeof dryRun === "number"
       ? Math.max(dryRun, Object.keys(experiment.runs).length)
       : Object.keys(experiment.runs).length;
-  const dataset = await getDatasetBySelector({
-    dataset: experiment.datasetId,
+  const dataset = await getDataset({
+    dataset: { datasetId: experiment.datasetId },
     client,
   });
   invariant(dataset, `Dataset "${experiment.datasetId}" not found`);

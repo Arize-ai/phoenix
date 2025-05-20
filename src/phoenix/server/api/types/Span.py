@@ -44,6 +44,8 @@ from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_
 from phoenix.server.api.types.SpanIOValue import SpanIOValue, truncate_value
 from phoenix.trace.attributes import get_attribute_value
 
+from .TokenCountPromptDetails import TokenCountPromptDetails
+
 if TYPE_CHECKING:
     from phoenix.server.api.types.Project import Project
     from phoenix.server.api.types.Trace import Trace
@@ -350,6 +352,48 @@ class Span(Node):
             (self.span_rowid, models.Span.llm_token_count_completion),
         )
         return cast(Optional[int], value)
+
+    @strawberry.field
+    async def token_prompt_details(
+        self,
+        info: Info[Context, None],
+    ) -> TokenCountPromptDetails:
+        if self.db_span:
+            attributes = self.db_span.attributes
+        else:
+            attributes = await info.context.data_loaders.span_fields.load(
+                (self.span_rowid, models.Span.attributes),
+            )
+
+        cache_read: Optional[int] = None
+        raw_cache_read = get_attribute_value(
+            attributes=attributes,
+            key=LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ,
+        )
+        if isinstance(raw_cache_read, int):
+            cache_read = raw_cache_read
+
+        cache_write: Optional[int] = None
+        raw_cache_write = get_attribute_value(
+            attributes=attributes,
+            key=LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE,
+        )
+        if isinstance(raw_cache_write, int):
+            cache_write = raw_cache_write
+
+        audio: Optional[int] = None
+        raw_audio = get_attribute_value(
+            attributes=attributes,
+            key=LLM_TOKEN_COUNT_PROMPT_DETAILS_AUDIO,
+        )
+        if isinstance(raw_audio, int):
+            audio = raw_audio
+
+        return TokenCountPromptDetails(
+            cache_read=cache_read,
+            cache_write=cache_write,
+            audio=audio,
+        )
 
     @strawberry.field
     async def input(
@@ -800,6 +844,11 @@ def _convert_metadata_to_string(metadata: Any) -> Optional[str]:
 
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
 INPUT_VALUE = SpanAttributes.INPUT_VALUE
+LLM_TOKEN_COUNT_PROMPT_DETAILS_AUDIO = SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_AUDIO
+LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ = SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ
+LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE = (
+    SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE
+)
 METADATA = SpanAttributes.METADATA
 OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE

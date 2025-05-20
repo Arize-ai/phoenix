@@ -5,17 +5,33 @@ import { Example } from "./datasets";
 /**
  * An experiment is a set of task runs on a dataset version
  */
-export interface Experiment extends Node {
+export interface ExperimentInfo extends Node {
   datasetId: string;
   datasetVersionId: string;
   /**
    * The project under which the experiment task traces are recorded
    */
   projectName: string;
+  /**
+   * Metadata about the experiment as an object of key values
+   * e.x. model name
+   */
+  metadata: Record<string, unknown>;
 }
 
-export interface RanExperiment extends Experiment {
-  runs: Record<string, ExperimentRun>;
+export type ExperimentRunID = string;
+
+/**
+ * A map of an experiment runId to the run
+ */
+export interface ExperimentRunsMap {
+  runs: Record<ExperimentRunID, ExperimentRun>;
+}
+
+/**
+ * An experiment that has been run and been recorded on the server
+ */
+export interface RanExperiment extends ExperimentInfo, ExperimentRunsMap {
   evaluationRuns?: ExperimentEvaluationRun[];
 }
 

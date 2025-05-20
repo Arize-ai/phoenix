@@ -2059,6 +2059,7 @@ type Span implements Node {
   tokenCountTotal: Int
   tokenCountPrompt: Int
   tokenCountCompletion: Int
+  tokenPromptDetails: TokenCountPromptDetails!
   input: SpanIOValue
   output: SpanIOValue
   events: [SpanEvent!]!
@@ -2349,6 +2350,12 @@ interface TimeSeries {
 type TimeSeriesDataPoint {
   timestamp: DateTime!
   value: Float
+}
+
+type TokenCountPromptDetails {
+  cacheRead: Int
+  cacheWrite: Int
+  audio: Int
 }
 
 type TokenUsage {

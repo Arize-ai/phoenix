@@ -168,6 +168,7 @@ exclude = [
 artifacts = [
   "src/phoenix/server/static",
   "src/phoenix/db/migrations",
+  "src/phoenix/server/cost_tracking/model_cost_manifest.json",
 ]
 
 [tool.hatch.build]
@@ -187,6 +188,7 @@ exclude = [
 artifacts = [
   "src/phoenix/server/static",
   "src/phoenix/db/migrations",
+  "src/phoenix/server/cost_tracking/model_cost_manifest.json",
 ]
 
 [tool.pytest.ini_options]

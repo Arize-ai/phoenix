@@ -124,7 +124,7 @@ const main = async () => {
   let experimentRun: Awaited<ReturnType<typeof runExperiment>>;
   try {
     experimentRun = await runExperiment({
-      dataset: dataset.id,
+      dataset: { datasetId: dataset.id },
       experimentName,
       client: phoenix,
       task: LLMAssistantTask,
