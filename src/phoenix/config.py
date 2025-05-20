@@ -9,7 +9,7 @@ from datetime import timedelta
 from enum import Enum
 from importlib.metadata import version
 from pathlib import Path
-from typing import Any, NamedTuple, Optional, Union, cast, overload
+from typing import TYPE_CHECKING, Any, NamedTuple, Optional, Union, cast, overload
 from urllib.parse import quote_plus, urljoin, urlparse
 
 import wrapt
@@ -17,8 +17,10 @@ from email_validator import EmailNotValidError, validate_email
 from starlette.datastructures import URL, Secret
 
 from phoenix.utilities.logging import log_a_list
+from phoenix.utilities.re import parse_env_headers
 
-from .utilities.re import parse_env_headers
+if TYPE_CHECKING:
+    from phoenix.server.oauth2 import OAuth2Clients
 
 logger = logging.getLogger(__name__)
 
@@ -714,6 +716,7 @@ class AuthSettings(NamedTuple):
     disable_basic_auth: bool
     phoenix_secret: Secret
     phoenix_admin_secret: Secret
+    oauth2_clients: OAuth2Clients
 
 
 def get_env_auth_settings() -> AuthSettings:
@@ -721,19 +724,27 @@ def get_env_auth_settings() -> AuthSettings:
     Gets auth settings and performs validation.
     """
     enable_auth = get_env_enable_auth()
-    disable_basic_auth = get_env_disable_basic_auth()
     phoenix_secret = get_env_phoenix_secret()
-    phoenix_admin_secret = get_env_phoenix_admin_secret()
     if enable_auth and not phoenix_secret:
         raise ValueError(
             f"`{ENV_PHOENIX_SECRET}` must be set when "
             f"auth is enabled with `{ENV_PHOENIX_ENABLE_AUTH}`"
+        )
+    phoenix_admin_secret = get_env_phoenix_admin_secret()
+    disable_basic_auth = get_env_disable_basic_auth()
+    from phoenix.server.oauth2 import OAuth2Clients
+
+    oauth2_clients = OAuth2Clients.from_configs(get_env_oauth2_settings())
+    if enable_auth and disable_basic_auth and not oauth2_clients:
+        raise ValueError(
+            "OAuth2 is the only supported auth method but no OAuth2 client configs are provided."
         )
     return AuthSettings(
         enable_auth=enable_auth,
         disable_basic_auth=disable_basic_auth,
         phoenix_secret=phoenix_secret,
         phoenix_admin_secret=phoenix_admin_secret,
+        oauth2_clients=oauth2_clients,
     )
 
 

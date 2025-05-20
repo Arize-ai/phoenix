@@ -402,14 +402,6 @@ def main() -> None:
         allowed_origins=allowed_origins,
     )
 
-    oauth2_client_configs = get_env_oauth2_settings()
-    if auth_settings.enable_auth and (
-        auth_settings.disable_basic_auth and len(oauth2_client_configs) == 0
-    ):
-        raise ValueError(
-            "Auth2 is the only supported auth method but no OAuth2 client configs are provided."
-        )
-
     if sys.platform.startswith("win"):
         msg = codecs.encode(msg, "ascii", errors="ignore").decode("ascii").strip()
     scaffolder_config = ScaffolderConfig(
@@ -457,7 +449,7 @@ def main() -> None:
         refresh_token_expiry=get_env_refresh_token_expiry(),
         scaffolder_config=scaffolder_config,
         email_sender=email_sender,
-        oauth2_client_configs=oauth2_client_configs,
+        oauth2_client_configs=get_env_oauth2_settings(),
         allowed_origins=allowed_origins,
     )
 

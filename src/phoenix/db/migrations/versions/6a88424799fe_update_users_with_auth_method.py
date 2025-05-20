@@ -13,6 +13,7 @@ This migration:
      do not have OAuth2 credentials
    - 'non_local_auth_has_no_password': ensures OAUTH2 users do not have password credentials
 4. Removes legacy constraints that are replaced by the new column:
+   - 'password_hash_and_salt': ensures password_hash and password_salt are consistent
    - 'exactly_one_auth_method': replaced by auth_method column and its constraints
    - 'oauth2_client_id_and_user_id': replaced by auth_method column and its constraints
 5. Drops redundant single column indices:
@@ -31,6 +32,7 @@ This approach allows us to:
 
 The downgrade path:
 1. Recreates the legacy constraints:
+   - 'password_hash_and_salt': ensures password_hash and password_salt are consistent
    - 'exactly_one_auth_method': ensures exactly one auth method is set
    - 'oauth2_client_id_and_user_id': ensures OAuth2 credentials are consistent
 2. Removes the auth_method column and its associated constraints
@@ -130,9 +132,9 @@ def downgrade() -> None:
 
     This function:
     1. Recreates the legacy constraints that were removed in the upgrade:
-       - 'oauth2_client_id_and_user_id': ensures OAuth2 credentials are consistent
-       - 'exactly_one_auth_method': ensures exactly one auth method is set
        - 'password_hash_and_salt': ensures password_hash and password_salt are consistent
+       - 'exactly_one_auth_method': ensures exactly one auth method is set
+       - 'oauth2_client_id_and_user_id': ensures OAuth2 credentials are consistent
     2. Removes the auth_method column and its associated CHECK constraints:
        - 'non_local_auth_has_no_password'
        - 'local_auth_has_password_no_oauth'
