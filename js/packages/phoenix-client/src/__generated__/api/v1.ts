@@ -872,6 +872,29 @@ export interface components {
          * @enum {string}
          */
         DoubleValue: "Infinity" | "-Infinity" | "NaN";
+        /** Event */
+        Event: {
+            /**
+             * Attributes
+             * @description attributes is a collection of attribute key/value pairs on the event. Attribute keys MUST be unique (it is not allowed to have more than one attribute with the same key).
+             */
+            attributes?: components["schemas"]["KeyValue"][] | null;
+            /**
+             * Dropped Attributes Count
+             * @description dropped_attributes_count is the number of dropped attributes. If the value is 0, then no attributes were dropped.
+             */
+            dropped_attributes_count?: number | null;
+            /**
+             * Name
+             * @description name of the event. This field is semantically required to be set to non-empty string.
+             */
+            name?: string | null;
+            /**
+             * Time Unix Nano
+             * @description time_unix_nano is the time the event occurred. Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
+             */
+            time_unix_nano?: number | string | null;
+        };
         /** Experiment */
         Experiment: {
             /**
@@ -1181,8 +1204,11 @@ export interface components {
              *     This field is semantically required and it is expected that end_time >= start_time.
              */
             end_time_unix_nano?: number | string | null;
-            /** Events */
-            events?: null;
+            /**
+             * Events
+             * @description events is a collection of Event items. A span with no events is valid.
+             */
+            events?: components["schemas"]["Event"][] | null;
             /**
              * Flags
              * @description Flags, a bit field.
