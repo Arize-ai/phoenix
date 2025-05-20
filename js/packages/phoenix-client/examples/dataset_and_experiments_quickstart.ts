@@ -6,7 +6,7 @@ import { AnnotatorKind } from '../src/types/annotations';
 import { Example } from '../src/types/datasets';
 
 // Replace with your actual OpenAI API key
-const OPENAI_API_KEY = process.env.OPEN_AI_API_KEY;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 if (!OPENAI_API_KEY) {
   console.error('Please set the OPENAI_API_KEY environment variable');
@@ -31,11 +31,25 @@ async function main() {
   // Create examples directly as an array
   const examples = [
     {
-      id: `example-${Date.now()}`,
+      id: `example-1`,
       updatedAt: new Date(),
       input: { question: "What is Paul Graham known for?" },
       output: { answer: "Co-founding Y Combinator and writing on startups and techology." },
       metadata: { topic: "tech" }
+    },
+    {
+      id: `example-2`,
+      updatedAt: new Date(),
+      input: { question: "What companies did Elon Musk found?" },
+      output: { answer: "Tesla, SpaceX, Neuralink, The Boring Company, and co-founded PayPal." },
+      metadata: { topic: "entrepreneurs" }
+    },
+    {
+      id: `example-3`,
+      updatedAt: new Date(),
+      input: { question: "What is Moore's Law?" },
+      output: { answer: "The observation that the number of transistors in a dense integrated circuit doubles about every two years." },
+      metadata: { topic: "computing" }
     }
   ] as Example[];
   
