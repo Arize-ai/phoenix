@@ -861,7 +861,8 @@ async def get_dataset_jsonl_openai_ft(
     except ValueError as e:
         raise HTTPException(detail=str(e), status_code=HTTP_422_UNPROCESSABLE_ENTITY)
     content = await run_in_threadpool(_get_content_jsonl_openai_ft, examples)
-    response.headers["content-disposition"] = f'attachment; filename="{dataset_name}.jsonl"'
+    encoded_dataset_name = urllib.parse.quote(dataset_name)
+    response.headers["content-disposition"] = f'attachment; filename="{encoded_dataset_name}.jsonl"'
     return content
 
 
@@ -898,7 +899,8 @@ async def get_dataset_jsonl_openai_evals(
     except ValueError as e:
         raise HTTPException(detail=str(e), status_code=HTTP_422_UNPROCESSABLE_ENTITY)
     content = await run_in_threadpool(_get_content_jsonl_openai_evals, examples)
-    response.headers["content-disposition"] = f'attachment; filename="{dataset_name}.jsonl"'
+    encoded_dataset_name = urllib.parse.quote(dataset_name)
+    response.headers["content-disposition"] = f'attachment; filename="{encoded_dataset_name}.jsonl"'
     return content
 
 
