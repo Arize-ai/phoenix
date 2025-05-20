@@ -13,11 +13,6 @@ type FullDatasetInfo = DatasetInfo & {
 /**
  * List the information about all datasets available to the client.
  *
- * @function listDatasets
- * @param {ListDatasetsParams} params - The parameters for listing datasets.
- * @param {import("../types/core").PhoenixClient} [params.client] - Optional Phoenix client instance.
- * @returns {Promise<FullDatasetInfo[]>} A promise that resolves to an array of dataset info objects, each including start and end dates.
- *
  * @example
  * ```ts
  * import { listDatasets } from "@arizeai/phoenix-client/datasets";
