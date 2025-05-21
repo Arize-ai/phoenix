@@ -1,5 +1,28 @@
 # Changelog
 
+## [9.6.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v9.6.0...arize-phoenix-v9.6.1) (2025-05-21)
+
+
+### Bug Fixes
+
+* **experiments:** make experiment columns resizable ([#7628](https://github.com/Arize-ai/phoenix/issues/7628)) ([3c2b8e3](https://github.com/Arize-ai/phoenix/commit/3c2b8e344d1e759843b7f9fd4fcd7565614e241e))
+
+## [9.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v9.5.0...arize-phoenix-v9.6.0) (2025-05-20)
+
+
+### Features
+
+* **cost:** add token prompt details resolver on span node ([#7621](https://github.com/Arize-ai/phoenix/issues/7621)) ([d2f9c23](https://github.com/Arize-ai/phoenix/commit/d2f9c23bfd80baef81e9e5f29266e10e87297d9a))
+* **experiments:** typescript example ([#7594](https://github.com/Arize-ai/phoenix/issues/7594)) ([d019b4a](https://github.com/Arize-ai/phoenix/commit/d019b4aef5ef6941d207a79bfa1b6f697eec2cd2))
+* Model cost lookup table ([#7577](https://github.com/Arize-ai/phoenix/issues/7577)) ([05884b0](https://github.com/Arize-ai/phoenix/commit/05884b0420ee098a943557642ea005abda352554))
+
+
+### Bug Fixes
+
+* anthropic 3.7 sonnet mis-spelled ([#7623](https://github.com/Arize-ai/phoenix/issues/7623)) ([6cb9d2d](https://github.com/Arize-ai/phoenix/commit/6cb9d2d7b26f23e08fbbcbcf23c62d24fc9928c3))
+* **datasets:** support csv + jsonl download of datasets with unicode file names ([#7630](https://github.com/Arize-ai/phoenix/issues/7630)) ([0d17e7f](https://github.com/Arize-ai/phoenix/commit/0d17e7f582593cd1bde0097ae33e7e39ea70fb85))
+* Pad message content lists in span details ([#7620](https://github.com/Arize-ai/phoenix/issues/7620)) ([1801061](https://github.com/Arize-ai/phoenix/commit/1801061643435169ce4b27d87a49d5aae3cf0d92))
+
 ## [9.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v9.4.0...arize-phoenix-v9.5.0) (2025-05-17)
 
 

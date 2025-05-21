@@ -297,7 +297,10 @@ async def test_get_dataset_download_empty_dataset(
     assert response.status_code == 200
     assert response.headers.get("content-type") == "text/csv"
     assert response.headers.get("content-encoding") == "gzip"
-    assert response.headers.get("content-disposition") == 'attachment; filename="empty dataset.csv"'
+    assert (
+        response.headers.get("content-disposition")
+        == "attachment; filename*=UTF-8''empty%20dataset.csv"
+    )
     with pytest.raises(Exception):
         pd.read_csv(StringIO(response.content.decode()))
 
@@ -315,7 +318,10 @@ async def test_get_dataset_download_nonexistent_version(
     assert response.status_code == 200
     assert response.headers.get("content-type") == "text/csv"
     assert response.headers.get("content-encoding") == "gzip"
-    assert response.headers.get("content-disposition") == 'attachment; filename="empty dataset.csv"'
+    assert (
+        response.headers.get("content-disposition")
+        == "attachment; filename*=UTF-8''empty%20dataset.csv"
+    )
     with pytest.raises(Exception):
         pd.read_csv(StringIO(response.content.decode()))
 
@@ -330,7 +336,8 @@ async def test_get_dataset_download_latest_version(
     assert response.headers.get("content-type") == "text/csv"
     assert response.headers.get("content-encoding") == "gzip"
     assert (
-        response.headers.get("content-disposition") == 'attachment; filename="revised dataset.csv"'
+        response.headers.get("content-disposition")
+        == "attachment; filename*=UTF-8''revised%20dataset.csv"
     )
     actual = pd.read_csv(StringIO(response.content.decode())).sort_index(axis=1)
     expected = pd.read_csv(
@@ -357,7 +364,8 @@ async def test_get_dataset_download_specific_version(
     assert response.headers.get("content-type") == "text/csv"
     assert response.headers.get("content-encoding") == "gzip"
     assert (
-        response.headers.get("content-disposition") == 'attachment; filename="revised dataset.csv"'
+        response.headers.get("content-disposition")
+        == "attachment; filename*=UTF-8''revised%20dataset.csv"
     )
     actual = pd.read_csv(StringIO(response.content.decode())).sort_index(axis=1)
     expected = pd.read_csv(
@@ -385,7 +393,7 @@ async def test_get_dataset_jsonl_openai_ft(
     assert response.status_code == 200
     assert response.headers.get("content-type") == "text/plain; charset=utf-8"
     assert response.headers.get("content-encoding") == "gzip"
-    assert response.headers.get("content-disposition") == 'attachment; filename="xyz.jsonl"'
+    assert response.headers.get("content-disposition") == "attachment; filename*=UTF-8''xyz.jsonl"
     json_lines = io.StringIO(response.text).readlines()
     assert len(json_lines) == 2
     assert json.loads(json_lines[0]) == {
@@ -416,7 +424,7 @@ async def test_get_dataset_jsonl_openai_evals(
     assert response.status_code == 200
     assert response.headers.get("content-type") == "text/plain; charset=utf-8"
     assert response.headers.get("content-encoding") == "gzip"
-    assert response.headers.get("content-disposition") == 'attachment; filename="xyz.jsonl"'
+    assert response.headers.get("content-disposition") == "attachment; filename*=UTF-8''xyz.jsonl"
     json_lines = io.StringIO(response.text).readlines()
     assert len(json_lines) == 2
     assert json.loads(json_lines[0]) == {

@@ -1765,6 +1765,7 @@ function MessageContentsList({
  */
 const messageContentTextListItemCSS = css`
   flex: 1 1 100%;
+  padding: var(--ac-global-dimension-static-size-200);
 `;
 /**
  * Displays multi-modal message content. Typically an image or text.

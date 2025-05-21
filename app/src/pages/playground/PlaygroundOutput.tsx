@@ -89,6 +89,7 @@ function PlaygroundOutputMessage({
       {...styles}
       variant="compact"
       extra={<ConnectedMarkdownModeRadioGroup />}
+      bodyStyle={{ padding: 0 }}
     >
       {content != null && !Array.isArray(content) && (
         <ConnectedMarkdownBlock>{content}</ConnectedMarkdownBlock>
