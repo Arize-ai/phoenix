@@ -16,12 +16,35 @@ Background + demo on datasets
 2. Grab your API key from the Keys option on the left bar.
 3. In your code, set your endpoint and API key:
 
+### Python
+
 ```python
 import os
 
 PHOENIX_API_KEY = "ADD YOUR API KEY"
 os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
+```
+
+### Typescript
+
+```typescript
+// Set your Phoenix API key and endpoint
+const PHOENIX_API_KEY = "ADD YOUR API KEY";
+const PHOENIX_COLLECTOR_ENDPOINT = "https://app.phoenix.arize.com";
+
+// Example: setting headers for fetch or axios
+const headers = {
+  "api_key": PHOENIX_API_KEY,
+  // ...other headers
+};
+
+// Example usage with fetch
+fetch(`${PHOENIX_COLLECTOR_ENDPOINT}/your-endpoint`, {
+  method: "POST",
+  headers: headers,
+  body: JSON.stringify({ /* your data */ }),
+});
 ```
 
 {% hint style="warning" %}
