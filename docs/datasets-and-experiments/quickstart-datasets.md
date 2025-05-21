@@ -505,18 +505,15 @@ experiment = evaluate_experiment(experiment, evaluators=[contains_keyword, conci
 {% tab title="Typescript" %}
 
 ```typescript
-import { runExperiment } from "phoenix/experiments";
+import { evaluateExperiment } from "phoenix/experiments";
 
-// Run additional evaluators on the same experiment
-const updatedExperiment = await runExperiment({
-  client,
-  experimentName: experiment.id, // Use the same experiment ID
-  dataset: { datasetId }, // Use the dataset ID from earlier
-  task: async () => "", // No-op task since we're just evaluating
+// Add more evaluations to an existing experiment
+const updatedEvaluation = await evaluateExperiment({
+  experiment, // Use the existing experiment object
   evaluators: [containsKeyword, conciseness]
 });
 
-console.log("Additional evaluations completed with ID:", updatedExperiment.id);
+console.log("Additional evaluations completed for experiment:", experiment.id);
 ```
 
 {% endtab %}
