@@ -33,18 +33,30 @@ export function TokenCount(props: TokenCountProps) {
         <TokenItem size={props.size}>{props.tokenCountTotal}</TokenItem>
       </TriggerWrap>
       <Tooltip>
-        <Flex direction="column" gap="size-50">
-          <Flex direction="row" gap="size-100" justifyContent="space-between">
-            prompt tokens
-            <TokenItem>{props.tokenCountPrompt}</TokenItem>
-          </Flex>
-          <Flex direction="row" gap="size-100" justifyContent="space-between">
-            completion tokens
-            <TokenItem>{props.tokenCountCompletion}</TokenItem>
-          </Flex>
-        </Flex>
+        <TokenDetails
+          tokenCountPrompt={props.tokenCountPrompt}
+          tokenCountCompletion={props.tokenCountCompletion}
+        />
       </Tooltip>
     </TooltipTrigger>
+  );
+}
+
+function TokenDetails(props: {
+  tokenCountPrompt: number;
+  tokenCountCompletion: number;
+}) {
+  return (
+    <Flex direction="column" gap="size-50">
+      <Flex direction="row" gap="size-100" justifyContent="space-between">
+        <Text>prompt tokens</Text>
+        <TokenItem>{props.tokenCountPrompt}</TokenItem>
+      </Flex>
+      <Flex direction="row" gap="size-100" justifyContent="space-between">
+        <Text>completion tokens</Text>
+        <TokenItem>{props.tokenCountCompletion}</TokenItem>
+      </Flex>
+    </Flex>
   );
 }
 
