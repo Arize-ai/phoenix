@@ -50,17 +50,44 @@ function TokenDetails(props: { nodeId: string }) {
     graphql`
       query TokenCount_TokenDetailsQuery($nodeId: ID!) {
         node(id: $nodeId) {
+          __typename
           ... on Span {
             tokenCountPrompt
             tokenCountCompletion
+          }
+          ... on ProjectSession {
+            tokenUsage {
+              prompt
+              completion
+            }
           }
         }
       }
     `,
     { nodeId: props.nodeId }
   );
-  const tokenCountPrompt = data.node.tokenCountPrompt ?? 0;
-  const tokenCountCompletion = data.node.tokenCountCompletion ?? 0;
+  const tokenCountPrompt = (() => {
+    switch (data.node.__typename) {
+      case "Span":
+        return data.node.tokenCountPrompt ?? 0;
+      case "ProjectSession":
+        return data.node.tokenUsage.prompt;
+      default:
+        return 0;
+    }
+  })();
+
+  const tokenCountCompletion = (() => {
+    switch (data.node.__typename) {
+      case "Span":
+        return data.node.tokenCountCompletion ?? 0;
+      case "ProjectSession":
+        return data.node.tokenUsage.completion;
+      default:
+        return 0;
+    }
+  })();
+
   return (
     <Flex direction="column" gap="size-50">
       <Flex direction="row" gap="size-100" justifyContent="space-between">

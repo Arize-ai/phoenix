@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<92c409d3369ba5e1caf1e90747483b25>>
+ * @generated SignedSource<<db299d6500536b60c689be3966a12698>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,8 +14,19 @@ export type TokenCount_TokenDetailsQuery$variables = {
 };
 export type TokenCount_TokenDetailsQuery$data = {
   readonly node: {
-    readonly tokenCountCompletion?: number | null;
-    readonly tokenCountPrompt?: number | null;
+    readonly __typename: "ProjectSession";
+    readonly tokenUsage: {
+      readonly completion: number;
+      readonly prompt: number;
+    };
+  } | {
+    readonly __typename: "Span";
+    readonly tokenCountCompletion: number | null;
+    readonly tokenCountPrompt: number | null;
+  } | {
+    // This will never be '%other', but we need some
+    // value in case none of the concrete values match.
+    readonly __typename: "%other";
   };
 };
 export type TokenCount_TokenDetailsQuery = {
@@ -39,6 +50,13 @@ v1 = [
   }
 ],
 v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v3 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -58,6 +76,38 @@ v2 = {
   ],
   "type": "Span",
   "abstractKey": null
+},
+v4 = {
+  "kind": "InlineFragment",
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "TokenUsage",
+      "kind": "LinkedField",
+      "name": "tokenUsage",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "prompt",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "completion",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    }
+  ],
+  "type": "ProjectSession",
+  "abstractKey": null
 };
 return {
   "fragment": {
@@ -74,7 +124,9 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/)
+          (v2/*: any*/),
+          (v3/*: any*/),
+          (v4/*: any*/)
         ],
         "storageKey": null
       }
@@ -96,14 +148,9 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "__typename",
-            "storageKey": null
-          },
           (v2/*: any*/),
+          (v3/*: any*/),
+          (v4/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -117,16 +164,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "880e59e24c13a1a4718cc4b8e8b2364e",
+    "cacheID": "f3419182693434731da3b70ab7396fea",
     "id": null,
     "metadata": {},
     "name": "TokenCount_TokenDetailsQuery",
     "operationKind": "query",
-    "text": "query TokenCount_TokenDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      tokenCountPrompt\n      tokenCountCompletion\n    }\n    id\n  }\n}\n"
+    "text": "query TokenCount_TokenDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      tokenCountPrompt\n      tokenCountCompletion\n    }\n    ... on ProjectSession {\n      tokenUsage {\n        prompt\n        completion\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e8da9f3b4eafd1409b1888e2deb21ec8";
+(node as any).hash = "3e1c840ea0d5db177eb871bdbd6b1e25";
 
 export default node;
