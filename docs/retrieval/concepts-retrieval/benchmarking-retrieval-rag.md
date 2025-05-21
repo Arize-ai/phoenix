@@ -26,8 +26,6 @@ This section will go through a script that iterates through all possible paramet
 
 This overview will run through the scripts in phoenix for performance analysis of RAG setup:
 
-{% @github-files/github-code-block %}
-
 The scripts above power the included notebook.
 
 ### Retrieval Performance Analysis
@@ -39,8 +37,6 @@ The typical flow of retrieval is a user query is embedded and used to search a v
 <figure><img src="../../.gitbook/assets/Screenshot 2023-10-09 at 11.28.39 AM.png" alt=""><figcaption><p>Retrieval Evals</p></figcaption></figure>
 
 The eval template is used to evaluate the relevance of each chunk of data. The Eval asks the main question of "Does the chunk of data contain relevant information to answer the question"?
-
-<figure><img src="broken-reference" alt=""><figcaption><p>Retrieval Eval</p></figcaption></figure>
 
 The Retrieval Eval is used to analyze the performance of each chunk within the ordered list retrieved.
 

@@ -1,3 +1,7 @@
+---
+hidden: true
+---
+
 # LangFlow
 
 Langflow is an open-source visual framework that enables developers to rapidly design, prototype, and deploy custom applications powered by large language models (LLMs). Built on top of LangChain,

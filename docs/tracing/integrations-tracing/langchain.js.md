@@ -1,3 +1,7 @@
+---
+hidden: true
+---
+
 # LangChain.js
 
 [![](https://badge.fury.io/js/@arizeai%2Fopeninference-instrumentation-langchain.svg)](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-langchain)

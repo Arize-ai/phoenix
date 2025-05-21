@@ -90,8 +90,7 @@ This approach is useful when you need only a portion of a method to be captured 
 
 OpenInference Span Kinds denote the possible types of spans you might capture, and will be rendered different in the Phoenix UI.
 
-The possible values are:\
-
+The possible values are:\\
 
 | Span Kind | Use                                                                                                   |
 | --------- | ----------------------------------------------------------------------------------------------------- |
@@ -226,7 +225,6 @@ this_tool_name_should_be_overriden("input1", 1)
 
 ***
 
-
 ## LLMs
 
 Like other span kinds, LLM spans can be instrumented either via a context manager or via a decorator pattern. It's also possible to directly patch client methods.
@@ -236,7 +234,6 @@ While this guide uses the OpenAI Python client for illustration, in practice, yo
 To run the snippets in this section, set your `OPENAI_API_KEY` environment variable.
 
 ### Context Manager
-
 
 ```python
 from openai import OpenAI
@@ -261,7 +258,6 @@ with tracer.start_as_current_span("llm_span", openinference_span_kind="llm") as 
 ```
 
 ### Decorator
-
 
 ```python
 from typing import List
@@ -288,7 +284,6 @@ invoke_llm([{"role": "user", "content": "Hello, world!"}])
 ```
 
 This decorator pattern above works for sync functions, async coroutine functions, sync generator functions, and async generator functions. Here's an example with an async generator.
-
 
 ```python
 from typing import AsyncGenerator, List
@@ -323,7 +318,6 @@ async for token in stream_llm_responses([{"role": "user", "content": "Hello, wor
 
 It's also possible to directly patch methods on a client. This is useful if you want to transparently use the client in your application with instrumentation logic localized in one place.
 
-
 ```python
 from openai import OpenAI
 
@@ -342,12 +336,11 @@ openai_client.chat.completions.create(
 
 The snippets above produce LLM spans with input and output values, but don't offer rich UI for messages, tools, invocation parameters, etc. In order to manually instrument LLM spans with these features, users can define their own functions to wrangle the input and output of their LLM calls into OpenInference format. The `openinference-instrumentation` library contains helper functions that produce valid OpenInference attributes for LLM spans:
 
-- `get_llm_attributes`
-- `get_input_attributes`
-- `get_output_attributes`
+* `get_llm_attributes`
+* `get_input_attributes`
+* `get_output_attributes`
 
 For OpenAI, these functions might look like this:
-
 
 ```python
 from typing import Any, Dict, List, Optional, Union
@@ -478,7 +471,6 @@ def process_output(response: ChatCompletion) -> Dict[str, AttributeValue]:
 
 When using a context manager to create LLM spans, these functions can be used to wrangle inputs and outputs.
 
-
 ```python
 import json
 
@@ -595,12 +587,9 @@ with tracer.start_as_current_span(
 
 When using the `tracer.llm` decorator, these functions are passed via the `process_input` and `process_output` parameters and should satisfy the following:
 
-- The input signature of `process_input` should exactly match the input signature of the decorated function.
-- The input signature of `process_output` has a single argument, the output of the decorated function. This argument accepts the returned value when the decorated function is a sync or async function, or a list of yielded values when the decorated function is a sync or async generator function.
-- Both `process_input` and `process_output` should output a dictionary mapping attribute names to values.
-
-
-
+* The input signature of `process_input` should exactly match the input signature of the decorated function.
+* The input signature of `process_output` has a single argument, the output of the decorated function. This argument accepts the returned value when the decorated function is a sync or async function, or a list of yielded values when the decorated function is a sync or async generator function.
+* Both `process_input` and `process_output` should output a dictionary mapping attribute names to values.
 
 ```python
 from openai import NOT_GIVEN, OpenAI
@@ -636,7 +625,6 @@ invoke_llm(
 ```
 
 When decorating a generator function, `process_output` should accept a single argument, a list of the values yielded by the decorated function.
-
 
 ```python
 from typing import Dict, List, Optional
@@ -685,7 +673,6 @@ def process_generator_output(
 
 Then the decoration is the same as before.
 
-
 ```python
 from typing import AsyncGenerator
 
@@ -725,7 +712,6 @@ async for chunk in stream_llm_response(
 
 As before, it's possible to directly patch the method on the client. Just ensure that the input signatures of `process_input` and the patched method match.
 
-
 ```python
 from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageParam
@@ -750,7 +736,7 @@ openai_client.chat.completions.create(
 
 ## Additional Features
 
-OpenInference Tracer shown above respects context Managers for [Suppressing Tracing](../advanced/suppress-tracing.md) & [Adding Metadata](../add-metadata/customize-spans.md)&#x20;
+The OpenInference Tracer shown above respects context Managers for [Suppressing Tracing](../advanced/suppress-tracing.md) & [Adding Metadata](../add-metadata/customize-spans.md)
 
 ### Suppress Tracing
 
@@ -778,4 +764,53 @@ with using_attributes(session_id="123"):
         span.set_input("input")
         span.set_output("output")
         span.set_status(Status(StatusCode.OK))
+```
+
+### Adding Images to your Traces
+
+OpenInference includes message types that can be useful in composing text and image or other file inputs and outputs:
+
+```python
+import openinference.instrumentation as oi
+
+image_url = "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg"
+text = "describe the weather in this image"
+content = [
+        {"type": "text", "text": text},
+        {
+            "type": "image_url",
+            "image_url": {"url": image_url, "detail": "low"},
+        },
+    ]
+
+image = oi.Image(url=image_url)
+contents = [
+    oi.TextMessageContent(
+        type="text",
+        text=text,
+    ),
+    oi.ImageMessageContent(
+        type="image",
+        image=image,
+    ),
+]
+messages = [
+    oi.Message(
+        role="user",
+        contents=contents,
+    )
+]
+
+with tracer.start_as_current_span(
+    "my-span-name",
+    openinference_span_kind="llm",
+    attributes=oi.get_llm_attributes(input_messages=messages)
+) as span:
+    span.set_input(text)
+    
+    # Call your LLM here
+    response = "This is a test response"
+
+    span.set_output(response)
+    print(response.content)
 ```

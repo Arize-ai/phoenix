@@ -1,3 +1,7 @@
+---
+hidden: true
+---
+
 # Vercel AI SDK
 
 ## OpenInference Vercel

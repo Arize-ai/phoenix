@@ -1,6 +1,6 @@
-# Quickstart: Datasets
+# Quickstart: Datasets & Experiments
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/arize-ai/phoenix/blob/main/tutorials/experiments/datasets\_and\_experiments\_quickstart.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/arize-ai/phoenix/blob/main/tutorials/experiments/datasets_and_experiments_quickstart.ipynb)
 
 Phoenix helps you run experiments over your AI and LLM applications to evaluate and iteratively improve their performance. This quickstart shows you how to get up and running quickly.
 
@@ -8,14 +8,35 @@ Phoenix helps you run experiments over your AI and LLM applications to evaluate 
 Background + demo on datasets
 {% endembed %}
 
-## Setup
+## Launch Phoenix
 
-Launch phoenix in a notebook. If you already have phoenix server running, skip this step.
+### Using Phoenix Cloud
+
+1. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
+2. Grab your API key from the Keys option on the left bar.
+3. In your code, set your endpoint and API key:
 
 ```python
-import phoenix as px
+import os
 
-px.launch_app()
+PHOENIX_API_KEY = "ADD YOUR API KEY"
+os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
+```
+
+{% hint style="warning" %}
+Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](https://docs.arize.com/phoenix/learn/faqs/what-is-my-phoenix-endpoint)
+{% endhint %}
+
+### Using Self-hosted Phoenix
+
+1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, [see self-hosting](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/0gWR4qoGzdz04iSgPlsU/).
+2. In your code, set your endpoint:
+
+```python
+import os
+
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "Your Phoenix Endpoint"
 ```
 
 ## Datasets

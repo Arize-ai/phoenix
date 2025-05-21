@@ -1,5 +1,6 @@
 ---
 description: How to use the SmolagentsInstrumentor to trace smolagents by Hugging Face
+hidden: true
 ---
 
 # Hugging Face smolagents

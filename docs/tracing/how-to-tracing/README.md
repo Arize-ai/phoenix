@@ -60,6 +60,11 @@ How to query spans for to construct DataFrames to use for evaluation
 * [How to use data for evaluation](importing-and-exporting-traces/extract-data-from-spans.md#how-to-use-data-for-evaluation)
 * [How to use pre-defined queries](importing-and-exporting-traces/extract-data-from-spans.md#predefined-queries)
 
+## [Annotate Traces](feedback-and-annotations/)
+
+* [Annotating in the UI](feedback-and-annotations/annotating-in-the-ui.md)
+* [Annotating via the Client](feedback-and-annotations/capture-feedback.md)
+
 ## [Log Evaluation Results](./#log-evaluation-results)
 
 How to log evaluation results to annotate traces with evals

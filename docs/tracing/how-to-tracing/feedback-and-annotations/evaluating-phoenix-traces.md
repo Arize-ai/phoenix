@@ -1,4 +1,8 @@
-# Evaluating Phoenix Traces
+---
+description: How to use an LLM judge to label and score your application
+---
+
+# Running Evals on Traces
 
 This guide will walk you through the process of evaluating traces captured in Phoenix, and exporting the results to the Phoenix UI.
 
