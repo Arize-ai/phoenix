@@ -4,8 +4,10 @@ from typing import Mapping, Optional
 
 import httpx
 
+from phoenix.client.resources.annotations import Annotations, AsyncAnnotations
 from phoenix.client.resources.projects import AsyncProjects, Projects
 from phoenix.client.resources.prompts import AsyncPrompts, Prompts
+from phoenix.client.resources.spans import AsyncSpans, Spans
 from phoenix.client.utils.config import get_base_url, get_env_client_headers
 
 
@@ -35,12 +37,24 @@ class Client:
         """  # noqa: E501
         if http_client is None:
             base_url = base_url or get_base_url()
-            http_client = _WrappedClient(
+            self._client = _WrappedClient(
                 base_url=base_url,
                 headers=_update_headers(headers, api_key),
             )
-        self._prompts = Prompts(http_client)
-        self._projects = Projects(http_client)
+        else:
+            self._client = http_client
+
+    @property
+    def _client(self) -> httpx.Client:
+        return self._http_client
+
+    @_client.setter
+    def _client(self, value: httpx.Client) -> None:
+        self._http_client = value
+        self._prompts = Prompts(value)
+        self._projects = Projects(value)
+        self._spans = Spans(value)
+        self._annotations = Annotations(value)
 
     @property
     def prompts(self) -> Prompts:
@@ -61,6 +75,28 @@ class Client:
             Projects: An instance of the Projects class.
         """  # noqa: E501
         return self._projects
+
+    @property
+    def spans(self) -> Spans:
+        """
+        Returns an instance of the Spans class for interacting with span-related
+        API endpoints.
+
+        Returns:
+            Spans: An instance of the Spans class.
+        """
+        return self._spans
+
+    @property
+    def annotations(self) -> Annotations:
+        """
+        Returns an instance of the Annotations class for interacting with annotation-related
+        API endpoints.
+
+        Returns:
+            Annotations: An instance of the Annotations class.
+        """  # noqa: E501
+        return self._annotations
 
 
 class AsyncClient:
@@ -93,8 +129,19 @@ class AsyncClient:
                 base_url=base_url,
                 headers=_update_headers(headers, api_key),
             )
-        self._prompts = AsyncPrompts(http_client)
-        self._projects = AsyncProjects(http_client)
+        self._client = http_client
+
+    @property
+    def _client(self) -> httpx.AsyncClient:
+        return self._http_client
+
+    @_client.setter
+    def _client(self, value: httpx.AsyncClient) -> None:
+        self._http_client = value
+        self._prompts = AsyncPrompts(value)
+        self._projects = AsyncProjects(value)
+        self._spans = AsyncSpans(value)
+        self._annotations = AsyncAnnotations(value)
 
     @property
     def prompts(self) -> AsyncPrompts:
@@ -117,6 +164,28 @@ class AsyncClient:
             AsyncProjects: An instance of the Projects class.
         """  # noqa: E501
         return self._projects
+
+    @property
+    def spans(self) -> AsyncSpans:
+        """
+        Returns an instance of the Asynchronous Spans class for interacting with span-related
+        API endpoints.
+
+        Returns:
+            AsyncSpans: An instance of the Spans class.
+        """
+        return self._spans
+
+    @property
+    def annotations(self) -> AsyncAnnotations:
+        """
+        Returns an instance of the Asynchronous Annotations class for interacting with annotation-related
+        API endpoints.
+
+        Returns:
+            AsyncAnnotations: An instance of the Annotations class.
+        """  # noqa: E501
+        return self._annotations
 
 
 def _update_headers(

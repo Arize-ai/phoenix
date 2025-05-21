@@ -1,5 +1,6 @@
-import React, {
+import {
   startTransition,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -19,7 +20,7 @@ import { css } from "@emotion/react";
 import { Icon, Icons, Link } from "@phoenix/components";
 import { CompactJSONCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
-import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -30,7 +31,7 @@ import {
   DatasetsTableDatasetsQuery,
 } from "./__generated__/DatasetsTableDatasetsQuery.graphql";
 import { DatasetActionMenu } from "./DatasetActionMenu";
-
+import { DatasetsEmpty } from "./DatasetsEmpty";
 const PAGE_SIZE = 100;
 
 type DatasetsTableProps = {
@@ -93,7 +94,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
     () => data.datasets.edges.map((edge) => edge.node),
     [data]
   );
-  const fetchMoreOnBottomReached = React.useCallback(
+  const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
         const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
@@ -279,7 +280,9 @@ export function DatasetsTable(props: DatasetsTableProps) {
           ))}
         </thead>
         {isEmpty ? (
-          <TableEmpty />
+          <TableEmptyWrap>
+            <DatasetsEmpty />
+          </TableEmptyWrap>
         ) : (
           <tbody>
             {rows.map((row) => {

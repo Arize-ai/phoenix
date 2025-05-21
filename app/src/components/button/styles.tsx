@@ -6,7 +6,6 @@ export const buttonCSS = css`
   font-size: var(--ac-global-dimension-static-font-size-100);
   line-height: 20px; // TODO(mikeldking): move this into a consistent variable
   margin: 0;
-  transition: all 0.2s ease-in-out;
 
   display: flex;
   gap: var(--ac-global-dimension-static-size-100);
@@ -25,9 +24,6 @@ export const buttonCSS = css`
     // Only show outline on focus-visible, aka only when tabbed but not clicked
     outline: 1px solid var(--ac-global-input-field-border-color-active);
     outline-offset: 1px;
-  }
-  &:not([disabled]) {
-    transition: all 0.2s ease-in-out;
   }
   &[disabled] {
     cursor: default;
@@ -91,14 +87,22 @@ export const buttonCSS = css`
   }
 
   kbd {
-    background-color: var(--ac-global-color-grey-700);
+    background-color: var(--ac-global-color-grey-400);
     border-radius: var(--ac-global-rounding-small);
-    padding: var(--ac-global-dimension-static-size-50);
+    padding: var(--ac-global-dimension-size-50)
+      var(--ac-global-dimension-size-75);
     font-size: var(--ac-global-font-size-xs);
     line-height: var(--ac-global-font-size-xxs);
     display: flex;
     align-items: center;
     justify-content: center;
     gap: var(--ac-global-dimension-static-size-25);
+    text-transform: uppercase;
+  }
+
+  &[data-variant="primary"] {
+    kbd {
+      background-color: var(--ac-global-color-grey-700);
+    }
   }
 `;

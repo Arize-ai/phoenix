@@ -1,5 +1,3 @@
-import React from "react";
-
 import { Content, ContextualHelp, Item, Picker } from "@arizeai/components";
 
 import { Heading, Text } from "@phoenix/components";

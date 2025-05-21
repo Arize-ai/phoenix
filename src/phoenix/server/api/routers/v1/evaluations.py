@@ -211,6 +211,8 @@ async def _add_evaluations(state: State, evaluations: Evaluations) -> None:
             score, label, explanation = _get_annotation_result(row)
             document_annotation = cls(cast(Union[tuple[str, int], tuple[int, str]], index))(
                 name=eval_name,
+                identifier="",
+                source="API",
                 annotator_kind="LLM",
                 score=score,
                 label=label,
@@ -223,6 +225,8 @@ async def _add_evaluations(state: State, evaluations: Evaluations) -> None:
             score, label, explanation = _get_annotation_result(row)
             span_annotation = _span_annotation_factory(cast(str, index))(
                 name=eval_name,
+                identifier="",
+                source="API",
                 annotator_kind="LLM",
                 score=score,
                 label=label,
@@ -235,6 +239,8 @@ async def _add_evaluations(state: State, evaluations: Evaluations) -> None:
             score, label, explanation = _get_annotation_result(row)
             trace_annotation = _trace_annotation_factory(cast(str, index))(
                 name=eval_name,
+                identifier="",
+                source="API",
                 annotator_kind="LLM",
                 score=score,
                 label=label,

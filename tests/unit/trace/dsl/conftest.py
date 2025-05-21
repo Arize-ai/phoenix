@@ -227,6 +227,9 @@ async def abc_project(db: DbSessionFactory) -> None:
                 name="0",
                 score=0,
                 metadata_={},
+                identifier="",
+                source="APP",
+                user_id=None,
             )
         )
         span_rowid = await session.scalar(
@@ -268,6 +271,9 @@ async def abc_project(db: DbSessionFactory) -> None:
                 name="0",
                 score=1,
                 metadata_={},
+                identifier="",
+                source="APP",
+                user_id=None,
             )
         )
         await session.execute(
@@ -277,6 +283,9 @@ async def abc_project(db: DbSessionFactory) -> None:
                 name="1",
                 label="1",
                 metadata_={},
+                identifier="",
+                source="APP",
+                user_id=None,
             )
         )
         span_rowid = await session.scalar(
@@ -314,5 +323,8 @@ async def abc_project(db: DbSessionFactory) -> None:
                 name="1",
                 label="0",
                 metadata_={},
+                identifier="",
+                source="APP",
+                user_id=None,
             )
         )

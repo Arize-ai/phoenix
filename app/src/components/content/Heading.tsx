@@ -1,9 +1,11 @@
-import React, { forwardRef, Ref } from "react";
+import { forwardRef, Ref } from "react";
 import {
   Heading as AriaHeading,
   HeadingProps as AriaHeadingProps,
 } from "react-aria-components";
 import { css } from "@emotion/react";
+
+import { classNames } from "@arizeai/components";
 
 import { headingBaseCSS, textBaseCSS } from "./styles";
 import { Weight } from "./types";
@@ -26,7 +28,7 @@ function Heading(props: HeadingProps, ref: Ref<HTMLHeadingElement>) {
     <AriaHeading
       {...otherProps}
       css={css(textBaseCSS, headingBaseCSS)}
-      className="ac-Heading"
+      className={classNames("ac-Heading", props.className)}
       ref={ref}
       level={level}
       data-level={level}

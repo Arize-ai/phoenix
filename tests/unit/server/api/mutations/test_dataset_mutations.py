@@ -54,7 +54,7 @@ async def test_create_dataset(
 
 class TestPatchDatasetMutation:
     MUTATION = """
-      mutation ($datasetId: GlobalID!, $name: String, $description: String, $metadata: JSON) {
+      mutation ($datasetId: ID!, $name: String, $description: String, $metadata: JSON) {
         patchDataset(
           input: {datasetId: $datasetId, name: $name, description: $description, metadata: $metadata}
         ) {
@@ -148,12 +148,12 @@ class TestPatchDatasetMutation:
 async def test_add_span_to_dataset(
     gql_client: AsyncGraphQLClient,
     empty_dataset: None,
-    spans: None,
+    spans: list[models.Span],
     span_annotation: None,
 ) -> None:
     dataset_id = GlobalID(type_name="Dataset", node_id=str(1))
     mutation = """
-      mutation ($datasetId: GlobalID!, $spanIds: [GlobalID!]!) {
+      mutation ($datasetId: ID!, $spanIds: [ID!]!) {
         addSpansToDataset(input: {datasetId: $datasetId, spanIds: $spanIds}) {
           dataset {
             id
@@ -176,10 +176,7 @@ async def test_add_span_to_dataset(
         query=mutation,
         variables={
             "datasetId": str(dataset_id),
-            "spanIds": [
-                str(GlobalID(type_name="Span", node_id=span_id))
-                for span_id in map(str, range(1, 4))
-            ],
+            "spanIds": [str(GlobalID(type_name="Span", node_id=str(span.id))) for span in spans],
         },
     )
     assert not response.errors
@@ -199,6 +196,7 @@ async def test_add_span_to_dataset(
                                     },
                                     "metadata": {
                                         "span_kind": "LLM",
+                                        "annotations": {},
                                     },
                                     "output": {
                                         "messages": [
@@ -225,6 +223,7 @@ async def test_add_span_to_dataset(
                                     },
                                     "metadata": {
                                         "span_kind": "RETRIEVER",
+                                        "annotations": {},
                                     },
                                 }
                             }
@@ -237,13 +236,18 @@ async def test_add_span_to_dataset(
                                     "metadata": {
                                         "span_kind": "CHAIN",
                                         "annotations": {
-                                            "test annotation": {
-                                                "label": "ambiguous",
-                                                "score": 0.5,
-                                                "explanation": "meaningful words",
-                                                "metadata": {},
-                                                "annotator_kind": "HUMAN",
-                                            }
+                                            "test annotation": [
+                                                {
+                                                    "label": "ambiguous",
+                                                    "score": 0.5,
+                                                    "explanation": "meaningful words",
+                                                    "metadata": {},
+                                                    "annotator_kind": "HUMAN",
+                                                    "user_id": None,
+                                                    "username": None,
+                                                    "email": None,
+                                                }
+                                            ]
                                         },
                                     },
                                 }
@@ -455,7 +459,7 @@ async def test_delete_a_dataset(
     dataset_id = GlobalID(type_name="Dataset", node_id=str(1))
     mutation = textwrap.dedent(
         """
-        mutation ($datasetId: GlobalID!) {
+        mutation ($datasetId: ID!) {
           deleteDataset(input: { datasetId: $datasetId }) {
             dataset {
               id
@@ -487,7 +491,7 @@ async def test_deleting_a_nonexistent_dataset_fails(gql_client: AsyncGraphQLClie
     dataset_id = GlobalID(type_name="Dataset", node_id=str(1))
     mutation = textwrap.dedent(
         """
-        mutation ($datasetId: GlobalID!) {
+        mutation ($datasetId: ID!) {
           deleteDataset(input: { datasetId: $datasetId }) {
             dataset {
               id
@@ -524,11 +528,12 @@ async def empty_dataset(db: DbSessionFactory) -> None:
 
 
 @pytest.fixture
-async def spans(db: DbSessionFactory) -> None:
+async def spans(db: DbSessionFactory) -> list[models.Span]:
     """
     Inserts three spans from a single trace: a chain root span, a retriever
     child span, and an llm child span.
     """
+    spans = []
     async with db() as session:
         project_row_id = await session.scalar(
             insert(models.Project).values(name=DEFAULT_PROJECT_NAME).returning(models.Project.id)
@@ -543,7 +548,7 @@ async def spans(db: DbSessionFactory) -> None:
             )
             .returning(models.Trace.id)
         )
-        await session.execute(
+        span = await session.scalar(
             insert(models.Span)
             .values(
                 trace_rowid=trace_row_id,
@@ -564,10 +569,13 @@ async def spans(db: DbSessionFactory) -> None:
                 cumulative_llm_token_count_prompt=0,
                 cumulative_llm_token_count_completion=0,
             )
-            .returning(models.Span.id)
+            .returning(models.Span)
         )
-        await session.execute(
-            insert(models.Span).values(
+        assert span is not None
+        spans.append(span)
+        span = await session.scalar(
+            insert(models.Span)
+            .values(
                 trace_rowid=trace_row_id,
                 span_id="2",
                 parent_id="1",
@@ -593,9 +601,13 @@ async def spans(db: DbSessionFactory) -> None:
                 cumulative_llm_token_count_prompt=0,
                 cumulative_llm_token_count_completion=0,
             )
+            .returning(models.Span)
         )
-        await session.execute(
-            insert(models.Span).values(
+        assert span is not None
+        spans.append(span)
+        span = await session.scalar(
+            insert(models.Span)
+            .values(
                 trace_rowid=trace_row_id,
                 span_id="3",
                 parent_id="1",
@@ -626,7 +638,11 @@ async def spans(db: DbSessionFactory) -> None:
                 cumulative_llm_token_count_prompt=0,
                 cumulative_llm_token_count_completion=0,
             )
+            .returning(models.Span)
         )
+        assert span is not None
+        spans.append(span)
+    return spans
 
 
 @pytest.fixture
@@ -639,6 +655,9 @@ async def span_annotation(db: DbSessionFactory) -> None:
             label="ambiguous",
             score=0.5,
             explanation="meaningful words",
+            identifier="",
+            source="APP",
+            user_id=None,
         )
         session.add(span_annotation)
         await session.flush()

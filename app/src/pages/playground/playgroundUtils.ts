@@ -6,6 +6,7 @@ import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { getTemplateFormatUtils } from "@phoenix/components/templateEditor/templateEditorUtils";
 import { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import {
+  ChatRoleMap,
   DEFAULT_CHAT_ROLE,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
@@ -51,7 +52,6 @@ import {
   InvocationParameterInput,
 } from "./__generated__/PlaygroundOutputSubscription.graphql";
 import {
-  ChatRoleMap,
   INPUT_MESSAGES_PARSING_ERROR,
   MODEL_CONFIG_PARSING_ERROR,
   MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR,
@@ -206,8 +206,15 @@ function processAttributeMessagesToChatMessage({
         message.tool_call_id != null
           ? getChatRole("tool")
           : getChatRole(message.role),
-      content:
-        typeof message.content === "string" ? message.content : undefined,
+      // TODO: truly support multi-part message contents
+      // for now, just take the first text based message if it exists
+      content: Array.isArray(message.contents)
+        ? (message.contents.find(
+            (content) => content.message_content.type === "text"
+          )?.message_content?.text ?? undefined)
+        : typeof message.content === "string"
+          ? message.content
+          : undefined,
       toolCalls: processAttributeToolCalls({
         provider,
         toolCalls: message.tool_calls,

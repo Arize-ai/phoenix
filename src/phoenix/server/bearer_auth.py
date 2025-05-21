@@ -20,9 +20,7 @@ from phoenix.auth import (
     Token,
 )
 from phoenix.config import get_env_phoenix_admin_secret
-from phoenix.db import enums
-from phoenix.db.enums import UserRole
-from phoenix.db.models import User as OrmUser
+from phoenix.db import enums, models
 from phoenix.server.types import (
     AccessToken,
     AccessTokenAttributes,
@@ -54,7 +52,7 @@ class BearerTokenAuthBackend(HasTokenStore, AuthenticationBackend):
                 return None
             if (
                 (admin_secret := get_env_phoenix_admin_secret())
-                and token == admin_secret
+                and token == str(admin_secret)
                 and config.SYSTEM_USER_ID is not None
             ):
                 return AuthCredentials(), PhoenixSystemUser(UserId(config.SYSTEM_USER_ID))
@@ -117,7 +115,7 @@ class ApiKeyInterceptor(HasTokenStore, AsyncServerInterceptor):
                     break
                 if (
                     (admin_secret := get_env_phoenix_admin_secret())
-                    and token == admin_secret
+                    and token == str(admin_secret)
                     and config.SYSTEM_USER_ID is not None
                 ):
                     return await method(request_or_iterator, context)
@@ -159,13 +157,13 @@ async def is_authenticated(
 async def create_access_and_refresh_tokens(
     *,
     token_store: TokenStore,
-    user: OrmUser,
+    user: models.User,
     access_token_expiry: timedelta,
     refresh_token_expiry: timedelta,
 ) -> tuple[AccessToken, RefreshToken]:
     issued_at = datetime.now(timezone.utc)
     user_id = UserId(user.id)
-    user_role = UserRole(user.role.name)
+    user_role = enums.UserRole(user.role.name)
     refresh_token_claims = RefreshTokenClaims(
         subject=user_id,
         issued_at=issued_at,

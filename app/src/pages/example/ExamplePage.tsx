@@ -1,4 +1,3 @@
-import React from "react";
 import { useNavigate, useParams } from "react-router";
 
 import { ExampleDetailsDialog } from "./ExampleDetailsDialog";

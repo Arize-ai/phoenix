@@ -1,4 +1,4 @@
-import React, {
+import {
   PropsWithChildren,
   ReactNode,
   Suspense,
@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   type ImperativePanelHandle,
@@ -60,6 +61,7 @@ import {
   Heading,
   Icon,
   Icons,
+  Keyboard,
   LazyTabPanel,
   LinkButton,
   Tab,
@@ -85,6 +87,7 @@ import {
   usePreferencesContext,
   useTheme,
 } from "@phoenix/contexts";
+import { useViewer } from "@phoenix/contexts/ViewerContext";
 import { useDimensions } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
@@ -162,6 +165,7 @@ const defaultCardProps: Partial<CardProps> = {
 
 const CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD = 900;
 const ASIDE_PANEL_DEFAULT_SIZE = 33;
+const EDIT_ANNOTATION_HOTKEY = "e";
 
 export function SpanDetails({
   spanNodeId,
@@ -181,13 +185,14 @@ export function SpanDetails({
   const asidePanelRef = useRef<ImperativePanelHandle>(null);
   const spanDetailsContainerRef = useRef<HTMLDivElement>(null);
   const spanDetailsContainerDimensions = useDimensions(spanDetailsContainerRef);
-  const isCondensedView =
-    spanDetailsContainerDimensions?.width &&
-    spanDetailsContainerDimensions.width <
-      CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD;
+  const isCondensedView = spanDetailsContainerDimensions?.width
+    ? spanDetailsContainerDimensions.width <
+      CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD
+    : true;
+  const { viewer } = useViewer();
   const { span } = useLazyLoadQuery<SpanDetailsQuery>(
     graphql`
-      query SpanDetailsQuery($id: GlobalID!) {
+      query SpanDetailsQuery($id: ID!, $filterUserIds: [ID]) {
         span: node(id: $id) {
           __typename
           ... on Span {
@@ -205,8 +210,6 @@ export function SpanDetails({
             parentId
             latencyMs
             tokenCountTotal
-            tokenCountPrompt
-            tokenCountCompletion
             startTime
             endTime
             id
@@ -243,13 +246,14 @@ export function SpanDetails({
             }
             ...SpanHeader_span
             ...SpanFeedback_annotations
-            ...SpanAside_span
+            ...SpanAside_span @arguments(filterUserIds: $filterUserIds)
           }
         }
       }
     `,
     {
       id: spanNodeId,
+      filterUserIds: viewer ? [viewer.id] : [null],
     }
   );
 
@@ -258,6 +262,16 @@ export function SpanDetails({
       "Expected a span, but got a different type" + span.__typename
     );
   }
+
+  useHotkeys(
+    EDIT_ANNOTATION_HOTKEY,
+    () => {
+      if (!isAnnotatingSpans) {
+        setIsAnnotatingSpans(true);
+      }
+    },
+    { preventDefault: true }
+  );
 
   const hasExceptions = useMemo<boolean>(() => {
     return spanHasException(span);
@@ -320,6 +334,12 @@ export function SpanDetails({
                     }
                   }}
                   leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+                  trailingVisual={
+                    !isCondensedView &&
+                    !isAnnotatingSpans && (
+                      <Keyboard>{EDIT_ANNOTATION_HOTKEY}</Keyboard>
+                    )
+                  }
                 >
                   {isCondensedView ? null : "Annotate"}
                 </ToggleButton>
@@ -333,8 +353,8 @@ export function SpanDetails({
           <Tabs>
             <TabList>
               <Tab id="info">Info</Tab>
-              <Tab id="feedback">
-                Feedback <Counter>{span.spanAnnotations.length}</Counter>
+              <Tab id="annotations">
+                Annotations <Counter>{span.spanAnnotations.length}</Counter>
               </Tab>
               <Tab id="attributes">Attributes</Tab>
               <Tab id="events">
@@ -353,7 +373,7 @@ export function SpanDetails({
                 </SpanInfoWrap>
               </Flex>
             </LazyTabPanel>
-            <LazyTabPanel id="feedback">
+            <LazyTabPanel id="annotations">
               <SpanFeedback span={span} />
             </LazyTabPanel>
             <LazyTabPanel id="attributes">
@@ -386,6 +406,8 @@ export function SpanDetails({
           order={2}
           ref={asidePanelRef}
           defaultSize={ASIDE_PANEL_DEFAULT_SIZE}
+          minSize={10}
+          collapsible
           onCollapse={() => {
             setIsAnnotatingSpans(false);
           }}
@@ -1139,11 +1161,9 @@ function EmbeddingSpanInfo(props: {
                         borderColor="purple-700"
                         title="Embedded Text"
                       >
-                        <View padding="size-200">
-                          <ConnectedMarkdownBlock>
-                            {embedding[EmbeddingAttributePostfixes.text] || ""}
-                          </ConnectedMarkdownBlock>
-                        </View>
+                        <ConnectedMarkdownBlock>
+                          {embedding[EmbeddingAttributePostfixes.text] || ""}
+                        </ConnectedMarkdownBlock>
                       </Card>
                     </MarkdownDisplayProvider>
                   </li>
@@ -1250,9 +1270,19 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                   <Text color="text-700" fontStyle="italic">
                     Parameters
                   </Text>
-                  <JSONBlock>
-                    {JSON.stringify(toolParameters) as string}
-                  </JSONBlock>
+                  <div
+                    css={css`
+                      .cm-editor {
+                        background-color: transparent !important;
+                      }
+                    `}
+                  >
+                    <JSONBlock
+                      basicSetup={{ lineNumbers: false, foldGutter: false }}
+                    >
+                      {JSON.stringify(toolParameters) as string}
+                    </JSONBlock>
+                  </div>
                 </Flex>
               </View>
             ) : null}
@@ -1309,9 +1339,7 @@ function DocumentItem({
     >
       <Flex direction="column">
         {documentContent && (
-          <View padding="size-200">
-            <ConnectedMarkdownBlock>{documentContent}</ConnectedMarkdownBlock>
-          </View>
+          <ConnectedMarkdownBlock>{documentContent}</ConnectedMarkdownBlock>
         )}
         {metadata && (
           <>
@@ -1450,9 +1478,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
       >
         <ErrorBoundary>
           {messagesContents ? (
-            <View padding="size-200">
-              <MessageContentsList messageContents={messagesContents} />
-            </View>
+            <MessageContentsList messageContents={messagesContents} />
           ) : null}
         </ErrorBoundary>
         <Flex direction="column" alignItems="start">
@@ -1495,7 +1521,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                   ) : null}
                 </DisclosureTrigger>
                 <DisclosurePanel>
-                  <View padding="size-200" width="100%">
+                  <View width="100%">
                     <ConnectedMarkdownBlock>
                       {messageContent}
                     </ConnectedMarkdownBlock>
@@ -1504,7 +1530,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
               </Disclosure>
             ) : // when the message is any other kind, just show the content without a disclosure
             messageContent ? (
-              <View padding="size-200" width="100%">
+              <View width="100%">
                 <ConnectedMarkdownBlock>
                   {messageContent}
                 </ConnectedMarkdownBlock>
@@ -1737,6 +1763,7 @@ function MessageContentsList({
  */
 const messageContentTextListItemCSS = css`
   flex: 1 1 100%;
+  padding: var(--ac-global-dimension-static-size-200);
 `;
 /**
  * Displays multi-modal message content. Typically an image or text.
@@ -1936,11 +1963,7 @@ function CodeBlock({ value, mimeType }: { value: string; mimeType: MimeType }) {
       content = <JSONBlock>{value}</JSONBlock>;
       break;
     case "text":
-      content = (
-        <View margin="size-200">
-          <ConnectedMarkdownBlock>{value}</ConnectedMarkdownBlock>
-        </View>
-      );
+      content = <ConnectedMarkdownBlock>{value}</ConnectedMarkdownBlock>;
       break;
     default:
       assertUnreachable(mimeType);

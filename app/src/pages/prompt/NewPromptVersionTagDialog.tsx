@@ -1,4 +1,4 @@
-import React from "react";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 
@@ -47,11 +47,11 @@ export function NewPromptVersionDialog({
       description: "",
     },
   });
-  const [error, setError] = React.useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [commitCreate, isCommitting] = useMutation(graphql`
     mutation NewPromptVersionTagDialogMutation(
       $input: SetPromptVersionTagInput!
-      $promptVersionId: GlobalID!
+      $promptVersionId: ID!
     ) {
       setPromptVersionTag(input: $input) {
         query {

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 import { schemePaired } from "d3-scale-chromatic";
 import {

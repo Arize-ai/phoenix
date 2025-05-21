@@ -1,4 +1,4 @@
-import React, { RefObject, useCallback, useState } from "react";
+import { RefObject, useCallback, useState } from "react";
 import copy from "copy-to-clipboard";
 import { css } from "@emotion/react";
 

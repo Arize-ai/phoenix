@@ -24,6 +24,18 @@ export function useViewer() {
   return context;
 }
 
+/**
+ * Returns true if the viewer can manage retention policies
+ * Note: when the app is not configured with auth, we assume the user is an admin
+ */
+export function useViewerCanManageRetentionPolicy() {
+  const { viewer } = useViewer();
+  if (viewer && viewer?.role?.name !== "ADMIN") {
+    return false;
+  }
+  return true;
+}
+
 export function ViewerProvider({
   query,
   children,

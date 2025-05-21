@@ -1,4 +1,3 @@
-import React from "react";
 import { Controller, useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
@@ -46,8 +45,8 @@ export function UserForm({
     defaultValues: {
       email: email ?? "",
       username: username ?? "",
-      password: password ?? "",
-      confirmPassword: "",
+      password: password ?? undefined,
+      confirmPassword: undefined,
       role: role ?? UserRole.MEMBER,
     },
   });
@@ -105,7 +104,7 @@ export function UserForm({
               name="username"
               control={control}
               rules={{
-                required: "Email is required",
+                required: "Username is required",
               }}
               render={({
                 field: { name, onChange, onBlur, value },
@@ -129,78 +128,80 @@ export function UserForm({
                 </TextField>
               )}
             />
-            <Controller
-              name="password"
-              control={control}
-              rules={{
-                required: "Password is required",
-                minLength: {
-                  value: MIN_PASSWORD_LENGTH,
-                  message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
-                },
-              }}
-              render={({
-                field: { name, onChange, onBlur, value },
-                fieldState: { invalid, error },
-              }) => (
-                <TextField
-                  type="password"
-                  isRequired
-                  name={name}
-                  isInvalid={invalid}
-                  onChange={onChange}
-                  onBlur={onBlur}
-                  defaultValue={value}
-                  autoComplete="new-password"
-                >
-                  <Label>Password</Label>
-                  <Input />
-                  {error ? (
-                    <FieldError>{error?.message}</FieldError>
-                  ) : (
-                    <Text slot="description">
-                      Password must be at least 4 characters
-                    </Text>
-                  )}
-                </TextField>
-              )}
-            />
-            <Controller
-              name="confirmPassword"
-              control={control}
-              rules={{
-                required: "Please confirm your password",
-                minLength: {
-                  value: MIN_PASSWORD_LENGTH,
-                  message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
-                },
-                validate: (value, formValues) =>
-                  value === formValues.password || "Passwords do not match",
-              }}
-              render={({
-                field: { name, onChange, onBlur, value },
-                fieldState: { invalid, error },
-              }) => (
-                <TextField
-                  isRequired
-                  type="password"
-                  name={name}
-                  isInvalid={invalid}
-                  onChange={onChange}
-                  onBlur={onBlur}
-                  defaultValue={value ?? undefined}
-                  autoComplete="new-password"
-                >
-                  <Label>Confirm Password</Label>
-                  <Input />
-                  {error ? (
-                    <FieldError>{error?.message}</FieldError>
-                  ) : (
-                    <Text slot="description">Confirm the new password</Text>
-                  )}
-                </TextField>
-              )}
-            />
+            <>
+              <Controller
+                name="password"
+                control={control}
+                rules={{
+                  required: "Password is required",
+                  minLength: {
+                    value: MIN_PASSWORD_LENGTH,
+                    message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+                  },
+                }}
+                render={({
+                  field: { name, onChange, onBlur, value },
+                  fieldState: { invalid, error },
+                }) => (
+                  <TextField
+                    type="password"
+                    isRequired
+                    name={name}
+                    isInvalid={invalid}
+                    onChange={onChange}
+                    onBlur={onBlur}
+                    defaultValue={value}
+                    autoComplete="new-password"
+                  >
+                    <Label>Password</Label>
+                    <Input />
+                    {error ? (
+                      <FieldError>{error?.message}</FieldError>
+                    ) : (
+                      <Text slot="description">
+                        Password must be at least 4 characters
+                      </Text>
+                    )}
+                  </TextField>
+                )}
+              />
+              <Controller
+                name="confirmPassword"
+                control={control}
+                rules={{
+                  required: "Please confirm your password",
+                  minLength: {
+                    value: MIN_PASSWORD_LENGTH,
+                    message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+                  },
+                  validate: (value, formValues) =>
+                    value === formValues.password || "Passwords do not match",
+                }}
+                render={({
+                  field: { name, onChange, onBlur, value },
+                  fieldState: { invalid, error },
+                }) => (
+                  <TextField
+                    isRequired
+                    type="password"
+                    name={name}
+                    isInvalid={invalid}
+                    onChange={onChange}
+                    onBlur={onBlur}
+                    defaultValue={value ?? undefined}
+                    autoComplete="new-password"
+                  >
+                    <Label>Confirm Password</Label>
+                    <Input />
+                    {error ? (
+                      <FieldError>{error?.message}</FieldError>
+                    ) : (
+                      <Text slot="description">Confirm the new password</Text>
+                    )}
+                  </TextField>
+                )}
+              />
+            </>
             <Controller
               name="role"
               control={control}

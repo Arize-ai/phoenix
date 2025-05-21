@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1709894a180a129cac5260d9f176a087>>
+ * @generated SignedSource<<197809f61b1e85d0f1826745dcc78391>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -175,16 +175,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7e89f99f940098a21985137aae870de7",
+    "cacheID": "a4d84e3d679b6cf88d5bdd7ffeb93e5c",
     "id": null,
     "metadata": {},
     "name": "experimentCompareLoaderQuery",
     "operationKind": "query",
-    "text": "query experimentCompareLoaderQuery(\n  $id: GlobalID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      ...ExperimentMultiSelector__experiments\n    }\n  }\n}\n\nfragment ExperimentMultiSelector__experiments on Dataset {\n  experiments {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        createdAt\n      }\n    }\n  }\n}\n"
+    "text": "query experimentCompareLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      ...ExperimentMultiSelector__experiments\n    }\n  }\n}\n\nfragment ExperimentMultiSelector__experiments on Dataset {\n  experiments {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        createdAt\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "fa02088830fd16688f0f2fba9a0009eb";
+(node as any).hash = "48c80af5acd90311202cfc21077cc547";
 
 export default node;

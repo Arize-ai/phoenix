@@ -1,4 +1,4 @@
-import React, { PropsWithChildren } from "react";
+import { PropsWithChildren } from "react";
 import { css } from "@emotion/react";
 
 import { View } from "@phoenix/components";
@@ -53,7 +53,7 @@ export function AuthLayout({ children }: PropsWithChildren) {
         `}
       >
         <a href="https://docs.arize.com/phoenix">Documentation</a>|
-        <a href="https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q">
+        <a href="https://arize-ai.slack.com/join/shared_invite/zt-2w57bhem8-hq24MB6u7yE_ZF_ilOYSBw#/shared-invite/email">
           Community
         </a>
         |<a href="https://twitter.com/ArizePhoenix">Social</a>|

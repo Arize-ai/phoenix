@@ -1,19 +1,27 @@
-import React, { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { graphql, useFragment } from "react-relay";
 import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
+  getSortedRowModel,
+  SortingState,
   useReactTable,
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
 import { JSONText } from "@phoenix/components/code/JSONText";
+import { Icons } from "@phoenix/components/icon";
+import { Icon } from "@phoenix/components/icon/Icon";
+import { Flex } from "@phoenix/components/layout/Flex";
 import { PreformattedTextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { AnnotatorKindToken } from "@phoenix/components/trace/AnnotatorKindToken";
 import { SpanAnnotationActionMenu } from "@phoenix/components/trace/SpanAnnotationActionMenu";
+import { UserPicture } from "@phoenix/components/user/UserPicture";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 import {
@@ -63,6 +71,25 @@ function SpanAnnotationsTable({
         },
       },
       {
+        header: "user",
+        accessorKey: "user",
+        size: 100,
+        cell: ({ row }) => {
+          const user = row.original.user;
+          const userName = user?.username || "system";
+          return (
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <UserPicture
+                name={userName}
+                profilePictureUrl={user?.profilePictureUrl || null}
+                size={18}
+              />
+              <span>{userName}</span>
+            </Flex>
+          );
+        },
+      },
+      {
         header: "label",
         accessorKey: "label",
         size: 100,
@@ -79,6 +106,16 @@ function SpanAnnotationsTable({
         size: 400,
       },
       {
+        header: "source",
+        accessorKey: "source",
+        size: 100,
+      },
+      {
+        header: "identifier",
+        accessorKey: "identifier",
+        size: 100,
+      },
+      {
         header: "metadata",
         accessorKey: "metadata",
         minSize: 100,
@@ -90,6 +127,18 @@ function SpanAnnotationsTable({
             "--"
           );
         },
+      },
+      {
+        header: "created at",
+        accessorKey: "createdAt",
+        size: 100,
+        cell: TimestampCell,
+      },
+      {
+        header: "updated at",
+        accessorKey: "updatedAt",
+        size: 100,
+        cell: TimestampCell,
       },
       {
         header: "",
@@ -118,10 +167,18 @@ function SpanAnnotationsTable({
     [notifyError, notifySuccess]
   );
 
+  const [sorting, setSorting] = useState<SortingState>([
+    { id: "createdAt", desc: true },
+  ]);
   const table = useReactTable({
     columns,
     data: tableData,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    onSortingChange: setSorting,
+    state: {
+      sorting,
+    },
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
@@ -136,10 +193,39 @@ function SpanAnnotationsTable({
                 <th colSpan={header.colSpan} key={header.id}>
                   {header.isPlaceholder ? null : (
                     <>
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
+                      <div
+                        {...{
+                          className: header.column.getCanSort()
+                            ? "cursor-pointer"
+                            : "",
+                          onClick: header.column.getToggleSortingHandler(),
+                          style: {
+                            display: "flex",
+                            alignItems: "center",
+                            left: header.getStart(),
+                            width: header.getSize(),
+                          },
+                        }}
+                      >
+                        <Truncate maxWidth="100%">
+                          {flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                        </Truncate>
+                        {header.column.getIsSorted() ? (
+                          <Icon
+                            className="sort-icon"
+                            svg={
+                              header.column.getIsSorted() === "asc" ? (
+                                <Icons.ArrowUpFilled />
+                              ) : (
+                                <Icons.ArrowDownFilled />
+                              )
+                            }
+                          />
+                        ) : null}
+                      </div>
                     </>
                   )}
                 </th>
@@ -185,6 +271,15 @@ export function SpanFeedback({ span }: { span: SpanFeedback_annotations$key }) {
           explanation
           metadata
           annotatorKind
+          identifier
+          source
+          createdAt
+          updatedAt
+          user {
+            id
+            username
+            profilePictureUrl
+          }
         }
       }
     `,

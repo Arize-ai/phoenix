@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { css } from "@emotion/react";
@@ -14,6 +14,7 @@ import {
 } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
 import { resizeHandleCSS } from "@phoenix/components/resize";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useNotifySuccess } from "@phoenix/contexts";
 
 import type { ExampleDetailsDialogQuery } from "./__generated__/ExampleDetailsDialogQuery.graphql";
@@ -33,7 +34,7 @@ export function ExampleDetailsDialog({
   const [fetchKey, setFetchKey] = useState(0);
   const data = useLazyLoadQuery<ExampleDetailsDialogQuery>(
     graphql`
-      query ExampleDetailsDialogQuery($exampleId: GlobalID!) {
+      query ExampleDetailsDialogQuery($exampleId: ID!) {
         example: node(id: $exampleId) {
           ... on DatasetExample {
             id
@@ -91,7 +92,7 @@ export function ExampleDetailsDialog({
             {sourceSpanInfo ? (
               <LinkButton
                 size="S"
-                to={`/projects/${sourceSpanInfo.projectId}/traces/${sourceSpanInfo.traceId}?selectedSpanNodeId=${sourceSpanInfo.id}`}
+                to={`/projects/${sourceSpanInfo.projectId}/traces/${sourceSpanInfo.traceId}?${SELECTED_SPAN_NODE_ID_PARAM}=${sourceSpanInfo.id}`}
               >
                 View Source Span
               </LinkButton>

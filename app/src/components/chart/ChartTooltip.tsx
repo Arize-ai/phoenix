@@ -1,7 +1,8 @@
-import React, { PropsWithChildren } from "react";
+import { PropsWithChildren } from "react";
 import { css } from "@emotion/react";
 
 import { Text } from "@phoenix/components";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 
 /**
  * Component that renders a small preview of the plot item
@@ -67,7 +68,9 @@ export function ChartTooltipItem(props: ChartTooltipItemProps) {
         `}
       >
         <PreviewShape color={props.color} shape={props.shape ?? "line"} />
-        <Text>{props.name}</Text>
+        <Text title={props.name}>
+          <Truncate maxWidth="120px">{props.name}</Truncate>
+        </Text>
       </div>
       <Text>{props.value}</Text>
     </div>

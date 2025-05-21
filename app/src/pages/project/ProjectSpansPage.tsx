@@ -1,10 +1,11 @@
-import React, { Suspense } from "react";
+import { Suspense } from "react";
 import { PreloadedQuery, usePreloadedQuery } from "react-relay";
 import { Outlet } from "react-router";
 
 import { Loading } from "@phoenix/components";
 import { SpanFilterConditionProvider } from "@phoenix/pages/project/SpanFilterConditionContext";
 import { SpansTable } from "@phoenix/pages/project/SpansTable";
+import { TracePaginationProvider } from "@phoenix/pages/trace/TracePaginationContext";
 import { TracingRoot } from "@phoenix/pages/TracingRoot";
 
 import { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageQueriesSpansQuery.graphql";
@@ -29,14 +30,16 @@ export const ProjectSpansPage = () => {
   }
   return (
     <TracingRoot>
-      <SpanFilterConditionProvider>
-        <Suspense fallback={<Loading />}>
-          <SpansTabContent queryReference={spansQueryReference} />
+      <TracePaginationProvider>
+        <SpanFilterConditionProvider>
+          <Suspense fallback={<Loading />}>
+            <SpansTabContent queryReference={spansQueryReference} />
+          </Suspense>
+        </SpanFilterConditionProvider>
+        <Suspense>
+          <Outlet />
         </Suspense>
-      </SpanFilterConditionProvider>
-      <Suspense>
-        <Outlet />
-      </Suspense>
+      </TracePaginationProvider>
     </TracingRoot>
   );
 };

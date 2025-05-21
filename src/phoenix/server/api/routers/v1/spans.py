@@ -1,3 +1,4 @@
+import warnings
 from asyncio import get_running_loop
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
@@ -20,6 +21,7 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.db.insertion.types import Precursors
 from phoenix.server.api.routers.utils import df_to_bytes
+from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanAnnotationInsertEvent
 from phoenix.trace.dsl import SpanQuery as SpanQuery_
 from phoenix.utilities.json import encode_df_as_json_string
@@ -47,6 +49,7 @@ class QuerySpansRequestBody(V1RoutesBaseModel):
     end_time: Optional[datetime] = None
     limit: int = DEFAULT_SPAN_LIMIT
     root_spans_only: Optional[bool] = None
+    orphan_span_as_root_span: bool = True
     project_name: Optional[str] = Field(
         default=None,
         description=(
@@ -116,6 +119,7 @@ async def query_spans_handler(
                     ),
                     limit=request_body.limit,
                     root_spans_only=request_body.root_spans_only,
+                    orphan_span_as_root_span=request_body.orphan_span_as_root_span,
                 )
             )
     if not results:
@@ -169,10 +173,10 @@ class SpanAnnotationResult(V1RoutesBaseModel):
     )
 
 
-class SpanAnnotation(V1RoutesBaseModel):
+class SpanAnnotationData(V1RoutesBaseModel):
     span_id: str = Field(description="OpenTelemetry Span ID (hex format w/o 0x prefix)")
     name: str = Field(description="The name of the annotation")
-    annotator_kind: Literal["LLM", "HUMAN"] = Field(
+    annotator_kind: Literal["LLM", "CODE", "HUMAN"] = Field(
         description="The kind of annotator used for the annotation"
     )
     result: Optional[SpanAnnotationResult] = Field(
@@ -181,8 +185,15 @@ class SpanAnnotation(V1RoutesBaseModel):
     metadata: Optional[dict[str, Any]] = Field(
         default=None, description="Metadata for the annotation"
     )
+    identifier: str = Field(
+        default="",
+        description=(
+            "The identifier of the annotation. "
+            "If provided, the annotation will be updated if it already exists."
+        ),
+    )
 
-    def as_precursor(self) -> Precursors.SpanAnnotation:
+    def as_precursor(self, *, user_id: Optional[int] = None) -> Precursors.SpanAnnotation:
         return Precursors.SpanAnnotation(
             self.span_id,
             models.SpanAnnotation(
@@ -192,12 +203,15 @@ class SpanAnnotation(V1RoutesBaseModel):
                 label=self.result.label if self.result else None,
                 explanation=self.result.explanation if self.result else None,
                 metadata_=self.metadata or {},
+                identifier=self.identifier,
+                source="API",
+                user_id=user_id,
             ),
         )
 
 
-class AnnotateSpansRequestBody(RequestBody[list[SpanAnnotation]]):
-    data: list[SpanAnnotation]
+class AnnotateSpansRequestBody(RequestBody[list[SpanAnnotationData]]):
+    data: list[SpanAnnotationData]
 
 
 class InsertedSpanAnnotation(V1RoutesBaseModel):
@@ -211,7 +225,7 @@ class AnnotateSpansResponseBody(ResponseBody[list[InsertedSpanAnnotation]]):
 @router.post(
     "/span_annotations",
     operation_id="annotateSpans",
-    summary="Create or update span annotations",
+    summary="Create span annotations",
     responses=add_errors_to_responses(
         [{"status_code": HTTP_404_NOT_FOUND, "description": "Span not found"}]
     ),
@@ -225,7 +239,22 @@ async def annotate_spans(
 ) -> AnnotateSpansResponseBody:
     if not request_body.data:
         return AnnotateSpansResponseBody(data=[])
-    precursors = [d.as_precursor() for d in request_body.data]
+
+    user_id: Optional[int] = None
+    if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
+        user_id = int(request.user.identity)
+
+    span_annotations = request_body.data
+    filtered_span_annotations = list(filter(lambda d: d.name != "note", span_annotations))
+    if len(filtered_span_annotations) != len(span_annotations):
+        warnings.warn(
+            (
+                "Span annotations with the name 'note' are not supported in this endpoint. "
+                "They will be ignored."
+            ),
+            UserWarning,
+        )
+    precursors = [d.as_precursor(user_id=user_id) for d in filtered_span_annotations]
     if not sync:
         await request.state.enqueue(*precursors)
         return AnnotateSpansResponseBody(data=[])
@@ -254,7 +283,7 @@ async def annotate_spans(
                     values,
                     dialect=dialect,
                     table=models.SpanAnnotation,
-                    unique_by=("name", "span_rowid"),
+                    unique_by=("name", "span_rowid", "identifier"),
                 ).returning(models.SpanAnnotation.id)
             )
             inserted_ids.append(span_annotation_id)

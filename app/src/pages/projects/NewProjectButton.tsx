@@ -1,9 +1,10 @@
-import React, { ReactNode, useState } from "react";
+import { ReactNode, useState } from "react";
 
 import { Dialog, DialogContainer } from "@arizeai/components";
 
 import {
   Button,
+  ButtonProps,
   ExternalLink,
   Icon,
   Icons,
@@ -18,13 +19,17 @@ import { PythonProjectGuide } from "../../components/project/PythonProjectGuide"
 const PHOENIX_OTEL_DOC_LINK =
   "https://docs.arize.com/phoenix/tracing/how-to-tracing/setup-tracing";
 
-export function NewProjectButton() {
+type NewProjectButtonProps = {
+  variant?: ButtonProps["variant"];
+};
+export function NewProjectButton({ variant }: NewProjectButtonProps) {
   const [dialog, setDialog] = useState<ReactNode>(null);
   return (
     <div>
       <Button
         leadingVisual={<Icon svg={<Icons.GridOutline />} />}
         size="S"
+        variant={variant}
         onPress={() => {
           setDialog(<NewProjectDialog />);
         }}

@@ -9,6 +9,7 @@ from typing import Optional
 
 from sqlalchemy import (
     distinct,
+    exists,
     insert,
     select,
 )
@@ -25,9 +26,16 @@ from phoenix.auth import (
 from phoenix.config import (
     get_env_admins,
     get_env_default_admin_initial_password,
+    get_env_disable_basic_auth,
 )
 from phoenix.db import models
+from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.enums import COLUMN_ENUMS, UserRole
+from phoenix.db.types.trace_retention import (
+    MaxDaysRule,
+    TraceRetentionCronExpression,
+    TraceRetentionRule,
+)
 from phoenix.server.email.types import WelcomeEmailSender
 from phoenix.server.types import DbSessionFactory
 
@@ -57,6 +65,7 @@ class Facilitator:
             _ensure_user_roles,
             _get_system_user_id,
             partial(_ensure_admins, email_sender=self._email_sender),
+            _ensure_default_project_trace_retention_policy,
         ):
             await fn(self._db)
 
@@ -103,7 +112,7 @@ async def _ensure_user_roles(db: DbSessionFactory) -> None:
         if (system_role := UserRole.SYSTEM.value) not in existing_roles and (
             system_role_id := role_ids.get(system_role)
         ) is not None:
-            system_user = models.User(
+            system_user = models.LocalUser(
                 user_role_id=system_role_id,
                 username=DEFAULT_SYSTEM_USERNAME,
                 email=DEFAULT_SYSTEM_EMAIL,
@@ -120,7 +129,7 @@ async def _ensure_user_roles(db: DbSessionFactory) -> None:
             compute = partial(compute_password_hash, password=password, salt=salt)
             loop = asyncio.get_running_loop()
             hash_ = await loop.run_in_executor(None, compute)
-            admin_user = models.User(
+            admin_user = models.LocalUser(
                 user_role_id=admin_role_id,
                 username=DEFAULT_ADMIN_USERNAME,
                 email=DEFAULT_ADMIN_EMAIL,
@@ -160,6 +169,7 @@ async def _ensure_admins(
     """
     if not (admins := get_env_admins()):
         return
+    disable_basic_auth = get_env_disable_basic_auth()
     async with db() as session:
         existing_emails = set(
             await session.scalars(
@@ -187,16 +197,23 @@ async def _ensure_admins(
             select(models.UserRole.id).filter_by(name=UserRole.ADMIN.value)
         )
         assert admin_role_id is not None, "Admin role not found in database"
+        user: models.User
         for email, username in admins.items():
-            values = dict(
-                user_role_id=admin_role_id,
-                username=username,
-                email=email,
-                password_salt=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
-                password_hash=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
-                reset_password=True,
-            )
-            await session.execute(insert(models.User).values(values))
+            if not disable_basic_auth:
+                user = models.LocalUser(
+                    email=email,
+                    username=username,
+                    password_salt=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
+                    password_hash=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
+                )
+            else:
+                user = models.OAuth2User(
+                    email=email,
+                    username=username,
+                )
+            user.user_role_id = admin_role_id
+            session.add(user)
+        await session.flush()
     if email_sender is None:
         return
     for exc in await gather(
@@ -205,3 +222,50 @@ async def _ensure_admins(
     ):
         if isinstance(exc, Exception):
             logger.error(f"Failed to send welcome email: {exc}")
+
+
+async def _ensure_default_project_trace_retention_policy(db: DbSessionFactory) -> None:
+    """
+    Ensures the default trace retention policy (id=1) exists in the database. Default policy
+    applies to all projects without a specific policy (i.e. foreign key is null).
+
+    This function checks for the presence of the default trace retention policy and
+    creates it if missing. The default trace retention policy:
+
+        - Has ID=0
+        - Is named "Default"
+        - Runs every Sunday at midnight UTC (cron: "0 0 * * 0")
+        - Retains traces indefinitely
+
+    If the default policy already exists, this function makes no changes.
+
+    Args:
+        db (DbSessionFactory): An async SQLAlchemy session factory.
+
+    Returns:
+        None
+    """
+    assert DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID == 0
+    async with db() as session:
+        if await session.scalar(
+            select(
+                exists().where(
+                    models.ProjectTraceRetentionPolicy.id
+                    == DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
+                )
+            )
+        ):
+            return
+        cron_expression = TraceRetentionCronExpression(root="0 0 * * 0")
+        rule = TraceRetentionRule(root=MaxDaysRule(max_days=0))
+        await session.execute(
+            insert(models.ProjectTraceRetentionPolicy),
+            [
+                {
+                    "id": DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID,
+                    "name": "Default",
+                    "cron_expression": cron_expression,
+                    "rule": rule,
+                }
+            ],
+        )

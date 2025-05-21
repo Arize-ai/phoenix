@@ -1,4 +1,3 @@
-import React from "react";
 import { css, Global } from "@emotion/react";
 
 import { useProvider } from "@arizeai/components";
@@ -1200,6 +1199,17 @@ const codeMirrorOverridesCSS = css`
   }
 `;
 
+const ReactGridLayoutCSS = css`
+  .react-grid-item.react-grid-placeholder {
+    // the placeholder doesn't look good
+    background: var(--ac-global-color-blue-500);
+    opacity: 0.1;
+  }
+  .ac-theme--dark .react-resizable-handle {
+    filter: invert(1);
+  }
+`;
+
 export function GlobalStyles() {
   const { theme = "dark" } = useProvider();
   const themeCSS = theme === "dark" ? darkThemeCSS : lightThemeCSS;
@@ -1213,7 +1223,8 @@ export function GlobalStyles() {
         mediumRootCSS,
         opacitiesCSS,
         appGlobalStylesCSS,
-        codeMirrorOverridesCSS
+        codeMirrorOverridesCSS,
+        ReactGridLayoutCSS
       )}
     />
   );

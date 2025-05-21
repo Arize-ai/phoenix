@@ -7,6 +7,7 @@ import {
   RecordSource,
   Store,
 } from "relay-runtime";
+import invariant from "tiny-invariant";
 
 import { authFetch } from "@phoenix/authFetch";
 import { BASE_URL } from "@phoenix/config";
@@ -39,7 +40,10 @@ function fetchJsonObservable<T>(
     const controller = new AbortController();
 
     graphQLFetch(input, { ...init, signal: controller.signal })
-      .then((response) => response.json())
+      .then((response) => {
+        invariant(response instanceof Response, "response must be a Response");
+        return response.json();
+      })
       .then((data) => {
         const error = hasErrors?.(data);
         if (error) {
@@ -101,7 +105,7 @@ const fetchRelay: FetchFunction = (params, variables, _cacheConfig) =>
     }
   );
 
-const subscribe = createFetchMultipartSubscription("/graphql", {
+const subscribe = createFetchMultipartSubscription(graphQLPath, {
   fetch: graphQLFetch,
 });
 
@@ -113,6 +117,6 @@ export default new Environment({
     // navigates around the app. Relay will hold onto the specified number of
     // query results, allowing the user to return to recently visited pages
     // and reusing cached data if its available/fresh.
-    gcReleaseBufferSize: 10,
+    gcReleaseBufferSize: 20,
   }),
 });

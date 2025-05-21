@@ -1,4 +1,3 @@
-import React from "react";
 import {
   createBrowserRouter,
   createRoutesFromElements,
@@ -9,8 +8,22 @@ import { RouterProvider } from "react-router/dom";
 
 import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvidersPage";
 import { settingsAIProvidersPageLoader } from "@phoenix/pages/settings/settingsAIProvidersPageLoader";
+import { SettingsAnnotationsPage } from "@phoenix/pages/settings/SettingsAnnotationsPage";
+import { settingsAnnotationsPageLoader } from "@phoenix/pages/settings/settingsAnnotationsPageLoader";
+import { SettingsDataPage } from "@phoenix/pages/settings/SettingsDataPage";
 import { SettingsGeneralPage } from "@phoenix/pages/settings/SettingsGeneralPage";
 
+import {
+  DashboardPage,
+  projectDashboardLoader,
+  ProjectDashboardPage,
+} from "./pages/dashboard";
+import { projectDashboardLoaderQuery$data } from "./pages/dashboard/__generated__/projectDashboardLoaderQuery.graphql";
+import {
+  dashboardsLoader,
+  DashboardsPage,
+  DashboardsRoot,
+} from "./pages/dashboards";
 import { datasetLoaderQuery$data } from "./pages/dataset/__generated__/datasetLoaderQuery.graphql";
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
 import { Layout } from "./pages/Layout";
@@ -28,6 +41,7 @@ import { PromptVersionDetailsPage } from "./pages/prompt/PromptVersionDetailsPag
 import { promptVersionLoader } from "./pages/prompt/promptVersionLoader";
 import { promptVersionsLoader } from "./pages/prompt/promptVersionsLoader";
 import { PromptVersionsPage } from "./pages/prompt/PromptVersionsPage";
+import { settingsDataPageLoader } from "./pages/settings/settingsDataPageLoader";
 import { sessionLoader } from "./pages/trace/sessionLoader";
 import { SessionPage } from "./pages/trace/SessionPage";
 import {
@@ -51,6 +65,7 @@ import {
   ExperimentsPage,
   ForgotPasswordPage,
   homeLoader,
+  LoggedOutPage,
   LoginPage,
   ModelPage,
   ModelRoot,
@@ -78,7 +93,6 @@ import {
   SupportPage,
   TracePage,
 } from "./pages";
-
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path="/" errorElement={<ErrorElement />}>
@@ -91,6 +105,7 @@ const router = createBrowserRouter(
       */}
       <Route path="/v1/*" element={<Navigate to="/" replace />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/logout" element={<LoggedOutPage />} />
       <Route
         path="/reset-password"
         element={<ResetPasswordPage />}
@@ -172,6 +187,34 @@ const router = createBrowserRouter(
                 <Route path="config" element={<ProjectConfigPage />} />
               </Route>
             </Route>
+          </Route>
+          <Route
+            path="/dashboards"
+            handle={{ crumb: () => "dashboards" }}
+            element={<DashboardsRoot />}
+          >
+            <Route
+              index
+              element={<DashboardsPage />}
+              loader={dashboardsLoader}
+            />
+            <Route
+              path="projects/:projectId"
+              element={<ProjectDashboardPage />}
+              loader={projectDashboardLoader}
+              handle={{
+                crumb: (data: projectDashboardLoaderQuery$data) =>
+                  data.project.name,
+              }}
+            />
+            <Route
+              path=":dashboardId"
+              handle={{
+                // TODO: add dashboard name
+                crumb: () => "dashboard",
+              }}
+              element={<DashboardPage />}
+            />
           </Route>
           <Route path="/datasets" handle={{ crumb: () => "datasets" }}>
             <Route index element={<DatasetsPage />} />
@@ -319,6 +362,22 @@ const router = createBrowserRouter(
               handle={{
                 crumb: () => "providers",
               }}
+            />
+            <Route
+              path="annotations"
+              loader={settingsAnnotationsPageLoader}
+              element={<SettingsAnnotationsPage />}
+              handle={{
+                crumb: () => "annotations",
+              }}
+            />
+            <Route
+              path="data"
+              element={<SettingsDataPage />}
+              handle={{
+                crumb: () => "data retention",
+              }}
+              loader={settingsDataPageLoader}
             />
           </Route>
         </Route>

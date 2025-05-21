@@ -1,11 +1,11 @@
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, Type, Union, cast
 
 import pandas as pd
 from aioitertools.itertools import groupby
 from cachetools import LFUCache, TTLCache
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import Select, and_, case, distinct, func, or_, select
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias, assert_never
 
@@ -92,7 +92,7 @@ class AnnotationSummaryDataLoader(DataLoader[Key, Result]):
             async with self._db() as session:
                 data = await session.stream(stmt)
                 async for annotation_name, group in groupby(data, lambda row: row.name):
-                    summary = AnnotationSummary(pd.DataFrame(group))
+                    summary = AnnotationSummary(name=annotation_name, df=pd.DataFrame(group))
                     for position in params[annotation_name]:
                         results[position] = summary
         return results
@@ -103,23 +103,64 @@ def _get_stmt(
     *annotation_names: Param,
 ) -> Select[Any]:
     kind, project_rowid, (start_time, end_time), filter_condition = segment
-    stmt = select()
+
+    annotation_model: Union[Type[models.SpanAnnotation], Type[models.TraceAnnotation]]
+    entity_model: Union[Type[models.Span], Type[models.Trace]]
+    entity_join_model: Optional[Type[models.Base]]
+    entity_id_column: Any
+
     if kind == "span":
-        msa = models.SpanAnnotation
-        name_column, label_column, score_column = msa.name, msa.label, msa.score
-        time_column = models.Span.start_time
-        stmt = stmt.join(models.Span).join_from(models.Span, models.Trace)
-        if filter_condition:
-            sf = SpanFilter(filter_condition)
-            stmt = sf(stmt)
+        annotation_model = models.SpanAnnotation
+        entity_model = models.Span
+        entity_join_model = models.Trace
+        entity_id_column = models.Span.id.label("entity_id")
     elif kind == "trace":
-        mta = models.TraceAnnotation
-        name_column, label_column, score_column = mta.name, mta.label, mta.score
-        time_column = models.Trace.start_time
-        stmt = stmt.join(models.Trace)
+        annotation_model = models.TraceAnnotation
+        entity_model = models.Trace
+        entity_join_model = None
+        entity_id_column = models.Trace.id.label("entity_id")
     else:
         assert_never(kind)
-    stmt = stmt.add_columns(
+
+    name_column = annotation_model.name
+    label_column = annotation_model.label
+    score_column = annotation_model.score
+    time_column = entity_model.start_time
+
+    # First query: count distinct entities per annotation name
+    # This is used later to calculate accurate fractions that account for entities without labels
+    entity_count_query = select(
+        name_column, func.count(distinct(entity_id_column)).label("entity_count")
+    )
+
+    if kind == "span":
+        entity_count_query = entity_count_query.join(cast(Type[models.Span], entity_model))
+        entity_count_query = entity_count_query.join_from(
+            cast(Type[models.Span], entity_model), cast(Type[models.Trace], entity_join_model)
+        )
+        entity_count_query = entity_count_query.where(models.Trace.project_rowid == project_rowid)
+    elif kind == "trace":
+        entity_count_query = entity_count_query.join(cast(Type[models.Trace], entity_model))
+        entity_count_query = entity_count_query.where(
+            cast(Type[models.Trace], entity_model).project_rowid == project_rowid
+        )
+
+    entity_count_query = entity_count_query.where(
+        or_(score_column.is_not(None), label_column.is_not(None))
+    )
+    entity_count_query = entity_count_query.where(name_column.in_(annotation_names))
+
+    if start_time:
+        entity_count_query = entity_count_query.where(start_time <= time_column)
+    if end_time:
+        entity_count_query = entity_count_query.where(time_column < end_time)
+
+    entity_count_query = entity_count_query.group_by(name_column)
+    entity_count_subquery = entity_count_query.subquery()
+
+    # Main query: gets raw annotation data with counts per (span/trace)+name+label
+    base_stmt = select(
+        entity_id_column,
         name_column,
         label_column,
         func.count().label("record_count"),
@@ -127,13 +168,151 @@ def _get_stmt(
         func.count(score_column).label("score_count"),
         func.sum(score_column).label("score_sum"),
     )
-    stmt = stmt.group_by(name_column, label_column)
-    stmt = stmt.order_by(name_column, label_column)
-    stmt = stmt.where(models.Trace.project_rowid == project_rowid)
-    stmt = stmt.where(or_(score_column.is_not(None), label_column.is_not(None)))
-    stmt = stmt.where(name_column.in_(annotation_names))
+
+    if kind == "span":
+        base_stmt = base_stmt.join(cast(Type[models.Span], entity_model))
+        base_stmt = base_stmt.join_from(
+            cast(Type[models.Span], entity_model), cast(Type[models.Trace], entity_join_model)
+        )
+        base_stmt = base_stmt.where(models.Trace.project_rowid == project_rowid)
+        if filter_condition:
+            sf = SpanFilter(filter_condition)
+            base_stmt = sf(base_stmt)
+    elif kind == "trace":
+        base_stmt = base_stmt.join(cast(Type[models.Trace], entity_model))
+        base_stmt = base_stmt.where(
+            cast(Type[models.Trace], entity_model).project_rowid == project_rowid
+        )
+    else:
+        assert_never(kind)
+
+    base_stmt = base_stmt.where(or_(score_column.is_not(None), label_column.is_not(None)))
+    base_stmt = base_stmt.where(name_column.in_(annotation_names))
+
     if start_time:
-        stmt = stmt.where(start_time <= time_column)
+        base_stmt = base_stmt.where(start_time <= time_column)
     if end_time:
-        stmt = stmt.where(time_column < end_time)
-    return stmt
+        base_stmt = base_stmt.where(time_column < end_time)
+
+    # Group to get one row per (span/trace)+name+label combination
+    base_stmt = base_stmt.group_by(entity_id_column, name_column, label_column)
+
+    base_subquery = base_stmt.subquery()
+
+    # Calculate total counts per (span/trace)+name for computing fractions
+    entity_totals = (
+        select(
+            base_subquery.c.entity_id,
+            base_subquery.c.name,
+            func.sum(base_subquery.c.label_count).label("total_label_count"),
+            func.sum(base_subquery.c.score_count).label("total_score_count"),
+            func.sum(base_subquery.c.score_sum).label("entity_score_sum"),
+        )
+        .group_by(base_subquery.c.entity_id, base_subquery.c.name)
+        .subquery()
+    )
+
+    per_entity_fractions = (
+        select(
+            base_subquery.c.entity_id,
+            base_subquery.c.name,
+            base_subquery.c.label,
+            base_subquery.c.record_count,
+            base_subquery.c.label_count,
+            base_subquery.c.score_count,
+            base_subquery.c.score_sum,
+            # Calculate label fraction, avoiding division by zero when total_label_count is 0
+            case(
+                (
+                    entity_totals.c.total_label_count > 0,
+                    base_subquery.c.label_count * 1.0 / entity_totals.c.total_label_count,
+                ),
+                else_=None,
+            ).label("label_fraction"),
+            # Calculate average score for the entity (if there are any scores)
+            case(
+                (
+                    entity_totals.c.total_score_count > 0,
+                    entity_totals.c.entity_score_sum * 1.0 / entity_totals.c.total_score_count,
+                ),
+                else_=None,
+            ).label("entity_avg_score"),
+        )
+        .join(
+            entity_totals,
+            and_(
+                base_subquery.c.entity_id == entity_totals.c.entity_id,
+                base_subquery.c.name == entity_totals.c.name,
+            ),
+        )
+        .subquery()
+    )
+
+    # Aggregate metrics across (spans/traces) for each name+label combination.
+    label_entity_metrics = (
+        select(
+            per_entity_fractions.c.name,
+            per_entity_fractions.c.label,
+            func.count(distinct(per_entity_fractions.c.entity_id)).label("entities_with_label"),
+            func.sum(per_entity_fractions.c.label_count).label("total_label_count"),
+            func.sum(per_entity_fractions.c.score_count).label("total_score_count"),
+            func.sum(per_entity_fractions.c.score_sum).label("total_score_sum"),
+            # Average of label fractions for entities that have this label
+            func.avg(per_entity_fractions.c.label_fraction).label("avg_label_fraction_present"),
+            # Average of per-entity average scores (but we handle overall aggregation separately)
+        )
+        .group_by(per_entity_fractions.c.name, per_entity_fractions.c.label)
+        .subquery()
+    )
+
+    # Compute distinct per-entity average scores to ensure each entity counts only once.
+    distinct_entity_scores = (
+        select(
+            per_entity_fractions.c.entity_id,
+            per_entity_fractions.c.name,
+            per_entity_fractions.c.entity_avg_score,
+        )
+        .distinct()
+        .subquery()
+    )
+
+    overall_score_aggregates = (
+        select(
+            distinct_entity_scores.c.name,
+            func.avg(distinct_entity_scores.c.entity_avg_score).label("overall_avg_score"),
+        )
+        .group_by(distinct_entity_scores.c.name)
+        .subquery()
+    )
+
+    # Final result: adjust label fractions by the proportion of entities reporting this label
+    # and include the overall average score per annotation name.
+    final_stmt = (
+        select(
+            label_entity_metrics.c.name,
+            label_entity_metrics.c.label,
+            # Adjust label fraction, guarding against division by zero in entity_count
+            case(
+                (
+                    entity_count_subquery.c.entity_count > 0,
+                    label_entity_metrics.c.avg_label_fraction_present
+                    * label_entity_metrics.c.entities_with_label
+                    / entity_count_subquery.c.entity_count,
+                ),
+                else_=None,
+            ).label("avg_label_fraction"),
+            overall_score_aggregates.c.overall_avg_score.label("avg_score"),  # same for all labels
+            label_entity_metrics.c.total_label_count.label("label_count"),
+            label_entity_metrics.c.total_score_count.label("score_count"),
+            label_entity_metrics.c.total_score_sum.label("score_sum"),
+            label_entity_metrics.c.entities_with_label.label("record_count"),
+        )
+        .join(entity_count_subquery, label_entity_metrics.c.name == entity_count_subquery.c.name)
+        .join(
+            overall_score_aggregates,
+            label_entity_metrics.c.name == overall_score_aggregates.c.name,
+        )
+        .order_by(label_entity_metrics.c.name, label_entity_metrics.c.label)
+    )
+
+    return final_stmt

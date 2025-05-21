@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<483d1efacfdd4ff9a8796187190711e8>>
+ * @generated SignedSource<<96a6d4e8817fc4fccbf8fa9d822dccfc>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -94,7 +94,8 @@ return {
             "name": "role",
             "plural": false,
             "selections": [
-              (v1/*: any*/)
+              (v1/*: any*/),
+              (v0/*: any*/)
             ],
             "storageKey": null
           },
@@ -145,12 +146,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "12e359dfec5f96fcfcbeff2e8110b80f",
+    "cacheID": "2d36bdc877f31e905f8b8f3bf9b04689",
     "id": null,
     "metadata": {},
     "name": "ViewerContextRefetchQuery",
     "operationKind": "query",
-    "text": "query ViewerContextRefetchQuery {\n  ...ViewerContext_viewer\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n\nfragment ViewerContext_viewer on Query {\n  viewer {\n    id\n    username\n    email\n    profilePictureUrl\n    role {\n      name\n    }\n    authMethod\n    ...APIKeysTableFragment\n  }\n}\n"
+    "text": "query ViewerContextRefetchQuery {\n  ...ViewerContext_viewer\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n\nfragment ViewerContext_viewer on Query {\n  viewer {\n    id\n    username\n    email\n    profilePictureUrl\n    role {\n      name\n      id\n    }\n    authMethod\n    ...APIKeysTableFragment\n  }\n}\n"
   }
 };
 })();

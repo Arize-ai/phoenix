@@ -1,4 +1,3 @@
-import React from "react";
 import type { Preview } from "@storybook/react";
 import { Provider } from "@arizeai/components";
 import { GlobalStyles } from "../src/GlobalStyles";
@@ -30,7 +29,9 @@ const preview: Preview = {
     },
   },
   initialGlobals: {
-    theme: "light",
+    theme: window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light",
   },
   decorators: [
     // 👇 Defining the decorator in the preview file applies it to all stories

@@ -1,5 +1,3 @@
-import React from "react";
-
 import { Dialog } from "@arizeai/components";
 
 import { LinkButton } from "@phoenix/components";

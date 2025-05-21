@@ -1,4 +1,4 @@
-import React, {
+import {
   startTransition,
   Suspense,
   useCallback,
@@ -117,7 +117,7 @@ export function ProjectPageContent({
   const { rootPath, tab } = useProjectRootPath();
   const data = useLazyLoadQuery<ProjectPageQueryType>(
     graphql`
-      query ProjectPageQuery($id: GlobalID!, $timeRange: TimeRange!) {
+      query ProjectPageQuery($id: ID!, $timeRange: TimeRange!) {
         project: node(id: $id) {
           ...ProjectPageHeader_stats
           ...StreamToggle_data

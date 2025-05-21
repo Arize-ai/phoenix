@@ -1,4 +1,4 @@
-import React, { ReactNode, Suspense, useCallback, useState } from "react";
+import { ReactNode, Suspense, useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
@@ -47,7 +47,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
     }
   `);
   const [commitDeleteTraces, isDeletingTraces] = useMutation(graphql`
-    mutation SpanSelectionToolbarDeleteTracesMutation($traceIds: [GlobalID!]!) {
+    mutation SpanSelectionToolbarDeleteTracesMutation($traceIds: [ID!]!) {
       deleteTraces(traceIds: $traceIds) {
         __typename
       }
