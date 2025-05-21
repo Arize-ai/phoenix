@@ -16,7 +16,8 @@ Background + demo on datasets
 2. Grab your API key from the Keys option on the left bar.
 3. In your code, set your endpoint and API key:
 
-### Python
+{% tabs %}
+{% tab title="Python" %}
 
 ```python
 import os
@@ -26,7 +27,9 @@ os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
 ```
 
-### Typescript
+{% endtab %}
+
+{% tab title="Typescript" %}
 
 ```typescript
 // Set your Phoenix API key and endpoint
@@ -47,9 +50,8 @@ fetch(`${PHOENIX_COLLECTOR_ENDPOINT}/your-endpoint`, {
 });
 ```
 
-{% hint style="warning" %}
-Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](https://docs.arize.com/phoenix/learn/faqs/what-is-my-phoenix-endpoint)
-{% endhint %}
+{% endtab %}
+{% endtabs %}
 
 ### Using Self-hosted Phoenix
 
