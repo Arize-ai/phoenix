@@ -3,6 +3,8 @@ import { css } from "@emotion/react";
 import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
 import { Flex, Icon, Icons, Text, TextProps } from "@phoenix/components";
+import type { TokenCount_TokenDetailsQuery } from "./__generated__/TokenCount_TokenDetailsQuery.graphql";
+import { graphql, useLazyLoadQuery } from "react-relay";
 
 type TokenCountProps = {
   /**
@@ -37,30 +39,37 @@ export function TokenCount(props: TokenCountProps) {
         <TokenItem size={props.size}>{props.tokenCountTotal}</TokenItem>
       </TriggerWrap>
       <Tooltip>
-        <TokenDetails
-          tokenCountPrompt={props.tokenCountPrompt}
-          tokenCountCompletion={props.tokenCountCompletion}
-          nodeId={props.nodeId}
-        />
+        <TokenDetails nodeId={props.nodeId} />
       </Tooltip>
     </TooltipTrigger>
   );
 }
 
-function TokenDetails(props: {
-  tokenCountPrompt: number;
-  tokenCountCompletion: number;
-  nodeId: string;
-}) {
+function TokenDetails(props: { nodeId: string }) {
+  const data = useLazyLoadQuery<TokenCount_TokenDetailsQuery>(
+    graphql`
+      query TokenCount_TokenDetailsQuery($nodeId: ID!) {
+        node(id: $nodeId) {
+          ... on Span {
+            tokenCountPrompt
+            tokenCountCompletion
+          }
+        }
+      }
+    `,
+    { nodeId: props.nodeId }
+  );
+  const tokenCountPrompt = data.node.tokenCountPrompt ?? 0;
+  const tokenCountCompletion = data.node.tokenCountCompletion ?? 0;
   return (
     <Flex direction="column" gap="size-50">
       <Flex direction="row" gap="size-100" justifyContent="space-between">
         <Text>prompt tokens</Text>
-        <TokenItem>{props.tokenCountPrompt}</TokenItem>
+        <TokenItem>{tokenCountPrompt}</TokenItem>
       </Flex>
       <Flex direction="row" gap="size-100" justifyContent="space-between">
         <Text>completion tokens</Text>
-        <TokenItem>{props.tokenCountCompletion}</TokenItem>
+        <TokenItem>{tokenCountCompletion}</TokenItem>
       </Flex>
     </Flex>
   );
