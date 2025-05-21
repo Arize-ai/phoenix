@@ -66,9 +66,6 @@ const TableBody = <T extends { id: string }>({
                 <td
                   key={cell.id}
                   style={{
-                    // the cell still grows to fit, we just need some height declared
-                    // so that height: 100% works in children elements
-                    height: 1,
                     width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
                     maxWidth: `calc(var(--col-${cell.column.id}-size) * 1px)`,
                     // prevent all wrapping, just show an ellipsis and let users expand if necessary
@@ -137,8 +134,6 @@ export function SessionsTable(props: SessionsTableProps) {
                   value
                 }
                 tokenUsage {
-                  prompt
-                  completion
                   total
                 }
                 traceLatencyMsP50: traceLatencyMsQuantile(probability: 0.5)
@@ -222,12 +217,10 @@ export function SessionsTable(props: SessionsTableProps) {
         if (value == null || typeof value !== "number") {
           return "--";
         }
-        const { prompt, completion } = row.original.tokenUsage;
         return (
           <TokenCount
             tokenCountTotal={value as number}
-            tokenCountPrompt={prompt || 0}
-            tokenCountCompletion={completion || 0}
+            nodeId={row.original.id}
           />
         );
       },

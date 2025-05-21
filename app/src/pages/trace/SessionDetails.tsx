@@ -1,4 +1,3 @@
-import React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
@@ -16,10 +15,12 @@ function SessionDetailsHeader({
   traceCount,
   tokenUsage,
   latencyP50,
+  sessionId,
 }: {
   traceCount: number;
   tokenUsage?: NonNullable<SessionDetailsQuery$data["session"]>["tokenUsage"];
   latencyP50?: number | null;
+  sessionId: string;
 }) {
   return (
     <View
@@ -41,8 +42,7 @@ function SessionDetailsHeader({
             </Text>
             <TokenCount
               tokenCountTotal={tokenUsage.total}
-              tokenCountCompletion={tokenUsage.completion}
-              tokenCountPrompt={tokenUsage.prompt}
+              nodeId={sessionId}
               size="L"
             />
           </Flex>
@@ -71,14 +71,12 @@ export function SessionDetails(props: SessionDetailsProps) {
   const { sessionId } = props;
   const data = useLazyLoadQuery<SessionDetailsQuery>(
     graphql`
-      query SessionDetailsQuery($id: GlobalID!) {
+      query SessionDetailsQuery($id: ID!) {
         session: node(id: $id) {
           ... on ProjectSession {
             numTraces
             tokenUsage {
               total
-              completion
-              prompt
             }
             sessionId
             latencyP50: traceLatencyMsQuantile(probability: 0.50)
@@ -102,18 +100,10 @@ export function SessionDetails(props: SessionDetailsProps) {
                       mimeType
                     }
                     cumulativeTokenCountTotal
-                    cumulativeTokenCountCompletion
-                    cumulativeTokenCountPrompt
                     latencyMs
                     startTime
-                    spanAnnotations {
-                      name
-                      label
-                      score
-                      explanation
-                      annotatorKind
-                    }
                     spanId
+                    ...AnnotationSummaryGroup
                   }
                 }
               }
@@ -147,6 +137,7 @@ export function SessionDetails(props: SessionDetailsProps) {
         traceCount={data.session.numTraces ?? 0}
         tokenUsage={data.session.tokenUsage}
         latencyP50={data.session.latencyP50}
+        sessionId={sessionId}
       />
       <SessionDetailsTraceList traces={data.session.traces} />
     </main>

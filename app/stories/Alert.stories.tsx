@@ -1,4 +1,3 @@
-import React from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 
 import { Alert, Button, Icon, Icons } from "@phoenix/components";

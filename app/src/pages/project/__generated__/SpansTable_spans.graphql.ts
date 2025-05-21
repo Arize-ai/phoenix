@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<15d6b44453b1e7aa781b5edd07316779>>
+ * @generated SignedSource<<398110e543679b851c2128cc3181857c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type AnnotatorKind = "HUMAN" | "LLM";
+export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
 export type SpanKind = "agent" | "chain" | "embedding" | "evaluator" | "guardrail" | "llm" | "reranker" | "retriever" | "tool" | "unknown";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
@@ -19,8 +19,6 @@ export type SpansTable_spans$data = {
   readonly spans: {
     readonly edges: ReadonlyArray<{
       readonly span: {
-        readonly cumulativeTokenCountCompletion: number | null;
-        readonly cumulativeTokenCountPrompt: number | null;
         readonly cumulativeTokenCountTotal: number | null;
         readonly documentRetrievalMetrics: ReadonlyArray<{
           readonly evaluationName: string;
@@ -38,8 +36,18 @@ export type SpansTable_spans$data = {
         readonly output: {
           readonly value: string;
         } | null;
+        readonly spanAnnotationSummaries: ReadonlyArray<{
+          readonly labelFractions: ReadonlyArray<{
+            readonly fraction: number;
+            readonly label: string;
+          }>;
+          readonly meanScore: number | null;
+          readonly name: string;
+        }>;
         readonly spanAnnotations: ReadonlyArray<{
           readonly annotatorKind: AnnotatorKind;
+          readonly createdAt: string;
+          readonly id: string;
           readonly label: string | null;
           readonly name: string;
           readonly score: number | null;
@@ -48,13 +56,12 @@ export type SpansTable_spans$data = {
         readonly spanKind: SpanKind;
         readonly startTime: string;
         readonly statusCode: SpanStatusCode;
-        readonly tokenCountCompletion: number | null;
-        readonly tokenCountPrompt: number | null;
         readonly tokenCountTotal: number | null;
         readonly trace: {
           readonly id: string;
           readonly traceId: string;
         };
+        readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
       };
     }>;
   };
@@ -94,7 +101,14 @@ v3 = [
     "name": "truncatedValue",
     "storageKey": null
   }
-];
+],
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "label",
+  "storageKey": null
+};
 return {
   "argumentDefinitions": [
     {
@@ -269,35 +283,7 @@ return {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
-                  "name": "tokenCountPrompt",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "tokenCountCompletion",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
                   "name": "cumulativeTokenCountTotal",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "cumulativeTokenCountPrompt",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "cumulativeTokenCountCompletion",
                   "storageKey": null
                 },
                 {
@@ -354,14 +340,9 @@ return {
                   "name": "spanAnnotations",
                   "plural": true,
                   "selections": [
+                    (v2/*: any*/),
                     (v1/*: any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "label",
-                      "storageKey": null
-                    },
+                    (v4/*: any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -375,7 +356,52 @@ return {
                       "kind": "ScalarField",
                       "name": "annotatorKind",
                       "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "createdAt",
+                      "storageKey": null
                     }
+                  ],
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "AnnotationSummary",
+                  "kind": "LinkedField",
+                  "name": "spanAnnotationSummaries",
+                  "plural": true,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "LabelFraction",
+                      "kind": "LinkedField",
+                      "name": "labelFractions",
+                      "plural": true,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "fraction",
+                          "storageKey": null
+                        },
+                        (v4/*: any*/)
+                      ],
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "meanScore",
+                      "storageKey": null
+                    },
+                    (v1/*: any*/)
                   ],
                   "storageKey": null
                 },
@@ -417,6 +443,11 @@ return {
                     }
                   ],
                   "storageKey": null
+                },
+                {
+                  "args": null,
+                  "kind": "FragmentSpread",
+                  "name": "AnnotationSummaryGroup"
                 }
               ],
               "storageKey": null
@@ -484,6 +515,6 @@ return {
 };
 })();
 
-(node as any).hash = "3abfb2f2fae91e346221687ee5213714";
+(node as any).hash = "50778371684f1bd53a53c5bbeb7a6715";
 
 export default node;

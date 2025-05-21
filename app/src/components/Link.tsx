@@ -1,4 +1,3 @@
-import React from "react";
 import { Link as RouterLink, LinkProps } from "react-router";
 import { css } from "@emotion/react";
 export function Link(props: LinkProps) {

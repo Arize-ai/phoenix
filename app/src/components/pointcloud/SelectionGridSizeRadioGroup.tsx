@@ -1,5 +1,3 @@
-import React from "react";
-
 import { ToggleButton, ToggleButtonGroup } from "@phoenix/components";
 import { SelectionGridSize } from "@phoenix/constants/pointCloudConstants";
 

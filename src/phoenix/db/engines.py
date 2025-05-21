@@ -1,10 +1,13 @@
+from __future__ import annotations
+
 import asyncio
 import json
+import logging
 from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
 from sqlite3 import Connection
-from typing import Any, Mapping
+from typing import Any
 
 import aiosqlite
 import numpy as np
@@ -18,9 +21,12 @@ from phoenix.config import LoggingMode, get_env_database_schema
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.migrate import migrate_in_thread
 from phoenix.db.models import init_models
+from phoenix.db.pg_config import get_pg_config
 from phoenix.settings import Settings
 
 sqlean.extensions.enable("text", "stats")
+
+logger = logging.getLogger(__name__)
 
 
 def set_sqlite_pragma(connection: Connection, _: Any) -> None:
@@ -163,15 +169,20 @@ def aio_postgresql_engine(
     log_to_stdout: bool = False,
     log_migrations_to_stdout: bool = True,
 ) -> AsyncEngine:
+    asyncpg_url, asyncpg_args = get_pg_config(url, "asyncpg")
     engine = create_async_engine(
-        url=url.set(query=_asyncpg_url_query(url.query)),
+        url=asyncpg_url,
+        connect_args=asyncpg_args,
         echo=log_to_stdout,
         json_serializer=_dumps,
     )
     if not migrate:
         return engine
+
+    psycopg_url, psycopg_args = get_pg_config(url, "psycopg")
     sync_engine = sqlalchemy.create_engine(
-        url=url.set(drivername="postgresql+psycopg", query=_psycopg_url_query(url.query)),
+        url=psycopg_url,
+        connect_args=psycopg_args,
         echo=log_migrations_to_stdout,
         json_serializer=_dumps,
     )
@@ -179,24 +190,6 @@ def aio_postgresql_engine(
         event.listen(sync_engine, "connect", set_postgresql_search_path(schema))
     migrate_in_thread(sync_engine)
     return engine
-
-
-def _asyncpg_url_query(query: Mapping[str, Any]) -> dict[str, Any]:
-    ans = dict(query)
-    if sslmode := (ans.pop("sslmode", None) or ans.pop("ssl", None)):
-        # https://github.com/MagicStack/asyncpg/issues/737
-        ans["ssl"] = sslmode
-    return ans
-
-
-def _psycopg_url_query(query: Mapping[str, Any]) -> dict[str, Any]:
-    ans = dict(query)
-    if sslmode := (ans.pop("sslmode", None) or ans.pop("ssl", None)):
-        ans["sslmode"] = sslmode
-    # prepared_statement_cache_size is only used by asyncpg, see:
-    # https://docs.sqlalchemy.org/en/20/dialects/postgresql.html#prepared-statement-cache
-    ans.pop("prepared_statement_cache_size", None)
-    return ans
 
 
 def _dumps(obj: Any) -> str:

@@ -24,9 +24,17 @@ _SpanRowId: TypeAlias = int
 _DocumentPosition: TypeAlias = int
 _AnnoRowId: TypeAlias = int
 _NumDocs: TypeAlias = int
+_Identifier: TypeAlias = str
 
-_Key: TypeAlias = tuple[_Name, _SpanId, _DocumentPosition]
-_UniqueBy: TypeAlias = tuple[_Name, _SpanRowId, _DocumentPosition]
+
+class _Key(NamedTuple):
+    annotation_name: _Name
+    annotation_identifier: _Identifier
+    span_id: _SpanId
+    document_position: _DocumentPosition
+
+
+_UniqueBy: TypeAlias = tuple[_Name, _SpanRowId, _DocumentPosition, _Identifier]
 _Existing: TypeAlias = tuple[
     _SpanRowId,
     _SpanId,
@@ -34,6 +42,7 @@ _Existing: TypeAlias = tuple[
     Optional[_AnnoRowId],
     Optional[_Name],
     Optional[_DocumentPosition],
+    Optional[_Identifier],
     Optional[datetime],
 ]
 
@@ -46,7 +55,8 @@ class DocumentAnnotationQueueInserter(
         DocumentAnnotationDmlEvent,
     ],
     table=models.DocumentAnnotation,
-    unique_by=("name", "span_rowid", "document_position"),
+    unique_by=("name", "span_rowid", "document_position", "identifier"),
+    constraint_name="uq_document_annotations_name_span_rowid_document_pos_identifier",
 ):
     async def _events(
         self,
@@ -77,12 +87,14 @@ class DocumentAnnotationQueueInserter(
             e.span_id: _SpanAttr(e.span_rowid, e.num_docs) for e in existing
         }
         existing_annos: Mapping[_Key, _AnnoAttr] = {
-            (e.name, e.span_id, e.document_position): _AnnoAttr(e.span_rowid, e.id, e.updated_at)
+            _Key(
+                annotation_name=e.name,
+                annotation_identifier=e.identifier,
+                span_id=e.span_id,
+                document_position=e.document_position,
+            ): _AnnoAttr(e.span_rowid, e.id, e.updated_at)
             for e in existing
-            if e.id is not None
-            and e.name is not None
-            and e.document_position is not None
-            and e.updated_at is not None
+            if e.id is not None and e.name is not None and e.updated_at is not None
         }
 
         for p in parcels:
@@ -129,13 +141,13 @@ class DocumentAnnotationQueueInserter(
         anno = self.table
         span = (
             select(models.Span.id, models.Span.span_id, num_docs_col(self._db.dialect))
-            .where(models.Span.span_id.in_({span_id for _, span_id, *_ in keys}))
+            .where(models.Span.span_id.in_({k.span_id for k in keys}))
             .cte()
         )
         onclause = and_(
             span.c.id == anno.span_rowid,
-            anno.name.in_({name for name, *_ in keys}),
-            tuple_(anno.name, span.c.span_id, anno.document_position).in_(keys),
+            anno.name.in_({k.annotation_name for k in keys}),
+            tuple_(anno.name, anno.identifier, span.c.span_id, anno.document_position).in_(keys),
         )
         return select(
             span.c.id.label("span_rowid"),
@@ -144,6 +156,7 @@ class DocumentAnnotationQueueInserter(
             anno.id,
             anno.name,
             anno.document_position,
+            anno.identifier,
             anno.updated_at,
         ).outerjoin_from(span, anno, onclause)
 
@@ -160,11 +173,16 @@ class _AnnoAttr(NamedTuple):
 
 
 def _key(p: Received[Precursors.DocumentAnnotation]) -> _Key:
-    return p.item.obj.name, p.item.span_id, p.item.document_position
+    return _Key(
+        annotation_name=p.item.obj.name,
+        annotation_identifier=p.item.obj.identifier,
+        span_id=p.item.span_id,
+        document_position=p.item.document_position,
+    )
 
 
 def _unique_by(p: Received[Insertables.DocumentAnnotation]) -> _UniqueBy:
-    return p.item.obj.name, p.item.span_rowid, p.item.document_position
+    return p.item.obj.name, p.item.span_rowid, p.item.document_position, p.item.identifier
 
 
 def _time(p: Received[Any]) -> datetime:

@@ -55,7 +55,7 @@ class TestChatCompletionSubscription:
         }
       }
 
-      query SpanQuery($spanId: GlobalID!) {
+      query SpanQuery($spanId: ID!) {
         span: node(id: $spanId) {
           ... on Span {
             ...SpanFragment
@@ -844,7 +844,7 @@ class TestChatCompletionOverDatasetSubscription:
         }
       }
 
-      query SpanQuery($spanId: GlobalID!) {
+      query SpanQuery($spanId: ID!) {
         span: node(id: $spanId) {
           ... on Span {
             ...SpanFragment
@@ -852,7 +852,7 @@ class TestChatCompletionOverDatasetSubscription:
         }
       }
 
-      query ExperimentQuery($experimentId: GlobalID!) {
+      query ExperimentQuery($experimentId: ID!) {
         experiment: node(id: $experimentId) {
           ... on Experiment {
             id

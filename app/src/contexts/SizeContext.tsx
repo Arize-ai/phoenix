@@ -1,4 +1,4 @@
-import React, { createContext, ReactNode, useContext } from "react";
+import { createContext, ReactNode, useContext } from "react";
 
 import { ComponentSize } from "@phoenix/components/types";
 

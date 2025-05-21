@@ -95,6 +95,7 @@ def run_experiment(
     dry_run: Union[bool, int] = False,
     print_summary: bool = True,
     concurrency: int = 3,
+    timeout: Optional[int] = None,
 ) -> RanExperiment:
     """
     Runs an experiment using a given set of dataset of examples.
@@ -115,8 +116,17 @@ def run_experiment(
     - `metadata`: Metadata associated with the dataset example
     - `example`: The dataset `Example` object with all associated fields
 
-    An `evaluator` is either a synchronous or asynchronous function that returns either a boolean
-    or numeric "score". If the `evaluator` is a function of one argument then that argument will be
+    An `evaluator` is either a synchronous or asynchronous function that returns an evaluation
+    result object, which can take any of the following forms.
+
+    - phoenix.experiments.types.EvaluationResult with optional fields for score, label, explanation
+      and metadata
+    - a `bool`, which will be interpreted as a score of 0 or 1 plus a label of "True" or "False"
+    - a `float`, which will be interpreted as a score
+    - a `str`, which will be interpreted as a label
+    - a 2-`tuple` of (`float`, `str`), which will be interpreted as (score, explanation)
+
+    If the `evaluator` is a function of one argument then that argument will be
     bound to the `output` of the task. Alternatively, the `evaluator` can be a function of any
     combination of specific argument names that will be bound to special values:
 
@@ -148,6 +158,8 @@ def run_experiment(
         concurrency (int): Specifies the concurrency for task execution. In order to enable
             concurrent task execution, the task callable must be a coroutine function.
             Defaults to 3.
+        timeout (Optional[int]): The timeout for the task execution in seconds. Use this to run
+            longer tasks to avoid re-queuing the same task multiple times. Defaults to None.
 
     Returns:
         RanExperiment: The results of the experiment and evaluation. Additional evaluations can be
@@ -380,6 +392,7 @@ def run_experiment(
         fallback_return_value=None,
         tqdm_bar_format=get_tqdm_progress_bar_formatter("running tasks"),
         concurrency=concurrency,
+        timeout=timeout,
     )
 
     test_cases = [
@@ -752,7 +765,7 @@ def _print_experiment_error(
     Prints an experiment error.
     """
     display_error = RuntimeError(
-        f"{kind} failed for example id {repr(example_id)}, " f"repetition {repr(repetition_number)}"
+        f"{kind} failed for example id {repr(example_id)}, repetition {repr(repetition_number)}"
     )
     display_error.__cause__ = error
     formatted_exception = "".join(

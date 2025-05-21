@@ -79,7 +79,10 @@ export const createClient = (
   } = {}
 ) => {
   const mergedOptions = getMergedOptions(config);
-  return createOpenApiClient<pathsV1>(mergedOptions);
+  return {
+    ...createOpenApiClient<pathsV1>(mergedOptions),
+    config: mergedOptions,
+  };
 };
 
 /**

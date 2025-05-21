@@ -16,7 +16,7 @@ from phoenix.server.dml_event import ExperimentRunInsertEvent
 from .models import V1RoutesBaseModel
 from .utils import ResponseBody, add_errors_to_responses
 
-router = APIRouter(tags=["experiments"], include_in_schema=False)
+router = APIRouter(tags=["experiments"], include_in_schema=True)
 
 
 class ExperimentRun(V1RoutesBaseModel):
@@ -44,7 +44,7 @@ class CreateExperimentRunResponseBodyData(V1RoutesBaseModel):
     id: str = Field(description="The ID of the newly created experiment run")
 
 
-class CreateExperimentResponseBody(ResponseBody[CreateExperimentRunResponseBodyData]):
+class CreateExperimentRunResponseBody(ResponseBody[CreateExperimentRunResponseBodyData]):
     pass
 
 
@@ -64,7 +64,7 @@ class CreateExperimentResponseBody(ResponseBody[CreateExperimentRunResponseBodyD
 )
 async def create_experiment_run(
     request: Request, experiment_id: str, request_body: CreateExperimentRunRequestBody
-) -> CreateExperimentResponseBody:
+) -> CreateExperimentRunResponseBody:
     experiment_gid = GlobalID.from_id(experiment_id)
     try:
         experiment_rowid = from_global_id_with_expected_type(experiment_gid, "Experiment")
@@ -105,7 +105,9 @@ async def create_experiment_run(
         await session.flush()
     request.state.event_queue.put(ExperimentRunInsertEvent((exp_run.id,)))
     run_gid = GlobalID("ExperimentRun", str(exp_run.id))
-    return CreateExperimentResponseBody(data=CreateExperimentRunResponseBodyData(id=str(run_gid)))
+    return CreateExperimentRunResponseBody(
+        data=CreateExperimentRunResponseBodyData(id=str(run_gid))
+    )
 
 
 class ExperimentRunResponse(ExperimentRun):

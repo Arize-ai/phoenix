@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional
 from urllib.parse import quote_plus
 
 import pytest
@@ -8,9 +8,12 @@ from starlette.datastructures import URL
 from phoenix.config import (
     ENV_PHOENIX_ADMINS,
     get_env_admins,
+    get_env_auth_settings,
     get_env_phoenix_admin_secret,
     get_env_postgres_connection_str,
     get_env_root_url,
+    get_env_tls_enabled_for_grpc,
+    get_env_tls_enabled_for_http,
 )
 
 
@@ -353,7 +356,7 @@ class TestGetEnvPhoenixAdminSecret:
                 {
                     "PHOENIX_ADMIN_SECRET": None,
                 },
-                None,
+                "",
                 id="not_set",
             ),
             pytest.param(
@@ -370,14 +373,14 @@ class TestGetEnvPhoenixAdminSecret:
         self,
         monkeypatch: MonkeyPatch,
         env_vars: dict[str, Optional[str]],
-        expected_result: Optional[str],
+        expected_result: str,
     ) -> None:
         for key, value in env_vars.items():
             if value is None:
                 monkeypatch.delenv(key, raising=False)
             else:
                 monkeypatch.setenv(key, value)
-        assert get_env_phoenix_admin_secret() == expected_result
+        assert str(get_env_phoenix_admin_secret()) == expected_result
 
     @pytest.mark.parametrize(
         "env_vars",
@@ -438,3 +441,317 @@ class TestGetEnvPhoenixAdminSecret:
                 monkeypatch.setenv(key, value)
         with pytest.raises(ValueError):
             get_env_phoenix_admin_secret()
+
+
+class TestGetEnvTlsEnabled:
+    @pytest.mark.parametrize(
+        "env_vars, expected_http, expected_grpc",
+        [
+            # Base case: No variables set - defaults to False for both
+            pytest.param(
+                {},
+                False,
+                False,
+                id="no_vars_set",
+            ),
+            # Global variable only tests - tests fallback behavior
+            pytest.param(
+                {"PHOENIX_TLS_ENABLED": "true"},
+                True,
+                True,
+                id="global_only_enabled",
+            ),
+            pytest.param(
+                {"PHOENIX_TLS_ENABLED": "false"},
+                False,
+                False,
+                id="global_only_disabled",
+            ),
+            # HTTP-specific variable tests - should override global
+            pytest.param(
+                {
+                    "PHOENIX_TLS_ENABLED": "false",
+                    "PHOENIX_TLS_ENABLED_FOR_HTTP": "true",
+                },
+                True,
+                False,
+                id="http_overrides_global",
+            ),
+            # gRPC-specific variable tests - should override global
+            pytest.param(
+                {
+                    "PHOENIX_TLS_ENABLED": "true",
+                    "PHOENIX_TLS_ENABLED_FOR_GRPC": "false",
+                },
+                True,
+                False,
+                id="grpc_overrides_global",
+            ),
+        ],
+    )
+    def test_tls_enabled(
+        self,
+        monkeypatch: MonkeyPatch,
+        env_vars: dict[str, str],
+        expected_http: bool,
+        expected_grpc: bool,
+    ) -> None:
+        # Clear all TLS-related environment variables first
+        monkeypatch.delenv("PHOENIX_TLS_ENABLED", raising=False)
+        monkeypatch.delenv("PHOENIX_TLS_ENABLED_FOR_HTTP", raising=False)
+        monkeypatch.delenv("PHOENIX_TLS_ENABLED_FOR_GRPC", raising=False)
+
+        # Set the test environment variables
+        for key, value in env_vars.items():
+            monkeypatch.setenv(key, value)
+
+        # Test HTTP TLS enablement
+        assert get_env_tls_enabled_for_http() == expected_http
+
+        # Test gRPC TLS enablement
+        assert get_env_tls_enabled_for_grpc() == expected_grpc
+
+
+class TestGetEnvAuthSettings:
+    @pytest.mark.parametrize(
+        "env_vars, expected_result",
+        [
+            pytest.param(
+                {},  # No environment variables set
+                {
+                    "enable_auth": False,
+                    "disable_basic_auth": False,
+                    "phoenix_secret": "",
+                    "phoenix_admin_secret": "",
+                    "oauth2_clients": [],
+                },
+                id="default_values",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_ENABLE_AUTH": "true",
+                    "PHOENIX_SECRET": "validsecret123456789012345678901234567890",
+                },
+                {
+                    "enable_auth": True,
+                    "disable_basic_auth": False,
+                    "phoenix_secret": "validsecret123456789012345678901234567890",
+                    "phoenix_admin_secret": "",
+                    "oauth2_clients": [],
+                },
+                id="auth_enabled_with_secret",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_ENABLE_AUTH": "true",
+                    "PHOENIX_SECRET": "validsecret123456789012345678901234567890",
+                    "PHOENIX_ADMIN_SECRET": "validadminsecret123456789012345678901234567890",
+                },
+                {
+                    "enable_auth": True,
+                    "disable_basic_auth": False,
+                    "phoenix_secret": "validsecret123456789012345678901234567890",
+                    "phoenix_admin_secret": "validadminsecret123456789012345678901234567890",
+                    "oauth2_clients": [],
+                },
+                id="auth_enabled_with_both_secrets",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_ENABLE_AUTH": "true",
+                    "PHOENIX_SECRET": "validsecret123456789012345678901234567890",
+                    "PHOENIX_DISABLE_BASIC_AUTH": "true",
+                    "PHOENIX_OAUTH2_GOOGLE_CLIENT_ID": "google_client_id",
+                    "PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET": "google_client_secret",
+                    "PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL": "https://accounts.google.com/.well-known/openid-configuration",
+                },
+                {
+                    "enable_auth": True,
+                    "disable_basic_auth": True,
+                    "phoenix_secret": "validsecret123456789012345678901234567890",
+                    "phoenix_admin_secret": "",
+                    "oauth2_clients": [
+                        {
+                            "idp_name": "google",
+                            "idp_display_name": "Google",
+                            "client_id": "google_client_id",
+                            "client_secret": "google_client_secret",
+                            "oidc_config_url": "https://accounts.google.com/.well-known/openid-configuration",
+                            "allow_sign_up": True,
+                            "auto_login": False,
+                        }
+                    ],
+                },
+                id="auth_enabled_with_oauth2",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_ENABLE_AUTH": "true",
+                    "PHOENIX_SECRET": "validsecret123456789012345678901234567890",
+                    "PHOENIX_DISABLE_BASIC_AUTH": "true",
+                    "PHOENIX_OAUTH2_GOOGLE_CLIENT_ID": "google_client_id",
+                    "PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET": "google_client_secret",
+                    "PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL": "https://accounts.google.com/.well-known/openid-configuration",
+                    "PHOENIX_OAUTH2_AZURE_CLIENT_ID": "azure_client_id",
+                    "PHOENIX_OAUTH2_AZURE_CLIENT_SECRET": "azure_client_secret",
+                    "PHOENIX_OAUTH2_AZURE_OIDC_CONFIG_URL": "https://login.microsoftonline.com/.well-known/openid-configuration",
+                },
+                {
+                    "enable_auth": True,
+                    "disable_basic_auth": True,
+                    "phoenix_secret": "validsecret123456789012345678901234567890",
+                    "phoenix_admin_secret": "",
+                    "oauth2_clients": [
+                        {
+                            "idp_name": "azure",
+                            "idp_display_name": "Azure",
+                            "client_id": "azure_client_id",
+                            "client_secret": "azure_client_secret",
+                            "oidc_config_url": "https://login.microsoftonline.com/.well-known/openid-configuration",
+                            "allow_sign_up": True,
+                            "auto_login": False,
+                        },
+                        {
+                            "idp_name": "google",
+                            "idp_display_name": "Google",
+                            "client_id": "google_client_id",
+                            "client_secret": "google_client_secret",
+                            "oidc_config_url": "https://accounts.google.com/.well-known/openid-configuration",
+                            "allow_sign_up": True,
+                            "auto_login": False,
+                        },
+                    ],
+                },
+                id="auth_enabled_with_multiple_oauth2",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_ENABLE_AUTH": "true",
+                    "PHOENIX_SECRET": "validsecret123456789012345678901234567890",
+                    "PHOENIX_DISABLE_BASIC_AUTH": "true",
+                    "PHOENIX_OAUTH2_GOOGLE_CLIENT_ID": "google_client_id",
+                    "PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET": "google_client_secret",
+                    "PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL": "https://accounts.google.com/.well-known/openid-configuration",
+                    "PHOENIX_OAUTH2_GOOGLE_DISPLAY_NAME": "Custom Google Name",
+                    "PHOENIX_OAUTH2_GOOGLE_ALLOW_SIGN_UP": "false",
+                    "PHOENIX_OAUTH2_GOOGLE_AUTO_LOGIN": "true",
+                },
+                {
+                    "enable_auth": True,
+                    "disable_basic_auth": True,
+                    "phoenix_secret": "validsecret123456789012345678901234567890",
+                    "phoenix_admin_secret": "",
+                    "oauth2_clients": [
+                        {
+                            "idp_name": "google",
+                            "idp_display_name": "Custom Google Name",
+                            "client_id": "google_client_id",
+                            "client_secret": "google_client_secret",
+                            "oidc_config_url": "https://accounts.google.com/.well-known/openid-configuration",
+                            "allow_sign_up": False,
+                            "auto_login": True,
+                        }
+                    ],
+                },
+                id="auth_enabled_with_custom_oauth2_settings",
+            ),
+        ],
+    )
+    def test_valid_inputs(
+        self,
+        monkeypatch: MonkeyPatch,
+        env_vars: dict[str, str],
+        expected_result: dict[str, Any],
+    ) -> None:
+        # Clear all auth-related environment variables first
+        monkeypatch.delenv("PHOENIX_ENABLE_AUTH", raising=False)
+        monkeypatch.delenv("PHOENIX_SECRET", raising=False)
+        monkeypatch.delenv("PHOENIX_ADMIN_SECRET", raising=False)
+        monkeypatch.delenv("PHOENIX_DISABLE_BASIC_AUTH", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_AZURE_CLIENT_ID", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_AZURE_CLIENT_SECRET", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_AZURE_OIDC_CONFIG_URL", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_ALLOW_SIGN_UP", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_AUTO_LOGIN", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_CLIENT_ID", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_DISPLAY_NAME", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL", raising=False)
+
+        # Set the test environment variables
+        for key, value in env_vars.items():
+            monkeypatch.setenv(key, value)
+
+        result = get_env_auth_settings()
+        assert result.enable_auth == expected_result["enable_auth"]
+        assert result.disable_basic_auth == expected_result["disable_basic_auth"]
+        assert str(result.phoenix_secret) == expected_result["phoenix_secret"]
+        assert str(result.phoenix_admin_secret) == expected_result["phoenix_admin_secret"]
+
+        # Compare OAuth2 clients
+        assert len(result.oauth2_clients) == len(expected_result["oauth2_clients"])
+        # Create lookup dictionaries by IDP name
+        actual_clients = {client.name: client for client in result.oauth2_clients}
+        expected_clients = {
+            client["idp_name"]: client for client in expected_result["oauth2_clients"]
+        }
+        # Compare each client by name
+        for idp_name, expected in expected_clients.items():
+            actual = actual_clients[idp_name]
+            assert actual.name == expected["idp_name"]
+            assert actual.client_id == expected["client_id"]
+            assert actual.client_secret == expected["client_secret"]
+            assert actual.display_name == expected["idp_display_name"]
+            assert actual.allow_sign_up == expected["allow_sign_up"]
+            assert actual.auto_login == expected["auto_login"]
+
+    @pytest.mark.parametrize(
+        "env_vars, expected_error_msg",
+        [
+            pytest.param(
+                {
+                    "PHOENIX_ENABLE_AUTH": "true",
+                },
+                "`PHOENIX_SECRET` must be set when auth is enabled with `PHOENIX_ENABLE_AUTH`",
+                id="auth_enabled_without_secret",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_ENABLE_AUTH": "true",
+                    "PHOENIX_SECRET": "validsecret123456789012345678901234567890",
+                    "PHOENIX_DISABLE_BASIC_AUTH": "true",
+                },
+                "OAuth2 is the only supported auth method but "
+                "no OAuth2 client configs are provided",
+                id="basic_auth_disabled_without_oauth2",
+            ),
+        ],
+    )
+    def test_invalid_inputs(
+        self,
+        monkeypatch: MonkeyPatch,
+        env_vars: dict[str, str],
+        expected_error_msg: str,
+    ) -> None:
+        # Clear all auth-related environment variables first
+        monkeypatch.delenv("PHOENIX_ENABLE_AUTH", raising=False)
+        monkeypatch.delenv("PHOENIX_SECRET", raising=False)
+        monkeypatch.delenv("PHOENIX_ADMIN_SECRET", raising=False)
+        monkeypatch.delenv("PHOENIX_DISABLE_BASIC_AUTH", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_AZURE_CLIENT_ID", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_AZURE_CLIENT_SECRET", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_AZURE_OIDC_CONFIG_URL", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_ALLOW_SIGN_UP", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_AUTO_LOGIN", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_CLIENT_ID", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_DISPLAY_NAME", raising=False)
+        monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL", raising=False)
+
+        # Set the test environment variables
+        for key, value in env_vars.items():
+            monkeypatch.setenv(key, value)
+
+        with pytest.raises(ValueError) as e:
+            get_env_auth_settings()
+        assert expected_error_msg in str(e.value)

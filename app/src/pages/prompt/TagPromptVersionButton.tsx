@@ -1,4 +1,4 @@
-import React, { Suspense, useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { useParams } from "react-router";
 import { css } from "@emotion/react";
@@ -109,10 +109,7 @@ function TagList({
 }) {
   const data = useLazyLoadQuery<TagPromptVersionButtonTagsQuery>(
     graphql`
-      query TagPromptVersionButtonTagsQuery(
-        $promptId: GlobalID!
-        $versionId: GlobalID!
-      ) {
+      query TagPromptVersionButtonTagsQuery($promptId: ID!, $versionId: ID!) {
         prompt: node(id: $promptId) {
           ... on Prompt {
             versionTags {
@@ -157,7 +154,7 @@ function TagList({
   const [commitSetTag, isCommitting] = useMutation(graphql`
     mutation TagPromptVersionButtonSetTagMutation(
       $input: SetPromptVersionTagInput!
-      $promptId: GlobalID!
+      $promptId: ID!
     ) {
       setPromptVersionTag(input: $input) {
         query {

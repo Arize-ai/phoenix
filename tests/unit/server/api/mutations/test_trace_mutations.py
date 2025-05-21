@@ -11,7 +11,7 @@ from tests.unit.graphql import AsyncGraphQLClient
 
 class TestTraceMutationMixin:
     DELETE_TRACES_MUTATION = """
-      mutation($traceIds: [GlobalID!]!) {
+      mutation($traceIds: [ID!]!) {
         deleteTraces(traceIds: $traceIds) {
           __typename
         }

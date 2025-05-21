@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate } from "react-router";
 
@@ -21,7 +21,7 @@ export function PlaygroundDatasetSection({ datasetId }: { datasetId: string }) {
 
   const data = useLazyLoadQuery<PlaygroundDatasetSectionQuery>(
     graphql`
-      query PlaygroundDatasetSectionQuery($datasetId: GlobalID!) {
+      query PlaygroundDatasetSectionQuery($datasetId: ID!) {
         dataset: node(id: $datasetId) {
           ... on Dataset {
             name

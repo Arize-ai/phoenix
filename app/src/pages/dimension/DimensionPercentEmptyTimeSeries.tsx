@@ -1,4 +1,3 @@
-import React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   CartesianGrid,
@@ -76,7 +75,7 @@ export function DimensionPercentEmptyTimeSeries({
   const data = useLazyLoadQuery<DimensionPercentEmptyTimeSeriesQuery>(
     graphql`
       query DimensionPercentEmptyTimeSeriesQuery(
-        $dimensionId: GlobalID!
+        $dimensionId: ID!
         $timeRange: TimeRange!
         $granularity: Granularity!
       ) {

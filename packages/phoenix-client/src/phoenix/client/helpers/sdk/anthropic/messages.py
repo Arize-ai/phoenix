@@ -727,7 +727,6 @@ class _ContentConversion:
 
                 if isinstance(block, RedactedThinkingBlock):
                     raise NotImplementedError
-                assert_never(block)
         return content
 
 

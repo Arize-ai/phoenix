@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<680f2c3471984fd01a4b98afcb92bc9b>>
+ * @generated SignedSource<<59d9e6d9608b08a3ec0ede9f9267b15b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type AnnotatorKind = "HUMAN" | "LLM";
+export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
 export type SpanKind = "agent" | "chain" | "embedding" | "evaluator" | "guardrail" | "llm" | "reranker" | "retriever" | "tool" | "unknown";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
@@ -19,14 +19,10 @@ export type TracesTable_spans$data = {
   readonly rootSpans: {
     readonly edges: ReadonlyArray<{
       readonly rootSpan: {
-        readonly cumulativeTokenCountCompletion: number | null;
-        readonly cumulativeTokenCountPrompt: number | null;
         readonly cumulativeTokenCountTotal: number | null;
         readonly descendants: {
           readonly edges: ReadonlyArray<{
             readonly node: {
-              readonly cumulativeTokenCountCompletion: number | null;
-              readonly cumulativeTokenCountPrompt: number | null;
               readonly cumulativeTokenCountTotal: number | null;
               readonly documentRetrievalMetrics: ReadonlyArray<{
                 readonly evaluationName: string;
@@ -46,6 +42,7 @@ export type TracesTable_spans$data = {
               readonly parentId: string | null;
               readonly spanAnnotations: ReadonlyArray<{
                 readonly annotatorKind: AnnotatorKind;
+                readonly createdAt: string;
                 readonly id: string;
                 readonly label: string | null;
                 readonly name: string;
@@ -59,6 +56,7 @@ export type TracesTable_spans$data = {
                 readonly id: string;
                 readonly traceId: string;
               };
+              readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup" | "TraceHeaderRootSpanAnnotationsFragment">;
             };
           }>;
         };
@@ -79,8 +77,17 @@ export type TracesTable_spans$data = {
           readonly value: string;
         } | null;
         readonly parentId: string | null;
+        readonly spanAnnotationSummaries: ReadonlyArray<{
+          readonly labelFractions: ReadonlyArray<{
+            readonly fraction: number;
+            readonly label: string;
+          }>;
+          readonly meanScore: number | null;
+          readonly name: string;
+        }>;
         readonly spanAnnotations: ReadonlyArray<{
           readonly annotatorKind: AnnotatorKind;
+          readonly createdAt: string;
           readonly id: string;
           readonly label: string | null;
           readonly name: string;
@@ -95,6 +102,7 @@ export type TracesTable_spans$data = {
           readonly numSpans: number;
           readonly traceId: string;
         };
+        readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
       };
     }>;
   };
@@ -200,6 +208,13 @@ v11 = {
 v12 = {
   "alias": null,
   "args": null,
+  "kind": "ScalarField",
+  "name": "label",
+  "storageKey": null
+},
+v13 = {
+  "alias": null,
+  "args": null,
   "concreteType": "SpanAnnotation",
   "kind": "LinkedField",
   "name": "spanAnnotations",
@@ -207,13 +222,7 @@ v12 = {
   "selections": [
     (v2/*: any*/),
     (v1/*: any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "label",
-      "storageKey": null
-    },
+    (v12/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -227,11 +236,23 @@ v12 = {
       "kind": "ScalarField",
       "name": "annotatorKind",
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "createdAt",
+      "storageKey": null
     }
   ],
   "storageKey": null
 },
-v13 = {
+v14 = {
+  "args": null,
+  "kind": "FragmentSpread",
+  "name": "AnnotationSummaryGroup"
+},
+v15 = {
   "alias": null,
   "args": null,
   "concreteType": "DocumentRetrievalMetrics",
@@ -408,20 +429,6 @@ return {
                   "name": "cumulativeTokenCountTotal",
                   "storageKey": null
                 },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "cumulativeTokenCountPrompt",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "cumulativeTokenCountCompletion",
-                  "storageKey": null
-                },
                 (v6/*: any*/),
                 (v8/*: any*/),
                 (v9/*: any*/),
@@ -446,8 +453,47 @@ return {
                   ],
                   "storageKey": null
                 },
-                (v12/*: any*/),
                 (v13/*: any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "AnnotationSummary",
+                  "kind": "LinkedField",
+                  "name": "spanAnnotationSummaries",
+                  "plural": true,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "LabelFraction",
+                      "kind": "LinkedField",
+                      "name": "labelFractions",
+                      "plural": true,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "fraction",
+                          "storageKey": null
+                        },
+                        (v12/*: any*/)
+                      ],
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "meanScore",
+                      "storageKey": null
+                    },
+                    (v1/*: any*/)
+                  ],
+                  "storageKey": null
+                },
+                (v14/*: any*/),
+                (v15/*: any*/),
                 {
                   "alias": null,
                   "args": [
@@ -498,20 +544,6 @@ return {
                               "name": "tokenCountTotal",
                               "storageKey": null
                             },
-                            {
-                              "alias": "cumulativeTokenCountPrompt",
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "tokenCountPrompt",
-                              "storageKey": null
-                            },
-                            {
-                              "alias": "cumulativeTokenCountCompletion",
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "tokenCountCompletion",
-                              "storageKey": null
-                            },
                             (v8/*: any*/),
                             (v9/*: any*/),
                             (v10/*: any*/),
@@ -528,8 +560,14 @@ return {
                               ],
                               "storageKey": null
                             },
-                            (v12/*: any*/),
-                            (v13/*: any*/)
+                            (v13/*: any*/),
+                            (v14/*: any*/),
+                            (v15/*: any*/),
+                            {
+                              "args": null,
+                              "kind": "FragmentSpread",
+                              "name": "TraceHeaderRootSpanAnnotationsFragment"
+                            }
                           ],
                           "storageKey": null
                         }
@@ -605,6 +643,6 @@ return {
 };
 })();
 
-(node as any).hash = "946e6d9bfbf43ac9def8bfcc2ff30661";
+(node as any).hash = "193763dc6db3300bf3b3b1395effdfe5";
 
 export default node;

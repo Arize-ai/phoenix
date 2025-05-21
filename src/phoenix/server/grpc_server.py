@@ -14,7 +14,12 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2_grpc import (
 from typing_extensions import TypeAlias
 
 from phoenix.auth import CanReadToken
-from phoenix.config import get_env_grpc_port
+from phoenix.config import (
+    TLSConfigVerifyClient,
+    get_env_grpc_port,
+    get_env_tls_config,
+    get_env_tls_enabled_for_grpc,
+)
 from phoenix.server.bearer_auth import ApiKeyInterceptor
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.trace.schemas import Span
@@ -86,7 +91,21 @@ class GrpcServer:
             options=(("grpc.so_reuseport", 0),),
             interceptors=interceptors,
         )
-        server.add_insecure_port(f"[::]:{get_env_grpc_port()}")
+        if get_env_tls_enabled_for_grpc():
+            assert (tls_config := get_env_tls_config())
+            private_key_certificate_chain_pairs = [(tls_config.key_data, tls_config.cert_data)]
+            server_credentials = (
+                grpc.ssl_server_credentials(
+                    private_key_certificate_chain_pairs,
+                    root_certificates=tls_config.ca_data,
+                    require_client_auth=True,
+                )
+                if isinstance(tls_config, TLSConfigVerifyClient)
+                else grpc.ssl_server_credentials(private_key_certificate_chain_pairs)
+            )
+            server.add_secure_port(f"[::]:{get_env_grpc_port()}", server_credentials)
+        else:
+            server.add_insecure_port(f"[::]:{get_env_grpc_port()}")
         add_TraceServiceServicer_to_server(Servicer(self._callback), server)  # type: ignore[no-untyped-call,unused-ignore]
         await server.start()
         self._server = server

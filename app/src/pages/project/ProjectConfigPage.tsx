@@ -1,4 +1,4 @@
-import React, { Suspense } from "react";
+import { Suspense } from "react";
 import {
   graphql,
   PreloadedQuery,
@@ -22,10 +22,12 @@ import { useProjectContext } from "@phoenix/contexts";
 import { ProjectConfigPage_projectConfigCard$key } from "./__generated__/ProjectConfigPage_projectConfigCard.graphql";
 import { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQueryType } from "./__generated__/ProjectPageQueriesProjectConfigQuery.graphql";
 import { isProjectTab } from "./constants";
+import { ProjectAnnotationConfigCard } from "./ProjectAnnotationConfigCard";
 import {
   ProjectPageQueriesProjectConfigQuery,
   useProjectPageQueryReferenceContext,
 } from "./ProjectPageQueries";
+import { ProjectRetentionPolicyCard } from "./ProjectRetentionPolicyCard";
 const projectConfigPageCSS = css`
   overflow-y: auto;
 `;
@@ -73,6 +75,8 @@ const ProjectConfigContent = ({
   return (
     <Flex direction="column" gap="size-200">
       <ProjectConfigCard project={data.project} />
+      <ProjectAnnotationConfigCard projectId={data.project.id} />
+      <ProjectRetentionPolicyCard project={data.project} query={data} />
     </Flex>
   );
 };

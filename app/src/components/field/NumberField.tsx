@@ -1,4 +1,4 @@
-import React, { forwardRef, Ref } from "react";
+import { forwardRef, Ref } from "react";
 import {
   NumberField as AriaNumberField,
   NumberFieldProps as AriaNumberFieldProps,
@@ -12,6 +12,12 @@ import { textFieldCSS } from "./styles";
 
 export interface NumberFieldProps extends AriaNumberFieldProps, SizingProps {}
 
+const numberFieldCSS = css`
+  .react-aria-Input {
+    text-align: right;
+  }
+`;
+
 const NumberField = forwardRef(function NumberField(
   props: NumberFieldProps,
   ref: Ref<HTMLDivElement>
@@ -23,7 +29,7 @@ const NumberField = forwardRef(function NumberField(
       className="ac-textfield"
       ref={ref}
       {...otherProps}
-      css={css(fieldBaseCSS, textFieldCSS)}
+      css={css(fieldBaseCSS, textFieldCSS, numberFieldCSS)}
     />
   );
 });

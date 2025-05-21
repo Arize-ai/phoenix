@@ -101,7 +101,7 @@ const fetchRelay: FetchFunction = (params, variables, _cacheConfig) =>
     }
   );
 
-const subscribe = createFetchMultipartSubscription("/graphql", {
+const subscribe = createFetchMultipartSubscription(graphQLPath, {
   fetch: graphQLFetch,
 });
 
@@ -113,6 +113,6 @@ export default new Environment({
     // navigates around the app. Relay will hold onto the specified number of
     // query results, allowing the user to return to recently visited pages
     // and reusing cached data if its available/fresh.
-    gcReleaseBufferSize: 10,
+    gcReleaseBufferSize: 20,
   }),
 });

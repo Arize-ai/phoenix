@@ -1,3 +1,4 @@
+from asyncio import sleep
 from collections import defaultdict
 from collections.abc import Iterator, Sequence
 from contextlib import AbstractContextManager
@@ -12,7 +13,9 @@ from typing import (
     Optional,
     TypeVar,
 )
+from urllib.error import URLError
 from urllib.parse import urljoin
+from urllib.request import urlopen
 
 import bs4
 import jwt
@@ -25,9 +28,10 @@ from opentelemetry.sdk.environment_variables import (
 )
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
-from phoenix.config import get_env_phoenix_admin_secret, get_env_root_url
+from phoenix.config import get_base_url, get_env_phoenix_admin_secret, get_env_root_url
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
+from starlette.datastructures import Secret
 from strawberry.relay import GlobalID
 from typing_extensions import assert_never
 
@@ -60,6 +64,7 @@ from .._helpers import (
     _log_in,
     _log_out,
     _LoggedInUser,
+    _OIDCServer,
     _Password,
     _patch_user,
     _patch_viewer,
@@ -74,6 +79,175 @@ from .._helpers import (
 NOW = datetime.now(timezone.utc)
 _decode_jwt = partial(jwt.decode, options=dict(verify_signature=False))
 _TokenT = TypeVar("_TokenT", _AccessToken, _RefreshToken)
+
+
+class TestOIDC:
+    """Tests for OpenID Connect (OIDC) authentication flow.
+
+    This class tests the OIDC sign-in and sign-up processes, including:
+    - User authentication via OIDC
+    - New user creation during OIDC sign-in
+    - Token generation and validation
+    - Handling of conflicts with existing users
+    - Configuration options like allow_sign_up
+    - Error handling for invalid credentials
+    """  # noqa: E501
+
+    @pytest.mark.parametrize("allow_sign_up", [True, False])
+    async def test_sign_in(
+        self,
+        allow_sign_up: bool,
+        _oidc_server: _OIDCServer,
+    ) -> None:
+        """Test the complete OIDC sign-in flow with different allow_sign_up settings.
+
+        This test verifies:
+        1. The OAuth2 flow redirects correctly to the OIDC provider
+        2. When allow_sign_up is True:
+           - A new user is created with MEMBER role
+           - Access and refresh tokens are generated
+           - Subsequent OIDC flows generate new tokens for the same user
+        3. When allow_sign_up is False:
+           - Users are redirected to login with an error message
+           - No access tokens are granted
+           - If a user without a password exists, they can still sign in
+        """  # noqa: E501
+        client = _httpx_client()
+        url = (
+            f"oauth2/{_oidc_server}/login"
+            if allow_sign_up
+            else f"oauth2/{_oidc_server}_no_sign_up/login"
+        )
+
+        # Start the OAuth2 flow
+        response = client.post(url)
+        assert response.status_code == 302
+        auth_url = response.headers["location"]
+        cookies = dict(response.cookies)  # Save cookies for reuse
+
+        # Follow the redirect to the OIDC server
+        response = client.get(auth_url)
+        assert response.status_code == 302
+        callback_url = response.headers["location"]
+
+        # Verify that the user is not already created
+        assert (email := _oidc_server.user_email)
+        admin = _DEFAULT_ADMIN.log_in()
+        users = {u.profile.email: u for u in admin.list_users()}
+        assert email not in users
+
+        # Complete the flow by calling the token endpoint
+        response = client.get(callback_url)
+
+        if not allow_sign_up:
+            # Verify that user is redirected to /login
+            assert response.status_code == 307
+            assert "/login" in response.headers["location"]
+
+            # Verify no access is granted
+            assert not response.cookies.get("phoenix-access-token")
+            assert not response.cookies.get("phoenix-refresh-token")
+
+            # Create the user without password
+            admin.create_user(profile=_Profile(email, "", token_hex(8)), local=False)
+
+            # If user go through OIDC flow again, access should be granted
+            response = _httpx_client(cookies=cookies).get(callback_url)
+
+            # Verify that user is redirected not to /login
+            assert response.status_code == 302
+            assert "/login" not in response.headers["location"]
+
+            # Verify we got access
+            assert (access_token := response.cookies.get("phoenix-access-token"))
+            assert (refresh_token := response.cookies.get("phoenix-refresh-token"))
+
+            # Verify that the user was created
+            users = {u.profile.email: u for u in admin.list_users()}
+            assert email in users
+            assert users[email].role is UserRoleInput.MEMBER
+
+            # If user go through OIDC flow again, new access token should be created
+            response = _httpx_client(cookies=cookies).get(callback_url)
+            assert (new_access_token := response.cookies.get("phoenix-access-token"))
+            assert (new_refresh_token := response.cookies.get("phoenix-refresh-token"))
+            assert new_access_token != access_token
+            assert new_refresh_token != refresh_token
+            return
+
+        # Verify we got access
+        assert response.status_code == 302
+        assert (access_token := response.cookies.get("phoenix-access-token"))
+        assert (refresh_token := response.cookies.get("phoenix-refresh-token"))
+
+        # Verify that the user was created
+        users = {u.profile.email: u for u in admin.list_users()}
+        assert email in users
+        assert users[email].role is UserRoleInput.MEMBER
+
+        # If user go through OIDC flow again, new access token should be created
+        response = _httpx_client(cookies=cookies).get(callback_url)
+        assert (new_access_token := response.cookies.get("phoenix-access-token"))
+        assert (new_refresh_token := response.cookies.get("phoenix-refresh-token"))
+        assert new_access_token != access_token
+        assert new_refresh_token != refresh_token
+
+    @pytest.mark.parametrize("allow_sign_up", [True, False])
+    async def test_sign_in_conflict_for_local_user_with_password(
+        self,
+        allow_sign_up: bool,
+        _oidc_server: _OIDCServer,
+    ) -> None:
+        """Test OIDC sign-in when a user with the same email already exists with password authentication.
+
+        This test verifies:
+        1. The system detects the email conflict with an existing user
+        2. The user is redirected to the login page with an appropriate error message
+        3. No access tokens are granted to the OIDC user
+        4. The existing user's credentials remain unchanged
+        5. This behavior is consistent regardless of the allow_sign_up setting
+        """  # noqa: E501
+        client = _httpx_client()
+        url = (
+            f"oauth2/{_oidc_server}/login"
+            if allow_sign_up
+            else f"oauth2/{_oidc_server}_no_sign_up/login"
+        )
+
+        # Start the OAuth2 flow
+        response = client.post(url)
+        assert response.status_code == 302
+        auth_url = response.headers["location"]
+
+        # Follow the redirect to the OIDC server
+        response = client.get(auth_url)
+        assert response.status_code == 302
+        callback_url = response.headers["location"]
+
+        # Verify that the user is not already created
+        assert (email := _oidc_server.user_email)
+        admin = _DEFAULT_ADMIN.log_in()
+        users = {u.profile.email: u for u in admin.list_users()}
+        assert email not in users
+
+        # Create the user with password
+        admin.create_user(profile=_Profile(email, token_hex(8), token_hex(8)))
+
+        # Verify that user is redirected to /login
+        response = client.get(callback_url)
+        assert response.status_code == 307
+        assert "/login" in response.headers["location"]
+
+        # Verify no access is granted
+        assert not response.cookies.get("phoenix-access-token")
+        assert not response.cookies.get("phoenix-refresh-token")
+
+
+class TestTLS:
+    def test_non_tls_client_cannot_connect(self) -> None:
+        with pytest.raises(URLError) as e:
+            urlopen(get_base_url())
+        assert "SSL" in str(e.value), f"Expected SSL error, got: {e.value}"
 
 
 class TestOriginAndReferer:
@@ -1028,15 +1202,15 @@ class TestSpanExporters:
         if use_admin_secret:
             assert (api_key := get_env_phoenix_admin_secret())
         else:
-            api_key = ""
+            api_key = Secret("")
         if method == "headers":
             # Must use all lower case for `authorization` because
             # otherwise it would crash the gRPC receiver.
-            headers = dict(authorization=f"Bearer {api_key}")
+            headers = dict(authorization=f"Bearer {str(api_key)}")
         elif method == "setenv":
             monkeypatch.setenv(
                 OTEL_EXPORTER_OTLP_TRACES_HEADERS,
-                f"Authorization=Bearer {api_key}",
+                f"Authorization=Bearer {str(api_key)}",
             )
         else:
             assert_never(method)
@@ -1162,3 +1336,336 @@ class TestPrompts:
             user = version["promptVersion"]["user"]
             assert user is not None
             assert user["id"] == logged_in_user.gid
+
+
+class TestSpanAnnotations:
+    QUERY = """
+      mutation CreateSpanAnnotations($input: [CreateSpanAnnotationInput!]!) {
+        createSpanAnnotations(input: $input) {
+          spanAnnotations {
+            ...SpanAnnotationFields
+          }
+        }
+      }
+
+      mutation PatchSpanAnnotations($input: [PatchAnnotationInput!]!) {
+        patchSpanAnnotations(input: $input) {
+          spanAnnotations {
+            ...SpanAnnotationFields
+          }
+        }
+      }
+
+      mutation DeleteSpanAnnotations($input: DeleteAnnotationsInput!) {
+        deleteSpanAnnotations(input: $input) {
+          spanAnnotations {
+            ...SpanAnnotationFields
+          }
+        }
+      }
+
+      query GetSpanAnnotation($annotationId: ID!) {
+        spanAnnotation: node(id: $annotationId) {
+          ... on SpanAnnotation {
+            ...SpanAnnotationFields
+          }
+        }
+      }
+
+      fragment SpanAnnotationFields on SpanAnnotation {
+        id
+        name
+        score
+        label
+        explanation
+        annotatorKind
+        metadata
+        source
+        identifier
+        spanId
+        user {
+          id
+          email
+          username
+        }
+      }
+    """
+
+    async def test_other_users_cannot_patch_and_only_creator_or_admin_can_delete(
+        self,
+        _spans: Sequence[ReadableSpan],
+        _get_user: _GetUser,
+    ) -> None:
+        annotation_creator = _get_user(_MEMBER)
+        logged_in_annotation_creator = annotation_creator.log_in()
+        member = _get_user(_MEMBER)
+        logged_in_member = member.log_in()
+        admin = _get_user(_ADMIN)
+        logged_in_admin = admin.log_in()
+
+        # Add spans
+        user_api_key = logged_in_annotation_creator.create_api_key()
+        headers = dict(authorization=f"Bearer {user_api_key}")
+        exporter = _http_span_exporter(headers=headers)
+        assert exporter.export(_spans) is SpanExportResult.SUCCESS
+        await sleep(0.1)  # wait for spans to be exported and written to disk
+
+        # Create span annotation
+        span_gid = str(GlobalID("Span", "1"))
+        response, _ = logged_in_annotation_creator.gql(
+            query=self.QUERY,
+            operation_name="CreateSpanAnnotations",
+            variables={
+                "input": {
+                    "spanId": span_gid,
+                    "name": "span-annotation-name",
+                    "annotatorKind": "HUMAN",
+                    "label": "correct",
+                    "score": 1,
+                    "explanation": "explanation",
+                    "metadata": {},
+                    "identifier": "identifier",
+                    "source": "APP",
+                }
+            },
+        )
+
+        span_annotations = response["data"]["createSpanAnnotations"]["spanAnnotations"]
+        assert len(span_annotations) == 1
+        original_span_annotation = span_annotations[0]
+        annotation_id = original_span_annotation["id"]
+
+        # Only the user who created the annotation can patch
+        span_gid = str(GlobalID("Span", "1"))
+        for user in [logged_in_member, logged_in_admin]:
+            with pytest.raises(RuntimeError) as exc_info:
+                response, _ = user.gql(
+                    query=self.QUERY,
+                    operation_name="PatchSpanAnnotations",
+                    variables={
+                        "input": {
+                            "annotationId": annotation_id,
+                            "name": "patched-span-annotation-name",
+                            "annotatorKind": "LLM",
+                            "label": "incorrect",
+                            "score": 0,
+                            "explanation": "patched-explanation",
+                            "metadata": {"patched": "key"},
+                            "identifier": "patched-identifier",
+                        }
+                    },
+                )
+            assert "At least one span annotation is not associated with the current user." in str(
+                exc_info.value
+            )
+
+            # Check that the annotation remains unchanged
+            response, _ = user.gql(
+                query=self.QUERY,
+                operation_name="GetSpanAnnotation",
+                variables={"annotationId": annotation_id},
+            )
+            span_annotation = response["data"]["spanAnnotation"]
+            assert span_annotation == original_span_annotation
+
+        # Member who did not create the annotation cannot delete
+        with pytest.raises(RuntimeError) as exc_info:
+            logged_in_member.gql(
+                query=self.QUERY,
+                operation_name="DeleteSpanAnnotations",
+                variables={
+                    "input": {
+                        "annotationIds": [annotation_id],
+                    }
+                },
+            )
+        assert "At least one span annotation is not associated with the current user." in str(
+            exc_info.value
+        )
+
+        # Check that the annotation remains unchanged
+        response, _ = user.gql(
+            query=self.QUERY,
+            operation_name="GetSpanAnnotation",
+            variables={"annotationId": annotation_id},
+        )
+        span_annotation = response["data"]["spanAnnotation"]
+        assert span_annotation == original_span_annotation
+
+        # Admin can delete
+        response, _ = logged_in_admin.gql(
+            query=self.QUERY,
+            operation_name="DeleteSpanAnnotations",
+            variables={
+                "input": {
+                    "annotationIds": [annotation_id],
+                }
+            },
+        )
+
+
+class TestTraceAnnotations:
+    QUERY = """
+      mutation CreateTraceAnnotations($input: [CreateTraceAnnotationInput!]!) {
+        createTraceAnnotations(input: $input) {
+          traceAnnotations {
+            ...TraceAnnotationFields
+          }
+        }
+      }
+
+      mutation PatchTraceAnnotations($input: [PatchAnnotationInput!]!) {
+        patchTraceAnnotations(input: $input) {
+          traceAnnotations {
+            ...TraceAnnotationFields
+          }
+        }
+      }
+
+      mutation DeleteTraceAnnotations($input: DeleteAnnotationsInput!) {
+        deleteTraceAnnotations(input: $input) {
+          traceAnnotations {
+            ...TraceAnnotationFields
+          }
+        }
+      }
+
+      query GetTraceAnnotation($annotationId: ID!) {
+        traceAnnotation: node(id: $annotationId) {
+          ... on TraceAnnotation {
+            ...TraceAnnotationFields
+          }
+        }
+      }
+
+      fragment TraceAnnotationFields on TraceAnnotation {
+        id
+        name
+        score
+        label
+        explanation
+        annotatorKind
+        metadata
+        source
+        identifier
+        traceId
+        user {
+          id
+          email
+          username
+        }
+      }
+    """
+
+    async def test_other_users_cannot_patch_and_only_creator_or_admin_can_delete(
+        self,
+        _spans: Sequence[ReadableSpan],
+        _get_user: _GetUser,
+    ) -> None:
+        annotation_creator = _get_user(_MEMBER)
+        logged_in_annotation_creator = annotation_creator.log_in()
+        member = _get_user(_MEMBER)
+        logged_in_member = member.log_in()
+        admin = _get_user(_ADMIN)
+        logged_in_admin = admin.log_in()
+
+        # Add spans
+        user_api_key = logged_in_annotation_creator.create_api_key()
+        headers = dict(authorization=f"Bearer {user_api_key}")
+        exporter = _http_span_exporter(headers=headers)
+        assert exporter.export(_spans) is SpanExportResult.SUCCESS
+        await sleep(0.1)  # wait for spans to be exported and written to disk
+
+        # Create trace annotation
+        trace_gid = str(GlobalID("Trace", "1"))
+        response, _ = logged_in_annotation_creator.gql(
+            query=self.QUERY,
+            operation_name="CreateTraceAnnotations",
+            variables={
+                "input": {
+                    "traceId": trace_gid,
+                    "name": "trace-annotation-name",
+                    "annotatorKind": "HUMAN",
+                    "label": "correct",
+                    "score": 1,
+                    "explanation": "explanation",
+                    "metadata": {},
+                    "identifier": "identifier",
+                    "source": "APP",
+                }
+            },
+        )
+
+        trace_annotations = response["data"]["createTraceAnnotations"]["traceAnnotations"]
+        assert len(trace_annotations) == 1
+        original_trace_annotation = trace_annotations[0]
+        annotation_id = original_trace_annotation["id"]
+
+        # Only the user who created the annotation can patch
+        trace_gid = str(GlobalID("Trace", "1"))
+        for user in [logged_in_member, logged_in_admin]:
+            with pytest.raises(RuntimeError) as exc_info:
+                response, _ = user.gql(
+                    query=self.QUERY,
+                    operation_name="PatchTraceAnnotations",
+                    variables={
+                        "input": {
+                            "annotationId": annotation_id,
+                            "name": "patched-trace-annotation-name",
+                            "annotatorKind": "LLM",
+                            "label": "incorrect",
+                            "score": 0,
+                            "explanation": "patched-explanation",
+                            "metadata": {"patched": "key"},
+                            "identifier": "patched-identifier",
+                        }
+                    },
+                )
+            assert "At least one trace annotation is not associated with the current user." in str(
+                exc_info.value
+            )
+
+            # Check that the annotation remains unchanged
+            response, _ = user.gql(
+                query=self.QUERY,
+                operation_name="GetTraceAnnotation",
+                variables={"annotationId": annotation_id},
+            )
+            trace_annotation = response["data"]["traceAnnotation"]
+            assert trace_annotation == original_trace_annotation
+
+        # Member who did not create the annotation cannot delete
+        with pytest.raises(RuntimeError) as exc_info:
+            logged_in_member.gql(
+                query=self.QUERY,
+                operation_name="DeleteTraceAnnotations",
+                variables={
+                    "input": {
+                        "annotationIds": [annotation_id],
+                    }
+                },
+            )
+        assert (
+            "At least one trace annotation is not associated with the current user "
+            "and the current user is not an admin." in str(exc_info.value)
+        )
+
+        # Check that the annotation remains unchanged
+        response, _ = user.gql(
+            query=self.QUERY,
+            operation_name="GetTraceAnnotation",
+            variables={"annotationId": annotation_id},
+        )
+        trace_annotation = response["data"]["traceAnnotation"]
+        assert trace_annotation == original_trace_annotation
+
+        # Admin can delete
+        response, _ = logged_in_admin.gql(
+            query=self.QUERY,
+            operation_name="DeleteTraceAnnotations",
+            variables={
+                "input": {
+                    "annotationIds": [annotation_id],
+                }
+            },
+        )

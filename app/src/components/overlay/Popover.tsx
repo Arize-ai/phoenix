@@ -1,4 +1,4 @@
-import React, { forwardRef, Ref } from "react";
+import { forwardRef, Ref } from "react";
 import { Popover as AriaPopover, PopoverProps } from "react-aria-components";
 import { css, keyframes } from "@emotion/react";
 

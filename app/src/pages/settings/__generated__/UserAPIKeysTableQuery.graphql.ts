@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<aae6ff6a9bc28d31790dc70aa6d100c5>>
+ * @generated SignedSource<<0b147c21920903dfd612e378fa5e63cf>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,7 +19,15 @@ export type UserAPIKeysTableQuery = {
   variables: UserAPIKeysTableQuery$variables;
 };
 
-const node: ConcreteRequest = {
+const node: ConcreteRequest = (function(){
+var v0 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+};
+return {
   "fragment": {
     "argumentDefinitions": [],
     "kind": "Fragment",
@@ -49,13 +57,7 @@ const node: ConcreteRequest = {
         "name": "userApiKeys",
         "plural": true,
         "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "id",
-            "storageKey": null
-          },
+          (v0/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -98,7 +100,8 @@ const node: ConcreteRequest = {
                 "kind": "ScalarField",
                 "name": "email",
                 "storageKey": null
-              }
+              },
+              (v0/*: any*/)
             ],
             "storageKey": null
           }
@@ -108,14 +111,15 @@ const node: ConcreteRequest = {
     ]
   },
   "params": {
-    "cacheID": "e70d413b072841dff8565a332590a549",
+    "cacheID": "a91e7a740880f47e1bcd063ede287ed6",
     "id": null,
     "metadata": {},
     "name": "UserAPIKeysTableQuery",
     "operationKind": "query",
-    "text": "query UserAPIKeysTableQuery {\n  ...UserAPIKeysTableFragment\n}\n\nfragment UserAPIKeysTableFragment on Query {\n  userApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n    user {\n      email\n    }\n  }\n}\n"
+    "text": "query UserAPIKeysTableQuery {\n  ...UserAPIKeysTableFragment\n}\n\nfragment UserAPIKeysTableFragment on Query {\n  userApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n    user {\n      email\n      id\n    }\n  }\n}\n"
   }
 };
+})();
 
 (node as any).hash = "c2b3a579bcb0ba915523ecb35cae3b44";
 

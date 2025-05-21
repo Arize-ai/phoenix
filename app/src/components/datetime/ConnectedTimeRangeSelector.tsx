@@ -1,4 +1,4 @@
-import React, { startTransition, useCallback } from "react";
+import { startTransition, useCallback } from "react";
 
 import { useTimeRange } from "./TimeRangeContext";
 import { TimeRangeSelector } from "./TimeRangeSelector";

@@ -33,7 +33,7 @@ async def test_project_resolver_returns_correct_project(
     project_with_a_single_trace_and_span: None,
 ) -> None:
     query = """
-      query ($spanId: GlobalID!) {
+      query ($spanId: ID!) {
         span: node(id: $spanId) {
           ... on Span {
             project {
@@ -66,7 +66,7 @@ async def test_querying_spans_contained_in_datasets(
     simple_dataset: None,
 ) -> None:
     query = """
-      query ($spanId: GlobalID!) {
+      query ($spanId: ID!) {
         span: node(id: $spanId) {
           ... on Span {
             containedInDataset
@@ -91,7 +91,7 @@ async def test_querying_spans_not_contained_in_datasets(
     gql_client: AsyncGraphQLClient, project_with_a_single_trace_and_span: None
 ) -> None:
     query = """
-      query ($spanId: GlobalID!) {
+      query ($spanId: ID!) {
         span: node(id: $spanId) {
           ... on Span {
             containedInDataset
@@ -117,14 +117,14 @@ async def test_span_fields(
     _span_data: tuple[models.Project, Mapping[int, models.Trace], Mapping[int, models.Span]],
 ) -> None:
     query = """
-      query SpanBySpanNodeId($id: GlobalID!) {
+      query SpanBySpanNodeId($id: ID!) {
         node(id: $id) {
           ... on Span {
             ...SpanFragment
           }
         }
       }
-      query SpansByTraceNodeId($traceId: GlobalID!) {
+      query SpansByTraceNodeId($traceId: ID!) {
         node(id: $traceId) {
           ... on Trace {
             spans(first: 1000) {
@@ -137,7 +137,7 @@ async def test_span_fields(
           }
         }
       }
-      query SpansByProjectNodeId($projectId: GlobalID!) {
+      query SpansByProjectNodeId($projectId: ID!) {
         node(id: $projectId) {
           ... on Project {
             spans(first: 1000) {
@@ -550,3 +550,343 @@ async def simple_dataset(
         )
         session.add(example_0_revision_0)
         await session.flush()
+
+
+@pytest.mark.parametrize(
+    "filter_config,expected_summary_count,expected_summary_name,expected_mean_score,expected_label_fractions",
+    [
+        # Test case 1: No filter
+        pytest.param(
+            None,  # No filter
+            2,  # Expect both Hallucination and Relevance summaries
+            "Hallucination",  # Check the Hallucination summary
+            0.55,  # Mean score: (0.0 + 1.0 + 0.5 + 0.7) / 4 = 0.55
+            [
+                {"label": "factual", "fraction": 0.75},  # 3 out of 4 annotations with labels
+                {"label": "hallucinated", "fraction": 0.25},  # 1 out of 4 annotations with labels
+            ],
+            id="no-filter",
+        ),
+        # Test case 2: Filter by name (include)
+        pytest.param(
+            {"include": {"names": ["Hallucination"]}},  # Only include Hallucination annotations
+            1,  # Expect only Hallucination summary
+            "Hallucination",  # Check the Hallucination summary
+            0.55,  # Mean score: (0.0 + 1.0 + 0.5 + 0.7) / 4 = 0.55
+            [
+                {"label": "factual", "fraction": 0.75},  # 3 out of 4 annotations with labels
+                {"label": "hallucinated", "fraction": 0.25},  # 1 out of 4 annotations with labels
+            ],
+            id="filter-by-name-include",
+        ),
+        # Test case 3: Filter by name (exclude)
+        pytest.param(
+            {"exclude": {"names": ["Relevance"]}},  # Exclude Relevance annotations
+            1,  # Expect only Hallucination summary
+            "Hallucination",  # Check the Hallucination summary
+            0.55,  # Mean score: (0.0 + 1.0 + 0.5 + 0.7) / 4 = 0.55
+            [
+                {"label": "factual", "fraction": 0.75},  # 3 out of 4 annotations with labels
+                {"label": "hallucinated", "fraction": 0.25},  # 1 out of 4 annotations with labels
+            ],
+            id="filter-by-name-exclude",
+        ),
+        # Test case 4: Check Relevance summary
+        pytest.param(
+            None,  # No filter
+            2,  # Expect both summaries
+            "Relevance",  # Check the Relevance summary
+            0.8,  # Mean score: (0.8 + 0.7 + 0.9) / 3 = 0.8
+            [
+                {"label": "high", "fraction": 1 / 3},  # 1 out of 3 annotations with labels
+                {"label": "low", "fraction": 1 / 3},  # 1 out of 3 annotations with labels
+                {"label": "medium", "fraction": 1 / 3},  # 1 out of 3 annotations with labels
+            ],
+            id="check-relevance-summary",
+        ),
+    ],
+)
+async def test_span_annotation_summaries(
+    gql_client: AsyncGraphQLClient,
+    spans_with_annotations: None,
+    filter_config: Optional[dict[str, Any]],
+    expected_summary_count: int,
+    expected_summary_name: str,
+    expected_mean_score: float,
+    expected_label_fractions: list[dict[str, Any]],
+) -> None:
+    """
+    Test the span_annotation_summaries field with various filter configurations.
+
+    This test verifies that the span_annotation_summaries field correctly:
+    1. Returns the expected number of summaries based on the filter
+    2. Calculates mean scores correctly, handling null scores
+    3. Calculates label fractions correctly, handling null labels
+
+    The test uses a fixture that creates a span with multiple annotations:
+    - 5 Hallucination annotations (3 factual, 1 hallucinated, 1 with null label)
+    - 4 Relevance annotations (1 high, 1 low, 1 medium, 1 with null label)
+
+    Args:
+        gql_client: The GraphQL client for making queries
+        spans_with_annotations: Fixture that creates test data
+        filter_config: Optional filter configuration for the query
+        expected_summary_count: Expected number of summaries returned
+        expected_summary_name: Name of the summary to check
+        expected_mean_score: Expected mean score for the summary
+        expected_label_fractions: Expected label fractions for the summary
+    """
+    # Build the filter part of the query if a filter config is provided
+    filter_arg = ""
+    if filter_config:
+        filter_parts = []
+        if "include" in filter_config:
+            include = filter_config["include"]
+            if "names" in include:
+                filter_parts.append(f'include: {{ names: {json.dumps(include["names"])} }}')
+        if "exclude" in filter_config:
+            exclude = filter_config["exclude"]
+            if "names" in exclude:
+                filter_parts.append(f'exclude: {{ names: {json.dumps(exclude["names"])} }}')
+        if filter_parts:
+            filter_arg = f'(filter: {{ {", ".join(filter_parts)} }})'
+
+    query = f"""
+      query ($spanId: ID!) {{
+        span: node(id: $spanId) {{
+          ... on Span {{
+            spanAnnotationSummaries{filter_arg} {{
+              name
+              meanScore
+              labelFractions {{
+                label
+                fraction
+              }}
+            }}
+          }}
+        }}
+      }}
+    """  # noqa: E501
+    span_id = str(GlobalID(Span.__name__, str(1)))
+    response = await gql_client.execute(
+        query,
+        variables={"spanId": span_id},
+    )
+    assert not response.errors, f"GraphQL query returned errors: {response.errors}"  # noqa: E501
+    data = response.data
+    assert data is not None, "GraphQL response data is None"  # noqa: E501
+    span = data["span"]
+    assert span is not None, "GraphQL response span is None"  # noqa: E501
+    summaries = span["spanAnnotationSummaries"]
+    assert (
+        len(summaries) == expected_summary_count
+    ), f"Expected {expected_summary_count} summaries, got {len(summaries)}"  # noqa: E501
+
+    # Find the summary with the expected name
+    summary = next((s for s in summaries if s["name"] == expected_summary_name), None)
+    assert summary is not None, f"Summary with name {expected_summary_name} not found"
+
+    # Use a small tolerance for floating-point comparison
+    assert (
+        abs(summary["meanScore"] - expected_mean_score) < 1e-10
+    ), f"Expected mean score {expected_mean_score}, got {summary['meanScore']}"  # noqa: E501
+
+    # Check label fractions
+    label_fractions = summary["labelFractions"]
+    assert len(label_fractions) == len(expected_label_fractions), (
+        f"Expected {len(expected_label_fractions)} label fractions, " f"got {len(label_fractions)}"  # noqa: E501
+    )
+
+    # Sort both lists by label to ensure consistent comparison
+    label_fractions.sort(key=lambda x: x["label"])
+    expected_label_fractions.sort(key=lambda x: x["label"])
+
+    for actual, expected in zip(label_fractions, expected_label_fractions):
+        assert (
+            actual["label"] == expected["label"]
+        ), f"Expected label {expected['label']}, got {actual['label']}"
+        assert abs(actual["fraction"] - expected["fraction"]) < 1e-10, (
+            f"Expected fraction {expected['fraction']} for label {actual['label']}, "
+            f"got {actual['fraction']}"
+        )
+
+
+@pytest.fixture
+async def spans_with_annotations(
+    db: DbSessionFactory,
+) -> None:
+    """
+    Creates a project with a trace and a span, and adds annotations to the span.
+
+    This fixture sets up test data with the following structure:
+    1. Creates a project named "test-project"
+    2. Creates a trace with ID "test-trace-id"
+    3. Creates a span with ID "test-span-id"
+    4. Adds 5 Hallucination annotations to the span:
+       - 3 with label="factual" and scores 0.0, 1.0, and None
+       - 1 with label="hallucinated" and score 0.5
+       - 1 with label=None and score 0.7
+    5. Adds 4 Relevance annotations to the span:
+       - 1 with label="high" and score 0.8
+       - 1 with label="low" and score 0.7
+       - 1 with label="medium" and score None
+       - 1 with label=None and score 0.9
+
+    This data is used to test various aspects of the span_annotation_summaries field,
+    including filtering, mean score calculation, and label fraction calculation.
+
+    Args:
+        db: Database session factory
+
+    Returns:
+        None
+    """
+    async with db() as session:
+        # Create project
+        project = models.Project(name="test-project")
+        session.add(project)
+        await session.flush()
+
+        # Create trace
+        trace = models.Trace(
+            trace_id="test-trace-id",
+            project_rowid=project.id,
+            start_time=datetime.now(timezone.utc),
+            end_time=datetime.now(timezone.utc),
+        )
+        session.add(trace)
+        await session.flush()
+
+        # Create span
+        span = models.Span(
+            trace_rowid=trace.id,
+            span_id="test-span-id",
+            name="test-span",
+            span_kind="LLM",
+            start_time=datetime.now(timezone.utc),
+            end_time=datetime.now(timezone.utc),
+            attributes={},
+            events=[],
+            status_code="OK",
+            status_message="OK",
+            cumulative_error_count=0,
+            cumulative_llm_token_count_prompt=0,
+            cumulative_llm_token_count_completion=0,
+        )
+        session.add(span)
+        await session.flush()
+
+        # Create annotations for the span
+        # Hallucination annotations
+        hallucination_annotations = [
+            models.SpanAnnotation(
+                span_rowid=span.id,
+                name="Hallucination",
+                label="factual",
+                score=0.0,
+                explanation="This is factual",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="APP",
+                identifier=token_hex(8),
+            ),
+            models.SpanAnnotation(
+                span_rowid=span.id,
+                name="Hallucination",
+                label="factual",
+                score=1.0,
+                explanation="This is factual",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="APP",
+                identifier=token_hex(8),
+            ),
+            models.SpanAnnotation(
+                span_rowid=span.id,
+                name="Hallucination",
+                label="hallucinated",
+                score=0.5,
+                explanation="This is hallucinated",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="APP",
+                identifier=token_hex(8),
+            ),
+            # Add an annotation with score=None
+            models.SpanAnnotation(
+                span_rowid=span.id,
+                name="Hallucination",
+                label="factual",
+                score=None,
+                explanation="This is factual but no score provided",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="APP",
+                identifier=token_hex(8),
+            ),
+            # Add an annotation with label=None
+            models.SpanAnnotation(
+                span_rowid=span.id,
+                name="Hallucination",
+                label=None,
+                score=0.7,
+                explanation="This has a score but no label",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="APP",
+                identifier=token_hex(8),
+            ),
+        ]
+
+        # Relevance annotations
+        relevance_annotations = [
+            models.SpanAnnotation(
+                span_rowid=span.id,
+                name="Relevance",
+                label="high",
+                score=0.8,
+                explanation="This is highly relevant",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="APP",
+                identifier=token_hex(8),
+            ),
+            models.SpanAnnotation(
+                span_rowid=span.id,
+                name="Relevance",
+                label="low",
+                score=0.7,
+                explanation="This is less relevant",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="APP",
+                identifier=token_hex(8),
+            ),
+            # Add an annotation with label=None
+            models.SpanAnnotation(
+                span_rowid=span.id,
+                name="Relevance",
+                label=None,
+                score=0.9,
+                explanation="This is relevant but no label provided",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="APP",
+                identifier=token_hex(8),
+            ),
+            # Add an annotation with score=None
+            models.SpanAnnotation(
+                span_rowid=span.id,
+                name="Relevance",
+                label="medium",
+                score=None,
+                explanation="This is relevant but no score provided",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="APP",
+                identifier=token_hex(8),
+            ),
+        ]
+
+        # Add all annotations to the session
+        session.add_all(hallucination_annotations + relevance_annotations)

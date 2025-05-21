@@ -1,4 +1,4 @@
-import React, { PropsWithChildren } from "react";
+import { PropsWithChildren } from "react";
 import { css } from "@emotion/react";
 
 export type CounterProps = PropsWithChildren<{
@@ -13,6 +13,7 @@ const counterCSS = css`
   display: inline-block;
   padding: 0 var(--ac-global-dimension-size-50);
   border-radius: var(--ac-global-rounding-large);
+  border: 1px solid var(--ac-global-color-grey-300);
   min-width: var(--ac-global-dimension-size-150);
   background-color: var(--ac-global-background-color-light);
   font-size: var(--ac-global-font-size-xs);

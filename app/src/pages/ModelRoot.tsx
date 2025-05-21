@@ -1,4 +1,3 @@
-import React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Outlet } from "react-router";
 

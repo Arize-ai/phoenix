@@ -1,4 +1,4 @@
-import React, { CSSProperties, ReactNode } from "react";
+import { CSSProperties, ReactNode } from "react";
 import { css } from "@emotion/react";
 
 import { HelpTooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
@@ -16,7 +16,13 @@ export const makeMetadataTooltipFilterCondition = (
    */
   value: string | number | boolean
 ) => {
-  return `metadata['${key}'] == ${toPythonPrimitiveStr(value)}`;
+  const pathSegments = key.split(".");
+  const bracketNotation = pathSegments
+    .map((segment) => {
+      return /^\d+$/.test(segment) ? `[${segment}]` : `['${segment}']`;
+    })
+    .join("");
+  return `metadata${bracketNotation} == ${toPythonPrimitiveStr(value)}`;
 };
 
 type MetadataTooltipProps = {
