@@ -64,6 +64,12 @@ function TokenDetails(props: { nodeId: string }) {
               completion
             }
           }
+          ... on Trace {
+            rootSpan {
+              cumulativeTokenCountPrompt
+              cumulativeTokenCountCompletion
+            }
+          }
         }
       }
     `,
@@ -75,6 +81,8 @@ function TokenDetails(props: { nodeId: string }) {
         return data.node.tokenCountPrompt ?? 0;
       case "ProjectSession":
         return data.node.tokenUsage.prompt;
+      case "Trace":
+        return data.node.rootSpan?.cumulativeTokenCountPrompt ?? 0;
       default:
         return 0;
     }
@@ -86,10 +94,13 @@ function TokenDetails(props: { nodeId: string }) {
         return data.node.tokenCountCompletion ?? 0;
       case "ProjectSession":
         return data.node.tokenUsage.completion;
+      case "Trace":
+        return data.node.rootSpan?.cumulativeTokenCountCompletion ?? 0;
       default:
         return 0;
     }
   }, [data.node]);
+
   return (
     <Flex direction="column" gap="size-50">
       <Flex direction="row" gap="size-100" justifyContent="space-between">

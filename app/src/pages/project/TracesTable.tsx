@@ -647,7 +647,7 @@ export function TracesTable(props: TracesTableProps) {
           return (
             <TokenCount
               tokenCountTotal={value as number}
-              nodeId={row.original.id}
+              nodeId={row.original.trace.id}
             />
           );
         },

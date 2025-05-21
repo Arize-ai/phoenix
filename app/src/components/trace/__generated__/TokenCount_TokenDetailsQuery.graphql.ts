@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<db299d6500536b60c689be3966a12698>>
+ * @generated SignedSource<<78710b82dc4639d8f2aa3de213f494f4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,6 +23,12 @@ export type TokenCount_TokenDetailsQuery$data = {
     readonly __typename: "Span";
     readonly tokenCountCompletion: number | null;
     readonly tokenCountPrompt: number | null;
+  } | {
+    readonly __typename: "Trace";
+    readonly rootSpan: {
+      readonly cumulativeTokenCountCompletion: number | null;
+      readonly cumulativeTokenCountPrompt: number | null;
+    } | null;
   } | {
     // This will never be '%other', but we need some
     // value in case none of the concrete values match.
@@ -108,6 +114,27 @@ v4 = {
   ],
   "type": "ProjectSession",
   "abstractKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "cumulativeTokenCountPrompt",
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "cumulativeTokenCountCompletion",
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -126,7 +153,27 @@ return {
         "selections": [
           (v2/*: any*/),
           (v3/*: any*/),
-          (v4/*: any*/)
+          (v4/*: any*/),
+          {
+            "kind": "InlineFragment",
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "Span",
+                "kind": "LinkedField",
+                "name": "rootSpan",
+                "plural": false,
+                "selections": [
+                  (v5/*: any*/),
+                  (v6/*: any*/)
+                ],
+                "storageKey": null
+              }
+            ],
+            "type": "Trace",
+            "abstractKey": null
+          }
         ],
         "storageKey": null
       }
@@ -152,28 +199,43 @@ return {
           (v3/*: any*/),
           (v4/*: any*/),
           {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "id",
-            "storageKey": null
-          }
+            "kind": "InlineFragment",
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "Span",
+                "kind": "LinkedField",
+                "name": "rootSpan",
+                "plural": false,
+                "selections": [
+                  (v5/*: any*/),
+                  (v6/*: any*/),
+                  (v7/*: any*/)
+                ],
+                "storageKey": null
+              }
+            ],
+            "type": "Trace",
+            "abstractKey": null
+          },
+          (v7/*: any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "f3419182693434731da3b70ab7396fea",
+    "cacheID": "56a277261163838d98342d139ea25e26",
     "id": null,
     "metadata": {},
     "name": "TokenCount_TokenDetailsQuery",
     "operationKind": "query",
-    "text": "query TokenCount_TokenDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      tokenCountPrompt\n      tokenCountCompletion\n    }\n    ... on ProjectSession {\n      tokenUsage {\n        prompt\n        completion\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query TokenCount_TokenDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      tokenCountPrompt\n      tokenCountCompletion\n    }\n    ... on ProjectSession {\n      tokenUsage {\n        prompt\n        completion\n      }\n    }\n    ... on Trace {\n      rootSpan {\n        cumulativeTokenCountPrompt\n        cumulativeTokenCountCompletion\n        id\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3e1c840ea0d5db177eb871bdbd6b1e25";
+(node as any).hash = "37cdbb22dd98b71848bf4115a8db2be5";
 
 export default node;
