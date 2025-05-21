@@ -1,5 +1,12 @@
 # Changelog
 
+## [9.6.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v9.6.0...arize-phoenix-v9.6.1) (2025-05-21)
+
+
+### Bug Fixes
+
+* **experiments:** make experiment columns resizable ([#7628](https://github.com/Arize-ai/phoenix/issues/7628)) ([3c2b8e3](https://github.com/Arize-ai/phoenix/commit/3c2b8e344d1e759843b7f9fd4fcd7565614e241e))
+
 ## [9.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v9.5.0...arize-phoenix-v9.6.0) (2025-05-20)
 
 
