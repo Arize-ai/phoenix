@@ -55,11 +55,11 @@ database:
   url: "" # PHOENIX_SQL_DATABASE_URL
   # PostgreSQL connection settings (used if url is not set)
   postgres:
-    host: "" # PHOENIX_POSTGRES_HOST
+    host: "127.0.0.1" # PHOENIX_POSTGRES_HOST
     port: 5432 # PHOENIX_POSTGRES_PORT
-    user: "" # PHOENIX_POSTGRES_USER
-    password: "" # PHOENIX_POSTGRES_PASSWORD
-    db: "" # PHOENIX_POSTGRES_DB
+    user: "postgres" # PHOENIX_POSTGRES_USER
+    password: "postgres" # PHOENIX_POSTGRES_PASSWORD
+    db: "phoenix" # PHOENIX_POSTGRES_DB
     schema: "" # PHOENIX_SQL_DATABASE_SCHEMA
   # Allocated storage capacity for the database (in GiB, informational)
   allocatedStorageGiB: null # PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES
