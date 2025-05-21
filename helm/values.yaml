@@ -2,6 +2,33 @@
 # This file contains configuration values for deploying Phoenix via Helm.
 # Each value corresponds to an environment variable in src/phoenix/config.py.
 
+
+# ADDONS
+# - Ingress
+# - Postgres
+ingress:
+  # create ingress to expose phoenix server
+  enabled: true
+  tls:
+    enabled: false
+  host: phoenix.192.168.49.2.nip.io
+
+postgres:
+  # create postgres deployment for in-cluster use
+  enabled: false
+  image: postgres:14.5 
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  persistence:
+    enabled: true
+    storageClass: "standard"  # Minikube's default storage class
+    size: 1Gi
+
 server:
   # The host the server will run on
   host: "0.0.0.0" # PHOENIX_HOST
@@ -16,7 +43,8 @@ server:
   # The root URL used to access Phoenix from a web browser
   rootUrl: "" # PHOENIX_ROOT_URL
   # Enable Prometheus metrics
-  enablePrometheus: false # PHOENIX_ENABLE_PROMETHEUS
+  enablePrometheus: false # PHOENIX_ENABLE_PROMETHEUS 
+
 
 # Database configuration
 # You can use either a full SQL database URL or individual Postgres settings
