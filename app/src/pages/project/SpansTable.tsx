@@ -197,11 +197,7 @@ export function SpansTable(props: SpansTableProps) {
                 startTime
                 latencyMs
                 tokenCountTotal
-                tokenCountPrompt
-                tokenCountCompletion
                 cumulativeTokenCountTotal
-                cumulativeTokenCountPrompt
-                cumulativeTokenCountCompletion
                 spanId
                 trace {
                   id
@@ -485,18 +481,8 @@ export function SpansTable(props: SpansTableProps) {
         const tokenCountTotal = rootSpansOnly
           ? span.cumulativeTokenCountTotal
           : span.tokenCountTotal;
-        const tokenCountPrompt = rootSpansOnly
-          ? span.cumulativeTokenCountPrompt
-          : span.tokenCountPrompt;
-        const tokenCountCompletion = rootSpansOnly
-          ? span.cumulativeTokenCountCompletion
-          : span.tokenCountCompletion;
         return (
-          <TokenCount
-            tokenCountTotal={tokenCountTotal || 0}
-            tokenCountPrompt={tokenCountPrompt || 0}
-            tokenCountCompletion={tokenCountCompletion || 0}
-          />
+          <TokenCount tokenCountTotal={tokenCountTotal || 0} nodeId={span.id} />
         );
       },
     },
