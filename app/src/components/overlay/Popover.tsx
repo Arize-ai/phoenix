@@ -2,6 +2,8 @@ import { forwardRef, Ref } from "react";
 import { Popover as AriaPopover, PopoverProps } from "react-aria-components";
 import { css, keyframes } from "@emotion/react";
 
+import { classNames } from "@arizeai/components";
+
 const popoverSlideKeyframes = keyframes`
  100% {
   from {
@@ -109,7 +111,12 @@ const popoverCSS = css`
 
 function Popover(props: PopoverProps, ref: Ref<HTMLDivElement>) {
   return (
-    <AriaPopover {...props} ref={ref} className="ac-popover" css={popoverCSS} />
+    <AriaPopover
+      {...props}
+      ref={ref}
+      className={classNames("ac-popover react-aria-Popover", props.className)}
+      css={popoverCSS}
+    />
   );
 }
 popoverCSS;
