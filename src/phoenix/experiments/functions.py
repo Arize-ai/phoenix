@@ -297,7 +297,9 @@ def run_experiment(
         if not dry_run:
             try:
                 # Try to create the run directly
-                resp = sync_client.post(f"/v1/experiments/{experiment.id}/runs", json=jsonify(exp_run))
+                resp = sync_client.post(
+                    f"/v1/experiments/{experiment.id}/runs", json=jsonify(exp_run)
+                )
                 resp.raise_for_status()
                 exp_run = replace(exp_run, id=resp.json()["data"]["id"])
             except HTTPStatusError as e:
