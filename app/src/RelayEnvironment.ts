@@ -7,6 +7,7 @@ import {
   RecordSource,
   Store,
 } from "relay-runtime";
+import invariant from "tiny-invariant";
 
 import { authFetch } from "@phoenix/authFetch";
 import { BASE_URL } from "@phoenix/config";
@@ -39,7 +40,20 @@ function fetchJsonObservable<T>(
     const controller = new AbortController();
 
     graphQLFetch(input, { ...init, signal: controller.signal })
-      .then((response) => response.json())
+      .then((response) => {
+        // handle redirects from the server if any
+        if (response.status === 307) {
+          // If the server returns a 307, we should redirect to the login page
+          window.location.href = response.headers.get("Location") ?? "";
+          // return a promise that never resolves, giving the browser time to redirect above
+          return new Promise(() => {});
+        }
+        return response;
+      })
+      .then((response) => {
+        invariant(response instanceof Response, "response must be a Response");
+        return response.json();
+      })
       .then((data) => {
         const error = hasErrors?.(data);
         if (error) {

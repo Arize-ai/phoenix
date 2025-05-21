@@ -28,9 +28,15 @@ export async function authFetch(
   } catch (error) {
     if (error instanceof UnauthorizedError) {
       // If the server returns a 401, we should try to refresh the token
-      await refreshTokens();
-      // Retry the original request
-      return fetch(input, init);
+      const response = await refreshTokens();
+      // If there is no response, the token was successfully refreshed
+      if (!response) {
+        // Retry the original request
+        return fetch(input, init);
+      }
+      // If there is a response, it is a redirect response, and we should return it
+      // for any caller to handle / follow as needed
+      return response;
     }
     if (error instanceof Error && error.name === "AbortError") {
       // This is triggered when the controller is aborted
@@ -40,9 +46,9 @@ export async function authFetch(
   throw new Error("An unexpected error occurred while fetching data");
 }
 
-let refreshPromise: Promise<Response> | null = null;
+let refreshPromise: Promise<Response | null> | null = null;
 
-export async function refreshTokens(): Promise<Response> {
+export async function refreshTokens(): Promise<Response | null> {
   if (refreshPromise) {
     // There is already a refresh request in progress, so we should wait for it
     return refreshPromise;
@@ -54,11 +60,14 @@ export async function refreshTokens(): Promise<Response> {
     if (!response.ok) {
       // for now force redirect to login page. This could re-throw with a custom error
       // But for now, we'll just redirect
-      window.location.href = createLoginRedirectUrl();
+      return new Response(null, {
+        status: 307,
+        headers: { Location: createLoginRedirectUrl() },
+      });
     }
     // Clear the refreshPromise so that future requests will trigger a new refresh
     refreshPromise = null;
-    return response;
+    return null;
   });
   return refreshPromise;
 }
