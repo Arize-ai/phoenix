@@ -1,6 +1,6 @@
+import { Suspense, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
-import { useMemo, Suspense } from "react";
 
 import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
