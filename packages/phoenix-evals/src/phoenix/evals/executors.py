@@ -190,6 +190,15 @@ class AsyncExecutor(Executor):
                     marked_done = True
                     continue
                 else:
+                    # Timeout occurred - cancel the task and requeue
+                    if not generate_task.done():
+                        generate_task.cancel()
+                        try:
+                            # allow any cleanup to finish for the cancelled task
+                            await generate_task
+                        except asyncio.CancelledError:
+                            # Handle the cancellation exception
+                            pass
                     tqdm.write("Worker timeout, requeuing")
                     # task timeouts are requeued at the same priority
                     await queue.put((priority, item))

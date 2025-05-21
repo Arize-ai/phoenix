@@ -14,6 +14,7 @@ from typing import Any, Literal, Optional, Union, cast
 from urllib.parse import urljoin
 
 import httpx
+from httpx import HTTPStatusError
 import opentelemetry.sdk.trace as trace_sdk
 import pandas as pd
 from openinference.semconv.resource import ResourceAttributes
@@ -294,9 +295,26 @@ def run_experiment(
             trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
         if not dry_run:
-            resp = sync_client.post(f"/v1/experiments/{experiment.id}/runs", json=jsonify(exp_run))
-            resp.raise_for_status()
-            exp_run = replace(exp_run, id=resp.json()["data"]["id"])
+            try:
+                # Try to create the run directly
+                resp = sync_client.post(f"/v1/experiments/{experiment.id}/runs", json=jsonify(exp_run))
+                resp.raise_for_status()
+                exp_run = replace(exp_run, id=resp.json()["data"]["id"])
+            except Exception as e:
+                # If we get a 422, the run possibly already exists due to timeouts
+                if isinstance(e, HTTPStatusError) and e.response.status_code == 422:
+                    all_runs = sync_client.get(f"/v1/experiments/{experiment.id}/runs").json()["data"]
+                    existing_runs = [
+                        run for run in all_runs 
+                        if run["dataset_example_id"] == example.id 
+                        and run["repetition_number"] == repetition_number
+                    ]
+                    if existing_runs:
+                        exp_run = replace(exp_run, id=existing_runs[0]["id"])
+                    else:
+                        raise
+                else:
+                    raise
         return exp_run
 
     async def async_run_experiment(test_case: TestCase) -> ExperimentRun:
@@ -355,19 +373,39 @@ def run_experiment(
             trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
         if not dry_run:
-            # Below is a workaround to avoid timeout errors sometimes
-            # encountered when the task is a synchronous function that
-            # blocks for too long.
-            resp = await asyncio.get_running_loop().run_in_executor(
-                None,
-                functools.partial(
-                    sync_client.post,
-                    url=f"/v1/experiments/{experiment.id}/runs",
-                    json=jsonify(exp_run),
-                ),
-            )
-            resp.raise_for_status()
-            exp_run = replace(exp_run, id=resp.json()["data"]["id"])
+            try:
+                # Try to create the run directly
+                resp = asyncio.get_running_loop().run_in_executor(
+                    None,
+                    functools.partial(
+                        sync_client.post,
+                        url=f"/v1/experiments/{experiment.id}/runs",
+                        json=jsonify(exp_run),
+                    ),
+                )
+                resp.raise_for_status()
+                exp_run = replace(exp_run, id=resp.result().json()["data"]["id"])
+            except Exception as e:
+                # If we get a 422, the run possibly already exists due to timeouts
+                if isinstance(e, HTTPStatusError) and e.response.status_code == 422:
+                    all_runs = asyncio.get_running_loop().run_in_executor(
+                        None,
+                        functools.partial(
+                            sync_client.get,
+                            url=f"/v1/experiments/{experiment.id}/runs",
+                            params={
+                                "dataset_example_id": example.id,
+                                "repetition_number": repetition_number,
+                            },
+                        ),
+                    )
+                    all_runs = all_runs.result().json()["data"]
+                    if all_runs:
+                        exp_run = replace(exp_run, id=all_runs[0]["id"])
+                    else:
+                        raise
+                else:
+                    raise
         return exp_run
 
     _errors: tuple[type[BaseException], ...]
