@@ -9,6 +9,7 @@ from starlette.status import HTTP_404_NOT_FOUND
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.models import ExperimentRunOutput
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.dml_event import ExperimentRunInsertEvent
@@ -91,12 +92,13 @@ async def create_experiment_run(
     error = request_body.error
 
     async with request.app.state.db() as session:
-        # Lock the experiment record with FOR UPDATE to prevent race conditions
-        experiment = await session.execute(
-            select(models.Experiment)
-            .where(models.Experiment.id == experiment_rowid)
-            .with_for_update()
-        )
+        # Use FOR UPDATE lock for PostgreSQL to prevent race condition
+        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        experiment_query = select(models.Experiment).where(models.Experiment.id == experiment_rowid)
+        if dialect == SupportedSQLDialect.POSTGRESQL:
+            experiment_query = experiment_query.with_for_update()
+
+        experiment = await session.execute(experiment_query)
         experiment = experiment.scalar()
         if not experiment:
             raise HTTPException(
