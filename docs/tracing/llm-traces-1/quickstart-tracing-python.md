@@ -12,8 +12,8 @@ This example uses options 1 and 2.
 
 ## Launch Phoenix
 
-### Using Phoenix Cloud
-
+{% tabs %}
+{% tab title="Using Phoenix Cloud" %}
 1. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
 2. Grab your API key from the Keys option on the left bar.
 3. In your code, set your endpoint and API key:
@@ -29,11 +29,11 @@ os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
 ```
 
 {% hint style="warning" %}
-Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](https://docs.arize.com/phoenix/learn#what-is-my-phoenix-endpoint)
+Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](https://docs.arize.com/phoenix/learn/faqs/what-is-my-phoenix-endpoint)
 {% endhint %}
+{% endtab %}
 
-### Using Self-hosted Phoenix
-
+{% tab title="Using Self-hosted Phoenix" %}
 1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, [see self-hosting](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/0gWR4qoGzdz04iSgPlsU/).
 2. In your code, set your endpoint:
 
@@ -43,6 +43,12 @@ import os
 # Update this with your self-hosted endpoint
 PHOENIX_ENDPOINT = "http://0.0.0.0:6006/v1/traces"
 ```
+
+{% hint style="warning" %}
+Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](https://docs.arize.com/phoenix/learn/faqs/what-is-my-phoenix-endpoint)
+{% endhint %}
+{% endtab %}
+{% endtabs %}
 
 ## Connect to Phoenix <a href="#connect-your-app" id="connect-your-app"></a>
 

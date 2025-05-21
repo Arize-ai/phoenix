@@ -25,7 +25,7 @@ os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
 ```
 
 {% hint style="warning" %}
-Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](https://docs.arize.com/phoenix/learn#what-is-my-phoenix-endpoint)
+Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](https://docs.arize.com/phoenix/learn/faqs/what-is-my-phoenix-endpoint)
 {% endhint %}
 
 ### Using Self-hosted Phoenix
