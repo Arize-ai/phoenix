@@ -91,7 +91,7 @@ const exactMatch = asEvaluator({
 });
 
 await runExperiment({
-  dataset: "${datasetId}",
+  dataset: { datasetId: "${datasetId}" },
   experimentName: "${experimentName}",
   client: phoenix,
   task,
