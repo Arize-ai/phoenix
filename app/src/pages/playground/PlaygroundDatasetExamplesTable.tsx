@@ -35,13 +35,22 @@ import { css } from "@emotion/react";
 
 import { DialogContainer, Tooltip, TooltipTrigger } from "@arizeai/components";
 
-import { Button, Flex, Icon, Icons, Loading, Text } from "@phoenix/components";
+import {
+  Button,
+  Flex,
+  Icon,
+  Icons,
+  Loading,
+  Text,
+  View,
+} from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useNotifyError } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import {
@@ -145,7 +154,6 @@ const cellWithControlsWrapCSS = css`
   justify-content: center;
   height: 100%;
   min-height: 75px;
-  padding: var(--ac-global-dimension-static-size-200);
   .controls {
     transition: opacity 0.2s ease-in-out;
     opacity: 0;
@@ -312,20 +320,22 @@ function ExampleOutputContent({
 
   return (
     <CellWithControlsWrap controls={spanControls}>
-      <Flex direction={"column"} gap="size-200">
-        {errorMessage != null ? (
-          <PlaygroundErrorWrap>{errorMessage}</PlaygroundErrorWrap>
-        ) : null}
-        <Text>{content}</Text>
-        {toolCalls != null
-          ? Object.values(toolCalls).map((toolCall) =>
-              toolCall == null ? null : (
-                <PlaygroundToolCall key={toolCall.id} toolCall={toolCall} />
+      <View padding="size-200">
+        <Flex direction={"column"} gap="size-200">
+          {errorMessage != null ? (
+            <PlaygroundErrorWrap>{errorMessage}</PlaygroundErrorWrap>
+          ) : null}
+          <Text>{content}</Text>
+          {toolCalls != null
+            ? Object.values(toolCalls).map((toolCall) =>
+                toolCall == null ? null : (
+                  <PlaygroundToolCall key={toolCall.id} toolCall={toolCall} />
+                )
               )
-            )
-          : null}
-        {hasSpan ? <SpanMetadata span={span} /> : null}
-      </Flex>
+            : null}
+          {hasSpan ? <SpanMetadata span={span} /> : null}
+        </Flex>
+      </View>
     </CellWithControlsWrap>
   );
 }
@@ -365,8 +375,7 @@ function SpanMetadata({ span }: { span: Span }) {
     <Flex direction="row" gap="size-100" alignItems="center">
       <TokenCount
         tokenCountTotal={span.tokenCountTotal || 0}
-        tokenCountPrompt={span.tokenCountPrompt || 0}
-        tokenCountCompletion={span.tokenCountCompletion || 0}
+        nodeId={span.id}
       />
       <LatencyText latencyMs={span.latencyMs || 0} />
     </Flex>
@@ -384,10 +393,7 @@ function TableBody<T>({ table }: { table: Table<T> }) {
               <td
                 key={cell.id}
                 style={{
-                  // the cell still grows to fit, we just need some height declared
-                  // so that height: 100% works in children elements
                   padding: 0,
-                  height: 1,
                   width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
                   // allow long text with no symbols or spaces to wrap
                   // otherwise, it will prevent the cell from shrinking
@@ -698,7 +704,7 @@ export function PlaygroundDatasetExamplesTable({
 
   const { dataset } = useLazyLoadQuery<PlaygroundDatasetExamplesTableQuery>(
     graphql`
-      query PlaygroundDatasetExamplesTableQuery($datasetId: GlobalID!) {
+      query PlaygroundDatasetExamplesTableQuery($datasetId: ID!) {
         dataset: node(id: $datasetId) {
           ...PlaygroundDatasetExamplesTableFragment
         }
@@ -716,7 +722,7 @@ export function PlaygroundDatasetExamplesTable({
       fragment PlaygroundDatasetExamplesTableFragment on Dataset
       @refetchable(queryName: "PlaygroundDatasetExamplesTableRefetchQuery")
       @argumentDefinitions(
-        datasetVersionId: { type: "GlobalID" }
+        datasetVersionId: { type: "ID" }
         after: { type: "String", defaultValue: null }
         first: { type: "Int", defaultValue: 20 }
       ) {
@@ -951,6 +957,10 @@ export function PlaygroundDatasetExamplesTable({
         type="slideOver"
         onDismiss={() => {
           setDialog(null);
+          setSearchParams((searchParams) => {
+            searchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+            return searchParams;
+          });
         }}
       >
         {dialog}
@@ -986,8 +996,6 @@ graphql`
         datasetExampleId
         span {
           id
-          tokenCountCompletion
-          tokenCountPrompt
           tokenCountTotal
           latencyMs
           project {
@@ -1029,8 +1037,6 @@ graphql`
             errorMessage
             span {
               id
-              tokenCountCompletion
-              tokenCountPrompt
               tokenCountTotal
               latencyMs
               project {

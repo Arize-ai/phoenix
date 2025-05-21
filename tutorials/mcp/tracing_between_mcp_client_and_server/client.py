@@ -33,6 +33,7 @@ async def main():
             "command": "fastmcp",
             "args": ["run", "./tutorials/mcp/tracing_between_mcp_client_and_server/server.py"],
         },
+        client_session_timeout_seconds=30,
     ) as server:
         await run(server)
 

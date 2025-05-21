@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { format } from "d3-format";
 import { subDays } from "date-fns";
@@ -108,7 +108,7 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
   const data = useLazyLoadQuery<DimensionDriftBreakdownSegmentBarChartQuery>(
     graphql`
       query DimensionDriftBreakdownSegmentBarChartQuery(
-        $dimensionId: GlobalID!
+        $dimensionId: ID!
         $timeRange: TimeRange!
       ) {
         dimension: node(id: $dimensionId) {

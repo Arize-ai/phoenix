@@ -1,4 +1,4 @@
-import React, { ReactNode } from "react";
+import { ReactNode } from "react";
 import { Blocker } from "react-router";
 
 import { Dialog, DialogContainer } from "@arizeai/components";

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { python } from "@codemirror/lang-python";
 import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import CodeMirror, {

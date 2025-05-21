@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { interpolateSinebow } from "d3-scale-chromatic";
 
 import { ProviderTheme } from "@arizeai/components";

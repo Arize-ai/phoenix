@@ -9,7 +9,7 @@ from phoenix.trace.dsl.helpers import get_qa_with_reference, get_retrieved_docum
 
 
 async def test_get_retrieved_documents(
-    px_client: Client,
+    legacy_px_client: Client,
     default_project: Any,
     abc_project: Any,
 ) -> None:
@@ -23,7 +23,7 @@ async def test_get_retrieved_documents(
             "document_score": [1, np.nan, 2, np.nan, np.nan, 3],
         }
     ).set_index(["context.span_id", "document_position"])
-    actual = get_retrieved_documents(px_client)
+    actual = get_retrieved_documents(legacy_px_client)
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
@@ -31,7 +31,7 @@ async def test_get_retrieved_documents(
 
 
 async def test_get_qa_with_reference(
-    px_client: Client,
+    legacy_px_client: Client,
     default_project: Any,
     abc_project: Any,
 ) -> None:
@@ -43,7 +43,7 @@ async def test_get_qa_with_reference(
             "reference": ["A\n\nB\n\nC"],
         }
     ).set_index("context.span_id")
-    assert (actual := get_qa_with_reference(px_client)) is not None
+    assert (actual := get_qa_with_reference(legacy_px_client)) is not None
     actual["reference"] = actual["reference"].map(lambda s: "\n\n".join(sorted(s.split("\n\n"))))
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),

@@ -1,4 +1,3 @@
-import React from "react";
 import { timeFormat } from "d3-time-format";
 import { css } from "@emotion/react";
 

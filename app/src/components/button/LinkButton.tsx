@@ -1,4 +1,4 @@
-import React, { Ref } from "react";
+import { forwardRef, Ref } from "react";
 import { Link, LinkProps } from "react-router";
 import { css } from "@emotion/react";
 
@@ -58,5 +58,5 @@ function LinkButton(props: LinkButtonProps, ref: Ref<HTMLAnchorElement>) {
   );
 }
 
-const _LinkButton = React.forwardRef(LinkButton);
+const _LinkButton = forwardRef(LinkButton);
 export { _LinkButton as LinkButton, LinkButtonProps };

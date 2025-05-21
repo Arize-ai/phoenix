@@ -6,6 +6,411 @@
     "version": "1.0"
   },
   "paths": {
+    "/v1/annotation_configs": {
+      "get": {
+        "tags": [
+          "annotation_configs"
+        ],
+        "summary": "List annotation configurations",
+        "description": "Retrieve a paginated list of all annotation configurations in the system.",
+        "operationId": "list_annotation_configs_v1_annotation_configs_get",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination (base64-encoded annotation config ID)",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination (base64-encoded annotation config ID)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "Maximum number of configs to return",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "Maximum number of configs to return"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A list of annotation configurations with pagination information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAnnotationConfigsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "annotation_configs"
+        ],
+        "summary": "Create an annotation configuration",
+        "operationId": "create_annotation_config_v1_annotation_configs_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAnnotationConfigData"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateAnnotationConfigResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/annotation_configs/{config_identifier}": {
+      "get": {
+        "tags": [
+          "annotation_configs"
+        ],
+        "summary": "Get an annotation configuration by ID or name",
+        "operationId": "get_annotation_config_by_name_or_id_v1_annotation_configs__config_identifier__get",
+        "parameters": [
+          {
+            "name": "config_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "ID or name of the annotation configuration",
+              "title": "Config Identifier"
+            },
+            "description": "ID or name of the annotation configuration"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAnnotationConfigResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/annotation_configs/{config_id}": {
+      "put": {
+        "tags": [
+          "annotation_configs"
+        ],
+        "summary": "Update an annotation configuration",
+        "operationId": "update_annotation_config_v1_annotation_configs__config_id__put",
+        "parameters": [
+          {
+            "name": "config_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "ID of the annotation configuration",
+              "title": "Config Id"
+            },
+            "description": "ID of the annotation configuration"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAnnotationConfigData"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateAnnotationConfigResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "annotation_configs"
+        ],
+        "summary": "Delete an annotation configuration",
+        "operationId": "delete_annotation_config_v1_annotation_configs__config_id__delete",
+        "parameters": [
+          {
+            "name": "config_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "ID of the annotation configuration",
+              "title": "Config Id"
+            },
+            "description": "ID of the annotation configuration"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteAnnotationConfigResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{project_identifier}/span_annotations": {
+      "get": {
+        "tags": [
+          "annotations"
+        ],
+        "summary": "Get span annotations for a list of span_ids.",
+        "operationId": "listSpanAnnotationsBySpanIds",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+          },
+          {
+            "name": "span_ids",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "description": "One or more span id to fetch annotations for",
+              "title": "Span Ids"
+            },
+            "description": "One or more span id to fetch annotations for"
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A cursor for pagination",
+              "title": "Cursor"
+            },
+            "description": "A cursor for pagination"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 10000,
+              "exclusiveMinimum": 0,
+              "description": "The maximum number of annotations to return in a single request",
+              "default": 10,
+              "title": "Limit"
+            },
+            "description": "The maximum number of annotations to return in a single request"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpanAnnotationsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Project or spans not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid parameters"
+          }
+        }
+      }
+    },
     "/v1/datasets": {
       "get": {
         "tags": [
@@ -1073,12 +1478,205 @@
         }
       }
     },
+    "/v1/experiments/{experiment_id}/runs": {
+      "post": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Create run for an experiment",
+        "operationId": "createExperimentRun",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExperimentRunRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Experiment run created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateExperimentRunResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Experiment or dataset example not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "List runs for an experiment",
+        "operationId": "listExperimentRuns",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Experiment runs retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListExperimentRunsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Experiment not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/experiment_evaluations": {
+      "post": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Create or update evaluation for an experiment run",
+        "operationId": "upsertExperimentEvaluation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertExperimentEvaluationRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpsertExperimentEvaluationResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Experiment run not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/span_annotations": {
       "post": {
         "tags": [
           "spans"
         ],
-        "summary": "Create or update span annotations",
+        "summary": "Create span annotations",
         "operationId": "annotateSpans",
         "parameters": [
           {
@@ -2237,7 +2835,7 @@
         "properties": {
           "data": {
             "items": {
-              "$ref": "#/components/schemas/SpanAnnotation"
+              "$ref": "#/components/schemas/SpanAnnotationData"
             },
             "type": "array",
             "title": "Data"
@@ -2264,6 +2862,289 @@
           "data"
         ],
         "title": "AnnotateSpansResponseBody"
+      },
+      "CategoricalAnnotationConfig": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "const": "CATEGORICAL",
+            "title": "Type"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "optimization_direction": {
+            "$ref": "#/components/schemas/OptimizationDirection"
+          },
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/CategoricalAnnotationValue"
+            },
+            "type": "array",
+            "title": "Values"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "optimization_direction",
+          "values",
+          "id"
+        ],
+        "title": "CategoricalAnnotationConfig"
+      },
+      "CategoricalAnnotationConfigData": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "const": "CATEGORICAL",
+            "title": "Type"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "optimization_direction": {
+            "$ref": "#/components/schemas/OptimizationDirection"
+          },
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/CategoricalAnnotationValue"
+            },
+            "type": "array",
+            "title": "Values"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "optimization_direction",
+          "values"
+        ],
+        "title": "CategoricalAnnotationConfigData"
+      },
+      "CategoricalAnnotationValue": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "title": "CategoricalAnnotationValue"
+      },
+      "ContinuousAnnotationConfig": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "const": "CONTINUOUS",
+            "title": "Type"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "optimization_direction": {
+            "$ref": "#/components/schemas/OptimizationDirection"
+          },
+          "lower_bound": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lower Bound"
+          },
+          "upper_bound": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upper Bound"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "optimization_direction",
+          "id"
+        ],
+        "title": "ContinuousAnnotationConfig"
+      },
+      "ContinuousAnnotationConfigData": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "const": "CONTINUOUS",
+            "title": "Type"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "optimization_direction": {
+            "$ref": "#/components/schemas/OptimizationDirection"
+          },
+          "lower_bound": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lower Bound"
+          },
+          "upper_bound": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upper Bound"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "optimization_direction"
+        ],
+        "title": "ContinuousAnnotationConfigData"
+      },
+      "CreateAnnotationConfigData": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+          },
+          {
+            "$ref": "#/components/schemas/ContinuousAnnotationConfigData"
+          },
+          {
+            "$ref": "#/components/schemas/FreeformAnnotationConfigData"
+          }
+        ],
+        "title": "CreateAnnotationConfigData",
+        "discriminator": {
+          "propertyName": "type",
+          "mapping": {
+            "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigData",
+            "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigData",
+            "FREEFORM": "#/components/schemas/FreeformAnnotationConfigData"
+          }
+        }
+      },
+      "CreateAnnotationConfigResponseBody": {
+        "properties": {
+          "data": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CategoricalAnnotationConfig"
+              },
+              {
+                "$ref": "#/components/schemas/ContinuousAnnotationConfig"
+              },
+              {
+                "$ref": "#/components/schemas/FreeformAnnotationConfig"
+              }
+            ],
+            "title": "Data",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfig",
+                "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfig",
+                "FREEFORM": "#/components/schemas/FreeformAnnotationConfig"
+              }
+            }
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateAnnotationConfigResponseBody"
       },
       "CreateExperimentRequestBody": {
         "properties": {
@@ -2338,6 +3219,95 @@
           "data"
         ],
         "title": "CreateExperimentResponseBody"
+      },
+      "CreateExperimentRunRequestBody": {
+        "properties": {
+          "dataset_example_id": {
+            "type": "string",
+            "title": "Dataset Example Id",
+            "description": "The ID of the dataset example used in the experiment run"
+          },
+          "output": {
+            "title": "Output",
+            "description": "The output of the experiment task"
+          },
+          "repetition_number": {
+            "type": "integer",
+            "title": "Repetition Number",
+            "description": "The repetition number of the experiment run"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start Time",
+            "description": "The start time of the experiment run"
+          },
+          "end_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End Time",
+            "description": "The end time of the experiment run"
+          },
+          "trace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace Id",
+            "description": "The ID of the corresponding trace (if one exists)"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Optional error message if the experiment run encountered an error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dataset_example_id",
+          "output",
+          "repetition_number",
+          "start_time",
+          "end_time"
+        ],
+        "title": "CreateExperimentRunRequestBody"
+      },
+      "CreateExperimentRunResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CreateExperimentRunResponseBodyData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateExperimentRunResponseBody"
+      },
+      "CreateExperimentRunResponseBodyData": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The ID of the newly created experiment run"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "CreateExperimentRunResponseBodyData"
       },
       "CreateProjectRequestBody": {
         "properties": {
@@ -2579,6 +3549,37 @@
         ],
         "title": "DatasetWithExampleCount"
       },
+      "DeleteAnnotationConfigResponseBody": {
+        "properties": {
+          "data": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CategoricalAnnotationConfig"
+              },
+              {
+                "$ref": "#/components/schemas/ContinuousAnnotationConfig"
+              },
+              {
+                "$ref": "#/components/schemas/FreeformAnnotationConfig"
+              }
+            ],
+            "title": "Data",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfig",
+                "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfig",
+                "FREEFORM": "#/components/schemas/FreeformAnnotationConfig"
+              }
+            }
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "DeleteAnnotationConfigResponseBody"
+      },
       "Experiment": {
         "properties": {
           "id": {
@@ -2644,6 +3645,265 @@
           "updated_at"
         ],
         "title": "Experiment"
+      },
+      "ExperimentEvaluationResult": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "The label assigned by the evaluation"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score",
+            "description": "The score assigned by the evaluation"
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation",
+            "description": "Explanation of the evaluation result"
+          }
+        },
+        "type": "object",
+        "title": "ExperimentEvaluationResult"
+      },
+      "ExperimentRunResponse": {
+        "properties": {
+          "dataset_example_id": {
+            "type": "string",
+            "title": "Dataset Example Id",
+            "description": "The ID of the dataset example used in the experiment run"
+          },
+          "output": {
+            "title": "Output",
+            "description": "The output of the experiment task"
+          },
+          "repetition_number": {
+            "type": "integer",
+            "title": "Repetition Number",
+            "description": "The repetition number of the experiment run"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start Time",
+            "description": "The start time of the experiment run"
+          },
+          "end_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End Time",
+            "description": "The end time of the experiment run"
+          },
+          "trace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace Id",
+            "description": "The ID of the corresponding trace (if one exists)"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Optional error message if the experiment run encountered an error"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The ID of the experiment run"
+          },
+          "experiment_id": {
+            "type": "string",
+            "title": "Experiment Id",
+            "description": "The ID of the experiment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dataset_example_id",
+          "output",
+          "repetition_number",
+          "start_time",
+          "end_time",
+          "id",
+          "experiment_id"
+        ],
+        "title": "ExperimentRunResponse"
+      },
+      "FreeformAnnotationConfig": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "const": "FREEFORM",
+            "title": "Type"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "id"
+        ],
+        "title": "FreeformAnnotationConfig"
+      },
+      "FreeformAnnotationConfigData": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "const": "FREEFORM",
+            "title": "Type"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "type"
+        ],
+        "title": "FreeformAnnotationConfigData"
+      },
+      "GetAnnotationConfigResponseBody": {
+        "properties": {
+          "data": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CategoricalAnnotationConfig"
+              },
+              {
+                "$ref": "#/components/schemas/ContinuousAnnotationConfig"
+              },
+              {
+                "$ref": "#/components/schemas/FreeformAnnotationConfig"
+              }
+            ],
+            "title": "Data",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfig",
+                "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfig",
+                "FREEFORM": "#/components/schemas/FreeformAnnotationConfig"
+              }
+            }
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetAnnotationConfigResponseBody"
+      },
+      "GetAnnotationConfigsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CategoricalAnnotationConfig"
+                },
+                {
+                  "$ref": "#/components/schemas/ContinuousAnnotationConfig"
+                },
+                {
+                  "$ref": "#/components/schemas/FreeformAnnotationConfig"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfig",
+                  "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfig",
+                  "FREEFORM": "#/components/schemas/FreeformAnnotationConfig"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "GetAnnotationConfigsResponseBody"
       },
       "GetDatasetResponseBody": {
         "properties": {
@@ -2931,6 +4191,22 @@
         ],
         "title": "ListDatasetsResponseBody"
       },
+      "ListExperimentRunsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ExperimentRunResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "ListExperimentRunsResponseBody"
+      },
       "ListExperimentsResponseBody": {
         "properties": {
           "data": {
@@ -2956,6 +4232,15 @@
           "GOOGLE"
         ],
         "title": "ModelProvider"
+      },
+      "OptimizationDirection": {
+        "type": "string",
+        "enum": [
+          "MINIMIZE",
+          "MAXIMIZE",
+          "NONE"
+        ],
+        "title": "OptimizationDirection"
       },
       "Project": {
         "properties": {
@@ -3981,6 +5266,7 @@
             "type": "string",
             "enum": [
               "LLM",
+              "CODE",
               "HUMAN"
             ],
             "title": "Annotator Kind",
@@ -4009,6 +5295,111 @@
             ],
             "title": "Metadata",
             "description": "Metadata for the annotation"
+          },
+          "identifier": {
+            "type": "string",
+            "title": "Identifier",
+            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists.",
+            "default": ""
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "API",
+              "APP"
+            ],
+            "title": "Source"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "span_id",
+          "name",
+          "annotator_kind",
+          "id",
+          "created_at",
+          "updated_at",
+          "source",
+          "user_id"
+        ],
+        "title": "SpanAnnotation"
+      },
+      "SpanAnnotationData": {
+        "properties": {
+          "span_id": {
+            "type": "string",
+            "title": "Span Id",
+            "description": "OpenTelemetry Span ID (hex format w/o 0x prefix)"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the annotation"
+          },
+          "annotator_kind": {
+            "type": "string",
+            "enum": [
+              "LLM",
+              "CODE",
+              "HUMAN"
+            ],
+            "title": "Annotator Kind",
+            "description": "The kind of annotator used for the annotation"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpanAnnotationResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The result of the annotation"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "Metadata for the annotation"
+          },
+          "identifier": {
+            "type": "string",
+            "title": "Identifier",
+            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists.",
+            "default": ""
           }
         },
         "type": "object",
@@ -4017,7 +5408,7 @@
           "name",
           "annotator_kind"
         ],
-        "title": "SpanAnnotation"
+        "title": "SpanAnnotationData"
       },
       "SpanAnnotationResult": {
         "properties": {
@@ -4060,6 +5451,34 @@
         },
         "type": "object",
         "title": "SpanAnnotationResult"
+      },
+      "SpanAnnotationsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/SpanAnnotation"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "SpanAnnotationsResponseBody"
       },
       "TextContentPart": {
         "properties": {
@@ -4190,6 +5609,37 @@
         ],
         "title": "ToolResultContentPart"
       },
+      "UpdateAnnotationConfigResponseBody": {
+        "properties": {
+          "data": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CategoricalAnnotationConfig"
+              },
+              {
+                "$ref": "#/components/schemas/ContinuousAnnotationConfig"
+              },
+              {
+                "$ref": "#/components/schemas/FreeformAnnotationConfig"
+              }
+            ],
+            "title": "Data",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfig",
+                "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfig",
+                "FREEFORM": "#/components/schemas/FreeformAnnotationConfig"
+              }
+            }
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "UpdateAnnotationConfigResponseBody"
+      },
       "UpdateProjectRequestBody": {
         "properties": {
           "description": {
@@ -4243,6 +5693,119 @@
           "data"
         ],
         "title": "UploadDatasetResponseBody"
+      },
+      "UpsertExperimentEvaluationRequestBody": {
+        "properties": {
+          "experiment_run_id": {
+            "type": "string",
+            "title": "Experiment Run Id",
+            "description": "The ID of the experiment run being evaluated"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the evaluation"
+          },
+          "annotator_kind": {
+            "type": "string",
+            "enum": [
+              "LLM",
+              "CODE",
+              "HUMAN"
+            ],
+            "title": "Annotator Kind",
+            "description": "The kind of annotator used for the evaluation"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start Time",
+            "description": "The start time of the evaluation in ISO format"
+          },
+          "end_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End Time",
+            "description": "The end time of the evaluation in ISO format"
+          },
+          "result": {
+            "$ref": "#/components/schemas/ExperimentEvaluationResult",
+            "description": "The result of the evaluation"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Optional error message if the evaluation encountered an error"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "Metadata for the evaluation"
+          },
+          "trace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace Id",
+            "description": "Optional trace ID for tracking"
+          }
+        },
+        "type": "object",
+        "required": [
+          "experiment_run_id",
+          "name",
+          "annotator_kind",
+          "start_time",
+          "end_time",
+          "result"
+        ],
+        "title": "UpsertExperimentEvaluationRequestBody"
+      },
+      "UpsertExperimentEvaluationResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/UpsertExperimentEvaluationResponseBodyData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "UpsertExperimentEvaluationResponseBody"
+      },
+      "UpsertExperimentEvaluationResponseBodyData": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The ID of the upserted experiment evaluation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "UpsertExperimentEvaluationResponseBodyData"
       },
       "ValidationError": {
         "properties": {

@@ -3,17 +3,6 @@ import { CanonicalParameterName } from "./__generated__/ModelSupportedParamsFetc
 export const NUM_MAX_PLAYGROUND_INSTANCES = 4;
 
 /**
- * Map of {@link ChatMessageRole} to potential role values.
- * Used to map roles to a canonical role.
- */
-export const ChatRoleMap: Record<ChatMessageRole, string[]> = {
-  user: ["user", "human"],
-  ai: ["assistant", "bot", "ai"],
-  system: ["system"],
-  tool: ["tool"],
-};
-
-/**
  * Parsing errors for parsing a span to a playground instance
  */
 export const INPUT_MESSAGES_PARSING_ERROR =

@@ -1,4 +1,4 @@
-import React, { ReactNode, Suspense, useState } from "react";
+import { ReactNode, Suspense, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Card, DialogContainer } from "@arizeai/components";

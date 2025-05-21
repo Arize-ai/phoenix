@@ -1,4 +1,4 @@
-import React, { CSSProperties, PropsWithChildren } from "react";
+import { CSSProperties, PropsWithChildren } from "react";
 import {
   Button,
   Disclosure as AriaDisclosure,

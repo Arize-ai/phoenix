@@ -1,4 +1,3 @@
-import React from "react";
 import {
   RadioGroup as AriaRadioGroup,
   type RadioGroupProps as AriaRadioGroupProps,
@@ -6,6 +5,7 @@ import {
 import { css } from "@emotion/react";
 
 import { classNames } from "@phoenix/components";
+import { fieldBaseCSS } from "@phoenix/components/field/styles";
 import { SizingProps, StylableProps } from "@phoenix/components/types";
 
 const baseRadioGroupCSS = css(`
@@ -33,8 +33,22 @@ const baseRadioGroupCSS = css(`
     border-radius: 0 var(--ac-global-rounding-small) var(--ac-global-rounding-small) 0;
   }
 
+  &[data-direction="row"] {
+    flex-direction: row;
+    flex-wrap: wrap;
+
+    .react-aria-Label {
+      flex-basis: 100%;
+    }
+
+    [slot="description"] {
+      flex-basis: 100%;
+    }
+  }
+
   &[data-direction="column"] {
     flex-direction: column;
+    align-items: flex-start;
   }
 
   &[data-size="S"] {
@@ -46,6 +60,16 @@ const baseRadioGroupCSS = css(`
   &[data-size="L"] {
     .ac-radio {
       padding: var(--ac-global-dimension-size-100) var(--ac-global-dimension-size-150);
+    }
+  }
+
+  &[data-disabled] {
+    opacity: 0.5;
+  }
+
+  &[data-readonly] {
+    .ac-radio:before {
+      opacity: 0.5;
     }
   }
 
@@ -63,7 +87,7 @@ export const RadioGroup = ({
   size,
   css: cssProp,
   className,
-  direction,
+  direction = "row",
   ...props
 }: RadioGroupProps &
   SizingProps &
@@ -73,7 +97,7 @@ export const RadioGroup = ({
       data-size={size}
       data-direction={direction}
       className={classNames("ac-radio-group", className)}
-      css={css(baseRadioGroupCSS, cssProp)}
+      css={css(fieldBaseCSS, baseRadioGroupCSS, cssProp)}
       {...props}
     />
   );

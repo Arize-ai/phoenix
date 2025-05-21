@@ -1,4 +1,4 @@
-import React, { Ref } from "react";
+import { forwardRef, Ref } from "react";
 import {
   Modal as AriaModal,
   ModalOverlayProps as AriaModalOverlayProps,
@@ -81,5 +81,5 @@ function Modal(props: ModalProps, ref: Ref<HTMLDivElement>) {
   );
 }
 
-const _Modal = React.forwardRef(Modal);
+const _Modal = forwardRef(Modal);
 export { _Modal as Modal };

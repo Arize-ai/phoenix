@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<43621190348252b447c705609085561b>>
+ * @generated SignedSource<<613cceaa6107c001431c98fd40ce3385>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,7 +18,7 @@ export type SpanAnnotationActionMenuDeleteMutation$data = {
   readonly deleteSpanAnnotations: {
     readonly query: {
       readonly node: {
-        readonly " $fragmentSpreads": FragmentRefs<"SpanAnnotationsEditor_spanAnnotations">;
+        readonly " $fragmentSpreads": FragmentRefs<"SpanAnnotationsEditor_spanAnnotations" | "SpanFeedback_annotations">;
       };
     };
   };
@@ -73,6 +73,48 @@ v3 = {
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "annotatorKind",
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "score",
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "label",
+  "storageKey": null
+},
+v8 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "explanation",
+  "storageKey": null
+},
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "createdAt",
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -112,6 +154,11 @@ return {
                         "args": null,
                         "kind": "FragmentSpread",
                         "name": "SpanAnnotationsEditor_spanAnnotations"
+                      },
+                      {
+                        "args": null,
+                        "kind": "FragmentSpread",
+                        "name": "SpanFeedback_annotations"
                       }
                     ],
                     "type": "Span",
@@ -167,14 +214,55 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  {
-                    "kind": "TypeDiscriminator",
-                    "abstractKey": "__isNode"
-                  },
                   (v3/*: any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
+                      {
+                        "alias": "filteredSpanAnnotations",
+                        "args": [
+                          {
+                            "fields": [
+                              {
+                                "kind": "Literal",
+                                "name": "exclude",
+                                "value": {
+                                  "names": [
+                                    "note"
+                                  ]
+                                }
+                              },
+                              {
+                                "fields": [
+                                  {
+                                    "kind": "Literal",
+                                    "name": "userIds",
+                                    "value": null
+                                  }
+                                ],
+                                "kind": "ObjectValue",
+                                "name": "include"
+                              }
+                            ],
+                            "kind": "ObjectValue",
+                            "name": "filter"
+                          }
+                        ],
+                        "concreteType": "SpanAnnotation",
+                        "kind": "LinkedField",
+                        "name": "spanAnnotations",
+                        "plural": true,
+                        "selections": [
+                          (v3/*: any*/),
+                          (v4/*: any*/),
+                          (v5/*: any*/),
+                          (v6/*: any*/),
+                          (v7/*: any*/),
+                          (v8/*: any*/),
+                          (v9/*: any*/)
+                        ],
+                        "storageKey": "spanAnnotations(filter:{\"exclude\":{\"names\":[\"note\"]},\"include\":{\"userIds\":null}})"
+                      },
                       {
                         "alias": null,
                         "args": null,
@@ -184,39 +272,64 @@ return {
                         "plural": true,
                         "selections": [
                           (v3/*: any*/),
+                          (v4/*: any*/),
+                          (v7/*: any*/),
+                          (v6/*: any*/),
+                          (v8/*: any*/),
                           {
                             "alias": null,
                             "args": null,
                             "kind": "ScalarField",
-                            "name": "name",
+                            "name": "metadata",
+                            "storageKey": null
+                          },
+                          (v5/*: any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "identifier",
                             "storageKey": null
                           },
                           {
                             "alias": null,
                             "args": null,
                             "kind": "ScalarField",
-                            "name": "annotatorKind",
+                            "name": "source",
+                            "storageKey": null
+                          },
+                          (v9/*: any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "updatedAt",
                             "storageKey": null
                           },
                           {
                             "alias": null,
                             "args": null,
-                            "kind": "ScalarField",
-                            "name": "score",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "label",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "explanation",
+                            "concreteType": "User",
+                            "kind": "LinkedField",
+                            "name": "user",
+                            "plural": false,
+                            "selections": [
+                              (v3/*: any*/),
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "username",
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "profilePictureUrl",
+                                "storageKey": null
+                              }
+                            ],
                             "storageKey": null
                           }
                         ],
@@ -238,16 +351,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "1ad21da2e4edf61876579ebc3fbc4443",
+    "cacheID": "bcdc8dccf3bfa49b8aa7960710a4deed",
     "id": null,
     "metadata": {},
     "name": "SpanAnnotationActionMenuDeleteMutation",
     "operationKind": "mutation",
-    "text": "mutation SpanAnnotationActionMenuDeleteMutation(\n  $annotationId: GlobalID!\n  $spanId: GlobalID!\n) {\n  deleteSpanAnnotations(input: {annotationIds: [$annotationId]}) {\n    query {\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          ...SpanAnnotationsEditor_spanAnnotations\n        }\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n  }\n}\n"
+    "text": "mutation SpanAnnotationActionMenuDeleteMutation(\n  $annotationId: ID!\n  $spanId: ID!\n) {\n  deleteSpanAnnotations(input: {annotationIds: [$annotationId]}) {\n    query {\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          ...SpanAnnotationsEditor_spanAnnotations\n          ...SpanFeedback_annotations\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations on Span {\n  id\n  filteredSpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}, include: {}}) {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n  }\n}\n\nfragment SpanFeedback_annotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "43544621e6f7772b43f67ebf95f80505";
+(node as any).hash = "436457e2120f7750037b024a1b96e214";
 
 export default node;

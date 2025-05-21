@@ -1,4 +1,5 @@
 import json
+import logging
 from collections import defaultdict
 from collections.abc import Mapping
 from dataclasses import asdict
@@ -53,6 +54,8 @@ ChatCompletionMessage: TypeAlias = tuple[
     ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]
 ]
 ToolCallID: TypeAlias = str
+
+logger = logging.getLogger(__name__)
 
 
 class streaming_llm_span:
@@ -117,6 +120,7 @@ class streaming_llm_span:
                     exception_stacktrace=format_exc(),
                 )
             )
+            logger.exception(exc_value)
         if self._text_chunks or self._tool_call_chunks:
             self._attributes.update(
                 chain(

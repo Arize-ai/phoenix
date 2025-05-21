@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import {
@@ -30,7 +30,7 @@ export function DeletePromptVersionTagButton({
     useMutation<DeletePromptVersionTagButtonMutation>(graphql`
       mutation DeletePromptVersionTagButtonMutation(
         $input: DeletePromptVersionTagInput!
-        $promptId: GlobalID!
+        $promptId: ID!
       ) {
         deletePromptVersionTag(input: $input) {
           query {

@@ -1,4 +1,4 @@
-import React, { ReactNode, useCallback, useMemo, useState } from "react";
+import { ReactNode, useCallback, useMemo, useState } from "react";
 
 import { Dialog, DialogContainer } from "@arizeai/components";
 
@@ -11,8 +11,10 @@ import {
   View,
 } from "@phoenix/components";
 import { IsAdmin, IsAuthenticated } from "@phoenix/components/auth";
+import { CodeLanguage, CodeLanguageRadioGroup } from "@phoenix/components/code";
 import { CodeWrap } from "@phoenix/components/code/CodeWrap";
 import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";
+import { TypeScriptBlockWithCopy } from "@phoenix/components/code/TypeScriptBlockWithCopy";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 
 const INSTALL_PHOENIX_PYTHON = `pip install arize-phoenix>=${window.Config.platformVersion}`;
@@ -50,38 +52,54 @@ const RUN_EXPERIMENT_PYTHON =
   `from phoenix.experiments import run_experiment\n\n` +
   `experiment = run_experiment(dataset, my_task, evaluators=evaluators)`;
 
-export function RunExperimentButton() {
-  const [dialog, setDialog] = useState<ReactNode>(null);
-  const onRunExample = useCallback(() => {
-    setDialog(
-      <Dialog title="Run Experiment" size="XL">
-        <RunExperimentExample />
-      </Dialog>
-    );
-  }, []);
-  return (
-    <>
-      <Button
-        size="S"
-        leadingVisual={<Icon svg={<Icons.ExperimentOutline />} />}
-        onPress={onRunExample}
-      >
-        Run Experiment
-      </Button>
-      <DialogContainer
-        isDismissable
-        type="slideOver"
-        onDismiss={() => {
-          setDialog(null);
-        }}
-      >
-        {dialog}
-      </DialogContainer>
-    </>
-  );
+function getDatasetTypeScriptCode(datasetId: string, experimentName: string) {
+  return `import { createClient } from "@arizeai/phoenix-client";
+import {
+  asEvaluator,
+  runExperiment,
+} from "@arizeai/phoenix-client/experiments";
+import type { Example } from "@arizeai/phoenix-client/types/datasets";
+import OpenAI from "openai";
+
+const phoenix = createClient();
+const openai = new OpenAI();
+
+/** Your AI Task  */
+const task = async (example: Example) => {
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      { role: "system", content: "You are a helpful assistant." },
+      { role: "user", content: JSON.stringify(example.input, null, 2) },
+    ],
+  });
+  return response.choices[0]?.message?.content ?? "No response";
+};
+
+/** Exact match evaluator */
+const exactMatch = asEvaluator({
+  name: "Exact Match",
+  kind: "custom",
+  evaluate: async ({ input, output, expected }) => {
+    return {
+      score: output === expected ? 1.0 : 0.0,
+      label: output === expected ? "match" : "no_match",
+      explanation: "Expected: " + expected + ", Got: " + output,
+      metadata: {},
+    };
+  },
+});
+
+await runExperiment({
+  dataset: { datasetId: "${datasetId}" },
+  experimentName: "${experimentName}",
+  client: phoenix,
+  task,
+  evaluators: [exactMatch],
+});`;
 }
 
-function RunExperimentExample() {
+function RunExperimentPythonExample() {
   const datasetName = useDatasetContext((state) => state.datasetName);
   const version = useDatasetContext((state) => state.latestVersion);
   const isAuthEnabled = window.Config.authenticationEnabled;
@@ -97,7 +115,7 @@ function RunExperimentExample() {
   }, [datasetName, version]);
 
   return (
-    <View padding="size-400" overflow="auto">
+    <View overflow="auto">
       <View paddingBottom="size-100">
         <Text>Install Phoenix</Text>
       </View>
@@ -152,5 +170,75 @@ function RunExperimentExample() {
         <PythonBlockWithCopy value={RUN_EXPERIMENT_PYTHON} />
       </CodeWrap>
     </View>
+  );
+}
+
+function RunExperimentTypeScriptExample() {
+  const datasetName = useDatasetContext((state) => state.datasetName);
+  // You could add experimentName state or prop if needed
+  return (
+    <View overflow="auto">
+      <View paddingBottom="size-100">
+        <Text>Install Phoenix Client</Text>
+      </View>
+      <CodeWrap>
+        <TypeScriptBlockWithCopy
+          value={`npm install @arizeai/phoenix-client`}
+        />
+      </CodeWrap>
+      <View paddingTop="size-100" paddingBottom="size-100">
+        <Text>Run an experiment</Text>
+      </View>
+      <CodeWrap>
+        <TypeScriptBlockWithCopy
+          value={getDatasetTypeScriptCode(datasetName, "experiment_name")}
+        />
+      </CodeWrap>
+    </View>
+  );
+}
+
+function RunExperimentExampleSwitcher() {
+  const [language, setLanguage] = useState<CodeLanguage>("Python");
+  return (
+    <Dialog title="Run Experiment" size="XL">
+      <View padding="size-400" overflow="auto">
+        <View paddingBottom="size-200">
+          <CodeLanguageRadioGroup language={language} onChange={setLanguage} />
+        </View>
+        {language === "Python" ? (
+          <RunExperimentPythonExample />
+        ) : (
+          <RunExperimentTypeScriptExample />
+        )}
+      </View>
+    </Dialog>
+  );
+}
+
+export function RunExperimentButton() {
+  const [dialog, setDialog] = useState<ReactNode>(null);
+  const onRunExample = useCallback(() => {
+    setDialog(<RunExperimentExampleSwitcher />);
+  }, []);
+  return (
+    <>
+      <Button
+        size="S"
+        leadingVisual={<Icon svg={<Icons.ExperimentOutline />} />}
+        onPress={onRunExample}
+      >
+        Run Experiment
+      </Button>
+      <DialogContainer
+        isDismissable
+        type="slideOver"
+        onDismiss={() => {
+          setDialog(null);
+        }}
+      >
+        {dialog}
+      </DialogContainer>
+    </>
   );
 }

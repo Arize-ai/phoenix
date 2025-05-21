@@ -1,11 +1,14 @@
 name: Python CI
+permissions:
+  contents: read
 
 on:
   push:
-    branches: [main, sessions]
+    branches: [main, feat/annotations]
   pull_request:
     paths:
       - "**/*.py"
+      - "**/*.ipynb"
       - "src/**"
       - "tests/**"
       - "tutorials/**"
@@ -62,6 +65,15 @@ jobs:
             phoenix_otel:
               - "packages/phoenix-otel/**"
               - "tox.ini"
+      - name: Print Filters
+        run: |
+          echo "ipynb: ${{ steps.filter.outputs.ipynb }}"
+          echo "ipynb_files: ${{ steps.filter.outputs.ipynb_files }}"
+          echo "proto: ${{ steps.filter.outputs.proto }}"
+          echo "phoenix: ${{ steps.filter.outputs.phoenix }}"
+          echo "phoenix_client: ${{ steps.filter.outputs.phoenix_client }}"
+          echo "phoenix_evals: ${{ steps.filter.outputs.phoenix_evals }}"
+          echo "phoenix_otel: ${{ steps.filter.outputs.phoenix_otel }}"
 
   phoenix-client:
     name: Phoenix Client
@@ -70,8 +82,8 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix_client == 'true' }}
     strategy:
       matrix:
-        py: [ 3.9, 3.12 ]
-        os: [ ubuntu-latest, windows-latest, macos-13 ]
+        py: [3.9, 3.12]
+        os: [ubuntu-latest, windows-latest, macos-13]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -139,8 +151,8 @@ jobs:
     if: ${{ needs.changes.outputs.ipynb == 'true' }}
     strategy:
       matrix:
-        py: [ 3.13 ]
-        os: [ ubuntu-latest ]
+        py: [3.13]
+        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
@@ -254,7 +266,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: [3.12, 3.13]
+        py: [3.13]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -279,7 +291,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: [3.9, 3.12, 3.13]
+        py: [3.9, 3.13]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -317,7 +329,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: [3.9, 3.12, 3.13]
+        py: [3.9, 3.13]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -356,7 +368,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: [3.9, 3.12, 3.13]
+        py: [3.9, 3.13]
         os: [ubuntu-latest, windows-latest, macos-latest, macos-13]
         exclude:
           - py: 3.13
@@ -404,7 +416,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: [3.9, 3.12, 3.13]
+        py: [3.9, 3.13]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -442,7 +454,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: [3.9, 3.12, 3.13]
+        py: [3.9, 3.13]
         db: [sqlite, postgresql]
         os: [ubuntu-latest, windows-latest, macos-latest, macos-13]
         exclude:
@@ -506,8 +518,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: [ 3.9 ]
-        pkg: [ openai, anthropic, google_generativeai ]
+        py: [3.9]
+        pkg: [openai, google_generativeai]  # NOTE: bypass Anthropic check while types are changing
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

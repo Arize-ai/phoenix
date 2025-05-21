@@ -1,9 +1,4 @@
-import React, {
-  startTransition,
-  useDeferredValue,
-  useEffect,
-  useState,
-} from "react";
+import { startTransition, useDeferredValue, useEffect, useState } from "react";
 import { useParams } from "react-router";
 import {
   autocompletion,
@@ -209,7 +204,7 @@ async function isConditionValid(condition: string, projectId: string) {
       graphql`
         query SpanFilterConditionFieldValidationQuery(
           $condition: String!
-          $id: GlobalID!
+          $id: ID!
         ) {
           project: node(id: $id) {
             ... on Project {

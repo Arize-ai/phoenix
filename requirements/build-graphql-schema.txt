@@ -1,1 +1,1 @@
-strawberry-graphql[cli]==0.262.5
+strawberry-graphql[cli]==0.269.0

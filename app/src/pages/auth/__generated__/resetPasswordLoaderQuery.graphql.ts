@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<84f1f83de728fe14d012b3ec52afdca9>>
+ * @generated SignedSource<<f9db3166ba7646bb93f6c49124466d9f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -76,12 +76,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "558e2fa85c0dc24da6318db9ebbd7958",
+    "cacheID": "3f2aa2ea2629970ac6ca3c4fa86f1f7b",
     "id": null,
     "metadata": {},
     "name": "resetPasswordLoaderQuery",
     "operationKind": "query",
-    "text": "query resetPasswordLoaderQuery {\n  viewer {\n    id\n    email\n  }\n  ...ResetPasswordFormQuery\n}\n\nfragment ResetPasswordFormQuery on Query {\n  viewer {\n    email\n  }\n}\n"
+    "text": "query resetPasswordLoaderQuery {\n  viewer {\n    id\n    email\n  }\n  ...ResetPasswordFormQuery\n}\n\nfragment ResetPasswordFormQuery on Query {\n  viewer {\n    email\n    id\n  }\n}\n"
   }
 };
 })();

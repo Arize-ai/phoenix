@@ -1,4 +1,4 @@
-import React, { Suspense } from "react";
+import { Suspense } from "react";
 import { RelayEnvironmentProvider } from "react-relay";
 
 import { Provider } from "@arizeai/components";
@@ -13,6 +13,8 @@ import RelayEnvironment from "./RelayEnvironment";
 import { AppRoutes } from "./Routes";
 
 import "normalize.css";
+import "react-grid-layout/css/styles.css";
+import "react-resizable/css/styles.css";
 
 export function App() {
   return (

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0efbb46067c445179fe9177d41323c7b>>
+ * @generated SignedSource<<46becc12a46e317a363a2adf4e6d7607>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -138,10 +138,6 @@ return {
           },
           (v4/*: any*/),
           {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
-          {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
@@ -154,16 +150,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0fa41a7d0406cd916f93bbafcb5fe94f",
+    "cacheID": "d5de8bdb83475f2bc238b517527c639d",
     "id": null,
     "metadata": {},
     "name": "ProjectsPageProjectMetricsQuery",
     "operationKind": "query",
-    "text": "query ProjectsPageProjectMetricsQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      traceCount(timeRange: $timeRange)\n      latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n      tokenCountTotal(timeRange: $timeRange)\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query ProjectsPageProjectMetricsQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      traceCount(timeRange: $timeRange)\n      latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n      tokenCountTotal(timeRange: $timeRange)\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "abe4527bcaa911eb401e05797a984c38";
+(node as any).hash = "d61aeef7b0022043e0d4d220f435a066";
 
 export default node;

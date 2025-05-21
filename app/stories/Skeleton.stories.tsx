@@ -1,7 +1,6 @@
-import React from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { Flex, Skeleton } from "@phoenix/components";
+import { ContentSkeleton, Flex, Skeleton } from "@phoenix/components";
 
 const meta: Meta<typeof Skeleton> = {
   title: "Skeleton",
@@ -55,4 +54,8 @@ export const Card: Story = {
       <Skeleton height={16} width="60%" />
     </Flex>
   ),
+};
+
+export const Content: Story = {
+  render: () => <ContentSkeleton />,
 };

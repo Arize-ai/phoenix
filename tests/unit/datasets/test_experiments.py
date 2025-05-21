@@ -324,10 +324,10 @@ def test_binding_arguments_to_decorated_evaluators() -> None:
 
 
 async def test_get_experiment_client_method(
-    px_client: Client,
+    legacy_px_client: Client,
     simple_dataset_with_one_experiment_run: Any,
 ) -> None:
     experiment_gid = GlobalID("Experiment", "0")
-    experiment = px_client.get_experiment(experiment_id=str(experiment_gid))
+    experiment = legacy_px_client.get_experiment(experiment_id=str(experiment_gid))
     assert experiment
     assert isinstance(experiment, Experiment)

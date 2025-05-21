@@ -13,7 +13,7 @@ export async function experimentCompareLoader(args: LoaderFunctionArgs) {
   return await fetchQuery<experimentCompareLoaderQuery>(
     RelayEnvironment,
     graphql`
-      query experimentCompareLoaderQuery($id: GlobalID!) {
+      query experimentCompareLoaderQuery($id: ID!) {
         dataset: node(id: $id) {
           id
           ... on Dataset {

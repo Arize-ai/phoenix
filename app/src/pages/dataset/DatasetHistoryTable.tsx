@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import {
   flexRender,
@@ -50,7 +50,7 @@ export function DatasetHistoryTable(props: DatasetHistoryTableProps) {
     () => data.versions.edges.map((edge) => edge.node),
     [data]
   );
-  const fetchMoreOnBottomReached = React.useCallback(
+  const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
         const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
