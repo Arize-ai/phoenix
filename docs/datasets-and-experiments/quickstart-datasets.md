@@ -69,6 +69,9 @@ process.env["PHOENIX_COLLECTOR_ENDPOINT"] = "Your Phoenix Endpoint"
 
 Upload a dataset.
 
+{% tabs %}
+{% tab title="Python" %}
+
 ```python
 import pandas as pd
 import phoenix as px
@@ -92,9 +95,45 @@ dataset = phoenix_client.upload_dataset(
 )
 ```
 
+{% endtab %}
+
+{% tab title="Typescript" %}
+
+```typescript
+import { createClient } from "phoenix";
+import { createDataset } from "phoenix/datasets";
+
+// Create example data
+const examples = [
+  {
+    input: { question: "What is Paul Graham known for?" },
+    output: {
+      answer: "Co-founding Y Combinator and writing on startups and techology."
+    },
+    metadata: { topic: "tech" }
+  }
+];
+
+// Initialize Phoenix client
+const client = createClient();
+
+// Upload dataset
+const { datasetId } = await createDataset({
+  client,
+  name: "test-dataset",
+  examples: examples
+});
+```
+
+{% endtab %}
+{% endtabs %}
+
 ## Tasks
 
 Create a task to evaluate.
+
+{% tabs %}
+{% tab title="Python" %}
 
 ```python
 from openai import OpenAI
@@ -114,9 +153,45 @@ def task(example: Example) -> str:
     return response.choices[0].message.content
 ```
 
+{% endtab %}
+
+{% tab title="Typescript" %}
+
+```typescript
+import { OpenAI } from "openai";
+import { Example } from "phoenix/types/datasets";
+import { RunExperimentParams } from "phoenix/experiments";
+
+// Initialize OpenAI client
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
+
+const taskPromptTemplate = "Answer in a few words: {question}";
+
+const task: RunExperimentParams["task"] = async (example: Example) => {
+  // Access question with type assertion
+  const question = (example.input.question as string) || "No question provided";
+  const messageContent = taskPromptTemplate.replace("{question}", question);
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o", 
+    messages: [{ role: "user", content: messageContent }]
+  });
+
+  return response.choices[0]?.message?.content || "";
+};
+```
+
+{% endtab %}
+{% endtabs %}
+
 ## Evaluators
 
 Use pre-built evaluators to grade task output with code...
+
+{% tabs %}
+{% tab title="Python" %}
 
 ```python
 from phoenix.experiments.evaluators import ContainsAnyKeyword
@@ -124,7 +199,44 @@ from phoenix.experiments.evaluators import ContainsAnyKeyword
 contains_keyword = ContainsAnyKeyword(keywords=["Y Combinator", "YC"])
 ```
 
+{% endtab %}
+
+{% tab title="Typescript" %}
+
+```typescript
+import { asEvaluator } from "phoenix/experiments";
+import { AnnotatorKind } from "phoenix/types/annotations";
+
+// Code-based evaluator that checks if response contains specific keywords
+const containsKeyword = asEvaluator({
+  name: "contains_keyword",
+  kind: "CODE" as AnnotatorKind,
+  evaluate: async ({ output }) => {
+    const keywords = ["Y Combinator", "YC"];
+    const outputStr = String(output).toLowerCase();
+    const contains = keywords.some((keyword) =>
+      outputStr.toLowerCase().includes(keyword.toLowerCase())
+    );
+
+    return {
+      score: contains ? 1.0 : 0.0,
+      label: contains ? "contains_keyword" : "missing_keyword",
+      metadata: { keywords },
+      explanation: contains
+        ? `Output contains one of the keywords: ${keywords.join(", ")}`
+        : `Output does not contain any of the keywords: ${keywords.join(", ")}`
+    };
+  }
+});
+```
+
+{% endtab %}
+{% endtabs %}
+
 or LLMs.
+
+{% tabs %}
+{% tab title="Python" %}
 
 ```python
 from phoenix.experiments.evaluators import ConcisenessEvaluator
@@ -134,7 +246,57 @@ model = OpenAIModel(model="gpt-4o")
 conciseness = ConcisenessEvaluator(model=model)
 ```
 
+{% endtab %}
+
+{% tab title="Typescript" %}
+
+```typescript
+import { asEvaluator } from "phoenix/experiments";
+import { AnnotatorKind } from "phoenix/types/annotations";
+import { OpenAI } from "openai";
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
+
+// LLM-based evaluator for conciseness
+const conciseness = asEvaluator({
+  name: "conciseness",
+  kind: "LLM" as AnnotatorKind,
+  evaluate: async ({ output }) => {
+    const prompt = `
+      Rate the following text on a scale of 0.0 to 1.0 for conciseness (where 1.0 is perfectly concise).
+      
+      TEXT: ${output}
+      
+      Return only a number between 0.0 and 1.0.
+    `;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: prompt }]
+    });
+
+    const scoreText = response.choices[0]?.message?.content?.trim() || "0";
+    const score = parseFloat(scoreText);
+
+    return {
+      score: isNaN(score) ? 0.5 : score,
+      label: score > 0.7 ? "concise" : "verbose",
+      metadata: {},
+      explanation: `Conciseness score: ${score}`
+    };
+  }
+});
+```
+
+{% endtab %}
+{% endtabs %}
+
 Define custom evaluators with code...
+
+{% tabs %}
+{% tab title="Python" %}
 
 ```python
 from typing import Any, Dict
@@ -149,7 +311,52 @@ def jaccard_similarity(output: str, expected: Dict[str, Any]) -> float:
     return len(words_in_common) / len(all_words)
 ```
 
+{% endtab %}
+
+{% tab title="Typescript" %}
+
+```typescript
+import { asEvaluator } from "phoenix/experiments";
+import { AnnotatorKind } from "phoenix/types/annotations";
+
+// Custom Jaccard similarity evaluator
+const jaccardSimilarity = asEvaluator({
+  name: "jaccard_similarity",
+  kind: "CODE" as AnnotatorKind,
+  evaluate: async ({ output, expected }) => {
+    const actualWords = new Set(String(output).toLowerCase().split(" "));
+    const expectedAnswer = (expected?.answer as string) || "";
+    const expectedWords = new Set(expectedAnswer.toLowerCase().split(" "));
+
+    const wordsInCommon = new Set(
+      [...actualWords].filter((word) => expectedWords.has(word))
+    );
+
+    const allWords = new Set([...actualWords, ...expectedWords]);
+    const score = wordsInCommon.size / allWords.size;
+
+    return {
+      score,
+      label: score > 0.5 ? "similar" : "dissimilar",
+      metadata: {
+        actualWordsCount: actualWords.size,
+        expectedWordsCount: expectedWords.size,
+        commonWordsCount: wordsInCommon.size,
+        allWordsCount: allWords.size
+      },
+      explanation: `Jaccard similarity: ${score}`
+    };
+  }
+});
+```
+
+{% endtab %}
+{% endtabs %}
+
 or LLMs.
+
+{% tabs %}
+{% tab title="Python" %}
 
 ```python
 from phoenix.experiments.evaluators import create_evaluator
@@ -181,9 +388,73 @@ def accuracy(input: Dict[str, Any], output: str, expected: Dict[str, Any]) -> fl
     return 1.0 if response_message_content == "accurate" else 0.0
 ```
 
+{% endtab %}
+
+{% tab title="Typescript" %}
+
+```typescript
+import { asEvaluator } from "phoenix/experiments";
+import { AnnotatorKind } from "phoenix/types/annotations";
+import { OpenAI } from "openai";
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
+
+// LLM-based accuracy evaluator
+const accuracy = asEvaluator({
+  name: "accuracy",
+  kind: "LLM" as AnnotatorKind,
+  evaluate: async ({ input, output, expected }) => {
+    const question = (input.question as string) || "No question provided";
+    const referenceAnswer = (expected?.answer as string) || "No reference answer provided";
+
+    const evalPromptTemplate = `
+      Given the QUESTION and REFERENCE_ANSWER, determine whether the ANSWER is accurate.
+      Output only a single word (accurate or inaccurate).
+      
+      QUESTION: {question}
+      
+      REFERENCE_ANSWER: {reference_answer}
+      
+      ANSWER: {answer}
+      
+      ACCURACY (accurate / inaccurate):
+    `;
+
+    const messageContent = evalPromptTemplate
+      .replace("{question}", question)
+      .replace("{reference_answer}", referenceAnswer)
+      .replace("{answer}", String(output));
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: messageContent }]
+    });
+
+    const responseContent = 
+      response.choices[0]?.message?.content?.toLowerCase().trim() || "";
+    const isAccurate = responseContent === "accurate";
+
+    return {
+      score: isAccurate ? 1.0 : 0.0,
+      label: isAccurate ? "accurate" : "inaccurate",
+      metadata: {},
+      explanation: `LLM determined the answer is ${isAccurate ? "accurate" : "inaccurate"}`
+    };
+  }
+});
+```
+
+{% endtab %}
+{% endtabs %}
+
 ## Experiments
 
 Run an experiment and evaluate the results.
+
+{% tabs %}
+{% tab title="Python" %}
 
 ```python
 from phoenix.experiments import run_experiment
@@ -196,13 +467,60 @@ experiment = run_experiment(
 )
 ```
 
+{% endtab %}
+
+{% tab title="Typescript" %}
+
+```typescript
+import { runExperiment } from "phoenix/experiments";
+
+// Run the experiment with selected evaluators
+const experiment = await runExperiment({
+  client,
+  experimentName: "initial-experiment",
+  dataset: { datasetId }, // Use the dataset ID from earlier
+  task,
+  evaluators: [jaccardSimilarity, accuracy]
+});
+
+console.log("Initial experiment completed with ID:", experiment.id);
+```
+
+{% endtab %}
+{% endtabs %}
+
 Run more evaluators after the fact.
+
+{% tabs %}
+{% tab title="Python" %}
 
 ```python
 from phoenix.experiments import evaluate_experiment
 
 experiment = evaluate_experiment(experiment, evaluators=[contains_keyword, conciseness])
 ```
+
+{% endtab %}
+
+{% tab title="Typescript" %}
+
+```typescript
+import { runExperiment } from "phoenix/experiments";
+
+// Run additional evaluators on the same experiment
+const updatedExperiment = await runExperiment({
+  client,
+  experimentName: experiment.id, // Use the same experiment ID
+  dataset: { datasetId }, // Use the dataset ID from earlier
+  task: async () => "", // No-op task since we're just evaluating
+  evaluators: [containsKeyword, conciseness]
+});
+
+console.log("Additional evaluations completed with ID:", updatedExperiment.id);
+```
+
+{% endtab %}
+{% endtabs %}
 
 And iterate 🚀
 
