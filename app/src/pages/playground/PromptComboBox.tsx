@@ -25,7 +25,7 @@ export function PromptComboBox({
   const data = useLazyLoadQuery<PromptComboBoxQuery>(
     graphql`
       query PromptComboBoxQuery {
-        prompts {
+        prompts(first: 100) {
           edges {
             prompt: node {
               __typename

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0667268bd57d1da0c20815c03b741d39>>
+ * @generated SignedSource<<66cb14fa290bf85fac4119ca324673d8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -29,7 +29,13 @@ const node: ConcreteRequest = (function(){
 var v0 = [
   {
     "alias": null,
-    "args": null,
+    "args": [
+      {
+        "kind": "Literal",
+        "name": "first",
+        "value": 100
+      }
+    ],
     "concreteType": "PromptConnection",
     "kind": "LinkedField",
     "name": "prompts",
@@ -72,7 +78,7 @@ var v0 = [
         "storageKey": null
       }
     ],
-    "storageKey": null
+    "storageKey": "prompts(first:100)"
   }
 ];
 return {
@@ -93,16 +99,16 @@ return {
     "selections": (v0/*: any*/)
   },
   "params": {
-    "cacheID": "654725a48bf8fb568b8e05fd37696920",
+    "cacheID": "29fcb227686b9f5ba1254116aa59975b",
     "id": null,
     "metadata": {},
     "name": "SavePromptFormQuery",
     "operationKind": "query",
-    "text": "query SavePromptFormQuery {\n  prompts {\n    edges {\n      prompt: node {\n        id\n        name\n      }\n    }\n  }\n}\n"
+    "text": "query SavePromptFormQuery {\n  prompts(first: 100) {\n    edges {\n      prompt: node {\n        id\n        name\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a9d184ea6bad7c7ff3b15460ce72b9fd";
+(node as any).hash = "03b97b919445bc1df47ea03663befd6f";
 
 export default node;
