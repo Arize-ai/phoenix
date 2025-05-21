@@ -16,37 +16,40 @@ import { UserRole } from "@phoenix/constants";
 
 import { RolePicker } from "./RolePicker";
 
-const MIN_PASSWORD_LENGTH = 4;
-
-export type UserFormParams = {
+export type OAuthUserFormParams = {
   email: string;
   username: string;
-  password: string;
-  confirmPassword: string;
   role: UserRole;
 };
 
-export function UserForm({
+/**
+ * A form for creating a new user with OAuth.
+ *
+ * @param {Object} props - The component props.
+ * @param {Function} props.onSubmit - The function to call when the form is submitted.
+ * @param {string} props.email - The email of the user.
+ * @param {string} props.username - The username of the user.
+ * @param {UserRole} props.role - The role of the user.
+ * @param {boolean} props.isSubmitting - Whether the form is submitting.
+ */
+export function OAuthUserForm({
   onSubmit,
   email,
   username,
-  password,
   role,
   isSubmitting,
 }: {
-  onSubmit: (data: UserFormParams) => void;
+  onSubmit: (data: OAuthUserFormParams) => void;
   isSubmitting: boolean;
-} & Partial<UserFormParams>) {
+} & Partial<OAuthUserFormParams>) {
   const {
     control,
     handleSubmit,
     formState: { isDirty },
-  } = useForm<UserFormParams>({
+  } = useForm<OAuthUserFormParams>({
     defaultValues: {
       email: email ?? "",
       username: username ?? "",
-      password: password ?? undefined,
-      confirmPassword: undefined,
       role: role ?? UserRole.MEMBER,
     },
   });
@@ -128,80 +131,6 @@ export function UserForm({
                 </TextField>
               )}
             />
-            <>
-              <Controller
-                name="password"
-                control={control}
-                rules={{
-                  required: "Password is required",
-                  minLength: {
-                    value: MIN_PASSWORD_LENGTH,
-                    message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
-                  },
-                }}
-                render={({
-                  field: { name, onChange, onBlur, value },
-                  fieldState: { invalid, error },
-                }) => (
-                  <TextField
-                    type="password"
-                    isRequired
-                    name={name}
-                    isInvalid={invalid}
-                    onChange={onChange}
-                    onBlur={onBlur}
-                    defaultValue={value}
-                    autoComplete="new-password"
-                  >
-                    <Label>Password</Label>
-                    <Input />
-                    {error ? (
-                      <FieldError>{error?.message}</FieldError>
-                    ) : (
-                      <Text slot="description">
-                        Password must be at least 4 characters
-                      </Text>
-                    )}
-                  </TextField>
-                )}
-              />
-              <Controller
-                name="confirmPassword"
-                control={control}
-                rules={{
-                  required: "Please confirm your password",
-                  minLength: {
-                    value: MIN_PASSWORD_LENGTH,
-                    message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
-                  },
-                  validate: (value, formValues) =>
-                    value === formValues.password || "Passwords do not match",
-                }}
-                render={({
-                  field: { name, onChange, onBlur, value },
-                  fieldState: { invalid, error },
-                }) => (
-                  <TextField
-                    isRequired
-                    type="password"
-                    name={name}
-                    isInvalid={invalid}
-                    onChange={onChange}
-                    onBlur={onBlur}
-                    defaultValue={value ?? undefined}
-                    autoComplete="new-password"
-                  >
-                    <Label>Confirm Password</Label>
-                    <Input />
-                    {error ? (
-                      <FieldError>{error?.message}</FieldError>
-                    ) : (
-                      <Text slot="description">Confirm the new password</Text>
-                    )}
-                  </TextField>
-                )}
-              />
-            </>
             <Controller
               name="role"
               control={control}

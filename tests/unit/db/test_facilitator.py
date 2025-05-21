@@ -60,12 +60,14 @@ class TestEnsureStartupAdmins:
             admin_role_id = await session.scalar(
                 select(models.UserRole.id).filter_by(name=UserRole.ADMIN.value)
             )
+            assert isinstance(admin_role_id, int)
             member_role_id = await session.scalar(
                 select(models.UserRole.id).filter_by(name=UserRole.MEMBER.value)
             )
+            assert isinstance(member_role_id, int)
             # Create users with MEMBER role (not ADMIN)
             existing_users = {
-                "george@example.com": models.User(
+                "george@example.com": models.LocalUser(
                     email="george@example.com",
                     username="George",
                     user_role_id=member_role_id,
@@ -73,7 +75,7 @@ class TestEnsureStartupAdmins:
                     password_hash=token_bytes(32),
                     password_salt=token_bytes(32),
                 ),
-                "thomas@example.com": models.User(
+                "thomas@example.com": models.LocalUser(
                     email="thomas@example.com",
                     username="Thomas",
                     user_role_id=member_role_id,
