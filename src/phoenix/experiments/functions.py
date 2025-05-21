@@ -297,29 +297,14 @@ def run_experiment(
         if not dry_run:
             try:
                 # Try to create the run directly
-                resp = sync_client.post(
-                    f"/v1/experiments/{experiment.id}/runs", json=jsonify(exp_run)
-                )
+                resp = sync_client.post(f"/v1/experiments/{experiment.id}/runs", json=jsonify(exp_run))
                 resp.raise_for_status()
                 exp_run = replace(exp_run, id=resp.json()["data"]["id"])
-            except Exception as e:
-                # If we get a 422, the run possibly already exists due to timeouts
-                if isinstance(e, HTTPStatusError) and e.response.status_code == 422:
-                    all_runs = sync_client.get(f"/v1/experiments/{experiment.id}/runs").json()[
-                        "data"
-                    ]
-                    existing_runs = [
-                        run
-                        for run in all_runs
-                        if run["dataset_example_id"] == example.id
-                        and run["repetition_number"] == repetition_number
-                    ]
-                    if existing_runs:
-                        exp_run = replace(exp_run, id=existing_runs[0]["id"])
-                    else:
-                        raise
-                else:
-                    raise
+            except HTTPStatusError as e:
+                if e.response.status_code == 422:
+                    # Ignore duplicate runs - we'll get the final state from the database
+                    return None
+                raise
         return exp_run
 
     async def async_run_experiment(test_case: TestCase) -> ExperimentRun:
@@ -388,29 +373,14 @@ def run_experiment(
                         json=jsonify(exp_run),
                     ),
                 )
+                resp = await resp
                 resp.raise_for_status()
-                exp_run = replace(exp_run, id=resp.result().json()["data"]["id"])
-            except Exception as e:
-                # If we get a 422, the run possibly already exists due to timeouts
-                if isinstance(e, HTTPStatusError) and e.response.status_code == 422:
-                    all_runs = asyncio.get_running_loop().run_in_executor(
-                        None,
-                        functools.partial(
-                            sync_client.get,
-                            url=f"/v1/experiments/{experiment.id}/runs",
-                            params={
-                                "dataset_example_id": example.id,
-                                "repetition_number": repetition_number,
-                            },
-                        ),
-                    )
-                    all_runs = all_runs.result().json()["data"]
-                    if all_runs:
-                        exp_run = replace(exp_run, id=all_runs[0]["id"])
-                    else:
-                        raise
-                else:
-                    raise
+                exp_run = replace(exp_run, id=resp.json()["data"]["id"])
+            except HTTPStatusError as e:
+                if e.response.status_code == 422:
+                    # Ignore duplicate runs - we'll get the final state from the database
+                    return None
+                raise
         return exp_run
 
     _errors: tuple[type[BaseException], ...]
@@ -444,6 +414,17 @@ def run_experiment(
     ]
     task_runs, _execution_details = executor.run(test_cases)
     print("✅ Task runs completed.")
+
+    # Get the final state of runs from the database
+    if not dry_run:
+        all_runs = sync_client.get(f"/v1/experiments/{experiment.id}/runs").json()["data"]["data"]
+        task_runs = []
+        for run in all_runs:
+            # Parse datetime strings
+            run["start_time"] = datetime.fromisoformat(run["start_time"])
+            run["end_time"] = datetime.fromisoformat(run["end_time"])
+            task_runs.append(ExperimentRun.from_dict(run))
+
     params = ExperimentParameters(n_examples=len(dataset.examples), n_repetitions=repetitions)
     task_summary = TaskSummary.from_task_runs(params, task_runs)
     ran_experiment: RanExperiment = object.__new__(RanExperiment)
@@ -652,6 +633,7 @@ def evaluate_experiment(
                     json=jsonify(eval_run),
                 ),
             )
+            resp = await resp
             resp.raise_for_status()
             eval_run = replace(eval_run, id=resp.json()["data"]["id"])
         return eval_run
