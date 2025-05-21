@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 import { OpenAI } from "openai";
 import { createClient } from "../src";
-import { runExperiment, asEvaluator } from "../src/experiments";
+import { runExperiment, asEvaluator, RunExperimentParams } from "../src/experiments";
 import { AnnotatorKind } from "../src/types/annotations";
 import { Example } from "../src/types/datasets";
 import { createDataset } from "../src/datasets/createDataset";
@@ -55,13 +55,13 @@ async function main() {
       },
       metadata: { topic: "computing" },
     },
-  ] as Example[];
+  ] satisfies Example[];
 
   // Create a dataset with the examples
   console.log("Creating dataset with examples...");
   const { datasetId } = await createDataset({
     client,
-    name: "quickstart-dataset",
+    name: `quickstart-dataset-${Date.now()}`,
     description: "Dataset for quickstart example",
     examples: examples,
   });
@@ -69,7 +69,7 @@ async function main() {
   // Define task function that will be evaluated
   const taskPromptTemplate = "Answer in a few words: {question}";
 
-  const task = async (example: Example) => {
+  const task: RunExperimentParams["task"] = async (example: Example) => {
     // Safely access question with a type assertion
     const question =
       (example.input.question as string) || "No question provided";
