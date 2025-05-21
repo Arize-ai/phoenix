@@ -1,10 +1,11 @@
+import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
 import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
 import { Flex, Icon, Icons, Text, TextProps } from "@phoenix/components";
+
 import type { TokenCount_TokenDetailsQuery } from "./__generated__/TokenCount_TokenDetailsQuery.graphql";
-import { graphql, useLazyLoadQuery } from "react-relay";
 
 type TokenCountProps = {
   /**
