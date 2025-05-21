@@ -225,6 +225,7 @@ export function SessionsTable(props: SessionsTableProps) {
             tokenCountTotal={value as number}
             tokenCountPrompt={prompt || 0}
             tokenCountCompletion={completion || 0}
+            nodeId={row.original.id}
           />
         );
       },

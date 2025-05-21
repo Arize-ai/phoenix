@@ -18,6 +18,7 @@ export function SpanHeader(props: SpanHeaderProps) {
   const span = useFragment(
     graphql`
       fragment SpanHeader_span on Span {
+        id
         name
         spanKind
         code: statusCode
@@ -66,6 +67,7 @@ export function SpanHeader(props: SpanHeaderProps) {
               tokenCountTotal={span.tokenCountTotal}
               tokenCountPrompt={span.tokenCountPrompt ?? 0}
               tokenCountCompletion={span.tokenCountCompletion ?? 0}
+              nodeId={span.id}
               size="S"
             />
           ) : null}

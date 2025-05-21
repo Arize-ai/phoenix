@@ -64,6 +64,7 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
             tokenCountTotal={data.span.tokenCountTotal || 0}
             tokenCountPrompt={data.span.tokenCountPrompt || 0}
             tokenCountCompletion={data.span.tokenCountCompletion || 0}
+            nodeId={data.span.id}
           />
           <LatencyText latencyMs={data.span.latencyMs || 0} />
         </Flex>

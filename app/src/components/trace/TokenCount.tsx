@@ -20,6 +20,10 @@ type TokenCountProps = {
   /**
    * The size of the icon and text
    */
+  nodeId: string;
+  /**
+   * The id of the node (span, trace, session, etc.)
+   */
   size?: TextProps["size"];
 };
 
@@ -36,6 +40,7 @@ export function TokenCount(props: TokenCountProps) {
         <TokenDetails
           tokenCountPrompt={props.tokenCountPrompt}
           tokenCountCompletion={props.tokenCountCompletion}
+          nodeId={props.nodeId}
         />
       </Tooltip>
     </TooltipTrigger>
@@ -45,6 +50,7 @@ export function TokenCount(props: TokenCountProps) {
 function TokenDetails(props: {
   tokenCountPrompt: number;
   tokenCountCompletion: number;
+  nodeId: string;
 }) {
   return (
     <Flex direction="column" gap="size-50">

@@ -133,6 +133,7 @@ function RootSpanDetails({
                 rootSpan.cumulativeTokenCountCompletion ?? 0
               }
               tokenCountPrompt={rootSpan.cumulativeTokenCountPrompt ?? 0}
+              nodeId={rootSpan.id}
             />
             {rootSpan.latencyMs != null ? (
               <LatencyText latencyMs={rootSpan.latencyMs} />

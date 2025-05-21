@@ -655,6 +655,7 @@ export function TracesTable(props: TracesTableProps) {
               tokenCountCompletion={
                 row.original.cumulativeTokenCountCompletion || 0
               }
+              nodeId={row.original.id}
             />
           );
         },

@@ -496,6 +496,7 @@ export function SpansTable(props: SpansTableProps) {
             tokenCountTotal={tokenCountTotal || 0}
             tokenCountPrompt={tokenCountPrompt || 0}
             tokenCountCompletion={tokenCountCompletion || 0}
+            nodeId={span.id}
           />
         );
       },

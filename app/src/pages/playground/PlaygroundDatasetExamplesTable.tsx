@@ -377,6 +377,7 @@ function SpanMetadata({ span }: { span: Span }) {
         tokenCountTotal={span.tokenCountTotal || 0}
         tokenCountPrompt={span.tokenCountPrompt || 0}
         tokenCountCompletion={span.tokenCountCompletion || 0}
+        nodeId={span.id}
       />
       <LatencyText latencyMs={span.latencyMs || 0} />
     </Flex>
