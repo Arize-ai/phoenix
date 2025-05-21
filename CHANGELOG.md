@@ -1,5 +1,12 @@
 # Changelog
 
+## [10.0.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.0.0...arize-phoenix-v10.0.1) (2025-05-21)
+
+
+### Bug Fixes
+
+* eliminate graphql error screen flicker during login redirect due to invalid token ([#7650](https://github.com/Arize-ai/phoenix/issues/7650)) ([15965c0](https://github.com/Arize-ai/phoenix/commit/15965c0523b235ff36bce2afa1ab99a0f19834c8))
+
 ## [10.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v9.6.0...arize-phoenix-v10.0.0) (2025-05-21)
 
 
