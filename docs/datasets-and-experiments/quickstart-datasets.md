@@ -32,22 +32,9 @@ os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
 {% tab title="Typescript" %}
 
 ```typescript
-// Set your Phoenix API key and endpoint
 const PHOENIX_API_KEY = "ADD YOUR API KEY";
-const PHOENIX_COLLECTOR_ENDPOINT = "https://app.phoenix.arize.com";
-
-// Example: setting headers for fetch or axios
-const headers = {
-  "api_key": PHOENIX_API_KEY,
-  // ...other headers
-};
-
-// Example usage with fetch
-fetch(`${PHOENIX_COLLECTOR_ENDPOINT}/your-endpoint`, {
-  method: "POST",
-  headers: headers,
-  body: JSON.stringify({ /* your data */ }),
-});
+process.env["PHOENIX_CLIENT_HEADERS"] = `api_key=${PHOENIX_API_KEY}`;
+process.env["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com";
 ```
 
 {% endtab %}
@@ -58,11 +45,25 @@ fetch(`${PHOENIX_COLLECTOR_ENDPOINT}/your-endpoint`, {
 1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, [see self-hosting](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/0gWR4qoGzdz04iSgPlsU/).
 2. In your code, set your endpoint:
 
+{% tabs %}
+{% tab title="Python" %}
+
 ```python
 import os
 
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "Your Phoenix Endpoint"
 ```
+
+{% endtab %}
+
+{% tab title="Typescript" %}
+
+```typescript
+process.env["PHOENIX_COLLECTOR_ENDPOINT"] = "Your Phoenix Endpoint"
+```
+
+{% endtab %}
+{% endtabs %}
 
 ## Datasets
 
