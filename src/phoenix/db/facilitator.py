@@ -26,6 +26,7 @@ from phoenix.auth import (
 from phoenix.config import (
     get_env_admins,
     get_env_default_admin_initial_password,
+    get_env_disable_basic_auth,
 )
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
@@ -111,7 +112,7 @@ async def _ensure_user_roles(db: DbSessionFactory) -> None:
         if (system_role := UserRole.SYSTEM.value) not in existing_roles and (
             system_role_id := role_ids.get(system_role)
         ) is not None:
-            system_user = models.User(
+            system_user = models.LocalUser(
                 user_role_id=system_role_id,
                 username=DEFAULT_SYSTEM_USERNAME,
                 email=DEFAULT_SYSTEM_EMAIL,
@@ -128,7 +129,7 @@ async def _ensure_user_roles(db: DbSessionFactory) -> None:
             compute = partial(compute_password_hash, password=password, salt=salt)
             loop = asyncio.get_running_loop()
             hash_ = await loop.run_in_executor(None, compute)
-            admin_user = models.User(
+            admin_user = models.LocalUser(
                 user_role_id=admin_role_id,
                 username=DEFAULT_ADMIN_USERNAME,
                 email=DEFAULT_ADMIN_EMAIL,
@@ -168,6 +169,7 @@ async def _ensure_admins(
     """
     if not (admins := get_env_admins()):
         return
+    disable_basic_auth = get_env_disable_basic_auth()
     async with db() as session:
         existing_emails = set(
             await session.scalars(
@@ -195,16 +197,23 @@ async def _ensure_admins(
             select(models.UserRole.id).filter_by(name=UserRole.ADMIN.value)
         )
         assert admin_role_id is not None, "Admin role not found in database"
+        user: models.User
         for email, username in admins.items():
-            values = dict(
-                user_role_id=admin_role_id,
-                username=username,
-                email=email,
-                password_salt=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
-                password_hash=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
-                reset_password=True,
-            )
-            await session.execute(insert(models.User).values(values))
+            if not disable_basic_auth:
+                user = models.LocalUser(
+                    email=email,
+                    username=username,
+                    password_salt=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
+                    password_hash=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
+                )
+            else:
+                user = models.OAuth2User(
+                    email=email,
+                    username=username,
+                )
+            user.user_role_id = admin_role_id
+            session.add(user)
+        await session.flush()
     if email_sender is None:
         return
     for exc in await gather(

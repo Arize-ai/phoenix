@@ -102,7 +102,11 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 |
 |  🚀 Phoenix Server 🚀
 |  Phoenix UI: {{ ui_path }}
+|
 |  Authentication: {{ auth_enabled }}
+{%- if basic_auth_disabled %}
+|  Basic Auth: Disabled
+{%- endif %}
 {%- if auth_enabled_for_http or auth_enabled_for_grpc %}
 {%- if tls_enabled_for_http %}
 |  TLS: Enabled for HTTP
@@ -332,7 +336,7 @@ def main() -> None:
         reference_inferences,
     )
 
-    authentication_enabled, secret = get_env_auth_settings()
+    auth_settings = get_env_auth_settings()
 
     fixture_spans: list[Span] = []
     fixture_evals: list[pb.Evaluation] = []
@@ -390,12 +394,14 @@ def main() -> None:
         http_path=urljoin(root_path, "v1/traces"),
         storage=get_printable_db_url(db_connection_str),
         schema=get_env_database_schema(),
-        auth_enabled=authentication_enabled,
+        auth_enabled=auth_settings.enable_auth,
+        disable_basic_auth=auth_settings.disable_basic_auth,
         tls_enabled_for_http=tls_enabled_for_http,
         tls_enabled_for_grpc=tls_enabled_for_grpc,
         tls_verify_client=tls_verify_client,
         allowed_origins=allowed_origins,
     )
+
     if sys.platform.startswith("win"):
         msg = codecs.encode(msg, "ascii", errors="ignore").decode("ascii").strip()
     scaffolder_config = ScaffolderConfig(
@@ -424,7 +430,8 @@ def main() -> None:
         db=factory,
         export_path=export_path,
         model=model,
-        authentication_enabled=authentication_enabled,
+        authentication_enabled=auth_settings.enable_auth,
+        basic_auth_disabled=auth_settings.disable_basic_auth,
         umap_params=umap_params,
         corpus=corpus_model,
         debug=args.debug,
@@ -436,7 +443,7 @@ def main() -> None:
         initial_evaluations=fixture_evals,
         startup_callbacks=[lambda: print(msg)],
         shutdown_callbacks=instrumentation_cleanups,
-        secret=secret,
+        secret=auth_settings.phoenix_secret,
         password_reset_token_expiry=get_env_password_reset_token_expiry(),
         access_token_expiry=get_env_access_token_expiry(),
         refresh_token_expiry=get_env_refresh_token_expiry(),

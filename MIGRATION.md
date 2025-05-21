@@ -1,5 +1,11 @@
 # Migrations
 
+## v9.x to v10.0.0
+
+This release updates the `users` table in the database. Migration is expected to be quick.
+
+No other breaking changes are included in this release.
+
 ## v8.x to v9.0.0
 
 This release migrates all annotations on spans and traces to a structure that supports multiple annotation values per entity (trace, span). This migration also changes the constraints for the tables. Because it operates on existing data, it may take a bit of time for the records to be fully migrated over. Phoenix migrates your data at boot so you may experience some slowness in the server coming up (depending on the amount of data you have). Please deploy v9.0 when your services can account for small amount of downtime.
