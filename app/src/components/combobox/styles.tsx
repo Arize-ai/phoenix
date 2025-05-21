@@ -60,7 +60,7 @@ export const comboBoxPopoverCSS = css(
   css`
     /* Set a fixed max height for the popover */
     max-height: 300px;
-    
+
     .react-aria-ListBox {
       display: block;
       width: unset;
