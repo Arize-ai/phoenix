@@ -154,7 +154,7 @@ async def project_with_a_single_trace_and_span_with_events(
             select(models.Span).where(models.Span.span_id == "7e2f08cb43bbf521")
         )
         assert span is not None
-        assert span.events is None
+        assert span.events is not None
         span.events = [
             {
                 "name": "test_event",
