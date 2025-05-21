@@ -100,8 +100,8 @@ dataset = phoenix_client.upload_dataset(
 {% tab title="Typescript" %}
 
 ```typescript
-import { createClient } from "phoenix";
-import { createDataset } from "phoenix/datasets";
+import { createClient } from "@arizeai/phoenix-client";
+import { createDataset } from "@arizeai/phoenix-client/datasets";
 
 // Create example data
 const examples = [
@@ -159,8 +159,7 @@ def task(example: Example) -> str:
 
 ```typescript
 import { OpenAI } from "openai";
-import { Example } from "phoenix/types/datasets";
-import { RunExperimentParams } from "phoenix/experiments";
+import { type RunExperimentParams } from "@arizeai/phoenix-client/experiments";
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -169,9 +168,9 @@ const openai = new OpenAI({
 
 const taskPromptTemplate = "Answer in a few words: {question}";
 
-const task: RunExperimentParams["task"] = async (example: Example) => {
+const task: RunExperimentParams["task"] = async (example) => {
   // Access question with type assertion
-  const question = (example.input.question as string) || "No question provided";
+  const question = example.input.question || "No question provided";
   const messageContent = taskPromptTemplate.replace("{question}", question);
 
   const response = await openai.chat.completions.create({
@@ -204,13 +203,12 @@ contains_keyword = ContainsAnyKeyword(keywords=["Y Combinator", "YC"])
 {% tab title="Typescript" %}
 
 ```typescript
-import { asEvaluator } from "phoenix/experiments";
-import { AnnotatorKind } from "phoenix/types/annotations";
+import { asEvaluator } from "@arizeai/phoenix-client/experiments";
 
 // Code-based evaluator that checks if response contains specific keywords
 const containsKeyword = asEvaluator({
   name: "contains_keyword",
-  kind: "CODE" as AnnotatorKind,
+  kind: "CODE",
   evaluate: async ({ output }) => {
     const keywords = ["Y Combinator", "YC"];
     const outputStr = String(output).toLowerCase();
@@ -251,8 +249,7 @@ conciseness = ConcisenessEvaluator(model=model)
 {% tab title="Typescript" %}
 
 ```typescript
-import { asEvaluator } from "phoenix/experiments";
-import { AnnotatorKind } from "phoenix/types/annotations";
+import { asEvaluator } from "@arizeai/phoenix-client/experiments";
 import { OpenAI } from "openai";
 
 const openai = new OpenAI({
@@ -262,7 +259,7 @@ const openai = new OpenAI({
 // LLM-based evaluator for conciseness
 const conciseness = asEvaluator({
   name: "conciseness",
-  kind: "LLM" as AnnotatorKind,
+  kind: "LLM",
   evaluate: async ({ output }) => {
     const prompt = `
       Rate the following text on a scale of 0.0 to 1.0 for conciseness (where 1.0 is perfectly concise).
@@ -316,16 +313,15 @@ def jaccard_similarity(output: str, expected: Dict[str, Any]) -> float:
 {% tab title="Typescript" %}
 
 ```typescript
-import { asEvaluator } from "phoenix/experiments";
-import { AnnotatorKind } from "phoenix/types/annotations";
+import { asEvaluator } from "@arizeai/phoenix-client/experiments";
 
 // Custom Jaccard similarity evaluator
 const jaccardSimilarity = asEvaluator({
   name: "jaccard_similarity",
-  kind: "CODE" as AnnotatorKind,
+  kind: "CODE",
   evaluate: async ({ output, expected }) => {
     const actualWords = new Set(String(output).toLowerCase().split(" "));
-    const expectedAnswer = (expected?.answer as string) || "";
+    const expectedAnswer = expected?.answer || "";
     const expectedWords = new Set(expectedAnswer.toLowerCase().split(" "));
 
     const wordsInCommon = new Set(
@@ -393,8 +389,7 @@ def accuracy(input: Dict[str, Any], output: str, expected: Dict[str, Any]) -> fl
 {% tab title="Typescript" %}
 
 ```typescript
-import { asEvaluator } from "phoenix/experiments";
-import { AnnotatorKind } from "phoenix/types/annotations";
+import { asEvaluator } from "@arizeai/phoenix-client/experiments";
 import { OpenAI } from "openai";
 
 const openai = new OpenAI({
@@ -404,10 +399,10 @@ const openai = new OpenAI({
 // LLM-based accuracy evaluator
 const accuracy = asEvaluator({
   name: "accuracy",
-  kind: "LLM" as AnnotatorKind,
+  kind: "LLM",
   evaluate: async ({ input, output, expected }) => {
-    const question = (input.question as string) || "No question provided";
-    const referenceAnswer = (expected?.answer as string) || "No reference answer provided";
+    const question = input.question || "No question provided";
+    const referenceAnswer = expected?.answer || "No reference answer provided";
 
     const evalPromptTemplate = `
       Given the QUESTION and REFERENCE_ANSWER, determine whether the ANSWER is accurate.
@@ -472,7 +467,7 @@ experiment = run_experiment(
 {% tab title="Typescript" %}
 
 ```typescript
-import { runExperiment } from "phoenix/experiments";
+import { runExperiment } from "@arizeai/phoenix-client/experiments";
 
 // Run the experiment with selected evaluators
 const experiment = await runExperiment({
@@ -505,10 +500,11 @@ experiment = evaluate_experiment(experiment, evaluators=[contains_keyword, conci
 {% tab title="Typescript" %}
 
 ```typescript
-import { evaluateExperiment } from "phoenix/experiments";
+import { evaluateExperiment } from "@arizeai/phoenix-client/experiments";
 
 // Add more evaluations to an existing experiment
 const updatedEvaluation = await evaluateExperiment({
+  client,
   experiment, // Use the existing experiment object
   evaluators: [containsKeyword, conciseness]
 });
