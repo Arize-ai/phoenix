@@ -1,3 +1,5 @@
+import invariant from "tiny-invariant";
+
 import { BASE_URL } from "@phoenix/config";
 
 import { createLoginRedirectUrl } from "./utils/routingUtils";
@@ -28,15 +30,13 @@ export async function authFetch(
   } catch (error) {
     if (error instanceof UnauthorizedError) {
       // If the server returns a 401, we should try to refresh the token
+      // If not successful, the user will be redirected to the login page
       const response = await refreshTokens();
-      // If there is no response, the token was successfully refreshed
-      if (!response) {
-        // Retry the original request
-        return fetch(input, init);
-      }
-      // If there is a response, it is a redirect response, and we should return it
-      // for any caller to handle / follow as needed
-      return response;
+      invariant(
+        response.ok,
+        `Failed to authenticate. Please visit ${createLoginRedirectUrl()} to login.`
+      );
+      return fetch(input, init);
     }
     if (error instanceof Error && error.name === "AbortError") {
       // This is triggered when the controller is aborted
@@ -46,9 +46,9 @@ export async function authFetch(
   throw new Error("An unexpected error occurred while fetching data");
 }
 
-let refreshPromise: Promise<Response | null> | null = null;
+let refreshPromise: Promise<Response> | null = null;
 
-export async function refreshTokens(): Promise<Response | null> {
+export async function refreshTokens(): Promise<Response> {
   if (refreshPromise) {
     // There is already a refresh request in progress, so we should wait for it
     return refreshPromise;
@@ -60,14 +60,13 @@ export async function refreshTokens(): Promise<Response | null> {
     if (!response.ok) {
       // for now force redirect to login page. This could re-throw with a custom error
       // But for now, we'll just redirect
-      return new Response(null, {
-        status: 307,
-        headers: { Location: createLoginRedirectUrl() },
-      });
+      window.location.href = createLoginRedirectUrl();
+      // return a promise that never resolves, giving the browser time to redirect above
+      return new Promise(() => {});
     }
     // Clear the refreshPromise so that future requests will trigger a new refresh
     refreshPromise = null;
-    return null;
+    return Promise.resolve(response);
   });
   return refreshPromise;
 }
