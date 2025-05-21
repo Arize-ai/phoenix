@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 2.0.1
+
+### Patch Changes
+
+- da7800a: feat(phoenix-client): Log the experiement/dataset link when calling runExperiment
+
 ## 2.0.0
 
 ### Major Changes

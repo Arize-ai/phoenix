@@ -1,5 +1,12 @@
 # @arizeai/phoenix-mcp
 
+## 2.1.7
+
+### Patch Changes
+
+- Updated dependencies [da7800a]
+  - @arizeai/phoenix-client@2.0.1
+
 ## 2.1.6
 
 ### Patch Changes
