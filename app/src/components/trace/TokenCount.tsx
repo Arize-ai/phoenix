@@ -1,5 +1,6 @@
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
+import { useMemo } from "react";
 
 import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
@@ -59,7 +60,7 @@ function TokenDetails(props: { nodeId: string }) {
     `,
     { nodeId: props.nodeId }
   );
-  const tokenCountPrompt = (() => {
+  const tokenCountPrompt = useMemo(() => {
     switch (data.node.__typename) {
       case "Span":
         return data.node.tokenCountPrompt ?? 0;
@@ -68,9 +69,9 @@ function TokenDetails(props: { nodeId: string }) {
       default:
         return 0;
     }
-  })();
+  }, [data.node]);
 
-  const tokenCountCompletion = (() => {
+  const tokenCountCompletion = useMemo(() => {
     switch (data.node.__typename) {
       case "Span":
         return data.node.tokenCountCompletion ?? 0;
@@ -79,8 +80,7 @@ function TokenDetails(props: { nodeId: string }) {
       default:
         return 0;
     }
-  })();
-
+  }, [data.node]);
   return (
     <Flex direction="column" gap="size-50">
       <Flex direction="row" gap="size-100" justifyContent="space-between">
