@@ -1,5 +1,6 @@
 ---
 description: Instrument LLM calls made using MistralAI's SDK via the MistralAIInstrumentor
+hidden: true
 ---
 
 # MistralAI

@@ -19,3 +19,7 @@ Phoenix offers a comprehensive suite of features to streamline your prompt engin
 * [Span Replay](overview-prompts/span-replay.md) - Replay the invocation of an LLM. Whether it's an LLM step in an LLM workflow or a router query, you can step into the LLM invocation and see if any modifications to the invocation would have yielded a better outcome.
 * [Prompts in Code](overview-prompts/prompts-in-code.md) - Phoenix offers client SDKs to keep your prompts in sync across different applications and environments.
 
+## Explore Demo Prompts
+
+{% embed url="https://phoenix-demo.arize.com/prompts" %}
+

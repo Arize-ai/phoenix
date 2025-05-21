@@ -1,5 +1,6 @@
 ---
 description: Instrument LLM applications built with Groq
+hidden: true
 ---
 
 # Groq

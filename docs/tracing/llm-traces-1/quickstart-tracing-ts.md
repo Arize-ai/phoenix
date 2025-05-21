@@ -9,26 +9,23 @@ Phoenix supports three main options to collect traces:
 
 This example uses options 2 and 3.
 
-<details>
+## Launch Phoenix
 
-<summary>Launch the Phoenix app</summary>
-
-### Using Phoenix Cloud:
+### Using Phoenix Cloud
 
 1. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
 2. Grab your API key from the Keys option on the left bar.
 3. In your code, configure environment variables for your endpoint and API key:
 
-```sh
-# .env, or shell environment
-
+<pre class="language-sh"><code class="lang-sh"><strong># .env, or shell environment
+</strong>
 # Add Phoenix API Key for tracing
 PHOENIX_API_KEY="ADD YOUR API KEY"
 # And Collector Endpoint for Phoenix Cloud
 PHOENIX_COLLECTOR_ENDPOINT="https://app.phoenix.arize.com"
-```
+</code></pre>
 
-### Using Self-hosted Phoenix:
+### Using Self-hosted Phoenix
 
 1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, see [self-hosting](https://docs.arize.com/phoenix/self-hosting).
 2. In your code, configure environment variables for your endpoint and API key:
@@ -41,8 +38,6 @@ PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
 # (optional) If authentication enabled, add Phoenix API Key for tracing
 PHOENIX_API_KEY="ADD YOUR API KEY"
 ```
-
-</details>
 
 ## Connect to Phoenix <a href="#connect-your-app" id="connect-your-app"></a>
 
@@ -211,4 +206,4 @@ You should now see traces in Phoenix!
 
 * Explore tracing [integrations](../integrations-tracing/)
 * [Customize tracing](../how-to-tracing/)
-* View use cases to see [end-to-end examples](../use-cases-tracing/)
+* View use cases to see [end-to-end examples](https://docs.arize.com/phoenix/cookbook/guide)

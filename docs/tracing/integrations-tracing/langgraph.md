@@ -1,3 +1,7 @@
+---
+hidden: true
+---
+
 # LangGraph
 
 Phoenix has first-class support for [LangGraph](https://www.langchain.com/langgraph) applications.
