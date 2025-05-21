@@ -14,9 +14,9 @@ from typing import Any, Literal, Optional, Union, cast
 from urllib.parse import urljoin
 
 import httpx
-from httpx import HTTPStatusError
 import opentelemetry.sdk.trace as trace_sdk
 import pandas as pd
+from httpx import HTTPStatusError
 from openinference.semconv.resource import ResourceAttributes
 from openinference.semconv.trace import (
     OpenInferenceMimeTypeValues,
@@ -297,16 +297,21 @@ def run_experiment(
         if not dry_run:
             try:
                 # Try to create the run directly
-                resp = sync_client.post(f"/v1/experiments/{experiment.id}/runs", json=jsonify(exp_run))
+                resp = sync_client.post(
+                    f"/v1/experiments/{experiment.id}/runs", json=jsonify(exp_run)
+                )
                 resp.raise_for_status()
                 exp_run = replace(exp_run, id=resp.json()["data"]["id"])
             except Exception as e:
                 # If we get a 422, the run possibly already exists due to timeouts
                 if isinstance(e, HTTPStatusError) and e.response.status_code == 422:
-                    all_runs = sync_client.get(f"/v1/experiments/{experiment.id}/runs").json()["data"]
+                    all_runs = sync_client.get(f"/v1/experiments/{experiment.id}/runs").json()[
+                        "data"
+                    ]
                     existing_runs = [
-                        run for run in all_runs 
-                        if run["dataset_example_id"] == example.id 
+                        run
+                        for run in all_runs
+                        if run["dataset_example_id"] == example.id
                         and run["repetition_number"] == repetition_number
                     ]
                     if existing_runs:
