@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<adefe0ab8d1a85c959e64a22693f7961>>
+ * @generated SignedSource<<327f789766e1db0331139905095db697>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,8 +17,6 @@ export type RunMetadataFooterQuery$data = {
     readonly id: string;
     readonly latencyMs?: number | null;
     readonly spanId?: string;
-    readonly tokenCountCompletion?: number | null;
-    readonly tokenCountPrompt?: number | null;
     readonly tokenCountTotal?: number | null;
     readonly trace?: {
       readonly id: string;
@@ -101,20 +99,6 @@ v3 = {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "tokenCountCompletion",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "tokenCountPrompt",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
       "name": "tokenCountTotal",
       "storageKey": null
     },
@@ -182,16 +166,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "08422bdb5aad945374ab05768d983b66",
+    "cacheID": "24fe0e0ac8fe3f88cbbce31e0dd43e12",
     "id": null,
     "metadata": {},
     "name": "RunMetadataFooterQuery",
     "operationKind": "query",
-    "text": "query RunMetadataFooterQuery(\n  $spanId: ID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    id\n    ... on Span {\n      spanId\n      trace {\n        id\n        traceId\n        project {\n          id\n        }\n      }\n      tokenCountCompletion\n      tokenCountPrompt\n      tokenCountTotal\n      latencyMs\n    }\n  }\n}\n"
+    "text": "query RunMetadataFooterQuery(\n  $spanId: ID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    id\n    ... on Span {\n      spanId\n      trace {\n        id\n        traceId\n        project {\n          id\n        }\n      }\n      tokenCountTotal\n      latencyMs\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6c45e1167bc5e5b0c0d0123656a7ef47";
+(node as any).hash = "f511626560567f113e6b977bfea1efd3";
 
 export default node;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2d15125d81ec2184f873133220d22012>>
+ * @generated SignedSource<<e1fc76988c4cc42810aa68d8543e75ed>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,8 +20,6 @@ export type SessionDetailsQuery$data = {
     readonly numTraces?: number;
     readonly sessionId?: string;
     readonly tokenUsage?: {
-      readonly completion: number;
-      readonly prompt: number;
       readonly total: number;
     };
     readonly traces?: {
@@ -30,8 +28,6 @@ export type SessionDetailsQuery$data = {
           readonly id: string;
           readonly rootSpan: {
             readonly attributes: string;
-            readonly cumulativeTokenCountCompletion: number | null;
-            readonly cumulativeTokenCountPrompt: number | null;
             readonly cumulativeTokenCountTotal: number | null;
             readonly id: string;
             readonly input: {
@@ -96,20 +92,6 @@ v3 = {
       "args": null,
       "kind": "ScalarField",
       "name": "total",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "completion",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "prompt",
       "storageKey": null
     }
   ],
@@ -206,59 +188,45 @@ v14 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "cumulativeTokenCountCompletion",
+  "name": "latencyMs",
   "storageKey": null
 },
 v15 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "cumulativeTokenCountPrompt",
+  "name": "startTime",
   "storageKey": null
 },
 v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "latencyMs",
+  "name": "spanId",
   "storageKey": null
 },
 v17 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "startTime",
+  "name": "__typename",
   "storageKey": null
 },
 v18 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "spanId",
+  "name": "name",
   "storageKey": null
 },
 v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "__typename",
-  "storageKey": null
-},
-v20 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "name",
-  "storageKey": null
-},
-v21 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
   "name": "label",
   "storageKey": null
 },
-v22 = {
+v20 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -339,8 +307,6 @@ return {
                               (v14/*: any*/),
                               (v15/*: any*/),
                               (v16/*: any*/),
-                              (v17/*: any*/),
-                              (v18/*: any*/),
                               {
                                 "args": null,
                                 "kind": "FragmentSpread",
@@ -383,7 +349,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v19/*: any*/),
+          (v17/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -460,7 +426,7 @@ return {
                                             "name": "node",
                                             "plural": false,
                                             "selections": [
-                                              (v19/*: any*/),
+                                              (v17/*: any*/),
                                               {
                                                 "kind": "InlineFragment",
                                                 "selections": [
@@ -479,7 +445,7 @@ return {
                                                 "kind": "InlineFragment",
                                                 "selections": [
                                                   (v6/*: any*/),
-                                                  (v20/*: any*/),
+                                                  (v18/*: any*/),
                                                   {
                                                     "alias": null,
                                                     "args": null,
@@ -495,8 +461,8 @@ return {
                                                     "name": "values",
                                                     "plural": true,
                                                     "selections": [
-                                                      (v21/*: any*/),
-                                                      (v22/*: any*/)
+                                                      (v19/*: any*/),
+                                                      (v20/*: any*/)
                                                     ],
                                                     "storageKey": null
                                                   }
@@ -528,8 +494,6 @@ return {
                               (v14/*: any*/),
                               (v15/*: any*/),
                               (v16/*: any*/),
-                              (v17/*: any*/),
-                              (v18/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -539,9 +503,9 @@ return {
                                 "plural": true,
                                 "selections": [
                                   (v6/*: any*/),
+                                  (v18/*: any*/),
+                                  (v19/*: any*/),
                                   (v20/*: any*/),
-                                  (v21/*: any*/),
-                                  (v22/*: any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -608,7 +572,7 @@ return {
                                         "name": "fraction",
                                         "storageKey": null
                                       },
-                                      (v21/*: any*/)
+                                      (v19/*: any*/)
                                     ],
                                     "storageKey": null
                                   },
@@ -619,7 +583,7 @@ return {
                                     "name": "meanScore",
                                     "storageKey": null
                                   },
-                                  (v20/*: any*/)
+                                  (v18/*: any*/)
                                 ],
                                 "storageKey": null
                               }
@@ -646,16 +610,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "707bef8f623ad6a62be90384f13ce8ce",
+    "cacheID": "a528f218e204fe3e0f4a6b55b967ada7",
     "id": null,
     "metadata": {},
     "name": "SessionDetailsQuery",
     "operationKind": "query",
-    "text": "query SessionDetailsQuery(\n  $id: ID!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      numTraces\n      tokenUsage {\n        total\n        completion\n        prompt\n      }\n      sessionId\n      latencyP50: traceLatencyMsQuantile(probability: 0.5)\n      traces {\n        edges {\n          trace: node {\n            id\n            traceId\n            rootSpan {\n              id\n              attributes\n              project {\n                id\n              }\n              input {\n                value\n                mimeType\n              }\n              output {\n                value\n                mimeType\n              }\n              cumulativeTokenCountTotal\n              cumulativeTokenCountCompletion\n              cumulativeTokenCountPrompt\n              latencyMs\n              startTime\n              spanId\n              ...AnnotationSummaryGroup\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n"
+    "text": "query SessionDetailsQuery(\n  $id: ID!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      numTraces\n      tokenUsage {\n        total\n      }\n      sessionId\n      latencyP50: traceLatencyMsQuantile(probability: 0.5)\n      traces {\n        edges {\n          trace: node {\n            id\n            traceId\n            rootSpan {\n              id\n              attributes\n              project {\n                id\n              }\n              input {\n                value\n                mimeType\n              }\n              output {\n                value\n                mimeType\n              }\n              cumulativeTokenCountTotal\n              latencyMs\n              startTime\n              spanId\n              ...AnnotationSummaryGroup\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "fd51c94d3b69015034ae67ae195aa15d";
+(node as any).hash = "23916e656b7e054a82b1e1ac29e916d3";
 
 export default node;

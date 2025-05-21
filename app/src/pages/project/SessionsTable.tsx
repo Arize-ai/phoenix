@@ -134,8 +134,6 @@ export function SessionsTable(props: SessionsTableProps) {
                   value
                 }
                 tokenUsage {
-                  prompt
-                  completion
                   total
                 }
                 traceLatencyMsP50: traceLatencyMsQuantile(probability: 0.5)
@@ -219,12 +217,9 @@ export function SessionsTable(props: SessionsTableProps) {
         if (value == null || typeof value !== "number") {
           return "--";
         }
-        const { prompt, completion } = row.original.tokenUsage;
         return (
           <TokenCount
             tokenCountTotal={value as number}
-            tokenCountPrompt={prompt || 0}
-            tokenCountCompletion={completion || 0}
             nodeId={row.original.id}
           />
         );

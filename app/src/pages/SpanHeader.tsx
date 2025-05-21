@@ -24,8 +24,6 @@ export function SpanHeader(props: SpanHeaderProps) {
         code: statusCode
         latencyMs
         startTime
-        tokenCountPrompt
-        tokenCountCompletion
         tokenCountTotal
       }
     `,
@@ -65,8 +63,6 @@ export function SpanHeader(props: SpanHeaderProps) {
           {span.tokenCountTotal ? (
             <TokenCount
               tokenCountTotal={span.tokenCountTotal}
-              tokenCountPrompt={span.tokenCountPrompt ?? 0}
-              tokenCountCompletion={span.tokenCountCompletion ?? 0}
               nodeId={span.id}
               size="S"
             />

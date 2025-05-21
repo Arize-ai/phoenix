@@ -42,8 +42,6 @@ function SessionDetailsHeader({
             </Text>
             <TokenCount
               tokenCountTotal={tokenUsage.total}
-              tokenCountCompletion={tokenUsage.completion}
-              tokenCountPrompt={tokenUsage.prompt}
               nodeId={sessionId}
               size="L"
             />
@@ -79,8 +77,6 @@ export function SessionDetails(props: SessionDetailsProps) {
             numTraces
             tokenUsage {
               total
-              completion
-              prompt
             }
             sessionId
             latencyP50: traceLatencyMsQuantile(probability: 0.50)
@@ -104,8 +100,6 @@ export function SessionDetails(props: SessionDetailsProps) {
                       mimeType
                     }
                     cumulativeTokenCountTotal
-                    cumulativeTokenCountCompletion
-                    cumulativeTokenCountPrompt
                     latencyMs
                     startTime
                     spanId

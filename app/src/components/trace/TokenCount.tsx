@@ -12,14 +12,6 @@ type TokenCountProps = {
    */
   tokenCountTotal: number;
   /**
-   * The number of tokens in the prompt
-   */
-  tokenCountPrompt: number;
-  /**
-   * The number of tokens in the completion
-   */
-  tokenCountCompletion: number;
-  /**
    * The size of the icon and text
    */
   nodeId: string;
