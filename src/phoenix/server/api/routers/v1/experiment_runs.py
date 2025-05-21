@@ -91,6 +91,19 @@ async def create_experiment_run(
     error = request_body.error
 
     async with request.app.state.db() as session:
+        # Lock the experiment record with FOR UPDATE to prevent race conditions
+        experiment = await session.execute(
+            select(models.Experiment)
+            .where(models.Experiment.id == experiment_rowid)
+            .with_for_update()
+        )
+        experiment = experiment.scalar()
+        if not experiment:
+            raise HTTPException(
+                detail=f"Experiment with ID {experiment_gid} does not exist",
+                status_code=HTTP_404_NOT_FOUND,
+            )
+
         exp_run = models.ExperimentRun(
             experiment_id=experiment_rowid,
             dataset_example_id=dataset_example_id,
