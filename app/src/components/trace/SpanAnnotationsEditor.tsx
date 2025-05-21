@@ -295,7 +295,6 @@ function SpanAnnotationsList(props: {
       mutation SpanAnnotationsEditorDeleteAnnotationMutation(
         $spanId: ID!
         $annotationIds: [ID!]!
-        $filterUserIds: [ID]
         $timeRange: TimeRange!
         $projectId: ID!
       ) {
@@ -311,9 +310,7 @@ function SpanAnnotationsList(props: {
                 ...AnnotationSummaryGroup
                 ...TraceHeaderRootSpanAnnotationsFragment
                 ...SpanAnnotationsEditor_spanAnnotations
-                  @arguments(filterUserIds: $filterUserIds)
                 ...SpanAsideAnnotationList_span
-                  @arguments(filterUserIds: $filterUserIds)
                 ...SpanFeedback_annotations
               }
             }
@@ -329,7 +326,6 @@ function SpanAnnotationsList(props: {
             variables: {
               spanId: spanNodeId,
               annotationIds: [annotation.id],
-              filterUserIds: userFilter,
               timeRange: {
                 start: timeRange?.start?.toISOString(),
                 end: timeRange?.end?.toISOString(),
@@ -358,14 +354,7 @@ function SpanAnnotationsList(props: {
           });
         }
       }),
-    [
-      commitDeleteAnnotation,
-      spanNodeId,
-      userFilter,
-      timeRange,
-      projectId,
-      notifyError,
-    ]
+    [commitDeleteAnnotation, spanNodeId, timeRange, projectId, notifyError]
   );
 
   const [commitEdit] = useMutation<SpanAnnotationsEditorEditAnnotationMutation>(
@@ -408,7 +397,6 @@ function SpanAnnotationsList(props: {
                 ...SpanAnnotationsEditor_spanAnnotations
                   @arguments(filterUserIds: $filterUserIds)
                 ...SpanAsideAnnotationList_span
-                  @arguments(filterUserIds: $filterUserIds)
                 ...SpanFeedback_annotations
               }
             }
@@ -486,7 +474,6 @@ function SpanAnnotationsList(props: {
                 ...SpanAnnotationsEditor_spanAnnotations
                   @arguments(filterUserIds: $filterUserIds)
                 ...SpanAsideAnnotationList_span
-                  @arguments(filterUserIds: $filterUserIds)
                 ...SpanFeedback_annotations
               }
             }
