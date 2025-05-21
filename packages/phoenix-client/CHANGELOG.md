@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.6.0...arize-phoenix-client-v1.7.0) (2025-05-21)
+
+
+### Features
+
+* graphql query for hourly span count timeseries ([#6997](https://github.com/Arize-ai/phoenix/issues/6997)) ([fe6a80a](https://github.com/Arize-ai/phoenix/commit/fe6a80aaa939ebe445af04c17e46b2c29080bc60))
+
 ## [1.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.5.0...arize-phoenix-client-v1.6.0) (2025-05-14)
 
 
