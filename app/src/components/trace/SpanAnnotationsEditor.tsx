@@ -107,7 +107,6 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
     spanNodeId,
     onAnnotationNameSelect,
   } = props;
-  const [popoverRef, setPopoverRef] = useState<HTMLDivElement | null>(null);
   return (
     <>
       <DialogTrigger>
@@ -119,12 +118,7 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
         >
           Add Annotation
         </Button>
-        <Popover
-          style={{ border: "none" }}
-          placement="bottom end"
-          crossOffset={300}
-          UNSTABLE_portalContainer={popoverRef ?? undefined}
-        >
+        <Popover style={{ border: "none" }} placement="bottom end">
           <Dialog>
             {({ close }) => (
               <NewAnnotationCard
@@ -139,7 +133,6 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
           </Dialog>
         </Popover>
       </DialogTrigger>
-      <div ref={setPopoverRef} />
     </>
   );
 }

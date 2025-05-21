@@ -32,6 +32,7 @@ const modalZoom = keyframes`
   }
   `;
 const modalCSS = css`
+  --visual-viewport-height: 100vh;
   --modal-width: var(--ac-global-modal-width-M);
   position: fixed;
   top: 0;
@@ -56,7 +57,7 @@ const modalCSS = css`
     --modal-width: var(--ac-global-modal-width-L);
   }
 
-  &[data-size="FULLSCREEN"] {
+  &[data-size="fullscreen"] {
     --modal-width: var(--ac-global-modal-width-FULLSCREEN);
   }
 
@@ -80,8 +81,8 @@ const modalCSS = css`
 
     .react-aria-Dialog {
       height: 100%;
-      border-top-right-radius: 0;
-      border-bottom-right-radius: 0;
+      border-radius: 0;
+      border-left-color: var(--ac-global-border-color-dark);
       border-top: none;
       border-bottom: none;
       border-right: none;
@@ -121,7 +122,7 @@ const modalCSS = css`
 
 export interface ModalProps extends AriaModalOverlayProps {
   variant?: "default" | "slideover";
-  size?: SizingProps["size"] | "FULLSCREEN";
+  size?: SizingProps["size"] | "fullscreen";
 }
 
 function Modal(props: ModalProps, ref: Ref<HTMLDivElement>) {
