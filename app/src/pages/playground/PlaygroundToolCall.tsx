@@ -44,6 +44,7 @@ export function PlaygroundToolCall({
     switch (provider) {
       case "OPENAI":
       case "AZURE_OPENAI":
+      case "DEEPSEEK":
         return {
           name: validatedToolCall.function.name,
           input: validatedToolCall.function.arguments,

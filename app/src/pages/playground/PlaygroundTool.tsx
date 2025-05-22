@@ -122,7 +122,11 @@ export function PlaygroundTool({
         return openAIToolDefinitionJSONSchema as JSONSchema7;
       case "ANTHROPIC":
         return anthropicToolDefinitionJSONSchema as JSONSchema7;
+      case "DEEPSEEK":
+        return openAIToolDefinitionJSONSchema as JSONSchema7;
       case "GOOGLE":
+        return null;
+      default:
         return null;
     }
   }, [instance.model.provider]);
