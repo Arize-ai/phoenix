@@ -1,0 +1,88 @@
+# Table of contents
+
+* [Overview](README.md)
+
+## LLM Providers
+
+* [Amazon Bedrock](llm-providers/amazon-bedrock/README.md)
+  * [Amazon Bedrock Tracing](llm-providers/amazon-bedrock/amazon-bedrock-tracing.md)
+  * [Amazon Bedrock Evals](llm-providers/amazon-bedrock/amazon-bedrock-evals.md)
+  * [Amazon Bedrock Agents Tracing](llm-providers/amazon-bedrock/amazon-bedrock-agents-tracing.md)
+* [Anthropic](llm-providers/anthropic/README.md)
+  * [Anthropic Tracing](llm-providers/anthropic/anthropic-tracing.md)
+  * [Anthropic Evals](llm-providers/anthropic/anthropic-evals.md)
+* [Google Gen AI](llm-providers/google-gen-ai/README.md)
+  * [Google GenAI Tracing](llm-providers/google-gen-ai/google-genai-tracing.md)
+  * [Gemini Evals](llm-providers/google-gen-ai/gemini-evals.md)
+* [LiteLLM](llm-providers/litellm/README.md)
+  * [LiteLLM Tracing](llm-providers/litellm/litellm-tracing.md)
+  * [LiteLLM Evals](llm-providers/litellm/litellm-evals.md)
+* [MistralAI](llm-providers/mistralai/README.md)
+  * [MistralAI Tracing](llm-providers/mistralai/mistralai-tracing.md)
+  * [MistralAI Evals](llm-providers/mistralai/mistralai-evals.md)
+* [Groq](llm-providers/groq/README.md)
+  * [Groq Tracing](llm-providers/groq/groq-tracing.md)
+* [OpenAI](llm-providers/openai/README.md)
+  * [OpenAI Tracing](llm-providers/openai/openai-tracing.md)
+  * [OpenAI Evals](llm-providers/openai/openai-evals.md)
+  * [OpenAI Agents SDK Tracing](llm-providers/openai/openai-agents-sdk-tracing.md)
+  * [OpenAI Node.js SDK ](llm-providers/openai/openai-node.js-sdk.md)
+* [VertexAI](llm-providers/vertexai/README.md)
+  * [VertexAI Tracing](llm-providers/vertexai/vertexai-tracing.md)
+  * [VertexAI Evals](llm-providers/vertexai/vertexai-evals.md)
+
+## Frameworks
+
+* [Agno](frameworks/agno/README.md)
+  * [Agno Tracing](frameworks/agno/agno-tracing.md)
+* [AutoGen](frameworks/autogen/README.md)
+  * [AutoGen Tracing](frameworks/autogen/autogen-tracing.md)
+* [BeeAI](frameworks/beeai/README.md)
+  * [BeeAI Tracing (JS)](frameworks/beeai/beeai-tracing-js.md)
+* [CrewAI](frameworks/crewai/README.md)
+  * [CrewAI Tracing](frameworks/crewai/crewai-tracing.md)
+* [DSPy](frameworks/dspy/README.md)
+  * [DSPy Tracing](frameworks/dspy/dspy-tracing.md)
+* [Flowise](frameworks/flowise/README.md)
+  * [Flowise Tracing](frameworks/flowise/flowise-tracing.md)
+* [Guardrails AI](frameworks/guardrails-ai/README.md)
+  * [Guardrails AI Tracing](frameworks/guardrails-ai/guardrails-ai-tracing.md)
+* [Haystack](frameworks/haystack/README.md)
+  * [Haystack Tracing](frameworks/haystack/haystack-tracing.md)
+* [Hugging Face smolagents](frameworks/hugging-face-smolagents/README.md)
+  * [smolagents Tracing](frameworks/hugging-face-smolagents/smolagents-tracing.md)
+* [Instructor](frameworks/instructor/README.md)
+  * [Instructor Tracing](frameworks/instructor/instructor-tracing.md)
+* [LlamaIndex](frameworks/llamaindex/README.md)
+  * [LlamaIndex Tracing](frameworks/llamaindex/llamaindex-tracing.md)
+  * [LlamaIndex Workflows Tracing](frameworks/llamaindex/llamaindex-workflows-tracing.md)
+* [LangChain](frameworks/langchain/README.md)
+  * [LangChain Tracing](frameworks/langchain/langchain-tracing.md)
+  * [LangChain.js](frameworks/langchain/langchain.js.md)
+* [LangGraph](frameworks/langgraph/README.md)
+  * [LangGraph Tracing](frameworks/langgraph/langgraph-tracing.md)
+
+***
+
+* [LangFlow](langflow/README.md)
+  * [LangFlow Tracing](langflow/langflow-tracing.md)
+* [Model Context Protocol](model-context-protocol/README.md)
+  * [Phoenix MCP Server](model-context-protocol/phoenix-mcp-server.md)
+  * [MCP Tracing](model-context-protocol/mcp-tracing.md)
+* [Prompt Flow](prompt-flow/README.md)
+  * [Prompt Flow Tracing](prompt-flow/prompt-flow-tracing.md)
+* [Vercel](vercel/README.md)
+  * [Vercel AI SDK Tracing (JS)](vercel/vercel-ai-sdk-tracing-js.md)
+
+## Evaluation Libraries
+
+* [Cleanlab](evaluation-libraries/cleanlab.md)
+* [Ragas](evaluation-libraries/ragas.md)
+
+## Vector Databases
+
+* [MongoDB](vector-databases/mongodb.md)
+* [Pinecone](vector-databases/pinecone.md)
+* [Qdrant](vector-databases/qdrant.md)
+* [Weaviate](vector-databases/weaviate.md)
+* [Zilliz / Milvus](vector-databases/zilliz-milvus.md)
