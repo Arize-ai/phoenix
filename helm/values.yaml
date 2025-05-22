@@ -66,17 +66,17 @@ database:
 
 # Authentication and security
 auth:
-  enable: true # PHOENIX_ENABLE_AUTH
-  secret: # PHOENIX_SECRET
-    value: ""
-    secretKeyRef:
-      name: ""
-      key: ""
-  adminSecret: # PHOENIX_ADMIN_SECRET
-    value: ""
-    secretKeyRef:
-      name: ""
-      key: ""
+  enable_auth: true # PHOENIX_ENABLE_AUTH
+  name: "phoenix-secret"
+  secret:
+    - value: ""
+      key: "PHOENIX_SECRET"
+    - value: ""
+      key: "PHOENIX_ADMIN_SECRET"
+    - value: ""
+      key: "PHOENIX_POSTGRES_PASSWORD"
+    - value: ""
+      key: "PHOENIX_SMTP_PASSWORD"
   defaultAdminPassword: "admin" # PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD
   useSecureCookies: false # PHOENIX_USE_SECURE_COOKIES
   accessTokenExpiryMinutes: 60 # PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES
