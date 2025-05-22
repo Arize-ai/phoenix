@@ -264,7 +264,7 @@ def run_experiment(
                     resp.raise_for_status()
                     exp_run = replace(exp_run, id=resp.json()["data"]["id"])
                 except HTTPStatusError as e:
-                    if e.response.status_code == 422:
+                    if e.response.status_code == 409:
                         # Ignore duplicate runs - we'll get the final state from the database
                         return None
                     raise
@@ -458,7 +458,7 @@ def run_experiment(
                 if error is None:
                     task_result_cache[cache_key] = output
             except HTTPStatusError as e:
-                if e.response.status_code == 422:
+                if e.response.status_code == 409:
                     # Ignore duplicate runs - we'll get the final state from the database
                     return None
                 raise
@@ -498,7 +498,7 @@ def run_experiment(
 
     # Get the final state of runs from the database
     if not dry_run:
-        all_runs = sync_client.get(f"/v1/experiments/{experiment.id}/runs").json()["data"]["data"]
+        all_runs = sync_client.get(f"/v1/experiments/{experiment.id}/runs").json()["data"]
         task_runs = []
         for run in all_runs:
             # Parse datetime strings
