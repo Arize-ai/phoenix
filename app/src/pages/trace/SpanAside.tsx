@@ -123,6 +123,9 @@ export function SpanAside(props: SpanAsideProps) {
       >
         <View height="100%" maxHeight="100%">
           <SpanAnnotationsEditor
+            // remount the editor when the span id changes
+            // some components are uncontrolled and will not update by themselves when the span id changes
+            key={data.id}
             projectId={data.project.id}
             spanNodeId={data.id}
           />

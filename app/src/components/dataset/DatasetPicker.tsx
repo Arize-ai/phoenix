@@ -1,22 +1,31 @@
 import { graphql, useLazyLoadQuery } from "react-relay";
+import { css } from "@emotion/react";
 
-import { Item, Picker, PickerProps } from "@arizeai/components";
-
-import { Flex, Text } from "@phoenix/components";
+import {
+  Button,
+  Flex,
+  Label,
+  ListBox,
+  Popover,
+  Select,
+  SelectChevronUpDownIcon,
+  SelectItem,
+  SelectValue,
+  Text,
+} from "@phoenix/components";
 
 import { DatasetPickerQuery } from "./__generated__/DatasetPickerQuery.graphql";
 
-type DatasetPickerProps = Pick<
-  PickerProps<string>,
-  | "onSelectionChange"
-  | "onBlur"
-  | "validationState"
-  | "errorMessage"
-  | "selectedKey"
-  | "placeholder"
-  | "size"
-  | "label"
->;
+type DatasetPickerProps = {
+  onSelectionChange?: (key: string) => void;
+  onBlur?: () => void;
+  validationState?: "valid" | "invalid";
+  errorMessage?: string;
+  selectedKey?: string;
+  placeholder?: string;
+  size?: "S" | "M";
+  label?: string;
+};
 
 export function DatasetPicker(props: DatasetPickerProps) {
   const data = useLazyLoadQuery<DatasetPickerQuery>(
@@ -38,34 +47,49 @@ export function DatasetPicker(props: DatasetPickerProps) {
     { fetchPolicy: "store-and-network" }
   );
   return (
-    <Picker
-      label={props.label}
+    <Select
       data-testid="dataset-picker"
       size={props.size}
       className="dataset-picker"
       aria-label={`select a dataset`}
-      onSelectionChange={props.onSelectionChange}
+      onSelectionChange={(key) => props.onSelectionChange?.(key.toString())}
       placeholder={props.placeholder ?? "Select a dataset"}
       onBlur={props.onBlur}
       isRequired
-      validationState={props.validationState}
-      errorMessage={props.errorMessage}
       selectedKey={props.selectedKey}
     >
-      {data.datasets.edges.map(({ dataset }) => (
-        <Item key={dataset.id} aria-label={dataset.name}>
-          <Flex
-            direction="column"
-            justifyContent={"space-between"}
-            width={"100%"}
-          >
-            <Text>{dataset.name}</Text>
-            <Text color="text-700" size="XS">
-              {dataset.exampleCount} examples
-            </Text>
-          </Flex>
-        </Item>
-      ))}
-    </Picker>
+      <Label>{props.label}</Label>
+      <Button>
+        <SelectValue />
+        <SelectChevronUpDownIcon />
+      </Button>
+      {props.errorMessage && (
+        <Text slot="errorMessage">{props.errorMessage}</Text>
+      )}
+      <Popover>
+        <ListBox
+          css={css`
+            min-height: auto;
+          `}
+        >
+          {data.datasets.edges.map(({ dataset }) => (
+            <SelectItem key={dataset.id} id={dataset.id}>
+              <Flex
+                direction="row"
+                alignItems="center"
+                gap="size-200"
+                justifyContent="space-between"
+                width="100%"
+              >
+                <Text>{dataset.name}</Text>
+                <Text color="text-700" size="XS">
+                  {dataset.exampleCount} examples
+                </Text>
+              </Flex>
+            </SelectItem>
+          ))}
+        </ListBox>
+      </Popover>
+    </Select>
   );
 }

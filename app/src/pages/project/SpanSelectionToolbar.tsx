@@ -1,18 +1,27 @@
-import { ReactNode, Suspense, useCallback, useState } from "react";
+import { Suspense, useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-// eslint-disable-next-line deprecate/import
 import {
+  Button,
   Dialog,
-  DialogContainer,
-  PopoverTrigger,
-  TriggerWrap,
-} from "@arizeai/components";
-
-import { Button, Flex, Icon, Icons, Text, View } from "@phoenix/components";
+  DialogTrigger,
+  Flex,
+  Icon,
+  Icons,
+  Modal,
+  Popover,
+  Text,
+  View,
+} from "@phoenix/components";
 import { CreateDatasetForm } from "@phoenix/components/dataset/CreateDatasetForm";
+import {
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+} from "@phoenix/components/dialog";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -30,10 +39,12 @@ type SpanSelectionToolbarProps = {
 
 export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
   const navigate = useNavigate();
-  const [dialog, setDialog] = useState<ReactNode>(null);
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
+  const [isCreatingDataset, setIsCreatingDataset] = useState(false);
   const [isDatasetPopoverOpen, setIsDatasetPopoverOpen] = useState(false);
+  const [isDeletingTracesDialogOpen, setIsDeletingTracesDialogOpen] =
+    useState(false);
   const { selectedSpans, onClearSelection } = props;
   const [commitSpansToDataset, isAddingSpansToDataset] = useMutation(graphql`
     mutation SpanSelectionToolbarAddSpansToDatasetMutation(
@@ -126,41 +137,9 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
     notifyError,
   ]);
 
-  const onDeletePress = useCallback(() => {
-    setDialog(
-      <Dialog
-        size="S"
-        title="Delete Traces"
-        isDismissable
-        onDismiss={() => setDialog(null)}
-      >
-        <View padding="size-200">
-          <Text color="danger">
-            Are you sure you want to delete the selected spans and their traces?
-          </Text>
-        </View>
-        <View
-          paddingEnd="size-200"
-          paddingTop="size-100"
-          paddingBottom="size-100"
-          borderTopColor="light"
-          borderTopWidth="thin"
-        >
-          <Flex direction="row" justifyContent="end">
-            <Button
-              variant="danger"
-              onPress={() => {
-                onDeleteTraces();
-                setDialog(null);
-              }}
-            >
-              Delete Traces
-            </Button>
-          </Flex>
-        </View>
-      </Dialog>
-    );
-  }, [onDeleteTraces]);
+  const onDeletePress = () => {
+    setIsDeletingTracesDialogOpen(true);
+  };
 
   return (
     <div
@@ -169,7 +148,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
         bottom: var(--ac-global-dimension-size-600);
         left: 50%;
         transform: translateX(-50%);
-        z-index: 1000;
+        z-index: 10;
         box-shadow: 8px 8px 20px 0 rgba(0, 0, 0, 0.4);
         border-radius: var(--ac-global-rounding-medium);
       `}
@@ -192,71 +171,92 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
             <Button variant="default" size="S" onPress={onClearSelection}>
               Cancel
             </Button>
-            <PopoverTrigger
-              placement="top end"
-              crossOffset={300}
+            {/* Dataset Selector Dialog */}
+            <DialogTrigger
               isOpen={isDatasetPopoverOpen}
               onOpenChange={(isOpen) => {
                 setIsDatasetPopoverOpen(isOpen);
               }}
             >
-              <TriggerWrap>
-                <Button
-                  variant="default"
-                  size="S"
-                  leadingVisual={
-                    isAddingSpansToDataset ? (
-                      <Icons.LoadingOutline />
-                    ) : (
-                      <Icons.DatabaseOutline />
-                    )
-                  }
-                  onPress={() => {
-                    setIsDatasetPopoverOpen(true);
-                  }}
-                  isDisabled={isAddingSpansToDataset}
-                >
-                  {isAddingSpansToDataset ? "Adding..." : "Add to Dataset"}
-                </Button>
-              </TriggerWrap>
+              <Button
+                variant="default"
+                size="S"
+                leadingVisual={
+                  isAddingSpansToDataset ? (
+                    <Icons.LoadingOutline />
+                  ) : (
+                    <Icons.DatabaseOutline />
+                  )
+                }
+                onPress={() => {
+                  setIsDatasetPopoverOpen(true);
+                }}
+                isDisabled={isAddingSpansToDataset}
+              >
+                {isAddingSpansToDataset ? "Adding..." : "Add to Dataset"}
+              </Button>
               <Suspense>
-                <DatasetSelectorPopoverContent
-                  onDatasetSelected={(datasetId) => {
-                    onAddSpansToDataset(datasetId);
-                    setIsDatasetPopoverOpen(false);
-                  }}
-                  onCreateNewDataset={() => {
-                    setIsDatasetPopoverOpen(false);
-                    setDialog(
-                      <Dialog
-                        title="New Dataset"
-                        isDismissable
-                        onDismiss={() => setDialog(null)}
-                      >
-                        <CreateDatasetForm
-                          onDatasetCreateError={(error) => {
-                            const formattedError =
-                              getErrorMessagesFromRelayMutationError(error);
-                            notifyError({
-                              title: "Dataset creation failed",
-                              message: `Failed to create dataset: ${formattedError?.[0] ?? error.message}`,
-                            });
-                          }}
-                          onDatasetCreated={(dataset) => {
-                            setDialog(null);
-                            notifySuccess({
-                              title: "Dataset created",
-                              message: `${dataset.name} has been successfully created.`,
-                            });
-                            setIsDatasetPopoverOpen(true);
-                          }}
-                        />
-                      </Dialog>
-                    );
-                  }}
-                />
+                <Popover placement="top end" crossOffset={300}>
+                  <DatasetSelectorPopoverContent
+                    onDatasetSelected={(datasetId) => {
+                      onAddSpansToDataset(datasetId);
+                      setIsDatasetPopoverOpen(false);
+                    }}
+                    onCreateNewDataset={() => {
+                      setIsDatasetPopoverOpen(false);
+                      setIsCreatingDataset(true);
+                    }}
+                  />
+                </Popover>
               </Suspense>
-            </PopoverTrigger>
+            </DialogTrigger>
+            {/* Add dataset dialog */}
+            <DialogTrigger
+              isOpen={isCreatingDataset}
+              onOpenChange={setIsCreatingDataset}
+            >
+              <Popover>
+                <Modal>
+                  <Dialog>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>New Dataset</DialogTitle>
+                        <DialogTitleExtra>
+                          <Button
+                            variant="default"
+                            size="S"
+                            onPress={() => {
+                              setIsCreatingDataset(false);
+                            }}
+                            leadingVisual={
+                              <Icon svg={<Icons.CloseOutline />} />
+                            }
+                          ></Button>
+                        </DialogTitleExtra>
+                      </DialogHeader>
+                      <CreateDatasetForm
+                        onDatasetCreateError={(error) => {
+                          const formattedError =
+                            getErrorMessagesFromRelayMutationError(error);
+                          notifyError({
+                            title: "Dataset creation failed",
+                            message: `Failed to create dataset: ${formattedError?.[0] ?? error.message}`,
+                          });
+                        }}
+                        onDatasetCreated={(dataset) => {
+                          setIsCreatingDataset(false);
+                          notifySuccess({
+                            title: "Dataset created",
+                            message: `${dataset.name} has been successfully created.`,
+                          });
+                          setIsDatasetPopoverOpen(true);
+                        }}
+                      />
+                    </DialogContent>
+                  </Dialog>
+                </Modal>
+              </Popover>
+            </DialogTrigger>
             <Button
               variant="danger"
               size="S"
@@ -276,16 +276,57 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
             >
               {isDeletingTraces ? "Deleting..." : "Delete"}
             </Button>
+            {/* Delete traces dialog */}
+            <DialogTrigger
+              isOpen={isDeletingTracesDialogOpen}
+              onOpenChange={setIsDeletingTracesDialogOpen}
+            >
+              <Modal>
+                <Dialog>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Delete Traces</DialogTitle>
+                    </DialogHeader>
+                    <View padding="size-200">
+                      <Text color="danger">
+                        Are you sure you want to delete the selected spans and
+                        their traces?
+                      </Text>
+                    </View>
+                    <View
+                      paddingEnd="size-200"
+                      paddingTop="size-100"
+                      paddingBottom="size-100"
+                      borderTopColor="light"
+                      borderTopWidth="thin"
+                    >
+                      <Flex direction="row" justifyContent="end" gap="size-100">
+                        <Button
+                          variant="default"
+                          onPress={() => {
+                            setIsDeletingTracesDialogOpen(false);
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="danger"
+                          onPress={() => {
+                            onDeleteTraces();
+                            setIsDeletingTracesDialogOpen(false);
+                          }}
+                        >
+                          Delete Traces
+                        </Button>
+                      </Flex>
+                    </View>
+                  </DialogContent>
+                </Dialog>
+              </Modal>
+            </DialogTrigger>
           </Flex>
         </Flex>
       </View>
-      <DialogContainer
-        onDismiss={() => {
-          setDialog(null);
-        }}
-      >
-        {dialog}
-      </DialogContainer>
     </div>
   );
 }
