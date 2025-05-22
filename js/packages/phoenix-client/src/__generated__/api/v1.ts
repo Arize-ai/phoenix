@@ -2728,6 +2728,15 @@ export interface operations {
                     "text/plain": string;
                 };
             };
+            /** @description This experiment run has already been submitted */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {

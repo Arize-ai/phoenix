@@ -1537,6 +1537,16 @@
             },
             "description": "Experiment or dataset example not found"
           },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "This experiment run has already been submitted"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
