@@ -3762,72 +3762,6 @@
         ],
         "title": "DeleteAnnotationConfigResponseBody"
       },
-      "Event": {
-        "properties": {
-          "attributes": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/OtlpKeyValue"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Attributes",
-            "description": "attributes is a collection of attribute key/value pairs on the event. Attribute keys MUST be unique (it is not allowed to have more than one attribute with the same key)."
-          },
-          "dropped_attributes_count": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "maximum": 4294967295.0,
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dropped Attributes Count",
-            "description": "dropped_attributes_count is the number of dropped attributes. If the value is 0, then no attributes were dropped."
-          },
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name",
-            "description": "name of the event. This field is semantically required to be set to non-empty string."
-          },
-          "time_unix_nano": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "exclusiveMaximum": 1.8446744073709552e+19,
-                "minimum": 0.0
-              },
-              {
-                "type": "string",
-                "pattern": "^[0-9]+$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Time Unix Nano",
-            "description": "time_unix_nano is the time the event occurred. Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970."
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "title": "Event"
-      },
       "Experiment": {
         "properties": {
           "id": {
@@ -4345,18 +4279,6 @@
         ],
         "title": "InsertedSpanAnnotation"
       },
-      "Kind": {
-        "type": "string",
-        "enum": [
-          "SPAN_KIND_UNSPECIFIED",
-          "SPAN_KIND_INTERNAL",
-          "SPAN_KIND_SERVER",
-          "SPAN_KIND_CLIENT",
-          "SPAN_KIND_PRODUCER",
-          "SPAN_KIND_CONSUMER"
-        ],
-        "title": "Kind"
-      },
       "ListDatasetExamplesData": {
         "properties": {
           "dataset_id": {
@@ -4505,8 +4427,14 @@
       "OtlpAnyValue": {
         "properties": {
           "array_value": {
-            "type": "null",
-            "title": "Array Value"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OtlpArrayValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "bool_value": {
             "anyOf": [
@@ -4585,6 +4513,28 @@
         "type": "object",
         "title": "OtlpAnyValue"
       },
+      "OtlpArrayValue": {
+        "properties": {
+          "values": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OtlpAnyValue"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Values",
+            "description": "Array of values. The array may be empty (contain 0 elements)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OtlpArrayValue"
+      },
       "OtlpDoubleValue": {
         "type": "string",
         "enum": [
@@ -4593,6 +4543,72 @@
           "NaN"
         ],
         "title": "OtlpDoubleValue"
+      },
+      "OtlpEvent": {
+        "properties": {
+          "attributes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OtlpKeyValue"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attributes",
+            "description": "attributes is a collection of attribute key/value pairs on the event. Attribute keys MUST be unique (it is not allowed to have more than one attribute with the same key)."
+          },
+          "dropped_attributes_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4294967295.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dropped Attributes Count",
+            "description": "dropped_attributes_count is the number of dropped attributes. If the value is 0, then no attributes were dropped."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "name of the event. This field is semantically required to be set to non-empty string."
+          },
+          "time_unix_nano": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMaximum": 1.8446744073709552e+19,
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time Unix Nano",
+            "description": "time_unix_nano is the time the event occurred. Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OtlpEvent"
       },
       "OtlpKeyValue": {
         "properties": {
@@ -4621,6 +4637,18 @@
         "additionalProperties": false,
         "type": "object",
         "title": "OtlpKeyValue"
+      },
+      "OtlpKind": {
+        "type": "string",
+        "enum": [
+          "SPAN_KIND_UNSPECIFIED",
+          "SPAN_KIND_INTERNAL",
+          "SPAN_KIND_SERVER",
+          "SPAN_KIND_CLIENT",
+          "SPAN_KIND_PRODUCER",
+          "SPAN_KIND_CONSUMER"
+        ],
+        "title": "OtlpKind"
       },
       "OtlpSpan": {
         "properties": {
@@ -4703,7 +4731,7 @@
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/components/schemas/Event"
+                  "$ref": "#/components/schemas/OtlpEvent"
                 },
                 "type": "array"
               },
@@ -4731,7 +4759,7 @@
           "kind": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/Kind"
+                "$ref": "#/components/schemas/OtlpKind"
               },
               {
                 "type": "integer",

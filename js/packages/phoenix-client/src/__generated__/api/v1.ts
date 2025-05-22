@@ -850,29 +850,6 @@ export interface components {
             /** Data */
             data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
         };
-        /** Event */
-        Event: {
-            /**
-             * Attributes
-             * @description attributes is a collection of attribute key/value pairs on the event. Attribute keys MUST be unique (it is not allowed to have more than one attribute with the same key).
-             */
-            attributes?: components["schemas"]["OtlpKeyValue"][] | null;
-            /**
-             * Dropped Attributes Count
-             * @description dropped_attributes_count is the number of dropped attributes. If the value is 0, then no attributes were dropped.
-             */
-            dropped_attributes_count?: number | null;
-            /**
-             * Name
-             * @description name of the event. This field is semantically required to be set to non-empty string.
-             */
-            name?: string | null;
-            /**
-             * Time Unix Nano
-             * @description time_unix_nano is the time the event occurred. Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
-             */
-            time_unix_nano?: number | string | null;
-        };
         /** Experiment */
         Experiment: {
             /**
@@ -1085,11 +1062,6 @@ export interface components {
              */
             id: string;
         };
-        /**
-         * Kind
-         * @enum {string}
-         */
-        Kind: "SPAN_KIND_UNSPECIFIED" | "SPAN_KIND_INTERNAL" | "SPAN_KIND_SERVER" | "SPAN_KIND_CLIENT" | "SPAN_KIND_PRODUCER" | "SPAN_KIND_CONSUMER";
         /** ListDatasetExamplesData */
         ListDatasetExamplesData: {
             /** Dataset Id */
@@ -1139,8 +1111,7 @@ export interface components {
         OptimizationDirection: "MINIMIZE" | "MAXIMIZE" | "NONE";
         /** OtlpAnyValue */
         OtlpAnyValue: {
-            /** Array Value */
-            array_value?: null;
+            array_value?: components["schemas"]["OtlpArrayValue"] | null;
             /** Bool Value */
             bool_value?: boolean | null;
             /** Bytes Value */
@@ -1154,17 +1125,53 @@ export interface components {
             /** String Value */
             string_value?: string | null;
         };
+        /** OtlpArrayValue */
+        OtlpArrayValue: {
+            /**
+             * Values
+             * @description Array of values. The array may be empty (contain 0 elements).
+             */
+            values?: components["schemas"]["OtlpAnyValue"][] | null;
+        };
         /**
          * OtlpDoubleValue
          * @enum {string}
          */
         OtlpDoubleValue: "Infinity" | "-Infinity" | "NaN";
+        /** OtlpEvent */
+        OtlpEvent: {
+            /**
+             * Attributes
+             * @description attributes is a collection of attribute key/value pairs on the event. Attribute keys MUST be unique (it is not allowed to have more than one attribute with the same key).
+             */
+            attributes?: components["schemas"]["OtlpKeyValue"][] | null;
+            /**
+             * Dropped Attributes Count
+             * @description dropped_attributes_count is the number of dropped attributes. If the value is 0, then no attributes were dropped.
+             */
+            dropped_attributes_count?: number | null;
+            /**
+             * Name
+             * @description name of the event. This field is semantically required to be set to non-empty string.
+             */
+            name?: string | null;
+            /**
+             * Time Unix Nano
+             * @description time_unix_nano is the time the event occurred. Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
+             */
+            time_unix_nano?: number | string | null;
+        };
         /** OtlpKeyValue */
         OtlpKeyValue: {
             /** Key */
             key?: string | null;
             value?: components["schemas"]["OtlpAnyValue"] | null;
         };
+        /**
+         * OtlpKind
+         * @enum {string}
+         */
+        OtlpKind: "SPAN_KIND_UNSPECIFIED" | "SPAN_KIND_INTERNAL" | "SPAN_KIND_SERVER" | "SPAN_KIND_CLIENT" | "SPAN_KIND_PRODUCER" | "SPAN_KIND_CONSUMER";
         /** OtlpSpan */
         OtlpSpan: {
             /**
@@ -1208,7 +1215,7 @@ export interface components {
              * Events
              * @description events is a collection of Event items. A span with no events is valid.
              */
-            events?: components["schemas"]["Event"][] | null;
+            events?: components["schemas"]["OtlpEvent"][] | null;
             /**
              * Flags
              * @description Flags, a bit field.
@@ -1232,7 +1239,7 @@ export interface components {
              * @description Distinguishes between spans generated in a particular context. For example, two spans with the same name may be distinguished using `CLIENT` (caller) and `SERVER` (callee) to identify queueing latency associated with the span.
              * @default SPAN_KIND_INTERNAL
              */
-            kind?: components["schemas"]["Kind"] | number | null;
+            kind?: components["schemas"]["OtlpKind"] | number | null;
             /** Links */
             links?: null;
             /**

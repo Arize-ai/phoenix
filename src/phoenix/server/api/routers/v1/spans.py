@@ -96,10 +96,19 @@ class OtlpDoubleValue(Enum):
     NaN = "NaN"
 
 
+class OtlpArrayValue(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    values: Optional[list["OtlpAnyValue"]] = Field(
+        None,
+        description="Array of values. The array may be empty (contain 0 elements).",
+    )
+
+
 class OtlpAnyValue(BaseModel):
     model_config = {"extra": "forbid"}
 
-    array_value: None = None  # TODO: Add ArrayValue model
+    array_value: Optional[OtlpArrayValue] = None
     bool_value: Optional[bool] = None
     bytes_value: Optional[Annotated[str, Field(pattern=r"^[A-Za-z0-9+/]*={0,2}$")]] = None
     double_value: Optional[Union[float, OtlpDoubleValue, str]] = None
@@ -453,6 +462,31 @@ async def _json_multipart(
     yield f"--{boundary_token}--\r\n"
 
 
+def _to_array_value(values: list[Any]) -> OtlpArrayValue:
+    """Convert a list of values to an OtlpArrayValue.
+
+    If the values are not all of the same type, they will be coerced to strings.
+    Nested lists/tuples are not allowed and will be stringified.
+    """
+    if not values:
+        return OtlpArrayValue(values=[])
+
+    # Convert any list/tuple values to strings to prevent nesting
+    processed_values = [
+        str(v) if isinstance(v, (list, tuple)) else v
+        for v in values
+    ]
+
+    # Check if all values are of the same type
+    first_type = type(processed_values[0])
+    if all(isinstance(v, first_type) for v in processed_values):
+        # All values are of the same type, convert normally
+        return OtlpArrayValue(values=[_to_any_value(v) for v in processed_values])
+
+    # Values are not homogeneous, convert everything to strings
+    return OtlpArrayValue(values=[OtlpAnyValue(string_value=str(v)) for v in processed_values])
+
+
 def _to_any_value(value: Any) -> OtlpAnyValue:
     if value is None:
         return OtlpAnyValue()
@@ -469,8 +503,7 @@ def _to_any_value(value: Any) -> OtlpAnyValue:
     elif isinstance(value, bytes):
         return OtlpAnyValue(bytes_value=value.hex())
     elif isinstance(value, (list, tuple)):
-        # TODO: Implement array_value when ArrayValue model is added
-        return OtlpAnyValue()
+        return OtlpAnyValue(array_value=_to_array_value(list(value)))
     elif isinstance(value, dict):
         # TODO: Implement kvlist_value when KeyValueList model is added
         return OtlpAnyValue()
