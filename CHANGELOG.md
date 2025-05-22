@@ -1,5 +1,12 @@
 # Changelog
 
+## [10.0.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.0.1...arize-phoenix-v10.0.2) (2025-05-22)
+
+
+### Bug Fixes
+
+* increase prompt fetch limit to 200 and update component to be scrollable ([#7666](https://github.com/Arize-ai/phoenix/issues/7666)) ([7478983](https://github.com/Arize-ai/phoenix/commit/74789833e858499368eafe61fdae7b41e0d244a3))
+
 ## [10.0.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.0.0...arize-phoenix-v10.0.1) (2025-05-21)
 
 
