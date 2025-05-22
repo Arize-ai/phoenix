@@ -382,9 +382,7 @@ export const fromOpenAIMessage = <T extends ModelProvider>({
     case "DEEPSEEK":
       return message as ProviderToMessageMap[T];
     case "ANTHROPIC":
-      return openAIMessageToAnthropic.parse(
-        message
-      ) as ProviderToMessageMap[T];
+      return openAIMessageToAnthropic.parse(message) as ProviderToMessageMap[T];
     // TODO: convert to Google
     case "GOOGLE":
       return message as ProviderToMessageMap[T];
