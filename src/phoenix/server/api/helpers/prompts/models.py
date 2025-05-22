@@ -332,6 +332,10 @@ class PromptAzureOpenAIInvocationParametersContent(PromptOpenAIInvocationParamet
     pass
 
 
+class PromptDeepSeekInvocationParametersContent(PromptOpenAIInvocationParametersContent):
+    pass
+
+
 class PromptAzureOpenAIInvocationParameters(DBBaseModel):
     type: Literal["azure_openai"]
     azure_openai: PromptAzureOpenAIInvocationParametersContent
@@ -441,6 +445,13 @@ def validate_invocation_parameters(
         return PromptAzureOpenAIInvocationParameters(
             type="azure_openai",
             azure_openai=PromptAzureOpenAIInvocationParametersContent.model_validate(
+                invocation_parameters
+            ),
+        )
+    elif model_provider is ModelProvider.DEEPSEEK:
+        return PromptOpenAIInvocationParameters(
+            type="deepseek",
+            deepseek=PromptDeepSeekInvocationParametersContent.model_validate(
                 invocation_parameters
             ),
         )
