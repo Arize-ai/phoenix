@@ -75,29 +75,30 @@ function TokenDetails(props: { nodeId: string }) {
     `,
     { nodeId: props.nodeId }
   );
-  const tokenCountPrompt = useMemo(() => {
-    switch (data.node.__typename) {
-      case "Span":
-        return data.node.tokenCountPrompt ?? 0;
-      case "ProjectSession":
-        return data.node.tokenUsage.prompt;
-      case "Trace":
-        return data.node.rootSpan?.cumulativeTokenCountPrompt ?? 0;
-      default:
-        return 0;
-    }
-  }, [data.node]);
 
-  const tokenCountCompletion = useMemo(() => {
+  const { tokenCountPrompt, tokenCountCompletion } = useMemo(() => {
     switch (data.node.__typename) {
       case "Span":
-        return data.node.tokenCountCompletion ?? 0;
+        return {
+          tokenCountPrompt: data.node.tokenCountPrompt ?? 0,
+          tokenCountCompletion: data.node.tokenCountCompletion ?? 0,
+        };
       case "ProjectSession":
-        return data.node.tokenUsage.completion;
+        return {
+          tokenCountPrompt: data.node.tokenUsage.prompt,
+          tokenCountCompletion: data.node.tokenUsage.completion,
+        };
       case "Trace":
-        return data.node.rootSpan?.cumulativeTokenCountCompletion ?? 0;
+        return {
+          tokenCountPrompt: data.node.rootSpan?.cumulativeTokenCountPrompt ?? 0,
+          tokenCountCompletion:
+            data.node.rootSpan?.cumulativeTokenCountCompletion ?? 0,
+        };
       default:
-        return 0;
+        return {
+          tokenCountPrompt: 0,
+          tokenCountCompletion: 0,
+        };
     }
   }, [data.node]);
 
