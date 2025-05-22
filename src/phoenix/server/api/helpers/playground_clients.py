@@ -1055,34 +1055,39 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
     provider_key=GenerativeProviderKey.DEEPSEEK,
     model_names=[
         PROVIDER_DEFAULT,
-        "deepseek-chat",       # Points to DeepSeek-V3
-        "deepseek-reasoner",   # Points to DeepSeek-R1
+        "deepseek-chat",  # Points to DeepSeek-V3
+        "deepseek-reasoner",  # Points to DeepSeek-R1
     ],
 )
 class DeepSeekStreamingClient(OpenAIStreamingClient):
+    """
+    Client for DeepSeek's API, which is compatible with the OpenAI API.
+    """
+
     def __init__(
         self,
-        model: GenerativeModelInput,
+        model: str = PROVIDER_DEFAULT,
         api_key: Optional[str] = None,
     ) -> None:
-        from openai import AsyncOpenAI
-
-        api_key = api_key or getenv("DEEPSEEK_API_KEY")
-        if not api_key:
-            raise BadRequest("An API key is required for DeepSeek models")
-
-        # Create an OpenAI client with DeepSeek's API base URL
-        client = AsyncOpenAI(
+        """
+        Initialize a DeepSeek client compatible with OpenAI API.
+        """
+        # Create an OpenAI client with the DeepSeek base URL
+        client = openai.OpenAI(
             api_key=api_key,
             base_url="https://api.deepseek.com/v1",
         )
-        
+
         # Call the parent constructor with the created client
-        super().__init__(client=client, model=model, api_key=api_key)
+        super().__init__(model=model, api_key=api_key)
         
+        # Set the client manually
+        self.client = client
+
         # Override the provider attributes
         self._attributes[LLM_PROVIDER] = "deepseek"
-        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.UNKNOWN.value
+        # Use HOSTED rather than UNKNOWN
+        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.HOSTED.value
 
 
 def initialize_playground_clients() -> None:

@@ -1,13 +1,43 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Literal, Mapping, Optional, Union
+from typing import (
+    Any,
+    Annotated,
+    ClassVar,
+    Generic,
+    Iterable,
+    Literal,
+    Mapping,
+    Optional,
+    TypeAlias,
+    TypeGuard,
+    TypeVar,
+    Union,
+    cast,
+)
 
-from pydantic import Field, RootModel, model_validator
-from typing_extensions import Annotated, Self, TypeAlias, TypeGuard, assert_never
+import strawberry
+from openinference.semconv.trace import (
+    OpenInferenceLLMModelValues,
+    OpenInferenceLLMProviderValues,
+    SpanAttributes,
+)
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    RootModel,
+    TypeAdapter,
+    ValidationError,
+    model_validator,
+)
+from typing_extensions import assert_never, Self
 
 from phoenix.db.types.db_models import UNDEFINED, DBBaseModel
+from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
+from phoenix.json_utils import JSONSerializable
 from phoenix.server.api.helpers.prompts.conversions.anthropic import AnthropicToolChoiceConversion
 from phoenix.server.api.helpers.prompts.conversions.openai import OpenAIToolChoiceConversion
 
@@ -254,21 +284,29 @@ def _prompt_to_openai_response_format(
 def normalize_response_format(
     response_format: dict[str, Any], model_provider: ModelProvider
 ) -> PromptResponseFormat:
-    if model_provider is ModelProvider.OPENAI or model_provider is ModelProvider.AZURE_OPENAI:
-        openai_response_format = PromptOpenAIResponseFormatJSONSchema.model_validate(
-            response_format
-        )
-        return _openai_to_prompt_response_format(openai_response_format)
-    raise ValueError(f"Unsupported model provider: {model_provider}")
+    if model_provider in [ModelProvider.OPENAI, ModelProvider.AZURE_OPENAI, ModelProvider.DEEPSEEK]:
+        try:
+            openai_response_format = PromptOpenAIResponseFormatJSONSchema.model_validate(response_format)
+            return _openai_to_prompt_response_format(openai_response_format)
+        except ValidationError:
+            # TODO: handle better
+            raise ValueError("Failed to parse OpenAI response format")
+    else:
+        raise ValueError(f"Unsupported model provider: {model_provider}")
 
 
 def denormalize_response_format(
     response_format: PromptResponseFormat, model_provider: ModelProvider
 ) -> dict[str, Any]:
-    if model_provider is ModelProvider.OPENAI or model_provider is ModelProvider.AZURE_OPENAI:
-        openai_response_format = _prompt_to_openai_response_format(response_format)
-        return openai_response_format.model_dump()
-    raise ValueError(f"Unsupported model provider: {model_provider}")
+    if model_provider in [ModelProvider.OPENAI, ModelProvider.AZURE_OPENAI, ModelProvider.DEEPSEEK]:
+        try:
+            openai_response_format = _prompt_to_openai_response_format(response_format)
+            return openai_response_format.model_dump()
+        except ValidationError:
+            # TODO: handle better
+            raise ValueError("Failed to serialize response format to OpenAI")
+    else:
+        raise ValueError(f"Unsupported model provider: {model_provider}")
 
 
 # OpenAI tool definitions
@@ -385,12 +423,23 @@ class PromptGoogleInvocationParameters(DBBaseModel):
     google: PromptGoogleInvocationParametersContent
 
 
+class PromptDeepSeekInvocationParametersContent(PromptOpenAIInvocationParametersContent):
+    # DeepSeek uses the same parameters as OpenAI
+    pass
+
+
+class PromptDeepSeekInvocationParameters(DBBaseModel):
+    type: Literal["deepseek"]
+    deepseek: PromptDeepSeekInvocationParametersContent
+
+
 PromptInvocationParameters: TypeAlias = Annotated[
     Union[
         PromptOpenAIInvocationParameters,
         PromptAzureOpenAIInvocationParameters,
         PromptAnthropicInvocationParameters,
         PromptGoogleInvocationParameters,
+        PromptDeepSeekInvocationParameters,
     ],
     Field(..., discriminator="type"),
 ]
@@ -407,6 +456,8 @@ def get_raw_invocation_parameters(
         return invocation_parameters.anthropic.model_dump()
     if isinstance(invocation_parameters, PromptGoogleInvocationParameters):
         return invocation_parameters.google.model_dump()
+    if isinstance(invocation_parameters, PromptDeepSeekInvocationParameters):
+        return invocation_parameters.deepseek.model_dump()
     assert_never(invocation_parameters)
 
 
@@ -420,6 +471,7 @@ def is_prompt_invocation_parameters(
             PromptAzureOpenAIInvocationParameters,
             PromptAnthropicInvocationParameters,
             PromptGoogleInvocationParameters,
+            PromptDeepSeekInvocationParameters,
         ),
     )
 
@@ -456,6 +508,11 @@ def validate_invocation_parameters(
             type="google",
             google=PromptGoogleInvocationParametersContent.model_validate(invocation_parameters),
         )
+    elif model_provider is ModelProvider.DEEPSEEK:
+        return PromptDeepSeekInvocationParameters(
+            type="deepseek",
+            deepseek=PromptDeepSeekInvocationParametersContent.model_validate(invocation_parameters),
+        )
     assert_never(model_provider)
 
 
@@ -465,7 +522,7 @@ def normalize_tools(
     tool_choice: Optional[Union[str, Mapping[str, Any]]] = None,
 ) -> PromptTools:
     tools: list[PromptToolFunction]
-    if model_provider is ModelProvider.OPENAI or model_provider is ModelProvider.AZURE_OPENAI:
+    if model_provider in [ModelProvider.OPENAI, ModelProvider.AZURE_OPENAI, ModelProvider.DEEPSEEK]:
         openai_tools = [OpenAIToolDefinition.model_validate(schema) for schema in schemas]
         tools = [_openai_to_prompt_tool(openai_tool) for openai_tool in openai_tools]
     elif model_provider is ModelProvider.ANTHROPIC:
@@ -475,7 +532,7 @@ def normalize_tools(
         raise ValueError(f"Unsupported model provider: {model_provider}")
     ans = PromptTools(type="tools", tools=tools)
     if tool_choice is not None:
-        if model_provider is ModelProvider.OPENAI or model_provider is ModelProvider.AZURE_OPENAI:
+        if model_provider in [ModelProvider.OPENAI, ModelProvider.AZURE_OPENAI, ModelProvider.DEEPSEEK]:
             ans.tool_choice = OpenAIToolChoiceConversion.from_openai(tool_choice)  # type: ignore[arg-type]
         elif model_provider is ModelProvider.ANTHROPIC:
             choice, disable_parallel_tool_calls = AnthropicToolChoiceConversion.from_anthropic(
@@ -493,7 +550,7 @@ def denormalize_tools(
     assert tools.type == "tools"
     denormalized_tools: list[DBBaseModel]
     tool_choice: Optional[Any] = None
-    if model_provider is ModelProvider.OPENAI or model_provider is ModelProvider.AZURE_OPENAI:
+    if model_provider in [ModelProvider.OPENAI, ModelProvider.AZURE_OPENAI, ModelProvider.DEEPSEEK]:
         denormalized_tools = [_prompt_to_openai_tool(tool) for tool in tools.tools]
         if tools.tool_choice:
             tool_choice = OpenAIToolChoiceConversion.to_openai(tools.tool_choice)
