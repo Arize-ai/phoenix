@@ -152,6 +152,7 @@ export function processAttributeToolCalls({
       switch (provider) {
         case "OPENAI":
         case "AZURE_OPENAI":
+        case "DEEPSEEK":
           return {
             id: tool_call.id ?? "",
             type: "function" as const,
@@ -890,6 +891,7 @@ export const createToolForProvider = ({
 }): Tool => {
   switch (provider) {
     case "OPENAI":
+    case "DEEPSEEK":
     case "AZURE_OPENAI":
       return {
         id: generateToolId(),
@@ -922,6 +924,7 @@ export const createToolCallForProvider = (
   switch (provider) {
     case "OPENAI":
     case "AZURE_OPENAI":
+    case "DEEPSEEK":
       return createOpenAIToolCall();
     case "ANTHROPIC":
       return createAnthropicToolCall();

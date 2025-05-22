@@ -748,6 +748,7 @@ describe("processAttributeToolCalls", () => {
     ],
     // TODO(apowell): #5348 Add Google tool tests
     GOOGLE: ["GOOGLE", testSpanToolCall, expectedUnknownToolCall],
+    DEEPSEEK: ["DEEPSEEK", testSpanToolCall, expectedUnknownToolCall],
   };
   test.for(Object.values(ProviderToToolCallTestMap))(
     "should return %s tools, if they are valid",
@@ -1271,6 +1272,7 @@ describe("getToolsFromAttributes", () => {
       testSpanAnthropicToolDefinition,
     ],
     OPENAI: ["OPENAI", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
+    DEEPSEEK: ["DEEPSEEK", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
     AZURE_OPENAI: [
       "AZURE_OPENAI",
       testSpanOpenAITool,
