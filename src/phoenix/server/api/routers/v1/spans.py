@@ -472,10 +472,7 @@ def _to_array_value(values: list[Any]) -> OtlpArrayValue:
         return OtlpArrayValue(values=[])
 
     # Convert any list/tuple values to strings to prevent nesting
-    processed_values = [
-        str(v) if isinstance(v, (list, tuple)) else v
-        for v in values
-    ]
+    processed_values = [str(v) if isinstance(v, (list, tuple)) else v for v in values]
 
     # Check if all values are of the same type
     first_type = type(processed_values[0])
