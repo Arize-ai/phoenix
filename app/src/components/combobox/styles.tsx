@@ -58,15 +58,10 @@ export const comboBoxCSS = css`
 export const comboBoxPopoverCSS = css(
   fieldPopoverCSS,
   css`
-    /* Set a fixed max height for the popover */
-    max-height: 300px;
-
     .react-aria-ListBox {
       display: block;
       width: unset;
-      /* Fix max height to enable scrolling */
-      max-height: 300px;
-      overflow-y: auto;
+      max-height: inherit;
       min-height: unset;
       border: none;
     }
