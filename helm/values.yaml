@@ -55,7 +55,7 @@ database:
   url: "" # PHOENIX_SQL_DATABASE_URL
   # PostgreSQL connection settings (used if url is not set)
   postgres:
-    host: "127.0.0.1" # PHOENIX_POSTGRES_HOST
+    host: "postgres-phoenix-svc" # PHOENIX_POSTGRES_HOST
     port: 5432 # PHOENIX_POSTGRES_PORT
     user: "postgres" # PHOENIX_POSTGRES_USER
     password: "postgres" # PHOENIX_POSTGRES_PASSWORD
@@ -73,7 +73,7 @@ auth:
       key: "PHOENIX_SECRET"
     - value: ""
       key: "PHOENIX_ADMIN_SECRET"
-    - value: ""
+    - value: "postgres"
       key: "PHOENIX_POSTGRES_PASSWORD"
     - value: ""
       key: "PHOENIX_SMTP_PASSWORD"

@@ -3,8 +3,6 @@ kind: Deployment
 metadata:
   name: {{ template "phoenix.postgres" . }}
   namespace: {{ .Release.Namespace | quote }}
-  labels:
-    app: postgres
 spec:
   replicas: 1
   selector:
@@ -20,7 +18,6 @@ spec:
         image: {{ .Values.postgres.image }}
         ports:
         - containerPort: {{ .Values.database.postgres.port }}
-          name: postgres
         env:
         - name: POSTGRES_DB
           value: "{{ .Values.database.postgres.db }}"
