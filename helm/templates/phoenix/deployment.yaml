@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace | quote }}
   labels:
     app: {{ .Release.Name }}
 spec:
@@ -25,27 +26,13 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ .Release.Name }}-configmap
+          {{- if .Values.auth.secret }}
           env:
-            # Auth secrets
-            - name: PHOENIX_SECRET
+          {{- range $authSecrets := .Values.auth.secret }}
+            - name: {{ $authSecrets.key }}
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.auth.secret.secretKeyRef.name | quote }}
-                  key: {{ .Values.auth.secret.secretKeyRef.key | quote }}
-            - name: PHOENIX_ADMIN_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.auth.adminSecret.secretKeyRef.name | quote }}
-                  key: {{ .Values.auth.adminSecret.secretKeyRef.key | quote }}
-            # Database password
-            - name: PHOENIX_POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.database.postgres.passwordSecretName | default "phoenix-db-password" | quote }}
-                  key: {{ .Values.database.postgres.passwordSecretKey | default "password" | quote }}
-            # SMTP password
-            - name: PHOENIX_SMTP_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.smtp.passwordSecretName | default "phoenix-smtp-password" | quote }}
-                  key: {{ .Values.smtp.passwordSecretKey | default "password" | quote }}
+                  name: {{ $.Values.auth.name }}
+                  key: {{ $authSecrets.key }}
+          {{- end }}
+          {{- end }}
