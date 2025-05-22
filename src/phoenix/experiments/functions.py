@@ -448,7 +448,7 @@ def run_experiment(
                     None,
                     functools.partial(
                         sync_client.post,
-                        url="/v1/experiments/{experiment.id}/runs",
+                        url=f"/v1/experiments/{experiment.id}/runs",
                         json=jsonify(exp_run),
                     ),
                 )
