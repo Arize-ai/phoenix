@@ -1,5 +1,12 @@
 # Changelog
 
+## [10.0.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.0.2...arize-phoenix-v10.0.3) (2025-05-22)
+
+
+### Bug Fixes
+
+* update strawberry to fix multipart subscription ([#7677](https://github.com/Arize-ai/phoenix/issues/7677)) ([5e57bf8](https://github.com/Arize-ai/phoenix/commit/5e57bf8df7aa1605850d97aa8693a1f67d1f0d26))
+
 ## [10.0.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.0.1...arize-phoenix-v10.0.2) (2025-05-22)
 
 
