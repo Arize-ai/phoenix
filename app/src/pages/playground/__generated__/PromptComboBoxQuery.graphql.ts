@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<10d727f69671df06cc39c2f9e2c00ed0>>
+ * @generated SignedSource<<3c330f0c00d01a6bbc8139e223557436>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -34,7 +34,7 @@ var v0 = [
       {
         "kind": "Literal",
         "name": "first",
-        "value": 100
+        "value": 200
       }
     ],
     "concreteType": "PromptConnection",
@@ -86,7 +86,7 @@ var v0 = [
         "storageKey": null
       }
     ],
-    "storageKey": "prompts(first:100)"
+    "storageKey": "prompts(first:200)"
   }
 ];
 return {
@@ -107,16 +107,16 @@ return {
     "selections": (v0/*: any*/)
   },
   "params": {
-    "cacheID": "ef34b1558ffaa8df1a26cad0bbbf6ca2",
+    "cacheID": "8dddcd4c6c884248b53dbaf0a625c335",
     "id": null,
     "metadata": {},
     "name": "PromptComboBoxQuery",
     "operationKind": "query",
-    "text": "query PromptComboBoxQuery {\n  prompts(first: 100) {\n    edges {\n      prompt: node {\n        __typename\n        id\n        name\n      }\n    }\n  }\n}\n"
+    "text": "query PromptComboBoxQuery {\n  prompts(first: 200) {\n    edges {\n      prompt: node {\n        __typename\n        id\n        name\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "cf962520b02c20fea5903113c8bac5cf";
+(node as any).hash = "42af63a75d1f1b2184518e94395121cd";
 
 export default node;
