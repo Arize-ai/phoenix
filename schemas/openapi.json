@@ -1681,6 +1681,178 @@
         }
       }
     },
+    "/v1/projects/{project_identifier}/spans/otlpv1": {
+      "get": {
+        "tags": [
+          "spans"
+        ],
+        "summary": "Search spans with simple filters (no DSL)",
+        "description": "Return spans within a project filtered by time range, annotation names, and ordered by start_time. Supports cursor-based pagination.",
+        "operationId": "spanSearch",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Pagination cursor (GlobalID of Span)",
+              "title": "Cursor"
+            },
+            "description": "Pagination cursor (GlobalID of Span)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "exclusiveMinimum": 0,
+              "description": "Maximum number of spans to return",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "Maximum number of spans to return"
+          },
+          {
+            "name": "sort_direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string",
+              "description": "Sort direction for the sort field",
+              "default": "desc",
+              "title": "Sort Direction"
+            },
+            "description": "Sort direction for the sort field"
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive lower bound time",
+              "title": "Start Time"
+            },
+            "description": "Inclusive lower bound time"
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Exclusive upper bound time",
+              "title": "End Time"
+            },
+            "description": "Exclusive upper bound time"
+          },
+          {
+            "name": "annotationNames",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "If provided, only include spans that have at least one annotation with one of these names.",
+              "title": "Annotationnames"
+            },
+            "description": "If provided, only include spans that have at least one annotation with one of these names."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpanSearchResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/v1/span_annotations": {
       "post": {
         "tags": [
@@ -4252,6 +4424,490 @@
         ],
         "title": "OptimizationDirection"
       },
+      "OtlpAnyValue": {
+        "properties": {
+          "array_value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OtlpArrayValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bool_value": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bool Value"
+          },
+          "bytes_value": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bytes Value"
+          },
+          "double_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "$ref": "#/components/schemas/OtlpDoubleValue"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Double Value"
+          },
+          "int_value": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMaximum": 9.223372036854776e+18,
+                "minimum": -9.223372036854776e+18
+              },
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Int Value"
+          },
+          "kvlist_value": {
+            "type": "null",
+            "title": "Kvlist Value"
+          },
+          "string_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "String Value"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OtlpAnyValue"
+      },
+      "OtlpArrayValue": {
+        "properties": {
+          "values": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OtlpAnyValue"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Values",
+            "description": "Array of values. The array may be empty (contain 0 elements)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OtlpArrayValue"
+      },
+      "OtlpDoubleValue": {
+        "type": "string",
+        "enum": [
+          "Infinity",
+          "-Infinity",
+          "NaN"
+        ],
+        "title": "OtlpDoubleValue"
+      },
+      "OtlpEvent": {
+        "properties": {
+          "attributes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OtlpKeyValue"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attributes",
+            "description": "attributes is a collection of attribute key/value pairs on the event. Attribute keys MUST be unique (it is not allowed to have more than one attribute with the same key)."
+          },
+          "dropped_attributes_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4294967295.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dropped Attributes Count",
+            "description": "dropped_attributes_count is the number of dropped attributes. If the value is 0, then no attributes were dropped."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "name of the event. This field is semantically required to be set to non-empty string."
+          },
+          "time_unix_nano": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMaximum": 1.8446744073709552e+19,
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time Unix Nano",
+            "description": "time_unix_nano is the time the event occurred. Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OtlpEvent"
+      },
+      "OtlpKeyValue": {
+        "properties": {
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OtlpAnyValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OtlpKeyValue"
+      },
+      "OtlpKind": {
+        "type": "string",
+        "enum": [
+          "SPAN_KIND_UNSPECIFIED",
+          "SPAN_KIND_INTERNAL",
+          "SPAN_KIND_SERVER",
+          "SPAN_KIND_CLIENT",
+          "SPAN_KIND_PRODUCER",
+          "SPAN_KIND_CONSUMER"
+        ],
+        "title": "OtlpKind"
+      },
+      "OtlpSpan": {
+        "properties": {
+          "attributes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OtlpKeyValue"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attributes",
+            "description": "attributes is a collection of key/value pairs. Note, global attributes like server name can be set using the resource API. Examples of attributes:\n\n    \"/http/user_agent\": \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36\"\n    \"/http/server_latency\": 300\n    \"example.com/myattribute\": true\n    \"example.com/score\": 10.239\n\nThe OpenTelemetry API specification further restricts the allowed value types:\nhttps://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute\nAttribute keys MUST be unique (it is not allowed to have more than one attribute with the same key)."
+          },
+          "dropped_attributes_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4294967295.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dropped Attributes Count",
+            "description": "dropped_attributes_count is the number of attributes that were discarded. Attributes can be discarded because their keys are too long or because there are too many attributes. If this value is 0, then no attributes were dropped."
+          },
+          "dropped_events_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4294967295.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dropped Events Count",
+            "description": "dropped_events_count is the number of dropped events. If the value is 0, then no events were dropped."
+          },
+          "dropped_links_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4294967295.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dropped Links Count",
+            "description": "dropped_links_count is the number of dropped links after the maximum size was enforced. If this value is 0, then no links were dropped."
+          },
+          "end_time_unix_nano": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMaximum": 1.8446744073709552e+19,
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Time Unix Nano",
+            "description": "end_time_unix_nano is the end time of the span. On the client side, this is the time kept by the local machine where the span execution ends. On the server side, this is the time when the server application handler stops running.\nValue is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.\n\nThis field is semantically required and it is expected that end_time >= start_time."
+          },
+          "events": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OtlpEvent"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Events",
+            "description": "events is a collection of Event items. A span with no events is valid."
+          },
+          "flags": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4294967295.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flags",
+            "description": "Flags, a bit field.\n\nBits 0-7 (8 least significant bits) are the trace flags as defined in W3C Trace Context specification. To read the 8-bit W3C trace flag, use `flags & SPAN_FLAGS_TRACE_FLAGS_MASK`.\n\nSee https://www.w3.org/TR/trace-context-2/#trace-flags for the flag definitions.\n\nBits 8 and 9 represent the 3 states of whether a span's parent is remote. The states are (unknown, is not remote, is remote).\nTo read whether the value is known, use `(flags & SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK) != 0`.\nTo read whether the span is remote, use `(flags & SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK) != 0`.\n\nWhen creating span messages, if the message is logically forwarded from another source with an equivalent flags fields (i.e., usually another OTLP span message), the field SHOULD be copied as-is. If creating from a source that does not have an equivalent flags field (such as a runtime representation of an OpenTelemetry span), the high 22 bits MUST be set to zero.\nReaders MUST NOT assume that bits 10-31 (22 most significant bits) will be zero.\n\n[Optional]."
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OtlpKind"
+              },
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": -2147483648.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind",
+            "description": "Distinguishes between spans generated in a particular context. For example, two spans with the same name may be distinguished using `CLIENT` (caller) and `SERVER` (callee) to identify queueing latency associated with the span.",
+            "default": "SPAN_KIND_INTERNAL"
+          },
+          "links": {
+            "type": "null",
+            "title": "Links"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "A description of the span's operation.\n\nFor example, the name can be a qualified method name or a file name and a line number where the operation is called. A best practice is to use the same display name at the same call point in an application. This makes it easier to correlate spans in different traces.\n\nThis field is semantically required to be set to non-empty string. Empty value is equivalent to an unknown span name.\n\nThis field is required."
+          },
+          "parent_span_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Span Id",
+            "description": "The `span_id` of this span's parent span. If this is a root span, then this field must be empty. The ID is an 8-byte array."
+          },
+          "span_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Span Id",
+            "description": "A unique identifier for a span within a trace, assigned when the span is created. The ID is an 8-byte array. An ID with all zeroes OR of length other than 8 bytes is considered invalid (empty string in OTLP/JSON is zero-length and thus is also invalid).\n\nThis field is required."
+          },
+          "start_time_unix_nano": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMaximum": 1.8446744073709552e+19,
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Time Unix Nano",
+            "description": "start_time_unix_nano is the start time of the span. On the client side, this is the time kept by the local machine where the span execution starts. On the server side, this is the time when the server's application handler starts running.\nValue is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.\n\nThis field is semantically required and it is expected that end_time >= start_time."
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OtlpStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An optional final status for this span. Semantically when Status isn't set, it means span's status code is unset, i.e. assume STATUS_CODE_UNSET (code = 0)."
+          },
+          "trace_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace Id",
+            "description": "A unique identifier for a trace. All spans from the same trace share the same `trace_id`. The ID is a 16-byte array. An ID with all zeroes OR of length other than 16 bytes is considered invalid (empty string in OTLP/JSON is zero-length and thus is also invalid).\n\nThis field is required."
+          },
+          "trace_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace State",
+            "description": "trace_state conveys information about request position in multiple distributed tracing graphs. It is a trace_state in w3c-trace-context format: https://www.w3.org/TR/trace-context/#tracestate-header\nSee also https://github.com/w3c/distributed-tracing for more details about this field."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OtlpSpan"
+      },
+      "OtlpStatus": {
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": -2147483648.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code",
+            "description": "The status code."
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message",
+            "description": "A developer-facing human readable error message."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OtlpStatus"
+      },
       "Project": {
         "properties": {
           "name": {
@@ -5489,6 +6145,35 @@
           "next_cursor"
         ],
         "title": "SpanAnnotationsResponseBody"
+      },
+      "SpanSearchResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/OtlpSpan"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "SpanSearchResponseBody",
+        "description": "Paginated response where each span follows OTLP JSON structure."
       },
       "TextContentPart": {
         "properties": {
