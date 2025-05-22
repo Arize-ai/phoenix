@@ -324,7 +324,7 @@ class PromptOpenAIInvocationParametersContent(DBBaseModel):
 
 
 class PromptOpenAIInvocationParameters(DBBaseModel):
-    type: Literal["openai"]
+    type: Literal["openai",]
     openai: PromptOpenAIInvocationParametersContent
 
 
@@ -340,6 +340,9 @@ class PromptAzureOpenAIInvocationParameters(DBBaseModel):
     type: Literal["azure_openai"]
     azure_openai: PromptAzureOpenAIInvocationParametersContent
 
+class PromptDeepSeekInvocationParameters(DBBaseModel):
+    type: Literal["deepseek"]
+    deepseek: PromptDeepSeekInvocationParametersContent
 
 class PromptAnthropicThinkingConfigDisabled(DBBaseModel):
     type: Literal["disabled"]
@@ -395,6 +398,7 @@ PromptInvocationParameters: TypeAlias = Annotated[
         PromptAzureOpenAIInvocationParameters,
         PromptAnthropicInvocationParameters,
         PromptGoogleInvocationParameters,
+        PromptDeepSeekInvocationParameters,
     ],
     Field(..., discriminator="type"),
 ]
@@ -411,6 +415,8 @@ def get_raw_invocation_parameters(
         return invocation_parameters.anthropic.model_dump()
     if isinstance(invocation_parameters, PromptGoogleInvocationParameters):
         return invocation_parameters.google.model_dump()
+    if isinstance(invocation_parameters, PromptDeepSeekInvocationParameters):
+        return invocation_parameters.deepseek.model_dump()
     assert_never(invocation_parameters)
 
 
@@ -449,7 +455,7 @@ def validate_invocation_parameters(
             ),
         )
     elif model_provider is ModelProvider.DEEPSEEK:
-        return PromptOpenAIInvocationParameters(
+        return PromptDeepSeekInvocationParameters(
             type="deepseek",
             deepseek=PromptDeepSeekInvocationParametersContent.model_validate(
                 invocation_parameters
