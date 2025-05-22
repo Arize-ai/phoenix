@@ -4229,7 +4229,8 @@
           "OPENAI",
           "AZURE_OPENAI",
           "ANTHROPIC",
-          "GOOGLE"
+          "GOOGLE",
+          "DEEPSEEK"
         ],
         "title": "ModelProvider"
       },
