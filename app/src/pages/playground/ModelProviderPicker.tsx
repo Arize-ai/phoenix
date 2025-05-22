@@ -42,8 +42,6 @@ export function ModelProviderPicker({
     `,
     query
   );
-  // eslint-disable-next-line no-console
-  console.log(data.modelProviders);
   const installedProviders = data.modelProviders.filter(
     (provider) => provider.dependenciesInstalled
   );
