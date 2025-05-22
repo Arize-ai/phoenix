@@ -506,6 +506,15 @@ def run_experiment(
             run["end_time"] = datetime.fromisoformat(run["end_time"])
             task_runs.append(ExperimentRun.from_dict(run))
 
+        # Check if we got all expected runs
+        expected_runs = len(dataset.examples) * repetitions
+        actual_runs = len(task_runs)
+        if actual_runs < expected_runs:
+            print(
+                f"⚠️  Warning: Only {actual_runs} out of {expected_runs} expected runs were "
+                "completed successfully."
+            )
+
     params = ExperimentParameters(n_examples=len(dataset.examples), n_repetitions=repetitions)
     task_summary = TaskSummary.from_task_runs(params, task_runs)
     ran_experiment: RanExperiment = object.__new__(RanExperiment)
