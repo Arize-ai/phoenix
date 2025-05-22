@@ -14,6 +14,7 @@ class GenerativeProviderKey(Enum):
     ANTHROPIC = "Anthropic"
     AZURE_OPENAI = "Azure OpenAI"
     GOOGLE = "Google AI Studio"
+    DEEPSEEK = "DeepSeek"
 
 
 @strawberry.type
