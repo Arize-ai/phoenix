@@ -340,9 +340,11 @@ class PromptAzureOpenAIInvocationParameters(DBBaseModel):
     type: Literal["azure_openai"]
     azure_openai: PromptAzureOpenAIInvocationParametersContent
 
+
 class PromptDeepSeekInvocationParameters(DBBaseModel):
     type: Literal["deepseek"]
     deepseek: PromptDeepSeekInvocationParametersContent
+
 
 class PromptAnthropicThinkingConfigDisabled(DBBaseModel):
     type: Literal["disabled"]

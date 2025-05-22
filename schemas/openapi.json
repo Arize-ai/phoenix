@@ -4534,6 +4534,69 @@
         ],
         "title": "PromptData"
       },
+      "PromptDeepSeekInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "deepseek",
+            "title": "Type"
+          },
+          "deepseek": {
+            "$ref": "#/components/schemas/PromptDeepSeekInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "deepseek"
+        ],
+        "title": "PromptDeepSeekInvocationParameters"
+      },
+      "PromptDeepSeekInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "title": "Max Completion Tokens"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Reasoning Effort"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptDeepSeekInvocationParametersContent"
+      },
       "PromptGoogleInvocationParameters": {
         "properties": {
           "type": {
@@ -5026,6 +5089,9 @@
               },
               {
                 "$ref": "#/components/schemas/PromptGoogleInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptDeepSeekInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -5034,6 +5100,7 @@
               "mapping": {
                 "anthropic": "#/components/schemas/PromptAnthropicInvocationParameters",
                 "azure_openai": "#/components/schemas/PromptAzureOpenAIInvocationParameters",
+                "deepseek": "#/components/schemas/PromptDeepSeekInvocationParameters",
                 "google": "#/components/schemas/PromptGoogleInvocationParameters",
                 "openai": "#/components/schemas/PromptOpenAIInvocationParameters"
               }
@@ -5144,6 +5211,9 @@
               },
               {
                 "$ref": "#/components/schemas/PromptGoogleInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptDeepSeekInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -5152,6 +5222,7 @@
               "mapping": {
                 "anthropic": "#/components/schemas/PromptAnthropicInvocationParameters",
                 "azure_openai": "#/components/schemas/PromptAzureOpenAIInvocationParameters",
+                "deepseek": "#/components/schemas/PromptDeepSeekInvocationParameters",
                 "google": "#/components/schemas/PromptGoogleInvocationParameters",
                 "openai": "#/components/schemas/PromptOpenAIInvocationParameters"
               }

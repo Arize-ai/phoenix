@@ -826,5 +826,23 @@
     "cache_write":null,
     "cache_read":null,
     "regex":"(?i)^(text-unicorn)(@[a-zA-Z0-9]+)?$"
+  },
+  {
+    "model":"deepseek-chat",
+    "provider":"deepseek",
+    "input":0.0000008,
+    "output":0.0000024,
+    "cache_write":0.0000002,
+    "cache_read":0.0000006,
+    "regex":"(?i)^(deepseek-chat)$"
+  },
+  {
+    "model":"deepseek-reasoner",
+    "provider":"deepseek",
+    "input":0.0000015,
+    "output":0.000006,
+    "cache_write":0.00000075,
+    "cache_read":0.0000015,
+    "regex":"(?i)^(deepseek-reasoner)$"
   }
 ]
