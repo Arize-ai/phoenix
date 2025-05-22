@@ -452,6 +452,13 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
           instance={instance}
           container={container ?? null}
         />
+      ) : instance.model.provider === "DEEPSEEK" ? (
+        <ModelComboBox
+          modelName={instance.model.modelName}
+          provider={instance.model.provider}
+          onChange={onModelNameChange}
+          container={container ?? undefined}
+        />
       ) : (
         <ModelComboBox
           modelName={instance.model.modelName}

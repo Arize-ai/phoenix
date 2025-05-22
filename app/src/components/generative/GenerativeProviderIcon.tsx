@@ -74,6 +74,20 @@ const AnthropicSVG = ({ height }: { height: number }) => (
   </svg>
 );
 
+const DeepSeekSVG = ({ height }: { height: number }) => (
+  <svg
+    fill="var(--ac-global-text-color-900)"
+    fillRule="evenodd"
+    viewBox="0 0 24 24"
+    width={height}
+    height={height}
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title>DeepSeek</title>
+    <path d="M11.998 2C6.477 2 2 6.477 2 11.998C2 17.522 6.477 22 11.998 22C17.522 22 22 17.522 22 11.998C22 6.477 17.522 2 11.998 2ZM11.998 4.666C16.044 4.666 19.331 7.955 19.331 11.998C19.331 16.044 16.044 19.331 11.998 19.331C7.955 19.331 4.666 16.044 4.666 11.998C4.666 7.955 7.955 4.666 11.998 4.666ZM9.332 8.666V15.332H14.665V13.332H11.332V8.666H9.332Z" />
+  </svg>
+);
+
 const PROVIDER_ICONS: Record<
   ModelProvider,
   ({ height }: { height: number }) => React.ReactNode
@@ -82,6 +96,7 @@ const PROVIDER_ICONS: Record<
   GOOGLE: GoogleSVG,
   OPENAI: OpenAISVG,
   ANTHROPIC: AnthropicSVG,
+  DEEPSEEK: DeepSeekSVG,
 };
 
 export type GenerativeProviderIconProps = {
