@@ -4,6 +4,7 @@ metadata:
   name: {{ template "phoenix.service" . }}
   namespace: {{ .Release.Namespace | quote }}
 spec:
+  type: NodePort
   ports:
     - name: {{ template "phoenix.grpcPortName" . }}
       port: {{ template "phoenix.grpcPort" . }}
@@ -12,4 +13,4 @@ spec:
     - name: {{ template "phoenix.metricsPortName" . }}
       port: {{ template "phoenix.metricsPort" . }} 
   selector:
-    component: {{ .Release.Name }}
+    app: {{ .Release.Name }}

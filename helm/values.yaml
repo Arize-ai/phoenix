@@ -12,10 +12,14 @@ ingress:
   tls:
     enabled: false
   host: phoenix.192.168.49.2.nip.io
+  api_path: /(.*)
+  path_type: ImplementationSpecific
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
 
 postgres:
   # create postgres deployment for in-cluster use
-  enabled: false
+  enabled: true
   image: postgres:14.5 
   resources:
     requests:
