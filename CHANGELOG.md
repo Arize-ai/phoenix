@@ -1,5 +1,12 @@
 # Changelog
 
+## [10.0.4](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.0.3...arize-phoenix-v10.0.4) (2025-05-22)
+
+
+### Bug Fixes
+
+* Protect against experiment run creation race conditions and conflict errors ([#7657](https://github.com/Arize-ai/phoenix/issues/7657)) ([417e283](https://github.com/Arize-ai/phoenix/commit/417e283307957df9d3e2e47391ac7c0569b3f5d2))
+
 ## [10.0.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.0.2...arize-phoenix-v10.0.3) (2025-05-22)
 
 
