@@ -1003,7 +1003,7 @@ class TestClient:
         u1 = _get_user(_MEMBER).log_in()
         if use_phoenix_admin_secret:
             assert (admin_secret := get_env_phoenix_admin_secret())
-            monkeypatch.setenv("PHOENIX_API_KEY", admin_secret)
+            monkeypatch.setenv("PHOENIX_API_KEY", str(admin_secret))
         else:
             monkeypatch.setenv("PHOENIX_API_KEY", u1.create_api_key())
 

@@ -31,8 +31,6 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
                 id
               }
             }
-            tokenCountCompletion
-            tokenCountPrompt
             tokenCountTotal
             latencyMs
           }
@@ -62,8 +60,7 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
         <Flex direction="row" gap="size-100" alignItems="center">
           <TokenCount
             tokenCountTotal={data.span.tokenCountTotal || 0}
-            tokenCountPrompt={data.span.tokenCountPrompt || 0}
-            tokenCountCompletion={data.span.tokenCountCompletion || 0}
+            nodeId={data.span.id}
           />
           <LatencyText latencyMs={data.span.latencyMs || 0} />
         </Flex>

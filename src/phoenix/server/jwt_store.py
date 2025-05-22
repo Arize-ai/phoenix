@@ -11,6 +11,7 @@ from typing import Any, Generic, Optional, TypeVar
 from authlib.jose import jwt
 from authlib.jose.errors import JoseError
 from sqlalchemy import Select, delete, select
+from starlette.datastructures import Secret
 
 from phoenix.auth import (
     JWT_ALGORITHM,
@@ -50,7 +51,7 @@ class JwtStore:
     def __init__(
         self,
         db: DbSessionFactory,
-        secret: str,
+        secret: Secret,
         algorithm: str = JWT_ALGORITHM,
         sleep_seconds: int = 10,
         **kwargs: Any,
@@ -79,7 +80,7 @@ class JwtStore:
         try:
             payload = jwt.decode(
                 s=token,
-                key=self._secret,
+                key=str(self._secret),
             )
         except JoseError:
             return None
@@ -231,7 +232,7 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC)
     def __init__(
         self,
         db: DbSessionFactory,
-        secret: str,
+        secret: Secret,
         algorithm: str = JWT_ALGORITHM,
         sleep_seconds: int = 10,
         **kwargs: Any,
@@ -247,7 +248,7 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC)
     def _encode(self, claim: ClaimSet) -> str:
         payload: dict[str, Any] = dict(jti=claim.token_id)
         header = {"alg": self._algorithm}
-        jwt_bytes: bytes = jwt.encode(header=header, payload=payload, key=self._secret)
+        jwt_bytes: bytes = jwt.encode(header=header, payload=payload, key=str(self._secret))
         return jwt_bytes.decode()
 
     async def get(self, token_id: _TokenIdT) -> Optional[_ClaimSetT]:

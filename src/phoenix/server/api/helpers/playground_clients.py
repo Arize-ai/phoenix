@@ -1051,6 +1051,40 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
         return google_message_history, prompt, "\n".join(system_prompts)
 
 
+@register_llm_client(
+    provider_key=GenerativeProviderKey.DEEPSEEK,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "deepseek-chat",       # Points to DeepSeek-V3
+        "deepseek-reasoner",   # Points to DeepSeek-R1
+    ],
+)
+class DeepSeekStreamingClient(OpenAIStreamingClient):
+    def __init__(
+        self,
+        model: GenerativeModelInput,
+        api_key: Optional[str] = None,
+    ) -> None:
+        from openai import AsyncOpenAI
+
+        api_key = api_key or getenv("DEEPSEEK_API_KEY")
+        if not api_key:
+            raise BadRequest("An API key is required for DeepSeek models")
+
+        # Create an OpenAI client with DeepSeek's API base URL
+        client = AsyncOpenAI(
+            api_key=api_key,
+            base_url="https://api.deepseek.com/v1",
+        )
+        
+        # Call the parent constructor with the created client
+        super().__init__(client=client, model=model, api_key=api_key)
+        
+        # Override the provider attributes
+        self._attributes[LLM_PROVIDER] = "deepseek"
+        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.UNKNOWN.value
+
+
 def initialize_playground_clients() -> None:
     """
     Ensure that all playground clients are registered at import time.

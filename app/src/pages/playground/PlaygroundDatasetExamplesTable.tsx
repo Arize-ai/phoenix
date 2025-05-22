@@ -375,8 +375,7 @@ function SpanMetadata({ span }: { span: Span }) {
     <Flex direction="row" gap="size-100" alignItems="center">
       <TokenCount
         tokenCountTotal={span.tokenCountTotal || 0}
-        tokenCountPrompt={span.tokenCountPrompt || 0}
-        tokenCountCompletion={span.tokenCountCompletion || 0}
+        nodeId={span.id}
       />
       <LatencyText latencyMs={span.latencyMs || 0} />
     </Flex>
@@ -997,8 +996,6 @@ graphql`
         datasetExampleId
         span {
           id
-          tokenCountCompletion
-          tokenCountPrompt
           tokenCountTotal
           latencyMs
           project {
@@ -1040,8 +1037,6 @@ graphql`
             errorMessage
             span {
               id
-              tokenCountCompletion
-              tokenCountPrompt
               tokenCountTotal
               latencyMs
               project {

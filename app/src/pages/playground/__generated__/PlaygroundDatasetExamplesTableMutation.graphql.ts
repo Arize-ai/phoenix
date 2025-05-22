@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<20bd540376692bc50c107457cd227035>>
+ * @generated SignedSource<<b7b9e695fe6d878dee1068bbbb7f01b8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type CanonicalParameterName = "ANTHROPIC_EXTENDED_THINKING" | "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "REASONING_EFFORT" | "RESPONSE_FORMAT" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOOL_CHOICE" | "TOP_P";
 export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
-export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OPENAI";
+export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "GOOGLE" | "OPENAI";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionOverDatasetInput = {
   apiKey?: string | null;
@@ -76,8 +76,6 @@ export type PlaygroundDatasetExamplesTableMutation$data = {
           readonly project: {
             readonly id: string;
           };
-          readonly tokenCountCompletion: number | null;
-          readonly tokenCountPrompt: number | null;
           readonly tokenCountTotal: number | null;
         };
         readonly toolCalls: ReadonlyArray<{
@@ -221,20 +219,6 @@ v3 = [
                         "alias": null,
                         "args": null,
                         "kind": "ScalarField",
-                        "name": "tokenCountCompletion",
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "tokenCountPrompt",
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
                         "name": "tokenCountTotal",
                         "storageKey": null
                       },
@@ -347,16 +331,16 @@ return {
     "selections": (v3/*: any*/)
   },
   "params": {
-    "cacheID": "4697f7aaa22729dbf83970ce9ae6475b",
+    "cacheID": "a5d1d9b9e0ebf2f32f8398b5bca3b281",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableMutation",
     "operationKind": "mutation",
-    "text": "mutation PlaygroundDatasetExamplesTableMutation(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    __typename\n    experimentId\n    examples {\n      datasetExampleId\n      experimentRunId\n      result {\n        __typename\n        ... on ChatCompletionMutationError {\n          message\n        }\n        ... on ChatCompletionMutationPayload {\n          content\n          errorMessage\n          span {\n            id\n            tokenCountCompletion\n            tokenCountPrompt\n            tokenCountTotal\n            latencyMs\n            project {\n              id\n            }\n            context {\n              traceId\n            }\n          }\n          toolCalls {\n            id\n            function {\n              name\n              arguments\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation PlaygroundDatasetExamplesTableMutation(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    __typename\n    experimentId\n    examples {\n      datasetExampleId\n      experimentRunId\n      result {\n        __typename\n        ... on ChatCompletionMutationError {\n          message\n        }\n        ... on ChatCompletionMutationPayload {\n          content\n          errorMessage\n          span {\n            id\n            tokenCountTotal\n            latencyMs\n            project {\n              id\n            }\n            context {\n              traceId\n            }\n          }\n          toolCalls {\n            id\n            function {\n              name\n              arguments\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c15f93fe1380986536971620c3bf3a11";
+(node as any).hash = "4ecdd2ca5fbbdf4a9ae185fa02f8b013";
 
 export default node;

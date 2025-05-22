@@ -210,8 +210,6 @@ export function SpanDetails({
             parentId
             latencyMs
             tokenCountTotal
-            tokenCountPrompt
-            tokenCountCompletion
             startTime
             endTime
             id

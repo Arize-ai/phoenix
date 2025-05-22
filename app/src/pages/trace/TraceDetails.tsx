@@ -71,8 +71,6 @@ export function TraceDetails(props: TraceDetailsProps) {
                     parentId
                     latencyMs
                     tokenCountTotal
-                    tokenCountPrompt
-                    tokenCountCompletion
                     spanAnnotationSummaries {
                       labels
                       count

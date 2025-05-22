@@ -15,10 +15,12 @@ function SessionDetailsHeader({
   traceCount,
   tokenUsage,
   latencyP50,
+  sessionId,
 }: {
   traceCount: number;
   tokenUsage?: NonNullable<SessionDetailsQuery$data["session"]>["tokenUsage"];
   latencyP50?: number | null;
+  sessionId: string;
 }) {
   return (
     <View
@@ -40,8 +42,7 @@ function SessionDetailsHeader({
             </Text>
             <TokenCount
               tokenCountTotal={tokenUsage.total}
-              tokenCountCompletion={tokenUsage.completion}
-              tokenCountPrompt={tokenUsage.prompt}
+              nodeId={sessionId}
               size="L"
             />
           </Flex>
@@ -76,8 +77,6 @@ export function SessionDetails(props: SessionDetailsProps) {
             numTraces
             tokenUsage {
               total
-              completion
-              prompt
             }
             sessionId
             latencyP50: traceLatencyMsQuantile(probability: 0.50)
@@ -101,8 +100,6 @@ export function SessionDetails(props: SessionDetailsProps) {
                       mimeType
                     }
                     cumulativeTokenCountTotal
-                    cumulativeTokenCountCompletion
-                    cumulativeTokenCountPrompt
                     latencyMs
                     startTime
                     spanId
@@ -140,6 +137,7 @@ export function SessionDetails(props: SessionDetailsProps) {
         traceCount={data.session.numTraces ?? 0}
         tokenUsage={data.session.tokenUsage}
         latencyP50={data.session.latencyP50}
+        sessionId={sessionId}
       />
       <SessionDetailsTraceList traces={data.session.traces} />
     </main>

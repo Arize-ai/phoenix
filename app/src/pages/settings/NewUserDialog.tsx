@@ -4,6 +4,10 @@ import { graphql, useMutation } from "react-relay";
 import { Dialog, DialogContainer } from "@arizeai/components";
 
 import {
+  OAuthUserForm,
+  OAuthUserFormParams,
+} from "@phoenix/components/settings/OAuthUserForm";
+import {
   UserForm,
   UserFormParams,
 } from "@phoenix/components/settings/UserForm";
@@ -39,6 +43,30 @@ export function NewUserDialog({
             username: data.username,
             password: data.password,
             role: data.role,
+            authMethod: "LOCAL",
+            sendWelcomeEmail: true,
+          },
+        },
+        onCompleted: (response) => {
+          onNewUserCreated(response.createUser.user.email);
+        },
+        onError: (error) => {
+          onNewUserCreationError(error);
+        },
+      });
+    },
+    [commit, onNewUserCreated, onNewUserCreationError]
+  );
+
+  const onSubmitOauthUser = useCallback(
+    (data: OAuthUserFormParams) => {
+      commit({
+        variables: {
+          input: {
+            email: data.email,
+            username: data.username,
+            role: data.role,
+            authMethod: "OAUTH2",
             sendWelcomeEmail: true,
           },
         },
@@ -61,7 +89,14 @@ export function NewUserDialog({
       isKeyboardDismissDisabled
     >
       <Dialog title="Add user">
-        <UserForm onSubmit={onSubmit} isSubmitting={isCommitting} />
+        {window.Config.basicAuthDisabled ? (
+          <OAuthUserForm
+            onSubmit={onSubmitOauthUser}
+            isSubmitting={isCommitting}
+          />
+        ) : (
+          <UserForm onSubmit={onSubmit} isSubmitting={isCommitting} />
+        )}
       </Dialog>
     </DialogContainer>
   );

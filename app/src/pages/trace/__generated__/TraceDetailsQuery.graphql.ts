@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4f375160345a365097491f7860a9a871>>
+ * @generated SignedSource<<64485ee3ecdded57a20ced99ddf68bc1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -43,8 +43,6 @@ export type TraceDetailsQuery$data = {
             readonly spanKind: SpanKind;
             readonly startTime: string;
             readonly statusCode: SpanStatusCode;
-            readonly tokenCountCompletion: number | null;
-            readonly tokenCountPrompt: number | null;
             readonly tokenCountTotal: number | null;
           };
         }>;
@@ -183,20 +181,6 @@ v8 = {
               "args": null,
               "kind": "ScalarField",
               "name": "tokenCountTotal",
-              "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "tokenCountPrompt",
-              "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "tokenCountCompletion",
               "storageKey": null
             },
             {
@@ -379,16 +363,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a0d34c4e26bb7372849cb1964eb58d97",
+    "cacheID": "18662a3774f2ad488c41a0262fabf5a9",
     "id": null,
     "metadata": {},
     "name": "TraceDetailsQuery",
     "operationKind": "query",
-    "text": "query TraceDetailsQuery(\n  $traceId: ID!\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        projectSessionId\n        spans(first: 1000) {\n          edges {\n            span: node {\n              id\n              spanId\n              name\n              spanKind\n              statusCode\n              startTime\n              parentId\n              latencyMs\n              tokenCountTotal\n              tokenCountPrompt\n              tokenCountCompletion\n              spanAnnotationSummaries {\n                labels\n                count\n                labelCount\n                labelFractions {\n                  fraction\n                  label\n                }\n                name\n                scoreCount\n                meanScore\n              }\n            }\n          }\n        }\n        latencyMs\n        id\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query TraceDetailsQuery(\n  $traceId: ID!\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        projectSessionId\n        spans(first: 1000) {\n          edges {\n            span: node {\n              id\n              spanId\n              name\n              spanKind\n              statusCode\n              startTime\n              parentId\n              latencyMs\n              tokenCountTotal\n              spanAnnotationSummaries {\n                labels\n                count\n                labelCount\n                labelFractions {\n                  fraction\n                  label\n                }\n                name\n                scoreCount\n                meanScore\n              }\n            }\n          }\n        }\n        latencyMs\n        id\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e693007ded8dd88aaf11ac370abeff71";
+(node as any).hash = "7f8f1e64c42b5e66d51dc1325c064d8c";
 
 export default node;

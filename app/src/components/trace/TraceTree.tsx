@@ -250,14 +250,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
     setIsCollapsed(treeIsCollapsed);
   }, [treeIsCollapsed]);
 
-  const {
-    name,
-    latencyMs,
-    statusCode,
-    tokenCountTotal,
-    tokenCountPrompt,
-    tokenCountCompletion,
-  } = node.span;
+  const { name, latencyMs, statusCode, tokenCountTotal } = node.span;
   return (
     <div ref={itemRef}>
       <button
@@ -302,8 +295,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
             showMetricsInTraceTree ? (
               <TokenCount
                 tokenCountTotal={tokenCountTotal}
-                tokenCountPrompt={tokenCountPrompt ?? 0}
-                tokenCountCompletion={tokenCountCompletion ?? 0}
+                nodeId={node.span.id}
               />
             ) : null}
             {latencyMs != null && showMetricsInTraceTree ? (
