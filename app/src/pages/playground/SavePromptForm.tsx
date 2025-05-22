@@ -40,7 +40,7 @@ export function SavePromptForm({
   const prompts = useLazyLoadQuery<SavePromptFormQuery>(
     graphql`
       query SavePromptFormQuery {
-        prompts(first: 100) {
+        prompts(first: 200) {
           edges {
             prompt: node {
               id
