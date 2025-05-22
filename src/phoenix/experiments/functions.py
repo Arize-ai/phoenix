@@ -369,7 +369,7 @@ def run_experiment(
             if not dry_run:
                 try:
                     # Try to create the run directly
-                    resp = asyncio.get_running_loop().run_in_executor(
+                    future = asyncio.get_running_loop().run_in_executor(
                         None,
                         functools.partial(
                             sync_client.post,
@@ -377,7 +377,7 @@ def run_experiment(
                             json=jsonify(exp_run),
                         ),
                     )
-                    resp = await resp
+                    resp = await future
                     resp.raise_for_status()
                     exp_run = replace(exp_run, id=resp.json()["data"]["id"])
                 except HTTPStatusError as e:
@@ -444,15 +444,15 @@ def run_experiment(
         if not dry_run:
             try:
                 # Try to create the run directly
-                resp = asyncio.get_running_loop().run_in_executor(
+                future = asyncio.get_running_loop().run_in_executor(
                     None,
                     functools.partial(
                         sync_client.post,
-                        url=f"/v1/experiments/{experiment.id}/runs",
+                        url="/v1/experiments/{experiment.id}/runs",
                         json=jsonify(exp_run),
                     ),
                 )
-                resp = await resp
+                resp = await future
                 resp.raise_for_status()
                 exp_run = replace(exp_run, id=resp.json()["data"]["id"])
                 if error is None:
@@ -715,7 +715,7 @@ def evaluate_experiment(
             # Below is a workaround to avoid timeout errors sometimes
             # encountered when the evaluator is a synchronous function
             # that blocks for too long.
-            resp = await asyncio.get_running_loop().run_in_executor(
+            future = asyncio.get_running_loop().run_in_executor(
                 None,
                 functools.partial(
                     sync_client.post,
@@ -723,7 +723,7 @@ def evaluate_experiment(
                     json=jsonify(eval_run),
                 ),
             )
-            resp = await resp
+            resp = await future
             resp.raise_for_status()
             eval_run = replace(eval_run, id=resp.json()["data"]["id"])
         return eval_run
