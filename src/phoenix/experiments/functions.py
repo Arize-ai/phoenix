@@ -233,8 +233,43 @@ def run_experiment(
         print(f"📺 View dataset experiments: {dataset_experiments_url}")
         print(f"🔗 View this experiment: {experiment_compare_url}")
 
+    # Create a cache for task results
+    task_result_cache: dict[tuple[str, int], Any] = {}
+
     def sync_run_experiment(test_case: TestCase) -> ExperimentRun:
         example, repetition_number = test_case.example, test_case.repetition_number
+        cache_key = (example.id, repetition_number)
+
+        # Check if we have a cached result
+        if cache_key in task_result_cache:
+            output = task_result_cache[cache_key]
+            exp_run = ExperimentRun(
+                start_time=datetime.now(
+                    timezone.utc
+                ),  # Use current time since we don't have the original span
+                end_time=datetime.now(timezone.utc),
+                experiment_id=experiment.id,
+                dataset_example_id=example.id,
+                repetition_number=repetition_number,
+                output=output,
+                error=None,
+                trace_id=None,  # No trace ID since we don't have the original span
+            )
+            if not dry_run:
+                try:
+                    # Try to create the run directly
+                    resp = sync_client.post(
+                        f"/v1/experiments/{experiment.id}/runs", json=jsonify(exp_run)
+                    )
+                    resp.raise_for_status()
+                    exp_run = replace(exp_run, id=resp.json()["data"]["id"])
+                except HTTPStatusError as e:
+                    if e.response.status_code == 422:
+                        # Ignore duplicate runs - we'll get the final state from the database
+                        return None
+                    raise
+            return exp_run
+
         output = None
         error: Optional[BaseException] = None
         status = Status(StatusCode.OK)
@@ -284,6 +319,11 @@ def run_experiment(
         assert isinstance(
             output, (dict, list, str, int, float, bool, type(None))
         ), "Output must be JSON serializable"
+
+        # Cache the result if successful
+        if error is None:
+            task_result_cache[cache_key] = output
+
         exp_run = ExperimentRun(
             start_time=_decode_unix_nano(cast(int, span.start_time)),
             end_time=_decode_unix_nano(cast(int, span.end_time)),
@@ -311,6 +351,44 @@ def run_experiment(
 
     async def async_run_experiment(test_case: TestCase) -> ExperimentRun:
         example, repetition_number = test_case.example, test_case.repetition_number
+        cache_key = (example.id, repetition_number)
+
+        # Check if we have a cached result
+        if cache_key in task_result_cache:
+            output = task_result_cache[cache_key]
+            exp_run = ExperimentRun(
+                start_time=datetime.now(
+                    timezone.utc
+                ),  # Use current time since we don't have the original span
+                end_time=datetime.now(timezone.utc),
+                experiment_id=experiment.id,
+                dataset_example_id=example.id,
+                repetition_number=repetition_number,
+                output=output,
+                error=None,
+                trace_id=None,  # No trace ID since we don't have the original span
+            )
+            if not dry_run:
+                try:
+                    # Try to create the run directly
+                    resp = asyncio.get_running_loop().run_in_executor(
+                        None,
+                        functools.partial(
+                            sync_client.post,
+                            url=f"/v1/experiments/{experiment.id}/runs",
+                            json=jsonify(exp_run),
+                        ),
+                    )
+                    resp = await resp
+                    resp.raise_for_status()
+                    exp_run = replace(exp_run, id=resp.json()["data"]["id"])
+                except HTTPStatusError as e:
+                    if e.response.status_code == 422:
+                        # Ignore duplicate runs - we'll get the final state from the database
+                        return None
+                    raise
+            return exp_run
+
         output = None
         error: Optional[BaseException] = None
         status = Status(StatusCode.OK)
@@ -354,6 +432,11 @@ def run_experiment(
         assert isinstance(
             output, (dict, list, str, int, float, bool, type(None))
         ), "Output must be JSON serializable"
+
+        # Cache the result if successful
+        if error is None:
+            task_result_cache[cache_key] = output
+
         exp_run = ExperimentRun(
             start_time=_decode_unix_nano(cast(int, span.start_time)),
             end_time=_decode_unix_nano(cast(int, span.end_time)),
