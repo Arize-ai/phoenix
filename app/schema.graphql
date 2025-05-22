@@ -1374,6 +1374,7 @@ enum ModelProvider {
   AZURE_OPENAI
   ANTHROPIC
   GOOGLE
+  DEEPSEEK
 }
 
 input ModelsInput {
