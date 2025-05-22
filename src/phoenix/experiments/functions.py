@@ -715,7 +715,7 @@ def evaluate_experiment(
             # Below is a workaround to avoid timeout errors sometimes
             # encountered when the evaluator is a synchronous function
             # that blocks for too long.
-            future = asyncio.get_running_loop().run_in_executor(
+            resp = await asyncio.get_running_loop().run_in_executor(
                 None,
                 functools.partial(
                     sync_client.post,
@@ -723,7 +723,6 @@ def evaluate_experiment(
                     json=jsonify(eval_run),
                 ),
             )
-            resp = await future
             resp.raise_for_status()
             eval_run = replace(eval_run, id=resp.json()["data"]["id"])
         return eval_run

@@ -4,13 +4,13 @@ from typing import Any, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import Field
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from starlette.requests import Request
 from starlette.status import HTTP_404_NOT_FOUND, HTTP_409_CONFLICT
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.models import ExperimentRunOutput
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.dml_event import ExperimentRunInsertEvent
@@ -97,20 +97,6 @@ async def create_experiment_run(
     error = request_body.error
 
     async with request.app.state.db() as session:
-        # Use FOR UPDATE lock for PostgreSQL to prevent race condition
-        dialect = SupportedSQLDialect(session.bind.dialect.name)
-        experiment_query = select(models.Experiment).where(models.Experiment.id == experiment_rowid)
-        if dialect == SupportedSQLDialect.POSTGRESQL:
-            experiment_query = experiment_query.with_for_update()
-
-        experiment = await session.execute(experiment_query)
-        experiment = experiment.scalar()
-        if not experiment:
-            raise HTTPException(
-                detail=f"Experiment with ID {experiment_gid} does not exist",
-                status_code=HTTP_404_NOT_FOUND,
-            )
-
         exp_run = models.ExperimentRun(
             experiment_id=experiment_rowid,
             dataset_example_id=dataset_example_id,
@@ -124,14 +110,11 @@ async def create_experiment_run(
         try:
             session.add(exp_run)
             await session.flush()
-        except IntegrityError as e:
-            error_str = str(e)
-            if "violates unique constraint" in error_str or "UNIQUE constraint failed" in error_str:
-                raise HTTPException(
-                    detail="This experiment run has already been submitted",
-                    status_code=HTTP_409_CONFLICT,
-                )
-            raise
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+            raise HTTPException(
+                detail="This experiment run has already been submitted",
+                status_code=HTTP_409_CONFLICT,
+            )
     request.state.event_queue.put(ExperimentRunInsertEvent((exp_run.id,)))
     run_gid = GlobalID("ExperimentRun", str(exp_run.id))
     return CreateExperimentRunResponseBody(
