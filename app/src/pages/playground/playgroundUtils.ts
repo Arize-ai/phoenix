@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-import { LLMProvider } from "@arizeai/openinference-semantic-conventions";
-
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { getTemplateFormatUtils } from "@phoenix/components/templateEditor/templateEditorUtils";
 import { TemplateFormat } from "@phoenix/components/templateEditor/types";
@@ -168,7 +166,15 @@ export function processAttributeToolCalls({
             input: toolCallArgs,
           } satisfies AnthropicToolCall;
         }
-        // TODO(apowell): #5348 Add Google tool call
+        case "DEEPSEEK":
+          return {
+            id: tool_call.id ?? "",
+            type: "function" as const,
+            function: {
+              name: tool_call.function?.name ?? "",
+              arguments: toolCallArgs,
+            },
+          } satisfies OpenAIToolCall;
         case "GOOGLE":
           return {
             id: tool_call.id ?? "",
@@ -329,7 +335,7 @@ export function openInferenceModelProviderToPhoenixModelProvider(
   if (provider == null) {
     return null;
   }
-  const maybeProvider = provider.toLowerCase() as LLMProvider;
+  const maybeProvider = provider.toLowerCase();
   switch (maybeProvider) {
     case "openai":
       return "OPENAI";
@@ -339,6 +345,8 @@ export function openInferenceModelProviderToPhoenixModelProvider(
       return "GOOGLE";
     case "azure":
       return "AZURE_OPENAI";
+    case "deepseek":
+      return "DEEPSEEK";
     default:
       return null;
   }
@@ -900,7 +908,11 @@ export const createToolForProvider = ({
         id: generateToolId(),
         definition: createAnthropicToolDefinition(toolNumber),
       };
-    // TODO(apowell): #5348 Add Google tool definition
+    case "DEEPSEEK":
+      return {
+        id: generateToolId(),
+        definition: createOpenAIToolDefinition(toolNumber),
+      };
     case "GOOGLE":
       return {
         id: generateToolId(),
@@ -925,7 +937,8 @@ export const createToolCallForProvider = (
       return createOpenAIToolCall();
     case "ANTHROPIC":
       return createAnthropicToolCall();
-    // TODO(apowell): #5348 Add Google tool call
+    case "DEEPSEEK":
+      return createOpenAIToolCall();
     case "GOOGLE":
       return createOpenAIToolCall();
     default:
