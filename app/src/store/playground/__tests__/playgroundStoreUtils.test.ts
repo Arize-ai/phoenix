@@ -168,6 +168,52 @@ describe("convertMessageToolCallsToProvider", () => {
         [{ test: "test" }],
       ],
     ],
+    DEEPSEEK: [
+      [
+        "convert from anthropic to openai for deepseek",
+        "DEEPSEEK",
+        [
+          getTestAnthropicToolCall({
+            name: "my test func",
+            input: { test: "arg" },
+          }),
+        ],
+        [
+          getTestOpenAIToolCall({
+            function: {
+              name: "my test func",
+              arguments: { test: "arg" },
+            },
+          }),
+        ],
+      ],
+      [
+        "return openai as is if it is already deepseek",
+        "DEEPSEEK",
+        [
+          getTestOpenAIToolCall({
+            function: {
+              name: "my test func",
+              arguments: { test: "arg" },
+            },
+          }),
+        ],
+        [
+          getTestOpenAIToolCall({
+            function: {
+              name: "my test func",
+              arguments: { test: "arg" },
+            },
+          }),
+        ],
+      ],
+      [
+        "return tools as they are if unknown schema for deepseek",
+        "DEEPSEEK",
+        [{ test: "test" }],
+        [{ test: "test" }],
+      ],
+    ],
   };
 
   test.for(Object.values(ProviderToToolTestMap).flat())(
@@ -463,6 +509,96 @@ describe("convertMessageToolCallsToProvider", () => {
       [
         "return tools as they are for google",
         "GOOGLE",
+        [{ id: 1, definition: { test: "test" } }],
+        [{ id: 1, definition: { test: "test" } }],
+      ],
+    ],
+    DEEPSEEK: [
+      [
+        "convert from anthropic to openai for deepseek",
+        "DEEPSEEK",
+        [
+          {
+            id: 1,
+            definition: getTestAnthropicToolDefinition({
+              name: "my test func",
+              description: "This is a test function",
+              input_schema: {
+                type: "object",
+                properties: {
+                  test: {
+                    type: "string",
+                  },
+                },
+              },
+            }),
+          },
+        ],
+        [
+          {
+            id: 1,
+            definition: getTestOpenAIToolDefinition({
+              function: {
+                name: "my test func",
+                description: "This is a test function",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    test: {
+                      type: "string",
+                    },
+                  },
+                },
+              },
+            }),
+          },
+        ],
+      ],
+      [
+        "return openai as is if it is already deepseek",
+        "DEEPSEEK",
+        [
+          {
+            id: 1,
+            definition: getTestOpenAIToolDefinition({
+              function: {
+                name: "my test func",
+                description: "This is a test function",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    test: {
+                      type: "string",
+                    },
+                  },
+                },
+              },
+            }),
+          },
+        ],
+        [
+          {
+            id: 1,
+            definition: getTestOpenAIToolDefinition({
+              function: {
+                name: "my test func",
+                description: "This is a test function",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    test: {
+                      type: "string",
+                    },
+                  },
+                },
+              },
+            }),
+          },
+        ],
+      ],
+      [
+        "return tools as they are if unknown schema for deepseek",
+        "DEEPSEEK",
         [{ id: 1, definition: { test: "test" } }],
         [{ id: 1, definition: { test: "test" } }],
       ],

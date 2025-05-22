@@ -748,6 +748,7 @@ describe("processAttributeToolCalls", () => {
     ],
     // TODO(apowell): #5348 Add Google tool tests
     GOOGLE: ["GOOGLE", testSpanToolCall, expectedUnknownToolCall],
+    DEEPSEEK: ["DEEPSEEK", testSpanToolCall, expectedTestOpenAIToolCall],
   };
   test.for(Object.values(ProviderToToolCallTestMap))(
     "should return %s tools, if they are valid",
@@ -1278,6 +1279,7 @@ describe("getToolsFromAttributes", () => {
     ],
     // TODO(apowell): #5348 Add Google tool tests
     GOOGLE: ["GOOGLE", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
+    DEEPSEEK: ["DEEPSEEK", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
   };
 
   test.for(Object.values(ProviderToToolTestMap))(

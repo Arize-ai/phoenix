@@ -185,7 +185,7 @@ export type LlmProviderToolDefinition = z.infer<
 
 type ToolDefinitionWithProvider =
   | {
-      provider: Extract<ModelProvider, "OPENAI" | "AZURE_OPENAI">;
+      provider: Extract<ModelProvider, "OPENAI" | "AZURE_OPENAI" | "DEEPSEEK">;
       validatedToolDefinition: OpenAIToolDefinition;
     }
   | {
@@ -229,6 +229,7 @@ type ProviderToToolDefinitionMap = {
   ANTHROPIC: AnthropicToolDefinition;
   // Use generic JSON type for unknown tool formats / new providers
   GOOGLE: JSONLiteral;
+  DEEPSEEK: OpenAIToolDefinition;
 };
 
 /**
@@ -242,6 +243,7 @@ export const toOpenAIToolDefinition = (
   switch (provider) {
     case "AZURE_OPENAI":
     case "OPENAI":
+    case "DEEPSEEK":
       return validatedToolDefinition;
     case "ANTHROPIC":
       return anthropicToolToOpenAI.parse(validatedToolDefinition);
@@ -265,6 +267,7 @@ export const fromOpenAIToolDefinition = <T extends ModelProvider>({
   switch (targetProvider) {
     case "AZURE_OPENAI":
     case "OPENAI":
+    case "DEEPSEEK":
       return toolDefinition as ProviderToToolDefinitionMap[T];
     case "ANTHROPIC":
       return openAIToolToAnthropic.parse(

@@ -21,6 +21,7 @@ export const DEFAULT_TOOL_CHOICES_BY_PROVIDER = {
   OPENAI: ["required", "auto", "none"] as const,
   AZURE_OPENAI: ["required", "auto", "none"] as const,
   ANTHROPIC: ["any", "auto", "none"] as const,
+  DEEPSEEK: ["required", "auto", "none"] as const,
 } satisfies Partial<
   Record<ModelProvider, (string | Record<string, unknown>)[]>
 >;
@@ -61,6 +62,16 @@ export const findToolChoiceType = (
     case "GOOGLE":
       // TODO(apowell): #5348 Add Google tool choice schema
       return "auto";
+    case "DEEPSEEK":
+      // DeepSeek uses the OpenAI-compatible API
+      if (
+        isObject(choice) &&
+        "type" in choice &&
+        typeof choice.type === "string"
+      ) {
+        return choice.type;
+      }
+      return choice;
     default:
       assertUnreachable(provider);
   }
@@ -207,6 +218,7 @@ export function ToolChoiceSelector<
           switch (provider) {
             case "AZURE_OPENAI":
             case "OPENAI":
+            case "DEEPSEEK":
               onChange(
                 makeOpenAIToolChoice({
                   type: "function",
@@ -231,6 +243,7 @@ export function ToolChoiceSelector<
           switch (provider) {
             case "AZURE_OPENAI":
             case "OPENAI":
+            case "DEEPSEEK":
               onChange(
                 makeOpenAIToolChoice(
                   choice as (typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER)["OPENAI"][number]

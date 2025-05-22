@@ -329,7 +329,7 @@ export const openAIMessageToPrompt = openAIMessageSchema.transform(
 
 type MessageWithProvider =
   | {
-      provider: Extract<ModelProvider, "OPENAI" | "AZURE_OPENAI">;
+      provider: Extract<ModelProvider, "OPENAI" | "AZURE_OPENAI" | "DEEPSEEK">;
       validatedMessage: OpenAIMessage;
     }
   | {
@@ -348,23 +348,21 @@ type MessageWithProvider =
 export const detectMessageProvider = (
   message: unknown
 ): MessageWithProvider => {
+  // Try parsing as an OpenAI message
   const { success: openaiSuccess, data: openaiData } =
     openAIMessageSchema.safeParse(message);
   if (openaiSuccess) {
-    return {
-      // we cannot disambiguate between azure openai and openai here
-      provider: "OPENAI",
-      validatedMessage: openaiData,
-    };
+    // we cannot disambiguate between azure openai and openai here
+    return { provider: "OPENAI", validatedMessage: openaiData };
   }
+
+  // Try parsing as an Anthropic message
   const { success: anthropicSuccess, data: anthropicData } =
     anthropicMessageSchema.safeParse(message);
   if (anthropicSuccess) {
-    return {
-      provider: "ANTHROPIC",
-      validatedMessage: anthropicData,
-    };
+    return { provider: "ANTHROPIC", validatedMessage: anthropicData };
   }
+
   return { provider: "UNKNOWN", validatedMessage: null };
 };
 
@@ -381,14 +379,17 @@ export const fromOpenAIMessage = <T extends ModelProvider>({
   switch (targetProvider) {
     case "AZURE_OPENAI":
     case "OPENAI":
+    case "DEEPSEEK":
       return message as ProviderToMessageMap[T];
     case "ANTHROPIC":
-      return openAIMessageToAnthropic.parse(message) as ProviderToMessageMap[T];
+      return openAIMessageToAnthropic.parse(
+        message
+      ) as ProviderToMessageMap[T];
+    // TODO: convert to Google
     case "GOOGLE":
-      // TODO: Add Google message support
       return message as ProviderToMessageMap[T];
     default:
-      return assertUnreachable(targetProvider);
+      assertUnreachable(targetProvider);
   }
 };
 
@@ -410,6 +411,7 @@ type ProviderToMessageMap = {
   ANTHROPIC: AnthropicMessage;
   // Use generic JSON type for unknown message formats / new providers
   GOOGLE: JSONLiteral;
+  DEEPSEEK: OpenAIMessage;
 };
 
 /**
