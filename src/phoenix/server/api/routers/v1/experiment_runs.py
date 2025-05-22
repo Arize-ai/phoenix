@@ -4,8 +4,9 @@ from typing import Any, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import Field
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from starlette.requests import Request
-from starlette.status import HTTP_404_NOT_FOUND
+from starlette.status import HTTP_404_NOT_FOUND, HTTP_409_CONFLICT
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -59,7 +60,11 @@ class CreateExperimentRunResponseBody(ResponseBody[CreateExperimentRunResponseBo
             {
                 "status_code": HTTP_404_NOT_FOUND,
                 "description": "Experiment or dataset example not found",
-            }
+            },
+            {
+                "status_code": HTTP_409_CONFLICT,
+                "description": "This experiment run has already been submitted",
+            },
         ]
     ),
 )
@@ -116,8 +121,17 @@ async def create_experiment_run(
             end_time=end_time,
             error=error,
         )
-        session.add(exp_run)
-        await session.flush()
+        try:
+            session.add(exp_run)
+            await session.flush()
+        except IntegrityError as e:
+            error_str = str(e)
+            if "violates unique constraint" in error_str or "UNIQUE constraint failed" in error_str:
+                raise HTTPException(
+                    detail="This experiment run has already been submitted",
+                    status_code=HTTP_409_CONFLICT,
+                )
+            raise
     request.state.event_queue.put(ExperimentRunInsertEvent((exp_run.id,)))
     run_gid = GlobalID("ExperimentRun", str(exp_run.id))
     return CreateExperimentRunResponseBody(

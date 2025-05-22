@@ -236,7 +236,7 @@ def run_experiment(
     # Create a cache for task results
     task_result_cache: dict[tuple[str, int], Any] = {}
 
-    def sync_run_experiment(test_case: TestCase) -> ExperimentRun:
+    def sync_run_experiment(test_case: TestCase) -> Optional[ExperimentRun]:
         example, repetition_number = test_case.example, test_case.repetition_number
         cache_key = (example.id, repetition_number)
 
@@ -320,10 +320,6 @@ def run_experiment(
             output, (dict, list, str, int, float, bool, type(None))
         ), "Output must be JSON serializable"
 
-        # Cache the result if successful
-        if error is None:
-            task_result_cache[cache_key] = output
-
         exp_run = ExperimentRun(
             start_time=_decode_unix_nano(cast(int, span.start_time)),
             end_time=_decode_unix_nano(cast(int, span.end_time)),
@@ -342,14 +338,16 @@ def run_experiment(
                 )
                 resp.raise_for_status()
                 exp_run = replace(exp_run, id=resp.json()["data"]["id"])
+                if error is None:
+                    task_result_cache[cache_key] = output
             except HTTPStatusError as e:
-                if e.response.status_code == 422:
-                    # Ignore duplicate runs - we'll get the final state from the database
+                if e.response.status_code == 409:
+                    # 409 conflict errors are caused by submitting duplicate runs
                     return None
                 raise
         return exp_run
 
-    async def async_run_experiment(test_case: TestCase) -> ExperimentRun:
+    async def async_run_experiment(test_case: TestCase) -> Optional[ExperimentRun]:
         example, repetition_number = test_case.example, test_case.repetition_number
         cache_key = (example.id, repetition_number)
 
@@ -383,8 +381,8 @@ def run_experiment(
                     resp.raise_for_status()
                     exp_run = replace(exp_run, id=resp.json()["data"]["id"])
                 except HTTPStatusError as e:
-                    if e.response.status_code == 422:
-                        # Ignore duplicate runs - we'll get the final state from the database
+                    if e.response.status_code == 409:
+                        # 409 conflict errors are caused by submitting duplicate runs
                         return None
                     raise
             return exp_run
@@ -433,10 +431,6 @@ def run_experiment(
             output, (dict, list, str, int, float, bool, type(None))
         ), "Output must be JSON serializable"
 
-        # Cache the result if successful
-        if error is None:
-            task_result_cache[cache_key] = output
-
         exp_run = ExperimentRun(
             start_time=_decode_unix_nano(cast(int, span.start_time)),
             end_time=_decode_unix_nano(cast(int, span.end_time)),
@@ -461,6 +455,8 @@ def run_experiment(
                 resp = await resp
                 resp.raise_for_status()
                 exp_run = replace(exp_run, id=resp.json()["data"]["id"])
+                if error is None:
+                    task_result_cache[cache_key] = output
             except HTTPStatusError as e:
                 if e.response.status_code == 422:
                     # Ignore duplicate runs - we'll get the final state from the database
