@@ -318,7 +318,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/projects/{project_identifier}/spans": {
+    "/v1/projects/{project_identifier}/spans/otlpv1": {
         parameters: {
             query?: never;
             header?: never;
@@ -566,23 +566,6 @@ export interface components {
         AnnotateSpansResponseBody: {
             /** Data */
             data: components["schemas"]["InsertedSpanAnnotation"][];
-        };
-        /** AnyValue */
-        AnyValue: {
-            /** Array Value */
-            array_value?: null;
-            /** Bool Value */
-            bool_value?: boolean | null;
-            /** Bytes Value */
-            bytes_value?: string | null;
-            /** Double Value */
-            double_value?: number | components["schemas"]["DoubleValue"] | string | null;
-            /** Int Value */
-            int_value?: number | string | null;
-            /** Kvlist Value */
-            kvlist_value?: null;
-            /** String Value */
-            string_value?: string | null;
         };
         /** CategoricalAnnotationConfig */
         CategoricalAnnotationConfig: {
@@ -867,18 +850,13 @@ export interface components {
             /** Data */
             data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
         };
-        /**
-         * DoubleValue
-         * @enum {string}
-         */
-        DoubleValue: "Infinity" | "-Infinity" | "NaN";
         /** Event */
         Event: {
             /**
              * Attributes
              * @description attributes is a collection of attribute key/value pairs on the event. Attribute keys MUST be unique (it is not allowed to have more than one attribute with the same key).
              */
-            attributes?: components["schemas"]["KeyValue"][] | null;
+            attributes?: components["schemas"]["OtlpKeyValue"][] | null;
             /**
              * Dropped Attributes Count
              * @description dropped_attributes_count is the number of dropped attributes. If the value is 0, then no attributes were dropped.
@@ -1107,12 +1085,6 @@ export interface components {
              */
             id: string;
         };
-        /** KeyValue */
-        KeyValue: {
-            /** Key */
-            key?: string | null;
-            value?: components["schemas"]["AnyValue"] | null;
-        };
         /**
          * Kind
          * @enum {string}
@@ -1165,6 +1137,34 @@ export interface components {
          * @enum {string}
          */
         OptimizationDirection: "MINIMIZE" | "MAXIMIZE" | "NONE";
+        /** OtlpAnyValue */
+        OtlpAnyValue: {
+            /** Array Value */
+            array_value?: null;
+            /** Bool Value */
+            bool_value?: boolean | null;
+            /** Bytes Value */
+            bytes_value?: string | null;
+            /** Double Value */
+            double_value?: number | components["schemas"]["OtlpDoubleValue"] | string | null;
+            /** Int Value */
+            int_value?: number | string | null;
+            /** Kvlist Value */
+            kvlist_value?: null;
+            /** String Value */
+            string_value?: string | null;
+        };
+        /**
+         * OtlpDoubleValue
+         * @enum {string}
+         */
+        OtlpDoubleValue: "Infinity" | "-Infinity" | "NaN";
+        /** OtlpKeyValue */
+        OtlpKeyValue: {
+            /** Key */
+            key?: string | null;
+            value?: components["schemas"]["OtlpAnyValue"] | null;
+        };
         /** OtlpSpan */
         OtlpSpan: {
             /**
@@ -1180,7 +1180,7 @@ export interface components {
              *     https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute
              *     Attribute keys MUST be unique (it is not allowed to have more than one attribute with the same key).
              */
-            attributes?: components["schemas"]["KeyValue"][] | null;
+            attributes?: components["schemas"]["OtlpKeyValue"][] | null;
             /**
              * Dropped Attributes Count
              * @description dropped_attributes_count is the number of attributes that were discarded. Attributes can be discarded because their keys are too long or because there are too many attributes. If this value is 0, then no attributes were dropped.
@@ -1267,7 +1267,7 @@ export interface components {
              */
             start_time_unix_nano?: number | string | null;
             /** @description An optional final status for this span. Semantically when Status isn't set, it means span's status code is unset, i.e. assume STATUS_CODE_UNSET (code = 0). */
-            status?: components["schemas"]["Status"] | null;
+            status?: components["schemas"]["OtlpStatus"] | null;
             /**
              * Trace Id
              * @description A unique identifier for a trace. All spans from the same trace share the same `trace_id`. The ID is a 16-byte array. An ID with all zeroes OR of length other than 16 bytes is considered invalid (empty string in OTLP/JSON is zero-length and thus is also invalid).
@@ -1281,6 +1281,19 @@ export interface components {
              *     See also https://github.com/w3c/distributed-tracing for more details about this field.
              */
             trace_state?: string | null;
+        };
+        /** OtlpStatus */
+        OtlpStatus: {
+            /**
+             * Code
+             * @description The status code.
+             */
+            code?: number | null;
+            /**
+             * Message
+             * @description A developer-facing human readable error message.
+             */
+            message?: string | null;
         };
         /** Project */
         Project: {
@@ -1740,19 +1753,6 @@ export interface components {
             data: components["schemas"]["OtlpSpan"][];
             /** Next Cursor */
             next_cursor: string | null;
-        };
-        /** Status */
-        Status: {
-            /**
-             * Code
-             * @description The status code.
-             */
-            code?: number | null;
-            /**
-             * Message
-             * @description A developer-facing human readable error message.
-             */
-            message?: string | null;
         };
         /** TextContentPart */
         TextContentPart: {

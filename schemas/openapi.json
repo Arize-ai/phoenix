@@ -1681,7 +1681,7 @@
         }
       }
     },
-    "/v1/projects/{project_identifier}/spans": {
+    "/v1/projects/{project_identifier}/spans/otlpv1": {
       "get": {
         "tags": [
           "spans"
@@ -3045,89 +3045,6 @@
         ],
         "title": "AnnotateSpansResponseBody"
       },
-      "AnyValue": {
-        "properties": {
-          "array_value": {
-            "type": "null",
-            "title": "Array Value"
-          },
-          "bool_value": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Bool Value"
-          },
-          "bytes_value": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^[A-Za-z0-9+/]*={0,2}$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Bytes Value"
-          },
-          "double_value": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "$ref": "#/components/schemas/DoubleValue"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Double Value"
-          },
-          "int_value": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "exclusiveMaximum": 9.223372036854776e+18,
-                "minimum": -9.223372036854776e+18
-              },
-              {
-                "type": "string",
-                "pattern": "^-?[0-9]+$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Int Value"
-          },
-          "kvlist_value": {
-            "type": "null",
-            "title": "Kvlist Value"
-          },
-          "string_value": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "String Value"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "title": "AnyValue"
-      },
       "CategoricalAnnotationConfig": {
         "properties": {
           "name": {
@@ -3845,22 +3762,13 @@
         ],
         "title": "DeleteAnnotationConfigResponseBody"
       },
-      "DoubleValue": {
-        "type": "string",
-        "enum": [
-          "Infinity",
-          "-Infinity",
-          "NaN"
-        ],
-        "title": "DoubleValue"
-      },
       "Event": {
         "properties": {
           "attributes": {
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/components/schemas/KeyValue"
+                  "$ref": "#/components/schemas/OtlpKeyValue"
                 },
                 "type": "array"
               },
@@ -4437,34 +4345,6 @@
         ],
         "title": "InsertedSpanAnnotation"
       },
-      "KeyValue": {
-        "properties": {
-          "key": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Key"
-          },
-          "value": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AnyValue"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "title": "KeyValue"
-      },
       "Kind": {
         "type": "string",
         "enum": [
@@ -4622,13 +4502,133 @@
         ],
         "title": "OptimizationDirection"
       },
+      "OtlpAnyValue": {
+        "properties": {
+          "array_value": {
+            "type": "null",
+            "title": "Array Value"
+          },
+          "bool_value": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bool Value"
+          },
+          "bytes_value": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bytes Value"
+          },
+          "double_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "$ref": "#/components/schemas/OtlpDoubleValue"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Double Value"
+          },
+          "int_value": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMaximum": 9.223372036854776e+18,
+                "minimum": -9.223372036854776e+18
+              },
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Int Value"
+          },
+          "kvlist_value": {
+            "type": "null",
+            "title": "Kvlist Value"
+          },
+          "string_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "String Value"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OtlpAnyValue"
+      },
+      "OtlpDoubleValue": {
+        "type": "string",
+        "enum": [
+          "Infinity",
+          "-Infinity",
+          "NaN"
+        ],
+        "title": "OtlpDoubleValue"
+      },
+      "OtlpKeyValue": {
+        "properties": {
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OtlpAnyValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OtlpKeyValue"
+      },
       "OtlpSpan": {
         "properties": {
           "attributes": {
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/components/schemas/KeyValue"
+                  "$ref": "#/components/schemas/OtlpKeyValue"
                 },
                 "type": "array"
               },
@@ -4809,7 +4809,7 @@
           "status": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/Status"
+                "$ref": "#/components/schemas/OtlpStatus"
               },
               {
                 "type": "null"
@@ -4846,6 +4846,39 @@
         "additionalProperties": false,
         "type": "object",
         "title": "OtlpSpan"
+      },
+      "OtlpStatus": {
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": -2147483648.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code",
+            "description": "The status code."
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message",
+            "description": "A developer-facing human readable error message."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OtlpStatus"
       },
       "Project": {
         "properties": {
@@ -6113,39 +6146,6 @@
         ],
         "title": "SpanSearchResponseBody",
         "description": "Paginated response where each span follows OTLP JSON structure."
-      },
-      "Status": {
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "maximum": 2147483647.0,
-                "minimum": -2147483648.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Code",
-            "description": "The status code."
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Message",
-            "description": "A developer-facing human readable error message."
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "title": "Status"
       },
       "TextContentPart": {
         "properties": {

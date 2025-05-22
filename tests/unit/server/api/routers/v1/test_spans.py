@@ -13,7 +13,7 @@ from phoenix import Client as LegacyClient
 from phoenix import TraceDataset
 from phoenix.client import Client
 from phoenix.db import models
-from phoenix.server.api.routers.v1.spans import AnyValue, OtlpSpan, Status
+from phoenix.server.api.routers.v1.spans import OtlpAnyValue, OtlpSpan, OtlpStatus
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanQuery
 
@@ -40,7 +40,6 @@ async def test_span_round_tripping_with_docs(
     assert new_count == orig_count * 2
 
 
-@pytest.mark.xfail(condition=True, reason="The spans client is not yet released")
 async def test_querying_spans_with_new_client(
     legacy_px_client: LegacyClient,
     px_client: Client,
@@ -233,7 +232,7 @@ async def span_search_test_data(db: DbSessionFactory) -> None:
 async def test_span_search_basic(
     httpx_client: httpx.AsyncClient, span_search_test_data: None
 ) -> None:
-    resp = await httpx_client.get("v1/projects/search-test/spans")
+    resp = await httpx_client.get("v1/projects/search-test/spans/otlpv1")
     assert resp.is_success
     data = resp.json()
     spans = [OtlpSpan.model_validate(s) for s in data["data"]]
@@ -246,14 +245,17 @@ async def test_span_search_basic(
         assert isinstance(span.start_time_unix_nano, (int, str))
         assert isinstance(span.end_time_unix_nano, (int, str))
         assert isinstance(span.attributes, (list, type(None)))
-        assert isinstance(span.status, (Status, type(None)))
+        assert isinstance(span.status, (OtlpStatus, type(None)))
+        if span.status is not None:
+            assert isinstance(span.status.code, int)
+            assert span.status.code in (0, 1, 2)  # Valid OTLP status codes
 
 
 async def test_span_search_annotation_filter(
     httpx_client: httpx.AsyncClient, span_search_test_data: None
 ) -> None:
     resp = await httpx_client.get(
-        "v1/projects/search-test/spans",
+        "v1/projects/search-test/spans/otlpv1",
         params={"annotationNames": ["TestA"]},
     )
     assert resp.is_success
@@ -268,7 +270,10 @@ async def test_span_search_annotation_filter(
         assert isinstance(span.start_time_unix_nano, (int, str))
         assert isinstance(span.end_time_unix_nano, (int, str))
         assert isinstance(span.attributes, (list, type(None)))
-        assert isinstance(span.status, (Status, type(None)))
+        assert isinstance(span.status, (OtlpStatus, type(None)))
+        if span.status is not None:
+            assert isinstance(span.status.code, int)
+            assert span.status.code in (0, 1, 2)  # Valid OTLP status codes
 
 
 async def test_span_search_time_slice(
@@ -277,7 +282,7 @@ async def test_span_search_time_slice(
     start = "2021-01-01T00:01:00+00:00"
     end = "2021-01-01T00:03:00+00:00"
     resp = await httpx_client.get(
-        "v1/projects/search-test/spans",
+        "v1/projects/search-test/spans/otlpv1",
         params={"start_time": start, "end_time": end},
     )
     assert resp.is_success
@@ -293,17 +298,20 @@ async def test_span_search_time_slice(
         assert isinstance(span.start_time_unix_nano, (int, str))
         assert isinstance(span.end_time_unix_nano, (int, str))
         assert isinstance(span.attributes, (list, type(None)))
-        assert isinstance(span.status, (Status, type(None)))
+        assert isinstance(span.status, (OtlpStatus, type(None)))
+        if span.status is not None:
+            assert isinstance(span.status.code, int)
+            assert span.status.code in (0, 1, 2)  # Valid OTLP status codes
 
 
 async def test_span_search_sort_direction(
     httpx_client: httpx.AsyncClient, span_search_test_data: None
 ) -> None:
     resp_desc = await httpx_client.get(
-        "v1/projects/search-test/spans", params={"sort_direction": "desc"}
+        "v1/projects/search-test/spans/otlpv1", params={"sort_direction": "desc"}
     )
     resp_asc = await httpx_client.get(
-        "v1/projects/search-test/spans", params={"sort_direction": "asc"}
+        "v1/projects/search-test/spans/otlpv1", params={"sort_direction": "asc"}
     )
     assert resp_desc.is_success and resp_asc.is_success
     spans_desc = [OtlpSpan.model_validate(s) for s in resp_desc.json()["data"]]
@@ -317,7 +325,7 @@ async def test_span_search_pagination(
     httpx_client: httpx.AsyncClient, span_search_test_data: None
 ) -> None:
     resp1 = await httpx_client.get(
-        "v1/projects/search-test/spans",
+        "v1/projects/search-test/spans/otlpv1",
         params={"limit": 2, "sort_direction": "asc"},
     )
     assert resp1.is_success
@@ -328,7 +336,7 @@ async def test_span_search_pagination(
     cursor = body1["next_cursor"]
     # Second page
     resp2 = await httpx_client.get(
-        "v1/projects/search-test/spans",
+        "v1/projects/search-test/spans/otlpv1",
         params={"cursor": cursor, "sort_direction": "asc"},
     )
     assert resp2.is_success
@@ -345,14 +353,17 @@ async def test_span_search_pagination(
             assert isinstance(span.start_time_unix_nano, (int, str))
             assert isinstance(span.end_time_unix_nano, (int, str))
             assert isinstance(span.attributes, (list, type(None)))
-            assert isinstance(span.status, (Status, type(None)))
+            assert isinstance(span.status, (OtlpStatus, type(None)))
+            if span.status is not None:
+                assert isinstance(span.status.code, int)
+                assert span.status.code in (0, 1, 2)  # Valid OTLP status codes
 
 
 async def test_span_attributes_conversion(
     httpx_client: httpx.AsyncClient, project_with_a_single_trace_and_span: None
 ) -> None:
     """Test that span attributes are properly converted to OTLP format."""
-    resp = await httpx_client.get("v1/projects/project-name/spans")
+    resp = await httpx_client.get("v1/projects/project-name/spans/otlpv1")
     assert resp.is_success
     data = resp.json()
     spans = [OtlpSpan.model_validate(s) for s in data["data"]]
@@ -369,12 +380,12 @@ async def test_span_attributes_conversion(
 
     # Verify the input attribute value
     assert input_attr.value is not None
-    assert isinstance(input_attr.value, AnyValue)
+    assert isinstance(input_attr.value, OtlpAnyValue)
     assert input_attr.value.string_value == "chain-span-input-value"
 
     # Verify the output attribute value
     assert output_attr.value is not None
-    assert isinstance(output_attr.value, AnyValue)
+    assert isinstance(output_attr.value, OtlpAnyValue)
     assert output_attr.value.string_value == "chain-span-output-value"
 
 
@@ -383,7 +394,7 @@ async def test_span_events_conversion(
     project_with_a_single_trace_and_span_with_events: None,
 ) -> None:
     """Test that span events are properly converted to OTLP format."""
-    resp = await httpx_client.get("v1/projects/project-name/spans")
+    resp = await httpx_client.get("v1/projects/project-name/spans/otlpv1")
     assert resp.is_success
     data = resp.json()
     spans = [OtlpSpan.model_validate(s) for s in data["data"]]
