@@ -66,7 +66,7 @@ database:
     db: "phoenix" # PHOENIX_POSTGRES_DB
     schema: "" # PHOENIX_SQL_DATABASE_SCHEMA
   # Allocated storage capacity for the database (in GiB, informational)
-  allocatedStorageGiB: null # PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES
+  allocatedStorageGiB: 1 # PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES
 
 # Authentication and security
 auth:
