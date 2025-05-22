@@ -1216,6 +1216,7 @@ enum GenerativeProviderKey {
   ANTHROPIC
   AZURE_OPENAI
   GOOGLE
+  DEEPSEEK
 }
 
 """
