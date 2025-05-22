@@ -432,6 +432,7 @@ def is_prompt_invocation_parameters(
             PromptAzureOpenAIInvocationParameters,
             PromptAnthropicInvocationParameters,
             PromptGoogleInvocationParameters,
+            PromptDeepSeekInvocationParameters,
         ),
     )
 

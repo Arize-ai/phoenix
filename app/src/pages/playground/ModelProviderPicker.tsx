@@ -42,6 +42,8 @@ export function ModelProviderPicker({
     `,
     query
   );
+  // eslint-disable-next-line no-console
+  console.log(data.modelProviders);
   const installedProviders = data.modelProviders.filter(
     (provider) => provider.dependenciesInstalled
   );
@@ -110,10 +112,10 @@ export function ModelProviderPicker({
             {data.modelProviders
               .filter((provider) => !provider.dependenciesInstalled)
               .map((provider) => (
-                <>
+                <div key={provider.key}>
                   {provider.dependencies?.join(", ") ?? provider.name}
                   <br />
-                </>
+                </div>
               ))}
           </Tooltip>
         </TooltipTrigger>

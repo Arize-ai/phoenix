@@ -456,6 +456,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
 @register_llm_client(
     provider_key=GenerativeProviderKey.DEEPSEEK,
     model_names=[
+        PROVIDER_DEFAULT,
         "deepseek-chat",
         "deepseek-reasoner",
     ],
@@ -473,7 +474,7 @@ class DeepSeekStreamingClient(OpenAIBaseStreamingClient):
             if not base_url:
                 raise BadRequest("An API key is required for OpenAI models")
             api_key = "sk-fake-api-key"
-        client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+        client = AsyncOpenAI(api_key=api_key, base_url=base_url or "https://api.deepseek.com")
         super().__init__(client=client, model=model, api_key=api_key)
         # DeepSeek uses OpenAI-compatible API but we'll track it as a separate provider
         # Adding a custom "deepseek" provider value to make it distinguishable in traces
