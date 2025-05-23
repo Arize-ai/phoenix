@@ -2,7 +2,7 @@ import base64
 import logging
 from datetime import datetime, timezone, tzinfo
 from io import StringIO
-from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union, cast
+from typing import TYPE_CHECKING, Any, Iterable, Literal, Optional, Sequence, Union, cast
 
 import httpx
 
@@ -11,7 +11,9 @@ if TYPE_CHECKING:
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.types.spans import (
+    Span,
     SpanQuery,
+    convert_otlp_span_to_span,
 )
 
 logger = logging.getLogger(__name__)
@@ -139,6 +141,7 @@ class Spans:
         *,
         spans_dataframe: Optional["pd.DataFrame"] = None,
         span_ids: Optional[Iterable[str]] = None,
+        spans: Optional[list[Span]] = None,
         project_identifier: str = "default",
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -146,12 +149,13 @@ class Spans:
         """
         Fetches span annotations and returns them as a pandas DataFrame.
 
-        Exactly one of *spans_dataframe* or *span_ids* should be provided.
+        Exactly one of *spans_dataframe*, *span_ids*, or *spans* should be provided.
 
         Args:
             spans_dataframe: A DataFrame (typically returned by `get_spans_dataframe`) with a
                 `context.span_id` or `span_id` column.
             span_ids: An iterable of span IDs.
+            spans: A list of Span objects (typically returned by `get_spans`).
             project_identifier: The project identifier (name or ID) used in the API path.
             limit: Maximum number of annotations returned per request page.
             timeout: Optional request timeout in seconds.
@@ -160,8 +164,8 @@ class Spans:
             A DataFrame where each row corresponds to a single span annotation.
 
         Raises:
-            ValueError: If neither or both of *spans_dataframe* and *span_ids* are provided, or if
-                the `context.span_id` or `span_id` column is missing from *spans_dataframe*.
+            ValueError: If not exactly one of *spans_dataframe*, *span_ids*, or *spans* is provided,
+                or if the `context.span_id` or `span_id` column is missing from *spans_dataframe*.
             ImportError: If pandas is not installed.
             httpx.HTTPStatusError: If the API returns an error response.
         """
@@ -174,19 +178,30 @@ class Spans:
             )
 
         # Validate input parameters
-        if (spans_dataframe is None and span_ids is None) or (
-            spans_dataframe is not None and span_ids is not None
-        ):
-            raise ValueError("Provide exactly one of 'spans_dataframe' or 'span_ids'.")
+        provided_params = sum(
+            [
+                spans_dataframe is not None,
+                span_ids is not None,
+                spans is not None,
+            ]
+        )
+        if provided_params != 1:
+            raise ValueError("Provide exactly one of 'spans_dataframe', 'span_ids', or 'spans'.")
 
         if spans_dataframe is not None:
             span_ids_raw: list[str] = cast(
                 list[str], spans_dataframe["context.span_id"].dropna().tolist()
             )
             span_ids_list = list({*span_ids_raw})
-        else:
-            assert span_ids is not None
+        elif span_ids is not None:
             span_ids_list = list({*span_ids})
+        else:  # spans is not None
+            assert spans is not None
+            span_ids_list = []
+            for span in spans:
+                if "span_id" in span and span["span_id"]:
+                    span_ids_list.append(span["span_id"])
+            span_ids_list = list({*span_ids_list})  # Remove duplicates
 
         if not span_ids_list:
             return pd.DataFrame()
@@ -229,7 +244,8 @@ class Spans:
     def get_span_annotations(
         self,
         *,
-        span_ids: Iterable[str],
+        span_ids: Optional[Iterable[str]] = None,
+        spans: Optional[list[Span]] = None,
         project_identifier: str,
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -237,8 +253,11 @@ class Spans:
         """
         Fetches span annotations and returns them as a list of SpanAnnotation objects.
 
+        Exactly one of *span_ids* or *spans* should be provided.
+
         Args:
             span_ids: An iterable of span IDs.
+            spans: A list of Span objects (typically returned by `get_spans`).
             project_identifier: The project identifier (name or ID) used in the API path.
             limit: Maximum number of annotations returned per request page.
             timeout: Optional request timeout in seconds.
@@ -247,9 +266,28 @@ class Spans:
             A list of SpanAnnotation objects.
 
         Raises:
+            ValueError: If not exactly one of *span_ids* or *spans* is provided.
             httpx.HTTPStatusError: If the API returns an error response.
         """
-        span_ids_list = list({*span_ids})
+        # Validate input parameters
+        provided_params = sum(
+            [
+                span_ids is not None,
+                spans is not None,
+            ]
+        )
+        if provided_params != 1:
+            raise ValueError("Provide exactly one of 'span_ids' or 'spans'.")
+
+        if span_ids is not None:
+            span_ids_list = list({*span_ids})
+        else:  # spans is not None
+            assert spans is not None
+            span_ids_list = []
+            for span in spans:
+                if "span_id" in span and span["span_id"]:
+                    span_ids_list.append(span["span_id"])
+            span_ids_list = list({*span_ids_list})  # Remove duplicates
 
         if not span_ids_list:
             return []
@@ -283,6 +321,81 @@ class Spans:
                     break
 
         return annotations
+
+    def get_spans(
+        self,
+        *,
+        project_identifier: str,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        annotation_names: Optional[Sequence[str]] = None,
+        limit: int = 100,
+        sort_direction: Literal["asc", "desc"] = "desc",
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> list[Span]:
+        """
+        Retrieves spans in a simplified, ergonomic format.
+
+        This method returns spans with flattened attributes and cleaner structure
+        for easier programmatic access.
+
+        Args:
+            project_identifier: The project identifier (name or ID) used in the API path.
+            start_time: Optional start time for filtering (inclusive lower bound).
+            end_time: Optional end time for filtering (exclusive upper bound).
+            annotation_names: Optional list of annotation names to filter by. If provided, only
+                spans that have at least one annotation with one of these names will be returned.
+            limit: Maximum number of spans to return (default: 100).
+            sort_direction: Sort direction for the sort field (default: "desc").
+            timeout: Optional request timeout in seconds.
+
+        Returns:
+            A list of Span objects.
+
+        Raises:
+            httpx.HTTPStatusError: If the API returns an error response.
+        """
+        all_spans: list[v1.OtlpSpan] = []
+        cursor: Optional[str] = None
+        page_size = min(100, limit)
+
+        while len(all_spans) < limit:
+            params: dict[str, Union[int, str, Sequence[str]]] = {
+                "limit": page_size,
+                "sort_direction": sort_direction,
+            }
+
+            if start_time:
+                params["start_time"] = (
+                    start_time.isoformat() if isinstance(start_time, datetime) else start_time
+                )
+            if end_time:
+                params["end_time"] = (
+                    end_time.isoformat() if isinstance(end_time, datetime) else end_time
+                )
+            if annotation_names:
+                params["annotationNames"] = annotation_names
+            if cursor:
+                params["cursor"] = cursor
+
+            response = self._client.get(
+                url=f"v1/projects/{project_identifier}/spans/otlpv1",
+                params=params,
+                headers={"accept": "application/json"},
+                timeout=timeout,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            payload = cast(v1.SpanSearchResponseBody, payload)
+
+            spans = payload["data"]
+            all_spans.extend(spans)
+
+            cursor = payload.get("next_cursor")
+            if not cursor or not spans:
+                break
+
+        return [convert_otlp_span_to_span(cast(dict[str, Any], span)) for span in all_spans[:limit]]
 
 
 class AsyncSpans:
@@ -403,6 +516,7 @@ class AsyncSpans:
         *,
         spans_dataframe: Optional["pd.DataFrame"] = None,
         span_ids: Optional[Iterable[str]] = None,
+        spans: Optional[list[Span]] = None,
         project_identifier: str,
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -410,12 +524,13 @@ class AsyncSpans:
         """
         Fetches span annotations and returns them as a pandas DataFrame.
 
-        Exactly one of *spans_dataframe* or *span_ids* should be provided.
+        Exactly one of *spans_dataframe*, *span_ids*, or *spans* should be provided.
 
         Args:
             spans_dataframe: A DataFrame (typically returned by `get_spans_dataframe`) with a
                 `context.span_id` or `span_id` column.
             span_ids: An iterable of span IDs.
+            spans: A list of Span objects (typically returned by `get_spans`).
             project_identifier: The project identifier (name or ID) used in the API path.
             limit: Maximum number of annotations returned per request page.
             timeout: Optional request timeout in seconds.
@@ -424,8 +539,8 @@ class AsyncSpans:
             A DataFrame where each row corresponds to a single span annotation.
 
         Raises:
-            ValueError: If neither or both of *spans_dataframe* and *span_ids* are provided, or if
-                the `context.span_id` or `span_id` column is missing from *spans_dataframe*.
+            ValueError: If not exactly one of *spans_dataframe*, *span_ids*, or *spans* is provided,
+                or if the `context.span_id` or `span_id` column is missing from *spans_dataframe*.
             ImportError: If pandas is not installed.
             httpx.HTTPStatusError: If the API returns an error response.
         """
@@ -437,19 +552,31 @@ class AsyncSpans:
                 "Install it with 'pip install pandas'"
             )
 
-        if (spans_dataframe is None and span_ids is None) or (
-            spans_dataframe is not None and span_ids is not None
-        ):
-            raise ValueError("Provide exactly one of 'spans_dataframe' or 'span_ids'.")
+        # Validate input parameters
+        provided_params = sum(
+            [
+                spans_dataframe is not None,
+                span_ids is not None,
+                spans is not None,
+            ]
+        )
+        if provided_params != 1:
+            raise ValueError("Provide exactly one of 'spans_dataframe', 'span_ids', or 'spans'.")
 
         if spans_dataframe is not None:
             span_ids_raw: list[str] = cast(
                 list[str], spans_dataframe["context.span_id"].dropna().tolist()
             )
             span_ids_list = list({*span_ids_raw})
-        else:
-            assert span_ids is not None
+        elif span_ids is not None:
             span_ids_list = list({*span_ids})
+        else:  # spans is not None
+            assert spans is not None
+            span_ids_list = []
+            for span in spans:
+                if "span_id" in span and span["span_id"]:
+                    span_ids_list.append(span["span_id"])
+            span_ids_list = list({*span_ids_list})  # Remove duplicates
 
         if not span_ids_list:
             return pd.DataFrame()
@@ -491,7 +618,8 @@ class AsyncSpans:
     async def get_span_annotations(
         self,
         *,
-        span_ids: Iterable[str],
+        span_ids: Optional[Iterable[str]] = None,
+        spans: Optional[list[Span]] = None,
         project_identifier: str,
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -499,8 +627,11 @@ class AsyncSpans:
         """
         Fetches span annotations and returns them as a list of SpanAnnotation objects.
 
+        Exactly one of *span_ids* or *spans* should be provided.
+
         Args:
             span_ids: An iterable of span IDs.
+            spans: A list of Span objects (typically returned by `get_spans`).
             project_identifier: The project identifier (name or ID) used in the API path.
             limit: Maximum number of annotations returned per request page.
             timeout: Optional request timeout in seconds.
@@ -509,9 +640,28 @@ class AsyncSpans:
             A list of SpanAnnotation objects.
 
         Raises:
+            ValueError: If not exactly one of *span_ids* or *spans* is provided.
             httpx.HTTPStatusError: If the API returns an error response.
         """
-        span_ids_list = list({*span_ids})  # remove duplicates while preserving type
+        # Validate input parameters
+        provided_params = sum(
+            [
+                span_ids is not None,
+                spans is not None,
+            ]
+        )
+        if provided_params != 1:
+            raise ValueError("Provide exactly one of 'span_ids' or 'spans'.")
+
+        if span_ids is not None:
+            span_ids_list = list({*span_ids})
+        else:  # spans is not None
+            assert spans is not None
+            span_ids_list = []
+            for span in spans:
+                if "span_id" in span and span["span_id"]:
+                    span_ids_list.append(span["span_id"])
+            span_ids_list = list({*span_ids_list})  # Remove duplicates
 
         if not span_ids_list:
             return []
@@ -545,6 +695,81 @@ class AsyncSpans:
                     break
 
         return annotations
+
+    async def get_spans(
+        self,
+        *,
+        project_identifier: str,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        annotation_names: Optional[Sequence[str]] = None,
+        limit: int = 100,
+        sort_direction: Literal["asc", "desc"] = "desc",
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> list[Span]:
+        """
+        Retrieves spans in a simplified, ergonomic format.
+
+        This method returns spans with flattened attributes and cleaner structure
+        for easier programmatic access.
+
+        Args:
+            project_identifier: The project identifier (name or ID) used in the API path.
+            start_time: Optional start time for filtering (inclusive lower bound).
+            end_time: Optional end time for filtering (exclusive upper bound).
+            annotation_names: Optional list of annotation names to filter by. If provided, only
+                spans that have at least one annotation with one of these names will be returned.
+            limit: Maximum number of spans to return (default: 100).
+            sort_direction: Sort direction for the sort field (default: "desc").
+            timeout: Optional request timeout in seconds.
+
+        Returns:
+            A list of Span objects.
+
+        Raises:
+            httpx.HTTPStatusError: If the API returns an error response.
+        """
+        all_spans: list[v1.OtlpSpan] = []
+        cursor: Optional[str] = None
+        page_size = min(100, limit)
+
+        while len(all_spans) < limit:
+            params: dict[str, Union[int, str, Sequence[str]]] = {
+                "limit": page_size,
+                "sort_direction": sort_direction,
+            }
+
+            if start_time:
+                params["start_time"] = (
+                    start_time.isoformat() if isinstance(start_time, datetime) else start_time
+                )
+            if end_time:
+                params["end_time"] = (
+                    end_time.isoformat() if isinstance(end_time, datetime) else end_time
+                )
+            if annotation_names:
+                params["annotationNames"] = annotation_names
+            if cursor:
+                params["cursor"] = cursor
+
+            response = await self._client.get(
+                url=f"v1/projects/{project_identifier}/spans/otlpv1",
+                params=params,
+                headers={"accept": "application/json"},
+                timeout=timeout,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            payload = cast(v1.SpanSearchResponseBody, payload)
+
+            spans = payload["data"]
+            all_spans.extend(spans)
+
+            cursor = payload.get("next_cursor")
+            if not cursor or not spans:
+                break
+
+        return [convert_otlp_span_to_span(cast(dict[str, Any], span)) for span in all_spans[:limit]]
 
 
 def _to_iso_format(value: Optional[datetime]) -> Optional[str]:
