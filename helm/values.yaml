@@ -1,6 +1,6 @@
 # Phoenix Helm Chart Values
 # This file contains configuration values for deploying Phoenix via Helm.
-# Each value corresponds to an environment variable in src/phoenix/config.py.
+# Each value corresponds to an environment variable described in https://docs.arize.com/phoenix/self-hosting/configuration.
 
 
 # ADDONS
