@@ -4,6 +4,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: {{ template "phoenix.postgres-pvc" . }}
   namespace: {{ .Release.Namespace | quote }}
+  annotations:
+    "helm.sh/resource-policy": keep
 spec:
   accessModes:
     - ReadWriteOnce
