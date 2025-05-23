@@ -192,7 +192,7 @@ export function SpanDetails({
   const { viewer } = useViewer();
   const { span } = useLazyLoadQuery<SpanDetailsQuery>(
     graphql`
-      query SpanDetailsQuery($id: ID!, $filterUserIds: [ID]) {
+      query SpanDetailsQuery($id: ID!) {
         span: node(id: $id) {
           __typename
           ... on Span {
@@ -246,7 +246,7 @@ export function SpanDetails({
             }
             ...SpanHeader_span
             ...SpanFeedback_annotations
-            ...SpanAside_span @arguments(filterUserIds: $filterUserIds)
+            ...SpanAside_span
           }
         }
       }
