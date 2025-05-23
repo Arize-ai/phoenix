@@ -31,7 +31,7 @@ postgres:
   persistence:
     enabled: true
     storageClass: "standard"  # Minikube's default storage class
-    size: 1Gi
+    size: 10Gi
 
 server:
   # The host the server will run on
@@ -66,7 +66,7 @@ database:
     db: "phoenix" # PHOENIX_POSTGRES_DB
     schema: "" # PHOENIX_SQL_DATABASE_SCHEMA
   # Allocated storage capacity for the database (in GiB, informational)
-  allocatedStorageGiB: 1 # PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES
+  allocatedStorageGiB: 10 # PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES
 
 # Authentication and security
 auth:
