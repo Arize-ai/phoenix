@@ -337,6 +337,11 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
         tool_call_ids: dict[int, str] = {}
         token_usage: Optional["CompletionUsage"] = None
         throttled_create = self.rate_limiter._alimit(self.client.chat.completions.create)
+        if (
+            "presence_penalty" in invocation_parameters
+            and invocation_parameters["presence_penalty"] == 0
+        ):
+            del invocation_parameters["presence_penalty"]
         async for chunk in await throttled_create(
             messages=openai_messages,
             model=self.model_name,
@@ -563,7 +568,11 @@ class OpenAIReasoningStreamingClient(OpenAIStreamingClient):
             openai_message = self.to_openai_chat_completion_param(*message)
             if openai_message is not None:
                 openai_messages.append(openai_message)
-
+        if (
+            "presence_penalty" in invocation_parameters
+            and invocation_parameters["presence_penalty"] == 0
+        ):
+            del invocation_parameters["presence_penalty"]
         throttled_create = self.rate_limiter._alimit(self.client.chat.completions.create)
         response = await throttled_create(
             messages=openai_messages,
