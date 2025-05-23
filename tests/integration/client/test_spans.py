@@ -3,11 +3,13 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from random import random
 from secrets import token_hex
+from typing import cast
 
 import pandas as pd
 import pytest
 from phoenix.client.__generated__ import v1
-from typing_extensions import TypeAlias, Literal
+from phoenix.client.types.spans import Span
+from typing_extensions import Literal, TypeAlias
 
 from .._helpers import (
     _ADMIN,
@@ -244,11 +246,12 @@ class TestClientForSpanAnnotationsRetrieval:
             assert regular_annotation_name in with_notes_names
 
     def test_invalid_arguments_validation(self) -> None:
-        """Supplying both or neither of span_ids / spans_dataframe should error."""
+        """Supplying multiple or no parameters should error."""
         from phoenix.client import Client
 
         spans_client = Client().spans
 
+        # Test get_span_annotations_dataframe
         with pytest.raises(ValueError):
             spans_client.get_span_annotations_dataframe(project_identifier="default")
 
@@ -260,6 +263,144 @@ class TestClientForSpanAnnotationsRetrieval:
                 span_ids=["abc"],
                 project_identifier="default",
             )
+
+        with pytest.raises(ValueError):
+            spans_client.get_span_annotations_dataframe(
+                spans_dataframe=dummy_df,
+                spans=[{"span_id": "abc"}],
+                project_identifier="default",
+            )
+
+        with pytest.raises(ValueError):
+            spans_client.get_span_annotations_dataframe(
+                span_ids=["abc"],
+                spans=[{"span_id": "def"}],
+                project_identifier="default",
+            )
+
+        # Test get_span_annotations
+        with pytest.raises(ValueError):
+            spans_client.get_span_annotations(project_identifier="default")
+
+        with pytest.raises(ValueError):
+            spans_client.get_span_annotations(
+                span_ids=["abc"],
+                spans=[{"span_id": "def"}],
+                project_identifier="default",
+            )
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    async def test_get_span_annotations_with_spans_objects(
+        self,
+        is_async: bool,
+        role_or_user: _RoleOrUser,
+        _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test getting span annotations using Span objects from get_spans."""
+        (span_id1, _), (span_id2, _) = _span_ids
+
+        user = _get_user(role_or_user).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        annotation_name_1 = f"test_spans_obj_{token_hex(4)}"
+        annotation_name_2 = f"test_spans_obj_{token_hex(4)}"
+
+        score1 = 0.8
+        score2 = 0.6
+        label1 = "positive"
+        label2 = "negative"
+
+        # Add annotations to specific spans
+        await _await_or_return(
+            Client().annotations.add_span_annotation(
+                annotation_name=annotation_name_1,
+                span_id=span_id1,
+                annotator_kind="LLM",
+                label=label1,
+                score=score1,
+                sync=True,
+            )
+        )
+
+        await _await_or_return(
+            Client().annotations.add_span_annotation(
+                annotation_name=annotation_name_2,
+                span_id=span_id2,
+                annotator_kind="CODE",
+                label=label2,
+                score=score2,
+                sync=True,
+            )
+        )
+
+        # Get spans using the new get_spans method
+        spans = await _await_or_return(
+            Client().spans.get_spans(
+                project_identifier="default",
+                limit=50,
+            )
+        )
+
+        # Filter to only the spans we're interested in
+        target_spans = [s for s in spans if s.get("span_id") in [span_id1, span_id2]]
+        assert len(target_spans) >= 2, "Should find at least the two test spans"
+
+        # Test get_span_annotations_dataframe with spans objects
+        df = await _await_or_return(
+            Client().spans.get_span_annotations_dataframe(
+                spans=target_spans,
+                project_identifier="default",
+            )
+        )
+
+        assert isinstance(df, pd.DataFrame)
+        assert len(df) >= 2, "Should have annotations for both spans"
+
+        # Test get_span_annotations with spans objects
+        annotations = await _await_or_return(
+            Client().spans.get_span_annotations(
+                spans=target_spans,
+                project_identifier="default",
+            )
+        )
+
+        assert isinstance(annotations, list)
+        assert len(annotations) >= 2, "Should have annotations for both spans"
+
+        # Verify the annotations contain our test data
+        by_span_name = {(a["span_id"], a["name"]): a for a in annotations}
+
+        key1 = (span_id1, annotation_name_1)
+        key2 = (span_id2, annotation_name_2)
+
+        assert key1 in by_span_name, f"Annotation {key1} not found"
+        assert key2 in by_span_name, f"Annotation {key2} not found"
+
+        # Test with spans that have missing span_ids (should not cause errors)
+        spans_with_missing_ids: list[Span] = [
+            cast(Span, {"name": "test_span_no_id"}),  # No span_id
+            cast(Span, {"span_id": span_id1, "name": "valid_span"}),
+        ]
+
+        annotations_filtered = await _await_or_return(
+            Client().spans.get_span_annotations(
+                spans=spans_with_missing_ids,
+                project_identifier="default",
+            )
+        )
+
+        # Should only get annotations for the span with valid span_id
+        span_ids_found = {a["span_id"] for a in annotations_filtered}
+        assert span_id1 in span_ids_found
+        assert len([a for a in annotations_filtered if a["span_id"] == span_id1]) >= 1
 
 
 class TestClientForSpansRetrieval:
@@ -629,7 +770,13 @@ class TestClientForSpansRetrieval:
                     # Value should not be a dict with "string_value", "int_value", etc.
                     if isinstance(value, dict):
                         # Check that it's not an OTLP AnyValue structure
-                        otlp_value_keys = ["string_value", "int_value", "double_value", "bool_value", "array_value"]
+                        otlp_value_keys = [
+                            "string_value",
+                            "int_value",
+                            "double_value",
+                            "bool_value",
+                            "array_value",
+                        ]
                         assert not any(k in value for k in otlp_value_keys)
 
             # Check events if present

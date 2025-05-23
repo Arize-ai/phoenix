@@ -2,7 +2,7 @@ import base64
 import logging
 from datetime import datetime, timezone, tzinfo
 from io import StringIO
-from typing import TYPE_CHECKING, Iterable, Literal, Optional, Sequence, Union, cast, Any
+from typing import TYPE_CHECKING, Any, Iterable, Literal, Optional, Sequence, Union, cast
 
 import httpx
 
@@ -141,6 +141,7 @@ class Spans:
         *,
         spans_dataframe: Optional["pd.DataFrame"] = None,
         span_ids: Optional[Iterable[str]] = None,
+        spans: Optional[list[Span]] = None,
         project_identifier: str = "default",
         include_annotation_names: Optional[Sequence[str]] = None,
         exclude_annotation_names: Optional[Sequence[str]] = None,
@@ -150,12 +151,13 @@ class Spans:
         """
         Fetches span annotations and returns them as a pandas DataFrame.
 
-        Exactly one of *spans_dataframe* or *span_ids* should be provided.
+        Exactly one of *spans_dataframe*, *span_ids*, or *spans* should be provided.
 
         Args:
             spans_dataframe: A DataFrame (typically returned by `get_spans_dataframe`) with a
                 `context.span_id` or `span_id` column.
             span_ids: An iterable of span IDs.
+            spans: A list of Span objects (typically returned by `get_spans`).
             project_identifier: The project identifier (name or ID) used in the API path.
             include_annotation_names: Optional list of annotation names to include. If provided,
                 only annotations with these names will be returned.
@@ -169,8 +171,8 @@ class Spans:
             A DataFrame where each row corresponds to a single span annotation.
 
         Raises:
-            ValueError: If neither or both of *spans_dataframe* and *span_ids* are provided, or if
-                the `context.span_id` or `span_id` column is missing from *spans_dataframe*.
+            ValueError: If not exactly one of *spans_dataframe*, *span_ids*, or *spans* is provided,
+                or if the `context.span_id` or `span_id` column is missing from *spans_dataframe*.
             ImportError: If pandas is not installed.
             httpx.HTTPStatusError: If the API returns an error response.
         """
@@ -186,19 +188,30 @@ class Spans:
             )
 
         # Validate input parameters
-        if (spans_dataframe is None and span_ids is None) or (
-            spans_dataframe is not None and span_ids is not None
-        ):
-            raise ValueError("Provide exactly one of 'spans_dataframe' or 'span_ids'.")
+        provided_params = sum(
+            [
+                spans_dataframe is not None,
+                span_ids is not None,
+                spans is not None,
+            ]
+        )
+        if provided_params != 1:
+            raise ValueError("Provide exactly one of 'spans_dataframe', 'span_ids', or 'spans'.")
 
         if spans_dataframe is not None:
             span_ids_raw: list[str] = cast(
                 list[str], spans_dataframe["context.span_id"].dropna().tolist()
             )
             span_ids_list = list({*span_ids_raw})
-        else:
-            assert span_ids is not None
+        elif span_ids is not None:
             span_ids_list = list({*span_ids})
+        else:  # spans is not None
+            assert spans is not None
+            span_ids_list = []
+            for span in spans:
+                if "span_id" in span and span["span_id"]:
+                    span_ids_list.append(span["span_id"])
+            span_ids_list = list({*span_ids_list})  # Remove duplicates
 
         if not span_ids_list:
             return pd.DataFrame()
@@ -246,7 +259,8 @@ class Spans:
     def get_span_annotations(
         self,
         *,
-        span_ids: Iterable[str],
+        span_ids: Optional[Iterable[str]] = None,
+        spans: Optional[list[Span]] = None,
         project_identifier: str,
         include_annotation_names: Optional[Sequence[str]] = None,
         exclude_annotation_names: Optional[Sequence[str]] = None,
@@ -256,8 +270,11 @@ class Spans:
         """
         Fetches span annotations and returns them as a list of SpanAnnotation objects.
 
+        Exactly one of *span_ids* or *spans* should be provided.
+
         Args:
             span_ids: An iterable of span IDs.
+            spans: A list of Span objects (typically returned by `get_spans`).
             project_identifier: The project identifier (name or ID) used in the API path.
             include_annotation_names: Optional list of annotation names to include. If provided,
                 only annotations with these names will be returned.
@@ -271,12 +288,31 @@ class Spans:
             A list of SpanAnnotation objects.
 
         Raises:
+            ValueError: If not exactly one of *span_ids* or *spans* is provided.
             httpx.HTTPStatusError: If the API returns an error response.
         """
         if exclude_annotation_names is None:
             exclude_annotation_names = ["note"]
 
-        span_ids_list = list({*span_ids})
+        # Validate input parameters
+        provided_params = sum(
+            [
+                span_ids is not None,
+                spans is not None,
+            ]
+        )
+        if provided_params != 1:
+            raise ValueError("Provide exactly one of 'span_ids' or 'spans'.")
+
+        if span_ids is not None:
+            span_ids_list = list({*span_ids})
+        else:  # spans is not None
+            assert spans is not None
+            span_ids_list = []
+            for span in spans:
+                if "span_id" in span and span["span_id"]:
+                    span_ids_list.append(span["span_id"])
+            span_ids_list = list({*span_ids_list})  # Remove duplicates
 
         if not span_ids_list:
             return []
@@ -360,9 +396,13 @@ class Spans:
             }
 
             if start_time:
-                params["start_time"] = start_time.isoformat() if isinstance(start_time, datetime) else start_time
+                params["start_time"] = (
+                    start_time.isoformat() if isinstance(start_time, datetime) else start_time
+                )
             if end_time:
-                params["end_time"] = end_time.isoformat() if isinstance(end_time, datetime) else end_time
+                params["end_time"] = (
+                    end_time.isoformat() if isinstance(end_time, datetime) else end_time
+                )
             if annotation_names:
                 params["annotationNames"] = annotation_names
             if cursor:
@@ -506,6 +546,7 @@ class AsyncSpans:
         *,
         spans_dataframe: Optional["pd.DataFrame"] = None,
         span_ids: Optional[Iterable[str]] = None,
+        spans: Optional[list[Span]] = None,
         project_identifier: str,
         include_annotation_names: Optional[Sequence[str]] = None,
         exclude_annotation_names: Optional[Sequence[str]] = None,
@@ -515,12 +556,13 @@ class AsyncSpans:
         """
         Fetches span annotations and returns them as a pandas DataFrame.
 
-        Exactly one of *spans_dataframe* or *span_ids* should be provided.
+        Exactly one of *spans_dataframe*, *span_ids*, or *spans* should be provided.
 
         Args:
             spans_dataframe: A DataFrame (typically returned by `get_spans_dataframe`) with a
                 `context.span_id` or `span_id` column.
             span_ids: An iterable of span IDs.
+            spans: A list of Span objects (typically returned by `get_spans`).
             project_identifier: The project identifier (name or ID) used in the API path.
             include_annotation_names: Optional list of annotation names to include. If provided,
                 only annotations with these names will be returned.
@@ -534,8 +576,8 @@ class AsyncSpans:
             A DataFrame where each row corresponds to a single span annotation.
 
         Raises:
-            ValueError: If neither or both of *spans_dataframe* and *span_ids* are provided, or if
-                the `context.span_id` or `span_id` column is missing from *spans_dataframe*.
+            ValueError: If not exactly one of *spans_dataframe*, *span_ids*, or *spans* is provided,
+                or if the `context.span_id` or `span_id` column is missing from *spans_dataframe*.
             ImportError: If pandas is not installed.
             httpx.HTTPStatusError: If the API returns an error response.
         """
@@ -550,19 +592,31 @@ class AsyncSpans:
                 "Install it with 'pip install pandas'"
             )
 
-        if (spans_dataframe is None and span_ids is None) or (
-            spans_dataframe is not None and span_ids is not None
-        ):
-            raise ValueError("Provide exactly one of 'spans_dataframe' or 'span_ids'.")
+        # Validate input parameters
+        provided_params = sum(
+            [
+                spans_dataframe is not None,
+                span_ids is not None,
+                spans is not None,
+            ]
+        )
+        if provided_params != 1:
+            raise ValueError("Provide exactly one of 'spans_dataframe', 'span_ids', or 'spans'.")
 
         if spans_dataframe is not None:
             span_ids_raw: list[str] = cast(
                 list[str], spans_dataframe["context.span_id"].dropna().tolist()
             )
             span_ids_list = list({*span_ids_raw})
-        else:
-            assert span_ids is not None
+        elif span_ids is not None:
             span_ids_list = list({*span_ids})
+        else:  # spans is not None
+            assert spans is not None
+            span_ids_list = []
+            for span in spans:
+                if "span_id" in span and span["span_id"]:
+                    span_ids_list.append(span["span_id"])
+            span_ids_list = list({*span_ids_list})  # Remove duplicates
 
         if not span_ids_list:
             return pd.DataFrame()
@@ -610,7 +664,8 @@ class AsyncSpans:
     async def get_span_annotations(
         self,
         *,
-        span_ids: Iterable[str],
+        span_ids: Optional[Iterable[str]] = None,
+        spans: Optional[list[Span]] = None,
         project_identifier: str,
         include_annotation_names: Optional[Sequence[str]] = None,
         exclude_annotation_names: Optional[Sequence[str]] = None,
@@ -620,8 +675,11 @@ class AsyncSpans:
         """
         Fetches span annotations and returns them as a list of SpanAnnotation objects.
 
+        Exactly one of *span_ids* or *spans* should be provided.
+
         Args:
             span_ids: An iterable of span IDs.
+            spans: A list of Span objects (typically returned by `get_spans`).
             project_identifier: The project identifier (name or ID) used in the API path.
             include_annotation_names: Optional list of annotation names to include. If provided,
                 only annotations with these names will be returned.
@@ -635,12 +693,31 @@ class AsyncSpans:
             A list of SpanAnnotation objects.
 
         Raises:
+            ValueError: If not exactly one of *span_ids* or *spans* is provided.
             httpx.HTTPStatusError: If the API returns an error response.
         """
         if exclude_annotation_names is None:
             exclude_annotation_names = ["note"]
 
-        span_ids_list = list({*span_ids})
+        # Validate input parameters
+        provided_params = sum(
+            [
+                span_ids is not None,
+                spans is not None,
+            ]
+        )
+        if provided_params != 1:
+            raise ValueError("Provide exactly one of 'span_ids' or 'spans'.")
+
+        if span_ids is not None:
+            span_ids_list = list({*span_ids})
+        else:  # spans is not None
+            assert spans is not None
+            span_ids_list = []
+            for span in spans:
+                if "span_id" in span and span["span_id"]:
+                    span_ids_list.append(span["span_id"])
+            span_ids_list = list({*span_ids_list})  # Remove duplicates
 
         if not span_ids_list:
             return []
@@ -724,9 +801,13 @@ class AsyncSpans:
             }
 
             if start_time:
-                params["start_time"] = start_time.isoformat() if isinstance(start_time, datetime) else start_time
+                params["start_time"] = (
+                    start_time.isoformat() if isinstance(start_time, datetime) else start_time
+                )
             if end_time:
-                params["end_time"] = end_time.isoformat() if isinstance(end_time, datetime) else end_time
+                params["end_time"] = (
+                    end_time.isoformat() if isinstance(end_time, datetime) else end_time
+                )
             if annotation_names:
                 params["annotationNames"] = annotation_names
             if cursor:
