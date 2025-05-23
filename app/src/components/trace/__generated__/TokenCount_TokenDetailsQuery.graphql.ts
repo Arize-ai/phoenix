@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<78710b82dc4639d8f2aa3de213f494f4>>
+ * @generated SignedSource<<1483bcf876cfe19b98bda83a4a4ce854>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,6 +23,11 @@ export type TokenCount_TokenDetailsQuery$data = {
     readonly __typename: "Span";
     readonly tokenCountCompletion: number | null;
     readonly tokenCountPrompt: number | null;
+    readonly tokenPromptDetails: {
+      readonly audio: number | null;
+      readonly cacheRead: number | null;
+      readonly cacheWrite: number | null;
+    };
   } | {
     readonly __typename: "Trace";
     readonly rootSpan: {
@@ -77,6 +82,38 @@ v3 = {
       "args": null,
       "kind": "ScalarField",
       "name": "tokenCountCompletion",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "TokenCountPromptDetails",
+      "kind": "LinkedField",
+      "name": "tokenPromptDetails",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "audio",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "cacheRead",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "cacheWrite",
+          "storageKey": null
+        }
+      ],
       "storageKey": null
     }
   ],
@@ -226,16 +263,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "56a277261163838d98342d139ea25e26",
+    "cacheID": "33e7472dedab185792845ca5d971f85d",
     "id": null,
     "metadata": {},
     "name": "TokenCount_TokenDetailsQuery",
     "operationKind": "query",
-    "text": "query TokenCount_TokenDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      tokenCountPrompt\n      tokenCountCompletion\n    }\n    ... on ProjectSession {\n      tokenUsage {\n        prompt\n        completion\n      }\n    }\n    ... on Trace {\n      rootSpan {\n        cumulativeTokenCountPrompt\n        cumulativeTokenCountCompletion\n        id\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query TokenCount_TokenDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      tokenCountPrompt\n      tokenCountCompletion\n      tokenPromptDetails {\n        audio\n        cacheRead\n        cacheWrite\n      }\n    }\n    ... on ProjectSession {\n      tokenUsage {\n        prompt\n        completion\n      }\n    }\n    ... on Trace {\n      rootSpan {\n        cumulativeTokenCountPrompt\n        cumulativeTokenCountCompletion\n        id\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "37cdbb22dd98b71848bf4115a8db2be5";
+(node as any).hash = "78deb4c70ade5cabeacc2960828e441e";
 
 export default node;
