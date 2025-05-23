@@ -1,0 +1,6 @@
+# Python
+__pycache__/
+
+# Export specific
+phoenix_export/
+results/
