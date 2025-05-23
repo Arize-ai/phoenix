@@ -52,8 +52,8 @@ dependencies = [
   "sqlean.py>=3.45.1",
   "cachetools",
   "python-multipart",  # see https://www.starlette.io/#dependencies
-  "arize-phoenix-evals>=0.13.1",
-  "arize-phoenix-otel>=0.5.1",
+  "arize-phoenix-evals>=0.20.6",
+  "arize-phoenix-otel>=0.9.2",
   "fastapi",
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
   "authlib",
