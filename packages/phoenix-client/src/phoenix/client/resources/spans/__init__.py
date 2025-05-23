@@ -2,7 +2,7 @@ import base64
 import logging
 from datetime import datetime, timezone, tzinfo
 from io import StringIO
-from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union, cast
+from typing import TYPE_CHECKING, Iterable, Literal, Optional, Sequence, Union, cast, Any
 
 import httpx
 
@@ -11,7 +11,9 @@ if TYPE_CHECKING:
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.types.spans import (
+    Span,
     SpanQuery,
+    convert_otlp_span_to_span,
 )
 
 logger = logging.getLogger(__name__)
@@ -314,6 +316,77 @@ class Spans:
 
         return annotations
 
+    def get_spans(
+        self,
+        *,
+        project_identifier: str,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        annotation_names: Optional[Sequence[str]] = None,
+        limit: int = 100,
+        sort_direction: Literal["asc", "desc"] = "desc",
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> list[Span]:
+        """
+        Retrieves spans in a simplified, ergonomic format.
+
+        This method returns spans with flattened attributes and cleaner structure
+        for easier programmatic access.
+
+        Args:
+            project_identifier: The project identifier (name or ID) used in the API path.
+            start_time: Optional start time for filtering (inclusive lower bound).
+            end_time: Optional end time for filtering (exclusive upper bound).
+            annotation_names: Optional list of annotation names to filter by. If provided, only
+                spans that have at least one annotation with one of these names will be returned.
+            limit: Maximum number of spans to return (default: 100).
+            sort_direction: Sort direction for the sort field (default: "desc").
+            timeout: Optional request timeout in seconds.
+
+        Returns:
+            A list of Span objects.
+
+        Raises:
+            httpx.HTTPStatusError: If the API returns an error response.
+        """
+        all_spans: list[v1.OtlpSpan] = []
+        cursor: Optional[str] = None
+        page_size = min(100, limit)
+
+        while len(all_spans) < limit:
+            params: dict[str, Union[int, str, Sequence[str]]] = {
+                "limit": page_size,
+                "sort_direction": sort_direction,
+            }
+
+            if start_time:
+                params["start_time"] = start_time.isoformat() if isinstance(start_time, datetime) else start_time
+            if end_time:
+                params["end_time"] = end_time.isoformat() if isinstance(end_time, datetime) else end_time
+            if annotation_names:
+                params["annotationNames"] = annotation_names
+            if cursor:
+                params["cursor"] = cursor
+
+            response = self._client.get(
+                url=f"v1/projects/{project_identifier}/spans/otlpv1",
+                params=params,
+                headers={"accept": "application/json"},
+                timeout=timeout,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            payload = cast(v1.SpanSearchResponseBody, payload)
+
+            spans = payload["data"]
+            all_spans.extend(spans)
+
+            cursor = payload.get("next_cursor")
+            if not cursor or not spans:
+                break
+
+        return [convert_otlp_span_to_span(cast(dict[str, Any], span)) for span in all_spans[:limit]]
+
 
 class AsyncSpans:
     """
@@ -606,6 +679,77 @@ class AsyncSpans:
                     break
 
         return annotations
+
+    async def get_spans(
+        self,
+        *,
+        project_identifier: str,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        annotation_names: Optional[Sequence[str]] = None,
+        limit: int = 100,
+        sort_direction: Literal["asc", "desc"] = "desc",
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> list[Span]:
+        """
+        Retrieves spans in a simplified, ergonomic format.
+
+        This method returns spans with flattened attributes and cleaner structure
+        for easier programmatic access.
+
+        Args:
+            project_identifier: The project identifier (name or ID) used in the API path.
+            start_time: Optional start time for filtering (inclusive lower bound).
+            end_time: Optional end time for filtering (exclusive upper bound).
+            annotation_names: Optional list of annotation names to filter by. If provided, only
+                spans that have at least one annotation with one of these names will be returned.
+            limit: Maximum number of spans to return (default: 100).
+            sort_direction: Sort direction for the sort field (default: "desc").
+            timeout: Optional request timeout in seconds.
+
+        Returns:
+            A list of Span objects.
+
+        Raises:
+            httpx.HTTPStatusError: If the API returns an error response.
+        """
+        all_spans: list[v1.OtlpSpan] = []
+        cursor: Optional[str] = None
+        page_size = min(100, limit)
+
+        while len(all_spans) < limit:
+            params: dict[str, Union[int, str, Sequence[str]]] = {
+                "limit": page_size,
+                "sort_direction": sort_direction,
+            }
+
+            if start_time:
+                params["start_time"] = start_time.isoformat() if isinstance(start_time, datetime) else start_time
+            if end_time:
+                params["end_time"] = end_time.isoformat() if isinstance(end_time, datetime) else end_time
+            if annotation_names:
+                params["annotationNames"] = annotation_names
+            if cursor:
+                params["cursor"] = cursor
+
+            response = await self._client.get(
+                url=f"v1/projects/{project_identifier}/spans/otlpv1",
+                params=params,
+                headers={"accept": "application/json"},
+                timeout=timeout,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            payload = cast(v1.SpanSearchResponseBody, payload)
+
+            spans = payload["data"]
+            all_spans.extend(spans)
+
+            cursor = payload.get("next_cursor")
+            if not cursor or not spans:
+                break
+
+        return [convert_otlp_span_to_span(cast(dict[str, Any], span)) for span in all_spans[:limit]]
 
 
 def _to_iso_format(value: Optional[datetime]) -> Optional[str]:

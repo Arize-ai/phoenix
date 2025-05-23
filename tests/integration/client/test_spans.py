@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from random import random
 from secrets import token_hex
 
 import pandas as pd
 import pytest
 from phoenix.client.__generated__ import v1
-from typing_extensions import TypeAlias
+from typing_extensions import TypeAlias, Literal
 
 from .._helpers import (
     _ADMIN,
@@ -258,4 +259,449 @@ class TestClientForSpanAnnotationsRetrieval:
                 spans_dataframe=dummy_df,
                 span_ids=["abc"],
                 project_identifier="default",
+            )
+
+
+class TestClientForSpansRetrieval:
+    """Test the get_spans method with various filtering and pagination options."""
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    async def test_basic_span_retrieval(
+        self,
+        is_async: bool,
+        role_or_user: _RoleOrUser,
+        _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test basic span retrieval returns ergonomic span format."""
+        user = _get_user(role_or_user).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        spans = await _await_or_return(
+            Client().spans.get_spans(
+                project_identifier="default",
+                limit=10,
+            )
+        )
+
+        assert isinstance(spans, list)
+        # Should have at least the test spans
+        assert len(spans) >= 2
+
+        # Each span should be a dict with the expected structure
+        for span in spans:
+            assert isinstance(span, dict)
+            # Check basic fields exist (all are optional)
+            if "span_id" in span:
+                assert isinstance(span["span_id"], str)
+            if "trace_id" in span:
+                assert isinstance(span["trace_id"], str)
+            if "name" in span:
+                assert isinstance(span["name"], str)
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_time_filtering(
+        self,
+        is_async: bool,
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test that start_time and end_time filters work correctly."""
+        user = _get_user(_MEMBER).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        # Get all spans first
+        all_spans = await _await_or_return(
+            Client().spans.get_spans(
+                project_identifier="default",
+                limit=50,
+            )
+        )
+
+        if len(all_spans) < 2:
+            pytest.skip("Not enough spans for time filtering test")
+
+        # Find spans with different timestamps
+        sorted_spans = sorted(
+            [s for s in all_spans if "start_time" in s], key=lambda s: s["start_time"]
+        )
+
+        if len(sorted_spans) < 2:
+            pytest.skip("Not enough spans with timestamps")
+
+        earliest = sorted_spans[0]["start_time"]
+        latest = sorted_spans[-1]["start_time"]
+
+        # Test with start_time filter
+        spans_after = await _await_or_return(
+            Client().spans.get_spans(
+                project_identifier="default",
+                start_time=earliest + timedelta(microseconds=1),
+                limit=50,
+            )
+        )
+
+        # Should have fewer spans
+        assert len(spans_after) < len(sorted_spans)
+
+        # All returned spans should be after the start_time
+        for span in spans_after:
+            if "start_time" in span:
+                assert span["start_time"] >= earliest
+
+        # Test with end_time filter
+        spans_before = await _await_or_return(
+            Client().spans.get_spans(
+                project_identifier="default",
+                end_time=latest,
+                limit=50,
+            )
+        )
+
+        # All returned spans should be before the end_time
+        for span in spans_before:
+            if "start_time" in span:
+                assert span["start_time"] < latest
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_annotation_name_filtering(
+        self,
+        is_async: bool,
+        _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test filtering spans by annotation names."""
+        (span_id1, _), (span_id2, _) = _span_ids
+
+        user = _get_user(_MEMBER).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        # Create unique annotation names
+        annotation_name_1 = f"filter_test_{token_hex(4)}"
+        annotation_name_2 = f"filter_test_{token_hex(4)}"
+
+        # Add annotations to specific spans
+        await _await_or_return(
+            Client().annotations.add_span_annotation(
+                annotation_name=annotation_name_1,
+                span_id=span_id1,
+                annotator_kind="CODE",
+                score=0.5,
+                sync=True,
+            )
+        )
+
+        await _await_or_return(
+            Client().annotations.add_span_annotation(
+                annotation_name=annotation_name_2,
+                span_id=span_id2,
+                annotator_kind="CODE",
+                score=0.7,
+                sync=True,
+            )
+        )
+
+        # Get spans with first annotation name
+        spans_with_anno1 = await _await_or_return(
+            Client().spans.get_spans(
+                project_identifier="default",
+                annotation_names=[annotation_name_1],
+                limit=50,
+            )
+        )
+
+        # Should include span_id1
+        span_ids = [s.get("span_id") for s in spans_with_anno1]
+        assert span_id1 in span_ids
+
+        # Get spans with both annotation names
+        spans_with_both = await _await_or_return(
+            Client().spans.get_spans(
+                project_identifier="default",
+                annotation_names=[annotation_name_1, annotation_name_2],
+                limit=50,
+            )
+        )
+
+        # Should include both spans
+        span_ids_both = [s.get("span_id") for s in spans_with_both]
+        assert span_id1 in span_ids_both
+        assert span_id2 in span_ids_both
+
+        # Get spans with non-existent annotation
+        spans_no_match = await _await_or_return(
+            Client().spans.get_spans(
+                project_identifier="default",
+                annotation_names=["non_existent_annotation_xyz"],
+                limit=50,
+            )
+        )
+
+        # Should be empty
+        assert len(spans_no_match) == 0
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    @pytest.mark.parametrize("sort_direction", ["asc", "desc"])
+    async def test_sort_direction(
+        self,
+        is_async: bool,
+        sort_direction: Literal["asc", "desc"],
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test that sort direction affects the order of returned spans."""
+        user = _get_user(_MEMBER).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        spans = await _await_or_return(
+            Client().spans.get_spans(
+                project_identifier="default",
+                sort_direction=sort_direction,
+                limit=10,
+            )
+        )
+
+        # Basic check - we got spans
+        assert len(spans) > 0
+
+        # If we have multiple spans with timestamps, check ordering
+        spans_with_time = [s for s in spans if "start_time" in s]
+        if len(spans_with_time) >= 2:
+            times = [s["start_time"] for s in spans_with_time]
+            if sort_direction == "asc":
+                # Should be in ascending order (or equal)
+                for i in range(1, len(times)):
+                    assert times[i] >= times[i - 1]
+            else:  # desc
+                # Should be in descending order (or equal)
+                for i in range(1, len(times)):
+                    assert times[i] <= times[i - 1]
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_automatic_pagination(
+        self,
+        is_async: bool,
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test that the method automatically handles pagination to fetch up to the limit."""
+        user = _get_user(_MEMBER).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        # The method uses page_size = min(100, limit), so test with limit > 100
+        # to ensure pagination happens (if there are enough spans)
+        limit = 150
+        spans = await _await_or_return(
+            Client().spans.get_spans(
+                project_identifier="default",
+                limit=limit,
+            )
+        )
+
+        # We should get up to the limit, or all available spans
+        assert len(spans) <= limit
+
+        # Test with small limit
+        small_limit = 5
+        small_spans = await _await_or_return(
+            Client().spans.get_spans(
+                project_identifier="default",
+                limit=small_limit,
+            )
+        )
+
+        assert len(small_spans) <= small_limit
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_project_identifier_types(
+        self,
+        is_async: bool,
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test that project identifier works with both project names and IDs."""
+        user = _get_user(_ADMIN).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        # First get the project to find its ID
+        projects = await _await_or_return(Client().projects.list())
+        default_project = next((p for p in projects if p["name"] == "default"), None)
+
+        if not default_project:
+            pytest.skip("Default project not found")
+
+        project_id = default_project["id"]
+
+        # Get spans by project name
+        spans_by_name = await _await_or_return(
+            Client().spans.get_spans(
+                project_identifier="default",
+                limit=5,
+            )
+        )
+
+        # Get spans by project ID
+        spans_by_id = await _await_or_return(
+            Client().spans.get_spans(
+                project_identifier=project_id,
+                limit=5,
+            )
+        )
+
+        # Both should return spans
+        assert len(spans_by_name) > 0
+        assert len(spans_by_id) > 0
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_span_structure(
+        self,
+        is_async: bool,
+        _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        user = _get_user(_MEMBER).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        spans = await _await_or_return(
+            Client().spans.get_spans(
+                project_identifier="default",
+                limit=10,
+            )
+        )
+
+        assert len(spans) > 0
+
+        for span in spans:
+            # Check datetime fields
+            if "start_time" in span:
+                assert isinstance(span["start_time"], datetime)
+                assert span["start_time"].tzinfo is not None  # Should be timezone-aware
+
+            if "end_time" in span:
+                assert isinstance(span["end_time"], datetime)
+                assert span["end_time"].tzinfo is not None
+
+            # Check attributes are flattened
+            if "attributes" in span:
+                assert isinstance(span["attributes"], dict)
+                # Values should be simple types, not OTLP AnyValue structures
+                for key, value in span["attributes"].items():
+                    assert isinstance(key, str)
+                    # Value should not be a dict with "string_value", "int_value", etc.
+                    if isinstance(value, dict):
+                        # Check that it's not an OTLP AnyValue structure
+                        otlp_value_keys = ["string_value", "int_value", "double_value", "bool_value", "array_value"]
+                        assert not any(k in value for k in otlp_value_keys)
+
+            # Check events if present
+            if "events" in span:
+                assert isinstance(span["events"], list)
+                for event in span["events"]:
+                    if "timestamp" in event:
+                        assert isinstance(event["timestamp"], datetime)
+                    if "attributes" in event:
+                        assert isinstance(event["attributes"], dict)
+
+            # Check status if present
+            if "status" in span:
+                assert isinstance(span["status"], dict)
+                if "code" in span["status"]:
+                    # Should be string like "OK", "ERROR", not integer
+                    assert isinstance(span["status"]["code"], str)
+                    assert span["status"]["code"] in ["UNSET", "OK", "ERROR"]
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_empty_results(
+        self,
+        is_async: bool,
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test behavior when no spans match the filter criteria."""
+        user = _get_user(_MEMBER).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        # Use a far future date that shouldn't have any spans
+        far_future = datetime.now(timezone.utc) + timedelta(days=365 * 10)
+
+        spans = await _await_or_return(
+            Client().spans.get_spans(
+                project_identifier="default",
+                start_time=far_future,
+                limit=10,
+            )
+        )
+
+        # Should return empty list, not error
+        assert isinstance(spans, list)
+        assert len(spans) == 0
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_invalid_project_identifier(
+        self,
+        is_async: bool,
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test error handling for invalid project identifier."""
+        user = _get_user(_MEMBER).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+
+        import httpx
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        # Test with non-existent project
+        with pytest.raises(httpx.HTTPStatusError):
+            await _await_or_return(
+                Client().spans.get_spans(
+                    project_identifier="non_existent_project_xyz_123",
+                    limit=10,
+                )
             )
