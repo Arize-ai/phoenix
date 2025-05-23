@@ -1,0 +1,12 @@
+# Core dependencies for the export tool
+httpx>=0.24.1
+python-dotenv>=1.0.0
+tqdm>=4.66.0
+
+# Dependencies for data manipulation and analysis
+pandas>=2.0.0
+
+# Arize dependencies for import tools
+arize>=7.0.0  # For general Arize functionality including annotations
+arize-phoenix>=8.0.0  # For integration with Arize Phoenix
+arize-experimental>=7.0.0  # For Prompt Hub and Datasets 
