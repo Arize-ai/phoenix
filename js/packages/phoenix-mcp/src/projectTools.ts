@@ -43,7 +43,7 @@ export const initializeProjectTools = ({
     async ({ limit = 100, cursor, includeExperimentProjects = false }) => {
       const response = await client.GET("/v1/projects", {
         params: {
-          query: { 
+          query: {
             limit,
             cursor,
             include_experiment_projects: includeExperimentProjects,
@@ -60,4 +60,4 @@ export const initializeProjectTools = ({
       };
     }
   );
-}; 
+};
