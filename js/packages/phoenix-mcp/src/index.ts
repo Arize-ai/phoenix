@@ -7,6 +7,7 @@ import minimist from "minimist";
 import { initializeDatasetTools } from "./datasetTools.js";
 import { initializeExperimentTools } from "./experimentTools.js";
 import { initializePromptTools } from "./promptTools.js";
+import { initializeProjectTools } from "./projectTools.js";
 import { initializeReadmeResources } from "./readmeResource.js";
 
 const argv = minimist(process.argv.slice(2));
@@ -35,6 +36,7 @@ const server = new McpServer({
 initializePromptTools({ client, server });
 initializeExperimentTools({ client, server });
 initializeDatasetTools({ client, server });
+initializeProjectTools({ client, server });
 
 async function main() {
   // Initialize readme resources first
