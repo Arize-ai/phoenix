@@ -40,6 +40,7 @@ export const findToolChoiceType = (
 ) => {
   switch (provider) {
     case "AZURE_OPENAI":
+    case "DEEPSEEK":
     case "OPENAI":
       if (
         isObject(choice) &&

@@ -110,10 +110,10 @@ export function ModelProviderPicker({
             {data.modelProviders
               .filter((provider) => !provider.dependenciesInstalled)
               .map((provider) => (
-                <>
+                <div key={provider.key}>
                   {provider.dependencies?.join(", ") ?? provider.name}
                   <br />
-                </>
+                </div>
               ))}
           </Tooltip>
         </TooltipTrigger>

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<32b20947e374dff0bb4616598a2ab5fa>>
+ * @generated SignedSource<<dc37b403eba01083b602f705655f4c49>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "GOOGLE" | "OPENAI";
+export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OPENAI";
 import { FragmentRefs } from "relay-runtime";
 export type GenerativeProvidersCard_data$data = {
   readonly modelProviders: ReadonlyArray<{

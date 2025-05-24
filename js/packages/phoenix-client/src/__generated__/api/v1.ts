@@ -1103,7 +1103,7 @@ export interface components {
          * ModelProvider
          * @enum {string}
          */
-        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE";
+        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK";
         /**
          * OptimizationDirection
          * @enum {string}
@@ -1410,6 +1410,37 @@ export interface components {
             /** Source Prompt Id */
             source_prompt_id?: string | null;
         };
+        /** PromptDeepSeekInvocationParameters */
+        PromptDeepSeekInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "deepseek";
+            deepseek: components["schemas"]["PromptDeepSeekInvocationParametersContent"];
+        };
+        /** PromptDeepSeekInvocationParametersContent */
+        PromptDeepSeekInvocationParametersContent: {
+            /** Temperature */
+            temperature?: number;
+            /** Max Tokens */
+            max_tokens?: number;
+            /** Max Completion Tokens */
+            max_completion_tokens?: number;
+            /** Frequency Penalty */
+            frequency_penalty?: number;
+            /** Presence Penalty */
+            presence_penalty?: number;
+            /** Top P */
+            top_p?: number;
+            /** Seed */
+            seed?: number;
+            /**
+             * Reasoning Effort
+             * @enum {string}
+             */
+            reasoning_effort?: "low" | "medium" | "high";
+        };
         /** PromptGoogleInvocationParameters */
         PromptGoogleInvocationParameters: {
             /**
@@ -1601,7 +1632,7 @@ export interface components {
             template_type: components["schemas"]["PromptTemplateType"];
             template_format: components["schemas"]["PromptTemplateFormat"];
             /** Invocation Parameters */
-            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"];
+            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"];
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
@@ -1620,7 +1651,7 @@ export interface components {
             template_type: components["schemas"]["PromptTemplateType"];
             template_format: components["schemas"]["PromptTemplateFormat"];
             /** Invocation Parameters */
-            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"];
+            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"];
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
