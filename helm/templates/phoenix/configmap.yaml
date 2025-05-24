@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-configmap
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    app: {{ .Release.Name }}
+data:
+  # Server configuration
+  PHOENIX_HOST: {{ .Values.server.host | quote }}
+  PHOENIX_PORT: {{ .Values.server.port | quote }}
+  PHOENIX_GRPC_PORT: {{ .Values.server.grpcPort | quote }}
+  PHOENIX_HOST_ROOT_PATH: {{ .Values.server.hostRootPath | quote }}
+  PHOENIX_WORKING_DIR: {{ .Values.server.workingDir | quote }}
+  PHOENIX_ROOT_URL: {{ .Values.server.rootUrl | quote }}
+  PHOENIX_ENABLE_PROMETHEUS: {{ .Values.server.enablePrometheus | quote }}
+
+  # Database configuration
+  PHOENIX_SQL_DATABASE_URL: {{ .Values.database.url | quote }}
+  PHOENIX_POSTGRES_HOST: {{ .Values.database.postgres.host | quote }}
+  PHOENIX_POSTGRES_PORT: {{ .Values.database.postgres.port | quote }}
+  PHOENIX_POSTGRES_USER: {{ .Values.database.postgres.user | quote }}
+  PHOENIX_POSTGRES_DB: {{ .Values.database.postgres.db | quote }}
+  PHOENIX_SQL_DATABASE_SCHEMA: {{ .Values.database.postgres.schema | quote }}
+  PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES: {{ .Values.database.allocatedStorageGiB | quote }}
+
+  # SMTP configuration
+  PHOENIX_SMTP_HOSTNAME: {{ .Values.smtp.hostname | quote }}
+  PHOENIX_SMTP_PORT: {{ .Values.smtp.port | quote }}
+  PHOENIX_SMTP_USERNAME: {{ .Values.smtp.username | quote }}
+  PHOENIX_SMTP_MAIL_FROM: {{ .Values.smtp.mailFrom | quote }}
+  PHOENIX_SMTP_VALIDATE_CERTS: {{ .Values.smtp.validateCerts | quote }}
+
+  # Logging
+  PHOENIX_LOGGING_MODE: {{ .Values.logging.mode | quote }}
+  PHOENIX_LOGGING_LEVEL: {{ .Values.logging.level | quote }}
+  PHOENIX_DB_LOGGING_LEVEL: {{ .Values.logging.dbLevel | quote }}
+  PHOENIX_LOG_MIGRATIONS: {{ .Values.logging.logMigrations | quote }}
+
+  # Instrumentation
+  PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT: {{ .Values.instrumentation.otlpTraceCollectorHttpEndpoint | quote }}
+  PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT: {{ .Values.instrumentation.otlpTraceCollectorGrpcEndpoint | quote }}
