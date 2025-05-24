@@ -283,7 +283,6 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
             BoundedFloatInvocationParameter(
                 invocation_name="presence_penalty",
                 label="Presence Penalty",
-                default_value=0.0,
                 min_value=-2.0,
                 max_value=2.0,
             ),
@@ -337,6 +336,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
         tool_call_ids: dict[int, str] = {}
         token_usage: Optional["CompletionUsage"] = None
         throttled_create = self.rate_limiter._alimit(self.client.chat.completions.create)
+
         async for chunk in await throttled_create(
             messages=openai_messages,
             model=self.model_name,
