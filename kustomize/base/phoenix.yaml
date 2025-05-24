@@ -28,6 +28,8 @@ spec:
                         value: /mnt/data
                       - name: PHOENIX_PORT
                         value: "6006"
+                      - name: PHOENIX_SQL_DATABASE_URL
+                        value: "postgresql://postgres:postgres123@postgres:5432/postgres"
                   image: arizephoenix/phoenix:version-8.32.1
                   name: phoenix
                   ports:
