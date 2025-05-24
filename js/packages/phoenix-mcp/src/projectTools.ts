@@ -25,20 +25,6 @@ Expected return:
     }
   ]`;
 
-const GET_PROJECT_DESCRIPTION = `Get details of a specific project by ID or name.
-
-Example usage:
-  Get details for project "default"
-  Get details for project UHJvamVjdDox
-
-Expected return:
-  Project object with metadata.
-  Example: {
-    "id": "UHJvamVjdDox",
-    "name": "default", 
-    "description": "Default project for traces"
-  }`;
-
 export const initializeProjectTools = ({
   client,
   server,
@@ -69,29 +55,6 @@ export const initializeProjectTools = ({
           {
             type: "text",
             text: JSON.stringify(response.data?.data, null, 2),
-          },
-        ],
-      };
-    }
-  );
-
-  server.tool(
-    "get-project",
-    GET_PROJECT_DESCRIPTION,
-    {
-      projectIdentifier: z.string(),
-    },
-    async ({ projectIdentifier }) => {
-      const response = await client.GET("/v1/projects/{project_identifier}", {
-        params: {
-          path: { project_identifier: projectIdentifier },
-        },
-      });
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(response.data, null, 2),
           },
         ],
       };
