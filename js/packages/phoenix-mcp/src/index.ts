@@ -12,14 +12,18 @@ import { initializeReadmeResources } from "./readmeResource.js";
 
 const argv = minimist(process.argv.slice(2));
 
+const headers = argv.apiKey
+  ? {
+      Authorization: `Bearer ${argv.apiKey}`,
+      api_key: argv.apiKey, // For hosted phoenix
+    }
+  : {};
+
 // Initialize Phoenix client
 const client = createClient({
   options: {
     baseUrl: argv.baseUrl || "http://localhost:6006",
-    headers: {
-      Authorization: `Bearer ${argv.apiKey}`,
-      api_key: argv.apiKey, // For hosted phoenix
-    },
+    headers,
   },
 });
 
