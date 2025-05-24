@@ -55,12 +55,17 @@ export function MessageRolePicker({
         onChange(e);
       }}
     >
-      <Label>Role</Label>
+      {includeLabel && <Label>Role</Label>}
       <Button>
         <SelectValue />
         <SelectChevronUpDownIcon />
       </Button>
-      <Popover>
+      <Popover 
+        placement="bottom start" 
+        offset={4}
+        shouldFlip={true}
+        containerPadding={8}
+      >
         <ListBox>
           <SelectItem id="system">System</SelectItem>
           <SelectItem id="user">User</SelectItem>
