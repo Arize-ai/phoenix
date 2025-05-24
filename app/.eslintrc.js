@@ -144,6 +144,12 @@ module.exports = {
         module: "@arizeai/components",
         use: "@phoenix/components",
       },
+      // Temporarily commented out while we migrate components one at a time
+      // {
+      //   name: "Picker",
+      //   module: "@arizeai/components",
+      //   use: "import { Select, SelectValue, SelectItem } from '@phoenix/components'",
+      // },
     ],
     "no-duplicate-imports": "error",
   },
