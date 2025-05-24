@@ -1,5 +1,17 @@
 # Changelog
 
+## [10.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.0.4...arize-phoenix-v10.1.0) (2025-05-24)
+
+
+### Features
+
+* span search route ([#7462](https://github.com/Arize-ai/phoenix/issues/7462)) ([5f807cd](https://github.com/Arize-ai/phoenix/commit/5f807cd9870b2d80ca442b2008306b8f10a36483))
+
+
+### Bug Fixes
+
+* bump evals and otel deps ([#7701](https://github.com/Arize-ai/phoenix/issues/7701)) ([4b62577](https://github.com/Arize-ai/phoenix/commit/4b625779a35acd1b0bbb096f88a3e6fdd68f6163))
+
 ## [10.0.4](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.0.3...arize-phoenix-v10.0.4) (2025-05-22)
 
 
