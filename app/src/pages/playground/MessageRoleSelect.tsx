@@ -36,7 +36,7 @@ type MessageRolePickerProps = {
   onChange: (role: ChatMessageRole) => void;
 };
 
-export function MessageRolePicker({
+export function MessageRoleSelect({
   role,
   includeLabel = true,
   onChange,
@@ -60,8 +60,8 @@ export function MessageRolePicker({
         <SelectValue />
         <SelectChevronUpDownIcon />
       </Button>
-      <Popover 
-        placement="bottom start" 
+      <Popover
+        placement="bottom start"
         offset={4}
         shouldFlip={true}
         containerPadding={8}
