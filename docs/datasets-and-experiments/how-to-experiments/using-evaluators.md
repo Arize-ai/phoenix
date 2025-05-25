@@ -98,7 +98,7 @@ The decorated `wordiness_evaluator` can be passed directly into `run_experiment`
 
 ## Multiple Evaluators on Experiment Runs
 
-Phoenix supports running multiple evaluators on a single experiment, allowing you to comprehensively assess your model's performance from different angles. When you provide multiple evaluators, Phoenix creates evaluation runs for every combination of experiment runs and evaluators.&#x20;
+Phoenix supports running multiple evals on a single experiment, allowing you to comprehensively assess your model's performance from different angles. When you provide multiple evaluators, Phoenix creates evaluation runs for every combination of experiment runs and evaluators.&#x20;
 
 ```python
 from phoenix.experiments import run_experiment
