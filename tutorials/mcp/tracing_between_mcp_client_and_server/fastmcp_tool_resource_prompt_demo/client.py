@@ -84,16 +84,16 @@ async def main():
 
             # --- Step 2: Determine type of review using OpenAI chat completion ---
             review_request = input("\nInstructions for PR review: ")
-            response = openai_client.beta.chat.completions.parse(
+            response = openai_client.responses.parse(
                 model="gpt-4o-2024-08-06",
-                messages=[
+                input=[
                     {"role": "system", "content": "User requests a PR review."},
                     {"role": "user", "content": review_request},
                 ],
                 temperature=0.0,
-                response_format=ReviewType,
+                text_format=ReviewType,
             )
-            review_type = response.choices[0].message.parsed.review_type
+            review_type = response.output_parsed.review_type
             logging.info(f"Selected review type: {review_type}")
 
             # --- Step 3: Get template for this review type from the MCP server prompts ---
@@ -109,16 +109,16 @@ async def main():
             review_template_content = review_template.messages[0].content.text
 
             # --- Step 4: Run the AI review using OpenAI (simulate as if real comments are made) ---
-            response = openai_client.beta.chat.completions.parse(
+            response = openai_client.responses.parse(
                 model="gpt-4o-2024-08-06",
-                messages=[
+                input=[
                     {"role": "system", "content": f"Files: {added_files}"},
                     {"role": "user", "content": review_template_content},
                 ],
                 temperature=0.0,
-                response_format=Review,
+                text_format=Review,
             )
-            review = response.choices[0].message.parsed
+            review = response.output_parsed
             logging.info(f"PR comments generated: {review.list_of_pr_comments}")
 
             # --- Step 5: Post PR comments using the MCP server tool, show checked template ---

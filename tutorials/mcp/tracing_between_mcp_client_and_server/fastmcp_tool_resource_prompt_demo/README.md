@@ -18,7 +18,7 @@ This guide provides a clear, minimal, and practical reference for **instrumentin
 
 ## Prerequisites
 
-- You should be familiar with Phoenix/Arize observability and have access to an [Arize project](https://docs.arize.com/arize/observe/quickstart-llm) with OpenTelemetry configuration.
+- You should be familiar with Phoenix observability and have access to an [Phoenix project](https://docs.arize.com/phoenix/tracing/llm-traces-1/quickstart-tracing-python) with OpenTelemetry configuration.
 - Python environment with `fastmcp`, `phoenix`, `openinference`, `openai`, `pydantic`, and `dotenv` installed.
 
 ---
@@ -58,7 +58,7 @@ This guide provides a clear, minimal, and practical reference for **instrumentin
 
 ## Further Reference
 
-- [Arize LLM Observability Quickstart](https://docs.arize.com/arize/observe/quickstart-llm)
+- [Phoenix LLM Observability Quickstart](https://docs.arize.com/phoenix/tracing/llm-traces-1/quickstart-tracing-python)
 - [OpenInference documentation](https://github.com/Arize-ai/openinference)
 - [FastMCP project documentation](https://gofastmcp.com/getting-started/welcome)
 

@@ -34,10 +34,18 @@ def create_pr_comment(file_path: str, line: int, comment: str, severity: str = "
     """
     Simulates posting a PR comment. Wraps logic in a span to demonstrate tool-level trace context.
     """
-    with tracer.start_as_current_span("create_pr_comment", openinference_span_kind="tool"):
+
+    @tracer.tool
+    def mock_pr_comment_post(file_path: str, line: int, comment: str) -> str:
+        """
+        Here you would make a real request to the PR comment API.
+        """
         # Simulate delay for realistic post request.
         time.sleep(0.1)
-        return f"PR comment posted for {file_path}:{line} [{severity}]: {comment}"
+        return f"PR comment posted for ({file_path}:{line}) : {comment}"
+
+    composed_comment = f"[severity: {severity}] {comment}"
+    return mock_pr_comment_post(file_path, line, composed_comment)
 
 
 @mcp.resource("pr://{pr_id}/files")
@@ -45,9 +53,14 @@ def get_pr_added_files(pr_id: str) -> list[str]:
     """
     Returns mock files for the PR, each designed to provide issues for different review types.
     """
-    with tracer.start_as_current_span(
-        "retrieve_files_from_pr", openinference_span_kind="retriever"
-    ):
+
+    @tracer.tool
+    def mock_pr_files_retrieval(sql_query: str) -> list[str]:
+        """
+        Here you would make a real request to the database.
+        """
+        # Simulate delay for realistic request to database.
+        time.sleep(0.1)
         files = [
             # Security review candidate
             """# src/utils.py
@@ -65,8 +78,10 @@ def inefficient_sort(data):
                 data[i], data[j] = data[j], data[i]
 """,
         ]
-        time.sleep(0.1)
         return files
+
+    sql_query = f"SELECT * FROM pr_files WHERE pr_id = {pr_id}"
+    return mock_pr_files_retrieval(sql_query)
 
 
 # --- Prompt templates for each review type (as plain checklists) ---
