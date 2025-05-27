@@ -455,7 +455,7 @@ function AddSpanToDatasetButton({
         {buttonText}
       </Button>
       <NonAnimatedPopover>
-        <Modal variant="slideover">
+        <Modal variant="slideover" size="L">
           <Suspense fallback={<Loading />}>
             <SpanToDatasetExampleDialog
               spanId={span.id}

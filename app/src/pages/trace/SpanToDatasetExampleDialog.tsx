@@ -17,6 +17,7 @@ import {
 import { JSONEditor } from "@phoenix/components/code";
 import { DatasetSelect, NewDatasetButton } from "@phoenix/components/dataset";
 import {
+  DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -170,6 +171,7 @@ export function SpanToDatasetExampleDialog({
               >
                 Add Example
               </Button>
+              <DialogCloseButton slot="close" />
             </DialogTitleExtra>
           </DialogHeader>
           <div
