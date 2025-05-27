@@ -66,11 +66,18 @@
 
 * [LangFlow](langflow/README.md)
   * [LangFlow Tracing](langflow/langflow-tracing.md)
+* [Mastra](frameworks/mastra/README.md)
+  * [Mastra Tracing](frameworks/mastra/mastra-tracing.md)
 * [Model Context Protocol](model-context-protocol/README.md)
   * [Phoenix MCP Server](model-context-protocol/phoenix-mcp-server.md)
   * [MCP Tracing](model-context-protocol/mcp-tracing.md)
+* [Portkey](frameworks/portkey/README.md)
+  * [Portkey Tracing](frameworks/portkey/portkey-tracing.md)
 * [Prompt Flow](prompt-flow/README.md)
   * [Prompt Flow Tracing](prompt-flow/prompt-flow-tracing.md)
+* [Pydantic AI](frameworks/pydantic/README.md)
+  * [Pydantic AI Tracing](frameworks/pydantic/pydantic-tracing.md)
+  * [Pydantic AI Evals](frameworks/pydantic/pydantic-evals.md)
 * [Vercel](vercel/README.md)
   * [Vercel AI SDK Tracing (JS)](vercel/vercel-ai-sdk-tracing-js.md)
 
