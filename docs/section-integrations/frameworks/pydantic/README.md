@@ -7,8 +7,8 @@ description: >-
 
 # PydanticAI
 
-<table data-card-size="large" data-view="cards"><thead><tr><th></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td><a href="pydantic-tracing.md"><strong>PydanticAI Tracing</strong></a></td><td><a href="pydantic-tracing.md">pydantic-tracing.md</a></td></tr></tbody></table>
+<table data-card-size="large" data-view="cards"><thead><tr><th></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td><a href="pydantic-tracing.md"><strong>PydanticAI Tracing</strong></a></td><td><a href="pydantic-tracing.md">pydantic-tracing.md</a></td></tr><tr><td><a href="pydantic-evals.md"><strong>Pydantic Evals</strong></a></td><td><a href="pydantic-evals.md">pydantic-evals.md</a></td></tr></tbody></table>
 
 ### Featured Tutorials
 
-<table data-view="cards"><thead><tr><th></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td><a href="https://ai.pydantic.dev/examples/">PydanticAI Agent Examples</a></td><td><a href="https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-pydantic-ai/examples">https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-pydantic-ai/examples</a></td></tr></tbody></table>
+<table data-view="cards"><thead><tr><th></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td><a href="https://ai.pydantic.dev/examples/">PydanticAI Agent Examples</a></td><td><a href="https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-pydantic-ai/examples">https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-pydantic-ai/examples</a></td></tr><tr><td><a href="../../../../tutorials/evals/pydantic-evals.ipynb">Pydantic Evals Tutorial</a></td><td><a href="../../../../tutorials/evals/pydantic-evals.ipynb">pydantic-evals.ipynb</a></td></tr></tbody></table>
