@@ -364,10 +364,7 @@ class Spans:
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[Span]:
         """
-        Retrieves spans in a simplified, ergonomic format.
-
-        This method returns spans with flattened attributes and cleaner structure
-        for easier programmatic access.
+        Retrieves spans with simple filtering options.
 
         Args:
             project_identifier: The project identifier (name or ID) used in the API path.
@@ -769,10 +766,7 @@ class AsyncSpans:
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[Span]:
         """
-        Retrieves spans in a simplified, ergonomic format.
-
-        This method returns spans with flattened attributes and cleaner structure
-        for easier programmatic access.
+        Retrieves spans with simple filtering options.
 
         Args:
             project_identifier: The project identifier (name or ID) used in the API path.
