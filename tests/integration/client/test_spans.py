@@ -600,11 +600,9 @@ class TestClientForSpansRetrieval:
         assert len(spans_no_match) == 0
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("sort_direction", ["asc", "desc"])
     async def test_sort_direction(
         self,
         is_async: bool,
-        sort_direction: Literal["asc", "desc"],
         _get_user: _GetUser,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
@@ -617,29 +615,38 @@ class TestClientForSpansRetrieval:
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
-        spans = await _await_or_return(
+        spans_asc = await _await_or_return(
             Client().spans.get_spans(
                 project_identifier="default",
-                sort_direction=sort_direction,
+                sort_direction="asc",
                 limit=10,
             )
         )
 
-        # Basic check - we got spans
-        assert len(spans) > 0
+        spans_desc = await _await_or_return(
+            Client().spans.get_spans(
+                project_identifier="default",
+                sort_direction="desc",
+                limit=10,
+            )
+        )
 
-        # If we have multiple spans with timestamps, check ordering
-        spans_with_time = [s for s in spans if "start_time" in s]
-        if len(spans_with_time) >= 2:
-            times = [s["start_time"] for s in spans_with_time]
-            if sort_direction == "asc":
-                # Should be in ascending order (or equal)
-                for i in range(1, len(times)):
-                    assert times[i] >= times[i - 1]
-            else:  # desc
-                # Should be in descending order (or equal)
-                for i in range(1, len(times)):
-                    assert times[i] <= times[i - 1]
+        assert len(spans_asc) > 0
+        assert len(spans_desc) > 0
+
+        for span in spans_asc + spans_desc:
+            assert isinstance(span, dict)
+            assert any(key in span for key in ["span_id", "trace_id", "name"])
+
+        assert len(spans_asc) >= 2
+        assert len(spans_desc) >= 2
+        asc_span_ids = [s.get("span_id") for s in spans_asc if s.get("span_id")]
+        desc_span_ids = [s.get("span_id") for s in spans_desc if s.get("span_id")]
+
+        assert asc_span_ids[0] != desc_span_ids[0], (
+            f"ASC and DESC should return different orderings. "
+            f"ASC first: {asc_span_ids[0]}, DESC first: {desc_span_ids[0]}"
+        )
 
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_automatic_pagination(
