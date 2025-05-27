@@ -39,6 +39,9 @@ const modalCSS = css`
   left: 0;
   width: 100vw;
   height: var(--visual-viewport-height);
+  // TODO(apowell): refactor into ModalOverlay with default styles
+  // The modal itself should not render a background/overlay unless you compose
+  // it with ModalOverlay
   background: rgba(0 0 0 / 0.5);
   display: flex;
   align-items: center;
