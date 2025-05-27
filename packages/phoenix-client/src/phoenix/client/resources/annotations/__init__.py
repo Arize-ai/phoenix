@@ -224,7 +224,7 @@ class Annotations:
 
         url = "v1/span_annotations"
         params = {"sync": sync} if sync else {}
-        json_ = v1.AnnotateSpansRequestBody(data=annotations_list)  # pyright: ignore[reportUnknownArgumentType]
+        json_ = v1.AnnotateSpansRequestBody(data=annotations_list)
         response = self._client.post(url=url, json=json_, params=params)
         response.raise_for_status()
         if not sync:
@@ -463,7 +463,7 @@ class AsyncAnnotations:
 
         url = "v1/span_annotations"
         params = {"sync": sync} if sync else {}
-        json_ = v1.AnnotateSpansRequestBody(data=annotations_list)  # pyright: ignore[reportUnknownArgumentType]
+        json_ = v1.AnnotateSpansRequestBody(data=annotations_list)
         response = await self._client.post(url=url, json=json_, params=params)
         response.raise_for_status()
         if not sync:
