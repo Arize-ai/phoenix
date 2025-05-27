@@ -4,7 +4,7 @@ import { format } from "d3-format";
 import { Counter } from "@phoenix/components";
 
 export function GitHubStarCount() {
-  const [starCount, setStarCountText] = useState<string | null>(null);
+  const [starCount, setStarCountText] = useState<string>("--");
 
   useEffect(() => {
     fetch("https://api.github.com/repos/Arize-ai/phoenix")
@@ -14,5 +14,5 @@ export function GitHubStarCount() {
       });
   }, []);
 
-  return <Counter>{starCount || "--"}</Counter>;
+  return <Counter>{starCount}</Counter>;
 }
