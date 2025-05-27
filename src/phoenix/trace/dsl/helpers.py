@@ -1,6 +1,7 @@
+import json
 import warnings
 from datetime import datetime
-from typing import Optional, Protocol, Union, cast
+from typing import Any, Iterable, Mapping, Optional, Protocol, Union, cast
 
 import pandas as pd
 from openinference.semconv.trace import DocumentAttributes, SpanAttributes
@@ -21,10 +22,6 @@ LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
 INPUT = {"input": INPUT_VALUE}
 OUTPUT = {"output": OUTPUT_VALUE}
 IO = {**INPUT, **OUTPUT}
-LLM_IO = {
-    "input": LLM_INPUT_MESSAGES,
-    "output": LLM_OUTPUT_MESSAGES,
-}
 
 
 IS_ROOT = "parent_id is None"
@@ -138,40 +135,53 @@ def get_qa_with_reference(
 
 def get_called_tools(
     obj: CanQuerySpans,
+    *,
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
     project_name: Optional[str] = None,
-    # Deprecated
-    stop_time: Optional[datetime] = None,
     timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    function_name_only: bool = False,
 ) -> Optional[pd.DataFrame]:
     project_name = project_name or get_env_project_name()
-    if stop_time is not None:
-        # Deprecated. Raise a warning
-        warnings.warn(
-            "stop_time is deprecated. Use end_time instead.",
-            DeprecationWarning,
-        )
-        end_time = end_time or stop_time
 
-    def extract_tools(outputs: list[dict[str, any]]) -> str:
-        try:
-            if not isinstance(outputs, list) or not outputs:
-                return "Invalid message output"
-            if outputs[0].get("message").get("tool_calls"):
-                tools = []
-                for tool_call in outputs[0].get("message").get("tool_calls"):
-                    tools.append(tool_call["tool_call"]["function"]["name"])
-                return tools
-            else:
-                return "No tool used"
-        except (IndexError, KeyError, AttributeError):
-            return "Message output could not be processed"
+    def extract_tool_calls(outputs: list[dict[str, Any]]) -> Optional[list[str]]:
+        if not isinstance(outputs, list) or not outputs:
+            return None
+        ans = []
+        if isinstance(message := outputs[0].get("message"), Mapping) and isinstance(
+            tool_calls := message.get("tool_calls"), Iterable
+        ):
+            for tool_call in tool_calls:
+                if not isinstance(tool_call, Mapping):
+                    continue
+                if not isinstance(tc := tool_call.get("tool_call"), Mapping):
+                    continue
+                if not isinstance(function := tc.get("function"), Mapping):
+                    continue
+                if not isinstance(name := function.get("name"), str):
+                    continue
+                if function_name_only:
+                    ans.append(name)
+                    continue
+                kwargs = {}
+                if isinstance(arguments := function.get("arguments"), str):
+                    try:
+                        kwargs = json.loads(arguments)
+                    except Exception:
+                        pass
+                kwargs_str = "" if not kwargs else ", ".join(f"{k}={v}" for k, v in kwargs.items())
+                ans.append(f"{name}({kwargs_str})")
+        return ans or None
 
     df_qa = cast(
         pd.DataFrame,
         obj.query_spans(
-            SpanQuery().where(IS_LLM).select("trace_id", **LLM_IO),
+            SpanQuery()
+            .where(IS_LLM)
+            .select(
+                input=LLM_INPUT_MESSAGES,
+                output=LLM_OUTPUT_MESSAGES,
+            ),
             start_time=start_time,
             end_time=end_time,
             project_name=project_name,
@@ -183,6 +193,6 @@ def get_called_tools(
         print("No spans found.")
         return None
 
-    df_qa["tool_call"] = df_qa["output"].apply(extract_tools)
+    df_qa["tool_call"] = df_qa["output"].apply(extract_tool_calls)
 
     return df_qa

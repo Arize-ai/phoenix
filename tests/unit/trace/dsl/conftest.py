@@ -217,9 +217,7 @@ async def default_project(db: DbSessionFactory) -> None:
                 end_time=datetime.fromisoformat("2021-01-01T00:00:20.000+00:00"),
                 attributes={
                     "llm": {
-                        "input_messages": [
-                            {"message": {"role": "user", "content": "what is 5 plus 7"}}
-                        ],
+                        "input_messages": [{"message": {"role": "user", "content": "call foo"}}],
                         "output_messages": [
                             {
                                 "message": {
@@ -229,8 +227,7 @@ async def default_project(db: DbSessionFactory) -> None:
                                             "tool_call": {
                                                 "id": "c",
                                                 "function": {
-                                                    "name": "add",
-                                                    "arguments": '{\n  "a": 5,\n  "b": 7\n}',
+                                                    "name": "foo",
                                                 },
                                             }
                                         }

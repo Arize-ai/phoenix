@@ -63,7 +63,6 @@ async def test_get_called_tools(
     expected = pd.DataFrame(
         {
             "context.span_id": ["89101", "91011", "111213", "131415", "171819"],
-            "context.trace_id": ["0123", "0123", "0123", "0123", "0123"],
             "input": [
                 [
                     {
@@ -73,7 +72,7 @@ async def test_get_called_tools(
                         }
                     }
                 ],
-                [{"message": {"role": "user", "content": "what is 5 plus 7"}}],
+                [{"message": {"role": "user", "content": "call foo"}}],
                 [{"message": {"role": "user", "content": "abc"}}],
                 [{"message": {"role": "user", "content": "test empty output"}}],
                 [{"message": {"role": "user", "content": "test invalid tool"}}],
@@ -115,8 +114,7 @@ async def test_get_called_tools(
                                     "tool_call": {
                                         "id": "c",
                                         "function": {
-                                            "name": "add",
-                                            "arguments": '{\n  "a": 5,\n  "b": 7\n}',
+                                            "name": "foo",
                                         },
                                     }
                                 }
@@ -142,15 +140,15 @@ async def test_get_called_tools(
                 ],
             ],
             "tool_call": [
-                ["multiply", "add"],
-                ["add"],
-                "No tool used",
-                "Invalid message output",
-                "Message output could not be processed",
+                ["multiply(a=2, b=3)", "add(a=2, b=3)"],
+                ["foo()"],
+                None,
+                None,
+                None,
             ],
         }
     ).set_index("context.span_id")
-    actual = get_called_tools(legacy_px_client)
+    assert (actual := get_called_tools(legacy_px_client)) is not None
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
