@@ -185,13 +185,15 @@ class TracerProvider(_TracerProvider):
         if verbose:
             print(self._tracing_details())
 
-    def add_span_processor(self, *args: Any, **kwargs: Any) -> None:
+    def add_span_processor(self, *args: Any, replace_auto: bool = True,**kwargs: Any) -> None:
         """
         Registers a new `SpanProcessor` for this `TracerProvider`.
 
         If this `TracerProvider` has a default processor, it will be removed.
         """
 
+        if replace_auto:
+            self._default_processor = False
         if self._default_processor:
             self._active_span_processor.shutdown()
             self._active_span_processor._span_processors = tuple()  # remove default processors
