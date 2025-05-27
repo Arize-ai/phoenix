@@ -166,7 +166,6 @@ function SideNav() {
               leadingVisual={<Icon svg={<Icons.SettingsOutline />} />}
             />
           </li>
-
           <li key="docs">
             <DocsLink />
           </li>
