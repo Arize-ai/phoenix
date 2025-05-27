@@ -10,7 +10,7 @@ import { Icon, Icons } from "@phoenix/components/icon";
 import { Flex, FlexProps } from "@phoenix/components/layout";
 import { View, ViewProps } from "@phoenix/components/view";
 
-export type DialogProps = { variant?: "defaul" } & AriaDialogProps;
+export type DialogProps = AriaDialogProps;
 
 export const Dialog = forwardRef<HTMLDialogElement, DialogProps>(
   ({ children, ...props }, ref) => {
@@ -77,9 +77,13 @@ export const DialogTitleExtra = ({
 };
 
 export type DialogCloseButtonProps = ButtonProps & {
-  close: () => void;
+  close?: () => void;
 };
 
+/**
+ * Close button for a dialog.
+ * Either provide an imperative `close` prop or a `slot="close"` prop.
+ */
 export const DialogCloseButton = ({
   children,
   close,
@@ -91,7 +95,7 @@ export const DialogCloseButton = ({
       size="S"
       leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
       onPress={(e) => {
-        close();
+        close?.();
         onPress?.(e);
       }}
       type="button"
