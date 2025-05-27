@@ -15,7 +15,7 @@ export type DialogProps = AriaDialogProps;
 export const Dialog = forwardRef<HTMLDialogElement, DialogProps>(
   ({ children, ...props }, ref) => {
     return (
-      <AriaDialog {...props} ref={ref}>
+      <AriaDialog data-testid="dialog" {...props} ref={ref}>
         {children}
       </AriaDialog>
     );
@@ -28,7 +28,12 @@ export type DialogContentProps = FlexProps;
 
 export const DialogContent = ({ children, ...props }: DialogContentProps) => {
   return (
-    <Flex direction="column" height="100%" {...props}>
+    <Flex
+      direction="column"
+      height="100%"
+      data-testid="dialog-content"
+      {...props}
+    >
       {children}
     </Flex>
   );
@@ -44,6 +49,7 @@ export const DialogHeader = ({ children, ...props }: DialogHeaderProps) => {
       flexShrink={0}
       borderBottomColor="dark"
       borderBottomWidth={"thin"}
+      data-testid="dialog-header"
       {...props}
     >
       <Flex width="100%" justifyContent="space-between" alignItems="center">
@@ -57,7 +63,7 @@ export type DialogTitleProps = HeadingProps;
 
 export const DialogTitle = ({ children, ...props }: DialogTitleProps) => {
   return (
-    <Heading level={2} {...props}>
+    <Heading level={2} data-testid="dialog-title" {...props}>
       {children}
     </Heading>
   );
@@ -70,7 +76,12 @@ export const DialogTitleExtra = ({
   ...props
 }: DialogTitleExtraProps) => {
   return (
-    <Flex gap="size-100" alignItems="center" {...props}>
+    <Flex
+      gap="size-100"
+      alignItems="center"
+      data-testid="dialog-title-extra"
+      {...props}
+    >
       {children}
     </Flex>
   );
@@ -93,12 +104,14 @@ export const DialogCloseButton = ({
   return (
     <Button
       size="S"
+      data-testid="dialog-close-button"
       leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
       onPress={(e) => {
         close?.();
         onPress?.(e);
       }}
       type="button"
+      slot="close"
       {...props}
     >
       {children}
