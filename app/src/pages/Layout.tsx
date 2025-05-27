@@ -6,6 +6,7 @@ import { Flex, Icon, Icons, Loading } from "@phoenix/components";
 import {
   Brand,
   DocsLink,
+  GitHubLink,
   NavBreadcrumb,
   NavButton,
   NavLink,
@@ -155,6 +156,9 @@ function SideNav() {
           </li>
         </ul>
         <ul css={bottomLinksCSS}>
+          <li key="github">
+            <GitHubLink />
+          </li>
           <li key="settings">
             <NavLink
               to="/settings/general"
@@ -162,6 +166,7 @@ function SideNav() {
               leadingVisual={<Icon svg={<Icons.SettingsOutline />} />}
             />
           </li>
+
           <li key="docs">
             <DocsLink />
           </li>
