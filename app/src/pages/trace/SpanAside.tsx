@@ -201,7 +201,12 @@ function SpanAsideAnnotationList(props: {
     >
       <FocusScope>
         <FocusHotkey hotkey={SPAN_ANNOTATION_LIST_HOTKEY} />
-        <View paddingY="size-100" paddingX="size-100">
+        <View
+          paddingY="size-100"
+          paddingX="size-100"
+          overflow="auto"
+          maxHeight="100%"
+        >
           <AnnotationSummaryGroupTokens span={data} />
         </View>
       </FocusScope>
