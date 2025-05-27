@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 from phoenix.client.__generated__ import v1
 from phoenix.client.types.spans import Span
-from typing_extensions import Literal, TypeAlias
+from typing_extensions import TypeAlias
 
 from .._helpers import (
     _ADMIN,
