@@ -185,7 +185,9 @@ class TracerProvider(_TracerProvider):
         if verbose:
             print(self._tracing_details())
 
-    def add_span_processor(self, *args: Any, replace_default_processor: bool = True, **kwargs: Any) -> None:
+    def add_span_processor(
+        self, *args: Any, replace_default_processor: bool = True, **kwargs: Any
+    ) -> None:
         """
         Registers a new `SpanProcessor` for this `TracerProvider`.
 
