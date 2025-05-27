@@ -57,6 +57,11 @@ function TokenDetails(props: { nodeId: string }) {
           ... on Span {
             tokenCountPrompt
             tokenCountCompletion
+            tokenPromptDetails {
+              audio
+              cacheRead
+              cacheWrite
+            }
           }
           ... on ProjectSession {
             tokenUsage {
@@ -75,29 +80,39 @@ function TokenDetails(props: { nodeId: string }) {
     `,
     { nodeId: props.nodeId }
   );
-  const tokenCountPrompt = useMemo(() => {
-    switch (data.node.__typename) {
-      case "Span":
-        return data.node.tokenCountPrompt ?? 0;
-      case "ProjectSession":
-        return data.node.tokenUsage.prompt;
-      case "Trace":
-        return data.node.rootSpan?.cumulativeTokenCountPrompt ?? 0;
-      default:
-        return 0;
-    }
-  }, [data.node]);
 
-  const tokenCountCompletion = useMemo(() => {
+  const {
+    tokenCountPrompt,
+    tokenCountCompletion,
+    tokenCountCacheRead,
+    tokenCountCacheWrite,
+    tokenCountAudio,
+  } = useMemo(() => {
     switch (data.node.__typename) {
       case "Span":
-        return data.node.tokenCountCompletion ?? 0;
+        return {
+          tokenCountPrompt: data.node.tokenCountPrompt ?? 0,
+          tokenCountCompletion: data.node.tokenCountCompletion ?? 0,
+          tokenCountCacheRead: data.node.tokenPromptDetails?.cacheRead,
+          tokenCountCacheWrite: data.node.tokenPromptDetails?.cacheWrite,
+          tokenCountAudio: data.node.tokenPromptDetails?.audio,
+        };
       case "ProjectSession":
-        return data.node.tokenUsage.completion;
+        return {
+          tokenCountPrompt: data.node.tokenUsage.prompt,
+          tokenCountCompletion: data.node.tokenUsage.completion,
+        };
       case "Trace":
-        return data.node.rootSpan?.cumulativeTokenCountCompletion ?? 0;
+        return {
+          tokenCountPrompt: data.node.rootSpan?.cumulativeTokenCountPrompt ?? 0,
+          tokenCountCompletion:
+            data.node.rootSpan?.cumulativeTokenCountCompletion ?? 0,
+        };
       default:
-        return 0;
+        return {
+          tokenCountPrompt: 0,
+          tokenCountCompletion: 0,
+        };
     }
   }, [data.node]);
 
@@ -111,6 +126,24 @@ function TokenDetails(props: { nodeId: string }) {
         <Text>completion tokens</Text>
         <TokenItem>{tokenCountCompletion}</TokenItem>
       </Flex>
+      {tokenCountAudio != null && tokenCountAudio !== 0 && (
+        <Flex direction="row" gap="size-100" justifyContent="space-between">
+          <Text>audio tokens</Text>
+          <TokenItem>{tokenCountAudio}</TokenItem>
+        </Flex>
+      )}
+      {tokenCountCacheRead != null && tokenCountCacheRead !== 0 && (
+        <Flex direction="row" gap="size-100" justifyContent="space-between">
+          <Text>cache read tokens</Text>
+          <TokenItem>{tokenCountCacheRead}</TokenItem>
+        </Flex>
+      )}
+      {tokenCountCacheWrite != null && tokenCountCacheWrite !== 0 && (
+        <Flex direction="row" gap="size-100" justifyContent="space-between">
+          <Text>cache write tokens</Text>
+          <TokenItem>{tokenCountCacheWrite}</TokenItem>
+        </Flex>
+      )}
     </Flex>
   );
 }
