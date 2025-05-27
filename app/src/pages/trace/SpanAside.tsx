@@ -173,9 +173,19 @@ function SpanAsideAnnotationList(props: {
     `,
     props.span
   );
+  const annotationListPanelRef = useRef<ImperativePanelHandle>(null);
+  useHotkeys(SPAN_ANNOTATION_LIST_HOTKEY, () => {
+    if (
+      annotationListPanelRef.current &&
+      annotationListPanelRef.current.isCollapsed()
+    ) {
+      annotationListPanelRef.current.expand(50);
+    }
+  });
   const hasAnnotations = data.spanAnnotations.length > 0;
   return (
     <TitledPanel
+      ref={annotationListPanelRef}
       title={
         <Flex direction={"row"} gap="size-100" alignItems={"center"}>
           <span>Annotation Summary</span>
