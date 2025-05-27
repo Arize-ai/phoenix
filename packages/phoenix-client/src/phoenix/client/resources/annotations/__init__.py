@@ -653,7 +653,7 @@ def _validate_dataframe(
     # Validate index values if using index as span_id
     else:
         # Check for empty or whitespace-only strings
-        if (pd.Series(dataframe.index).str.strip() == "").any():  # pyright: ignore[reportUnknownMemberType]
+        if (pd.Series(dataframe.index).str.strip() == "").any():  # pyright: ignore[reportUnknownMemberType,reportUnknownArgumentType]
             raise ValueError("Index values must be non-empty strings when used as span_id")
         # Check for non-string values
         if not all(isinstance(x, str) for x in dataframe.index):  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
