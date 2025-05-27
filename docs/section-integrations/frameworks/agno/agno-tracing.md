@@ -2,17 +2,21 @@
 
 Phoenix provides seamless observability and tracing for Agno agents through the OpenInference instrumentation package. This integration automatically captures agent interactions, tool usage, reasoning steps, and multi-agent conversations, giving you complete visibility into your Agno applications. Monitor performance, debug issues, and evaluate agent behavior in real-time as your agents execute complex workflows and collaborate in teams.
 
-Agno is a lightweight, high-performance Python framework for building AI agents with tools, memory, and reasoning capabilities. It enables developers to create autonomous agents that can perform complex tasks, access knowledge bases, and collaborate in multi-agent teams. With support for 23+ model providers and lightning-fast performance (~3μs instantiation), Agno is designed for production-ready AI applications.
+Agno is a lightweight, high-performance Python framework for building AI agents with tools, memory, and reasoning capabilities. It enables developers to create autonomous agents that can perform complex tasks, access knowledge bases, and collaborate in multi-agent teams. With support for 23+ model providers and lightning-fast performance (\~3μs instantiation), Agno is designed for production-ready AI applications.
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/agno-example-trace.png" %}
+Agno Traces in Phoenix
+{% endembed %}
 
 ## Key Features
 
-- **Model Agnostic**: Connect to OpenAI, Anthropic, Google, and 20+ other providers
-- **Lightning Fast**: Agents instantiate in ~3μs with minimal memory footprint
-- **Built-in Reasoning**: First-class support for chain-of-thought and reasoning models
-- **Multi-Modal**: Native support for text, image, audio, and video processing
-- **Agentic RAG**: Advanced retrieval-augmented generation with hybrid search
-- **Multi-Agent Teams**: Coordinate multiple agents for complex workflows
-- **Production Ready**: Pre-built FastAPI routes and monitoring capabilities
+* **Model Agnostic**: Connect to OpenAI, Anthropic, Google, and 20+ other providers
+* **Lightning Fast**: Agents instantiate in \~3μs with minimal memory footprint
+* **Built-in Reasoning**: First-class support for chain-of-thought and reasoning models
+* **Multi-Modal**: Native support for text, image, audio, and video processing
+* **Agentic RAG**: Advanced retrieval-augmented generation with hybrid search
+* **Multi-Agent Teams**: Coordinate multiple agents for complex workflows
+* **Production Ready**: Pre-built FastAPI routes and monitoring capabilities
 
 ## Launch Phoenix
 
