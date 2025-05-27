@@ -224,7 +224,7 @@ class Annotations:
 
         url = "v1/span_annotations"
         params = {"sync": sync} if sync else {}
-        json_ = v1.AnnotateSpansRequestBody(data=annotations_list)
+        json_ = v1.AnnotateSpansRequestBody(data=annotations_list)  # type: ignore[reportUnknownArgumentType]
         response = self._client.post(url=url, json=json_, params=params)
         response.raise_for_status()
         if not sync:
@@ -463,7 +463,7 @@ class AsyncAnnotations:
 
         url = "v1/span_annotations"
         params = {"sync": sync} if sync else {}
-        json_ = v1.AnnotateSpansRequestBody(data=annotations_list)
+        json_ = v1.AnnotateSpansRequestBody(data=annotations_list)  # type: ignore[reportUnknownArgumentType]
         response = await self._client.post(url=url, json=json_, params=params)
         response.raise_for_status()
         if not sync:
