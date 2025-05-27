@@ -14,9 +14,9 @@ import {
   Text,
 } from "@phoenix/components";
 
-import { DatasetPickerQuery } from "./__generated__/DatasetPickerQuery.graphql";
+import { DatasetSelectQuery } from "./__generated__/DatasetSelectQuery.graphql";
 
-type DatasetPickerProps = {
+type DatasetSelectProps = {
   onSelectionChange?: (key: string) => void;
   onBlur?: () => void;
   validationState?: "valid" | "invalid";
@@ -28,10 +28,10 @@ type DatasetPickerProps = {
   isRequired?: boolean;
 };
 
-export function DatasetPicker(props: DatasetPickerProps) {
-  const data = useLazyLoadQuery<DatasetPickerQuery>(
+export function DatasetSelect(props: DatasetSelectProps) {
+  const data = useLazyLoadQuery<DatasetSelectQuery>(
     graphql`
-      query DatasetPickerQuery {
+      query DatasetSelectQuery {
         datasets(after: null, first: 100)
           @connection(key: "DatasetPicker__datasets") {
           edges {

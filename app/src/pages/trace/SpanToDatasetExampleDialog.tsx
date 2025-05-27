@@ -15,7 +15,7 @@ import {
   View,
 } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
-import { DatasetPicker, NewDatasetButton } from "@phoenix/components/dataset";
+import { DatasetSelect, NewDatasetButton } from "@phoenix/components/dataset";
 import {
   DialogContent,
   DialogHeader,
@@ -197,7 +197,7 @@ export function SpanToDatasetExampleDialog({
                       fieldState: { invalid, error },
                     }) => (
                       <Flex direction="row" gap="size-100" alignItems="end">
-                        <DatasetPicker
+                        <DatasetSelect
                           isRequired
                           onSelectionChange={onChange}
                           onBlur={onBlur}
