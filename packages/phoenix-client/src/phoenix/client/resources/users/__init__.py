@@ -150,6 +150,7 @@ class Users:
             print(f"Created user with ID: {local_user['id']}")
             ```
         """  # noqa: E501
+        user: Union[v1.LocalUserData, v1.OAuth2UserData]
         if auth_method == "LOCAL":
             if oauth2_client_id is not None or oauth2_user_id is not None:
                 raise ValueError("OAuth2 fields should not be provided for LOCAL users")
@@ -348,6 +349,7 @@ class AsyncUsers:
             print(f"Created user with ID: {local_user['id']}")
             ```
         """  # noqa: E501
+        user: Union[v1.LocalUserData, v1.OAuth2UserData]
         if auth_method == "LOCAL":
             if oauth2_client_id is not None or oauth2_user_id is not None:
                 raise ValueError("OAuth2 fields should not be provided for LOCAL users")
