@@ -145,7 +145,7 @@ tracer_provider = TracerProvider()
 tracer_provider.add_span_processor(BatchSpanProcessor())
 
 # This keeps the default processor and adds another one
-tracer_provider.add_span_processor(BatchSpanProcessor(), replace_auto=False)
+tracer_provider.add_span_processor(BatchSpanProcessor(), replace_default_processor=False)
 ```
 
 ### Using environment variables
