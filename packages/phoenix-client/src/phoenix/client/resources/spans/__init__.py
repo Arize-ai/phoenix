@@ -205,13 +205,14 @@ class Spans:
             span_ids_list = list({*span_ids_raw})
         elif span_ids is not None:
             span_ids_list = list({*span_ids})
-        else:  # spans is not None
+        else:
             assert spans is not None
-            span_ids_list: list[str] = []
-            for span in spans:
-                if "span_id" in span and span["span_id"]:
-                    span_ids_list.append(span["span_id"])  # type: ignore[arg-type]
-            span_ids_list = list({*span_ids_list})  # Remove duplicates
+            _span_ids = [
+                span["span_id"]
+                for span in spans
+                if span.get("span_id")
+            ]
+            span_ids_list = list(set(_span_ids))
 
         if not span_ids_list:
             return pd.DataFrame()
@@ -308,11 +309,12 @@ class Spans:
             span_ids_list = list({*span_ids})
         else:  # spans is not None
             assert spans is not None
-            span_ids_list: list[str] = []
-            for span in spans:
-                if "span_id" in span and span["span_id"]:
-                    span_ids_list.append(span["span_id"])  # type: ignore[arg-type]
-            span_ids_list = list({*span_ids_list})  # Remove duplicates
+            _span_ids = [
+                span["span_id"]
+                for span in spans
+                if span.get("span_id")
+            ]
+            span_ids_list = list(set(_span_ids))
 
         if not span_ids_list:
             return []
@@ -393,9 +395,9 @@ class Spans:
             }
 
             if start_time:
-                params["start_time"] = start_time.isoformat()  # type: ignore[reportUnnecessaryIsInstance]
+                params["start_time"] = start_time.isoformat()
             if end_time:
-                params["end_time"] = end_time.isoformat()  # type: ignore[reportUnnecessaryIsInstance]
+                params["end_time"] = end_time.isoformat()
             if annotation_names:
                 params["annotationNames"] = annotation_names
             if cursor:
@@ -605,11 +607,12 @@ class AsyncSpans:
             span_ids_list = list({*span_ids})
         else:  # spans is not None
             assert spans is not None
-            span_ids_list: list[str] = []
-            for span in spans:
-                if "span_id" in span and span["span_id"]:
-                    span_ids_list.append(span["span_id"])  # type: ignore[arg-type]
-            span_ids_list = list({*span_ids_list})  # Remove duplicates
+            _span_ids = [
+                span["span_id"]
+                for span in spans
+                if span.get("span_id")
+            ]
+            span_ids_list = list(set(_span_ids))
 
         if not span_ids_list:
             return pd.DataFrame()
@@ -706,11 +709,12 @@ class AsyncSpans:
             span_ids_list = list({*span_ids})
         else:  # spans is not None
             assert spans is not None
-            span_ids_list: list[str] = []
-            for span in spans:
-                if "span_id" in span and span["span_id"]:
-                    span_ids_list.append(span["span_id"])  # type: ignore[arg-type]
-            span_ids_list = list({*span_ids_list})  # Remove duplicates
+            _span_ids = [
+                span["span_id"]
+                for span in spans
+                if span.get("span_id")
+            ]
+            span_ids_list = list(set(_span_ids))
 
         if not span_ids_list:
             return []
@@ -791,9 +795,9 @@ class AsyncSpans:
             }
 
             if start_time:
-                params["start_time"] = start_time.isoformat()  # type: ignore[reportUnnecessaryIsInstance]
+                params["start_time"] = start_time.isoformat()
             if end_time:
-                params["end_time"] = end_time.isoformat()  # type: ignore[reportUnnecessaryIsInstance]
+                params["end_time"] = end_time.isoformat()
             if annotation_names:
                 params["annotationNames"] = annotation_names
             if cursor:
