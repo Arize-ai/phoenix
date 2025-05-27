@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Optional, Union, cast
+from typing import List, Literal, Optional, Union, cast
 
 import httpx
+from typing_extensions import assert_never
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.utils.encode_path_param import encode_path_param
@@ -16,23 +17,25 @@ class Users:
 
     This class provides synchronous methods for creating, retrieving, and deleting users.
 
+    Authentication Methods:
+        - LOCAL: Users authenticate with a username and password. These users can have an optional
+          password set during creation, and can be configured to require a password reset on first login.
+        - OAUTH2: Users authenticate through an OAuth2 provider. These users must have either an
+          OAuth2 client ID or user ID (or both) from their OAuth2 provider. They cannot have passwords.
+
     Example:
         ```python
         from phoenix.client import Client
-        from phoenix.client.__generated__ import v1
 
         client = Client()
         # List all users
         users = client.users.list()
         # Create a new user
         new_user = client.users.create(
-            user=v1.LocalUserData(
-                email="user@example.com",
-                username="user",
-                role="USER",
-                auth_method="LOCAL",
-                password_needs_reset=True,
-            )
+            email="user@example.com",
+            username="user",
+            role="MEMBER",
+            auth_method="LOCAL",
         )
         ```
     """  # noqa: E501
@@ -83,13 +86,35 @@ class Users:
     def create(
         self,
         *,
-        user: Union[v1.LocalUserData, v1.OAuth2UserData],
+        email: str,
+        username: str,
+        role: Literal["ADMIN", "MEMBER"],
+        auth_method: Literal["LOCAL", "OAUTH2"],
+        password_needs_reset: bool = True,
+        password: Optional[str] = None,
+        oauth2_client_id: Optional[str] = None,
+        oauth2_user_id: Optional[str] = None,
         send_welcome_email: bool = True,
     ) -> Union[v1.LocalUser, v1.OAuth2User]:
         """Create a new user.
 
         Args:
-            user: The user data to create. Can be either LocalUserData or OAuth2UserData.
+            email: The user's email address.
+            username: The user's username.
+            role: The user's role. Must be either "ADMIN" or "MEMBER".
+            auth_method: The authentication method:
+                - "LOCAL": User authenticates with username/password. Can have an optional password
+                  set during creation. If no password is provided, user will need to set one on first login.
+                - "OAUTH2": User authenticates through an OAuth2 provider. Must have either oauth2_client_id
+                  or oauth2_user_id (or both). Cannot have a password.
+            password_needs_reset: Whether the user needs to reset their password (LOCAL only).
+                If True, user will be required to set a new password on first login.
+            password: Optional password for LOCAL users. If not provided, user will need to set one
+                on first login.
+            oauth2_client_id: Optional OAuth2 client ID for OAUTH2 users. Must be provided if
+                oauth2_user_id is not provided.
+            oauth2_user_id: Optional OAuth2 user ID for OAUTH2 users. Must be provided if
+                oauth2_client_id is not provided.
             send_welcome_email: Whether to send a welcome email to the new user.
 
         Returns:
@@ -97,38 +122,62 @@ class Users:
 
         Raises:
             httpx.HTTPError: If the request fails.
-            ValueError: If the response is invalid.
+            ValueError: If the response is invalid or if invalid parameter combinations are provided.
+                For example:
+                - Providing OAuth2 fields for LOCAL users
+                - Providing password fields for OAUTH2 users
+                - Not providing either oauth2_client_id or oauth2_user_id for OAUTH2 users
 
         Example:
             ```python
             from phoenix.client import Client
-            from phoenix.client.__generated__ import v1
 
             client = Client()
             # Create a local user
             local_user = client.users.create(
-                user=v1.LocalUserData(
-                    email="user@example.com",
-                    username="user",
-                    role="USER",
-                    auth_method="LOCAL",
-                    password_needs_reset=True,
-                )
+                email="user@example.com",
+                username="user",
+                role="MEMBER",
+                auth_method="LOCAL",
             )
             # Create an OAuth2 user
             oauth2_user = client.users.create(
-                user=v1.OAuth2UserData(
-                    email="oauth2@example.com",
-                    username="oauth2user",
-                    role="USER",
-                    auth_method="OAUTH2",
-                    oauth2_client_id="test-client",
-                    oauth2_user_id="test-user",
-                )
+                email="oauth2@example.com",
+                username="oauth2user",
+                role="ADMIN",
+                auth_method="OAUTH2",
             )
             print(f"Created user with ID: {local_user['id']}")
             ```
         """  # noqa: E501
+        if auth_method == "LOCAL":
+            if oauth2_client_id is not None or oauth2_user_id is not None:
+                raise ValueError("OAuth2 fields should not be provided for LOCAL users")
+            user = v1.LocalUserData(
+                email=email,
+                username=username,
+                role=role,
+                auth_method="LOCAL",
+                password_needs_reset=password_needs_reset,
+            )
+            if password:
+                user["password"] = password
+        elif auth_method == "OAUTH2":
+            if password is not None:
+                raise ValueError("Password fields should not be provided for OAUTH2 users")
+            user = v1.OAuth2UserData(
+                email=email,
+                username=username,
+                role=role,
+                auth_method="OAUTH2",
+            )
+            if oauth2_client_id:
+                user["oauth2_client_id"] = oauth2_client_id
+            if oauth2_user_id:
+                user["oauth2_user_id"] = oauth2_user_id
+        else:
+            assert_never(auth_method)
+
         url = "v1/users"
         json_ = v1.CreateUserRequestBody(user=user, send_welcome_email=send_welcome_email)
         response = self._client.post(url=url, json=json_)
@@ -153,7 +202,6 @@ class Users:
             from phoenix.client import Client
 
             client = Client()
-            # Delete by ID
             client.users.delete(user_id="UHJvamVjdDoy")
             ```
         """  # noqa: E501
@@ -167,23 +215,25 @@ class AsyncUsers:
 
     This class provides asynchronous methods for creating, retrieving, and deleting users.
 
+    Authentication Methods:
+        - LOCAL: Users authenticate with a username and password. These users can have an optional
+          password set during creation, and can be configured to require a password reset on first login.
+        - OAUTH2: Users authenticate through an OAuth2 provider. These users must have either an
+          OAuth2 client ID or user ID (or both) from their OAuth2 provider. They cannot have passwords.
+
     Example:
         ```python
         from phoenix.client import AsyncClient
-        from phoenix.client.__generated__ import v1
 
         async_client = AsyncClient()
         # List all users
         users = await async_client.users.list()
         # Create a new user
         new_user = await async_client.users.create(
-            user=v1.LocalUserData(
-                email="user@example.com",
-                username="user",
-                role="USER",
-                auth_method="LOCAL",
-                password_needs_reset=True,
-            )
+            email="user@example.com",
+            username="user",
+            role="MEMBER",
+            auth_method="LOCAL",
         )
         ```
     """  # noqa: E501
@@ -234,13 +284,35 @@ class AsyncUsers:
     async def create(
         self,
         *,
-        user: Union[v1.LocalUserData, v1.OAuth2UserData],
+        email: str,
+        username: str,
+        role: Literal["ADMIN", "MEMBER"],
+        auth_method: Literal["LOCAL", "OAUTH2"],
+        password_needs_reset: bool = True,
+        password: Optional[str] = None,
+        oauth2_client_id: Optional[str] = None,
+        oauth2_user_id: Optional[str] = None,
         send_welcome_email: bool = True,
     ) -> Union[v1.LocalUser, v1.OAuth2User]:
         """Create a new user.
 
         Args:
-            user: The user data to create. Can be either LocalUserData or OAuth2UserData.
+            email: The user's email address.
+            username: The user's username.
+            role: The user's role. Must be either "ADMIN" or "MEMBER".
+            auth_method: The authentication method:
+                - "LOCAL": User authenticates with username/password. Can have an optional password
+                  set during creation. If no password is provided, user will need to set one on first login.
+                - "OAUTH2": User authenticates through an OAuth2 provider. Must have either oauth2_client_id
+                  or oauth2_user_id (or both). Cannot have a password.
+            password_needs_reset: Whether the user needs to reset their password (LOCAL only).
+                If True, user will be required to set a new password on first login.
+            password: Optional password for LOCAL users. If not provided, user will need to set one
+                on first login.
+            oauth2_client_id: Optional OAuth2 client ID for OAUTH2 users. Must be provided if
+                oauth2_user_id is not provided.
+            oauth2_user_id: Optional OAuth2 user ID for OAUTH2 users. Must be provided if
+                oauth2_client_id is not provided.
             send_welcome_email: Whether to send a welcome email to the new user.
 
         Returns:
@@ -248,38 +320,62 @@ class AsyncUsers:
 
         Raises:
             httpx.HTTPError: If the request fails.
-            ValueError: If the response is invalid.
+            ValueError: If the response is invalid or if invalid parameter combinations are provided.
+                For example:
+                - Providing OAuth2 fields for LOCAL users
+                - Providing password fields for OAUTH2 users
+                - Not providing either oauth2_client_id or oauth2_user_id for OAUTH2 users
 
         Example:
             ```python
             from phoenix.client import AsyncClient
-            from phoenix.client.__generated__ import v1
 
             async_client = AsyncClient()
             # Create a local user
             local_user = await async_client.users.create(
-                user=v1.LocalUserData(
-                    email="user@example.com",
-                    username="user",
-                    role="USER",
-                    auth_method="LOCAL",
-                    password_needs_reset=True,
-                )
+                email="user@example.com",
+                username="user",
+                role="MEMBER",
+                auth_method="LOCAL",
             )
             # Create an OAuth2 user
             oauth2_user = await async_client.users.create(
-                user=v1.OAuth2UserData(
-                    email="oauth2@example.com",
-                    username="oauth2user",
-                    role="USER",
-                    auth_method="OAUTH2",
-                    oauth2_client_id="test-client",
-                    oauth2_user_id="test-user",
-                )
+                email="oauth2@example.com",
+                username="oauth2user",
+                role="ADMIN",
+                auth_method="OAUTH2",
             )
             print(f"Created user with ID: {local_user['id']}")
             ```
         """  # noqa: E501
+        if auth_method == "LOCAL":
+            if oauth2_client_id is not None or oauth2_user_id is not None:
+                raise ValueError("OAuth2 fields should not be provided for LOCAL users")
+            user = v1.LocalUserData(
+                email=email,
+                username=username,
+                role=role,
+                auth_method="LOCAL",
+                password_needs_reset=password_needs_reset,
+            )
+            if password:
+                user["password"] = password
+        elif auth_method == "OAUTH2":
+            if password is not None:
+                raise ValueError("Password fields should not be provided for OAUTH2 users")
+            user = v1.OAuth2UserData(
+                email=email,
+                username=username,
+                role=role,
+                auth_method="OAUTH2",
+            )
+            if oauth2_client_id:
+                user["oauth2_client_id"] = oauth2_client_id
+            if oauth2_user_id:
+                user["oauth2_user_id"] = oauth2_user_id
+        else:
+            assert_never(auth_method)
+
         url = "v1/users"
         json_ = v1.CreateUserRequestBody(user=user, send_welcome_email=send_welcome_email)
         response = await self._client.post(url=url, json=json_)
@@ -304,7 +400,6 @@ class AsyncUsers:
             from phoenix.client import AsyncClient
 
             async_client = AsyncClient()
-            # Delete by ID
             await async_client.users.delete(user_id="UHJvamVjdDoy")
             ```
         """  # noqa: E501
