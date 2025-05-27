@@ -208,11 +208,11 @@ class Spans:
         else:
             assert spans is not None
             _span_ids = [
-                span["span_id"]
+                span.get("span_id")
                 for span in spans
                 if span.get("span_id")
             ]
-            span_ids_list = list(set(_span_ids))
+            span_ids_list = list(set(s for s in _span_ids if isinstance(s, str) and s))
 
         if not span_ids_list:
             return pd.DataFrame()
@@ -310,11 +310,11 @@ class Spans:
         else:  # spans is not None
             assert spans is not None
             _span_ids = [
-                span["span_id"]
+                span.get("span_id")
                 for span in spans
                 if span.get("span_id")
             ]
-            span_ids_list = list(set(_span_ids))
+            span_ids_list = list(set(s for s in _span_ids if isinstance(s, str) and s))
 
         if not span_ids_list:
             return []
@@ -608,11 +608,11 @@ class AsyncSpans:
         else:  # spans is not None
             assert spans is not None
             _span_ids = [
-                span["span_id"]
+                span.get("span_id")
                 for span in spans
                 if span.get("span_id")
             ]
-            span_ids_list = list(set(_span_ids))
+            span_ids_list = list(set(s for s in _span_ids if isinstance(s, str) and s))
 
         if not span_ids_list:
             return pd.DataFrame()
@@ -710,11 +710,11 @@ class AsyncSpans:
         else:  # spans is not None
             assert spans is not None
             _span_ids = [
-                span["span_id"]
+                span.get("span_id")
                 for span in spans
                 if span.get("span_id")
             ]
-            span_ids_list = list(set(_span_ids))
+            span_ids_list = list(set(s for s in _span_ids if isinstance(s, str) and s))
 
         if not span_ids_list:
             return []
