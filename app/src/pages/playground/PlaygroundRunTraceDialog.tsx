@@ -1,6 +1,11 @@
-import { Dialog } from "@arizeai/components";
-
-import { LinkButton } from "@phoenix/components";
+import { Dialog, LinkButton } from "@phoenix/components";
+import {
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+} from "@phoenix/components/dialog";
 import { TraceDetails } from "@phoenix/pages/trace";
 
 export function PlaygroundRunTraceDetailsDialog({
@@ -13,16 +18,24 @@ export function PlaygroundRunTraceDetailsDialog({
   title: string;
 }) {
   return (
-    <Dialog
-      title={title}
-      size="fullscreen"
-      extra={
-        <LinkButton size="S" to={`/projects/${projectId}/traces/${traceId}`}>
-          View Trace in Project
-        </LinkButton>
-      }
-    >
-      <TraceDetails traceId={traceId} projectId={projectId} />
+    <Dialog>
+      {({ close }) => (
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogTitleExtra>
+              <LinkButton
+                size="S"
+                to={`/projects/${projectId}/traces/${traceId}`}
+              >
+                View Trace in Project
+              </LinkButton>
+              <DialogCloseButton close={close} />
+            </DialogTitleExtra>
+          </DialogHeader>
+          <TraceDetails traceId={traceId} projectId={projectId} />
+        </DialogContent>
+      )}
     </Dialog>
   );
 }

@@ -33,8 +33,8 @@ import { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
 import { NoInstalledProvider } from "./NoInstalledProvider";
 import { PlaygroundCredentialsDropdown } from "./PlaygroundCredentialsDropdown";
-import { PlaygroundDatasetPicker } from "./PlaygroundDatasetPicker";
 import { PlaygroundDatasetSection } from "./PlaygroundDatasetSection";
+import { PlaygroundDatasetSelect } from "./PlaygroundDatasetSelect";
 import { PlaygroundInput } from "./PlaygroundInput";
 import { PlaygroundOutput } from "./PlaygroundOutput";
 import { PlaygroundRunButton } from "./PlaygroundRunButton";
@@ -97,7 +97,7 @@ export function Playground(props: Partial<PlaygroundProps>) {
             <Heading level={1}>Playground</Heading>
             <Flex direction="row" gap="size-100" alignItems="center">
               <PlaygroundStreamToggle />
-              <PlaygroundDatasetPicker />
+              <PlaygroundDatasetSelect />
               <PlaygroundCredentialsDropdown />
               <PlaygroundRunButton />
             </Flex>

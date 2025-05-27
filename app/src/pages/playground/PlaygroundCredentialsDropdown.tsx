@@ -82,6 +82,7 @@ export function PlaygroundCredentialsDropdown() {
                       size="S"
                       key={provider}
                       type="password"
+                      autoComplete="off"
                       isRequired
                       onChange={(value) => {
                         setCredential({ provider, value });

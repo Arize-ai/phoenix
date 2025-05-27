@@ -1,12 +1,5 @@
-import {
-  PropsWithChildren,
-  ReactNode,
-  Suspense,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { PropsWithChildren, ReactNode, Suspense, useMemo, useRef } from "react";
+import { Popover as NonAnimatedPopover } from "react-aria-components";
 import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
@@ -29,7 +22,6 @@ import {
   CardProps,
   Content,
   ContextualHelp,
-  DialogContainer,
   EmptyGraphic,
   List,
   ListItem,
@@ -51,6 +43,7 @@ import {
   Button,
   CopyToClipboardButton,
   Counter,
+  DialogTrigger,
   Disclosure,
   DisclosureGroup,
   DisclosurePanel,
@@ -64,6 +57,8 @@ import {
   Keyboard,
   LazyTabPanel,
   LinkButton,
+  Loading,
+  Modal,
   Tab,
   TabList,
   Tabs,
@@ -448,49 +443,39 @@ function AddSpanToDatasetButton({
   span: Span;
   buttonText: string | null;
 }) {
-  const [dialog, setDialog] = useState<ReactNode>(null);
   const notifySuccess = useNotifySuccess();
   const navigate = useNavigate();
-  const onAddSpanToDataset = useCallback(() => {
-    setDialog(
-      <SpanToDatasetExampleDialog
-        spanId={span.id}
-        onCompleted={(datasetId) => {
-          setDialog(null);
-          notifySuccess({
-            title: "Span Added to Dataset",
-            message: "Successfully added span to dataset",
-            action: {
-              text: "View Dataset",
-              onClick: () => {
-                navigate(`/datasets/${datasetId}/examples`);
-              },
-            },
-          });
-        }}
-      />
-    );
-  }, [span.id, notifySuccess, navigate]);
   return (
-    <>
+    <DialogTrigger>
       <Button
         variant="default"
         size="S"
         leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
-        onPress={onAddSpanToDataset}
       >
         {buttonText}
       </Button>
-      <Suspense>
-        <DialogContainer
-          type="slideOver"
-          isDismissable
-          onDismiss={() => setDialog(null)}
-        >
-          {dialog}
-        </DialogContainer>
-      </Suspense>
-    </>
+      <NonAnimatedPopover>
+        <Modal variant="slideover" size="L">
+          <Suspense fallback={<Loading />}>
+            <SpanToDatasetExampleDialog
+              spanId={span.id}
+              onCompleted={(datasetId) => {
+                notifySuccess({
+                  title: "Span Added to Dataset",
+                  message: "Successfully added span to dataset",
+                  action: {
+                    text: "View Dataset",
+                    onClick: () => {
+                      navigate(`/datasets/${datasetId}/examples`);
+                    },
+                  },
+                });
+              }}
+            />
+          </Suspense>
+        </Modal>
+      </NonAnimatedPopover>
+    </DialogTrigger>
   );
 }
 

@@ -4,10 +4,18 @@ import {
   Button,
   Dialog,
   DialogTrigger,
-  Heading,
   Modal,
   ModalProps,
+  Text,
+  View,
 } from "@phoenix/components";
+import {
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+} from "@phoenix/components/dialog";
 
 const meta: Meta = {
   title: "Modal",
@@ -21,11 +29,49 @@ const Template: StoryFn<ModalProps> = (args) => (
     <Button>Open Modal</Button>
     <Modal {...args}>
       <Dialog>
-        <Heading slot="title">Modal Title</Heading>
-        <Button slot="close">Close</Button>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modal Title</DialogTitle>
+            <DialogTitleExtra>
+              <DialogCloseButton slot="close" />
+            </DialogTitleExtra>
+          </DialogHeader>
+          <View padding="size-200">
+            <Text>
+              Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam,
+              quos.
+            </Text>
+          </View>
+        </DialogContent>
       </Dialog>
     </Modal>
   </DialogTrigger>
 );
 
 export const Default = Template.bind({});
+
+const SlideoverTemplate: StoryFn<ModalProps> = (args) => (
+  <DialogTrigger>
+    <Button>Open Modal</Button>
+    <Modal variant="slideover" {...args}>
+      <Dialog>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modal Title</DialogTitle>
+            <DialogTitleExtra>
+              <DialogCloseButton slot="close" />
+            </DialogTitleExtra>
+          </DialogHeader>
+          <View padding="size-200">
+            <Text>
+              Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam,
+              quos.
+            </Text>
+          </View>
+        </DialogContent>
+      </Dialog>
+    </Modal>
+  </DialogTrigger>
+);
+
+export const Slideover = SlideoverTemplate.bind({});
