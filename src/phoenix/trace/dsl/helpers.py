@@ -142,6 +142,24 @@ def get_called_tools(
     timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     function_name_only: bool = False,
 ) -> Optional[pd.DataFrame]:
+    """Retrieve tool calls made by LLM spans within a specified time range.
+
+    This function queries LLM spans and extracts tool calls from their output messages.
+    It can return either just the function names or full function calls with arguments.
+
+    Args:
+        obj: An object that implements the CanQuerySpans protocol for querying spans.
+        start_time: Optional start time to filter spans. If None, no start time filter is applied.
+        end_time: Optional end time to filter spans. If None, no end time filter is applied.
+        project_name: Optional project name to filter spans. If None, uses the environment project name.
+        timeout: Optional timeout in seconds for the query. Defaults to DEFAULT_TIMEOUT_IN_SECONDS.
+        function_name_only: If True, returns only function names. If False, returns full function calls
+            with arguments. Defaults to False.
+
+    Returns:
+        A pandas DataFrame containing the tool calls, or None if no spans are found.
+        The DataFrame includes columns for input messages, output messages, and tool calls.
+    """  # noqa: E501
     project_name = project_name or get_env_project_name()
 
     def extract_tool_calls(outputs: list[dict[str, Any]]) -> Optional[list[str]]:
