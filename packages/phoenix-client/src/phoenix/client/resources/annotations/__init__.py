@@ -525,7 +525,7 @@ def _get_span_annotation(
     if metadata is not None and not isinstance(metadata, dict):  # pyright: ignore[reportUnnecessaryIsInstance]
         raise ValueError("metadata must be a dictionary")
 
-    result = v1.SpanAnnotationResult()
+    result: v1.SpanAnnotationResult = {}
     if label:
         result["label"] = label
     if score is not None:
