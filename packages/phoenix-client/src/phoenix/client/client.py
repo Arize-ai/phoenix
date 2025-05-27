@@ -8,6 +8,7 @@ from phoenix.client.resources.annotations import Annotations, AsyncAnnotations
 from phoenix.client.resources.projects import AsyncProjects, Projects
 from phoenix.client.resources.prompts import AsyncPrompts, Prompts
 from phoenix.client.resources.spans import AsyncSpans, Spans
+from phoenix.client.resources.users import AsyncUsers, Users
 from phoenix.client.utils.config import get_base_url, get_env_client_headers
 
 
@@ -55,6 +56,7 @@ class Client:
         self._projects = Projects(value)
         self._spans = Spans(value)
         self._annotations = Annotations(value)
+        self._users = Users(value)
 
     @property
     def prompts(self) -> Prompts:
@@ -97,6 +99,17 @@ class Client:
             Annotations: An instance of the Annotations class.
         """  # noqa: E501
         return self._annotations
+
+    @property
+    def users(self) -> Users:
+        """
+        Returns an instance of the Users class for interacting with user-related
+        API endpoints.
+
+        Returns:
+            Users: An instance of the Users class.
+        """
+        return self._users
 
 
 class AsyncClient:
@@ -142,6 +155,7 @@ class AsyncClient:
         self._projects = AsyncProjects(value)
         self._spans = AsyncSpans(value)
         self._annotations = AsyncAnnotations(value)
+        self._users = AsyncUsers(value)
 
     @property
     def prompts(self) -> AsyncPrompts:
@@ -186,6 +200,17 @@ class AsyncClient:
             AsyncAnnotations: An instance of the Annotations class.
         """  # noqa: E501
         return self._annotations
+
+    @property
+    def users(self) -> AsyncUsers:
+        """
+        Returns an instance of the Asynchronous Users class for interacting with user-related
+        API endpoints.
+
+        Returns:
+            AsyncUsers: An instance of the Users class.
+        """
+        return self._users
 
 
 def _update_headers(

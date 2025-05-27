@@ -3765,7 +3765,22 @@
       "CreateUserRequestBody": {
         "properties": {
           "user": {
-            "$ref": "#/components/schemas/UserCreate"
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/LocalUserData"
+              },
+              {
+                "$ref": "#/components/schemas/OAuth2UserData"
+              }
+            ],
+            "title": "User",
+            "discriminator": {
+              "propertyName": "auth_method",
+              "mapping": {
+                "LOCAL": "#/components/schemas/LocalUserData",
+                "OAUTH2": "#/components/schemas/OAuth2UserData"
+              }
+            }
           },
           "send_welcome_email": {
             "type": "boolean",
@@ -3782,7 +3797,22 @@
       "CreateUserResponseBody": {
         "properties": {
           "data": {
-            "$ref": "#/components/schemas/User"
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/LocalUser"
+              },
+              {
+                "$ref": "#/components/schemas/OAuth2User"
+              }
+            ],
+            "title": "Data",
+            "discriminator": {
+              "propertyName": "auth_method",
+              "mapping": {
+                "LOCAL": "#/components/schemas/LocalUser",
+                "OAUTH2": "#/components/schemas/OAuth2User"
+              }
+            }
           }
         },
         "type": "object",
@@ -4486,7 +4516,21 @@
         "properties": {
           "data": {
             "items": {
-              "$ref": "#/components/schemas/User"
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/LocalUser"
+                },
+                {
+                  "$ref": "#/components/schemas/OAuth2User"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "auth_method",
+                "mapping": {
+                  "LOCAL": "#/components/schemas/LocalUser",
+                  "OAUTH2": "#/components/schemas/OAuth2User"
+                }
+              }
             },
             "type": "array",
             "title": "Data"
@@ -4668,6 +4712,123 @@
         ],
         "title": "ListExperimentsResponseBody"
       },
+      "LocalUser": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "SYSTEM",
+              "ADMIN",
+              "MEMBER"
+            ],
+            "title": "Role"
+          },
+          "auth_method": {
+            "type": "string",
+            "const": "LOCAL",
+            "title": "Auth Method"
+          },
+          "password_needs_reset": {
+            "type": "boolean",
+            "title": "Password Needs Reset"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "email",
+          "username",
+          "role",
+          "auth_method",
+          "password_needs_reset"
+        ],
+        "title": "LocalUser"
+      },
+      "LocalUserData": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "SYSTEM",
+              "ADMIN",
+              "MEMBER"
+            ],
+            "title": "Role"
+          },
+          "auth_method": {
+            "type": "string",
+            "const": "LOCAL",
+            "title": "Auth Method"
+          },
+          "password_needs_reset": {
+            "type": "boolean",
+            "title": "Password Needs Reset"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "username",
+          "role",
+          "auth_method",
+          "password_needs_reset"
+        ],
+        "title": "LocalUserData"
+      },
       "ModelProvider": {
         "type": "string",
         "enum": [
@@ -4678,6 +4839,157 @@
           "DEEPSEEK"
         ],
         "title": "ModelProvider"
+      },
+      "OAuth2User": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "SYSTEM",
+              "ADMIN",
+              "MEMBER"
+            ],
+            "title": "Role"
+          },
+          "auth_method": {
+            "type": "string",
+            "const": "OAUTH2",
+            "title": "Auth Method"
+          },
+          "oauth2_client_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oauth2 Client Id"
+          },
+          "oauth2_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oauth2 User Id"
+          },
+          "profile_picture_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Picture Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "email",
+          "username",
+          "role",
+          "auth_method"
+        ],
+        "title": "OAuth2User"
+      },
+      "OAuth2UserData": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "SYSTEM",
+              "ADMIN",
+              "MEMBER"
+            ],
+            "title": "Role"
+          },
+          "auth_method": {
+            "type": "string",
+            "const": "OAUTH2",
+            "title": "Auth Method"
+          },
+          "oauth2_client_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oauth2 Client Id"
+          },
+          "oauth2_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oauth2 User Id"
+          },
+          "profile_picture_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Picture Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "username",
+          "role",
+          "auth_method"
+        ],
+        "title": "OAuth2UserData"
       },
       "OptimizationDirection": {
         "type": "string",

@@ -37,7 +37,6 @@ from phoenix.config import (
     get_env_disable_rate_limit,
 )
 from phoenix.db import models
-from phoenix.db.enums import UserRole
 from phoenix.server.bearer_auth import create_access_and_refresh_tokens
 from phoenix.server.oauth2 import OAuth2Client
 from phoenix.server.rate_limiters import (
@@ -457,9 +456,7 @@ async def _create_user(
     if email_exists:
         raise EmailAlreadyInUse(f"An account for {email} is already in use.")
     member_role_id = (
-        select(models.UserRole.id)
-        .where(models.UserRole.name == UserRole.MEMBER.value)
-        .scalar_subquery()
+        select(models.UserRole.id).where(models.UserRole.name == "MEMBER").scalar_subquery()
     )
     user_id = await session.scalar(
         insert(models.User)

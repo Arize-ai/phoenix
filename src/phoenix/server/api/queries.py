@@ -18,7 +18,7 @@ from phoenix.config import (
     get_env_database_allocated_storage_capacity_gibibytes,
     getenv,
 )
-from phoenix.db import enums, models
+from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.helpers import SupportedSQLDialect, exclude_experiment_projects
 from phoenix.db.models import DatasetExample as OrmExample
@@ -165,7 +165,7 @@ class Query:
         stmt = (
             select(models.User)
             .join(models.UserRole)
-            .where(models.UserRole.name != enums.UserRole.SYSTEM.value)
+            .where(models.UserRole.name != "SYSTEM")
             .order_by(models.User.email)
             .options(joinedload(models.User.role))
         )
@@ -181,7 +181,7 @@ class Query:
     ) -> list[UserRole]:
         async with info.context.db() as session:
             roles = await session.scalars(
-                select(models.UserRole).where(models.UserRole.name != enums.UserRole.SYSTEM.value)
+                select(models.UserRole).where(models.UserRole.name != "SYSTEM")
             )
         return [
             UserRole(
@@ -197,7 +197,7 @@ class Query:
             select(models.ApiKey)
             .join(models.User)
             .join(models.UserRole)
-            .where(models.UserRole.name != enums.UserRole.SYSTEM.value)
+            .where(models.UserRole.name != "SYSTEM")
         )
         async with info.context.db() as session:
             api_keys = await session.scalars(stmt)
@@ -209,7 +209,7 @@ class Query:
             select(models.ApiKey)
             .join(models.User)
             .join(models.UserRole)
-            .where(models.UserRole.name == enums.UserRole.SYSTEM.value)
+            .where(models.UserRole.name == "SYSTEM")
         )
         async with info.context.db() as session:
             api_keys = await session.scalars(stmt)

@@ -20,7 +20,7 @@ from phoenix.auth import (
 )
 from phoenix.config import get_env_enable_prometheus
 from phoenix.db import models
-from phoenix.db.enums import UserRole
+from phoenix.db.models import UserRoleName
 from phoenix.server.types import (
     AccessToken,
     AccessTokenAttributes,
@@ -260,7 +260,7 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC)
         if not record:
             return None
         token, role = record
-        _, claims = self._from_db(token, UserRole(role))
+        _, claims = self._from_db(token, role)
         self._claims[token_id] = claims
         return claims
 
@@ -277,7 +277,7 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC)
             await session.execute(stmt)
 
     @abstractmethod
-    def _from_db(self, record: _RecordT, role: UserRole) -> tuple[_TokenIdT, _ClaimSetT]: ...
+    def _from_db(self, record: _RecordT, role: UserRoleName) -> tuple[_TokenIdT, _ClaimSetT]: ...
 
     @abstractmethod
     def _to_db(self, claims: _ClaimSetT) -> _RecordT: ...
@@ -300,12 +300,12 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC)
                 await self._delete_expired_tokens(session)
             async with session.begin_nested():
                 async for record, role in await session.stream(self._update_stmt):
-                    token_id, claim_set = self._from_db(record, UserRole(role))
+                    token_id, claim_set = self._from_db(record, role)
                     claims[token_id] = claim_set
         self._claims = claims
 
     @cached_property
-    def _update_stmt(self) -> Select[tuple[_RecordT, str]]:
+    def _update_stmt(self) -> Select[tuple[_RecordT, UserRoleName]]:
         return (
             select(self._table, models.UserRole.name)
             .join_from(self._table, models.User)
@@ -341,7 +341,7 @@ class _PasswordResetTokenStore(
     def _from_db(
         self,
         record: models.PasswordResetToken,
-        user_role: UserRole,
+        user_role: UserRoleName,
     ) -> tuple[PasswordResetTokenId, PasswordResetTokenClaims]:
         token_id = PasswordResetTokenId(record.id)
         return token_id, PasswordResetTokenClaims(
@@ -380,7 +380,7 @@ class _AccessTokenStore(
     def _from_db(
         self,
         record: models.AccessToken,
-        user_role: UserRole,
+        user_role: UserRoleName,
     ) -> tuple[AccessTokenId, AccessTokenClaims]:
         token_id = AccessTokenId(record.id)
         refresh_token_id = RefreshTokenId(record.refresh_token_id)
@@ -424,7 +424,7 @@ class _RefreshTokenStore(
     def _from_db(
         self,
         record: models.RefreshToken,
-        user_role: UserRole,
+        user_role: UserRoleName,
     ) -> tuple[RefreshTokenId, RefreshTokenClaims]:
         token_id = RefreshTokenId(record.id)
         return token_id, RefreshTokenClaims(
@@ -470,7 +470,7 @@ class _ApiKeyStore(
     def _from_db(
         self,
         record: models.ApiKey,
-        user_role: UserRole,
+        user_role: UserRoleName,
     ) -> tuple[ApiKeyId, ApiKeyClaims]:
         token_id = ApiKeyId(record.id)
         return token_id, ApiKeyClaims(

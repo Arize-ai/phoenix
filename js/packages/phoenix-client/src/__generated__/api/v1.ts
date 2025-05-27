@@ -805,16 +805,18 @@ export interface components {
         };
         /** CreateUserRequestBody */
         CreateUserRequestBody: {
-            user: components["schemas"]["UserCreate"];
+            /** User */
+            user: components["schemas"]["LocalUserData"] | components["schemas"]["OAuth2UserData"];
             /**
              * Send Welcome Email
              * @default true
              */
-            send_welcome_email: boolean;
+            send_welcome_email?: boolean;
         };
         /** CreateUserResponseBody */
         CreateUserResponseBody: {
-            data: components["schemas"]["User"];
+            /** Data */
+            data: components["schemas"]["LocalUser"] | components["schemas"]["OAuth2User"];
         };
         /** Dataset */
         Dataset: {
@@ -1107,7 +1109,7 @@ export interface components {
         /** GetUsersResponseBody */
         GetUsersResponseBody: {
             /** Data */
-            data: components["schemas"]["User"][];
+            data: (components["schemas"]["LocalUser"] | components["schemas"]["OAuth2User"])[];
             /** Next Cursor */
             next_cursor: string | null;
         };
@@ -1163,11 +1165,123 @@ export interface components {
             /** Data */
             data: components["schemas"]["Experiment"][];
         };
+        /** LocalUser */
+        LocalUser: {
+            /** Id */
+            id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Email */
+            email: string;
+            /** Username */
+            username: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "SYSTEM" | "ADMIN" | "MEMBER";
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            auth_method: "LOCAL";
+            /** Password Needs Reset */
+            password_needs_reset: boolean;
+            /** Password */
+            password?: string | null;
+        };
+        /** LocalUserData */
+        LocalUserData: {
+            /** Email */
+            email: string;
+            /** Username */
+            username: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "SYSTEM" | "ADMIN" | "MEMBER";
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            auth_method: "LOCAL";
+            /** Password Needs Reset */
+            password_needs_reset: boolean;
+            /** Password */
+            password?: string | null;
+        };
         /**
          * ModelProvider
          * @enum {string}
          */
-        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK";
+        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE";
+        /** OAuth2User */
+        OAuth2User: {
+            /** Id */
+            id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Email */
+            email: string;
+            /** Username */
+            username: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "SYSTEM" | "ADMIN" | "MEMBER";
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            auth_method: "OAUTH2";
+            /** Oauth2 Client Id */
+            oauth2_client_id?: string | null;
+            /** Oauth2 User Id */
+            oauth2_user_id?: string | null;
+            /** Profile Picture Url */
+            profile_picture_url?: string | null;
+        };
+        /** OAuth2UserData */
+        OAuth2UserData: {
+            /** Email */
+            email: string;
+            /** Username */
+            username: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "SYSTEM" | "ADMIN" | "MEMBER";
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            auth_method: "OAUTH2";
+            /** Oauth2 Client Id */
+            oauth2_client_id?: string | null;
+            /** Oauth2 User Id */
+            oauth2_user_id?: string | null;
+            /** Profile Picture Url */
+            profile_picture_url?: string | null;
+        };
         /**
          * OptimizationDirection
          * @enum {string}

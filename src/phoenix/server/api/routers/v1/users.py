@@ -3,13 +3,15 @@ import logging
 import secrets
 from datetime import datetime
 from functools import partial
-from typing import Optional
+from typing import Annotated, Literal, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
+from pydantic import Field
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
+from starlette.datastructures import Secret
 from starlette.status import (
     HTTP_201_CREATED,
     HTTP_204_NO_CONTENT,
@@ -19,21 +21,17 @@ from starlette.status import (
     HTTP_422_UNPROCESSABLE_ENTITY,
 )
 from strawberry.relay import GlobalID
+from typing_extensions import TypeAlias, assert_never
 
 from phoenix.auth import (
     DEFAULT_ADMIN_EMAIL,
-    DEFAULT_ADMIN_USERNAME,
     DEFAULT_SECRET_LENGTH,
     DEFAULT_SYSTEM_EMAIL,
-    DEFAULT_SYSTEM_USERNAME,
-    PASSWORD_REQUIREMENTS,
     compute_password_hash,
     validate_email_format,
     validate_password_format,
 )
-from phoenix.db.enums import UserRole as UserRoleEnum
-from phoenix.db.models import User as OrmUser
-from phoenix.db.models import UserRole
+from phoenix.db import models
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
@@ -51,16 +49,35 @@ router = APIRouter(tags=["users"])
 class UserData(V1RoutesBaseModel):
     email: str
     username: str
-    password: Optional[str] = None
-    role: UserRole
+    role: models.UserRoleName
 
 
-class User(UserData):
-    id: str
-    profile_picture_url: Optional[str] = None
-    created_at: datetime
+class LocalUserData(UserData):
+    auth_method: Literal["LOCAL"]
     password_needs_reset: bool
-    auth_method: Optional[str] = None
+    password: Optional[str] = None
+
+
+class OAuth2UserData(UserData):
+    auth_method: Literal["OAUTH2"]
+    oauth2_client_id: Optional[str] = None
+    oauth2_user_id: Optional[str] = None
+    profile_picture_url: Optional[str] = None
+
+
+class DbUser(V1RoutesBaseModel):
+    id: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class LocalUser(LocalUserData, DbUser): ...
+
+
+class OAuth2User(OAuth2UserData, DbUser): ...
+
+
+User: TypeAlias = Annotated[Union[LocalUser, OAuth2User], Field(..., discriminator="auth_method")]
 
 
 class GetUsersResponseBody(PaginatedResponseBody[User]):
@@ -72,12 +89,15 @@ class GetUserResponseBody(ResponseBody[User]):
 
 
 class CreateUserRequestBody(V1RoutesBaseModel):
-    user: UserData
+    user: Annotated[Union[LocalUserData, OAuth2UserData], Field(..., discriminator="auth_method")]
     send_welcome_email: bool = True
 
 
 class CreateUserResponseBody(ResponseBody[User]):
     pass
+
+
+DEFAULT_PAGINATION_PAGE_LIMIT = 100
 
 
 @router.get(
@@ -92,44 +112,66 @@ class CreateUserResponseBody(ResponseBody[User]):
         ],
     ),
     dependencies=[Depends(require_admin)],
+    response_model_by_alias=True,
+    response_model_exclude_unset=True,
+    response_model_exclude_defaults=True,
 )
 async def list_users(
     request: Request,
     cursor: str = Query(default=None, description="Cursor for pagination (base64-encoded user ID)"),
     limit: int = Query(
-        default=100, description="The max number of users to return at a time.", gt=0
+        default=DEFAULT_PAGINATION_PAGE_LIMIT,
+        description="The max number of users to return at a time.",
+        gt=0,
     ),
 ) -> GetUsersResponseBody:
-    stmt = select(OrmUser).options(joinedload(OrmUser.role)).order_by(OrmUser.id.desc())
+    stmt = select(models.User).options(joinedload(models.User.role)).order_by(models.User.id.desc())
     if cursor:
         try:
             cursor_id = GlobalID.from_id(cursor).node_id
-            stmt = stmt.where(OrmUser.id <= int(cursor_id))
         except Exception:
             raise HTTPException(status_code=422, detail=f"Invalid cursor format: {cursor}")
+        else:
+            stmt = stmt.where(models.User.id <= int(cursor_id))
     stmt = stmt.limit(limit + 1)
-    async with request.app.state.db() as db:
-        result = await db.scalars(stmt)
-        users = result.all()
+    async with request.app.state.db() as session:
+        result = (await session.scalars(stmt)).all()
     next_cursor = None
-    if len(users) == limit + 1:
-        last_user = users[-1]
+    if len(result) == limit + 1:
+        last_user = result[-1]
         next_cursor = str(GlobalID("User", str(last_user.id)))
-        users = users[:-1]
-    user_objs = [
-        User(
-            id=str(GlobalID("User", str(row.id))),
-            email=row.email,
-            username=row.username,
-            profile_picture_url=row.profile_picture_url,
-            created_at=row.created_at,
-            role=row.role,
-            password_needs_reset=row.reset_password,
-            auth_method=row.auth_method or "",
-        )
-        for row in users
-    ]
-    return GetUsersResponseBody(next_cursor=next_cursor, data=user_objs)
+        result = result[:-1]
+    data: list[User] = []
+    for user in result:
+        if isinstance(user, models.LocalUser):
+            data.append(
+                LocalUser(
+                    id=str(GlobalID("User", str(user.id))),
+                    username=user.username,
+                    email=user.email,
+                    role=user.role.name,
+                    created_at=user.created_at,
+                    updated_at=user.updated_at,
+                    auth_method="LOCAL",
+                    password_needs_reset=user.reset_password,
+                )
+            )
+        elif isinstance(user, models.OAuth2User):
+            data.append(
+                OAuth2User(
+                    id=str(GlobalID("User", str(user.id))),
+                    username=user.username,
+                    email=user.email,
+                    role=user.role.name,
+                    created_at=user.created_at,
+                    updated_at=user.updated_at,
+                    auth_method="OAUTH2",
+                    oauth2_client_id=user.oauth2_client_id,
+                    oauth2_user_id=user.oauth2_user_id,
+                    profile_picture_url=user.profile_picture_url,
+                )
+            )
+    return GetUsersResponseBody(next_cursor=next_cursor, data=data)
 
 
 @router.post(
@@ -147,96 +189,104 @@ async def list_users(
         ]
     ),
     dependencies=[Depends(require_admin)],
+    response_model_by_alias=True,
+    response_model_exclude_unset=True,
+    response_model_exclude_defaults=True,
 )
 async def create_user(
     request: Request,
     request_body: CreateUserRequestBody,
 ) -> CreateUserResponseBody:
-    user = request_body.user
-    # Validate email and password formats
-    validate_email_format(user.email)
-    password = (user.password or secrets.token_hex()).strip()
-    validate_password_format(password)
+    user_data = request_body.user
+    email, username, role = user_data.email, user_data.username, user_data.role
+    validate_email_format(email)
 
-    # Generate salt and hash password using the same method as in context.py
-    salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
-    compute = partial(compute_password_hash, password=password, salt=salt)
-    password_hash = await asyncio.get_running_loop().run_in_executor(None, compute)
-
-    async with request.app.state.db() as db:
-        # First check if username or email already exists
-        existing_user = await db.execute(
-            select(OrmUser.username, OrmUser.email).where(
-                (OrmUser.username == user.username) | (OrmUser.email == user.email)
-            )
+    # Prevent creation of SYSTEM users
+    if role == "SYSTEM":
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail="Cannot create users with SYSTEM role",
         )
-        if existing := existing_user.first():
-            if existing.username == user.username:
-                raise HTTPException(status_code=HTTP_409_CONFLICT, detail="Username already exists")
-            if existing.email == user.email:
-                raise HTTPException(status_code=HTTP_409_CONFLICT, detail="Email already exists")
 
-        # Get both role ID and name in a single query
-        role_row = await db.execute(
-            select(UserRole.id, UserRole.name).where(UserRole.name == user.role)
-        )
-        role_result = role_row.first()
-        if role_result is None:
-            raise HTTPException(status_code=400, detail=f"Role '{user.role}' not found")
+    user: models.User
+    if isinstance(user_data, LocalUserData):
+        password = (user_data.password or secrets.token_hex()).strip()
+        validate_password_format(password)
 
-        user_role_id, role = role_result
+        # Generate salt and hash password using the same method as in context.py
+        salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
+        compute = partial(compute_password_hash, password=Secret(password), salt=salt)
+        password_hash = await asyncio.get_running_loop().run_in_executor(None, compute)
 
-        new_user = OrmUser(
-            email=user.email,
-            username=user.username,
+        user = models.LocalUser(
+            email=email,
+            username=username,
             password_hash=password_hash,
             password_salt=salt,
-            user_role_id=user_role_id,
             reset_password=True,
         )
-
-        try:
-            db.add(new_user)
-            await db.flush()  # Flush to get the ID and other generated fields
-
-            # Create the response object with all the data we need
-            user_obj = User(
-                id=str(GlobalID("User", str(new_user.id))),
-                email=new_user.email,
-                username=new_user.username,
-                profile_picture_url=new_user.profile_picture_url,
-                created_at=new_user.created_at,
-                role=role,
-                password_needs_reset=new_user.reset_password,
-                auth_method=new_user.auth_method or "",
+    elif isinstance(user_data, OAuth2UserData):
+        user = models.OAuth2User(
+            email=email,
+            username=username,
+            oauth2_client_id=user_data.oauth2_client_id,
+            oauth2_user_id=user_data.oauth2_user_id,
+        )
+    else:
+        assert_never(user_data)
+    try:
+        async with request.app.state.db() as session:
+            user_role_id = await session.scalar(select(models.UserRole.id).filter_by(name=role))
+            if user_role_id is None:
+                raise HTTPException(status_code=400, detail=f"Role '{role}' not found")
+            user.user_role_id = user_role_id
+            session.add(user)
+    except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
+        if "users.username" in str(e):
+            raise HTTPException(status_code=HTTP_409_CONFLICT, detail="Username already exists")
+        elif "users.email" in str(e):
+            raise HTTPException(status_code=HTTP_409_CONFLICT, detail="Email already exists")
+        else:
+            raise HTTPException(
+                status_code=HTTP_409_CONFLICT,
+                detail="Failed to create user due to a conflict with existing data",
             )
-
-            # Now commit the transaction
-            await db.commit()
-
-            # Send welcome email if requested
-            if request_body.send_welcome_email and request.app.state.email_sender is not None:
-                try:
-                    await request.app.state.email_sender.send_welcome_email(
-                        user.email, user.username
-                    )
-                except Exception as error:
-                    # Log the error but do not raise it
-                    logger.error(f"Failed to send welcome email: {error}")
-
-            return CreateUserResponseBody(data=user_obj)
-
-        except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
-            # Handle any other potential integrity errors we didn't catch earlier
-            if "users.username" in str(e):
-                raise HTTPException(status_code=HTTP_409_CONFLICT, detail="Username already exists")
-            elif "users.email" in str(e):
-                raise HTTPException(status_code=HTTP_409_CONFLICT, detail="Email already exists")
-            else:
-                raise HTTPException(
-                    status_code=HTTP_409_CONFLICT,
-                    detail="Failed to create user due to a conflict with existing data",
-                )
+    id_ = str(GlobalID("User", str(user.id)))
+    data: User
+    if isinstance(user_data, LocalUserData):
+        data = LocalUser(
+            id=id_,
+            email=email,
+            username=username,
+            auth_method="LOCAL",
+            role=user_data.role,
+            created_at=user.created_at,
+            updated_at=user.updated_at,
+            password_needs_reset=user.reset_password,
+        )
+    elif isinstance(user_data, OAuth2UserData):
+        data = OAuth2User(
+            id=id_,
+            email=email,
+            username=username,
+            auth_method="OAUTH2",
+            role=user_data.role,
+            created_at=user.created_at,
+            updated_at=user.updated_at,
+            oauth2_client_id=user.oauth2_client_id,
+            oauth2_user_id=user.oauth2_user_id,
+            profile_picture_url=user.profile_picture_url,
+        )
+    else:
+        assert_never(user_data)
+    # Send welcome email if requested
+    if request_body.send_welcome_email and request.app.state.email_sender is not None:
+        try:
+            await request.app.state.email_sender.send_welcome_email(user.email, user.username)
+        except Exception as error:
+            # Log the error but do not raise it
+            logger.error(f"Failed to send welcome email: {error}")
+    return CreateUserResponseBody(data=data)
 
 
 @router.delete(
@@ -257,35 +307,49 @@ async def create_user(
         ]
     ),
     dependencies=[Depends(require_admin)],
+    response_model_by_alias=True,
+    response_model_exclude_unset=True,
+    response_model_exclude_defaults=True,
 )
 async def delete_user(
     request: Request,
     user_id: str = Path(..., description="The GlobalID of the user (e.g. 'VXNlcjox')."),
 ) -> None:
     try:
-        user_pk = from_global_id_with_expected_type(GlobalID.from_id(user_id), "User")
+        id_ = from_global_id_with_expected_type(GlobalID.from_id(user_id), "User")
     except Exception:
         raise HTTPException(status_code=422, detail=f"Invalid User GlobalID format: {user_id}")
-    async with request.app.state.db() as db:
-        user = await db.get(OrmUser, user_pk)
+    async with request.app.state.db() as session:
+        user = await session.get(models.User, id_)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         # Prevent deletion of system and default admin users
-        role = await db.get(UserRole, user.user_role_id)
-        if (
-            user.email == DEFAULT_ADMIN_EMAIL
-            and user.username == DEFAULT_ADMIN_USERNAME
-            and role
-            and role.name == UserRoleEnum.ADMIN.value
-        ) or (
-            user.email == DEFAULT_SYSTEM_EMAIL
-            and user.username == DEFAULT_SYSTEM_USERNAME
-            and role
-            and role.name == UserRoleEnum.SYSTEM.value
-        ):
+        if user.email == DEFAULT_ADMIN_EMAIL or user.email == DEFAULT_SYSTEM_EMAIL:
             raise HTTPException(
                 status_code=409, detail="Cannot delete the default admin or system user"
             )
-        await db.delete(user)
-        await db.commit()
+        first_system_user_id = await session.scalar(
+            select(models.User.id)
+            .join(models.UserRole)
+            .where(models.UserRole.name == "SYSTEM")
+            .order_by(models.User.id)
+            .limit(1)
+        )
+        first_admin_user_id = await session.scalar(
+            select(models.User.id)
+            .join(models.UserRole)
+            .where(models.UserRole.name == "ADMIN")
+            .order_by(models.User.id)
+            .limit(1)
+        )
+        if (
+            first_system_user_id is not None
+            and id_ == first_system_user_id
+            or first_admin_user_id is not None
+            and id_ == first_admin_user_id
+        ):
+            raise HTTPException(
+                status_code=409, detail="Cannot delete the first admin or system user"
+            )
+        await session.delete(user)
     return None
