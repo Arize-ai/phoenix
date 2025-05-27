@@ -16,10 +16,16 @@ const playgroundDatasetPickerCSS = css`
   display: flex;
   direction: row;
   align-items: center;
-  .ac-dropdown > button {
+  & .dataset-picker-button {
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
     height: ${DATASET_PICKER_BUTTON_HEIGHT}px;
+    &[data-pressed],
+    &:hover {
+      // remove the bright hover border effect so that it matches the "clear" button
+      // next to the dataset picker
+      --button-border-color: var(--ac-global-input-field-border-color);
+    }
   }
   & > button {
     border-top-left-radius: 0;
@@ -36,7 +42,7 @@ export function PlaygroundDatasetPicker() {
   return (
     <div css={playgroundDatasetPickerCSS}>
       <DatasetPicker
-        size={"compact"}
+        size="S"
         placeholder="Test over a dataset"
         selectedKey={selectedDatasetId}
         onSelectionChange={(datasetId) => {

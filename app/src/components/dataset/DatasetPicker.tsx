@@ -25,6 +25,7 @@ type DatasetPickerProps = {
   placeholder?: string;
   size?: "S" | "M";
   label?: string;
+  isRequired?: boolean;
 };
 
 export function DatasetPicker(props: DatasetPickerProps) {
@@ -55,11 +56,11 @@ export function DatasetPicker(props: DatasetPickerProps) {
       onSelectionChange={(key) => props.onSelectionChange?.(key.toString())}
       placeholder={props.placeholder ?? "Select a dataset"}
       onBlur={props.onBlur}
-      isRequired
+      isRequired={props.isRequired}
       selectedKey={props.selectedKey}
     >
-      <Label>{props.label}</Label>
-      <Button>
+      {props.label && <Label>{props.label}</Label>}
+      <Button className="dataset-picker-button">
         <SelectValue />
         <SelectChevronUpDownIcon />
       </Button>
