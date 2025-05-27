@@ -3,7 +3,7 @@ import base64
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from secrets import token_hex
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 import httpx
 import pytest
@@ -493,7 +493,7 @@ async def test_project_spans(
     llama_index_rag_spans: Any,
 ) -> None:
     query = """
-      query ($projectId: GlobalID!, $after: String = null, $before: String = null, $filterCondition: String = null, $first: Int = null, $last: Int = null, $sort: SpanSort = null) {
+      query ($projectId: ID!, $after: String = null, $before: String = null, $filterCondition: String = null, $first: Int = null, $last: Int = null, $sort: SpanSort = null) {
         node(id: $projectId) {
           ... on Project {
             spans(
@@ -1080,6 +1080,9 @@ async def llama_index_rag_spans(db: DbSessionFactory) -> None:
                     "annotator_kind": "LLM",
                     "created_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
                     "updated_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+                    "identifier": "",
+                    "source": "APP",
+                    "user_id": None,
                 },
                 {
                     "span_rowid": span_rowids[5],
@@ -1091,6 +1094,9 @@ async def llama_index_rag_spans(db: DbSessionFactory) -> None:
                     "annotator_kind": "LLM",
                     "created_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
                     "updated_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+                    "identifier": "",
+                    "source": "APP",
+                    "user_id": None,
                 },
                 {
                     "span_rowid": span_rowids[10],
@@ -1102,6 +1108,9 @@ async def llama_index_rag_spans(db: DbSessionFactory) -> None:
                     "annotator_kind": "LLM",
                     "created_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
                     "updated_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+                    "identifier": "",
+                    "source": "APP",
+                    "user_id": None,
                 },
                 {
                     "span_rowid": span_rowids[0],
@@ -1113,6 +1122,9 @@ async def llama_index_rag_spans(db: DbSessionFactory) -> None:
                     "annotator_kind": "LLM",
                     "created_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
                     "updated_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+                    "identifier": "",
+                    "source": "APP",
+                    "user_id": None,
                 },
                 {
                     "span_rowid": span_rowids[5],
@@ -1124,6 +1136,9 @@ async def llama_index_rag_spans(db: DbSessionFactory) -> None:
                     "annotator_kind": "LLM",
                     "created_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
                     "updated_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+                    "identifier": "",
+                    "source": "APP",
+                    "user_id": None,
                 },
                 {
                     "span_rowid": span_rowids[10],
@@ -1135,6 +1150,9 @@ async def llama_index_rag_spans(db: DbSessionFactory) -> None:
                     "annotator_kind": "LLM",
                     "created_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
                     "updated_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+                    "identifier": "",
+                    "source": "APP",
+                    "user_id": None,
                 },
             ],
         )
@@ -1551,3 +1569,591 @@ class TestProject:
             res = await self._node(field, project, httpx_client)
             assert [e["node"]["id"] for e in res["edges"]] == expected
             cursor = res["edges"][0]["cursor"]
+
+    @pytest.fixture
+    async def _span_count_time_series_data(
+        self,
+        db: DbSessionFactory,
+    ) -> _Data:
+        """Creates a minimal dataset for testing span_count_time_series.
+
+        Creates spans across different hours to test:
+        1. Basic time series grouping
+        2. Time range filtering
+        3. Edge cases with spans at hour boundaries
+        4. Discontinuities in timestamps
+        """
+        projects, traces = [], []
+        spans: List[models.Span] = []
+        async with db() as session:
+            # Create a test project
+            projects.append(models.Project(name=token_hex(8)))
+            session.add(projects[-1])
+            await session.flush()
+
+            # Create spans across different hours
+            base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+
+            # Create spans in first hour (2 spans)
+            trace = models.Trace(
+                trace_id=token_hex(16),
+                project_rowid=projects[-1].id,
+                start_time=base_time,
+                end_time=base_time + timedelta(minutes=30),
+            )
+            session.add(trace)
+            await session.flush()
+
+            spans.extend(
+                [
+                    models.Span(
+                        trace_rowid=trace.id,
+                        span_id=token_hex(8),
+                        parent_id=None,
+                        name="span1",
+                        span_kind="CHAIN",
+                        start_time=base_time + timedelta(minutes=15),
+                        end_time=base_time + timedelta(minutes=30),
+                        attributes={},
+                        events=[],
+                        status_code="OK",
+                        status_message="",
+                        cumulative_error_count=0,
+                        cumulative_llm_token_count_prompt=0,
+                        cumulative_llm_token_count_completion=0,
+                    ),
+                    models.Span(
+                        trace_rowid=trace.id,
+                        span_id=token_hex(8),
+                        parent_id=None,
+                        name="span2",
+                        span_kind="CHAIN",
+                        start_time=base_time + timedelta(minutes=45),
+                        end_time=base_time + timedelta(minutes=60),
+                        attributes={},
+                        events=[],
+                        status_code="OK",
+                        status_message="",
+                        cumulative_error_count=0,
+                        cumulative_llm_token_count_prompt=0,
+                        cumulative_llm_token_count_completion=0,
+                    ),
+                ]
+            )
+            traces.append(trace)
+
+            # Create spans in second hour (3 spans)
+            trace = models.Trace(
+                trace_id=token_hex(16),
+                project_rowid=projects[-1].id,
+                start_time=base_time + timedelta(hours=1),
+                end_time=base_time + timedelta(hours=1, minutes=30),
+            )
+            session.add(trace)
+            await session.flush()
+
+            spans.extend(
+                [
+                    models.Span(
+                        trace_rowid=trace.id,
+                        span_id=token_hex(8),
+                        parent_id=None,
+                        name="span3",
+                        span_kind="CHAIN",
+                        start_time=base_time + timedelta(hours=1, minutes=15),
+                        end_time=base_time + timedelta(hours=1, minutes=30),
+                        attributes={},
+                        events=[],
+                        status_code="OK",
+                        status_message="",
+                        cumulative_error_count=0,
+                        cumulative_llm_token_count_prompt=0,
+                        cumulative_llm_token_count_completion=0,
+                    ),
+                    models.Span(
+                        trace_rowid=trace.id,
+                        span_id=token_hex(8),
+                        parent_id=None,
+                        name="span4",
+                        span_kind="CHAIN",
+                        start_time=base_time + timedelta(hours=1, minutes=30),
+                        end_time=base_time + timedelta(hours=1, minutes=45),
+                        attributes={},
+                        events=[],
+                        status_code="OK",
+                        status_message="",
+                        cumulative_error_count=0,
+                        cumulative_llm_token_count_prompt=0,
+                        cumulative_llm_token_count_completion=0,
+                    ),
+                    models.Span(
+                        trace_rowid=trace.id,
+                        span_id=token_hex(8),
+                        parent_id=None,
+                        name="span5",
+                        span_kind="CHAIN",
+                        start_time=base_time + timedelta(hours=1, minutes=45),
+                        end_time=base_time + timedelta(hours=2),
+                        attributes={},
+                        events=[],
+                        status_code="OK",
+                        status_message="",
+                        cumulative_error_count=0,
+                        cumulative_llm_token_count_prompt=0,
+                        cumulative_llm_token_count_completion=0,
+                    ),
+                ]
+            )
+            traces.append(trace)
+
+            # Create a span exactly at hour boundary (2:00:00)
+            trace = models.Trace(
+                trace_id=token_hex(16),
+                project_rowid=projects[-1].id,
+                start_time=base_time + timedelta(hours=2),
+                end_time=base_time + timedelta(hours=2, minutes=30),
+            )
+            session.add(trace)
+            await session.flush()
+
+            spans.append(
+                models.Span(
+                    trace_rowid=trace.id,
+                    span_id=token_hex(8),
+                    parent_id=None,
+                    name="span6",
+                    span_kind="CHAIN",
+                    start_time=base_time + timedelta(hours=2),  # Exactly at 2:00:00
+                    end_time=base_time + timedelta(hours=2, minutes=30),
+                    attributes={},
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+            )
+            traces.append(trace)
+
+            # Create a span in hour 4 (skipping hour 3 to create a discontinuity)
+            trace = models.Trace(
+                trace_id=token_hex(16),
+                project_rowid=projects[-1].id,
+                start_time=base_time + timedelta(hours=4),
+                end_time=base_time + timedelta(hours=4, minutes=30),
+            )
+            session.add(trace)
+            await session.flush()
+
+            spans.append(
+                models.Span(
+                    trace_rowid=trace.id,
+                    span_id=token_hex(8),
+                    parent_id=None,
+                    name="span7",
+                    span_kind="CHAIN",
+                    start_time=base_time + timedelta(hours=4, minutes=15),
+                    end_time=base_time + timedelta(hours=4, minutes=30),
+                    attributes={},
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+            )
+            traces.append(trace)
+
+            session.add_all(spans)
+            await session.flush()
+
+        return _Data(
+            spans=spans,
+            traces=traces,
+            projects=projects,
+        )
+
+    @pytest.mark.parametrize(
+        "time_range,expected_counts,description",
+        [
+            pytest.param(
+                None,
+                {
+                    datetime.fromisoformat("2024-01-01T00:00:00+00:00"): 2,
+                    datetime.fromisoformat("2024-01-01T01:00:00+00:00"): 3,
+                    datetime.fromisoformat("2024-01-01T02:00:00+00:00"): 1,
+                    datetime.fromisoformat("2024-01-01T04:00:00+00:00"): 1,
+                },
+                "no time range",
+                id="no_time_range",
+            ),
+            pytest.param(
+                {
+                    "start": datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
+                    "end": datetime.fromisoformat("2024-01-01T02:00:00+00:00"),
+                },
+                {
+                    datetime.fromisoformat("2024-01-01T01:00:00+00:00"): 3,
+                },
+                "middle hour only",
+                id="middle_hour_only",
+            ),
+            pytest.param(
+                {
+                    "start": datetime.fromisoformat("2024-01-01T01:45:00+00:00"),
+                    "end": datetime.fromisoformat("2024-01-01T02:15:00+00:00"),
+                },
+                {
+                    datetime.fromisoformat("2024-01-01T01:00:00+00:00"): 3,  # All spans in hour 1
+                    datetime.fromisoformat("2024-01-01T02:00:00+00:00"): 1,  # Span at 2:00:00
+                },
+                "span at hour boundary",
+                id="span_at_hour_boundary",
+            ),
+            pytest.param(
+                {
+                    "start": datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
+                    "end": datetime.fromisoformat("2024-01-01T01:30:00+00:00"),
+                },
+                {
+                    datetime.fromisoformat("2024-01-01T01:00:00+00:00"): 3,  # All spans in hour 1
+                },
+                "start at hour boundary",
+                id="start_at_hour_boundary",
+            ),
+            pytest.param(
+                {
+                    "start": datetime.fromisoformat("2024-01-01T01:30:00+00:00"),
+                    "end": datetime.fromisoformat("2024-01-01T02:00:00+00:00"),
+                },
+                {
+                    datetime.fromisoformat("2024-01-01T01:00:00+00:00"): 3,  # All spans in hour 1
+                },
+                "end at hour boundary",
+                id="end_at_hour_boundary",
+            ),
+            pytest.param(
+                {
+                    "start": datetime.fromisoformat("2024-01-01T03:00:00+00:00"),
+                    "end": datetime.fromisoformat("2024-01-01T04:00:00+00:00"),
+                },
+                {},
+                "no spans in range",
+                id="no_spans_in_range",
+            ),
+            pytest.param(
+                {
+                    "start": datetime.fromisoformat("2024-01-01T02:00:00+00:00"),
+                    "end": datetime.fromisoformat("2024-01-01T05:00:00+00:00"),
+                },
+                {
+                    datetime.fromisoformat("2024-01-01T02:00:00+00:00"): 1,
+                    datetime.fromisoformat("2024-01-01T04:00:00+00:00"): 1,
+                },
+                "time range with discontinuity",
+                id="time_range_with_discontinuity",
+            ),
+        ],
+    )
+    async def test_span_count_time_series(
+        self,
+        _span_count_time_series_data: _Data,
+        httpx_client: httpx.AsyncClient,
+        time_range: Optional[Dict[str, datetime]],
+        expected_counts: Dict[datetime, int],
+        description: str,
+    ) -> None:
+        """Test the span_count_time_series field.
+
+        This test verifies that:
+        1. The field returns the correct time series data grouped by hour
+        2. The time range filtering works correctly
+        3. Edge cases with spans at hour boundaries are handled correctly
+        4. Empty result sets are handled correctly
+        5. Time range edge cases are handled correctly
+
+        Args:
+            time_range: The time range to filter spans by, or None for no filtering
+            expected_counts: The expected counts for each hour in the time range
+            description: A description of the test case
+        """
+        project = _span_count_time_series_data.projects[0]
+
+        # Construct the GraphQL query based on whether a time range is provided
+        if time_range is None:
+            field = "spanCountTimeSeries{data{timestamp value}}"
+        else:
+            # Format the datetime in a way that Strawberry accepts
+            start_str = time_range["start"].strftime("%Y-%m-%dT%H:%M:%S.000000+00:00")
+            end_str = time_range["end"].strftime("%Y-%m-%dT%H:%M:%S.000000+00:00")
+            field = f'spanCountTimeSeries(timeRange:{{start:"{start_str}",end:"{end_str}"}}){{data{{timestamp value}}}}'
+
+        res = await self._node(field, project, httpx_client)
+
+        # Verify the structure of the response
+        assert "data" in res
+        assert isinstance(res["data"], list)
+
+        if not expected_counts:
+            assert len(res["data"]) == 0, f"Expected empty data for {description}"
+            return
+
+        # Verify the data points
+        for data_point in res["data"]:
+            timestamp = datetime.fromisoformat(data_point["timestamp"])
+            value = data_point["value"]
+            assert (
+                timestamp in expected_counts
+            ), f"Unexpected timestamp: {timestamp} for {description}"
+            assert (
+                value == expected_counts[timestamp]
+            ), f"Expected count {expected_counts[timestamp]} for hour {timestamp}, got {value} for {description}"
+
+    @pytest.mark.parametrize(
+        "expectation,condition",
+        [
+            (True, "span_kind == 'LLM'"),
+            (False, "span_kind == 'LLM' and "),
+            (False, "span_kind == 'LLM' and ''"),
+        ],
+    )
+    async def test_validate_span_filter_condition(
+        self,
+        condition: str,
+        expectation: bool,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            project = models.Project(name=token_hex(8))
+            session.add(project)
+        query = """
+            query($id: ID!, $condition: String!) {
+              node(id: $id) {
+                ... on Project {
+                  validateSpanFilterCondition(
+                    condition: $condition
+                  ) {
+                    isValid
+                  }
+                }
+              }
+            }
+        """
+        project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+        response = await gql_client.execute(
+            query=query,
+            variables={"id": project_gid, "condition": condition},
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        assert data["node"]["validateSpanFilterCondition"]["isValid"] == expectation
+
+
+@pytest.mark.parametrize(
+    "sort_col, sort_dir, expected_order",
+    [
+        pytest.param(
+            "name",
+            "asc",
+            ["project1", "project2", "project3"],
+            id="sort-by-name-asc",
+        ),
+        pytest.param(
+            "name",
+            "desc",
+            ["project3", "project2", "project1"],
+            id="sort-by-name-desc",
+        ),
+        pytest.param(
+            "endTime",
+            "asc",
+            ["project1", "project2", "project3"],
+            id="sort-by-end-time-asc",
+        ),
+        pytest.param(
+            "endTime",
+            "desc",
+            ["project3", "project2", "project1"],
+            id="sort-by-end-time-desc",
+        ),
+    ],
+)
+async def test_project_sort(
+    sort_col: str,
+    sort_dir: str,
+    expected_order: list[str],
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test project sorting capabilities."""
+    # Create test projects with controlled timestamps
+    base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+    projects: list[models.Project] = []
+    async with db() as session:
+        # Create projects first
+        for i, name in enumerate(["project1", "project2", "project3"]):
+            project = models.Project(
+                name=name,
+                created_at=base_time + timedelta(hours=i),
+                updated_at=base_time + timedelta(hours=i),
+            )
+            session.add(project)
+            await session.flush()
+            projects.append(project)
+
+        # Now create traces for each project with different end times
+        # Each project will have 3 traces with different end times
+        # The max end time for each project will be different and match the expected sort order
+        for i, project in enumerate(projects):
+            for j in range(3):
+                trace = models.Trace(
+                    trace_id=token_hex(16),
+                    project_rowid=project.id,
+                    start_time=base_time + timedelta(hours=i),
+                    # The max end time for each project will be base_time + (i+1) days
+                    # This ensures project1 has max end time of day 1
+                    # project2 has max end time of day 2
+                    # project3 has max end time of day 3
+                    end_time=base_time + timedelta(days=i + 1, hours=j),
+                )
+                session.add(trace)
+        await session.commit()
+
+    query = """
+        query ($sort: ProjectSort) {
+            projects(sort: $sort) {
+                edges {
+                    node {
+                        name
+                    }
+                }
+            }
+        }
+    """
+
+    variables = {"sort": {"col": sort_col, "dir": sort_dir}}
+    response = await gql_client.execute(query=query, variables=variables)
+    assert not response.errors
+    assert (data := response.data) is not None
+    projects = data["projects"]
+    project_names = [edge["node"]["name"] for edge in projects["edges"]]  # type: ignore
+    assert project_names == expected_order
+
+
+@pytest.mark.parametrize(
+    "filter_value, expected_names",
+    [
+        pytest.param(
+            "project",
+            ["test_project", "project_test"],
+            id="filter-matches-all",
+        ),
+        pytest.param(
+            "test",
+            ["test_project", "project_test"],
+            id="filter-matches-partial",
+        ),
+        pytest.param(
+            "TEST",
+            ["test_project", "project_test"],
+            id="filter-case-insensitive",
+        ),
+        pytest.param(
+            "nomatch",
+            [],
+            id="filter-no-matches",
+        ),
+    ],
+)
+async def test_project_filter(
+    filter_value: str,
+    expected_names: list[str],
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test project filtering capabilities."""
+    # Create test projects
+    async with db() as session:
+        for name in ["test_project", "project_test", "other_name"]:
+            project = models.Project(name=name)
+            session.add(project)
+        await session.commit()
+
+    query = """
+        query ($filter: ProjectFilter) {
+            projects(filter: $filter) {
+                edges {
+                    node {
+                        name
+                    }
+                }
+            }
+        }
+    """
+
+    variables = {"filter": {"col": "name", "value": filter_value}}
+    response = await gql_client.execute(query=query, variables=variables)
+    assert not response.errors
+    assert (data := response.data) is not None
+    projects = data["projects"]
+    project_names = [edge["node"]["name"] for edge in projects["edges"]]
+    assert sorted(project_names) == sorted(expected_names)
+
+
+@pytest.mark.parametrize(
+    "sort, filter_value, expected_names",
+    [
+        pytest.param(
+            {"col": "name", "dir": "asc"},
+            "test",
+            ["project_test", "test_project"],
+            id="filter-and-sort-asc",
+        ),
+        pytest.param(
+            {"col": "name", "dir": "desc"},
+            "test",
+            ["test_project", "project_test"],
+            id="filter-and-sort-desc",
+        ),
+    ],
+)
+async def test_project_filter_and_sort(
+    sort: dict[str, str],
+    filter_value: str,
+    expected_names: list[str],
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test combining project filtering and sorting."""
+    # Create test projects
+    async with db() as session:
+        for name in ["test_project", "project_test", "other_name"]:
+            project = models.Project(name=name)
+            session.add(project)
+        await session.commit()
+
+    query = """
+        query ($sort: ProjectSort, $filter: ProjectFilter) {
+            projects(sort: $sort, filter: $filter) {
+                edges {
+                    node {
+                        name
+                    }
+                }
+            }
+        }
+    """
+
+    variables = {
+        "sort": sort,
+        "filter": {"col": "name", "value": filter_value},
+    }
+    response = await gql_client.execute(query=query, variables=variables)
+    assert not response.errors
+    assert (data := response.data) is not None
+    projects = data["projects"]
+    project_names = [edge["node"]["name"] for edge in projects["edges"]]
+    assert project_names == expected_names

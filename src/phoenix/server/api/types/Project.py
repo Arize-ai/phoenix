@@ -1,20 +1,24 @@
+from __future__ import annotations
+
 import operator
-from datetime import datetime
-from typing import Any, ClassVar, Optional
+from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Optional
 
 import strawberry
 from aioitertools.itertools import islice
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import desc, distinct, func, or_, select
+from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.sql.expression import tuple_
-from strawberry import ID, UNSET, Private
+from strawberry import ID, UNSET, Private, lazy
 from strawberry.relay import Connection, Node, NodeID
 from strawberry.types import Info
 from typing_extensions import assert_never
 
 from phoenix.datetime_utils import right_open_time_range
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.ProjectSessionSort import (
     ProjectSessionColumn,
@@ -22,22 +26,28 @@ from phoenix.server.api.input_types.ProjectSessionSort import (
 )
 from phoenix.server.api.input_types.SpanSort import SpanSort, SpanSortConfig
 from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
 from phoenix.server.api.types.pagination import (
+    ConnectionArgs,
     Cursor,
     CursorSortColumn,
     CursorString,
     connection_from_cursors_and_nodes,
+    connection_from_list,
 )
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span
+from phoenix.server.api.types.TimeSeries import TimeSeries, TimeSeriesDataPoint
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.trace.dsl import SpanFilter
 
 DEFAULT_PAGE_SIZE = 30
+if TYPE_CHECKING:
+    from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
 
 
 @strawberry.type
@@ -521,21 +531,206 @@ class Project(Node):
         return info.context.last_updated_at.get(self._table, self.project_rowid)
 
     @strawberry.field
-    async def validate_span_filter_condition(self, condition: str) -> ValidationResult:
+    async def validate_span_filter_condition(
+        self,
+        info: Info[Context, None],
+        condition: str,
+    ) -> ValidationResult:
+        """Validates a span filter condition by attempting to compile it for both SQLite and PostgreSQL.
+
+        This method checks if the provided filter condition is syntactically valid and can be compiled
+        into SQL queries for both SQLite and PostgreSQL databases. It does not execute the query,
+        only validates its syntax. Any exception during compilation (syntax errors, invalid expressions,
+        etc.) will result in an invalid validation result.
+
+        Args:
+            condition (str): The span filter condition string to validate.
+
+        Returns:
+            ValidationResult: A result object containing:
+                - is_valid (bool): True if the condition is valid, False otherwise
+                - error_message (Optional[str]): Error message if validation fails, None if valid
+        """  # noqa: E501
         # This query is too expensive to run on every validation
         # valid_eval_names = await self.span_annotation_names()
         try:
-            SpanFilter(
+            span_filter = SpanFilter(
                 condition=condition,
                 # valid_eval_names=valid_eval_names,
             )
+            stmt = span_filter(select(models.Span))
+            dialect = info.context.db.dialect
+            if dialect is SupportedSQLDialect.POSTGRESQL:
+                str(stmt.compile(dialect=sqlite.dialect()))  # type: ignore[no-untyped-call]
+            elif dialect is SupportedSQLDialect.SQLITE:
+                str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
+            else:
+                assert_never(dialect)
             return ValidationResult(is_valid=True, error_message=None)
-        except SyntaxError as e:
+        except Exception as e:
             return ValidationResult(
                 is_valid=False,
-                error_message=e.msg,
+                error_message=str(e),
             )
+
+    @strawberry.field
+    async def annotation_configs(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = None,
+        after: Optional[str] = None,
+        before: Optional[str] = None,
+    ) -> Connection[AnnotationConfig]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        async with info.context.db() as session:
+            annotation_configs = await session.stream_scalars(
+                select(models.AnnotationConfig)
+                .join(
+                    models.ProjectAnnotationConfig,
+                    models.AnnotationConfig.id
+                    == models.ProjectAnnotationConfig.annotation_config_id,
+                )
+                .where(models.ProjectAnnotationConfig.project_id == self.project_rowid)
+                .order_by(models.AnnotationConfig.name)
+            )
+            data = [to_gql_annotation_config(config) async for config in annotation_configs]
+        return connection_from_list(data=data, args=args)
+
+    @strawberry.field
+    async def trace_retention_policy(
+        self,
+        info: Info[Context, None],
+    ) -> Annotated[ProjectTraceRetentionPolicy, lazy(".ProjectTraceRetentionPolicy")]:
+        from .ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
+
+        id_ = await info.context.data_loaders.trace_retention_policy_id_by_project_id.load(
+            self.project_rowid
+        )
+        return ProjectTraceRetentionPolicy(id=id_)
+
+    @strawberry.field
+    async def created_at(
+        self,
+        info: Info[Context, None],
+    ) -> datetime:
+        if self.db_project:
+            created_at = self.db_project.created_at
+        else:
+            created_at = await info.context.data_loaders.project_fields.load(
+                (self.project_rowid, models.Project.created_at),
+            )
+        return created_at
+
+    @strawberry.field
+    async def updated_at(
+        self,
+        info: Info[Context, None],
+    ) -> datetime:
+        if self.db_project:
+            updated_at = self.db_project.updated_at
+        else:
+            updated_at = await info.context.data_loaders.project_fields.load(
+                (self.project_rowid, models.Project.updated_at),
+            )
+        return updated_at
+
+    @strawberry.field(
+        description="Hourly span count for the project.",
+    )  # type: ignore
+    async def span_count_time_series(
+        self,
+        info: Info[Context, None],
+        time_range: Optional[TimeRange] = UNSET,
+    ) -> SpanCountTimeSeries:
+        """Returns a time series of span counts grouped by hour for the project.
+
+        This field provides hourly aggregated span counts, which can be useful for
+        visualizing span activity over time. The data points represent the number
+        of spans that started in each hour.
+
+        Args:
+            info: The GraphQL info object containing context information.
+            time_range: Optional time range to filter the spans. If provided, only
+                spans that started within this range will be counted.
+
+        Returns:
+            A SpanCountTimeSeries object containing data points with timestamps
+            (rounded to the nearest hour) and corresponding span counts.
+
+        Notes:
+            - The timestamps are rounded down to the nearest hour.
+            - If a time range is provided, the start time is rounded down to the
+              nearest hour, and the end time is rounded up to the nearest hour.
+            - The SQL query is optimized for both PostgreSQL and SQLite databases.
+        """
+        # Determine the appropriate SQL function to truncate timestamps to hours
+        # based on the database dialect
+        if info.context.db.dialect is SupportedSQLDialect.POSTGRESQL:
+            # PostgreSQL uses date_trunc for timestamp truncation
+            hour = func.date_trunc("hour", models.Span.start_time)
+        elif info.context.db.dialect is SupportedSQLDialect.SQLITE:
+            # SQLite uses strftime for timestamp formatting
+            hour = func.strftime("%Y-%m-%dT%H:00:00.000+00:00", models.Span.start_time)
+        else:
+            assert_never(info.context.db.dialect)
+
+        # Build the base query to count spans grouped by hour
+        stmt = (
+            select(hour, func.count())
+            .join(models.Trace)
+            .where(models.Trace.project_rowid == self.project_rowid)
+            .group_by(hour)
+            .order_by(hour)
+        )
+
+        # Apply time range filtering if provided
+        if time_range:
+            if t := time_range.start:
+                # Round down to nearest hour for the start time
+                start = t.replace(minute=0, second=0, microsecond=0)
+                stmt = stmt.where(start <= models.Span.start_time)
+            if t := time_range.end:
+                # Round up to nearest hour for the end time
+                # If the time is already at the start of an hour, use it as is
+                if t.minute == 0 and t.second == 0 and t.microsecond == 0:
+                    end = t
+                else:
+                    # Otherwise, round up to the next hour
+                    end = t.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+                stmt = stmt.where(models.Span.start_time < end)
+
+        # Execute the query and convert the results to a time series
+        async with info.context.db() as session:
+            data = await session.stream(stmt)
+            return SpanCountTimeSeries(
+                data=[
+                    TimeSeriesDataPoint(
+                        timestamp=_as_datetime(t),
+                        value=v,
+                    )
+                    async for t, v in data
+                ]
+            )
+
+
+@strawberry.type
+class SpanCountTimeSeries(TimeSeries):
+    """A time series of span count"""
 
 
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE.split(".")
+
+
+def _as_datetime(value: Any) -> datetime:
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        return datetime.fromisoformat(value)
+    raise ValueError(f"Cannot convert {value} to datetime")

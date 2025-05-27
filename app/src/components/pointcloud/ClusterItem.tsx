@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { css } from "@emotion/react";
 
 import { Flex, Heading, Text } from "@phoenix/components";

@@ -1,4 +1,4 @@
-import React, { startTransition, Suspense, useEffect } from "react";
+import { startTransition, Suspense, useEffect } from "react";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { useParams } from "react-router";
 
@@ -25,7 +25,7 @@ export function DocumentEvaluationSummary({
     graphql`
       query DocumentEvaluationSummaryQuery(
         $evaluationName: String!
-        $id: GlobalID!
+        $id: ID!
         $timeRange: TimeRange!
       ) {
         project: node(id: $id) {

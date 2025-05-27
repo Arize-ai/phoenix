@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useFragment } from "react-relay";
 import { Outlet, useLocation, useNavigate } from "react-router";
 import { graphql } from "relay-runtime";

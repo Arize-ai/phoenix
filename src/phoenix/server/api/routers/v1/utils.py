@@ -1,6 +1,18 @@
 from typing import Any, Generic, Optional, TypedDict, TypeVar, Union
 
+from fastapi import HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.status import (
+    HTTP_404_NOT_FOUND,
+    HTTP_422_UNPROCESSABLE_ENTITY,
+)
+from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias, assert_never
+
+from phoenix.db import models
+from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.Project import Project as ProjectNodeType
 
 from .models import V1RoutesBaseModel
 
@@ -93,3 +105,51 @@ def add_text_csv_content_to_responses(
         "text/csv": {"schema": {"type": "string", "contentMediaType": "text/csv"}}
     }
     return output_responses
+
+
+async def _get_project_by_identifier(
+    session: AsyncSession,
+    project_identifier: str,
+) -> models.Project:
+    """
+    Get a project by its ID or name.
+
+    Args:
+        session: The database session.
+        project_identifier: The project ID or name.
+
+    Returns:
+        The project object.
+
+    Raises:
+        HTTPException: If the identifier format is invalid or the project is not found.
+    """
+    # Try to parse as a GlobalID first
+    try:
+        id_ = from_global_id_with_expected_type(
+            GlobalID.from_id(project_identifier),
+            ProjectNodeType.__name__,
+        )
+    except Exception:
+        try:
+            name = project_identifier
+        except HTTPException:
+            raise HTTPException(
+                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid project identifier format: {project_identifier}",
+            )
+        stmt = select(models.Project).filter_by(name=name)
+        project = await session.scalar(stmt)
+        if project is None:
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND,
+                detail=f"Project with name {name} not found",
+            )
+    else:
+        project = await session.get(models.Project, id_)
+        if project is None:
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND,
+                detail=f"Project with ID {project_identifier} not found",
+            )
+    return project

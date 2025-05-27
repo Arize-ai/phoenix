@@ -50,6 +50,7 @@ import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useNotifyError } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import {
@@ -374,8 +375,7 @@ function SpanMetadata({ span }: { span: Span }) {
     <Flex direction="row" gap="size-100" alignItems="center">
       <TokenCount
         tokenCountTotal={span.tokenCountTotal || 0}
-        tokenCountPrompt={span.tokenCountPrompt || 0}
-        tokenCountCompletion={span.tokenCountCompletion || 0}
+        nodeId={span.id}
       />
       <LatencyText latencyMs={span.latencyMs || 0} />
     </Flex>
@@ -704,7 +704,7 @@ export function PlaygroundDatasetExamplesTable({
 
   const { dataset } = useLazyLoadQuery<PlaygroundDatasetExamplesTableQuery>(
     graphql`
-      query PlaygroundDatasetExamplesTableQuery($datasetId: GlobalID!) {
+      query PlaygroundDatasetExamplesTableQuery($datasetId: ID!) {
         dataset: node(id: $datasetId) {
           ...PlaygroundDatasetExamplesTableFragment
         }
@@ -722,7 +722,7 @@ export function PlaygroundDatasetExamplesTable({
       fragment PlaygroundDatasetExamplesTableFragment on Dataset
       @refetchable(queryName: "PlaygroundDatasetExamplesTableRefetchQuery")
       @argumentDefinitions(
-        datasetVersionId: { type: "GlobalID" }
+        datasetVersionId: { type: "ID" }
         after: { type: "String", defaultValue: null }
         first: { type: "Int", defaultValue: 20 }
       ) {
@@ -957,6 +957,10 @@ export function PlaygroundDatasetExamplesTable({
         type="slideOver"
         onDismiss={() => {
           setDialog(null);
+          setSearchParams((searchParams) => {
+            searchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+            return searchParams;
+          });
         }}
       >
         {dialog}
@@ -992,8 +996,6 @@ graphql`
         datasetExampleId
         span {
           id
-          tokenCountCompletion
-          tokenCountPrompt
           tokenCountTotal
           latencyMs
           project {
@@ -1035,8 +1037,6 @@ graphql`
             errorMessage
             span {
               id
-              tokenCountCompletion
-              tokenCountPrompt
               tokenCountTotal
               latencyMs
               project {

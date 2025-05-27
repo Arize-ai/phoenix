@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { useLoaderData } from "react-router";
 
 import { promptPlaygroundLoader } from "@phoenix/pages/prompt/promptPlaygroundLoader";

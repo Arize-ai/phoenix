@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import {
   CellContext,
   ColumnDef,
@@ -25,8 +25,6 @@ import {
   Dialog,
   DialogContainer,
   Item,
-  Tooltip,
-  TooltipTrigger,
 } from "@arizeai/components";
 
 import {
@@ -56,8 +54,11 @@ import {
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { Truncate } from "@phoenix/components/utility/Truncate";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import { assertUnreachable } from "@phoenix/typeUtils";
+import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
 import { TraceDetails } from "../trace";
 
@@ -133,12 +134,13 @@ const annotationTooltipExtraCSS = css`
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const { datasetId, experimentIds, displayFullText } = props;
   const [filterCondition, setFilterCondition] = useState("");
+  const [, setSearchParams] = useSearchParams();
 
   const data = useLazyLoadQuery<ExperimentCompareTableQuery>(
     graphql`
       query ExperimentCompareTableQuery(
-        $experimentIds: [GlobalID!]!
-        $datasetId: GlobalID!
+        $experimentIds: [ID!]!
+        $datasetId: ID!
         $filterCondition: String
       ) {
         comparisons: compareExperiments(
@@ -249,33 +251,31 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       {
         header: "input",
         accessorKey: "input",
-        minWidth: 500,
         cell: ({ row }) => {
           return (
             <CellWithControlsWrap
               controls={
-                <TooltipTrigger>
-                  <Button
-                    size="S"
-                    aria-label="View example details"
-                    leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
-                    onPress={() => {
-                      startTransition(() => {
-                        setDialog(
-                          <Suspense>
-                            <ExampleDetailsDialog
-                              exampleId={row.original.example.id}
-                              onDismiss={() => {
-                                setDialog(null);
-                              }}
-                            />
-                          </Suspense>
-                        );
-                      });
-                    }}
-                  />
-                  <Tooltip>View Example</Tooltip>
-                </TooltipTrigger>
+                <Button
+                  size="S"
+                  aria-label="View example details"
+                  leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
+                  onPress={() => {
+                    startTransition(() => {
+                      setDialog(
+                        <Suspense>
+                          <ExampleDetailsDialog
+                            exampleId={row.original.example.id}
+                            onDismiss={() => {
+                              setDialog(null);
+                            }}
+                          />
+                        </Suspense>
+                      );
+                    });
+                  }}
+                >
+                  View Example
+                </Button>
               }
             >
               <PaddedCell>
@@ -294,7 +294,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       {
         header: "reference output",
         accessorKey: "referenceOutput",
-        minWidth: 500,
         cell: (props) => (
           <PaddedCell>
             {displayFullText ? JSONCell(props) : CompactJSONCell(props)}
@@ -353,52 +352,50 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         const projectId = run?.trace?.projectId;
         if (traceId && projectId) {
           traceButton = (
-            <TooltipTrigger>
-              <Button
-                variant="default"
-                className="trace-button"
-                size="S"
-                aria-label="View run trace"
-                leadingVisual={<Icon svg={<Icons.Trace />} />}
-                onPress={() => {
-                  startTransition(() => {
-                    setDialog(
-                      <TraceDetailsDialog
-                        traceId={traceId}
-                        projectId={projectId}
-                        title={`Experiment Run Trace`}
-                      />
-                    );
-                  });
-                }}
-              />
-              <Tooltip>View Trace</Tooltip>
-            </TooltipTrigger>
+            <Button
+              variant="default"
+              className="trace-button"
+              size="S"
+              aria-label="View run trace"
+              leadingVisual={<Icon svg={<Icons.Trace />} />}
+              onPress={() => {
+                startTransition(() => {
+                  setDialog(
+                    <TraceDetailsDialog
+                      traceId={traceId}
+                      projectId={projectId}
+                      title={`Experiment Run Trace`}
+                    />
+                  );
+                });
+              }}
+            >
+              View Trace
+            </Button>
           );
         }
         const runControls = (
           <>
-            <TooltipTrigger>
-              <Button
-                variant="default"
-                className="expand-button"
-                size="S"
-                aria-label="View example run details"
-                leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
-                onPress={() => {
-                  startTransition(() => {
-                    setDialog(
-                      <SelectedExampleDialog
-                        selectedExample={row.original}
-                        datasetId={datasetId}
-                        experimentInfoById={experimentInfoById}
-                      />
-                    );
-                  });
-                }}
-              />
-              <Tooltip>View run details</Tooltip>
-            </TooltipTrigger>
+            <Button
+              variant="default"
+              className="expand-button"
+              size="S"
+              aria-label="View example run details"
+              leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
+              onPress={() => {
+                startTransition(() => {
+                  setDialog(
+                    <SelectedExampleDialog
+                      selectedExample={row.original}
+                      datasetId={datasetId}
+                      experimentInfoById={experimentInfoById}
+                    />
+                  );
+                });
+              }}
+            >
+              Experiment Run
+            </Button>
             {traceButton}
           </>
         );
@@ -444,8 +441,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     const colSizes: { [key: string]: number } = {};
     for (let i = 0; i < headers.length; i++) {
       const header = headers[i]!;
-      colSizes[`--header-${header.id}-size`] = header.getSize();
-      colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
+      colSizes[`--header-${makeSafeColumnId(header.id)}-size`] =
+        header.getSize();
+      colSizes[`--col-${makeSafeColumnId(header.column.id)}-size`] =
+        header.column.getSize();
     }
     return colSizes;
     // eslint-disable-next-line react-compiler/react-compiler
@@ -487,25 +486,57 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                   {headerGroup.headers.map((header) => (
                     <th
                       key={header.id}
+                      colSpan={header.colSpan}
                       style={{
-                        width: `calc(var(--header-${header?.id}-size) * 1px)`,
+                        width: `calc(var(--header-${makeSafeColumnId(header?.id)}-size) * 1px)`,
                       }}
                     >
-                      <div>
-                        {flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                      </div>
-                      <div
-                        {...{
-                          onMouseDown: header.getResizeHandler(),
-                          onTouchStart: header.getResizeHandler(),
-                          className: `resizer ${
-                            header.column.getIsResizing() ? "isResizing" : ""
-                          }`,
-                        }}
-                      />
+                      {header.isPlaceholder ? null : (
+                        <>
+                          <div
+                            {...{
+                              className: header.column.getCanSort()
+                                ? "cursor-pointer"
+                                : "",
+                              onClick: header.column.getToggleSortingHandler(),
+                              style: {
+                                left: header.getStart(),
+                                width: "100%",
+                              },
+                            }}
+                          >
+                            <Truncate maxWidth="100%">
+                              {flexRender(
+                                header.column.columnDef.header,
+                                header.getContext()
+                              )}
+                            </Truncate>
+                            {header.column.getIsSorted() ? (
+                              <Icon
+                                className="sort-icon"
+                                svg={
+                                  header.column.getIsSorted() === "asc" ? (
+                                    <Icons.ArrowUpFilled />
+                                  ) : (
+                                    <Icons.ArrowDownFilled />
+                                  )
+                                }
+                              />
+                            ) : null}
+                          </div>
+                          <div
+                            {...{
+                              onMouseDown: header.getResizeHandler(),
+                              onTouchStart: header.getResizeHandler(),
+                              className: `resizer ${
+                                header.column.getIsResizing()
+                                  ? "isResizing"
+                                  : ""
+                              }`,
+                            }}
+                          />
+                        </>
+                      )}
                     </th>
                   ))}
                 </tr>
@@ -525,6 +556,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
             type="slideOver"
             onDismiss={() => {
               setDialog(null);
+              setSearchParams((searchParams) => {
+                searchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+                return searchParams;
+              });
             }}
           >
             {dialog}
@@ -546,7 +581,8 @@ function TableBody<T>({ table }: { table: Table<T> }) {
               <td
                 key={cell.id}
                 style={{
-                  width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
+                  width: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
+                  maxWidth: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
                   padding: 0,
                 }}
               >

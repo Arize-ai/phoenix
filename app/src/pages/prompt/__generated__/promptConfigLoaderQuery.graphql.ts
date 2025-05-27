@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c5cf1c33b1065f7e95df153d6e8657f4>>
+ * @generated SignedSource<<a0891a3647bb23c2f05092da5ad9e074>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -100,10 +100,6 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
           (v2/*: any*/),
           {
             "kind": "InlineFragment",
@@ -151,16 +147,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "3b99248824fdc64b0a16632d83801a44",
+    "cacheID": "bb3d56ec191577418a8de0eaf53b6bde",
     "id": null,
     "metadata": {},
     "name": "promptConfigLoaderQuery",
     "operationKind": "query",
-    "text": "query promptConfigLoaderQuery(\n  $id: GlobalID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    ... on Prompt {\n      ...PromptVersionTagsConfigCard_data\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment PromptVersionTagsConfigCard_data on Prompt {\n  id\n  versionTags {\n    id\n    name\n    description\n    promptVersionId\n  }\n}\n"
+    "text": "query promptConfigLoaderQuery(\n  $id: ID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    ... on Prompt {\n      ...PromptVersionTagsConfigCard_data\n    }\n    id\n  }\n}\n\nfragment PromptVersionTagsConfigCard_data on Prompt {\n  id\n  versionTags {\n    id\n    name\n    description\n    promptVersionId\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2dcab1077c1d7e48736d23d95ce22331";
+(node as any).hash = "14c6b4bb4ca5f20cce70677746b16459";
 
 export default node;

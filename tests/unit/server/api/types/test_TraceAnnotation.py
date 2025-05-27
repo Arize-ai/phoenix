@@ -76,6 +76,8 @@ async def test_annotating_a_trace(
                         score
                         explanation
                         metadata
+                        identifier
+                        source
                     }
                 }
             }
@@ -90,6 +92,8 @@ async def test_annotating_a_trace(
                     "score": 0.95,
                     "explanation": "This is a test annotation.",
                     "metadata": {},
+                    "identifier": None,
+                    "source": "API",
                 }
             ]
         },
@@ -109,6 +113,9 @@ async def test_annotating_a_trace(
     assert orm_annotation.score == 0.95
     assert orm_annotation.explanation == "This is a test annotation."
     assert orm_annotation.metadata_ == dict()
+    assert orm_annotation.identifier == ""
+    assert orm_annotation.source == "API"
+    assert orm_annotation.user_id is None
 
     response = await gql_client.execute(
         query="""
@@ -122,6 +129,8 @@ async def test_annotating_a_trace(
                         score
                         explanation
                         metadata
+                        identifier
+                        source
                     }
                 }
             }
@@ -136,6 +145,7 @@ async def test_annotating_a_trace(
                     "score": 0.95,
                     "explanation": "Updated explanation",
                     "metadata": {"updated": True},
+                    "identifier": "updated-identifier",
                 }
             ]
         },
@@ -150,6 +160,9 @@ async def test_annotating_a_trace(
     assert orm_annotation.label == "Positive"
     assert orm_annotation.explanation == "Updated explanation"
     assert orm_annotation.metadata_ == {"updated": True}
+    assert orm_annotation.identifier == "updated-identifier"
+    assert orm_annotation.source == "API"
+    assert orm_annotation.user_id is None
 
     response = await gql_client.execute(
         query="""

@@ -79,6 +79,9 @@ export const tableCSS = css`
         padding: var(--ac-global-dimension-size-100)
           var(--ac-global-dimension-size-200);
       }
+      &[data-selected="true"] {
+        background-color: var(--ac-global-color-primary-100);
+      }
     }
   }
 `;

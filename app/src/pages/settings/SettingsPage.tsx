@@ -1,18 +1,9 @@
-import React, { useCallback } from "react";
+import { useCallback } from "react";
 import { Key } from "react-aria-components";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import { Card } from "@arizeai/components";
-
-import {
-  Flex,
-  LazyTabPanel,
-  Tab,
-  TabList,
-  Tabs,
-  Text,
-} from "@phoenix/components";
+import { LazyTabPanel, Tab, TabList, Tabs } from "@phoenix/components";
 
 const settingsPageCSS = css`
   overflow-y: auto;
@@ -51,7 +42,8 @@ export function SettingsPage() {
           <TabList>
             <Tab id="general">General</Tab>
             <Tab id="providers">AI Providers</Tab>
-            {/* <Tab id="annotations">Annotations</Tab> */}
+            <Tab id="annotations">Annotations</Tab>
+            <Tab id="data">Data Retention</Tab>
           </TabList>
           <LazyTabPanel id="general" padded>
             <Outlet />
@@ -60,17 +52,10 @@ export function SettingsPage() {
             <Outlet />
           </LazyTabPanel>
           <LazyTabPanel id="annotations" padded>
-            <Card title="Annotations Settings" variant="compact">
-              <Flex direction="column" gap="size-200">
-                <Text>
-                  Annotation settings and configurations will be available here.
-                </Text>
-                <Text>
-                  Configure annotation types, labels, and workflows for your
-                  projects.
-                </Text>
-              </Flex>
-            </Card>
+            <Outlet />
+          </LazyTabPanel>
+          <LazyTabPanel id="data" padded>
+            <Outlet />
           </LazyTabPanel>
         </Tabs>
       </div>

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d8ffc05d16e320703b1fced6251b209f>>
+ * @generated SignedSource<<d9513fcfcb5ae84831757a9b51de479c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -28,8 +28,6 @@ export type SessionsTable_sessions$data = {
         readonly sessionId: string;
         readonly startTime: string;
         readonly tokenUsage: {
-          readonly completion: number;
-          readonly prompt: number;
           readonly total: number;
         };
         readonly traceLatencyMsP50: number | null;
@@ -235,20 +233,6 @@ return {
                       "alias": null,
                       "args": null,
                       "kind": "ScalarField",
-                      "name": "prompt",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "completion",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
                       "name": "total",
                       "storageKey": null
                     }
@@ -347,6 +331,6 @@ return {
 };
 })();
 
-(node as any).hash = "36dfca4fe1c2c0f19a1fd0e2ac1c6316";
+(node as any).hash = "827cd1cd4207ee9d2803d2768d0a52ab";
 
 export default node;

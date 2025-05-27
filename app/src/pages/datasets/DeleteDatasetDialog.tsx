@@ -1,4 +1,4 @@
-import React, { startTransition, useCallback } from "react";
+import { startTransition, useCallback } from "react";
 import { useMutation } from "react-relay";
 import { graphql } from "relay-runtime";
 
@@ -21,7 +21,7 @@ export function DeleteDatasetDialog({
 }) {
   const [commitDelete, isCommittingDelete] =
     useMutation<DeleteDatasetDialogMutation>(graphql`
-      mutation DeleteDatasetDialogMutation($datasetId: GlobalID!) {
+      mutation DeleteDatasetDialogMutation($datasetId: ID!) {
         deleteDataset(input: { datasetId: $datasetId }) {
           __typename
         }

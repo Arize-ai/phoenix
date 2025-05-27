@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { css } from "@emotion/react";
@@ -38,7 +38,7 @@ export function SpanToDatasetExampleDialog({
 
   const data = useLazyLoadQuery<SpanToDatasetExampleDialogQuery>(
     graphql`
-      query SpanToDatasetExampleDialogQuery($spanId: GlobalID!) {
+      query SpanToDatasetExampleDialogQuery($spanId: ID!) {
         span: node(id: $spanId) {
           ... on Span {
             revision: asExampleRevision {

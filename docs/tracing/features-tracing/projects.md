@@ -23,3 +23,7 @@ With Projects, you can:
 Projects act as containers that keep related traces and conversations together while preventing them from interfering with unrelated work. This organization becomes increasingly valuable as you scale - allowing you to easily switch between contexts without losing your place or mixing data.
 
 The Project structure also enables comparative analysis across different implementations, models, or time periods. You can run parallel versions of your application in separate projects, then analyze the differences to identify improvements or regressions.
+
+### Explore a Demo Project
+
+{% embed url="https://phoenix-demo.arize.com/projects/UHJvamVjdDoz/spans" %}

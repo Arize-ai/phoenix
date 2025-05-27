@@ -5,13 +5,13 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime
 from functools import cached_property
 from itertools import chain
-from random import randint, random
+from secrets import token_hex
 from types import MappingProxyType
 from typing import Any, Optional, cast
 
 import pandas as pd
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import JSON, Column, Label, Select, SQLColumnExpression, and_, func, select
+from sqlalchemy import JSON, Column, Label, Select, SQLColumnExpression, and_, func, or_, select
 from sqlalchemy.dialects.postgresql import aggregate_order_by
 from sqlalchemy.orm import Session
 from typing_extensions import assert_never
@@ -94,7 +94,7 @@ class _HasTmpSuffix(_Base):
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        object.__setattr__(self, "_tmp_suffix", f"{randint(0, 10**6):06d}")
+        object.__setattr__(self, "_tmp_suffix", _randomize())
 
     def _remove_tmp_suffix(self, name: str) -> str:
         if name.endswith(self._tmp_suffix):
@@ -126,7 +126,7 @@ class Explosion(_HasTmpSuffix, Projection):
         position_prefix = _PRESCRIBED_POSITION_PREFIXES.get(self.key, "")
         object.__setattr__(self, "_position_prefix", position_prefix)
         object.__setattr__(self, "_primary_index", Projection(self.primary_index_key))
-        object.__setattr__(self, "_array_tmp_col_label", f"__array_tmp_col_{random()}")
+        object.__setattr__(self, "_array_tmp_col_label", _randomize("__array_tmp_col"))
 
     @cached_property
     def index_keys(self) -> list[str]:
@@ -290,7 +290,7 @@ class Concatenation(_HasTmpSuffix, Projection):
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        object.__setattr__(self, "_array_tmp_col_label", f"__array_tmp_col_{random()}")
+        object.__setattr__(self, "_array_tmp_col_label", _randomize("__array_tmp_col"))
 
     def with_separator(self, separator: str = "\n\n") -> "Concatenation":
         return replace(self, separator=separator)
@@ -440,7 +440,7 @@ class SpanQuery(_HasTmpSuffix):
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        object.__setattr__(self, "_pk_tmp_col_label", f"__pk_tmp_col_{random()}")
+        object.__setattr__(self, "_pk_tmp_col_label", _randomize("__pk_tmp_col"))
 
     def __bool__(self) -> bool:
         return bool(self._select) or bool(self._filter) or bool(self._explode) or bool(self._concat)
@@ -511,6 +511,38 @@ class SpanQuery(_HasTmpSuffix):
         *,
         orphan_span_as_root_span: bool = True,
     ) -> pd.DataFrame:
+        """Execute the span query and return results as a pandas DataFrame.
+
+        This method executes the configured span query against the database and returns
+        the results as a pandas DataFrame. The query can include projections, filters,
+        explosions, and concatenations of span data.
+
+        Args:
+            session (Session): The SQLAlchemy database session to use for the query.
+            project_name (str, optional): The name of the project to query spans for.
+                If not provided, uses the default project name. Default None.
+            start_time (datetime, optional): The start time for the query range. Default None.
+            end_time (datetime, optional): The end time for the query range. Default None.
+            limit (int, optional): Maximum number of spans to return. Defaults to DEFAULT_SPAN_LIMIT.
+            root_spans_only (bool, optional): If True, only root spans are returned. Default None.
+            stop_time (datetime, optional): Deprecated. Use end_time instead. Default None.
+            orphan_span_as_root_span (bool): If True, orphan spans are treated as root spans. An
+                orphan span has a non-null `parent_id` but a span with that ID is currently not
+                found in the database. Default True.
+
+        Returns:
+            pd.DataFrame: A DataFrame containing the query results. The structure of the DataFrame
+                depends on the query configuration:
+                - If no projections are specified, returns all span fields
+                - If projections are specified, returns only the requested fields
+                - If explosion is configured, returns exploded array fields as separate rows
+                - If concatenation is configured, returns concatenated array fields as strings
+                - The index is set to the configured index field (default: context.span_id)
+
+        Note:
+            The query execution is optimized based on the database dialect (SQLite or PostgreSQL).
+            Some operations may be performed in pandas after fetching the data from SQLite.
+        """  # noqa: E501
         if not project_name:
             project_name = DEFAULT_PROJECT_NAME
         if stop_time:
@@ -529,6 +561,7 @@ class SpanQuery(_HasTmpSuffix):
                 end_time=end_time,
                 limit=limit,
                 root_spans_only=root_spans_only,
+                orphan_span_as_root_span=orphan_span_as_root_span,
             )
         assert session.bind is not None
         dialect = SupportedSQLDialect(session.bind.dialect.name)
@@ -699,10 +732,47 @@ def _get_spans_dataframe(
     end_time: Optional[datetime] = None,
     limit: Optional[int] = DEFAULT_SPAN_LIMIT,
     root_spans_only: Optional[bool] = None,
+    orphan_span_as_root_span: bool = True,
     # Deprecated
     stop_time: Optional[datetime] = None,
-    orphan_span_as_root_span: bool = True,
 ) -> pd.DataFrame:
+    """Retrieve spans from the database and return them as a pandas DataFrame.
+
+    This function queries the database for spans matching the specified criteria and returns
+    them as a pandas DataFrame. The spans are joined with their associated traces and projects,
+    and their attributes are flattened into columns.
+
+    Args:
+        session (Session): The SQLAlchemy database session to use for the query.
+        project_name (str): The name of the project to query spans for.
+        span_filter (SpanFilter, optional): A filter to apply to the spans query. Default None.
+        start_time (datetime, optional): The start time for the query range. Default None.
+        end_time (datetime, optional): The end time for the query range. Default None.
+        limit (int, optional): Maximum number of spans to return. Defaults to DEFAULT_SPAN_LIMIT.
+        root_spans_only (bool, optional): If True, only root spans are returned. Default None.
+        orphan_span_as_root_span (bool): If True, orphan spans are treated as root spans. An
+            orphan span has a non-null `parent_id` but a span with that ID is currently not
+            found in the database. Default True.
+        stop_time (datetime, optional): Deprecated. Use end_time instead. Default None.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing the spans data with the following columns:
+            - name: The span name
+            - span_kind: The kind of span
+            - parent_id: The ID of the parent span
+            - start_time: When the span started
+            - end_time: When the span ended
+            - status_code: The status code of the span
+            - status_message: The status message of the span
+            - events: The events associated with the span
+            - context.span_id: The span ID
+            - context.trace_id: The trace ID
+            - attributes.*: Flattened span attributes
+
+    Note:
+        The function flattens semantic conventions in the span attributes and adds them as
+        prefixed columns to the DataFrame. Custom attributes are preserved as is.
+    """  # noqa: E501
     # use legacy labels for backward-compatibility
     span_id_label = "context.span_id"
     trace_id_label = "context.trace_id"
@@ -737,23 +807,26 @@ def _get_spans_dataframe(
         stmt = stmt.where(start_time <= models.Span.start_time)
     if end_time:
         stmt = stmt.where(models.Span.start_time < end_time)
-    if limit is not None:
-        stmt = stmt.limit(limit)
     if root_spans_only:
         # A root span is either a span with no parent_id or an orphan span
         # (a span whose parent_id references a span that doesn't exist in the database)
         if orphan_span_as_root_span:
-            # Include both types of root spans:
+            # Include both types of root spans
             parent_spans = select(models.Span.span_id).alias("parent_spans")
-            stmt = stmt.where(
-                ~select(1).where(models.Span.parent_id == parent_spans.c.span_id).exists(),
-                # Note: We avoid using an OR clause with Span.parent_id.is_(None) here
-                # because it significantly degraded PostgreSQL performance (>10x worse)
-                # during testing.
+            candidate_spans = stmt.cte("candidate_spans")
+            stmt = select(candidate_spans).where(
+                or_(
+                    candidate_spans.c.parent_id.is_(None),
+                    ~select(1)
+                    .where(candidate_spans.c.parent_id == parent_spans.c.span_id)
+                    .exists(),
+                ),
             )
         else:
             # Only include explicit root spans (spans with parent_id = NULL)
             stmt = stmt.where(models.Span.parent_id.is_(None))
+    if limit is not None:
+        stmt = stmt.limit(limit)
     conn = session.connection()
     # set `drop=False` for backward-compatibility
     df = pd.read_sql_query(stmt, conn).set_index(span_id_label, drop=False)
@@ -797,3 +870,10 @@ def _flatten_semantic_conventions(attributes: Mapping[str, Any]) -> dict[str, An
         prefix_exclusions=SEMANTIC_CONVENTIONS,
     )
     return ans
+
+
+def _randomize(name: str = "") -> str:
+    """Append a short random suffix for a column name to avoid name collisions. The suffix
+    should be short because PostgreSQL has a limit of 63 characters for column names.
+    """  # noqa: E501
+    return f"{name}_{token_hex(3)}"

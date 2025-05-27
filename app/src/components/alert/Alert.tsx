@@ -1,4 +1,4 @@
-import React, { ReactNode, SyntheticEvent } from "react";
+import { ReactNode, SyntheticEvent } from "react";
 import { css } from "@emotion/react";
 
 import { useTheme } from "@phoenix/contexts";
@@ -103,9 +103,9 @@ const alertCSS = css`
   .ac-alert__icon-title-wrap {
     display: flex;
     flex-direction: row;
-    align-items: center;
 
     .ac-icon-wrap {
+      margin-top: 4px;
       margin-right: var(--ac-global-dimension-static-size-200);
       font-size: var(--ac-global-font-size-l);
     }

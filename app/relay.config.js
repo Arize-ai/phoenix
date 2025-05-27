@@ -7,10 +7,10 @@ module.exports = {
   noFutureProofEnums: true,
   eagerEsModules: true,
   customScalarTypes: {
-    GlobalID: "string",
     DateTime: "string",
     UUID: "string",
     Identifier: "string",
+    CronExpression: "string",
   },
   typescriptExcludeUndefinedFromNullableUnion: true,
 };

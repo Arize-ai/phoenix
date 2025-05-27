@@ -1,4 +1,4 @@
-import React, { PropsWithChildren } from "react";
+import { PropsWithChildren } from "react";
 import { css } from "@emotion/react";
 
 export function TableEmptyWrap(props: PropsWithChildren) {

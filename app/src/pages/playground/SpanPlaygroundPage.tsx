@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useLoaderData, useNavigate } from "react-router";
 import invariant from "tiny-invariant";
 
 import { Alert, Button, Flex, Icon, Icons } from "@phoenix/components";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { spanPlaygroundPageLoaderQuery$data } from "@phoenix/pages/playground/__generated__/spanPlaygroundPageLoaderQuery.graphql";
 import { Playground } from "@phoenix/pages/playground/Playground";
 import { spanPlaygroundPageLoader } from "@phoenix/pages/playground/spanPlaygroundPageLoader";
@@ -76,7 +77,7 @@ function SpanPlaygroundBanners({
               leadingVisual={<Icon svg={<Icons.ArrowBack />} />}
               onPress={() => {
                 navigate(
-                  `/projects/${span.project.id}/traces/${span.trace.traceId}?selectedSpanNodeId=${span.id}`
+                  `/projects/${span.project.id}/traces/${span.trace.traceId}?${SELECTED_SPAN_NODE_ID_PARAM}=${span.id}`
                 );
               }}
             >

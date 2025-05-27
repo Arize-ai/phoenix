@@ -1,9 +1,4 @@
-import React, {
-  ReactNode,
-  startTransition,
-  useCallback,
-  useState,
-} from "react";
+import { ReactNode, startTransition, useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import { ActionMenu, Dialog, DialogContainer, Item } from "@arizeai/components";
@@ -27,17 +22,19 @@ export function ProjectActionMenu({
   onProjectDelete,
   onProjectClear,
   onProjectRemoveData,
+  variant = "quiet",
 }: {
   projectId: string;
   projectName: string;
   onProjectClear: () => void;
   onProjectRemoveData: () => void;
   onProjectDelete: () => void;
+  variant?: "quiet" | "default";
 }) {
   const [dialog, setDialog] = useState<ReactNode>(null);
   const canDelete = projectName !== "default";
   const [commitDelete] = useMutation<ProjectActionMenuDeleteMutation>(graphql`
-    mutation ProjectActionMenuDeleteMutation($projectId: GlobalID!) {
+    mutation ProjectActionMenuDeleteMutation($projectId: ID!) {
       deleteProject(id: $projectId) {
         __typename
       }
@@ -166,7 +163,7 @@ export function ProjectActionMenu({
       }}
     >
       <ActionMenu
-        buttonVariant="quiet"
+        buttonVariant={variant}
         buttonSize="compact"
         align="end"
         onAction={(action) => {

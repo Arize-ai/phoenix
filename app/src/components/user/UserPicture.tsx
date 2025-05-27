@@ -1,16 +1,16 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { css } from "@emotion/react";
 
 import { useTheme } from "@phoenix/contexts";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
 
 export function UserPicture({
-  name,
+  name = "system",
   profilePictureUrl,
   size = 75,
 }: {
-  name: string;
-  profilePictureUrl: string | null;
+  name?: string;
+  profilePictureUrl?: string | null;
   /**
    * The diameter of the profile picture
    **/

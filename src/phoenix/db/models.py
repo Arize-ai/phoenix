@@ -1,6 +1,5 @@
 from datetime import datetime, timezone
-from enum import Enum
-from typing import Any, Iterable, Optional, Sequence, TypedDict, cast
+from typing import Any, Iterable, Literal, Optional, Sequence, TypedDict, cast
 
 import sqlalchemy.sql as sql
 from openinference.semconv.trace import RerankerAttributes, SpanAttributes
@@ -23,7 +22,6 @@ from sqlalchemy import (
     case,
     func,
     insert,
-    not_,
     select,
     text,
 )
@@ -42,11 +40,19 @@ from sqlalchemy.orm import (
 from sqlalchemy.sql import Values, column, compiler, expression, literal, roles, union_all
 from sqlalchemy.sql.compiler import SQLCompiler
 from sqlalchemy.sql.functions import coalesce
+from typing_extensions import TypeAlias
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
+from phoenix.db.types.annotation_configs import (
+    AnnotationConfig as AnnotationConfigModel,
+)
+from phoenix.db.types.annotation_configs import (
+    AnnotationConfigType,
+)
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.trace_retention import TraceRetentionCronExpression, TraceRetentionRule
 from phoenix.server.api.helpers.prompts.models import (
     PromptInvocationParameters,
     PromptInvocationParametersRootModel,
@@ -140,9 +146,7 @@ def render_values_w_union(
     return compiler.process(subquery, from_linter=from_linter, **kw)
 
 
-class AuthMethod(Enum):
-    LOCAL = "LOCAL"
-    OAUTH2 = "OAUTH2"
+AuthMethod: TypeAlias = Literal["LOCAL", "OAUTH2"]
 
 
 class JSONB(JSON):
@@ -267,7 +271,7 @@ class _PromptTemplate(TypeDecorator[PromptTemplate]):
 class _Tools(TypeDecorator[PromptTools]):
     # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
-    impl = JSON_
+    impl = JSON
 
     def process_bind_param(
         self, value: Optional[PromptTools], _: Dialect
@@ -283,7 +287,7 @@ class _Tools(TypeDecorator[PromptTools]):
 class _PromptResponseFormat(TypeDecorator[PromptResponseFormat]):
     # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
-    impl = JSON_
+    impl = JSON
 
     def process_bind_param(
         self, value: Optional[PromptResponseFormat], _: Dialect
@@ -332,6 +336,60 @@ class _TemplateFormat(TypeDecorator[PromptTemplateFormat]):
         return None if value is None else PromptTemplateFormat(value)
 
 
+class _TraceRetentionCronExpression(TypeDecorator[TraceRetentionCronExpression]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = String
+
+    def process_bind_param(
+        self, value: Optional[TraceRetentionCronExpression], _: Dialect
+    ) -> Optional[str]:
+        assert isinstance(value, TraceRetentionCronExpression)
+        assert isinstance(ans := value.model_dump(), str)
+        return ans
+
+    def process_result_value(
+        self, value: Optional[str], _: Dialect
+    ) -> Optional[TraceRetentionCronExpression]:
+        assert value and isinstance(value, str)
+        return TraceRetentionCronExpression.model_validate(value)
+
+
+class _TraceRetentionRule(TypeDecorator[TraceRetentionRule]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[TraceRetentionRule], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        assert isinstance(value, TraceRetentionRule)
+        assert isinstance(ans := value.model_dump(), dict)
+        return ans
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[TraceRetentionRule]:
+        assert value and isinstance(value, dict)
+        return TraceRetentionRule.model_validate(value)
+
+
+class _AnnotationConfig(TypeDecorator[AnnotationConfigType]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[AnnotationConfigType], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        return AnnotationConfigModel(root=value).model_dump() if value is not None else None
+
+    def process_result_value(
+        self, value: Optional[str], _: Dialect
+    ) -> Optional[AnnotationConfigType]:
+        return AnnotationConfigModel.model_validate(value).root if value is not None else None
+
+
 class ExperimentRunOutput(TypedDict, total=False):
     task_output: Any
 
@@ -357,6 +415,19 @@ class Base(DeclarativeBase):
     }
 
 
+class ProjectTraceRetentionPolicy(Base):
+    __tablename__ = "project_trace_retention_policies"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    cron_expression: Mapped[TraceRetentionCronExpression] = mapped_column(
+        _TraceRetentionCronExpression, nullable=False
+    )
+    rule: Mapped[TraceRetentionRule] = mapped_column(_TraceRetentionRule, nullable=False)
+    projects: Mapped[list["Project"]] = relationship(
+        "Project", back_populates="trace_retention_policy", uselist=True
+    )
+
+
 class Project(Base):
     __tablename__ = "projects"
     name: Mapped[str]
@@ -374,7 +445,15 @@ class Project(Base):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-
+    trace_retention_policy_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("project_trace_retention_policies.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    trace_retention_policy: Mapped[Optional[ProjectTraceRetentionPolicy]] = relationship(
+        "ProjectTraceRetentionPolicy",
+        back_populates="projects",
+    )
     traces: WriteOnlyMapped[list["Trace"]] = relationship(
         "Trace",
         back_populates="project",
@@ -602,6 +681,7 @@ class Span(Base):
         )
 
     trace: Mapped["Trace"] = relationship("Trace", back_populates="spans")
+    span_annotations: Mapped[list["SpanAnnotation"]] = relationship(back_populates="span")
     document_annotations: Mapped[list["DocumentAnnotation"]] = relationship(back_populates="span")
     dataset_examples: Mapped[list["DatasetExample"]] = relationship(back_populates="span")
 
@@ -732,17 +812,31 @@ class SpanAnnotation(Base):
     score: Mapped[Optional[float]] = mapped_column(Float, index=True)
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
-    annotator_kind: Mapped[str] = mapped_column(
-        CheckConstraint("annotator_kind IN ('LLM', 'HUMAN')", name="valid_annotator_kind"),
+    annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
+        CheckConstraint("annotator_kind IN ('LLM', 'CODE', 'HUMAN')", name="valid_annotator_kind"),
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
+    identifier: Mapped[str] = mapped_column(
+        String,
+        server_default="",
+        nullable=False,
+    )
+    source: Mapped[Literal["API", "APP"]] = mapped_column(
+        CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
+    )
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
+    span: Mapped["Span"] = relationship(back_populates="span_annotations")
+    user: Mapped[Optional["User"]] = relationship("User")
+
     __table_args__ = (
         UniqueConstraint(
             "name",
             "span_rowid",
+            "identifier",
         ),
     )
 
@@ -758,17 +852,28 @@ class TraceAnnotation(Base):
     score: Mapped[Optional[float]] = mapped_column(Float, index=True)
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
-    annotator_kind: Mapped[str] = mapped_column(
-        CheckConstraint("annotator_kind IN ('LLM', 'HUMAN')", name="valid_annotator_kind"),
+    annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
+        CheckConstraint("annotator_kind IN ('LLM', 'CODE', 'HUMAN')", name="valid_annotator_kind"),
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
+    identifier: Mapped[str] = mapped_column(
+        String,
+        server_default="",
+        nullable=False,
+    )
+    source: Mapped[Literal["API", "APP"]] = mapped_column(
+        CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
+    )
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
     __table_args__ = (
         UniqueConstraint(
             "name",
             "trace_rowid",
+            "identifier",
         ),
     )
 
@@ -785,13 +890,23 @@ class DocumentAnnotation(Base):
     score: Mapped[Optional[float]] = mapped_column(Float, index=True)
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
-    annotator_kind: Mapped[str] = mapped_column(
-        CheckConstraint("annotator_kind IN ('LLM', 'HUMAN')", name="valid_annotator_kind"),
+    annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
+        CheckConstraint("annotator_kind IN ('LLM', 'CODE', 'HUMAN')", name="valid_annotator_kind"),
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
+    identifier: Mapped[str] = mapped_column(
+        String,
+        server_default="",
+        nullable=False,
+    )
+    source: Mapped[Literal["API", "APP"]] = mapped_column(
+        CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
+    )
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
     span: Mapped["Span"] = relationship(back_populates="document_annotations")
 
     __table_args__ = (
@@ -799,6 +914,7 @@ class DocumentAnnotation(Base):
             "name",
             "span_rowid",
             "document_position",
+            "identifier",
         ),
     )
 
@@ -1033,8 +1149,11 @@ class User(Base):
     password_hash: Mapped[Optional[bytes]]
     password_salt: Mapped[Optional[bytes]]
     reset_password: Mapped[bool]
-    oauth2_client_id: Mapped[Optional[str]] = mapped_column(index=True, nullable=True)
-    oauth2_user_id: Mapped[Optional[str]] = mapped_column(index=True, nullable=True)
+    oauth2_client_id: Mapped[Optional[str]]
+    oauth2_user_id: Mapped[Optional[str]]
+    auth_method: Mapped[AuthMethod] = mapped_column(
+        CheckConstraint("auth_method IN ('LOCAL', 'OAUTH2')", name="valid_auth_method")
+    )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -1050,41 +1169,21 @@ class User(Base):
     )
     api_keys: Mapped[list["ApiKey"]] = relationship("ApiKey", back_populates="user")
 
-    @hybrid_property
-    def auth_method(self) -> Optional[str]:
-        if self.password_hash is not None:
-            return AuthMethod.LOCAL.value
-        elif self.oauth2_client_id is not None:
-            return AuthMethod.OAUTH2.value
-        return None
-
-    @auth_method.inplace.expression
-    @classmethod
-    def _auth_method_expression(cls) -> ColumnElement[Optional[str]]:
-        return case(
-            (
-                not_(cls.password_hash.is_(None)),
-                AuthMethod.LOCAL.value,
-            ),
-            (
-                not_(cls.oauth2_client_id.is_(None)),
-                AuthMethod.OAUTH2.value,
-            ),
-            else_=None,
-        )
+    __mapper_args__ = {
+        "polymorphic_on": "auth_method",
+        "polymorphic_identity": None,  # Base class is abstract
+    }
 
     __table_args__ = (
         CheckConstraint(
-            "(password_hash IS NULL) = (password_salt IS NULL)",
-            name="password_hash_and_salt",
+            "auth_method != 'LOCAL' "
+            "OR (password_hash IS NOT NULL AND password_salt IS NOT NULL "
+            "AND oauth2_client_id IS NULL AND oauth2_user_id IS NULL)",
+            name="local_auth_has_password_no_oauth",
         ),
         CheckConstraint(
-            "(oauth2_client_id IS NULL) = (oauth2_user_id IS NULL)",
-            name="oauth2_client_id_and_user_id",
-        ),
-        CheckConstraint(
-            "(password_hash IS NULL) != (oauth2_client_id IS NULL)",
-            name="exactly_one_auth_method",
+            "auth_method = 'LOCAL' OR (password_hash IS NULL AND password_salt IS NULL)",
+            name="non_local_auth_has_no_password",
         ),
         UniqueConstraint(
             "oauth2_client_id",
@@ -1092,6 +1191,55 @@ class User(Base):
         ),
         dict(sqlite_autoincrement=True),
     )
+
+
+class LocalUser(User):
+    __mapper_args__ = {
+        "polymorphic_identity": "LOCAL",
+    }
+
+    def __init__(
+        self,
+        *,
+        email: str,
+        username: str,
+        password_hash: bytes,
+        password_salt: bytes,
+        reset_password: bool = True,
+        user_role_id: Optional[int] = None,
+    ) -> None:
+        if not password_hash or not password_salt:
+            raise ValueError("password_hash and password_salt are required for LocalUser")
+        super().__init__(
+            email=email.strip(),
+            username=username.strip(),
+            user_role_id=user_role_id,
+            password_hash=password_hash,
+            password_salt=password_salt,
+            reset_password=reset_password,
+            auth_method="LOCAL",
+        )
+
+
+class OAuth2User(User):
+    __mapper_args__ = {
+        "polymorphic_identity": "OAUTH2",
+    }
+
+    def __init__(
+        self,
+        *,
+        email: str,
+        username: str,
+        user_role_id: Optional[int] = None,
+    ) -> None:
+        super().__init__(
+            email=email.strip(),
+            username=username.strip(),
+            user_role_id=user_role_id,
+            reset_password=False,
+            auth_method="OAUTH2",
+        )
 
 
 class PasswordResetToken(Base):
@@ -1301,3 +1449,25 @@ class PromptVersionTag(Base):
     )
 
     __table_args__ = (UniqueConstraint("name", "prompt_id"),)
+
+
+class AnnotationConfig(Base):
+    __tablename__ = "annotation_configs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    config: Mapped[AnnotationConfigType] = mapped_column(_AnnotationConfig, nullable=False)
+
+
+class ProjectAnnotationConfig(Base):
+    __tablename__ = "project_annotation_configs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    annotation_config_id: Mapped[int] = mapped_column(
+        ForeignKey("annotation_configs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+
+    __table_args__ = (UniqueConstraint("project_id", "annotation_config_id"),)

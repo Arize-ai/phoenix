@@ -1,5 +1,3 @@
-import React from "react";
-
 import { ToggleButton, ToggleButtonGroup } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { GenAIOperationType } from "@phoenix/store";

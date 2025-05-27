@@ -16,6 +16,7 @@ from urllib.parse import urljoin
 import httpx
 import opentelemetry.sdk.trace as trace_sdk
 import pandas as pd
+from httpx import HTTPStatusError
 from openinference.semconv.resource import ResourceAttributes
 from openinference.semconv.trace import (
     OpenInferenceMimeTypeValues,
@@ -95,6 +96,7 @@ def run_experiment(
     dry_run: Union[bool, int] = False,
     print_summary: bool = True,
     concurrency: int = 3,
+    timeout: Optional[int] = None,
 ) -> RanExperiment:
     """
     Runs an experiment using a given set of dataset of examples.
@@ -115,8 +117,17 @@ def run_experiment(
     - `metadata`: Metadata associated with the dataset example
     - `example`: The dataset `Example` object with all associated fields
 
-    An `evaluator` is either a synchronous or asynchronous function that returns either a boolean
-    or numeric "score". If the `evaluator` is a function of one argument then that argument will be
+    An `evaluator` is either a synchronous or asynchronous function that returns an evaluation
+    result object, which can take any of the following forms.
+
+    - phoenix.experiments.types.EvaluationResult with optional fields for score, label, explanation
+      and metadata
+    - a `bool`, which will be interpreted as a score of 0 or 1 plus a label of "True" or "False"
+    - a `float`, which will be interpreted as a score
+    - a `str`, which will be interpreted as a label
+    - a 2-`tuple` of (`float`, `str`), which will be interpreted as (score, explanation)
+
+    If the `evaluator` is a function of one argument then that argument will be
     bound to the `output` of the task. Alternatively, the `evaluator` can be a function of any
     combination of specific argument names that will be bound to special values:
 
@@ -148,6 +159,8 @@ def run_experiment(
         concurrency (int): Specifies the concurrency for task execution. In order to enable
             concurrent task execution, the task callable must be a coroutine function.
             Defaults to 3.
+        timeout (Optional[int]): The timeout for the task execution in seconds. Use this to run
+            longer tasks to avoid re-queuing the same task multiple times. Defaults to None.
 
     Returns:
         RanExperiment: The results of the experiment and evaluation. Additional evaluations can be
@@ -220,8 +233,43 @@ def run_experiment(
         print(f"📺 View dataset experiments: {dataset_experiments_url}")
         print(f"🔗 View this experiment: {experiment_compare_url}")
 
-    def sync_run_experiment(test_case: TestCase) -> ExperimentRun:
+    # Create a cache for task results
+    task_result_cache: dict[tuple[str, int], Any] = {}
+
+    def sync_run_experiment(test_case: TestCase) -> Optional[ExperimentRun]:
         example, repetition_number = test_case.example, test_case.repetition_number
+        cache_key = (example.id, repetition_number)
+
+        # Check if we have a cached result
+        if cache_key in task_result_cache:
+            output = task_result_cache[cache_key]
+            exp_run = ExperimentRun(
+                start_time=datetime.now(
+                    timezone.utc
+                ),  # Use current time since we don't have the original span
+                end_time=datetime.now(timezone.utc),
+                experiment_id=experiment.id,
+                dataset_example_id=example.id,
+                repetition_number=repetition_number,
+                output=output,
+                error=None,
+                trace_id=None,  # No trace ID since we don't have the original span
+            )
+            if not dry_run:
+                try:
+                    # Try to create the run directly
+                    resp = sync_client.post(
+                        f"/v1/experiments/{experiment.id}/runs", json=jsonify(exp_run)
+                    )
+                    resp.raise_for_status()
+                    exp_run = replace(exp_run, id=resp.json()["data"]["id"])
+                except HTTPStatusError as e:
+                    if e.response.status_code == 409:
+                        # Ignore duplicate runs - we'll get the final state from the database
+                        return None
+                    raise
+            return exp_run
+
         output = None
         error: Optional[BaseException] = None
         status = Status(StatusCode.OK)
@@ -271,6 +319,7 @@ def run_experiment(
         assert isinstance(
             output, (dict, list, str, int, float, bool, type(None))
         ), "Output must be JSON serializable"
+
         exp_run = ExperimentRun(
             start_time=_decode_unix_nano(cast(int, span.start_time)),
             end_time=_decode_unix_nano(cast(int, span.end_time)),
@@ -282,13 +331,62 @@ def run_experiment(
             trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
         if not dry_run:
-            resp = sync_client.post(f"/v1/experiments/{experiment.id}/runs", json=jsonify(exp_run))
-            resp.raise_for_status()
-            exp_run = replace(exp_run, id=resp.json()["data"]["id"])
+            try:
+                # Try to create the run directly
+                resp = sync_client.post(
+                    f"/v1/experiments/{experiment.id}/runs", json=jsonify(exp_run)
+                )
+                resp.raise_for_status()
+                exp_run = replace(exp_run, id=resp.json()["data"]["id"])
+                if error is None:
+                    task_result_cache[cache_key] = output
+            except HTTPStatusError as e:
+                if e.response.status_code == 409:
+                    # 409 conflict errors are caused by submitting duplicate runs
+                    return None
+                raise
         return exp_run
 
-    async def async_run_experiment(test_case: TestCase) -> ExperimentRun:
+    async def async_run_experiment(test_case: TestCase) -> Optional[ExperimentRun]:
         example, repetition_number = test_case.example, test_case.repetition_number
+        cache_key = (example.id, repetition_number)
+
+        # Check if we have a cached result
+        if cache_key in task_result_cache:
+            output = task_result_cache[cache_key]
+            exp_run = ExperimentRun(
+                start_time=datetime.now(
+                    timezone.utc
+                ),  # Use current time since we don't have the original span
+                end_time=datetime.now(timezone.utc),
+                experiment_id=experiment.id,
+                dataset_example_id=example.id,
+                repetition_number=repetition_number,
+                output=output,
+                error=None,
+                trace_id=None,  # No trace ID since we don't have the original span
+            )
+            if not dry_run:
+                try:
+                    # Try to create the run directly
+                    future = asyncio.get_running_loop().run_in_executor(
+                        None,
+                        functools.partial(
+                            sync_client.post,
+                            url=f"/v1/experiments/{experiment.id}/runs",
+                            json=jsonify(exp_run),
+                        ),
+                    )
+                    resp = await future
+                    resp.raise_for_status()
+                    exp_run = replace(exp_run, id=resp.json()["data"]["id"])
+                except HTTPStatusError as e:
+                    if e.response.status_code == 409:
+                        # 409 conflict errors are caused by submitting duplicate runs
+                        return None
+                    raise
+            return exp_run
+
         output = None
         error: Optional[BaseException] = None
         status = Status(StatusCode.OK)
@@ -332,6 +430,7 @@ def run_experiment(
         assert isinstance(
             output, (dict, list, str, int, float, bool, type(None))
         ), "Output must be JSON serializable"
+
         exp_run = ExperimentRun(
             start_time=_decode_unix_nano(cast(int, span.start_time)),
             end_time=_decode_unix_nano(cast(int, span.end_time)),
@@ -343,19 +442,26 @@ def run_experiment(
             trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
         if not dry_run:
-            # Below is a workaround to avoid timeout errors sometimes
-            # encountered when the task is a synchronous function that
-            # blocks for too long.
-            resp = await asyncio.get_running_loop().run_in_executor(
-                None,
-                functools.partial(
-                    sync_client.post,
-                    url=f"/v1/experiments/{experiment.id}/runs",
-                    json=jsonify(exp_run),
-                ),
-            )
-            resp.raise_for_status()
-            exp_run = replace(exp_run, id=resp.json()["data"]["id"])
+            try:
+                # Try to create the run directly
+                future = asyncio.get_running_loop().run_in_executor(
+                    None,
+                    functools.partial(
+                        sync_client.post,
+                        url=f"/v1/experiments/{experiment.id}/runs",
+                        json=jsonify(exp_run),
+                    ),
+                )
+                resp = await future
+                resp.raise_for_status()
+                exp_run = replace(exp_run, id=resp.json()["data"]["id"])
+                if error is None:
+                    task_result_cache[cache_key] = output
+            except HTTPStatusError as e:
+                if e.response.status_code == 409:
+                    # Ignore duplicate runs - we'll get the final state from the database
+                    return None
+                raise
         return exp_run
 
     _errors: tuple[type[BaseException], ...]
@@ -380,6 +486,7 @@ def run_experiment(
         fallback_return_value=None,
         tqdm_bar_format=get_tqdm_progress_bar_formatter("running tasks"),
         concurrency=concurrency,
+        timeout=timeout,
     )
 
     test_cases = [
@@ -388,6 +495,26 @@ def run_experiment(
     ]
     task_runs, _execution_details = executor.run(test_cases)
     print("✅ Task runs completed.")
+
+    # Get the final state of runs from the database
+    if not dry_run:
+        all_runs = sync_client.get(f"/v1/experiments/{experiment.id}/runs").json()["data"]
+        task_runs = []
+        for run in all_runs:
+            # Parse datetime strings
+            run["start_time"] = datetime.fromisoformat(run["start_time"])
+            run["end_time"] = datetime.fromisoformat(run["end_time"])
+            task_runs.append(ExperimentRun.from_dict(run))
+
+        # Check if we got all expected runs
+        expected_runs = len(dataset.examples) * repetitions
+        actual_runs = len(task_runs)
+        if actual_runs < expected_runs:
+            print(
+                f"⚠️  Warning: Only {actual_runs} out of {expected_runs} expected runs were "
+                "completed successfully."
+            )
+
     params = ExperimentParameters(n_examples=len(dataset.examples), n_repetitions=repetitions)
     task_summary = TaskSummary.from_task_runs(params, task_runs)
     ran_experiment: RanExperiment = object.__new__(RanExperiment)
@@ -752,7 +879,7 @@ def _print_experiment_error(
     Prints an experiment error.
     """
     display_error = RuntimeError(
-        f"{kind} failed for example id {repr(example_id)}, " f"repetition {repr(repetition_number)}"
+        f"{kind} failed for example id {repr(example_id)}, repetition {repr(repetition_number)}"
     )
     display_error.__cause__ = error
     formatted_exception = "".join(

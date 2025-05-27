@@ -5,7 +5,7 @@ description: >-
 hidden: true
 ---
 
-# Bedrock Agents
+# Amazon Bedrock Agents
 
 Amazon Bedrock Agents allow you to easily define, deploy, and manage agents on your AWS infrastructure. Traces on invocations of these agents can be captured using OpenInference and viewed in Phoenix.
 

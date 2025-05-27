@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2f0b4b62f5145db453164c3a44aceff4>>
+ * @generated SignedSource<<00f573344e20f231cfa3a39ab1314fca>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -188,16 +188,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "1f9eff6d8d453148844edae32b844df7",
+    "cacheID": "695a044545346c5b69438bef3d905a3e",
     "id": null,
     "metadata": {},
     "name": "DimensionCountTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query DimensionCountTimeSeriesQuery(\n  $dimensionId: GlobalID!\n  $timeRange: TimeRange!\n  $countGranularity: Granularity!\n) {\n  embedding: node(id: $dimensionId) {\n    __typename\n    id\n    ... on Dimension {\n      trafficTimeSeries: dataQualityTimeSeries(metric: count, timeRange: $timeRange, granularity: $countGranularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query DimensionCountTimeSeriesQuery(\n  $dimensionId: ID!\n  $timeRange: TimeRange!\n  $countGranularity: Granularity!\n) {\n  embedding: node(id: $dimensionId) {\n    __typename\n    id\n    ... on Dimension {\n      trafficTimeSeries: dataQualityTimeSeries(metric: count, timeRange: $timeRange, granularity: $countGranularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "9677ef7c6b298554824fe3fd3904c7aa";
+(node as any).hash = "0e3c417502e042a162e263efd78e1877";
 
 export default node;

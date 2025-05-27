@@ -1,5 +1,6 @@
 ---
 description: How to use the python LangChainInstrumentor to trace LangChain and LangGraph
+hidden: true
 ---
 
 # LangChain

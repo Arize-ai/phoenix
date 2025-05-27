@@ -1,5 +1,3 @@
-import React from "react";
-
 import { ExternalLink, Heading, Text, View } from "@phoenix/components";
 import { CodeWrap, PythonBlockWithCopy } from "@phoenix/components/code";
 

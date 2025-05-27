@@ -29,13 +29,14 @@ from fastapi.utils import is_body_allowed_for_status_code
 from grpc.aio import ServerInterceptor
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+from starlette.datastructures import URL, Secret
 from starlette.datastructures import State as StarletteState
 from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
 from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
-from starlette.responses import JSONResponse, PlainTextResponse, Response
+from starlette.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response
 from starlette.staticfiles import StaticFiles
 from starlette.status import HTTP_401_UNAUTHORIZED
 from starlette.templating import Jinja2Templates
@@ -56,6 +57,7 @@ from phoenix.config import (
     get_env_gql_extension_paths,
     get_env_grpc_interceptor_paths,
     get_env_host,
+    get_env_host_root_path,
     get_env_port,
     server_instrumentation_is_enabled,
     verify_server_environment_variables,
@@ -88,6 +90,7 @@ from phoenix.server.api.dataloaders import (
     NumChildSpansDataLoader,
     NumSpansPerTraceDataLoader,
     ProjectByNameDataLoader,
+    ProjectIdsByTraceRetentionPolicyIdDataLoader,
     PromptVersionSequenceNumberDataLoader,
     RecordCountDataLoader,
     SessionIODataLoader,
@@ -103,6 +106,7 @@ from phoenix.server.api.dataloaders import (
     TableFieldsDataLoader,
     TokenCountDataLoader,
     TraceByTraceIdsDataLoader,
+    TraceRetentionPolicyIdByProjectIdDataLoader,
     TraceRootSpansDataLoader,
     UserRolesDataLoader,
     UsersDataLoader,
@@ -123,6 +127,7 @@ from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
 from phoenix.server.middleware.gzip import GZipMiddleware
 from phoenix.server.oauth2 import OAuth2Clients
+from phoenix.server.retention import TraceDataSweeper
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
@@ -207,6 +212,8 @@ class AppConfig(NamedTuple):
     authentication_enabled: bool
     """ Whether authentication is enabled """
     oauth2_idps: Sequence[OAuth2Idp]
+    basic_auth_disabled: bool = False
+    auto_login_idp_name: Optional[str] = None
 
 
 class Static(StaticFiles):
@@ -232,15 +239,29 @@ class Static(StaticFiles):
         return basename[:-1] if basename.endswith("/") else basename
 
     async def get_response(self, path: str, scope: Scope) -> Response:
-        response = None
+        # Redirect to the oauth2 login page if basic auth is disabled and auto_login is enabled
+        # TODO: this needs to be refactored to be cleaner
+        if (
+            path == "login"
+            and self._app_config.basic_auth_disabled
+            and self._app_config.auto_login_idp_name
+        ):
+            request = Request(scope)
+            url = URL(
+                str(
+                    Path(get_env_host_root_path())
+                    / f"oauth2/{self._app_config.auto_login_idp_name}/login"
+                )
+            )
+            url = url.include_query_params(**request.query_params)
+            return RedirectResponse(url=url)
         try:
             response = await super().get_response(path, scope)
         except HTTPException as e:
             if e.status_code != 404:
                 raise e
-            # Fallback to to the index.html
+            # Fallback to the index.html
             request = Request(scope)
-
             response = templates.TemplateResponse(
                 "index.html",
                 context={
@@ -256,6 +277,8 @@ class Static(StaticFiles):
                     "manifest": self._web_manifest,
                     "authentication_enabled": self._app_config.authentication_enabled,
                     "oauth2_idps": self._app_config.oauth2_idps,
+                    "basic_auth_disabled": self._app_config.basic_auth_disabled,
+                    "auto_login_idp_name": self._app_config.auto_login_idp_name,
                 },
             )
         except Exception as e:
@@ -475,6 +498,7 @@ def _lifespan(
     db: DbSessionFactory,
     bulk_inserter: BulkInserter,
     dml_event_handler: DmlEventHandler,
+    trace_data_sweeper: Optional[TraceDataSweeper],
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
@@ -507,6 +531,8 @@ def _lifespan(
             )
             await stack.enter_async_context(grpc_server)
             await stack.enter_async_context(dml_event_handler)
+            if trace_data_sweeper:
+                await stack.enter_async_context(trace_data_sweeper)
             if scaffolder_config:
                 scaffolder = Scaffolder(
                     config=scaffolder_config,
@@ -558,7 +584,7 @@ def create_graphql_router(
     cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
     event_queue: CanPutItem[DmlEvent],
     read_only: bool = False,
-    secret: Optional[str] = None,
+    secret: Optional[Secret] = None,
     token_store: Optional[TokenStore] = None,
     email_sender: Optional[EmailSender] = None,
 ) -> GraphQLRouter[Context, None]:
@@ -575,7 +601,7 @@ def create_graphql_router(
         corpus (Optional[Model], optional): the corpus for UMAP projection. Defaults to None.
         cache_for_dataloaders (Optional[CacheForDataLoaders], optional): GraphQL data loaders.
         read_only (bool, optional): Marks the app as read-only. Defaults to False.
-        secret (Optional[str], optional): The application secret for auth. Defaults to None.
+        secret (Optional[Secret], optional): The application secret for auth. Defaults to None.
         token_store (Optional[TokenStore], optional): The token store for auth. Defaults to None.
         email_sender (Optional[EmailSender], optional): The email sender. Defaults to None.
 
@@ -633,6 +659,9 @@ def create_graphql_router(
                 num_child_spans=NumChildSpansDataLoader(db),
                 num_spans_per_trace=NumSpansPerTraceDataLoader(db),
                 project_fields=TableFieldsDataLoader(db, models.Project),
+                projects_by_trace_retention_policy_id=ProjectIdsByTraceRetentionPolicyIdDataLoader(
+                    db
+                ),
                 prompt_version_sequence_number=PromptVersionSequenceNumberDataLoader(db),
                 record_counts=RecordCountDataLoader(
                     db,
@@ -656,6 +685,12 @@ def create_graphql_router(
                 ),
                 trace_by_trace_ids=TraceByTraceIdsDataLoader(db),
                 trace_fields=TableFieldsDataLoader(db, models.Trace),
+                trace_retention_policy_id_by_project_id=TraceRetentionPolicyIdByProjectIdDataLoader(
+                    db
+                ),
+                project_trace_retention_policy_fields=TableFieldsDataLoader(
+                    db, models.ProjectTraceRetentionPolicy
+                ),
                 trace_root_spans=TraceRootSpansDataLoader(db),
                 project_by_name=ProjectByNameDataLoader(db),
                 users=UsersDataLoader(db),
@@ -747,13 +782,14 @@ def create_app(
     serve_ui: bool = True,
     startup_callbacks: Iterable[_Callback] = (),
     shutdown_callbacks: Iterable[_Callback] = (),
-    secret: Optional[str] = None,
+    secret: Optional[Secret] = None,
     password_reset_token_expiry: Optional[timedelta] = None,
     access_token_expiry: Optional[timedelta] = None,
     refresh_token_expiry: Optional[timedelta] = None,
     scaffolder_config: Optional[ScaffolderConfig] = None,
     email_sender: Optional[EmailSender] = None,
     oauth2_client_configs: Optional[list[OAuth2ClientConfig]] = None,
+    basic_auth_disabled: bool = False,
     bulk_inserter_factory: Optional[Callable[..., BulkInserter]] = None,
     allowed_origins: Optional[list[str]] = None,
 ) -> FastAPI:
@@ -817,6 +853,10 @@ def create_app(
         cache_for_dataloaders=cache_for_dataloaders,
         last_updated_at=last_updated_at,
     )
+    trace_data_sweeper = TraceDataSweeper(
+        db=db,
+        dml_event_handler=dml_event_handler,
+    )
     bulk_inserter = bulk_inserter_factory(
         db,
         enable_prometheus=enable_prometheus,
@@ -874,6 +914,7 @@ def create_app(
             read_only=read_only,
             bulk_inserter=bulk_inserter,
             dml_event_handler=dml_event_handler,
+            trace_data_sweeper=trace_data_sweeper,
             token_store=token_store,
             tracer_provider=tracer_provider,
             enable_prometheus=enable_prometheus,
@@ -904,6 +945,9 @@ def create_app(
             OAuth2Idp(name=config.idp_name, displayName=config.idp_display_name)
             for config in oauth2_client_configs or []
         ]
+        auto_login_idp_name = next(
+            (config.idp_name for config in (oauth2_client_configs or []) if config.auto_login), None
+        )
         app.mount(
             "/",
             app=Static(
@@ -918,6 +962,8 @@ def create_app(
                     authentication_enabled=authentication_enabled,
                     web_manifest_path=web_manifest_path,
                     oauth2_idps=oauth2_idps,
+                    basic_auth_disabled=basic_auth_disabled,
+                    auto_login_idp_name=auto_login_idp_name,
                 ),
             ),
             name="static",
@@ -950,16 +996,16 @@ def create_app(
     return app
 
 
-def _add_get_secret_method(*, app: FastAPI, secret: Optional[str]) -> FastAPI:
+def _add_get_secret_method(*, app: FastAPI, secret: Optional[Secret]) -> FastAPI:
     """
     Dynamically adds a `get_secret` method to the app's `state`.
     """
     app.state._secret = secret
 
-    def get_secret(self: StarletteState) -> str:
+    def get_secret(self: StarletteState) -> Secret:
         if (secret := self._secret) is None:
             raise ValueError("app secret is not set")
-        assert isinstance(secret, str)
+        assert isinstance(secret, Secret)
         return secret
 
     app.state.get_secret = MethodType(get_secret, app.state)

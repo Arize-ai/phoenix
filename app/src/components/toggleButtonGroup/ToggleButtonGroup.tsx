@@ -1,4 +1,3 @@
-import React from "react";
 import {
   ToggleButtonGroup as AriaToggleButtonGroup,
   type ToggleButtonGroupProps as AriaToggleButtonGroupProps,

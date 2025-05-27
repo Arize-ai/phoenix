@@ -2,7 +2,7 @@
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/PX%20docs%20graphic.jpg" %}
 
-The standard for evaluating text is human labeling. However, high-quality LLM outputs are becoming cheaper and faster to produce, and human evaluation cannot scale. In this context, evaluating the performance of LLM applications is best tackled by using a LLM. The Phoenix [LLM Evals library](../how-to-evals/running-pre-tested-evals/) is designed for simple, fast, and accurate LLM-based evaluations.
+The standard for evaluating text is human labeling. However, high-quality LLM outputs are becoming cheaper and faster to produce, and human evaluation cannot scale. In this context, evaluating the performance of LLM applications is best tackled by using a LLM. The Phoenix [LLM Evals library](../how-to-evals/running-pre-tested-evals/) is designed for simple, fast, and accurate [LLM-based evaluations](https://arize.com/llm-evaluation/).
 
 Phoenix Evals come with:
 

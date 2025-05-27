@@ -145,7 +145,7 @@ We use the more generic `llm_generate` function that can be used for almost any 
 <strong>test_results = llm_generate(
 </strong>    dataframe=&#x3C;YOUR_DATAFRAME_GOES_HERE>,
     template=SCORE_TEMPLATE,
-    model=OpenAIModel('gpt-4o', api_key=''),
+    model=OpenAIModel(model='gpt-4o', api_key=''),
     verbose=True,
     # Callback function that will be called for each row of the dataframe
     output_parser=numeric_score_eval,
@@ -207,4 +207,4 @@ At this point, you've constructed a custom Eval, but you have no understanding o
 
 1. Start with a labeled ground truth set of data. Each input would be a row of your dataframe of examples, and each labeled output would be the correct judge label
 2. Test your eval on that labeled set of examples, and compare to the ground truth to calculate F1, precision, and recall scores. For an example of this, see [hallucinations.md](running-pre-tested-evals/hallucinations.md "mention")
-3. Tweak your prompt and retest. See [prompt-optimization.md](../../prompt-engineering/use-cases-prompts/prompt-optimization.md "mention") for an example of how to do this in an automated way.
+3. Tweak your prompt and retest. See [Broken link](broken-reference "mention") for an example of how to do this in an automated way.

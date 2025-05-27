@@ -1,4 +1,3 @@
-import React from "react";
 import { Navigate } from "react-router";
 
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";

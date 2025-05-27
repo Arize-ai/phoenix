@@ -6,7 +6,7 @@ asyncpg
 grpc-interceptor[testing]
 httpx
 httpx-ws
-litellm>=1.0.3,<1.57.5
+litellm>1.61.15
 nest-asyncio # for executor testing
 numpy
 openai>=1.0.0
@@ -26,3 +26,5 @@ typing-extensions
 vcrpy
 aiohttp>=3.0; python_version < "3.10"
 urllib3<2.0; python_version < "3.10"
+pytest-smtpd
+freezegun

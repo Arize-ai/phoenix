@@ -5,7 +5,7 @@ import { Dialog, DialogContainer, Switch } from "@arizeai/components";
 
 import { View } from "@phoenix/components";
 
-type FeatureFlag = "__RESET__";
+type FeatureFlag = "dashboards";
 export type FeatureFlagsContextType = {
   featureFlags: Record<FeatureFlag, boolean>;
   setFeatureFlags: (featureFlags: Record<FeatureFlag, boolean>) => void;
@@ -14,7 +14,7 @@ export type FeatureFlagsContextType = {
 export const LOCAL_STORAGE_FEATURE_FLAGS_KEY = "arize-phoenix-feature-flags";
 
 const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {
-  __RESET__: false,
+  dashboards: false,
 };
 
 function getFeatureFlags(): Record<FeatureFlag, boolean> {

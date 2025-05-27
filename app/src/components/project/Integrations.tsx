@@ -1,18 +1,21 @@
-import React, { ReactNode } from "react";
+import { ReactNode } from "react";
 import { css } from "@emotion/react";
 
 import {
+  AgnoSVG,
   AnthropicSVG,
   BedrockSVG,
   BeeAISVG,
   CrewAISVG,
   DSPYSVG,
+  GeminiSVG,
   GroqSVG,
   HaystackSVG,
   HuggingFaceSVG,
   IntegrationSVG,
   LangChainSVG,
   LlamaIndexSVG,
+  McpSVG,
   MistralAISVG,
   NodeJSSVG,
   OpenAISVG,
@@ -179,12 +182,28 @@ const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
     icon: <OpenAISVG />,
   },
   {
+    name: "Agno",
+    docsHref:
+      "https://docs.arize.com/phoenix/tracing/integrations-tracing/agno",
+    githubHref:
+      "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-agno",
+    icon: <AgnoSVG />,
+  },
+  {
     name: "Bedrock",
     docsHref:
       "https://docs.arize.com/phoenix/tracing/integrations-tracing/bedrock",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-bedrock",
     icon: <BedrockSVG />,
+  },
+  {
+    name: "Google GenAI",
+    docsHref:
+      "https://docs.arize.com/phoenix/tracing/integrations-tracing/google-genai",
+    githubHref:
+      "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-google-genai",
+    icon: <GeminiSVG />,
   },
   {
     name: "Groq",
@@ -210,8 +229,15 @@ const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-litellm",
     icon: <IntegrationSVG />,
   },
+  {
+    name: "Model Context Protocol",
+    docsHref:
+      "https://docs.arize.com/phoenix/tracing/integrations-tracing/model-context-protocol-mcp",
+    githubHref:
+      "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-mcp",
+    icon: <McpSVG />,
+  },
 ];
-
 const integrationsListCSS = css`
   width: 100%;
   display: flex;
@@ -291,6 +317,14 @@ const TYPESCRIPT_INTEGRATIONS: IntegrationLinkProps[] = [
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-beeai",
     icon: <BeeAISVG />,
+  },
+  {
+    name: "Model Context Protocol",
+    docsHref:
+      "https://docs.arize.com/phoenix/tracing/integrations-tracing/model-context-protocol-mcp",
+    githubHref:
+      "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-mcp",
+    icon: <McpSVG />,
   },
 ];
 export function TypeScriptIntegrations() {

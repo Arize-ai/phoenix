@@ -1,4 +1,4 @@
-import React, { Suspense } from "react";
+import { Suspense } from "react";
 import { Outlet, useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 

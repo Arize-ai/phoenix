@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
@@ -92,7 +92,7 @@ export function PointSelectionPanelContent() {
     (state) => state.selectionDisplay
   );
 
-  const [selectedDetailPointId, setSelectedDetailPointId] = React.useState<
+  const [selectedDetailPointId, setSelectedDetailPointId] = useState<
     string | null
   >(null);
 

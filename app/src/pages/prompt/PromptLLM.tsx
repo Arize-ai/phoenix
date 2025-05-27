@@ -1,4 +1,4 @@
-import React, { PropsWithChildren } from "react";
+import { PropsWithChildren } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import { List, ListItem } from "@arizeai/components";

@@ -1,4 +1,4 @@
-import React from "react";
+import { useState } from "react";
 import { Meta, StoryFn } from "@storybook/react";
 
 import { Card } from "@arizeai/components";
@@ -117,7 +117,7 @@ export const MultiThumb = {
 };
 
 const ControlledTemplate: StoryFn<typeof Slider> = (args) => {
-  const [value, setValue] = React.useState<number>(50);
+  const [value, setValue] = useState<number>(50);
   return (
     <Card
       title="Controlled Slider"

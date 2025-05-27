@@ -1,5 +1,3 @@
-import React from "react";
-
 import { Item, Picker } from "@arizeai/components";
 
 import { Flex, Token } from "@phoenix/components";

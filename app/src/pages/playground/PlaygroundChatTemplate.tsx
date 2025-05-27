@@ -1,9 +1,4 @@
-import React, {
-  PropsWithChildren,
-  useCallback,
-  useMemo,
-  useState,
-} from "react";
+import { PropsWithChildren, useCallback, useMemo, useState } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -61,7 +56,7 @@ import {
   AIMessageMode,
   MessageMode,
 } from "./MessageContentRadioGroup";
-import { MessageRolePicker } from "./MessageRolePicker";
+import { MessageRoleSelect } from "./MessageRoleSelect";
 import { PlaygroundChatTemplateFooter } from "./PlaygroundChatTemplateFooter";
 import { PlaygroundResponseFormat } from "./PlaygroundResponseFormat";
 import { PlaygroundTools } from "./PlaygroundTools";
@@ -357,7 +352,7 @@ function SortableMessageItem({
               margin-left: var(--ac-global-dimension-size-150);
             `}
           >
-            <MessageRolePicker
+            <MessageRoleSelect
               includeLabel={false}
               role={message.role}
               onChange={(role) => {
