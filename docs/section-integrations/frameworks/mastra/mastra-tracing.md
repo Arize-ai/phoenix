@@ -2,87 +2,15 @@
 
 ## Launch Phoenix
 
-{% tabs %}
-{% tab title="Phoenix Cloud" %}
-**Sign up for Phoenix:**
-
-Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
-
-**Install packages:**```bash
-npm install @arizeai/openinference-mastra
-```
-
-**Set your Phoenix endpoint and API Key:**
-
-```typescript
-import { config } from 'dotenv';
-config();
-
-// Add Phoenix API Key for tracing
-const PHOENIX_API_KEY = process.env.PHOENIX_API_KEY;
-process.env.PHOENIX_CLIENT_HEADERS = `api_key=${PHOENIX_API_KEY}`;
-process.env.PHOENIX_COLLECTOR_ENDPOINT = "https://app.phoenix.arize.com";
-```
-
-Your **Phoenix API key** can be found on the Keys section of your [dashboard](https://app.phoenix.arize.com).
-{% endtab %}
-
-{% tab title="Command Line" %}
-**Launch your local Phoenix instance:**
-
-```bash
-pip install arize-phoenix
-phoenix serve
-```
-
-For details on customizing a local terminal deployment, see [Terminal Setup](https://docs.arize.com/phoenix/setup/environments#terminal).
-
-**Install packages:**
-
-```bash
-npm install @arizeai/openinference-mastra
-```
-
-**Set your Phoenix endpoint:**
-
-```typescript
-process.env.PHOENIX_COLLECTOR_ENDPOINT = "http://localhost:6006";
-```
-
-See Terminal for more details
-{% endtab %}
-
-{% tab title="Docker" %}
-**Pull latest Phoenix image from** [**Docker Hub**](https://hub.docker.com/r/arizephoenix/phoenix)**:**
-
-```bash
-docker pull arizephoenix/phoenix:latest
-```
-
-**Run your containerized instance:**
-
-```bash
-docker run -p 6006:6006 arizephoenix/phoenix:latest
-```
-
-This will expose the Phoenix on `localhost:6006`
-
-**Install packages:**
-
-```bash
-npm install @arizeai/openinference-mastra
-```
-
-**Set your Phoenix endpoint:**
-
-```typescript
-process.env.PHOENIX_COLLECTOR_ENDPOINT = "http://localhost:6006";
-```
-
-For more info on using Phoenix with Docker, see [Docker](https://docs.arize.com/phoenix/self-hosting/deployment-options/docker).
-{% endtab %}
+{% include "../../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
 
 ## Setup
+
+**Install packages:**
+
+```bash
+npm install @arizeai/openinference-mastra
+```
 
 Initialize OpenTelemetry tracing for your Mastra application:
 
@@ -245,24 +173,23 @@ Now that you have tracing setup, all invocations of your Mastra agents, workflow
 
 The Mastra instrumentation automatically captures:
 
-- **Agent Executions**: Complete agent runs including instructions, model calls, and responses
-- **Workflow Steps**: Individual step executions within workflows, including inputs, outputs, and timing
-- **Tool Calls**: Function calls made by agents, including parameters and results
-- **LLM Interactions**: All model calls with prompts, responses, token usage, and metadata
-- **RAG Operations**: Vector searches, document retrievals, and embedding generations
-- **Memory Operations**: Agent memory reads and writes
-- **Error Handling**: Exceptions and error states in your AI pipeline
+* **Agent Executions**: Complete agent runs including instructions, model calls, and responses
+* **Workflow Steps**: Individual step executions within workflows, including inputs, outputs, and timing
+* **Tool Calls**: Function calls made by agents, including parameters and results
+* **LLM Interactions**: All model calls with prompts, responses, token usage, and metadata
+* **RAG Operations**: Vector searches, document retrievals, and embedding generations
+* **Memory Operations**: Agent memory reads and writes
+* **Error Handling**: Exceptions and error states in your AI pipeline
 
 ### Trace Attributes
 
 Phoenix will capture detailed attributes for each trace:
 
-- **Agent Information**: Agent name, instructions, model configuration
-- **Workflow Context**: Workflow name, step IDs, execution flow
-- **Tool Metadata**: Tool names, parameters, execution results
-- **Model Details**: Model name, provider, token usage, response metadata
-- **Performance Metrics**: Execution time, token counts, costs
-- **User Context**: Session IDs, user information (if provided)
+* **Agent Information**: Agent name, instructions, model configuration
+* **Workflow Context**: Workflow name, step IDs, execution flow
+* **Tool Metadata**: Tool names, parameters, execution results
+* **Model Details**: Model name, provider, token usage, response metadata
+* **Performance Metrics**: Execution time, token counts, costs
+* **User Context**: Session IDs, user information (if provided)
 
-You can view all of this information in the Phoenix UI to debug issues, optimize performance, and understand your application's behavior. 
-
+You can view all of this information in the Phoenix UI to debug issues, optimize performance, and understand your application's behavior.

@@ -2,7 +2,7 @@
 description: How to use the python PydanticAIInstrumentor to trace PydanticAI agents
 ---
 
-# PydanticAI Tracing
+# Pydantic AI Tracing
 
 [PydanticAI](https://ai.pydantic.dev/) is a Python agent framework designed to make it less painful to build production-grade applications with Generative AI. Built by the team behind Pydantic, it provides a clean, type-safe way to build AI agents with structured outputs.
 
@@ -302,36 +302,16 @@ async def main():
 asyncio.run(main())
 ```
 
-## Configuration Options
-
-### Custom Instrumentation
-
-```python
-from pydantic_ai import Agent
-from pydantic_ai.models.openai import OpenAIModel
-
-# Fine-tune instrumentation settings
-agent = Agent(
-    model=OpenAIModel("gpt-4"),
-    output_type=YourModel,
-    instrument=True,
-    # Additional configuration options
-    retries=3,
-    timeout=30.0,
-    debug=True  # Enable debug logging
-)
-```
-
 ## Observe
 
 Now that you have tracing setup, all PydanticAI agent operations will be streamed to your running Phoenix instance for observability and evaluation. You'll be able to see:
 
-- **Agent interactions**: Complete conversations between your application and the AI model
-- **Structured outputs**: Pydantic model validation and parsing results
-- **Tool usage**: When agents call external tools and their responses
-- **Performance metrics**: Response times, token usage, and success rates
-- **Error handling**: Validation errors, API failures, and retry attempts
-- **Multi-agent workflows**: Complex interactions between multiple agents
+* **Agent interactions**: Complete conversations between your application and the AI model
+* **Structured outputs**: Pydantic model validation and parsing results
+* **Tool usage**: When agents call external tools and their responses
+* **Performance metrics**: Response times, token usage, and success rates
+* **Error handling**: Validation errors, API failures, and retry attempts
+* **Multi-agent workflows**: Complex interactions between multiple agents
 
 The traces will provide detailed insights into your AI agent behaviors, making it easier to debug issues, optimize performance, and ensure reliability in production.
 
