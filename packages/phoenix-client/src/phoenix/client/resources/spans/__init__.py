@@ -391,7 +391,7 @@ class Spans:
             if end_time:
                 params["end_time"] = end_time.isoformat()
             if annotation_names:
-                params["annotationNames"] = annotation_names
+                params["annotation_names"] = annotation_names
             if cursor:
                 params["cursor"] = cursor
 
@@ -783,7 +783,7 @@ class AsyncSpans:
             if end_time:
                 params["end_time"] = end_time.isoformat()
             if annotation_names:
-                params["annotationNames"] = annotation_names
+                params["annotation_names"] = annotation_names
             if cursor:
                 params["cursor"] = cursor
 
