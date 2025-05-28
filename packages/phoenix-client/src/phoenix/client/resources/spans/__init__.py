@@ -141,7 +141,7 @@ class Spans:
         *,
         spans_dataframe: Optional["pd.DataFrame"] = None,
         span_ids: Optional[Iterable[str]] = None,
-        spans: Optional[list[Span]] = None,
+        spans: Optional[Iterable[Span]] = None,
         project_identifier: str = "default",
         include_annotation_names: Optional[Sequence[str]] = None,
         exclude_annotation_names: Optional[Sequence[str]] = None,
@@ -257,7 +257,7 @@ class Spans:
         self,
         *,
         span_ids: Optional[Iterable[str]] = None,
-        spans: Optional[list[Span]] = None,
+        spans: Optional[Iterable[Span]] = None,
         project_identifier: str,
         include_annotation_names: Optional[Sequence[str]] = None,
         exclude_annotation_names: Optional[Sequence[str]] = None,
@@ -380,7 +380,7 @@ class Spans:
         cursor: Optional[str] = None
         page_size = min(100, limit)
 
-        while len(all_spans) < limit:
+        while True:
             params: dict[str, Union[int, str, Sequence[str]]] = {
                 "limit": page_size,
                 "sort_direction": sort_direction,
@@ -533,7 +533,7 @@ class AsyncSpans:
         *,
         spans_dataframe: Optional["pd.DataFrame"] = None,
         span_ids: Optional[Iterable[str]] = None,
-        spans: Optional[list[Span]] = None,
+        spans: Optional[Iterable[Span]] = None,
         project_identifier: str,
         include_annotation_names: Optional[Sequence[str]] = None,
         exclude_annotation_names: Optional[Sequence[str]] = None,
@@ -649,7 +649,7 @@ class AsyncSpans:
         self,
         *,
         span_ids: Optional[Iterable[str]] = None,
-        spans: Optional[list[Span]] = None,
+        spans: Optional[Iterable[Span]] = None,
         project_identifier: str,
         include_annotation_names: Optional[Sequence[str]] = None,
         exclude_annotation_names: Optional[Sequence[str]] = None,
@@ -772,7 +772,7 @@ class AsyncSpans:
         cursor: Optional[str] = None
         page_size = min(100, limit)
 
-        while len(all_spans) < limit:
+        while True:
             params: dict[str, Union[int, str, Sequence[str]]] = {
                 "limit": page_size,
                 "sort_direction": sort_direction,
