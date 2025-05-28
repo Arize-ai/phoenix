@@ -1,5 +1,7 @@
 ---
-description: How to trace Portkey AI Gateway requests with Phoenix for comprehensive LLM observability
+description: >-
+  How to trace Portkey AI Gateway requests with Phoenix for comprehensive LLM
+  observability
 ---
 
 # Portkey Tracing
@@ -184,105 +186,17 @@ response = portkey.chat.completions.create(
 print(response.choices[0].message.content)
 ```
 
-### Advanced Routing with Configs
-
-Portkey's powerful routing and reliability features can be configured using configs:
-
-```python
-from portkey_ai import Portkey
-
-# Define a config with fallbacks and retries
-config = {
-    "strategy": {
-        "mode": "fallback"
-    },
-    "targets": [
-        {
-            "provider": "openai",
-            "api_key": "your-openai-key",
-            "model": "gpt-4o-mini"
-        },
-        {
-            "provider": "anthropic", 
-            "api_key": "your-anthropic-key",
-            "model": "claude-3-sonnet-20240229"
-        }
-    ],
-    "retry": {
-        "attempts": 3
-    }
-}
-
-portkey = Portkey(
-    api_key="your-portkey-api-key",
-    config=config
-)
-
-# This will try OpenAI first, fallback to Anthropic if needed, with 3 retry attempts
-response = portkey.chat.completions.create(
-    messages=[{"role": "user", "content": "Write a haiku about AI"}]
-)
-```
-
-### Load Balancing Multiple Providers
-
-```python
-config = {
-    "strategy": {
-        "mode": "loadbalance"
-    },
-    "targets": [
-        {
-            "provider": "openai",
-            "api_key": "your-openai-key",
-            "model": "gpt-4o-mini",
-            "weight": 0.7
-        },
-        {
-            "provider": "anthropic",
-            "api_key": "your-anthropic-key", 
-            "model": "claude-3-haiku-20240307",
-            "weight": 0.3
-        }
-    ]
-}
-
-portkey = Portkey(
-    api_key="your-portkey-api-key",
-    config=config
-)
-
-# Traffic will be distributed 70% to OpenAI, 30% to Anthropic
-response = portkey.chat.completions.create(
-    messages=[{"role": "user", "content": "What are the benefits of AI?"}]
-)
-```
-
 ## Observe
 
 Now that you have tracing setup, all requests through Portkey's AI Gateway will be streamed to your running Phoenix instance for observability and evaluation. You'll be able to see:
 
-- **Request/Response Traces**: Complete visibility into LLM interactions
-- **Routing Decisions**: Which provider was selected and why
-- **Fallback Events**: When and why fallbacks were triggered
-- **Cache Performance**: Hit/miss rates and response times
-- **Cost Tracking**: Token usage and costs across providers
-- **Latency Metrics**: Response times for each provider and route
-
-## Key Benefits of Portkey + Phoenix Integration
-
-### Comprehensive Observability
-- **End-to-End Tracing**: See the complete journey of requests through Portkey's gateway
-- **Multi-Provider Visibility**: Track performance across different LLM providers
-- **Real-Time Monitoring**: Monitor your AI applications in production
-
-### Reliability Insights
-- **Fallback Analysis**: Understand when and why fallbacks occur
-- **Error Tracking**: Identify patterns in failures across providers
-- **Performance Comparison**: Compare latency and success rates between providers
+* **Request/Response Traces**: Complete visibility into LLM interactions
+* **Routing Decisions**: Which provider was selected and why
+* **Fallback Events**: When and why fallbacks were triggered
+* **Cache Performance**: Hit/miss rates and response times
+* **Cost Tracking**: Token usage and costs across providers
+* **Latency Metrics**: Response times for each provider and route
 
 ## Resources
 
-* [Portkey AI Gateway GitHub](https://github.com/Portkey-AI/gateway)
-* [Phoenix OpenInference Instrumentation](https://github.com/Arize-ai/openinference)
-* [Example Notebook](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/portkey_tracing_tutorial.ipynb)
+* [Phoenix OpenInference Instrumentation](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-portkey)
