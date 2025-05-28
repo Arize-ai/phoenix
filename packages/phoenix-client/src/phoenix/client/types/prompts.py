@@ -239,7 +239,7 @@ class PromptVersion:
         *,
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
         description: Optional[str] = None,
-        model_provider: Literal["OPENAI", "AZURE_OPENAI"] = "OPENAI",
+        model_provider: Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK"] = "OPENAI",
     ) -> Self:
         """
         Creates a prompt version from an OpenAI chat completion model.
@@ -249,8 +249,8 @@ class PromptVersion:
             template_format (Literal["F_STRING", "MUSTACHE", "NONE"]): The format of the template
                 to use for the prompt. Defaults to "MUSTACHE".
             description (Optional[str]): A description of the prompt. Defaults to None.
-            model_provider (Literal["OPENAI", "AZURE_OPENAI"]): The provider of the model to use
-                for the prompt. Defaults to "OPENAI".
+            model_provider (Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK"]):
+                The provider of the model to use for the prompt. Defaults to "OPENAI".
 
         Returns:
             PromptVersion: The prompt version.

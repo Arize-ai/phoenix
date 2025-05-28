@@ -337,7 +337,7 @@ def _create_chat_prompt(
     /,
     *,
     messages: Sequence[PromptMessageInput] = (),
-    model_provider: Literal["ANTHROPIC", "AZURE_OPENAI", "GOOGLE", "OPENAI"] = "OPENAI",
+    model_provider: Literal["ANTHROPIC", "AZURE_OPENAI", "GOOGLE", "OPENAI", "DEEPSEEK"] = "OPENAI",
     model_name: str | None = None,
     response_format: ResponseFormatInput | None = None,
     tools: Sequence[ToolDefinitionInput] = (),
@@ -406,6 +406,24 @@ class TestClient:
                 id="openai-system-message-string",
             ),
             pytest.param(
+                "DEEPSEEK",
+                PromptVersion.from_openai,
+                CompletionCreateParamsBase(
+                    model=token_hex(8),
+                    temperature=random(),
+                    top_p=random(),
+                    presence_penalty=random(),
+                    frequency_penalty=random(),
+                    max_tokens=randint(1, 256),
+                    seed=randint(24, 42),
+                    messages=[
+                        {"role": "system", "content": "You are {role}."},
+                        {"role": "user", "content": "Write a poem about {topic}."},
+                    ],
+                ),
+                id="deepseek-system-message-string",
+            ),
+            pytest.param(
                 "OPENAI,AZURE_OPENAI",
                 PromptVersion.from_openai,
                 CompletionCreateParamsBase(
@@ -434,6 +452,36 @@ class TestClient:
                     ],
                 ),
                 id="openai-system-message-list",
+            ),
+            pytest.param(
+                "DEEPSEEK",
+                PromptVersion.from_openai,
+                CompletionCreateParamsBase(
+                    model=token_hex(8),
+                    temperature=random(),
+                    top_p=random(),
+                    presence_penalty=random(),
+                    frequency_penalty=random(),
+                    max_completion_tokens=randint(1, 256),
+                    seed=randint(24, 42),
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": [
+                                {"type": "text", "text": "You are {role}."},
+                                {"type": "text", "text": "You study {topic}."},
+                            ],
+                        },
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": "Write a poem about {topic}."},
+                                {"type": "text", "text": "Make it rhyme."},
+                            ],
+                        },
+                    ],
+                ),
+                id="deepseek-system-message-list",
             ),
             pytest.param(
                 "OPENAI,AZURE_OPENAI",
@@ -493,6 +541,27 @@ class TestClient:
                 id="openai-tools",
             ),
             pytest.param(
+                "DEEPSEEK",
+                PromptVersion.from_openai,
+                CompletionCreateParamsBase(
+                    model=token_hex(8),
+                    temperature=random(),
+                    top_p=random(),
+                    presence_penalty=random(),
+                    frequency_penalty=random(),
+                    seed=randint(24, 42),
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": "What's the temperature and population in Los Angeles?",
+                        },
+                    ],
+                    tools=_OPENAI_TOOLS,
+                    tool_choice="required",
+                ),
+                id="deepseek-tools",
+            ),
+            pytest.param(
                 "OPENAI,AZURE_OPENAI",
                 PromptVersion.from_openai,
                 CompletionCreateParamsBase(
@@ -511,7 +580,25 @@ class TestClient:
                 id="openai-response-format",
             ),
             pytest.param(
-                "OPENAI",
+                "DEEPSEEK",
+                PromptVersion.from_openai,
+                CompletionCreateParamsBase(
+                    model=token_hex(8),
+                    temperature=random(),
+                    top_p=random(),
+                    presence_penalty=random(),
+                    frequency_penalty=random(),
+                    seed=randint(24, 42),
+                    messages=[{"role": "user", "content": "create form for {feature}"}],
+                    response_format=cast(
+                        ResponseFormatJSONSchema,
+                        type_to_response_format_param(create_model("Response", ui=(_UI, ...))),
+                    ),
+                ),
+                id="deepseek-response-format",
+            ),
+            pytest.param(
+                "OPENAI,AZURE_OPENAI",
                 PromptVersion.from_openai,
                 CompletionCreateParamsBase(
                     model=token_hex(8),
@@ -552,6 +639,49 @@ class TestClient:
                     tool_choice="required",
                 ),
                 id="openai-function-calling",
+            ),
+            pytest.param(
+                "DEEPSEEK",
+                PromptVersion.from_openai,
+                CompletionCreateParamsBase(
+                    model=token_hex(8),
+                    temperature=random(),
+                    top_p=random(),
+                    presence_penalty=random(),
+                    frequency_penalty=random(),
+                    seed=randint(24, 42),
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": "What's the temperature and population in Los Angeles?",
+                        },
+                        {
+                            "role": "assistant",
+                            "content": "I'll call these functions",
+                            "tool_calls": [
+                                {
+                                    "id": token_hex(8),
+                                    "type": "function",
+                                    "function": {
+                                        "name": "get_weather",
+                                        "arguments": '{"city": "Los Angeles"}',
+                                    },
+                                },
+                                {
+                                    "id": token_hex(8),
+                                    "type": "function",
+                                    "function": {
+                                        "name": "get_population",
+                                        "arguments": '{"location": "Los Angeles"}',
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                    tools=_OPENAI_TOOLS,
+                    tool_choice="required",
+                ),
+                id="deepseek-function-calling",
             ),
             pytest.param(
                 "OPENAI,AZURE_OPENAI",
