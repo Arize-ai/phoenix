@@ -96,13 +96,6 @@ jobs:
         run: |
           sed -i "s/arizephoenix\/phoenix:version-.*$/arizephoenix\/phoenix:version-${{ needs.push_to_registry.outputs.version }}/" kustomize/base/phoenix.yaml
           cat kustomize/base/phoenix.yaml
-      - name: Update helm version
-        run: |
-          sed -i "s/tag:\ version-.*$/tag:\ version-${{ needs.push_to_registry.outputs.version }}/" helm/values.yaml
-          cat helm/values.yaml
-          sed -i 's/\(version: "[^-]*\)-v[^"]*/\1-v${{ needs.push_to_registry.outputs.version }}/' helm/Chart.yaml
-          sed -i 's/appVersion: "[^"]*"/appVersion: "${{ needs.push_to_registry.outputs.version }}"/' helm/Chart.yaml
-          cat helm/Chart.yaml
       - name: Create PR
         uses: peter-evans/create-pull-request@v7
         with:
