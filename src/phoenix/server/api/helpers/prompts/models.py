@@ -324,7 +324,7 @@ class PromptOpenAIInvocationParametersContent(DBBaseModel):
 
 
 class PromptOpenAIInvocationParameters(DBBaseModel):
-    type: Literal["openai",]
+    type: Literal["openai"]
     openai: PromptOpenAIInvocationParametersContent
 
 
