@@ -24,6 +24,8 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
+        with:
+          ref: feat/7374-helm-chart
 
       # - name: Set BASE_IMAGE environment variable
       #   id: set-base-image
