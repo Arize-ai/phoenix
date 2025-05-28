@@ -194,9 +194,7 @@ class TracerProvider(_TracerProvider):
         If this `TracerProvider` has a default processor, it will be removed.
         """
 
-        if replace_default_processor:
-            self._default_processor = False
-        if self._default_processor:
+        if self._default_processor and replace_default_processor:
             self._active_span_processor.shutdown()
             self._active_span_processor._span_processors = tuple()  # remove default processors
             self._default_processor = False
