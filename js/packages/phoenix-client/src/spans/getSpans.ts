@@ -5,7 +5,12 @@ import { components, operations } from "../__generated__/api/v1";
 /**
  * Parameters to get spans from a project using auto-generated types
  */
-interface GetSpansParams extends ClientFn, Omit<NonNullable<operations["spanSearch"]["parameters"]["query"]>, "start_time" | "end_time"> {
+interface GetSpansParams
+  extends ClientFn,
+    Omit<
+      NonNullable<operations["spanSearch"]["parameters"]["query"]>,
+      "start_time" | "end_time"
+    > {
   /** The project identifier: either project ID or project name (maps to path parameter) */
   projectIdentifier: operations["spanSearch"]["parameters"]["path"]["project_identifier"];
   /** Inclusive lower bound time (convenience override to support Date objects) */
@@ -91,11 +96,13 @@ export async function getSpans({
   }
 
   if (start_time) {
-    params.start_time = start_time instanceof Date ? start_time.toISOString() : start_time;
+    params.start_time =
+      start_time instanceof Date ? start_time.toISOString() : start_time;
   }
 
   if (end_time) {
-    params.end_time = end_time instanceof Date ? end_time.toISOString() : end_time;
+    params.end_time =
+      end_time instanceof Date ? end_time.toISOString() : end_time;
   }
 
   if (annotationNames && annotationNames.length > 0) {
