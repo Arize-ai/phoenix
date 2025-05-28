@@ -3,6 +3,14 @@ kind: Service
 metadata:
   name: {{ template "phoenix.service" . }}
   namespace: {{ .Release.Namespace | quote }}
+{{- if .Values.server.annotations}}
+  annotations:
+{{ toYaml .Values.server.annotations | indent 4 }}
+{{- end }}
+{{- if .Values.server.labels }}
+  labels:
+{{ toYaml .Values.server.labels | indent 4 }}
+{{- end }}
 spec:
   type: NodePort
   ports:

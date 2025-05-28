@@ -11,11 +11,11 @@ ingress:
   enabled: true
   tls:
     enabled: false
-  host: phoenix.192.168.49.2.nip.io
-  api_path: /(.*)
-  path_type: ImplementationSpecific
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$1
+  host: ""
+  api_path: /
+  path_type: Prefix
+  annotations: {}
+  labels: {}
 
 postgres:
   # create postgres deployment for in-cluster use
@@ -48,7 +48,8 @@ server:
   rootUrl: "" # PHOENIX_ROOT_URL
   # Enable Prometheus metrics
   enablePrometheus: false # PHOENIX_ENABLE_PROMETHEUS 
-
+  annotations: {}
+  labels: {}
 
 # Database configuration
 # You can use either a full SQL database URL or individual Postgres settings
