@@ -1,25 +1,17 @@
 import { createClient } from "../client";
 import { ClientFn } from "../types/core";
-import { components } from "../__generated__/api/v1";
+import { components, operations } from "../__generated__/api/v1";
 
 /**
- * Parameters to get spans from a project
+ * Parameters to get spans from a project using auto-generated types
  */
-interface GetSpansParams extends ClientFn {
-  /** The project identifier: either project ID or project name */
-  projectIdentifier: string;
-  /** Pagination cursor (GlobalID of Span) */
-  cursor?: string;
-  /** Maximum number of spans to return (1-1000) */
-  limit?: number;
-  /** Sort direction for the sort field */
-  sortDirection?: "asc" | "desc";
-  /** Inclusive lower bound time */
-  startTime?: Date | string;
-  /** Exclusive upper bound time */
-  endTime?: Date | string;
-  /** If provided, only include spans that have at least one annotation with one of these names */
-  annotationNames?: string[];
+interface GetSpansParams extends ClientFn, Omit<NonNullable<operations["spanSearch"]["parameters"]["query"]>, "start_time" | "end_time"> {
+  /** The project identifier: either project ID or project name (maps to path parameter) */
+  projectIdentifier: operations["spanSearch"]["parameters"]["path"]["project_identifier"];
+  /** Inclusive lower bound time (convenience override to support Date objects) */
+  start_time?: Date | string | null;
+  /** Exclusive upper bound time (convenience override to support Date objects) */
+  end_time?: Date | string | null;
 }
 
 /**
@@ -44,7 +36,7 @@ type SpanSearchResponse = components["schemas"]["SpanSearchResponseBody"];
  *   client,
  *   projectIdentifier: "my-project",
  *   limit: 50,
- *   sortDirection: "desc"
+ *   sort_direction: "desc"
  * });
  *
  * // Get spans with specific annotations in a time range
@@ -81,30 +73,29 @@ export async function getSpans({
   projectIdentifier,
   cursor,
   limit = 100,
-  sortDirection = "desc",
-  startTime,
-  endTime,
+  sort_direction = "desc",
+  start_time,
+  end_time,
   annotationNames,
 }: GetSpansParams): Promise<SpanSearchResponse> {
   const client = _client ?? createClient();
 
-  // Build query parameters
-  const params: Record<string, string | number | string[]> = {
+  // Build query parameters using auto-generated types
+  const params: NonNullable<operations["spanSearch"]["parameters"]["query"]> = {
     limit,
-    sort_direction: sortDirection,
+    sort_direction,
   };
 
   if (cursor) {
     params.cursor = cursor;
   }
 
-  if (startTime) {
-    params.start_time =
-      startTime instanceof Date ? startTime.toISOString() : startTime;
+  if (start_time) {
+    params.start_time = start_time instanceof Date ? start_time.toISOString() : start_time;
   }
 
-  if (endTime) {
-    params.end_time = endTime instanceof Date ? endTime.toISOString() : endTime;
+  if (end_time) {
+    params.end_time = end_time instanceof Date ? end_time.toISOString() : end_time;
   }
 
   if (annotationNames && annotationNames.length > 0) {
