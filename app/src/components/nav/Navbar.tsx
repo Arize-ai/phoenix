@@ -3,6 +3,7 @@ import { Link, NavLink as RRNavLink } from "react-router";
 import { css } from "@emotion/react";
 
 import { Icon, Icons, Text } from "@phoenix/components";
+import { GitHubStarCount } from "@phoenix/components/nav/GitHubStarCount";
 import { useTheme } from "@phoenix/contexts";
 
 import { Logo } from "./Logo";
@@ -54,6 +55,7 @@ const navLinkCSS = css`
     color 0.2s ease-in-out,
     background-color 0.2s ease-in-out;
   text-decoration: none;
+  cursor: pointer;
 
   &.active {
     color: var(--ac-global-color-grey-1200);
@@ -69,6 +71,7 @@ const navLinkCSS = css`
   }
   .ac-text {
     padding-inline-start: var(--ac-global-dimension-size-50);
+    padding-inline-end: var(--ac-global-dimension-size-100);
     white-space: nowrap;
   }
 `;
@@ -83,12 +86,14 @@ const brandCSS = css`
 function ExternalLink(props: {
   href: string;
   leadingVisual: ReactNode;
+  trailingVisual?: ReactNode;
   text: string;
 }) {
   return (
     <a href={props.href} target="_blank" css={navLinkCSS} rel="noreferrer">
       {props.leadingVisual}
       <Text>{props.text}</Text>
+      {props.trailingVisual}
     </a>
   );
 }
@@ -99,6 +104,17 @@ export function DocsLink() {
       href="https://docs.arize.com/phoenix"
       leadingVisual={<Icon svg={<Icons.BookOutline />} />}
       text="Documentation"
+    />
+  );
+}
+
+export function GitHubLink() {
+  return (
+    <ExternalLink
+      href="https://github.com/Arize-ai/phoenix"
+      leadingVisual={<Icon svg={<Icons.GitHub />} />}
+      trailingVisual={<GitHubStarCount />}
+      text="Star on GitHub"
     />
   );
 }
