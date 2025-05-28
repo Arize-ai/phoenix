@@ -87,6 +87,9 @@ jobs:
     name: Update Kustomize Template
     runs-on: ubuntu-latest
     needs: push_to_registry
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - name: Update Kustomize image version
