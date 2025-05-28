@@ -539,7 +539,6 @@ async def span_search(
             "If provided, only include spans that have at least one annotation with one "
             "of these names."
         ),
-        alias="annotationNames",
     ),
 ) -> SpanSearchResponseBody:
     """Search spans with minimal filters instead of the old SpanQuery DSL."""
