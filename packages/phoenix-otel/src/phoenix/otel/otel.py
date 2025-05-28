@@ -194,9 +194,7 @@ class TracerProvider(_TracerProvider):
         If this `TracerProvider` has a default processor, it will be removed.
         """
 
-        if replace_default_processor:
-            self._default_processor = False
-        if self._default_processor:
+        if self._default_processor and replace_default_processor:
             self._active_span_processor.shutdown()
             self._active_span_processor._span_processors = tuple()  # remove default processors
             self._default_processor = False
@@ -208,6 +206,7 @@ class TracerProvider(_TracerProvider):
         endpoint: Optional[str] = None
         transport: Optional[str] = None
         headers: Optional[Union[Dict[str, str], str]] = None
+        span_processor: Optional[SpanProcessor] = None
 
         if self._active_span_processor:
             if processors := self._active_span_processor._span_processors:
@@ -233,7 +232,9 @@ class TracerProvider(_TracerProvider):
             "|  Using a default SpanProcessor. `add_span_processor` will overwrite this default.\n"
         )
 
-        using_simple_processor = isinstance(span_processor, _SimpleSpanProcessor)
+        using_simple_processor = span_processor is not None and isinstance(
+            span_processor, _SimpleSpanProcessor
+        )
         span_processor_warning = "|  \n"
         if os.name == "nt":
             span_processor_warning += (
