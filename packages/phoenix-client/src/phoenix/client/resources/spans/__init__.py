@@ -367,7 +367,8 @@ class Spans:
             annotation_names: Optional list of annotation names to filter by. If provided, only
                 spans that have at least one annotation with one of these names will be returned.
             limit: Maximum number of spans to return (default: 100).
-            sort_direction: Sort direction for the sort field (default: "desc").
+            sort_direction: Sort direction for spans ordered by insertion order. Use "desc" for
+                newest first or "asc" for oldest first (default: "desc").
             timeout: Optional request timeout in seconds.
 
         Returns:
@@ -759,7 +760,8 @@ class AsyncSpans:
             annotation_names: Optional list of annotation names to filter by. If provided, only
                 spans that have at least one annotation with one of these names will be returned.
             limit: Maximum number of spans to return (default: 100).
-            sort_direction: Sort direction for the sort field (default: "desc").
+            sort_direction: Sort direction for spans ordered by insertion order. Use "desc" for
+                newest first or "asc" for oldest first (default: "desc").
             timeout: Optional request timeout in seconds.
 
         Returns:
