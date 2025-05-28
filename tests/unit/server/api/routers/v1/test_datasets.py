@@ -455,6 +455,11 @@ async def test_post_dataset_upload_json_create_then_append(
     assert response.status_code == 200
     assert (data := response.json().get("data"))
     assert (dataset_id := data.get("dataset_id"))
+    assert "version_id" in data
+    version_id_str = data["version_id"]
+    assert GlobalID.is_valid(version_id_str)
+    version_global_id = GlobalID.from_id(version_id_str)
+    assert version_global_id.type_name == "DatasetVersion"
     del response, data
     response = await httpx_client.post(
         url="v1/datasets/upload?sync=true",
@@ -469,6 +474,11 @@ async def test_post_dataset_upload_json_create_then_append(
     assert response.status_code == 200
     assert (data := response.json().get("data"))
     assert dataset_id == data.get("dataset_id")
+    assert "version_id" in data
+    version_id_str = data["version_id"]
+    assert GlobalID.is_valid(version_id_str)
+    version_global_id = GlobalID.from_id(version_id_str)
+    assert version_global_id.type_name == "DatasetVersion"
     async with db() as session:
         revisions = list(
             await session.scalars(
@@ -486,6 +496,11 @@ async def test_post_dataset_upload_json_create_then_append(
     assert revisions[1].input == {"a": 11, "b": 22, "c": 33}
     assert revisions[1].output == {"b": "22", "c": "33", "d": "44"}
     assert revisions[1].metadata_ == {}
+
+    # Verify the DatasetVersion from the response
+    db_dataset_version = await session.get(models.DatasetVersion, int(version_global_id.node_id))
+    assert db_dataset_version is not None
+    assert db_dataset_version.dataset_id == int(GlobalID.from_id(dataset_id).node_id)
 
 
 async def test_post_dataset_upload_csv_create_then_append(
@@ -508,6 +523,11 @@ async def test_post_dataset_upload_csv_create_then_append(
     assert response.status_code == 200
     assert (data := response.json().get("data"))
     assert (dataset_id := data.get("dataset_id"))
+    assert "version_id" in data
+    version_id_str = data["version_id"]
+    assert GlobalID.is_valid(version_id_str)
+    version_global_id = GlobalID.from_id(version_id_str)
+    assert version_global_id.type_name == "DatasetVersion"
     del response, file, data
     file = gzip.compress(b"a,b,c,d,e,f\n11,22,33,44,55,66\n")
     response = await httpx_client.post(
@@ -524,6 +544,11 @@ async def test_post_dataset_upload_csv_create_then_append(
     assert response.status_code == 200
     assert (data := response.json().get("data"))
     assert dataset_id == data.get("dataset_id")
+    assert "version_id" in data
+    version_id_str = data["version_id"]
+    assert GlobalID.is_valid(version_id_str)
+    version_global_id = GlobalID.from_id(version_id_str)
+    assert version_global_id.type_name == "DatasetVersion"
     async with db() as session:
         revisions = list(
             await session.scalars(
@@ -541,6 +566,11 @@ async def test_post_dataset_upload_csv_create_then_append(
     assert revisions[1].input == {"a": "11", "b": "22", "c": "33"}
     assert revisions[1].output == {"b": "22", "c": "33", "d": "44"}
     assert revisions[1].metadata_ == {"c": "33", "d": "44", "e": "55"}
+
+    # Verify the DatasetVersion from the response
+    db_dataset_version = await session.get(models.DatasetVersion, int(version_global_id.node_id))
+    assert db_dataset_version is not None
+    assert db_dataset_version.dataset_id == int(GlobalID.from_id(dataset_id).node_id)
 
 
 async def test_post_dataset_upload_pyarrow_create_then_append(
@@ -568,6 +598,11 @@ async def test_post_dataset_upload_pyarrow_create_then_append(
     assert response.status_code == 200
     assert (data := response.json().get("data"))
     assert (dataset_id := data.get("dataset_id"))
+    assert "version_id" in data
+    version_id_str = data["version_id"]
+    assert GlobalID.is_valid(version_id_str)
+    version_global_id = GlobalID.from_id(version_id_str)
+    assert version_global_id.type_name == "DatasetVersion"
     del response, file, data, df, table, sink
     df = pd.read_csv(StringIO("a,b,c,d,e,f\n11,22,33,44,55,66\n"))
     table = pa.Table.from_pandas(df)
@@ -589,6 +624,11 @@ async def test_post_dataset_upload_pyarrow_create_then_append(
     assert response.status_code == 200
     assert (data := response.json().get("data"))
     assert dataset_id == data.get("dataset_id")
+    assert "version_id" in data
+    version_id_str = data["version_id"]
+    assert GlobalID.is_valid(version_id_str)
+    version_global_id = GlobalID.from_id(version_id_str)
+    assert version_global_id.type_name == "DatasetVersion"
     async with db() as session:
         revisions = list(
             await session.scalars(
@@ -606,6 +646,11 @@ async def test_post_dataset_upload_pyarrow_create_then_append(
     assert revisions[1].input == {"a": 11, "b": 22, "c": 33}
     assert revisions[1].output == {"b": 22, "c": 33, "d": 44}
     assert revisions[1].metadata_ == {"c": 33, "d": 44, "e": 55}
+
+    # Verify the DatasetVersion from the response
+    db_dataset_version = await session.get(models.DatasetVersion, int(version_global_id.node_id))
+    assert db_dataset_version is not None
+    assert db_dataset_version.dataset_id == int(GlobalID.from_id(dataset_id).node_id)
 
 
 async def test_delete_dataset(
