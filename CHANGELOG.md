@@ -1,5 +1,20 @@
 # Changelog
 
+## [10.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.0.4...arize-phoenix-v10.1.0) (2025-05-28)
+
+
+### Features
+
+* **cost:** display audio, cache read, and cache write tokens on span token tooltip ([#7671](https://github.com/Arize-ai/phoenix/issues/7671)) ([6b605e8](https://github.com/Arize-ai/phoenix/commit/6b605e8d9e256a742bb90b82453d96d1bf70d948))
+* Port modal / slideover to react-aria-components ([#7662](https://github.com/Arize-ai/phoenix/issues/7662)) ([ddb7dac](https://github.com/Arize-ai/phoenix/commit/ddb7dac4bd9275e2df7610f54c990dae31620beb))
+* Replace "my annotations" with Annotation Summaries ([#7663](https://github.com/Arize-ai/phoenix/issues/7663)) ([42c87e1](https://github.com/Arize-ai/phoenix/commit/42c87e1cfddf02cbe3418673d7c48b329e4a1601))
+* span search route ([#7462](https://github.com/Arize-ai/phoenix/issues/7462)) ([5f807cd](https://github.com/Arize-ai/phoenix/commit/5f807cd9870b2d80ca442b2008306b8f10a36483))
+
+
+### Bug Fixes
+
+* bump evals and otel deps ([#7701](https://github.com/Arize-ai/phoenix/issues/7701)) ([4b62577](https://github.com/Arize-ai/phoenix/commit/4b625779a35acd1b0bbb096f88a3e6fdd68f6163))
+
 ## [10.0.4](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.0.3...arize-phoenix-v10.0.4) (2025-05-22)
 
 
