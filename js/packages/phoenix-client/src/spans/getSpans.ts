@@ -98,7 +98,8 @@ export async function getSpans({
   }
 
   if (startTime) {
-    params.start_time = startTime instanceof Date ? startTime.toISOString() : startTime;
+    params.start_time =
+      startTime instanceof Date ? startTime.toISOString() : startTime;
   }
 
   if (endTime) {
