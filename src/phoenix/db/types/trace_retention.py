@@ -84,7 +84,7 @@ class MaxCountRule(_MaxCount, BaseModel):
             sa.select(sa.func.count(Trace.id)).where(Trace.project_rowid.in_(project_rowids))
         )
 
-        if total_traces <= self.max_count:
+        if total_traces is None or total_traces <= self.max_count:
             # No need to delete anything
             return set()
 
@@ -136,7 +136,7 @@ class MaxDaysOrCountRule(_MaxDays, _MaxCount, BaseModel):
                 sa.select(sa.func.count(Trace.id)).where(Trace.project_rowid.in_(project_rowids))
             )
 
-            if total_traces > self.max_count:
+            if total_traces is not None and total_traces > self.max_count:
                 # Build a project-scoped max_count filter
                 cutoff_time_subquery = (
                     sa.select(Trace.start_time)
