@@ -230,7 +230,9 @@ class TracerProvider(_TracerProvider):
             "|  Using a default SpanProcessor. `add_span_processor` will overwrite this default.\n"
         )
 
-        using_simple_processor = span_processor is not None and isinstance(span_processor, _SimpleSpanProcessor)
+        using_simple_processor = span_processor is not None and isinstance(
+            span_processor, _SimpleSpanProcessor
+        )
         span_processor_warning = "|  \n"
         if os.name == "nt":
             span_processor_warning += (
