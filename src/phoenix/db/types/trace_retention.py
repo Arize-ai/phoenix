@@ -79,8 +79,18 @@ class MaxCountRule(_MaxCount, BaseModel):
             return set()
         from phoenix.db.models import Trace
 
+        # First, check if we have more traces than max_count
+        total_traces = await session.scalar(
+            sa.select(sa.func.count(Trace.id))
+            .where(Trace.project_rowid.in_(project_rowids))
+        )
+        
+        if total_traces <= self.max_count:
+            # No need to delete anything
+            return set()
+
         # Build a project-scoped max_count filter
-        project_scoped_max_count_filter = Trace.start_time < (
+        cutoff_time_subquery = (
             sa.select(Trace.start_time)
             .where(Trace.project_rowid.in_(project_rowids))
             .order_by(Trace.start_time.desc())
@@ -92,7 +102,7 @@ class MaxCountRule(_MaxCount, BaseModel):
         stmt = (
             sa.delete(Trace)
             .where(Trace.project_rowid.in_(project_rowids))
-            .where(project_scoped_max_count_filter)
+            .where(Trace.start_time < cutoff_time_subquery)
             .returning(Trace.project_rowid)
         )
         return set(await session.scalars(stmt))
@@ -113,20 +123,40 @@ class MaxDaysOrCountRule(_MaxDays, _MaxCount, BaseModel):
             return set()
         from phoenix.db.models import Trace
 
-        # Build a project-scoped max_count filter
-        project_scoped_max_count_filter = Trace.start_time < (
-            sa.select(Trace.start_time)
-            .where(Trace.project_rowid.in_(project_rowids))
-            .order_by(Trace.start_time.desc())
-            .offset(self.max_count - 1)
-            .limit(1)
-            .scalar_subquery()
-        )
+        # Build the conditions
+        conditions = []
+        
+        # Add max_days condition if applicable
+        if self.max_days > 0:
+            conditions.append(self.max_days_filter)
+        
+        # Add max_count condition if applicable
+        if self.max_count > 0:
+            # First, check if we have more traces than max_count for this condition
+            total_traces = await session.scalar(
+                sa.select(sa.func.count(Trace.id))
+                .where(Trace.project_rowid.in_(project_rowids))
+            )
+            
+            if total_traces > self.max_count:
+                # Build a project-scoped max_count filter
+                cutoff_time_subquery = (
+                    sa.select(Trace.start_time)
+                    .where(Trace.project_rowid.in_(project_rowids))
+                    .order_by(Trace.start_time.desc())
+                    .offset(self.max_count - 1)
+                    .limit(1)
+                    .scalar_subquery()
+                )
+                conditions.append(Trace.start_time < cutoff_time_subquery)
+
+        if not conditions:
+            return set()
 
         stmt = (
             sa.delete(Trace)
             .where(Trace.project_rowid.in_(project_rowids))
-            .where(sa.or_(self.max_days_filter, project_scoped_max_count_filter))
+            .where(sa.or_(*conditions))
             .returning(Trace.project_rowid)
         )
         return set(await session.scalars(stmt))
