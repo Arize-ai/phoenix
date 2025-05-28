@@ -2,20 +2,85 @@
 from __future__ import annotations
 
 from secrets import token_hex
-from typing import Literal, Union, cast
+from typing import Optional, Union, cast
 
+import httpx
 import pytest
 from phoenix.client.__generated__ import v1
 from phoenix.server.api.routers.v1.users import DEFAULT_PAGINATION_PAGE_LIMIT
 from strawberry.relay import GlobalID
 
-from .._helpers import _ADMIN, _MEMBER, _await_or_return, _GetUser
+from .._helpers import _ADMIN, _MEMBER, _GetUser, _httpx_client
+
+
+class _UsersApi:
+    """Client for interacting with the Users API endpoints.
+
+    This class provides methods for:
+    - Creating users (both LOCAL and OAuth2)
+    - Listing users with pagination
+    - Deleting users
+    """
+
+    def __init__(self, client: httpx.Client) -> None:
+        self._client = client
+
+    def list(self) -> list[Union[v1.LocalUser, v1.OAuth2User]]:
+        """List all users in the system.
+
+        Returns:
+            A list of all users, including both LOCAL and OAuth2 users.
+            The list is automatically paginated to include all users.
+        """
+        all_users: list[Union[v1.LocalUser, v1.OAuth2User]] = []
+        next_cursor: Optional[str] = None
+        while True:
+            url = "v1/users"
+            params = {"cursor": next_cursor} if next_cursor else {}
+            response = self._client.get(url, params=params)
+            response.raise_for_status()
+            data = cast(v1.GetUsersResponseBody, response.json())
+            all_users.extend(data["data"])
+            if not (next_cursor := data.get("next_cursor")):
+                break
+        return all_users
+
+    def create(
+        self,
+        *,
+        user: Union[v1.LocalUserData, v1.OAuth2UserData],
+        send_welcome_email: bool = True,
+    ) -> Union[v1.LocalUser, v1.OAuth2User]:
+        """Create a new user.
+
+        Args:
+            user: The user data to create. Can be either a LOCAL or OAuth2 user.
+            send_welcome_email: Whether to send a welcome email to the new user.
+
+        Returns:
+            The created user object.
+        """
+        url = "v1/users"
+        json_ = v1.CreateUserRequestBody(user=user, send_welcome_email=send_welcome_email)
+        response = self._client.post(url=url, json=json_)
+        response.raise_for_status()
+        return cast(v1.CreateUserResponseBody, response.json())["data"]
+
+    def delete(self, *, user_id: str) -> None:
+        """Delete a user by their ID.
+
+        Args:
+            user_id: The ID of the user to delete.
+        """
+        url = f"v1/users/{user_id}"
+        response = self._client.delete(url)
+        response.raise_for_status()
 
 
 class TestClientForUsersAPI:
-    """Integration tests for the Users client REST endpoints.
+    """Integration tests for the REST API for users.
 
-    These tests verify the functionality of the Users API client, including:
+    These tests verify the functionality of the Users REST API, including:
     - User creation with different authentication methods (LOCAL/OAuth2) and roles (ADMIN/MEMBER)
     - User listing and pagination
     - User deletion
@@ -25,14 +90,11 @@ class TestClientForUsersAPI:
     - System user restrictions
     """
 
-    @pytest.mark.parametrize("is_async", [True, False])
     async def test_crud_operations(
         self,
-        is_async: bool,
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Test CRUD operations for users.
+        """Test CRUD operations for users via the REST API.
 
         This test verifies that:
         1. Users can be created with different auth methods and roles:
@@ -50,15 +112,10 @@ class TestClientForUsersAPI:
         """
         # Set up test environment with logged-in user
         u = _get_user(_ADMIN).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
-        Client = AsyncClient if is_async else SyncClient
+        users_api = _UsersApi(_httpx_client(u.create_api_key()))
 
         # Create users with different auth methods and roles
-        local_users_to_create: list[v1.LocalUserData] = [
+        users_to_create: list[Union[v1.LocalUserData, v1.OAuth2UserData]] = [
             # Local users with all fields
             v1.LocalUserData(
                 email=f"test_local_member_{token_hex(8)}@example.com",
@@ -94,9 +151,6 @@ class TestClientForUsersAPI:
                 password_needs_reset=False,
                 password="no_reset_password",
             ),
-        ]
-
-        oauth2_users_to_create: list[v1.OAuth2UserData] = [
             # OAuth2 user with all optional fields
             v1.OAuth2UserData(
                 email=f"test_oauth2_member_{token_hex(8)}@example.com",
@@ -165,107 +219,68 @@ class TestClientForUsersAPI:
 
         # Create all users
         created_users: list[Union[v1.LocalUser, v1.OAuth2User]] = []
-
-        # Create LOCAL users
-        for local_user_data in local_users_to_create:
-            local_user = cast(
-                v1.LocalUser,
-                await _await_or_return(
-                    Client().users.create(
-                        email=local_user_data["email"],
-                        username=local_user_data["username"],
-                        role=cast(Literal["ADMIN", "MEMBER"], local_user_data["role"]),
-                        auth_method=local_user_data["auth_method"],
-                        password_needs_reset=local_user_data.get("password_needs_reset", True),
-                        password=local_user_data.get("password"),
-                    )
-                ),
-            )
-            created_users.append(local_user)
-
-        # Create OAuth2 users
-        for oauth2_user_data in oauth2_users_to_create:
-            oauth2_user = cast(
-                v1.OAuth2User,
-                await _await_or_return(
-                    Client().users.create(
-                        email=oauth2_user_data["email"],
-                        username=oauth2_user_data["username"],
-                        role=cast(Literal["ADMIN", "MEMBER"], oauth2_user_data["role"]),
-                        auth_method=oauth2_user_data["auth_method"],
-                        oauth2_client_id=oauth2_user_data.get("oauth2_client_id"),
-                        oauth2_user_id=oauth2_user_data.get("oauth2_user_id"),
-                    )
-                ),
-            )
-            created_users.append(oauth2_user)
+        for user_data in users_to_create:
+            user = users_api.create(user=user_data)
+            created_users.append(user)
 
         # List all users (READ operation)
-        all_users = await _await_or_return(Client().users.list())
+        all_users = users_api.list()
 
         # Create a dictionary of all users indexed by email for easier lookup
         all_users_by_email = {user["email"]: user for user in all_users}
 
         # Verify all users were created with correct attributes
-        for user_data in local_users_to_create + oauth2_users_to_create:
+        for i, user_data in enumerate(users_to_create):
             created_user = all_users_by_email[user_data["email"]]
-            assert created_user["id"], "User ID should be present after creation"
+            assert created_user["id"], f"User {i} ID should be present after creation"
             assert (
                 created_user["username"] == user_data["username"]
-            ), "Username should match input after creation"
+            ), f"User {i} username should match input after creation"
             assert (
                 created_user["email"] == user_data["email"]
-            ), "Email should match input after creation"
+            ), f"User {i} email should match input after creation"
             assert (
                 created_user["role"] == user_data["role"]
-            ), "Role should match input after creation"
+            ), f"User {i} role should match input after creation"
             assert (
                 created_user["auth_method"] == user_data["auth_method"]
-            ), "Auth method should match input after creation"
+            ), f"User {i} auth method should match input after creation"
 
             # Verify OAuth2 specific fields if applicable
             if user_data["auth_method"] == "OAUTH2":
-                assert created_user.get("oauth2_client_id") == user_data.get("oauth2_client_id")
-                assert created_user.get("oauth2_user_id") == user_data.get("oauth2_user_id")
+                assert created_user.get("oauth2_client_id") == user_data.get(
+                    "oauth2_client_id"
+                ), f"User {i} OAuth2 client ID should match input after creation"
+                assert created_user.get("oauth2_user_id") == user_data.get(
+                    "oauth2_user_id"
+                ), f"User {i} OAuth2 user ID should match input after creation"
             else:
                 # Verify LOCAL auth method specific fields
-                assert created_user.get("password_needs_reset")
-                assert "password" not in created_user
+                assert created_user.get(
+                    "password_needs_reset"
+                ), f"User {i} should have password_needs_reset set"
+                assert (
+                    "password" not in created_user
+                ), f"User {i} should not have password in response"
 
         # Test username uniqueness (CREATE operation)
-        duplicate_local_user = local_users_to_create[0]
+        duplicate_local_user = users_to_create[0]
         with pytest.raises(Exception):
-            await _await_or_return(
-                Client().users.create(
-                    email=duplicate_local_user["email"],
-                    username=duplicate_local_user["username"],
-                    role=cast(Literal["ADMIN", "MEMBER"], duplicate_local_user["role"]),
-                    auth_method=duplicate_local_user["auth_method"],
-                    password_needs_reset=duplicate_local_user.get("password_needs_reset", True),
-                    password=duplicate_local_user.get("password"),
-                )
+            users_api.create(
+                user=duplicate_local_user,
             )
 
         # Test email uniqueness (CREATE operation)
         duplicate_local_user_data = v1.LocalUserData(
-            email=local_users_to_create[0]["email"],
+            email=users_to_create[0]["email"],
             username=f"different_{token_hex(8)}",
             role="MEMBER",
             auth_method="LOCAL",
             password_needs_reset=True,
         )
         with pytest.raises(Exception):
-            await _await_or_return(
-                Client().users.create(
-                    email=duplicate_local_user_data["email"],
-                    username=duplicate_local_user_data["username"],
-                    role=cast(Literal["ADMIN", "MEMBER"], duplicate_local_user_data["role"]),
-                    auth_method=duplicate_local_user_data["auth_method"],
-                    password_needs_reset=duplicate_local_user_data.get(
-                        "password_needs_reset", True
-                    ),
-                    password=duplicate_local_user_data.get("password"),
-                )
+            users_api.create(
+                user=duplicate_local_user_data,
             )
 
         # Test that SYSTEM users cannot be created (both LOCAL and OAuth2)
@@ -277,14 +292,8 @@ class TestClientForUsersAPI:
             password_needs_reset=True,
         )
         with pytest.raises(Exception) as exc_info:
-            await _await_or_return(
-                Client().users.create(
-                    email=system_user_data_local["email"],
-                    username=system_user_data_local["username"],
-                    role=cast(Literal["ADMIN", "MEMBER"], system_user_data_local["role"]),
-                    auth_method=system_user_data_local["auth_method"],
-                    password_needs_reset=system_user_data_local.get("password_needs_reset", True),
-                )
+            users_api.create(
+                user=system_user_data_local,
             )
         assert "400" in str(
             exc_info.value
@@ -298,15 +307,8 @@ class TestClientForUsersAPI:
             oauth2_client_id=f"client_{token_hex(8)}",
         )
         with pytest.raises(Exception) as exc_info:
-            await _await_or_return(
-                Client().users.create(
-                    email=system_user_data_oauth2["email"],
-                    username=system_user_data_oauth2["username"],
-                    role=cast(Literal["ADMIN", "MEMBER"], system_user_data_oauth2["role"]),
-                    auth_method=system_user_data_oauth2["auth_method"],
-                    oauth2_client_id=system_user_data_oauth2.get("oauth2_client_id"),
-                    oauth2_user_id=system_user_data_oauth2.get("oauth2_user_id"),
-                )
+            users_api.create(
+                user=system_user_data_oauth2,
             )
         assert "400" in str(
             exc_info.value
@@ -314,21 +316,19 @@ class TestClientForUsersAPI:
 
         # Delete the users (DELETE operation)
         for user in created_users:
-            await _await_or_return(
-                Client().users.delete(
-                    user_id=user["id"],
-                )
+            users_api.delete(
+                user_id=user["id"],
             )
 
         # Verify users were deleted by checking they're not in the list
-        all_users_after_delete = await _await_or_return(Client().users.list())
+        all_users_after_delete = users_api.list()
         all_users_by_id = {user["id"]: user for user in all_users_after_delete}
 
         # Verify none of our created users exist in the system anymore
-        for created_user in created_users:
+        for i, created_user in enumerate(created_users):
             assert (
                 created_user["id"] not in all_users_by_id
-            ), f"User {created_user['id']} should have been deleted"
+            ), f"User {i} with ID {created_user['id']} should have been deleted"
 
         # Find the first system user and admin user by ID
         system_users = [u for u in all_users if u["role"] == "SYSTEM"]
@@ -343,37 +343,30 @@ class TestClientForUsersAPI:
 
         # Try to delete the first system user
         with pytest.raises(Exception) as exc_info:
-            await _await_or_return(
-                Client().users.delete(
-                    user_id=first_system_user["id"],
-                )
+            users_api.delete(
+                user_id=first_system_user["id"],
             )
-        assert "409" in str(
-            exc_info.value
-        ), "Should receive 409 Conflict when attempting to delete first system user"
+        assert (
+            "409" in str(exc_info.value)
+        ), f"Should receive 409 Conflict when attempting to delete system user with ID {first_system_user['id']}"  # noqa: E501
 
         # Try to delete the first admin user
         with pytest.raises(Exception) as exc_info:
-            await _await_or_return(
-                Client().users.delete(
-                    user_id=first_admin_user["id"],
-                )
+            users_api.delete(
+                user_id=first_admin_user["id"],
             )
-        assert "409" in str(
-            exc_info.value
-        ), "Should receive 409 Conflict when attempting to delete first admin user"
+        assert (
+            "409" in str(exc_info.value)
+        ), f"Should receive 409 Conflict when attempting to delete admin user with ID {first_admin_user['id']}"  # noqa: E501
 
-    @pytest.mark.parametrize("is_async", [True, False])
     async def test_list_pagination(
         self,
-        is_async: bool,
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Test pagination functionality of the list method.
+        """Test pagination functionality of the list users REST endpoint.
 
         This test verifies that:
-        1. List method returns all users across multiple pages
+        1. List endpoint returns all users across multiple pages
         2. Can verify user presence in list results
         3. Handles both LOCAL and OAuth2 users in pagination
         4. Respects the DEFAULT_PAGINATION_PAGE_LIMIT
@@ -381,12 +374,7 @@ class TestClientForUsersAPI:
         """
         # Set up test environment with logged-in admin user
         u = _get_user(_ADMIN).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
-        Client = AsyncClient if is_async else SyncClient
+        users_api = _UsersApi(_httpx_client(u.create_api_key()))
 
         # Create multiple users to test listing
         created_users: list[Union[v1.LocalUser, v1.OAuth2User]] = []
@@ -394,22 +382,19 @@ class TestClientForUsersAPI:
             username = f"test_user_{i}_{token_hex(8)}"
             email = f"test_{i}_{token_hex(8)}@example.com"
 
-            user = cast(
-                v1.LocalUser,
-                await _await_or_return(
-                    Client().users.create(
-                        email=email,
-                        username=username,
-                        role="MEMBER",
-                        auth_method="LOCAL",
-                        password_needs_reset=True,
-                    )
+            user = users_api.create(
+                user=v1.LocalUserData(
+                    email=email,
+                    username=username,
+                    role="MEMBER",
+                    auth_method="LOCAL",
+                    password_needs_reset=True,
                 ),
             )
             created_users.append(user)
 
         # Get all users
-        all_users = await _await_or_return(Client().users.list())
+        all_users = users_api.list()
 
         # Verify all created users are present
         created_user_ids = {u["id"] for u in created_users}
@@ -418,14 +403,11 @@ class TestClientForUsersAPI:
             all_user_ids
         ), "All created users should be present in list results"
 
-    @pytest.mark.parametrize("is_async", [True, False])
     async def test_member_access_denied(
         self,
-        is_async: bool,
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Test that MEMBER role users are denied access to user management operations.
+        """Test that MEMBER role users are denied access to user management REST endpoints.
 
         This test verifies that:
         1. MEMBER users cannot create new users:
@@ -438,23 +420,18 @@ class TestClientForUsersAPI:
         """
         # Set up test environment with logged-in member user
         u = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
-        Client = AsyncClient if is_async else SyncClient
+        users_api = _UsersApi(_httpx_client(u.create_api_key()))
 
         # Test that member cannot create LOCAL users
         with pytest.raises(Exception) as exc_info:
-            await _await_or_return(
-                Client().users.create(
+            users_api.create(
+                user=v1.LocalUserData(
                     email=f"test_{token_hex(8)}@example.com",
                     username=f"test_user_{token_hex(8)}",
                     role="MEMBER",
                     auth_method="LOCAL",
                     password_needs_reset=True,
-                )
+                ),
             )
         assert "403" in str(
             exc_info.value
@@ -462,14 +439,14 @@ class TestClientForUsersAPI:
 
         # Test that member cannot create LOCAL users with ADMIN role
         with pytest.raises(Exception) as exc_info:
-            await _await_or_return(
-                Client().users.create(
+            users_api.create(
+                user=v1.LocalUserData(
                     email=f"test_admin_{token_hex(8)}@example.com",
                     username=f"test_user_admin_{token_hex(8)}",
                     role="ADMIN",
                     auth_method="LOCAL",
                     password_needs_reset=True,
-                )
+                ),
             )
         assert "403" in str(
             exc_info.value
@@ -477,14 +454,14 @@ class TestClientForUsersAPI:
 
         # Test that member cannot create OAuth2 users
         with pytest.raises(Exception) as exc_info:
-            await _await_or_return(
-                Client().users.create(
+            users_api.create(
+                user=v1.OAuth2UserData(
                     email=f"test_oauth2_{token_hex(8)}@example.com",
                     username=f"test_user_oauth2_{token_hex(8)}",
                     role="MEMBER",
                     auth_method="OAUTH2",
                     oauth2_client_id=f"client_{token_hex(8)}",
-                )
+                ),
             )
         assert "403" in str(
             exc_info.value
@@ -492,14 +469,14 @@ class TestClientForUsersAPI:
 
         # Test that member cannot create OAuth2 users with ADMIN role
         with pytest.raises(Exception) as exc_info:
-            await _await_or_return(
-                Client().users.create(
+            users_api.create(
+                user=v1.OAuth2UserData(
                     email=f"test_oauth2_admin_{token_hex(8)}@example.com",
                     username=f"test_user_oauth2_admin_{token_hex(8)}",
                     role="ADMIN",
                     auth_method="OAUTH2",
                     oauth2_client_id=f"client_{token_hex(8)}",
-                )
+                ),
             )
         assert "403" in str(
             exc_info.value
@@ -507,16 +484,14 @@ class TestClientForUsersAPI:
 
         # Test that member cannot list users
         with pytest.raises(Exception) as exc_info:
-            await _await_or_return(Client().users.list())
+            users_api.list()
 
         another_user = _get_user(_MEMBER)
 
         # Test that member cannot delete users
         with pytest.raises(Exception) as exc_info:
-            await _await_or_return(
-                Client().users.delete(
-                    user_id=another_user.gid,
-                )
+            users_api.delete(
+                user_id=another_user.gid,
             )
         assert "403" in str(
             exc_info.value
