@@ -105,7 +105,7 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
             </Button>
             <Modal
               variant="slideover"
-              size="L"
+              size="fullscreen"
               isDismissable
               shouldCloseOnInteractOutside={() => true}
             >
