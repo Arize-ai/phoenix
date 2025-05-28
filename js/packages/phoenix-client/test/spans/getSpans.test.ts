@@ -58,9 +58,9 @@ describe("getSpans", () => {
       cursor: "cursor-123",
       limit: 50,
       sortDirection: "asc",
-      startTime,
-      endTime,
-      annotationNames: ["quality_score", "relevance"],
+      startTime: startTime,
+      endTime: endTime,
+      annotationNames: ["quality"],
     });
 
     expect(result.data).toHaveLength(1);
