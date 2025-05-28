@@ -111,10 +111,10 @@ export function DocsLink() {
 export function GitHubLink() {
   return (
     <ExternalLink
-      href="https://github.com/phoenix-ai/phoenix"
+      href="https://github.com/Arize-ai/phoenix"
       leadingVisual={<Icon svg={<Icons.GitHub />} />}
       trailingVisual={<GitHubStarCount />}
-      text="Star Us"
+      text="Star Phoenix"
     />
   );
 }
