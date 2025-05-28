@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import {
@@ -110,10 +111,10 @@ export function ModelProviderPicker({
             {data.modelProviders
               .filter((provider) => !provider.dependenciesInstalled)
               .map((provider) => (
-                <div key={provider.key}>
+                <Fragment key={provider.key}>
                   {provider.dependencies?.join(", ") ?? provider.name}
                   <br />
-                </div>
+                </Fragment>
               ))}
           </Tooltip>
         </TooltipTrigger>
