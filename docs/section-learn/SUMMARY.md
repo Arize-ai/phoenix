@@ -38,10 +38,10 @@
 * [LLM as a Judge](evaluation/llm-as-a-judge.md)
 * [Custom Task Evaluation](evaluation/custom-task-evaluation.md)
 
-## 🔍 Retrieval & Infrences
+## 🔍 Retrieval & Inferences
 
-* [Retrieval with Embeddings](retrieval-and-infrences/retrieval-with-embeddings.md)
-* [Benchmarking Retrieval](retrieval-and-infrences/benchmarking-retrieval.md)
+* [Retrieval with Embeddings](retrieval-and-inferences/retrieval-with-embeddings.md)
+* [Benchmarking Retrieval](retrieval-and-inferences/benchmarking-retrieval.md)
 
 ***
 
