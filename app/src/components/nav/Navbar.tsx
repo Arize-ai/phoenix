@@ -114,7 +114,7 @@ export function GitHubLink() {
       href="https://github.com/Arize-ai/phoenix"
       leadingVisual={<Icon svg={<Icons.GitHub />} />}
       trailingVisual={<GitHubStarCount />}
-      text="Star Phoenix"
+      text="Star on GitHub"
     />
   );
 }
