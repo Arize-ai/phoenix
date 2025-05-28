@@ -1,10 +1,10 @@
 # Mastra Tracing
 
-## Launch Phoenix
+### Launch Phoenix
 
-{% include "../../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
+{% include "../../.gitbook/includes/ts-launch-phoenix.md" %}
 
-## Setup
+### Setup
 
 **Install packages:**
 
@@ -15,159 +15,106 @@ npm install @arizeai/openinference-mastra
 Initialize OpenTelemetry tracing for your Mastra application:
 
 ```typescript
-import { NodeSDK } from '@opentelemetry/sdk-node';
-import { MastraInstrumentation } from '@arizeai/openinference-mastra';
-import { OTLPTraceExporter } from '@opentelemetry/exporter-otlp-proto';
-import { Resource } from '@opentelemetry/resources';
-import { SEMRESATTRS_SERVICE_NAME, SEMRESATTRS_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
+import { Mastra } from "@mastra/core";
+import {
+  OpenInferenceOTLPTraceExporter,
+  isOpenInferenceSpan,
+} from "@arizeai/openinference-mastra";
 
-const sdk = new NodeSDK({
-  resource: new Resource({
-    [SEMRESATTRS_SERVICE_NAME]: 'my-mastra-app',
-    [SEMRESATTRS_SERVICE_VERSION]: '1.0.0',
-  }),
-  traceExporter: new OTLPTraceExporter({
-    url: process.env.PHOENIX_COLLECTOR_ENDPOINT + '/v1/traces',
-    headers: process.env.PHOENIX_CLIENT_HEADERS ? 
-      { 'api_key': process.env.PHOENIX_API_KEY } : {},
-  }),
-  instrumentations: [new MastraInstrumentation()],
+export const mastra = new Mastra({
+  // ... other config
+  telemetry: {
+    serviceName: "openinference-mastra-agent", // you can rename this to whatever you want to appear in the Phoenix UI
+    enabled: true,
+    export: {
+      type: "custom",
+      exporter: new OpenInferenceOTLPTraceExporter({
+        url: process.env.PHOENIX_COLLECTOR_ENDPOINT,
+        headers: {
+          Authorization: `Bearer ${process.env.PHOENIX_API_KEY}`, // if you're self-hosting Phoenix without auth, you can remove this header
+        },
+        // optional: filter out http, and other node service specific spans
+        // they will still be exported to Mastra, but not to the target of
+        // this exporter
+        spanFilter: isOpenInferenceSpan,
+      }),
+    },
+  },
 });
-
-sdk.start();
 ```
-
-## Run Mastra
 
 From here you can use Mastra as normal. All agents, workflows, and tool calls will be automatically traced.
 
-### Basic Agent Example
+### Example Agent Walkthrough
 
-```typescript
-import { Agent } from 'mastra';
-import { openai } from 'mastra/llm';
+Here is a full project example to get you started:
 
-const agent = new Agent({
-  name: 'Assistant',
-  instructions: 'You are a helpful AI assistant.',
-  model: openai('gpt-4o-mini'),
-});
+#### Launch Phoenix using one of the methods above
 
-// This will be automatically traced
-const response = await agent.generate('What is the capital of France?');
-console.log(response);
+The rest of this tutorial will assume you are running Phoenix locally on the default `localhost:6006` port.
+
+#### Create a new Mastra project
+
+```bash
+npm create mastra@latest
+# answer the prompts, include agent, tools, and the example when asked
+
+cd chosen-project-name
+npm install --save @arizeai/openinference-mastra
 ```
 
-### Workflow Example
+#### Connect to Phoenix
+
+Add the OpenInference telemetry code to your `index.js` file. The complete file should now look like this:
 
 ```typescript
-import { Workflow, createStep } from 'mastra';
-import { openai } from 'mastra/llm';
+// chosen-project-name/src/index.ts
+import { Mastra } from "@mastra/core/mastra";
+import { createLogger } from "@mastra/core/logger";
+import { LibSQLStore } from "@mastra/libsql";
+import {
+  isOpenInferenceSpan,
+  OpenInferenceOTLPTraceExporter,
+} from "@arizeai/openinference-mastra";
 
-const workflow = new Workflow({
-  name: 'content-generation',
-});
+import { weatherAgent } from "./agents/weather-agent";
 
-const generateIdeas = createStep({
-  id: 'generate-ideas',
-  execute: async ({ input }) => {
-    const model = openai('gpt-4o-mini');
-    const result = await model.generate({
-      prompt: `Generate 3 creative ideas for: ${input.topic}`,
-    });
-    return { ideas: result.text };
-  },
-});
-
-const refineIdeas = createStep({
-  id: 'refine-ideas',
-  execute: async ({ input }) => {
-    const model = openai('gpt-4o-mini');
-    const result = await model.generate({
-      prompt: `Refine and expand on these ideas: ${input.ideas}`,
-    });
-    return { refinedIdeas: result.text };
-  },
-});
-
-workflow
-  .step(generateIdeas)
-  .then(refineIdeas)
-  .commit();
-
-// This workflow execution will be traced
-const run = await workflow.createRun();
-const result = await run.execute({ topic: 'sustainable technology' });
-```
-
-### Agent with Tools Example
-
-```typescript
-import { Agent, createTool } from 'mastra';
-import { openai } from 'mastra/llm';
-
-const weatherTool = createTool({
-  id: 'get-weather',
-  description: 'Get current weather for a location',
-  parameters: {
-    type: 'object',
-    properties: {
-      location: { type: 'string', description: 'The city name' },
+export const mastra = new Mastra({
+  agents: { weatherAgent },
+  storage: new LibSQLStore({
+    url: ":memory:",
+  }),
+  logger: createLogger({
+    name: "Mastra",
+    level: "info",
+  }),
+  telemetry: {
+    enabled: true,
+    serviceName: "weather-agent",
+    export: {
+      type: "custom",
+      exporter: new OpenInferenceOTLPTraceExporter({
+        url: process.env.PHOENIX_COLLECTOR_ENDPOINT,
+        headers: {
+          Authorization: `Bearer ${process.env.PHOENIX_API_KEY}`,
+        },
+        spanFilter: isOpenInferenceSpan,
+      }),
     },
-    required: ['location'],
-  },
-  execute: async ({ location }) => {
-    // Mock weather API call
-    return {
-      location,
-      temperature: '22°C',
-      condition: 'Sunny',
-    };
   },
 });
 
-const agent = new Agent({
-  name: 'Weather Assistant',
-  instructions: 'You help users get weather information.',
-  model: openai('gpt-4o-mini'),
-  tools: [weatherTool],
-});
-
-// Tool calls will be traced as part of the agent execution
-const response = await agent.generate('What\'s the weather like in Paris?');
 ```
 
-### RAG Example
+#### Run the Agent
 
-```typescript
-import { Agent, createVectorQueryTool } from 'mastra';
-import { openai } from 'mastra/llm';
-import { PineconeVector } from 'mastra/vector';
-
-const vectorStore = new PineconeVector({
-  apiKey: process.env.PINECONE_API_KEY!,
-  indexName: 'knowledge-base',
-});
-
-const queryTool = createVectorQueryTool({
-  vectorStore,
-  embeddingModel: openai('text-embedding-3-small'),
-});
-
-const ragAgent = new Agent({
-  name: 'Knowledge Assistant',
-  instructions: 'Answer questions using the provided knowledge base.',
-  model: openai('gpt-4o-mini'),
-  tools: [queryTool],
-});
-
-// RAG queries and responses will be traced
-const response = await ragAgent.generate('Tell me about machine learning');
+```bash
+npm run dev
 ```
 
-## Observe
+#### View your Traces in Phoenix
 
-Now that you have tracing setup, all invocations of your Mastra agents, workflows, tools, and LLM calls will be streamed to your running Phoenix for observability and evaluation.
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/mastra-traces.png" %}
 
 ### What Gets Traced
 
