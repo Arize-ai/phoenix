@@ -40,16 +40,13 @@
 
 ## 🔍 Retrieval & Inferences
 
-* [Retrieval with Embeddings](retrieval-and-inferences/retrieval-with-embeddings.md)
-* [Benchmarking Retrieval](retrieval-and-inferences/benchmarking-retrieval.md)
+* [Retrieval with Embeddings](retrieval-and-infrences/retrieval-with-embeddings.md)
+* [Benchmarking Retrieval](retrieval-and-infrences/benchmarking-retrieval.md)
 
 ***
 
 * [Retrieval Evals on Document Chunks](retrieval-evals-on-document-chunks.md)
-
-## 🌌 Inferences
-
-* [Inferences Concepts](inferences/inferences-concepts.md)
+* [Inferences Concepts](inferences-concepts.md)
 
 ## 📚 Resources
 
