@@ -256,7 +256,7 @@ async def test_span_search_annotation_filter(
 ) -> None:
     resp = await httpx_client.get(
         "v1/projects/search-test/spans/otlpv1",
-        params={"annotationNames": ["TestA"]},
+        params={"annotation_names": ["TestA"]},
     )
     assert resp.is_success
     data = resp.json()
