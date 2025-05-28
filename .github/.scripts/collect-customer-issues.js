@@ -13,7 +13,7 @@ function formatDateDifference(date) {
   const now = new Date();
   const millisecondsInADay = 1000 * 60 * 60 * 24;
   const daysDifference = Math.floor(
-    (now - new Date(date)) / millisecondsInADay,
+    (now - new Date(date)) / millisecondsInADay
   );
 
   if (daysDifference === 0) return "Today";
@@ -47,7 +47,7 @@ async function getParticipants(github, issue) {
     const participants = new Set(
       comments
         .map((comment) => comment.user.login)
-        .filter((username) => username !== issue.user.login), // Exclude the author
+        .filter((username) => username !== issue.user.login) // Exclude the author
     );
     return Array.from(participants).sort();
   } catch (error) {
@@ -76,7 +76,7 @@ function splitIssuesByStaleness(issues, stalenessThreshold) {
 
   issues.forEach((issue) => {
     const daysOld = Math.floor(
-      (now - new Date(issue.created_at)) / (1000 * 60 * 60 * 24),
+      (now - new Date(issue.created_at)) / (1000 * 60 * 60 * 24)
     );
     if (daysOld > stalenessThreshold) {
       staleIssues.push(issue);
@@ -106,8 +106,12 @@ function categorizeIssues(issues) {
 
 // Helper function to build a detailed description for each issue
 async function formatIssueLine(github, issue, index) {
-  let line = `${index + 1}. *<${issue.html_url}|#${issue.number}>:* ${issue.title}`;
-  line += ` (by ${createGithubLink(issue.user.login)}; ${formatDateDifference(issue.created_at)})`;
+  let line = `${index + 1}. *<${issue.html_url}|#${issue.number}>:* ${
+    issue.title
+  }`;
+  line += ` (by ${createGithubLink(issue.user.login)}; ${formatDateDifference(
+    issue.created_at
+  )})`;
 
   if (issue.comments > 0) {
     line += `; ${issue.comments} comment${issue.comments > 1 ? "s" : ""}`;
@@ -138,9 +142,7 @@ async function buildSlackMessage(github, issueGroups, lookbackDays) {
     if (issuesArray.length > 0) {
       messageLines.push(header); // Add the group header (e.g., "🐛 Bugs")
       const issueDescriptions = await Promise.all(
-        issuesArray.map((issue, index) =>
-          formatIssueLine(github, issue, index),
-        ),
+        issuesArray.map((issue, index) => formatIssueLine(github, issue, index))
       );
       messageLines.push(...issueDescriptions);
     }
@@ -155,7 +157,7 @@ module.exports = async ({ github, context, core }) => {
   const lookbackDays = parseInt(process.env.LOOKBACK_DAYS || "120", 10);
   const stalenessThreshold = parseInt(
     process.env.STALENESS_THRESHOLD_IN_DAYS || "14",
-    10,
+    10
   );
 
   const cutoffDate = new Date();
@@ -163,7 +165,7 @@ module.exports = async ({ github, context, core }) => {
 
   const issues = [];
   // Retrieve issues created within the specified lookback period
-  for (const repo of ["phoenix", "openinference"]) {
+  for (const repo of ["phoenix"]) {
     const repoIssues = await github.paginate(github.rest.issues.listForRepo, {
       owner: context.repo.owner,
       repo: repo,
@@ -185,7 +187,7 @@ module.exports = async ({ github, context, core }) => {
 
   const { staleIssues, freshIssues } = splitIssuesByStaleness(
     filteredIssues,
-    stalenessThreshold,
+    stalenessThreshold
   );
   const { bugIssues, enhancementIssues } = categorizeIssues(freshIssues);
 
