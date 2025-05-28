@@ -116,7 +116,7 @@ By default, notebook instances do not have persistent storage, so your traces wi
 ## Install
 
 ```bash
-pip install openinference-instrumentation-pydantic-ai pydantic-ai
+pip install openinference-instrumentation-pydantic-ai pydantic-ai opentelemetry-sdk opentelemetry-exporter-otlp opentelemetry-api
 ```
 
 ## Setup
@@ -124,6 +124,7 @@ pip install openinference-instrumentation-pydantic-ai pydantic-ai
 Set up tracing using OpenTelemetry and the PydanticAI instrumentation:
 
 ```python
+import os
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.trace import TracerProvider
@@ -135,7 +136,7 @@ tracer_provider = TracerProvider()
 trace.set_tracer_provider(tracer_provider)
 
 # Add the OpenInference span processor
-endpoint = f"{os.environ["PHOENIX_COLLECTOR_ENDPOINT"]}/v1/traces"
+endpoint = f"{os.environ['PHOENIX_COLLECTOR_ENDPOINT']}/v1/traces"
 exporter = OTLPSpanExporter(endpoint=endpoint)
 tracer_provider.add_span_processor(OpenInferenceSpanProcessor())
 tracer_provider.add_span_processor(SimpleSpanProcessor(exporter))
@@ -149,6 +150,8 @@ Here's a simple example using PydanticAI with automatic tracing:
 from pydantic import BaseModel
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIModel
+import nest_asyncio
+nest_asyncio.apply()
 
 # Set your OpenAI API key
 os.environ["OPENAI_API_KEY"] = "YOUR_OPENAI_API_KEY"
@@ -159,7 +162,7 @@ class LocationModel(BaseModel):
     country: str
 
 # Create and configure the agent
-model = OpenAIModel("gpt-4", provider=OpenAIProvider())
+model = OpenAIModel("gpt-4", provider='openai')
 agent = Agent(model, output_type=LocationModel, instrument=True)
 
 # Run the agent
@@ -208,105 +211,6 @@ async def get_weather_data(ctx: RunContext[None], location: str) -> str:
 # Run the agent with tool usage
 result = weather_agent.run_sync("What's the weather like in Paris?")
 print(result)
-```
-
-### Multi-Step Agent Workflow
-
-```python
-from pydantic import BaseModel
-from pydantic_ai import Agent
-from pydantic_ai.models.openai import OpenAIModel
-from typing import List
-
-class ResearchSummary(BaseModel):
-    topic: str
-    key_findings: List[str]
-    sources: List[str]
-    confidence_score: float
-
-class TaskPlan(BaseModel):
-    steps: List[str]
-    estimated_time: str
-    required_tools: List[str]
-
-# Planning agent
-planning_agent = Agent(
-    model=OpenAIModel("gpt-4"),
-    output_type=TaskPlan,
-    system_prompt="You are a research planning assistant. Create detailed research plans.",
-    instrument=True
-)
-
-# Research agent
-research_agent = Agent(
-    model=OpenAIModel("gpt-4"),
-    output_type=ResearchSummary,
-    system_prompt="You are a research assistant. Provide comprehensive research summaries.",
-    instrument=True
-)
-
-# Multi-step workflow
-def research_workflow(topic: str) -> ResearchSummary:
-    # Step 1: Plan the research
-    plan = planning_agent.run_sync(f"Create a research plan for: {topic}")
-    print(f"Research plan: {plan.steps}")
-    
-    # Step 2: Execute the research
-    research_context = f"Following this plan: {plan.steps}, research the topic: {topic}"
-    summary = research_agent.run_sync(research_context)
-    
-    return summary
-
-# Execute workflow - all agent interactions will be traced
-result = research_workflow("Impact of AI on software development")
-print(f"Research Summary: {result.topic}")
-print(f"Key Findings: {result.key_findings}")
-```
-
-### Agent with Streaming and Async
-
-```python
-import asyncio
-from pydantic import BaseModel
-from pydantic_ai import Agent
-from pydantic_ai.models.openai import OpenAIModel
-
-class StoryOutline(BaseModel):
-    title: str
-    characters: List[str]
-    plot_points: List[str]
-    genre: str
-
-# Async agent for streaming responses
-story_agent = Agent(
-    model=OpenAIModel("gpt-4"),
-    output_type=StoryOutline,
-    system_prompt="You are a creative writing assistant. Generate engaging story outlines.",
-    instrument=True
-)
-
-async def generate_story_async(prompt: str):
-    # Async execution with automatic tracing
-    result = await story_agent.run(prompt)
-    return result
-
-# Stream responses for real-time feedback
-async def stream_story_generation(prompt: str):
-    async with story_agent.run_stream(prompt) as stream:
-        async for chunk in stream:
-            print(f"Streaming: {chunk}")
-        final_result = await stream.get_data()
-        return final_result
-
-# Run async workflow
-async def main():
-    story = await generate_story_async(
-        "Create a sci-fi story about AI and human collaboration"
-    )
-    print(f"Generated story: {story.title}")
-
-# Execute
-asyncio.run(main())
 ```
 
 ## Observe
