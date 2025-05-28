@@ -1830,7 +1830,7 @@
             "description": "Exclusive upper bound time"
           },
           {
-            "name": "annotationNames",
+            "name": "annotation_names",
             "in": "query",
             "required": false,
             "schema": {
@@ -1846,7 +1846,7 @@
                 }
               ],
               "description": "If provided, only include spans that have at least one annotation with one of these names.",
-              "title": "Annotationnames"
+              "title": "Annotation Names"
             },
             "description": "If provided, only include spans that have at least one annotation with one of these names."
           }
