@@ -1,4 +1,6 @@
-import { Dialog, LinkButton } from "@phoenix/components";
+import { Suspense } from "react";
+
+import { Dialog, LinkButton, Loading } from "@phoenix/components";
 import {
   DialogCloseButton,
   DialogContent,
@@ -33,7 +35,9 @@ export function PlaygroundRunTraceDetailsDialog({
               <DialogCloseButton close={close} />
             </DialogTitleExtra>
           </DialogHeader>
-          <TraceDetails traceId={traceId} projectId={projectId} />
+          <Suspense fallback={<Loading />}>
+            <TraceDetails traceId={traceId} projectId={projectId} />
+          </Suspense>
         </DialogContent>
       )}
     </Dialog>

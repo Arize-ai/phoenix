@@ -3,6 +3,7 @@ import React, {
   PropsWithChildren,
   ReactNode,
   startTransition,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -37,10 +38,12 @@ import { DialogContainer, Tooltip, TooltipTrigger } from "@arizeai/components";
 
 import {
   Button,
+  DialogTrigger,
   Flex,
   Icon,
   Icons,
   Loading,
+  Modal,
   Text,
   View,
 } from "@phoenix/components";
@@ -292,25 +295,20 @@ function ExampleOutputContent({
           )}
           {hasSpan && (
             <>
-              <TooltipTrigger>
+              <DialogTrigger>
                 <Button
                   size="S"
                   aria-label="View run trace"
                   leadingVisual={<Icon svg={<Icons.Trace />} />}
-                  onPress={() => {
-                    startTransition(() => {
-                      setDialog(
-                        <PlaygroundRunTraceDetailsDialog
-                          traceId={span.context.traceId}
-                          projectId={span.project.id}
-                          title={`Experiment Run Trace`}
-                        />
-                      );
-                    });
-                  }}
                 />
-                <Tooltip>View Trace</Tooltip>
-              </TooltipTrigger>
+                <Modal size="fullscreen" variant="slideover">
+                  <PlaygroundRunTraceDetailsDialog
+                    traceId={span.context.traceId}
+                    projectId={span.project.id}
+                    title={`Experiment Run Trace`}
+                  />
+                </Modal>
+              </DialogTrigger>
             </>
           )}
         </>
