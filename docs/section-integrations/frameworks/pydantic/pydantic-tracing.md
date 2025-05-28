@@ -124,8 +124,21 @@ pip install openinference-instrumentation-pydantic-ai pydantic-ai
 Set up tracing using OpenTelemetry and the PydanticAI instrumentation:
 
 ```python
-# Add the PydanticAI instrumentor
-PydanticAIInstrumentor().instrument(tracer_provider=tracer_provider)
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace import TracerProvider
+from openinference.instrumentation.pydantic_ai import OpenInferenceSpanProcessor
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+
+# Set up the tracer provider
+tracer_provider = TracerProvider()
+trace.set_tracer_provider(tracer_provider)
+
+# Add the OpenInference span processor
+endpoint = f"{os.environ["PHOENIX_COLLECTOR_ENDPOINT"]}/v1/traces"
+exporter = OTLPSpanExporter(endpoint=endpoint)
+tracer_provider.add_span_processor(OpenInferenceSpanProcessor())
+tracer_provider.add_span_processor(SimpleSpanProcessor(exporter))
 ```
 
 ## Basic Usage
@@ -140,24 +153,18 @@ from pydantic_ai.models.openai import OpenAIModel
 # Set your OpenAI API key
 os.environ["OPENAI_API_KEY"] = "YOUR_OPENAI_API_KEY"
 
-# Define your Pydantic model for structured output
-class LocationInfo(BaseModel):
+# Define your Pydantic model
+class LocationModel(BaseModel):
     city: str
     country: str
-    confidence: float
 
-# Create and configure the agent with instrumentation enabled
-model = OpenAIModel("gpt-4")
-agent = Agent(
-    model=model, 
-    output_type=LocationInfo,
-    instrument=True  # Enable built-in tracing
-)
+# Create and configure the agent
+model = OpenAIModel("gpt-4", provider=OpenAIProvider())
+agent = Agent(model, output_type=LocationModel, instrument=True)
 
-# Run the agent - this will be automatically traced
+# Run the agent
 result = agent.run_sync("The windy city in the US of A.")
-print(f"Location: {result.city}, {result.country}")
-print(f"Confidence: {result.confidence}")
+print(result)
 ```
 
 ## Advanced Usage
@@ -317,6 +324,5 @@ The traces will provide detailed insights into your AI agent behaviors, making i
 
 ## Resources
 
-* [PydanticAI Documentation](https://ai.pydantic.dev/)
 * [OpenInference PydanticAI package](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-pydantic-ai)
 * [PydanticAI Examples](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-pydantic-ai/examples)
