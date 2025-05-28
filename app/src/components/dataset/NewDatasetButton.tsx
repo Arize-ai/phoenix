@@ -1,8 +1,17 @@
 import { useState } from "react";
+import { css } from "@emotion/react";
 
-import { Card, PopoverTrigger, TriggerWrap } from "@arizeai/components";
+import { Card } from "@arizeai/components";
 
-import { Alert, Button, Icon, Icons, View } from "@phoenix/components";
+import {
+  Alert,
+  Button,
+  DialogTrigger,
+  Icon,
+  Icons,
+  Popover,
+  View,
+} from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -17,52 +26,56 @@ export function NewDatasetButton({
   const [isOpen, setIsOpen] = useState(false);
   const notifySuccess = useNotifySuccess();
   return (
-    <PopoverTrigger
-      placement="bottom right"
+    <DialogTrigger
       isOpen={isOpen}
       onOpenChange={(isOpen) => {
         setError(null);
         setIsOpen(isOpen);
       }}
     >
-      <TriggerWrap>
-        <Button
-          variant="default"
-          leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
-          aria-label="Create a new dataset"
-          onPress={() => {
-            setError(null);
-            setIsOpen(true);
-          }}
-        />
-      </TriggerWrap>
-      <Card
-        title="Create New Dataset"
-        bodyStyle={{ padding: 0 }}
-        variant="compact"
-        borderColor="light"
-        backgroundColor="light"
+      <Button
+        variant="default"
+        leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
+        aria-label="Create a new dataset"
+        onPress={() => {
+          setError(null);
+          setIsOpen(true);
+        }}
+      />
+      <Popover
+        placement="bottom right"
+        css={css`
+          border: none;
+        `}
       >
-        <View width="500px">
-          {error ? <Alert variant="danger">{error}</Alert> : null}
-          <CreateDatasetForm
-            onDatasetCreateError={(error) => {
-              const formattedError =
-                getErrorMessagesFromRelayMutationError(error);
-              setError(formattedError?.[0] ?? error.message);
-            }}
-            onDatasetCreated={({ id, name }) => {
-              setError(null);
-              setIsOpen(false);
-              notifySuccess({
-                title: `Dataset Created`,
-                message: `Dataset "${name}" created successfully`,
-              });
-              onDatasetCreated && onDatasetCreated(id);
-            }}
-          />
-        </View>
-      </Card>
-    </PopoverTrigger>
+        <Card
+          title="Create New Dataset"
+          bodyStyle={{ padding: 0 }}
+          variant="compact"
+          borderColor="light"
+          backgroundColor="light"
+        >
+          <View width="500px">
+            {error ? <Alert variant="danger">{error}</Alert> : null}
+            <CreateDatasetForm
+              onDatasetCreateError={(error) => {
+                const formattedError =
+                  getErrorMessagesFromRelayMutationError(error);
+                setError(formattedError?.[0] ?? error.message);
+              }}
+              onDatasetCreated={({ id, name }) => {
+                setError(null);
+                setIsOpen(false);
+                onDatasetCreated && onDatasetCreated(id);
+                notifySuccess({
+                  title: `Dataset Created`,
+                  message: `Dataset "${name}" created successfully`,
+                });
+              }}
+            />
+          </View>
+        </Card>
+      </Popover>
+    </DialogTrigger>
   );
 }

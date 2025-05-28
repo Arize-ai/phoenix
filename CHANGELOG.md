@@ -1,5 +1,41 @@
 # Changelog
 
+## [10.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.0.4...arize-phoenix-v10.1.0) (2025-05-28)
+
+
+### Features
+
+* **cost:** display audio, cache read, and cache write tokens on span token tooltip ([#7671](https://github.com/Arize-ai/phoenix/issues/7671)) ([6b605e8](https://github.com/Arize-ai/phoenix/commit/6b605e8d9e256a742bb90b82453d96d1bf70d948))
+* Port modal / slideover to react-aria-components ([#7662](https://github.com/Arize-ai/phoenix/issues/7662)) ([ddb7dac](https://github.com/Arize-ai/phoenix/commit/ddb7dac4bd9275e2df7610f54c990dae31620beb))
+* Replace "my annotations" with Annotation Summaries ([#7663](https://github.com/Arize-ai/phoenix/issues/7663)) ([42c87e1](https://github.com/Arize-ai/phoenix/commit/42c87e1cfddf02cbe3418673d7c48b329e4a1601))
+* span search route ([#7462](https://github.com/Arize-ai/phoenix/issues/7462)) ([5f807cd](https://github.com/Arize-ai/phoenix/commit/5f807cd9870b2d80ca442b2008306b8f10a36483))
+
+
+### Bug Fixes
+
+* bump evals and otel deps ([#7701](https://github.com/Arize-ai/phoenix/issues/7701)) ([4b62577](https://github.com/Arize-ai/phoenix/commit/4b625779a35acd1b0bbb096f88a3e6fdd68f6163))
+
+## [10.0.4](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.0.3...arize-phoenix-v10.0.4) (2025-05-22)
+
+
+### Bug Fixes
+
+* Protect against experiment run creation race conditions and conflict errors ([#7657](https://github.com/Arize-ai/phoenix/issues/7657)) ([417e283](https://github.com/Arize-ai/phoenix/commit/417e283307957df9d3e2e47391ac7c0569b3f5d2))
+
+## [10.0.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.0.2...arize-phoenix-v10.0.3) (2025-05-22)
+
+
+### Bug Fixes
+
+* update strawberry to fix multipart subscription ([#7677](https://github.com/Arize-ai/phoenix/issues/7677)) ([5e57bf8](https://github.com/Arize-ai/phoenix/commit/5e57bf8df7aa1605850d97aa8693a1f67d1f0d26))
+
+## [10.0.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.0.1...arize-phoenix-v10.0.2) (2025-05-22)
+
+
+### Bug Fixes
+
+* increase prompt fetch limit to 200 and update component to be scrollable ([#7666](https://github.com/Arize-ai/phoenix/issues/7666)) ([7478983](https://github.com/Arize-ai/phoenix/commit/74789833e858499368eafe61fdae7b41e0d244a3))
+
 ## [10.0.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.0.0...arize-phoenix-v10.0.1) (2025-05-21)
 
 

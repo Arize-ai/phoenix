@@ -1,12 +1,5 @@
-import {
-  PropsWithChildren,
-  ReactNode,
-  Suspense,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { PropsWithChildren, ReactNode, Suspense, useMemo, useRef } from "react";
+import { Popover as NonAnimatedPopover } from "react-aria-components";
 import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
@@ -29,7 +22,6 @@ import {
   CardProps,
   Content,
   ContextualHelp,
-  DialogContainer,
   EmptyGraphic,
   List,
   ListItem,
@@ -51,6 +43,7 @@ import {
   Button,
   CopyToClipboardButton,
   Counter,
+  DialogTrigger,
   Disclosure,
   DisclosureGroup,
   DisclosurePanel,
@@ -64,6 +57,8 @@ import {
   Keyboard,
   LazyTabPanel,
   LinkButton,
+  Loading,
+  Modal,
   Tab,
   TabList,
   Tabs,
@@ -87,7 +82,6 @@ import {
   usePreferencesContext,
   useTheme,
 } from "@phoenix/contexts";
-import { useViewer } from "@phoenix/contexts/ViewerContext";
 import { useDimensions } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
@@ -189,10 +183,9 @@ export function SpanDetails({
     ? spanDetailsContainerDimensions.width <
       CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD
     : true;
-  const { viewer } = useViewer();
   const { span } = useLazyLoadQuery<SpanDetailsQuery>(
     graphql`
-      query SpanDetailsQuery($id: ID!, $filterUserIds: [ID]) {
+      query SpanDetailsQuery($id: ID!) {
         span: node(id: $id) {
           __typename
           ... on Span {
@@ -246,14 +239,13 @@ export function SpanDetails({
             }
             ...SpanHeader_span
             ...SpanFeedback_annotations
-            ...SpanAside_span @arguments(filterUserIds: $filterUserIds)
+            ...SpanAside_span
           }
         }
       }
     `,
     {
       id: spanNodeId,
-      filterUserIds: viewer ? [viewer.id] : [null],
     }
   );
 
@@ -448,49 +440,39 @@ function AddSpanToDatasetButton({
   span: Span;
   buttonText: string | null;
 }) {
-  const [dialog, setDialog] = useState<ReactNode>(null);
   const notifySuccess = useNotifySuccess();
   const navigate = useNavigate();
-  const onAddSpanToDataset = useCallback(() => {
-    setDialog(
-      <SpanToDatasetExampleDialog
-        spanId={span.id}
-        onCompleted={(datasetId) => {
-          setDialog(null);
-          notifySuccess({
-            title: "Span Added to Dataset",
-            message: "Successfully added span to dataset",
-            action: {
-              text: "View Dataset",
-              onClick: () => {
-                navigate(`/datasets/${datasetId}/examples`);
-              },
-            },
-          });
-        }}
-      />
-    );
-  }, [span.id, notifySuccess, navigate]);
   return (
-    <>
+    <DialogTrigger>
       <Button
         variant="default"
         size="S"
         leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
-        onPress={onAddSpanToDataset}
       >
         {buttonText}
       </Button>
-      <Suspense>
-        <DialogContainer
-          type="slideOver"
-          isDismissable
-          onDismiss={() => setDialog(null)}
-        >
-          {dialog}
-        </DialogContainer>
-      </Suspense>
-    </>
+      <NonAnimatedPopover>
+        <Modal variant="slideover" size="L">
+          <Suspense fallback={<Loading />}>
+            <SpanToDatasetExampleDialog
+              spanId={span.id}
+              onCompleted={(datasetId) => {
+                notifySuccess({
+                  title: "Span Added to Dataset",
+                  message: "Successfully added span to dataset",
+                  action: {
+                    text: "View Dataset",
+                    onClick: () => {
+                      navigate(`/datasets/${datasetId}/examples`);
+                    },
+                  },
+                });
+              }}
+            />
+          </Suspense>
+        </Modal>
+      </NonAnimatedPopover>
+    </DialogTrigger>
   );
 }
 

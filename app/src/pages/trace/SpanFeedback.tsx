@@ -147,8 +147,6 @@ function SpanAnnotationsTable({
         cell: ({ row }) => {
           return (
             <SpanAnnotationActionMenu
-              buttonVariant="default"
-              buttonSize="compact"
               annotationId={row.original.id}
               spanNodeId={row.original.spanNodeId}
               annotationName={row.original.name}
