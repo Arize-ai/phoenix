@@ -457,7 +457,6 @@ async def test_post_dataset_upload_json_create_then_append(
     assert (dataset_id := data.get("dataset_id"))
     assert "version_id" in data
     version_id_str = data["version_id"]
-    assert GlobalID.is_valid(version_id_str)
     version_global_id = GlobalID.from_id(version_id_str)
     assert version_global_id.type_name == "DatasetVersion"
     del response, data
@@ -476,7 +475,6 @@ async def test_post_dataset_upload_json_create_then_append(
     assert dataset_id == data.get("dataset_id")
     assert "version_id" in data
     version_id_str = data["version_id"]
-    assert GlobalID.is_valid(version_id_str)
     version_global_id = GlobalID.from_id(version_id_str)
     assert version_global_id.type_name == "DatasetVersion"
     async with db() as session:
@@ -525,7 +523,6 @@ async def test_post_dataset_upload_csv_create_then_append(
     assert (dataset_id := data.get("dataset_id"))
     assert "version_id" in data
     version_id_str = data["version_id"]
-    assert GlobalID.is_valid(version_id_str)
     version_global_id = GlobalID.from_id(version_id_str)
     assert version_global_id.type_name == "DatasetVersion"
     del response, file, data
@@ -546,7 +543,6 @@ async def test_post_dataset_upload_csv_create_then_append(
     assert dataset_id == data.get("dataset_id")
     assert "version_id" in data
     version_id_str = data["version_id"]
-    assert GlobalID.is_valid(version_id_str)
     version_global_id = GlobalID.from_id(version_id_str)
     assert version_global_id.type_name == "DatasetVersion"
     async with db() as session:
@@ -600,7 +596,6 @@ async def test_post_dataset_upload_pyarrow_create_then_append(
     assert (dataset_id := data.get("dataset_id"))
     assert "version_id" in data
     version_id_str = data["version_id"]
-    assert GlobalID.is_valid(version_id_str)
     version_global_id = GlobalID.from_id(version_id_str)
     assert version_global_id.type_name == "DatasetVersion"
     del response, file, data, df, table, sink
@@ -626,7 +621,6 @@ async def test_post_dataset_upload_pyarrow_create_then_append(
     assert dataset_id == data.get("dataset_id")
     assert "version_id" in data
     version_id_str = data["version_id"]
-    assert GlobalID.is_valid(version_id_str)
     version_global_id = GlobalID.from_id(version_id_str)
     assert version_global_id.type_name == "DatasetVersion"
     async with db() as session:
