@@ -1,11 +1,31 @@
 import { createClient } from "../client";
 import { ClientFn } from "../types/core";
-import { SpanSearchParams, SpanSearchResponse } from "./types";
+import { components } from "../__generated__/api/v1";
 
 /**
  * Parameters to get spans from a project
  */
-interface GetSpansParams extends ClientFn, SpanSearchParams {}
+interface GetSpansParams extends ClientFn {
+  /** The project identifier: either project ID or project name */
+  projectIdentifier: string;
+  /** Pagination cursor (GlobalID of Span) */
+  cursor?: string;
+  /** Maximum number of spans to return (1-1000) */
+  limit?: number;
+  /** Sort direction for the sort field */
+  sortDirection?: "asc" | "desc";
+  /** Inclusive lower bound time */
+  startTime?: Date | string;
+  /** Exclusive upper bound time */
+  endTime?: Date | string;
+  /** If provided, only include spans that have at least one annotation with one of these names */
+  annotationNames?: string[];
+}
+
+/**
+ * Response type for span search using auto-generated types
+ */
+type SpanSearchResponse = components["schemas"]["SpanSearchResponseBody"];
 
 /**
  * Get spans from a project with filtering criteria.
@@ -21,6 +41,7 @@ interface GetSpansParams extends ClientFn, SpanSearchParams {}
  * ```ts
  * // Get recent spans from a project
  * const result = await getSpans({
+ *   client,
  *   projectIdentifier: "my-project",
  *   limit: 50,
  *   sortDirection: "desc"
@@ -28,6 +49,7 @@ interface GetSpansParams extends ClientFn, SpanSearchParams {}
  *
  * // Get spans with specific annotations in a time range
  * const result = await getSpans({
+ *   client,
  *   projectIdentifier: "my-project",
  *   startTime: new Date("2024-01-01"),
  *   endTime: new Date("2024-01-02"),
@@ -39,6 +61,7 @@ interface GetSpansParams extends ClientFn, SpanSearchParams {}
  * let cursor: string | undefined;
  * do {
  *   const result = await getSpans({
+ *     client,
  *     projectIdentifier: "my-project",
  *     cursor,
  *     limit: 100
