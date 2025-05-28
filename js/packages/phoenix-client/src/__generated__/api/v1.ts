@@ -1827,6 +1827,8 @@ export interface components {
         UploadDatasetData: {
             /** Dataset Id */
             dataset_id: string;
+            /** Version Id */
+            version_id: string;
         };
         /** UploadDatasetResponseBody */
         UploadDatasetResponseBody: {

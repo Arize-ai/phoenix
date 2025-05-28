@@ -6369,11 +6369,16 @@
           "dataset_id": {
             "type": "string",
             "title": "Dataset Id"
+          },
+          "version_id": {
+            "type": "string",
+            "title": "Version Id"
           }
         },
         "type": "object",
         "required": [
-          "dataset_id"
+          "dataset_id",
+          "version_id"
         ],
         "title": "UploadDatasetData"
       },
