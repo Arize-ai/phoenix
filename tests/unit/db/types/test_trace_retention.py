@@ -69,6 +69,19 @@ class TestMaxCountMixin:
         with nullcontext() if is_valid else pytest.raises(ValidationError):
             _MaxCount(max_count=max_count)
 
+    @pytest.mark.parametrize(
+        "max_count,expected",
+        [
+            pytest.param(0, "false", id="zero_count"),
+        ],
+    )
+    def test_filter(self, max_count: int, expected: str) -> None:
+        """Test that max_count_filter generates correct SQL query."""
+        rule: _MaxCount = _MaxCount(max_count=max_count)
+        actual = str(rule.max_count_filter.compile(compile_kwargs={"literal_binds": True}))
+        actual = " ".join(actual.split())
+        assert actual == expected
+
 
 class TestTraceRetentionRuleMaxDays:
     async def test_delete_traces(self, db: DbSessionFactory) -> None:
