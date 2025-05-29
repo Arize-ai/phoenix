@@ -848,7 +848,9 @@ async def span_search_phoenix(
                     )
                 )
 
-        attributes = {k: v for k, v in flatten(span_orm.attributes or dict())}
+        attributes = {
+            k: v for k, v in flatten(span_orm.attributes or dict(), recurse_on_sequence=True)
+        }
         openinference_span_kind = attributes.pop("openinference.span.kind", "UNKNOWN")
 
         result_spans.append(
@@ -865,7 +867,7 @@ async def span_search_phoenix(
                 end_time=normalize_datetime(span_orm.end_time, timezone.utc),
                 status_code=span_orm.status_code,
                 status_message=span_orm.status_message or "",
-                attributes=span_orm.attributes,
+                attributes=attributes,
                 events=events,
             )
         )

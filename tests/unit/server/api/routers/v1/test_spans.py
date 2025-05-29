@@ -13,7 +13,12 @@ from phoenix import Client as LegacyClient
 from phoenix import TraceDataset
 from phoenix.client import Client
 from phoenix.db import models
-from phoenix.server.api.routers.v1.spans import OtlpAnyValue, OtlpSpan, OtlpStatus, Span, SpanContext, SpanEvent
+from phoenix.server.api.routers.v1.spans import (
+    OtlpAnyValue,
+    OtlpSpan,
+    OtlpStatus,
+    Span,
+)
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanQuery
 
@@ -229,6 +234,50 @@ async def span_search_test_data(db: DbSessionFactory) -> None:
             )
 
 
+@pytest.fixture
+async def project_with_nested_attributes(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project_row_id = await session.scalar(
+            insert(models.Project).values(name="nested-attrs").returning(models.Project.id)
+        )
+        trace_id = await session.scalar(
+            insert(models.Trace)
+            .values(
+                trace_id="nested123",
+                project_rowid=project_row_id,
+                start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
+            )
+            .returning(models.Trace.id)
+        )
+        await session.execute(
+            insert(models.Span).values(
+                trace_rowid=trace_id,
+                span_id="6e657374656473706e",  # hex-encoded "nestedspn" -> base64 compatible
+                parent_id=None,
+                name="nested span",
+                span_kind="CHAIN",
+                start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:00:30.000+00:00"),
+                attributes={
+                    "simple": "value",
+                    "nested": {"key": "nested_value", "deep": {"deeper": "deepest"}},
+                    "array": [1, 2, 3],
+                    "mixed": {"numbers": [10, 20], "text": "hello"},
+                    "openinference": {"span": {"kind": "LLM"}},
+                },
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+        )
+
+
 async def test_otlp_span_search_basic(
     httpx_client: httpx.AsyncClient, span_search_test_data: None
 ) -> None:
@@ -431,6 +480,43 @@ async def test_otlp_span_events_conversion(
     assert float_attr.value.double_value == 3.14
 
 
+async def test_otlp_attribute_flattening(
+    httpx_client: httpx.AsyncClient, project_with_nested_attributes: None
+) -> None:
+    resp = await httpx_client.get("v1/projects/nested-attrs/spans/otlpv1")
+    assert resp.is_success
+    data = resp.json()
+    spans = [OtlpSpan.model_validate(s) for s in data["data"]]
+    assert len(spans) == 1
+
+    span = spans[0]
+    attr_dict = {attr.key: attr.value for attr in span.attributes}
+
+    assert "simple" in attr_dict
+    assert "nested.key" in attr_dict
+    assert "nested.deep.deeper" in attr_dict
+    assert "mixed.text" in attr_dict
+
+    assert "array" in attr_dict
+    assert "mixed.numbers" in attr_dict
+
+    assert attr_dict["simple"].string_value == "value"
+    assert attr_dict["nested.key"].string_value == "nested_value"
+    assert attr_dict["nested.deep.deeper"].string_value == "deepest"
+    assert attr_dict["mixed.text"].string_value == "hello"
+
+    assert attr_dict["array"].array_value is not None
+    assert len(attr_dict["array"].array_value.values) == 3
+    assert attr_dict["array"].array_value.values[0].int_value == 1
+    assert attr_dict["array"].array_value.values[1].int_value == 2
+    assert attr_dict["array"].array_value.values[2].int_value == 3
+
+    assert attr_dict["mixed.numbers"].array_value is not None
+    assert len(attr_dict["mixed.numbers"].array_value.values) == 2
+    assert attr_dict["mixed.numbers"].array_value.values[0].int_value == 10
+    assert attr_dict["mixed.numbers"].array_value.values[1].int_value == 20
+
+
 async def test_span_search_basic(
     httpx_client: httpx.AsyncClient, span_search_test_data: None
 ) -> None:
@@ -557,10 +643,10 @@ async def test_span_attributes_conversion(
     assert len(spans) == 1
 
     span = spans[0]
-    assert "input" in span.attributes
-    assert "output" in span.attributes
-    assert span.attributes["input"]["value"] == "chain-span-input-value"
-    assert span.attributes["output"]["value"] == "chain-span-output-value"
+    assert "input.value" in span.attributes
+    assert "output.value" in span.attributes
+    assert span.attributes["input.value"] == "chain-span-input-value"
+    assert span.attributes["output.value"] == "chain-span-output-value"
 
 
 async def test_span_events_conversion(
@@ -583,3 +669,46 @@ async def test_span_events_conversion(
     assert event.attributes["bool_attr"] is True
     assert event.attributes["int_attr"] == 42
     assert event.attributes["float_attr"] == 3.14
+
+
+async def test_phoenix_attribute_flattening(
+    httpx_client: httpx.AsyncClient, project_with_nested_attributes: None
+) -> None:
+    resp = await httpx_client.get("v1/projects/nested-attrs/spans")
+    assert resp.is_success
+    data = resp.json()
+    spans = [Span.model_validate(s) for s in data["data"]]
+    assert len(spans) == 1
+
+    span = spans[0]
+
+    assert "simple" in span.attributes
+    assert "nested.key" in span.attributes
+    assert "nested.deep.deeper" in span.attributes
+    assert "mixed.text" in span.attributes
+
+    assert "array" in span.attributes
+    assert "mixed.numbers" in span.attributes
+
+    # Verify values
+    assert span.attributes["simple"] == "value"
+    assert span.attributes["nested.key"] == "nested_value"
+    assert span.attributes["nested.deep.deeper"] == "deepest"
+    assert span.attributes["mixed.text"] == "hello"
+
+    assert span.attributes["array"] == [1, 2, 3]
+    assert span.attributes["mixed.numbers"] == [10, 20]
+
+
+async def test_phoenix_openinference_span_kind_extraction(
+    httpx_client: httpx.AsyncClient, project_with_nested_attributes: None
+) -> None:
+    resp = await httpx_client.get("v1/projects/nested-attrs/spans")
+    assert resp.is_success
+    data = resp.json()
+    spans = [Span.model_validate(s) for s in data["data"]]
+    assert len(spans) == 1
+
+    span = spans[0]
+    assert span.span_kind == "LLM"
+    assert "openinference.span.kind" not in span.attributes
