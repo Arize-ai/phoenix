@@ -1,5 +1,12 @@
 # Changelog
 
+## [10.2.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.2.0...arize-phoenix-v10.2.1) (2025-05-29)
+
+
+### Bug Fixes
+
+* typo in deepseek error message for missing api key ([#7771](https://github.com/Arize-ai/phoenix/issues/7771)) ([982e9e5](https://github.com/Arize-ai/phoenix/commit/982e9e5eed52817ec5c93ee8e256d1ebce7970a4))
+
 ## [10.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.1.0...arize-phoenix-v10.2.0) (2025-05-29)
 
 
