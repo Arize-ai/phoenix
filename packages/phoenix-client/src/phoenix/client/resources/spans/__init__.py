@@ -2,7 +2,7 @@ import base64
 import logging
 from datetime import datetime, timezone, tzinfo
 from io import StringIO
-from typing import TYPE_CHECKING, Any, Iterable, Literal, Optional, Sequence, Union, cast
+from typing import TYPE_CHECKING, Iterable, Literal, Optional, Sequence, Union, cast
 
 import httpx
 
@@ -10,10 +10,7 @@ if TYPE_CHECKING:
     import pandas as pd
 
 from phoenix.client.__generated__ import v1
-from phoenix.client.types.spans import (
-    SpanQuery,
-    convert_otlp_span_to_span,
-)
+from phoenix.client.types.spans import SpanQuery
 
 logger = logging.getLogger(__name__)
 
@@ -206,7 +203,11 @@ class Spans:
             span_ids_list = list({*span_ids})
         else:
             assert spans is not None
-            _span_ids = [span["context"]["span_id"] for span in spans if span.get("context", {}).get("span_id")]
+            _span_ids = [
+                span["context"]["span_id"]
+                for span in spans
+                if span.get("context", {}).get("span_id")
+            ]
             span_ids_list = list(set(s for s in _span_ids if isinstance(s, str) and s))
 
         if not span_ids_list:
@@ -304,7 +305,11 @@ class Spans:
             span_ids_list = list({*span_ids})
         else:  # spans is not None
             assert spans is not None
-            _span_ids = [span["context"]["span_id"] for span in spans if span.get("context", {}).get("span_id")]
+            _span_ids = [
+                span["context"]["span_id"]
+                for span in spans
+                if span.get("context", {}).get("span_id")
+            ]
             span_ids_list = list(set(s for s in _span_ids if isinstance(s, str) and s))
 
         if not span_ids_list:
@@ -599,7 +604,11 @@ class AsyncSpans:
             span_ids_list = list({*span_ids})
         else:  # spans is not None
             assert spans is not None
-            _span_ids = [span["context"]["span_id"] for span in spans if span.get("context", {}).get("span_id")]
+            _span_ids = [
+                span["context"]["span_id"]
+                for span in spans
+                if span.get("context", {}).get("span_id")
+            ]
             span_ids_list = list(set(s for s in _span_ids if isinstance(s, str) and s))
 
         if not span_ids_list:
@@ -697,7 +706,11 @@ class AsyncSpans:
             span_ids_list = list({*span_ids})
         else:  # spans is not None
             assert spans is not None
-            _span_ids = [span["context"]["span_id"] for span in spans if span.get("context", {}).get("span_id")]
+            _span_ids = [
+                span["context"]["span_id"]
+                for span in spans
+                if span.get("context", {}).get("span_id")
+            ]
             span_ids_list = list(set(s for s in _span_ids if isinstance(s, str) and s))
 
         if not span_ids_list:
