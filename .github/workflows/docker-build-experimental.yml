@@ -34,6 +34,13 @@ jobs:
         run: |
           # Push the chart to Docker Hub as an OCI artifact
           helm push phoenix-helm-*.tgz oci://registry-1.docker.io/${{ env.REGISTRY }}
+      - name: Docker Hub Description
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          repository: ${{ env.REGISTRY }}/phoenix-helm
+          readme-filepath: ./README.md
  
   push_to_registry:
     name: Push experimental Docker image to Docker Hub
