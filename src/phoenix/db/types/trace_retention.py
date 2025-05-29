@@ -79,20 +79,10 @@ class MaxCountRule(_MaxCount, BaseModel):
             return set()
         from phoenix.db.models import Trace
 
-        # Build a project-scoped max_count filter
-        project_scoped_max_count_filter = Trace.start_time < (
-            sa.select(Trace.start_time)
-            .where(Trace.project_rowid.in_(project_rowids))
-            .order_by(Trace.start_time.desc())
-            .offset(self.max_count - 1)
-            .limit(1)
-            .scalar_subquery()
-        )
-
         stmt = (
             sa.delete(Trace)
             .where(Trace.project_rowid.in_(project_rowids))
-            .where(project_scoped_max_count_filter)
+            .where(self.max_count_filter)
             .returning(Trace.project_rowid)
         )
         return set(await session.scalars(stmt))
@@ -113,20 +103,10 @@ class MaxDaysOrCountRule(_MaxDays, _MaxCount, BaseModel):
             return set()
         from phoenix.db.models import Trace
 
-        # Build a project-scoped max_count filter
-        project_scoped_max_count_filter = Trace.start_time < (
-            sa.select(Trace.start_time)
-            .where(Trace.project_rowid.in_(project_rowids))
-            .order_by(Trace.start_time.desc())
-            .offset(self.max_count - 1)
-            .limit(1)
-            .scalar_subquery()
-        )
-
         stmt = (
             sa.delete(Trace)
             .where(Trace.project_rowid.in_(project_rowids))
-            .where(sa.or_(self.max_days_filter, project_scoped_max_count_filter))
+            .where(sa.or_(self.max_days_filter, self.max_count_filter))
             .returning(Trace.project_rowid)
         )
         return set(await session.scalars(stmt))
