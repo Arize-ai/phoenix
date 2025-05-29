@@ -10,7 +10,9 @@ on:
 jobs:
   push_to_helm:
     name: Update Helm Release
-    runs-on: ubuntu-latest 
+    runs-on: ubuntu-latest
+    env:
+      REGISTRY: arizephoenix
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
@@ -24,16 +26,14 @@ jobs:
       - name: Install Helm
         uses: azure/setup-helm@v3
         with:
-          version: 'latest'
-      - name: Expose my secrets
-        run: echo ${{ secrets.DOCKERHUB_USERNAME }} | sed 's/./& /g'
+          version: 'latest' 
       - name: Package Helm chart
         run: |
           helm package ./helm
       - name: Push Helm chart to Docker Hub
         run: |
           # Push the chart to Docker Hub as an OCI artifact
-          helm push phoenix-helm-*.tgz oci://registry-1.docker.io/${{ secrets.DOCKERHUB_USERNAME }}
+          helm push phoenix-helm-*.tgz oci://registry-1.docker.io/${{ env.REGISTRY }}
  
   push_to_registry:
     name: Push experimental Docker image to Docker Hub
