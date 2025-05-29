@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d0195e1566ea1a297fa4ffb679b7fdef>>
+ * @generated SignedSource<<bf30de8311d4e6a7de5c5b61b9e65030>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type ModelProvider = "ANTHROPIC" | "AZURE_OPENAI" | "GOOGLE" | "OPENAI";
+export type ModelProvider = "ANTHROPIC" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OPENAI";
 import { FragmentRefs } from "relay-runtime";
 export type PromptModelConfigurationCard__main$data = {
   readonly model: string;

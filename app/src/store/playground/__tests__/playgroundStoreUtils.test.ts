@@ -113,6 +113,14 @@ describe("convertMessageToolCallsToProvider", () => {
         [{ test: "test" }],
       ],
     ],
+    DEEPSEEK: [
+      [
+        "return tools as they are for deepseek",
+        "DEEPSEEK",
+        [{ test: "test" }],
+        [{ test: "test" }],
+      ],
+    ],
     AZURE_OPENAI: [
       [
         "convert from anthropic to openai",
@@ -364,6 +372,14 @@ describe("convertMessageToolCallsToProvider", () => {
       [
         "return tools as they are if unknown schema for azure_openai",
         "OPENAI",
+        [{ id: 1, definition: { test: "test" } }],
+        [{ id: 1, definition: { test: "test" } }],
+      ],
+    ],
+    DEEPSEEK: [
+      [
+        "return tools as they are for deepseek",
+        "DEEPSEEK",
         [{ id: 1, definition: { test: "test" } }],
         [{ id: 1, definition: { test: "test" } }],
       ],

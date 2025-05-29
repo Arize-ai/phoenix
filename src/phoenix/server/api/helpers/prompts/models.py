@@ -332,9 +332,18 @@ class PromptAzureOpenAIInvocationParametersContent(PromptOpenAIInvocationParamet
     pass
 
 
+class PromptDeepSeekInvocationParametersContent(PromptOpenAIInvocationParametersContent):
+    pass
+
+
 class PromptAzureOpenAIInvocationParameters(DBBaseModel):
     type: Literal["azure_openai"]
     azure_openai: PromptAzureOpenAIInvocationParametersContent
+
+
+class PromptDeepSeekInvocationParameters(DBBaseModel):
+    type: Literal["deepseek"]
+    deepseek: PromptDeepSeekInvocationParametersContent
 
 
 class PromptAnthropicThinkingConfigDisabled(DBBaseModel):
@@ -391,6 +400,7 @@ PromptInvocationParameters: TypeAlias = Annotated[
         PromptAzureOpenAIInvocationParameters,
         PromptAnthropicInvocationParameters,
         PromptGoogleInvocationParameters,
+        PromptDeepSeekInvocationParameters,
     ],
     Field(..., discriminator="type"),
 ]
@@ -407,6 +417,8 @@ def get_raw_invocation_parameters(
         return invocation_parameters.anthropic.model_dump()
     if isinstance(invocation_parameters, PromptGoogleInvocationParameters):
         return invocation_parameters.google.model_dump()
+    if isinstance(invocation_parameters, PromptDeepSeekInvocationParameters):
+        return invocation_parameters.deepseek.model_dump()
     assert_never(invocation_parameters)
 
 
@@ -420,6 +432,7 @@ def is_prompt_invocation_parameters(
             PromptAzureOpenAIInvocationParameters,
             PromptAnthropicInvocationParameters,
             PromptGoogleInvocationParameters,
+            PromptDeepSeekInvocationParameters,
         ),
     )
 
@@ -441,6 +454,13 @@ def validate_invocation_parameters(
         return PromptAzureOpenAIInvocationParameters(
             type="azure_openai",
             azure_openai=PromptAzureOpenAIInvocationParametersContent.model_validate(
+                invocation_parameters
+            ),
+        )
+    elif model_provider is ModelProvider.DEEPSEEK:
+        return PromptDeepSeekInvocationParameters(
+            type="deepseek",
+            deepseek=PromptDeepSeekInvocationParametersContent.model_validate(
                 invocation_parameters
             ),
         )
