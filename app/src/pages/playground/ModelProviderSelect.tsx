@@ -14,6 +14,7 @@ import {
   SelectProps,
   SelectValue,
   Text,
+  View,
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
@@ -54,47 +55,49 @@ export function ModelProviderSelect({
     !installedProviders.some((provider) => provider.key === props.provider);
   return (
     <Flex direction="row" gap="size-100">
-      <Select
-        {...props}
-        key="model-provider-select"
-        data-testid="model-provider-picker"
-        selectedKey={props.provider ?? undefined}
-        aria-label="Model Provider"
-        placeholder="Select a provider"
-        onSelectionChange={(key) => {
-          const provider = key as string;
-          if (isModelProvider(provider)) {
-            onChange(provider);
-          }
-        }}
-      >
-        <Label>Provider</Label>
-        <Button>
-          <SelectValue />
-          <SelectChevronUpDownIcon />
-        </Button>
-        <Popover>
-          <ListBox>
-            {data.modelProviders.map((provider) => {
-              return (
-                <SelectItem
-                  key={provider.key}
-                  id={provider.key}
-                  textValue={provider.name}
-                >
-                  <Flex direction="row" gap="size-100" alignItems="center">
-                    <GenerativeProviderIcon
-                      provider={provider.key}
-                      height={16}
-                    />
-                    <Text>{provider.name}</Text>
-                  </Flex>
-                </SelectItem>
-              );
-            })}
-          </ListBox>
-        </Popover>
-      </Select>
+      <View flex={1}>
+        <Select
+          {...props}
+          key="model-provider-select"
+          data-testid="model-provider-picker"
+          selectedKey={props.provider ?? undefined}
+          aria-label="Model Provider"
+          placeholder="Select a provider"
+          onSelectionChange={(key) => {
+            const provider = key as string;
+            if (isModelProvider(provider)) {
+              onChange(provider);
+            }
+          }}
+        >
+          <Label>Provider</Label>
+          <Button>
+            <SelectValue />
+            <SelectChevronUpDownIcon />
+          </Button>
+          <Popover>
+            <ListBox>
+              {data.modelProviders.map((provider) => {
+                return (
+                  <SelectItem
+                    key={provider.key}
+                    id={provider.key}
+                    textValue={provider.name}
+                  >
+                    <Flex direction="row" gap="size-100" alignItems="center">
+                      <GenerativeProviderIcon
+                        provider={provider.key}
+                        height={16}
+                      />
+                      <Text>{provider.name}</Text>
+                    </Flex>
+                  </SelectItem>
+                );
+              })}
+            </ListBox>
+          </Popover>
+        </Select>
+      </View>
       {selectedProviderNotInstalled ? (
         <Icon color="red-700" svg={<Icons.InfoOutline />} />
       ) : hasMissingDependencies ? (
