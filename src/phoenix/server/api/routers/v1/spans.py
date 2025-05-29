@@ -370,9 +370,53 @@ class OtlpSpan(BaseModel):
     )
 
 
-class SpanSearchResponseBody(PaginatedResponseBody[OtlpSpan]):
+class OtlpSpanSearchResponseBody(PaginatedResponseBody[OtlpSpan]):
     """Paginated response where each span follows OTLP JSON structure."""
 
+    pass
+
+
+################################################################################
+# Phoenix Span Models
+################################################################################
+
+
+class SpanContext(V1RoutesBaseModel):
+    """Context propagation for a span"""
+
+    trace_id: str = Field(description="OpenTelemetry trace ID")
+    span_id: str = Field(description="OpenTelemetry span ID")
+
+
+class SpanEvent(V1RoutesBaseModel):
+    """
+    A Span Event can be thought of as a structured log message (or annotation)
+    on a Span, typically used to denote a meaningful, singular point in time
+    during the Span's duration.
+    """
+
+    name: str = Field(description="Name of the event")
+    timestamp: datetime = Field(description="When the event occurred")
+    attributes: dict[str, Any] = Field(default_factory=dict, description="Event attributes")
+
+
+class Span(V1RoutesBaseModel):
+    id: str = Field(description="Phoenix span ID")
+    name: str = Field(description="Name of the span operation")
+    context: SpanContext = Field(description="Span context containing trace_id and span_id")
+    span_kind: str = Field(description="Type of work that the span encapsulates")
+    parent_id: Optional[str] = Field(
+        default=None, description="OpenTelemetry span ID of the parent span"
+    )
+    start_time: datetime = Field(description="Start time of the span")
+    end_time: datetime = Field(description="End time of the span")
+    status_code: str = Field(description="Status code of the span")
+    status_message: str = Field(default="", description="Status message")
+    attributes: dict[str, Any] = Field(default_factory=dict, description="Span attributes")
+    events: list[SpanEvent] = Field(default_factory=list, description="Span events")
+
+
+class SpanSearchResponseBody(PaginatedResponseBody[Span]):
     pass
 
 
@@ -540,7 +584,7 @@ async def span_search(
             "of these names."
         ),
     ),
-) -> SpanSearchResponseBody:
+) -> OtlpSpanSearchResponseBody:
     """Search spans with minimal filters instead of the old SpanQuery DSL."""
 
     async with request.app.state.db() as session:
@@ -590,7 +634,7 @@ async def span_search(
         rows: list[tuple[models.Span, str]] = [r async for r in await session.stream(stmt)]
 
     if not rows:
-        return SpanSearchResponseBody(next_cursor=None, data=[])
+        return OtlpSpanSearchResponseBody(next_cursor=None, data=[])
 
     next_cursor: Optional[str] = None
     if len(rows) == limit + 1:
@@ -664,6 +708,165 @@ async def span_search(
                 status=OtlpStatus(
                     code=status_code_enum.to_int(), message=span_orm.status_message or None
                 ),
+            )
+        )
+
+    return OtlpSpanSearchResponseBody(next_cursor=next_cursor, data=result_spans)
+
+
+@router.get(
+    "/projects/{project_identifier}/spans",
+    operation_id="spanSearchPhoenix",
+    summary="Search spans with simple filters (no DSL)",
+    description="Return spans within a project filtered by time range, annotation names, "
+    "and ordered by start_time. Supports cursor-based pagination.",
+    responses=add_errors_to_responses([HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY]),
+)
+async def span_search_phoenix(
+    request: Request,
+    project_identifier: str = Path(
+        description=(
+            "The project identifier: either project ID or project name. If using a project name, "
+            "it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+        )
+    ),
+    cursor: Optional[str] = Query(default=None, description="Pagination cursor (GlobalID of Span)"),
+    limit: int = Query(default=100, gt=0, le=1000, description="Maximum number of spans to return"),
+    sort_direction: Literal["asc", "desc"] = Query(
+        default="desc",
+        description="Sort direction for the sort field",
+    ),
+    start_time: Optional[datetime] = Query(default=None, description="Inclusive lower bound time"),
+    end_time: Optional[datetime] = Query(default=None, description="Exclusive upper bound time"),
+    annotation_names: Optional[list[str]] = Query(
+        default=None,
+        description=(
+            "If provided, only include spans that have at least one annotation with one "
+            "of these names."
+        ),
+    ),
+) -> SpanSearchResponseBody:
+    async with request.app.state.db() as session:
+        project = await _get_project_by_identifier(session, project_identifier)
+
+    project_id: int = project.id
+    order_by = [models.Span.id.asc() if sort_direction == "asc" else models.Span.id.desc()]
+
+    stmt = (
+        select(
+            models.Span,
+            models.Trace.trace_id,
+        )
+        .join(models.Trace, onclause=models.Trace.id == models.Span.trace_rowid)
+        .join(models.Project, onclause=models.Project.id == project_id)
+        .order_by(*order_by)
+    )
+
+    if start_time:
+        stmt = stmt.where(models.Span.start_time >= normalize_datetime(start_time, timezone.utc))
+    if end_time:
+        stmt = stmt.where(models.Span.start_time < normalize_datetime(end_time, timezone.utc))
+
+    if annotation_names:
+        stmt = (
+            stmt.join(
+                models.SpanAnnotation,
+                onclause=models.SpanAnnotation.span_rowid == models.Span.id,
+            )
+            .where(models.SpanAnnotation.name.in_(annotation_names))
+            .group_by(models.Span.id, models.Trace.trace_id)
+        )
+
+    if cursor:
+        try:
+            cursor_rowid = int(GlobalID.from_id(cursor).node_id)
+            if sort_direction == "asc":
+                stmt = stmt.where(models.Span.id >= cursor_rowid)
+            else:
+                stmt = stmt.where(models.Span.id <= cursor_rowid)
+        except Exception:
+            raise HTTPException(status_code=HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid cursor")
+
+    stmt = stmt.limit(limit + 1)
+
+    async with request.app.state.db() as session:
+        rows: list[tuple[models.Span, str]] = [r async for r in await session.stream(stmt)]
+
+    if not rows:
+        return SpanSearchResponseBody(next_cursor=None, data=[])
+
+    next_cursor: Optional[str] = None
+    if len(rows) == limit + 1:
+        *rows, extra = rows  # extra is first item of next page
+        span_extra, _ = extra
+        next_cursor = str(GlobalID("Span", str(span_extra.id)))
+
+    # Convert ORM rows -> Phoenix spans
+    result_spans: list[Span] = []
+    for span_orm, trace_id in rows:
+        # Convert events to Phoenix Event list
+        events: list[SpanEvent] = []
+        if span_orm.events:
+            for event in span_orm.events:
+                event_time = event.get("timestamp")
+                parsed_time = None
+
+                if event_time:
+                    if isinstance(event_time, datetime):
+                        parsed_time = normalize_datetime(event_time, timezone.utc)
+                    elif isinstance(event_time, str):
+                        try:
+                            naive_time = datetime.fromisoformat(event_time)
+                            parsed_time = normalize_datetime(naive_time, timezone.utc)
+                        except ValueError:
+                            # If ISO format fails, try to parse as timestamp
+                            try:
+                                parsed_time = datetime.fromtimestamp(
+                                    float(event_time), tz=timezone.utc
+                                )
+                            except (ValueError, TypeError):
+                                parsed_time = datetime.now(timezone.utc)  # fallback
+                    elif isinstance(event_time, (int, float)):
+                        try:
+                            # Assume nanoseconds if very large, otherwise seconds
+                            if event_time > 1e12:  # nanoseconds
+                                parsed_time = datetime.fromtimestamp(
+                                    event_time / 1_000_000_000, tz=timezone.utc
+                                )
+                            else:  # seconds
+                                parsed_time = datetime.fromtimestamp(event_time, tz=timezone.utc)
+                        except (ValueError, OSError):
+                            parsed_time = datetime.now(timezone.utc)  # fallback
+                else:
+                    parsed_time = datetime.now(timezone.utc)  # fallback
+
+                events.append(
+                    SpanEvent(
+                        name=event.get("name", ""),
+                        timestamp=parsed_time,
+                        attributes=event.get("attributes", {}),
+                    )
+                )
+
+        attributes = {k: v for k, v in flatten(span_orm.attributes or dict())}
+        openinference_span_kind = attributes.pop("openinference.span.kind", "UNKNOWN")
+
+        result_spans.append(
+            Span(
+                id=str(GlobalID("Span", str(span_orm.id))),
+                name=span_orm.name or "",
+                context=SpanContext(
+                    trace_id=trace_id,
+                    span_id=span_orm.span_id or "",
+                ),
+                span_kind=openinference_span_kind,
+                parent_id=span_orm.parent_id,
+                start_time=normalize_datetime(span_orm.start_time, timezone.utc),
+                end_time=normalize_datetime(span_orm.end_time, timezone.utc),
+                status_code=span_orm.status_code,
+                status_message=span_orm.status_message or "",
+                attributes=span_orm.attributes,
+                events=events,
             )
         )
 
