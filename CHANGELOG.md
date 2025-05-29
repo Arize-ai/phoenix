@@ -1,5 +1,12 @@
 # Changelog
 
+## [10.2.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.2.1...arize-phoenix-v10.2.2) (2025-05-29)
+
+
+### Bug Fixes
+
+* trace retention max_count deletion query did not properly group by project ([#7766](https://github.com/Arize-ai/phoenix/issues/7766)) ([3b60f46](https://github.com/Arize-ai/phoenix/commit/3b60f46e99635a42d6ab15b058eb2230e84e034f))
+
 ## [10.2.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.2.0...arize-phoenix-v10.2.1) (2025-05-29)
 
 
