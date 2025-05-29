@@ -20,11 +20,11 @@ import {
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
-import type { ModelProviderPickerFragment$key } from "./__generated__/ModelProviderPickerFragment.graphql";
+import type { ModelProviderSelectFragment$key } from "./__generated__/ModelProviderSelectFragment.graphql";
 
 type ModelProviderSelectProps = {
   onChange: (provider: ModelProvider) => void;
-  query: ModelProviderPickerFragment$key;
+  query: ModelProviderSelectFragment$key;
   provider?: ModelProvider;
 } & Omit<SelectProps, "children" | "onSelectionChange" | "selectedKey">;
 
@@ -33,9 +33,9 @@ export function ModelProviderSelect({
   query,
   ...props
 }: ModelProviderSelectProps) {
-  const data = useFragment<ModelProviderPickerFragment$key>(
+  const data = useFragment<ModelProviderSelectFragment$key>(
     graphql`
-      fragment ModelProviderPickerFragment on Query {
+      fragment ModelProviderSelectFragment on Query {
         modelProviders {
           key
           name

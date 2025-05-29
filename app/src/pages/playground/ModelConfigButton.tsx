@@ -401,7 +401,7 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
   const query = useLazyLoadQuery<ModelConfigButtonDialogQuery>(
     graphql`
       query ModelConfigButtonDialogQuery {
-        ...ModelProviderPickerFragment
+        ...ModelProviderSelectFragment
       }
     `,
     {}

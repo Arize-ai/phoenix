@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<457906efcabfba14e023bb436b505b7b>>
+ * @generated SignedSource<<bd728573bc728df833023b926544edb9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,7 +12,7 @@ import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ModelConfigButtonDialogQuery$variables = Record<PropertyKey, never>;
 export type ModelConfigButtonDialogQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"ModelProviderPickerFragment">;
+  readonly " $fragmentSpreads": FragmentRefs<"ModelProviderSelectFragment">;
 };
 export type ModelConfigButtonDialogQuery = {
   response: ModelConfigButtonDialogQuery$data;
@@ -29,7 +29,7 @@ const node: ConcreteRequest = {
       {
         "args": null,
         "kind": "FragmentSpread",
-        "name": "ModelProviderPickerFragment"
+        "name": "ModelProviderSelectFragment"
       }
     ],
     "type": "Query",
@@ -83,15 +83,15 @@ const node: ConcreteRequest = {
     ]
   },
   "params": {
-    "cacheID": "64ad561d3ca07bdded6af274c73eb18a",
+    "cacheID": "f6e033b9adc17b674922615d30065fbc",
     "id": null,
     "metadata": {},
     "name": "ModelConfigButtonDialogQuery",
     "operationKind": "query",
-    "text": "query ModelConfigButtonDialogQuery {\n  ...ModelProviderPickerFragment\n}\n\nfragment ModelProviderPickerFragment on Query {\n  modelProviders {\n    key\n    name\n    dependenciesInstalled\n    dependencies\n  }\n}\n"
+    "text": "query ModelConfigButtonDialogQuery {\n  ...ModelProviderSelectFragment\n}\n\nfragment ModelProviderSelectFragment on Query {\n  modelProviders {\n    key\n    name\n    dependenciesInstalled\n    dependencies\n  }\n}\n"
   }
 };
 
-(node as any).hash = "4b1b96842c19ea5721b7fcf1cdb86426";
+(node as any).hash = "83e31e404724e5fcdf80a5361325f537";
 
 export default node;
