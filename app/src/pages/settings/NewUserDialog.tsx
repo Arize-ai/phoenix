@@ -1,8 +1,7 @@
 import { useCallback } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import { Dialog, DialogContainer } from "@arizeai/components";
-
+import { Dialog, Modal } from "@phoenix/components";
 import {
   OAuthUserForm,
   OAuthUserFormParams,
@@ -82,22 +81,31 @@ export function NewUserDialog({
   );
 
   return (
-    <DialogContainer
-      onDismiss={onDismiss}
+    <Modal
+      isOpen={true}
+      onOpenChange={(isOpen) => {
+        if (!isOpen) {
+          onDismiss();
+        }
+      }}
       isDismissable
-      type="modal"
-      isKeyboardDismissDisabled
     >
-      <Dialog title="Add user">
+      <Dialog>
+        <h2>Add User</h2>
         {window.Config.basicAuthDisabled ? (
           <OAuthUserForm
+            key="oauth-form"
             onSubmit={onSubmitOauthUser}
             isSubmitting={isCommitting}
           />
         ) : (
-          <UserForm onSubmit={onSubmit} isSubmitting={isCommitting} />
+          <UserForm
+            key="user-form"
+            onSubmit={onSubmit}
+            isSubmitting={isCommitting}
+          />
         )}
       </Dialog>
-    </DialogContainer>
+    </Modal>
   );
 }
