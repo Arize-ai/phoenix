@@ -145,6 +145,312 @@ class TestTraceRetentionRuleMaxCount:
         # only one trace remains per project
         assert sorted(remaining_traces.all()) == sorted(traces[0] for traces in projects.values())
 
+    async def test_delete_traces_edge_cases(self, db: DbSessionFactory) -> None:
+        """Test edge cases for MaxCountRule.
+
+        Tests: no traces, fewer traces, exactly max_count, and project scoping.
+        """
+        start_time = datetime.now(timezone.utc)
+
+        async with db() as session:
+            # Create three projects for different test scenarios
+            project_empty = models.Project(name="empty_project")
+            project_few = models.Project(name="few_traces_project")
+            project_exact = models.Project(name="exact_traces_project")
+            project_many = models.Project(name="many_traces_project")
+
+            session.add_all([project_empty, project_few, project_exact, project_many])
+            await session.flush()
+
+            # Project with no traces (project_empty has no traces added)
+
+            # Project with fewer traces than max_count (2 traces, max_count = 3)
+            for i in range(2):
+                trace = models.Trace(
+                    project_rowid=project_few.id,
+                    trace_id=f"few_{i}",
+                    start_time=start_time + timedelta(seconds=i),
+                    end_time=start_time + timedelta(seconds=i + 1),
+                )
+                session.add(trace)
+
+            # Project with exactly max_count traces (3 traces, max_count = 3)
+            for i in range(3):
+                trace = models.Trace(
+                    project_rowid=project_exact.id,
+                    trace_id=f"exact_{i}",
+                    start_time=start_time + timedelta(seconds=i),
+                    end_time=start_time + timedelta(seconds=i + 1),
+                )
+                session.add(trace)
+
+            # Project with more traces than max_count (6 traces, max_count = 3)
+            for i in range(6):
+                trace = models.Trace(
+                    project_rowid=project_many.id,
+                    trace_id=f"many_{i}",
+                    start_time=start_time + timedelta(seconds=i),
+                    end_time=start_time + timedelta(seconds=i + 1),
+                )
+                session.add(trace)
+
+            await session.commit()
+
+        rule = MaxCountRule(max_count=3)
+
+        # Test each project individually to ensure proper scoping
+
+        # Test empty project
+        async with db() as session:
+            deleted = await rule.delete_traces(session, [project_empty.id])
+            assert len(deleted) == 0, "Should not delete anything from empty project"
+
+            count = await session.scalar(
+                sa.select(sa.func.count(models.Trace.id)).where(
+                    models.Trace.project_rowid == project_empty.id
+                )
+            )
+            assert count == 0, "Empty project should remain empty"
+
+        # Test project with fewer traces
+        async with db() as session:
+            deleted = await rule.delete_traces(session, [project_few.id])
+            assert len(deleted) == 0, "Should not delete anything when traces < max_count"
+
+            count = await session.scalar(
+                sa.select(sa.func.count(models.Trace.id)).where(
+                    models.Trace.project_rowid == project_few.id
+                )
+            )
+            assert count == 2, "All traces should remain when count < max_count"
+
+        # Test project with exactly max_count traces
+        async with db() as session:
+            deleted = await rule.delete_traces(session, [project_exact.id])
+            assert len(deleted) == 0, "Should not delete anything when traces == max_count"
+
+            count = await session.scalar(
+                sa.select(sa.func.count(models.Trace.id)).where(
+                    models.Trace.project_rowid == project_exact.id
+                )
+            )
+            assert count == 3, "All traces should remain when count == max_count"
+
+        # Test project with more traces than max_count
+        async with db() as session:
+            deleted = await rule.delete_traces(session, [project_many.id])
+            assert len(deleted) > 0, "Should delete some traces when traces > max_count"
+
+            count = await session.scalar(
+                sa.select(sa.func.count(models.Trace.id)).where(
+                    models.Trace.project_rowid == project_many.id
+                )
+            )
+            assert count == 3, f"Should have exactly {rule.max_count} traces remaining"
+
+            # Verify the most recent traces are kept
+            remaining_trace_ids = await session.scalars(
+                sa.select(models.Trace.trace_id)
+                .where(models.Trace.project_rowid == project_many.id)
+                .order_by(models.Trace.start_time.desc())
+            )
+            remaining_ids = list(remaining_trace_ids.all())
+            expected_ids = [
+                f"many_{i}" for i in range(5, 2, -1)
+            ]  # most recent 3: many_5, many_4, many_3
+            assert remaining_ids == expected_ids, "Should keep the most recent traces"
+
+    async def test_delete_traces_project_scoping(self, db: DbSessionFactory) -> None:
+        """Test that MaxCountRule properly scopes to specific projects and doesn't affect others."""
+        start_time = datetime.now(timezone.utc)
+
+        async with db() as session:
+            # Create two projects
+            project_a = models.Project(name="project_a")
+            project_b = models.Project(name="project_b")
+            session.add_all([project_a, project_b])
+            await session.flush()
+
+            # Add 5 traces to each project
+            for i in range(5):
+                trace_a = models.Trace(
+                    project_rowid=project_a.id,
+                    trace_id=f"a_{i}",
+                    start_time=start_time + timedelta(seconds=i),
+                    end_time=start_time + timedelta(seconds=i + 1),
+                )
+                trace_b = models.Trace(
+                    project_rowid=project_b.id,
+                    trace_id=f"b_{i}",
+                    start_time=start_time + timedelta(seconds=i),
+                    end_time=start_time + timedelta(seconds=i + 1),
+                )
+                session.add_all([trace_a, trace_b])
+
+            await session.commit()
+
+        rule = MaxCountRule(max_count=2)
+
+        # Apply rule only to project_a
+        async with db() as session:
+            deleted = await rule.delete_traces(session, [project_a.id])
+            assert len(deleted) > 0, "Should delete traces from project_a"
+
+            # Check project_a has exactly max_count traces
+            count_a = await session.scalar(
+                sa.select(sa.func.count(models.Trace.id)).where(
+                    models.Trace.project_rowid == project_a.id
+                )
+            )
+            assert count_a == 2, "Project A should have exactly max_count traces"
+
+            # Check project_b is unaffected
+            count_b = await session.scalar(
+                sa.select(sa.func.count(models.Trace.id)).where(
+                    models.Trace.project_rowid == project_b.id
+                )
+            )
+            assert count_b == 5, "Project B should be unaffected"
+
+
+class TestTraceRetentionRuleMaxDaysOrCount:
+    async def test_delete_traces_max_count_edge_cases(self, db: DbSessionFactory) -> None:
+        """Test edge cases for MaxDaysOrCountRule max_count logic."""
+        start_time = datetime.now(timezone.utc)
+
+        async with db() as session:
+            # Create projects for different test scenarios
+            project_few = models.Project(name="few_traces_project")
+            project_exact = models.Project(name="exact_traces_project")
+            project_many = models.Project(name="many_traces_project")
+
+            session.add_all([project_few, project_exact, project_many])
+            await session.flush()
+
+            # Project with fewer traces than max_count (2 traces, max_count = 3)
+            for i in range(2):
+                trace = models.Trace(
+                    project_rowid=project_few.id,
+                    trace_id=f"few_{i}",
+                    start_time=start_time + timedelta(seconds=i),
+                    end_time=start_time + timedelta(seconds=i + 1),
+                )
+                session.add(trace)
+
+            # Project with exactly max_count traces (3 traces, max_count = 3)
+            for i in range(3):
+                trace = models.Trace(
+                    project_rowid=project_exact.id,
+                    trace_id=f"exact_{i}",
+                    start_time=start_time + timedelta(seconds=i),
+                    end_time=start_time + timedelta(seconds=i + 1),
+                )
+                session.add(trace)
+
+            # Project with more traces than max_count (6 traces, max_count = 3)
+            for i in range(6):
+                trace = models.Trace(
+                    project_rowid=project_many.id,
+                    trace_id=f"many_{i}",
+                    start_time=start_time + timedelta(seconds=i),
+                    end_time=start_time + timedelta(seconds=i + 1),
+                )
+                session.add(trace)
+
+            await session.commit()
+
+        # Test with max_count only (max_days = 0)
+        rule = MaxDaysOrCountRule(max_days=0, max_count=3)
+
+        # Test project with fewer traces
+        async with db() as session:
+            deleted = await rule.delete_traces(session, [project_few.id])
+            assert len(deleted) == 0, "Should not delete anything when traces < max_count"
+
+            count = await session.scalar(
+                sa.select(sa.func.count(models.Trace.id)).where(
+                    models.Trace.project_rowid == project_few.id
+                )
+            )
+            assert count == 2, "All traces should remain when count < max_count"
+
+        # Test project with exactly max_count traces
+        async with db() as session:
+            deleted = await rule.delete_traces(session, [project_exact.id])
+            assert len(deleted) == 0, "Should not delete anything when traces == max_count"
+
+            count = await session.scalar(
+                sa.select(sa.func.count(models.Trace.id)).where(
+                    models.Trace.project_rowid == project_exact.id
+                )
+            )
+            assert count == 3, "All traces should remain when count == max_count"
+
+        # Test project with more traces than max_count
+        async with db() as session:
+            deleted = await rule.delete_traces(session, [project_many.id])
+            assert len(deleted) > 0, "Should delete some traces when traces > max_count"
+
+            count = await session.scalar(
+                sa.select(sa.func.count(models.Trace.id)).where(
+                    models.Trace.project_rowid == project_many.id
+                )
+            )
+            assert count == 3, f"Should have exactly {rule.max_count} traces remaining"
+
+    async def test_delete_traces_project_scoping(self, db: DbSessionFactory) -> None:
+        """Test that MaxDaysOrCountRule properly scopes max_count to specific projects."""
+        start_time = datetime.now(timezone.utc)
+
+        async with db() as session:
+            # Create two projects
+            project_a = models.Project(name="project_a")
+            project_b = models.Project(name="project_b")
+            session.add_all([project_a, project_b])
+            await session.flush()
+
+            # Add 5 traces to each project
+            for i in range(5):
+                trace_a = models.Trace(
+                    project_rowid=project_a.id,
+                    trace_id=f"a_{i}",
+                    start_time=start_time + timedelta(seconds=i),
+                    end_time=start_time + timedelta(seconds=i + 1),
+                )
+                trace_b = models.Trace(
+                    project_rowid=project_b.id,
+                    trace_id=f"b_{i}",
+                    start_time=start_time + timedelta(seconds=i),
+                    end_time=start_time + timedelta(seconds=i + 1),
+                )
+                session.add_all([trace_a, trace_b])
+
+            await session.commit()
+
+        # Test with max_count only (max_days = 0)
+        rule = MaxDaysOrCountRule(max_days=0, max_count=2)
+
+        # Apply rule only to project_a
+        async with db() as session:
+            deleted = await rule.delete_traces(session, [project_a.id])
+            assert len(deleted) > 0, "Should delete traces from project_a"
+
+            # Check project_a has exactly max_count traces
+            count_a = await session.scalar(
+                sa.select(sa.func.count(models.Trace.id)).where(
+                    models.Trace.project_rowid == project_a.id
+                )
+            )
+            assert count_a == 2, "Project A should have exactly max_count traces"
+
+            # Check project_b is unaffected
+            count_b = await session.scalar(
+                sa.select(sa.func.count(models.Trace.id)).where(
+                    models.Trace.project_rowid == project_b.id
+                )
+            )
+            assert count_b == 5, "Project B should be unaffected"
+
 
 class TestTraceRetentionRule:
     @pytest.mark.parametrize(
