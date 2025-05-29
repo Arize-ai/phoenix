@@ -35,10 +35,7 @@ type RoleSelectProps = {
    * Error message to display below the select
    */
   errorMessage?: string;
-} & Omit<
-  SelectProps,
-  "children" | "onSelectionChange" | "selectedKey"
->;
+} & Omit<SelectProps, "children" | "onSelectionChange" | "selectedKey">;
 
 export function RoleSelect({
   onChange,
@@ -69,7 +66,11 @@ export function RoleSelect({
       <Popover>
         <ListBox>
           {UserRoles.map((role) => {
-            return <SelectItem key={role} id={role}>{normalizeUserRole(role)}</SelectItem>;
+            return (
+              <SelectItem key={role} id={role}>
+                {normalizeUserRole(role)}
+              </SelectItem>
+            );
           })}
         </ListBox>
       </Popover>

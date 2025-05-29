@@ -87,7 +87,7 @@ export function OAuthUserForm({
                   name={name}
                   isRequired
                   onChange={onChange}
-                  isInvalid={!!error}
+                  isInvalid={invalid}
                   onBlur={onBlur}
                   value={value}
                 >
