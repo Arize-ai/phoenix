@@ -126,5 +126,5 @@ instrumentation:
 
 image:
   repository: arizephoenix/phoenix
-  tag: latest
+  tag: version-10.2.1
   pullPolicy: IfNotPresent
