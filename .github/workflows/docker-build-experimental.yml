@@ -10,8 +10,7 @@ on:
 jobs:
   push_to_helm:
     name: Update Helm Release
-    runs-on: ubuntu-latest
-    needs: update-kustomize
+    runs-on: ubuntu-latest 
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
