@@ -6,6 +6,7 @@ from typing import Any, Dict, Type, Union
 
 import pytest
 import sqlalchemy as sa
+from faker import Faker
 from freezegun import freeze_time
 from pydantic import ValidationError
 
@@ -20,6 +21,8 @@ from phoenix.db.types.trace_retention import (
     _time_of_next_run,
 )
 from phoenix.server.types import DbSessionFactory
+
+fake = Faker()
 
 
 class TestMaxDaysMixin:
@@ -89,12 +92,12 @@ class TestMaxCountMixin:
 class TestTraceRetentionRuleMaxDays:
     async def test_delete_traces(self, db: DbSessionFactory) -> None:
         projects: defaultdict[int, list[int]] = defaultdict(list)
-        start_time = datetime.now(timezone.utc)
         async with db() as session:
             for _ in range(5):
                 project = models.Project(name=token_hex(8))
                 session.add(project)
                 await session.flush()
+                start_time = fake.date_time_between(start_date="-12h", tzinfo=timezone.utc)
                 for i in range(5):
                     trace = models.Trace(
                         project_rowid=project.id,
@@ -119,12 +122,12 @@ class TestTraceRetentionRuleMaxDays:
 class TestTraceRetentionRuleMaxCount:
     async def test_delete_traces(self, db: DbSessionFactory) -> None:
         projects: defaultdict[int, list[int]] = defaultdict(list)
-        start_time = datetime.now(timezone.utc)
         async with db() as session:
             for _ in range(5):
                 project = models.Project(name=token_hex(8))
                 session.add(project)
                 await session.flush()
+                start_time = fake.date_time_between(tzinfo=timezone.utc)
                 for i in range(5):
                     trace = models.Trace(
                         project_rowid=project.id,
