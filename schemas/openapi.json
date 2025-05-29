@@ -4750,20 +4750,13 @@
             "const": "LOCAL",
             "title": "Auth Method"
           },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          },
           "password_needs_reset": {
             "type": "boolean",
             "title": "Password Needs Reset"
-          },
-          "password": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Password"
           }
         },
         "type": "object",
@@ -4803,19 +4796,8 @@
             "const": "LOCAL",
             "title": "Auth Method"
           },
-          "password_needs_reset": {
-            "type": "boolean",
-            "title": "Password Needs Reset"
-          },
           "password": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Password"
           }
         },
@@ -4824,8 +4806,7 @@
           "email",
           "username",
           "role",
-          "auth_method",
-          "password_needs_reset"
+          "auth_method"
         ],
         "title": "LocalUserData"
       },
@@ -4879,36 +4860,15 @@
             "title": "Auth Method"
           },
           "oauth2_client_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Oauth2 Client Id"
           },
           "oauth2_user_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Oauth2 User Id"
           },
           "profile_picture_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Profile Picture Url"
           }
         },
@@ -4949,37 +4909,12 @@
             "title": "Auth Method"
           },
           "oauth2_client_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Oauth2 Client Id"
           },
           "oauth2_user_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Oauth2 User Id"
-          },
-          "profile_picture_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Profile Picture Url"
           }
         },
         "type": "object",

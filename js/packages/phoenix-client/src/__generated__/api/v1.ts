@@ -1193,10 +1193,10 @@ export interface components {
              * @enum {string}
              */
             auth_method: "LOCAL";
+            /** Password */
+            password?: string;
             /** Password Needs Reset */
             password_needs_reset: boolean;
-            /** Password */
-            password?: string | null;
         };
         /** LocalUserData */
         LocalUserData: {
@@ -1214,10 +1214,8 @@ export interface components {
              * @enum {string}
              */
             auth_method: "LOCAL";
-            /** Password Needs Reset */
-            password_needs_reset: boolean;
             /** Password */
-            password?: string | null;
+            password?: string;
         };
         /**
          * ModelProvider
@@ -1253,11 +1251,11 @@ export interface components {
              */
             auth_method: "OAUTH2";
             /** Oauth2 Client Id */
-            oauth2_client_id?: string | null;
+            oauth2_client_id?: string;
             /** Oauth2 User Id */
-            oauth2_user_id?: string | null;
+            oauth2_user_id?: string;
             /** Profile Picture Url */
-            profile_picture_url?: string | null;
+            profile_picture_url?: string;
         };
         /** OAuth2UserData */
         OAuth2UserData: {
@@ -1276,11 +1274,9 @@ export interface components {
              */
             auth_method: "OAUTH2";
             /** Oauth2 Client Id */
-            oauth2_client_id?: string | null;
+            oauth2_client_id?: string;
             /** Oauth2 User Id */
-            oauth2_user_id?: string | null;
-            /** Profile Picture Url */
-            profile_picture_url?: string | null;
+            oauth2_user_id?: string;
         };
         /**
          * OptimizationDirection

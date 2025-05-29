@@ -3,7 +3,7 @@ import logging
 import secrets
 from datetime import datetime
 from functools import partial
-from typing import Annotated, Literal, Optional, Union
+from typing import Annotated, Literal, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from pydantic import Field
@@ -32,6 +32,7 @@ from phoenix.auth import (
     validate_password_format,
 )
 from phoenix.db import models
+from phoenix.db.types.db_models import UNDEFINED
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
@@ -54,15 +55,13 @@ class UserData(V1RoutesBaseModel):
 
 class LocalUserData(UserData):
     auth_method: Literal["LOCAL"]
-    password_needs_reset: bool
-    password: Optional[str] = None
+    password: str = UNDEFINED
 
 
 class OAuth2UserData(UserData):
     auth_method: Literal["OAUTH2"]
-    oauth2_client_id: Optional[str] = None
-    oauth2_user_id: Optional[str] = None
-    profile_picture_url: Optional[str] = None
+    oauth2_client_id: str = UNDEFINED
+    oauth2_user_id: str = UNDEFINED
 
 
 class DbUser(V1RoutesBaseModel):
@@ -71,10 +70,12 @@ class DbUser(V1RoutesBaseModel):
     updated_at: datetime
 
 
-class LocalUser(LocalUserData, DbUser): ...
+class LocalUser(LocalUserData, DbUser):
+    password_needs_reset: bool
 
 
-class OAuth2User(OAuth2UserData, DbUser): ...
+class OAuth2User(OAuth2UserData, DbUser):
+    profile_picture_url: str = UNDEFINED
 
 
 User: TypeAlias = Annotated[Union[LocalUser, OAuth2User], Field(..., discriminator="auth_method")]
@@ -157,20 +158,22 @@ async def list_users(
                 )
             )
         elif isinstance(user, models.OAuth2User):
-            data.append(
-                OAuth2User(
-                    id=str(GlobalID("User", str(user.id))),
-                    username=user.username,
-                    email=user.email,
-                    role=user.role.name,
-                    created_at=user.created_at,
-                    updated_at=user.updated_at,
-                    auth_method="OAUTH2",
-                    oauth2_client_id=user.oauth2_client_id,
-                    oauth2_user_id=user.oauth2_user_id,
-                    profile_picture_url=user.profile_picture_url,
-                )
+            oauth2_user = OAuth2User(
+                id=str(GlobalID("User", str(user.id))),
+                username=user.username,
+                email=user.email,
+                role=user.role.name,
+                created_at=user.created_at,
+                updated_at=user.updated_at,
+                auth_method="OAUTH2",
             )
+            if user.oauth2_client_id:
+                oauth2_user.oauth2_client_id = user.oauth2_client_id
+            if user.oauth2_user_id:
+                oauth2_user.oauth2_user_id = user.oauth2_user_id
+            if user.profile_picture_url:
+                oauth2_user.profile_picture_url = user.profile_picture_url
+            data.append(oauth2_user)
     return GetUsersResponseBody(next_cursor=next_cursor, data=data)
 
 
@@ -229,8 +232,8 @@ async def create_user(
         user = models.OAuth2User(
             email=email,
             username=username,
-            oauth2_client_id=user_data.oauth2_client_id,
-            oauth2_user_id=user_data.oauth2_user_id,
+            oauth2_client_id=user_data.oauth2_client_id or None,
+            oauth2_user_id=user_data.oauth2_user_id or None,
         )
     else:
         assert_never(user_data)
@@ -273,10 +276,13 @@ async def create_user(
             role=user_data.role,
             created_at=user.created_at,
             updated_at=user.updated_at,
-            oauth2_client_id=user.oauth2_client_id,
-            oauth2_user_id=user.oauth2_user_id,
-            profile_picture_url=user.profile_picture_url,
         )
+        if user.oauth2_client_id:
+            data.oauth2_client_id = user.oauth2_client_id
+        if user.oauth2_user_id:
+            data.oauth2_user_id = user.oauth2_user_id
+        if user.profile_picture_url:
+            data.profile_picture_url = user.profile_picture_url
     else:
         assert_never(user_data)
     # Send welcome email if requested

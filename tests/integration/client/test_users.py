@@ -2,15 +2,17 @@
 from __future__ import annotations
 
 from secrets import token_hex
-from typing import Optional, Union, cast
+from typing import Literal, Optional, Union, cast
 
 import httpx
 import pytest
+import smtpdfix
 from phoenix.client.__generated__ import v1
 from phoenix.server.api.routers.v1.users import DEFAULT_PAGINATION_PAGE_LIMIT
 from strawberry.relay import GlobalID
+from typing_extensions import assert_never
 
-from .._helpers import _ADMIN, _MEMBER, _GetUser, _httpx_client
+from .._helpers import _ADMIN, _MEMBER, _GetUser, _httpx_client, _log_in
 
 
 class _UsersApi:
@@ -122,7 +124,6 @@ class TestClientForUsersAPI:
                 username=f"test_user_local_member_{token_hex(8)}",
                 role="MEMBER",
                 auth_method="LOCAL",
-                password_needs_reset=True,
                 password="some_password",  # Optional field
             ),
             # Local admin with password
@@ -131,7 +132,6 @@ class TestClientForUsersAPI:
                 username=f"test_user_local_admin_pwd_{token_hex(8)}",
                 role="ADMIN",
                 auth_method="LOCAL",
-                password_needs_reset=True,
                 password="admin_password",
             ),
             # Local user without optional password
@@ -140,16 +140,6 @@ class TestClientForUsersAPI:
                 username=f"test_user_local_admin_{token_hex(8)}",
                 role="ADMIN",
                 auth_method="LOCAL",
-                password_needs_reset=True,
-            ),
-            # Local user without password_needs_reset
-            v1.LocalUserData(
-                email=f"test_local_member_no_reset_{token_hex(8)}@example.com",
-                username=f"test_user_local_member_no_reset_{token_hex(8)}",
-                role="MEMBER",
-                auth_method="LOCAL",
-                password_needs_reset=False,
-                password="no_reset_password",
             ),
             # OAuth2 user with all optional fields
             v1.OAuth2UserData(
@@ -247,21 +237,23 @@ class TestClientForUsersAPI:
             ), f"User {i} auth method should match input after creation"
 
             # Verify OAuth2 specific fields if applicable
-            if user_data["auth_method"] == "OAUTH2":
+            if created_user["auth_method"] == "OAUTH2":
                 assert created_user.get("oauth2_client_id") == user_data.get(
                     "oauth2_client_id"
                 ), f"User {i} OAuth2 client ID should match input after creation"
                 assert created_user.get("oauth2_user_id") == user_data.get(
                     "oauth2_user_id"
                 ), f"User {i} OAuth2 user ID should match input after creation"
-            else:
+            elif created_user["auth_method"] == "LOCAL":
                 # Verify LOCAL auth method specific fields
-                assert created_user.get(
+                assert created_user[
                     "password_needs_reset"
-                ), f"User {i} should have password_needs_reset set"
+                ], f"User {i} should have password_needs_reset set"
                 assert (
                     "password" not in created_user
                 ), f"User {i} should not have password in response"
+            else:
+                assert_never(created_user["auth_method"])
 
         # Test username uniqueness (CREATE operation)
         duplicate_local_user = users_to_create[0]
@@ -276,7 +268,6 @@ class TestClientForUsersAPI:
             username=f"different_{token_hex(8)}",
             role="MEMBER",
             auth_method="LOCAL",
-            password_needs_reset=True,
         )
         with pytest.raises(Exception):
             users_api.create(
@@ -289,7 +280,6 @@ class TestClientForUsersAPI:
             username=f"test_user_local_system_{token_hex(8)}",
             role="SYSTEM",
             auth_method="LOCAL",
-            password_needs_reset=True,
         )
         with pytest.raises(Exception) as exc_info:
             users_api.create(
@@ -388,7 +378,6 @@ class TestClientForUsersAPI:
                     username=username,
                     role="MEMBER",
                     auth_method="LOCAL",
-                    password_needs_reset=True,
                 ),
             )
             created_users.append(user)
@@ -430,7 +419,6 @@ class TestClientForUsersAPI:
                     username=f"test_user_{token_hex(8)}",
                     role="MEMBER",
                     auth_method="LOCAL",
-                    password_needs_reset=True,
                 ),
             )
         assert "403" in str(
@@ -445,7 +433,6 @@ class TestClientForUsersAPI:
                     username=f"test_user_admin_{token_hex(8)}",
                     role="ADMIN",
                     auth_method="LOCAL",
-                    password_needs_reset=True,
                 ),
             )
         assert "403" in str(
@@ -496,3 +483,87 @@ class TestClientForUsersAPI:
         assert "403" in str(
             exc_info.value
         ), "Should receive 403 Forbidden when attempting to delete user"
+
+    @pytest.mark.parametrize("role", ["MEMBER", "ADMIN"])
+    def test_new_local_user_can_login_with_assigned_password(
+        self,
+        _get_user: _GetUser,
+        role: Literal["MEMBER", "ADMIN"],
+    ) -> None:
+        """Test that a new local user can log in with the assigned password."""
+        u = _get_user(_ADMIN).log_in()
+        users_api = _UsersApi(_httpx_client(u.create_api_key()))
+
+        password = token_hex(16)
+        email = f"{token_hex(16)}@{token_hex(16)}.com"
+
+        users_api.create(
+            user=v1.LocalUserData(
+                email=email,
+                username=f"test_user_{token_hex(8)}",
+                role=role,
+                auth_method="LOCAL",
+                password=password,
+            ),
+        )
+
+        _log_in(password, email=email)
+
+    @pytest.mark.parametrize("send_welcome_email", [True, False])
+    @pytest.mark.parametrize("role", ["MEMBER", "ADMIN"])
+    @pytest.mark.parametrize("auth_method", ["LOCAL", "OAUTH2"])
+    def test_welcome_email_is_sent(
+        self,
+        send_welcome_email: bool,
+        role: Literal["MEMBER", "ADMIN"],
+        auth_method: Literal["LOCAL", "OAUTH2"],
+        _get_user: _GetUser,
+        _smtpd: smtpdfix.AuthController,
+    ) -> None:
+        """Test that welcome emails are sent correctly when creating users.
+
+        This test verifies that:
+        1. Welcome emails are sent when send_welcome_email=True for both LOCAL and OAuth2 users
+        2. No welcome emails are sent when send_welcome_email=False for both user types
+        """
+        # Set up test environment with logged-in admin user
+        u = _get_user(_ADMIN).log_in()
+        users_api = _UsersApi(_httpx_client(u.create_api_key()))
+
+        # Create user with specified welcome email setting
+        email = f"{token_hex(16)}@{token_hex(16)}.com"
+        user_data: Union[v1.LocalUserData, v1.OAuth2UserData]
+        if auth_method == "LOCAL":
+            user_data = v1.LocalUserData(
+                email=email,
+                username=f"test_user_{token_hex(8)}",
+                role=role,
+                auth_method=auth_method,
+            )
+        elif auth_method == "OAUTH2":
+            user_data = v1.OAuth2UserData(
+                email=email,
+                username=f"test_user_{token_hex(8)}",
+                role=role,
+                auth_method=auth_method,
+            )
+        else:
+            assert_never(auth_method)
+
+        user = users_api.create(
+            user=user_data,
+            send_welcome_email=send_welcome_email,
+        )
+
+        # Verify email behavior
+        if send_welcome_email:
+            assert _smtpd.messages, "Welcome email should be sent when send_welcome_email=True"
+            assert (
+                _smtpd.messages[-1]["to"] == user["email"]
+            ), "Email should be sent to correct address"
+        else:
+            # Check that no welcome email was sent to this user
+            welcome_emails_to_user = [msg for msg in _smtpd.messages if msg["to"] == user["email"]]
+            assert (
+                not welcome_emails_to_user
+            ), "No welcome email should be sent when send_welcome_email=False"

@@ -159,7 +159,6 @@ class LocalUserData(TypedDict):
     email: str
     username: str
     role: Literal["SYSTEM", "ADMIN", "MEMBER"]
-    password_needs_reset: bool
     auth_method: Literal["LOCAL"]
     password: NotRequired[str]
 
@@ -168,6 +167,7 @@ class LocalUser(LocalUserData):
     id: str
     created_at: str
     updated_at: str
+    password_needs_reset: bool
 
 
 class OAuth2UserData(TypedDict):
@@ -177,13 +177,13 @@ class OAuth2UserData(TypedDict):
     auth_method: Literal["OAUTH2"]
     oauth2_client_id: NotRequired[str]
     oauth2_user_id: NotRequired[str]
-    profile_picture_url: NotRequired[str]
 
 
 class OAuth2User(OAuth2UserData):
     id: str
     created_at: str
     updated_at: str
+    profile_picture_url: NotRequired[str]
 
 
 class OtlpStatus(TypedDict):
@@ -339,6 +339,7 @@ class UpdateProjectResponseBody(TypedDict):
 
 class UploadDatasetData(TypedDict):
     dataset_id: str
+    version_id: str
 
 
 class UploadDatasetResponseBody(TypedDict):
