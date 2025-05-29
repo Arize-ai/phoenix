@@ -7,10 +7,10 @@ Examples:
 kubectl apply -k kustomize/base
 ```
 
-will yield a single node deployment of Phoenix with a local SQLite
+will yield a single node deployment of Phoenix with PostgreSQL
 
 ```shell
-kubectl apply -k kustomize/backends/postgres
+kubectl apply -k kustomize/auth
 ```
 
-will yield a single node deployment of Phoenix pointed to a remote PostgreSQL
+will yield a single node deployment of Phoenix with PostgreSQL and authentication enabled

@@ -60,4 +60,16 @@ spec:
             command:
             - sh
             - -c
-            - exec pg_isready --host $POD_IP            
+            - exec pg_isready --host $POD_IP
+        volumeMounts:
+        - mountPath: /var/lib/postgresql/data
+          name: postgres-data
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 8Gi 
