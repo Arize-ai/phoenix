@@ -175,7 +175,7 @@ class ClassificationTemplate(PromptTemplate):
     def extract_label_from_explanation(self, raw_string: str) -> str:
         if parser := self.explanation_label_parser:
             return parser(raw_string)
-        return parse_label_from_chain_of_thought_response(raw_string)
+        return parse_label_from_chain_of_thought_response(raw_string, self.rails)
 
     def score(self, rail: str) -> float:
         if self._scores is None:
@@ -186,12 +186,72 @@ class ClassificationTemplate(PromptTemplate):
             return 0.0
 
 
-def parse_label_from_chain_of_thought_response(raw_string: str) -> str:
+def parse_label_from_chain_of_thought_response(raw_string: str, rails: Optional[List[str]] = None) -> str:
+    """
+    Parse label from chain of thought response.
+    
+    Handles two cases:
+    1. Structured response with "LABEL:" keyword (e.g., "EXPLANATION: ... LABEL: relevant")
+    2. Simple response with just the label as the first word (e.g., "relevant" or "incorrect some explanation")
+    
+    Args:
+        raw_string: The raw response string from the LLM
+        rails: The list of valid labels for the classification (optional)
+        
+    Returns:
+        The extracted label or NOT_PARSABLE if extraction fails
+    """
+    if not raw_string or not raw_string.strip():
+        return NOT_PARSABLE
+    
+    # Sort rails by length (longest first) to avoid substring matching issues
+    sorted_rails = sorted(rails, key=len, reverse=True) if rails else None
+    
+    # First, try to find a label after "LABEL:" keyword (case insensitive)
     label_delimiter = r"\W*label\W*"
     parts = re.split(label_delimiter, raw_string, maxsplit=1, flags=re.IGNORECASE)
+    
     if len(parts) == 2:
-        return parts[1]
-    return raw_string  # Fallback to the whole string if no label delimiter is found
+        # Found "label" keyword, extract what comes after it
+        label_part = parts[1].strip()
+        if label_part:
+            # Remove quotes if present
+            label_part = label_part.strip('"\'')
+            
+            # If rails are provided, look for any of the valid rails in the label part (longest first)
+            if sorted_rails:
+                for rail in sorted_rails:
+                    if rail.lower() in label_part.lower():
+                        return rail
+            
+            # If no rail found or no rails provided, try the first word
+            words = label_part.split()
+            if words:
+                first_word = words[0].strip()
+                # Check if first word matches any rail (case insensitive)
+                if sorted_rails:
+                    for rail in sorted_rails:
+                        if rail.lower() == first_word.lower():
+                            return rail
+                else:
+                    # No rails provided, return the first word
+                    return first_word
+    
+    # If no "label" keyword found, only check the first word for valid rails
+    cleaned_response = raw_string.strip().strip('"\'')
+    first_word = cleaned_response.split()[0] if cleaned_response.split() else ""
+    
+    # If rails are provided, check if first word matches any rail (longest first)
+    if sorted_rails and first_word:
+        for rail in sorted_rails:
+            if rail.lower() == first_word.lower():
+                return rail
+    elif not rails and first_word:
+        # No rails provided, use the old behavior for single words only
+        if ' ' not in cleaned_response:
+            return cleaned_response
+    
+    return NOT_PARSABLE
 
 
 def normalize_classification_template(
