@@ -4,7 +4,7 @@ import sys
 import warnings
 from enum import Enum
 from importlib.metadata import entry_points
-from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union, cast
+from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union
 from urllib.parse import ParseResult, urlparse
 
 from openinference.instrumentation import TracerProvider as _TracerProvider
