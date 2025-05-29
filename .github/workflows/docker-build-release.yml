@@ -98,7 +98,9 @@ jobs:
           cat kustomize/base/phoenix.yaml
           sed -i "s/tag:\ version-.*$/tag:\ version-${{ needs.push_to_registry.outputs.version }}/" helm/values.yaml
           cat helm/values.yaml
-          sed -i 's/\(version: "[^-]*\)-v[^"]*/\1-v${{ needs.push_to_registry.outputs.version }}/' helm/Chart.yaml
+          export helmPatchVersion=$(grep "version: [0-9]*\.[0-9]*\.[0-9]*" helm/Chart.yaml | sed -n 's/\(version:\ [0-9]*\.[0-9]*\.\)\([0-9]*\)/\2/p')
+          export incrementedHelmPatchVersion=$((helmPatchVersion + 1))
+          sed -i "s/\(version:\ [0-9]*\.[0-9]*\.\)[0-9]*/\1$incrementedHelmPatchVersion/" helm/Chart.yaml
           sed -i 's/appVersion: "[^"]*"/appVersion: "${{ needs.push_to_registry.outputs.version }}"/' helm/Chart.yaml
           cat helm/Chart.yaml
       - name: Create PR
