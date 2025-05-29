@@ -13,7 +13,7 @@ from phoenix import Client as LegacyClient
 from phoenix import TraceDataset
 from phoenix.client import Client
 from phoenix.db import models
-from phoenix.server.api.routers.v1.spans import OtlpAnyValue, OtlpSpan, OtlpStatus
+from phoenix.server.api.routers.v1.spans import OtlpAnyValue, OtlpSpan, OtlpStatus, Span, SpanContext, SpanEvent
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanQuery
 
@@ -429,3 +429,157 @@ async def test_span_events_conversion(
     assert float_attr is not None
     assert float_attr.value is not None
     assert float_attr.value.double_value == 3.14
+
+
+async def test_phoenix_span_search_basic(
+    httpx_client: httpx.AsyncClient, span_search_test_data: None
+) -> None:
+    resp = await httpx_client.get("v1/projects/search-test/spans")
+    assert resp.is_success
+    data = resp.json()
+    spans = [Span.model_validate(s) for s in data["data"]]
+    assert len(spans) == 3
+    for span in spans:
+        assert isinstance(span.id, str)
+        assert isinstance(span.context.span_id, str)
+        assert isinstance(span.context.trace_id, str)
+        assert isinstance(span.name, str)
+        assert isinstance(span.start_time, datetime)
+        assert isinstance(span.end_time, datetime)
+        assert isinstance(span.attributes, dict)
+        assert isinstance(span.status_code, str)
+
+
+async def test_phoenix_span_search_annotation_filter(
+    httpx_client: httpx.AsyncClient, span_search_test_data: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/search-test/spans",
+        params={"annotation_names": ["TestA"]},
+    )
+    assert resp.is_success
+    data = resp.json()
+    spans = [Span.model_validate(s) for s in data["data"]]
+    assert len(spans) == 2
+    for span in spans:
+        assert isinstance(span.id, str)
+        assert isinstance(span.context.span_id, str)
+        assert isinstance(span.context.trace_id, str)
+        assert isinstance(span.name, str)
+        assert isinstance(span.start_time, datetime)
+        assert isinstance(span.end_time, datetime)
+        assert isinstance(span.attributes, dict)
+        assert isinstance(span.status_code, str)
+
+
+async def test_phoenix_span_search_time_slice(
+    httpx_client: httpx.AsyncClient, span_search_test_data: None
+) -> None:
+    start = "2021-01-01T00:01:00+00:00"
+    end = "2021-01-01T00:03:00+00:00"
+    resp = await httpx_client.get(
+        "v1/projects/search-test/spans",
+        params={"start_time": start, "end_time": end},
+    )
+    assert resp.is_success
+    data = resp.json()
+    spans = [Span.model_validate(s) for s in data["data"]]
+    assert len(spans) == 2
+    for span in spans:
+        assert isinstance(span.id, str)
+        assert isinstance(span.context.span_id, str)
+        assert isinstance(span.context.trace_id, str)
+        assert isinstance(span.name, str)
+        assert isinstance(span.start_time, datetime)
+        assert isinstance(span.end_time, datetime)
+        assert isinstance(span.attributes, dict)
+        assert isinstance(span.status_code, str)
+
+
+async def test_phoenix_span_search_sort_direction(
+    httpx_client: httpx.AsyncClient, span_search_test_data: None
+) -> None:
+    resp_desc = await httpx_client.get(
+        "v1/projects/search-test/spans", params={"sort_direction": "desc"}
+    )
+    resp_asc = await httpx_client.get(
+        "v1/projects/search-test/spans", params={"sort_direction": "asc"}
+    )
+    assert resp_desc.is_success and resp_asc.is_success
+    spans_desc = [Span.model_validate(s) for s in resp_desc.json()["data"]]
+    spans_asc = [Span.model_validate(s) for s in resp_asc.json()["data"]]
+    ids_desc = [s.context.span_id for s in spans_desc]
+    ids_asc = [s.context.span_id for s in spans_asc]
+    assert ids_desc == list(reversed(ids_asc))
+
+
+async def test_phoenix_span_search_pagination(
+    httpx_client: httpx.AsyncClient, span_search_test_data: None
+) -> None:
+    resp1 = await httpx_client.get(
+        "v1/projects/search-test/spans",
+        params={"limit": 2, "sort_direction": "asc"},
+    )
+    assert resp1.is_success
+    body1 = resp1.json()
+    spans1 = [Span.model_validate(s) for s in body1["data"]]
+    assert len(spans1) == 2 and body1["next_cursor"]
+
+    cursor = body1["next_cursor"]
+    resp2 = await httpx_client.get(
+        "v1/projects/search-test/spans",
+        params={"cursor": cursor, "sort_direction": "asc"},
+    )
+    assert resp2.is_success
+    body2 = resp2.json()
+    spans2 = [Span.model_validate(s) for s in body2["data"]]
+    assert len(spans2) == 1 and body2["next_cursor"] is None
+
+    for spans in [spans1, spans2]:
+        for span in spans:
+            assert isinstance(span.id, str)
+            assert isinstance(span.context.span_id, str)
+            assert isinstance(span.context.trace_id, str)
+            assert isinstance(span.name, str)
+            assert isinstance(span.start_time, datetime)
+            assert isinstance(span.end_time, datetime)
+            assert isinstance(span.attributes, dict)
+            assert isinstance(span.status_code, str)
+
+
+async def test_phoenix_span_attributes_conversion(
+    httpx_client: httpx.AsyncClient, project_with_a_single_trace_and_span: None
+) -> None:
+    resp = await httpx_client.get("v1/projects/project-name/spans")
+    assert resp.is_success
+    data = resp.json()
+    spans = [Span.model_validate(s) for s in data["data"]]
+    assert len(spans) == 1
+
+    span = spans[0]
+    assert "input" in span.attributes
+    assert "output" in span.attributes
+    assert span.attributes["input"]["value"] == "chain-span-input-value"
+    assert span.attributes["output"]["value"] == "chain-span-output-value"
+
+
+async def test_phoenix_span_events_conversion(
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span_with_events: None,
+) -> None:
+    resp = await httpx_client.get("v1/projects/project-name/spans")
+    assert resp.is_success
+    data = resp.json()
+    spans = [Span.model_validate(s) for s in data["data"]]
+    assert len(spans) == 1
+
+    span = spans[0]
+    assert len(span.events) == 1
+
+    event = span.events[0]
+    assert event.name == "test_event"
+    assert isinstance(event.timestamp, datetime)
+    assert event.attributes["string_attr"] == "test_value"
+    assert event.attributes["bool_attr"] is True
+    assert event.attributes["int_attr"] == 42
+    assert event.attributes["float_attr"] == 3.14
