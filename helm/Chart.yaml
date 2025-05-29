@@ -1,5 +1,5 @@
 apiVersion: v2
-name: phoenix
+name: phoenix-helm
 description: A Helm chart for Arize Phoenix
 
 # A chart can be either an 'application' or a 'library' chart.
