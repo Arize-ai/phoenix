@@ -1357,6 +1357,29 @@ const applyAnthropicInvocationParameterConstraints = (
   });
 };
 
+const ZERO_VALUE_INVOCATION_NAMES = ["frequency_penalty", "presence_penalty"];
+
+/**
+ * A function that filters out invocation parameters where 0 and null have the same effect
+ * For these parameters, we can omit the 0 value because it's the same as null
+ * @param invocationParameters
+ * @returns
+ */
+const filterZeroValueInvocationParameters = (
+  invocationParameters: InvocationParameterInput[]
+): InvocationParameterInput[] => {
+  const filtered = invocationParameters.filter((param) => {
+    if (
+      param.invocationName &&
+      ZERO_VALUE_INVOCATION_NAMES.includes(param.invocationName)
+    ) {
+      return !(param.valueFloat == 0 || param.valueInt == 0);
+    }
+    return true;
+  });
+  return filtered;
+};
+
 /**
  * Applies provider-specific constraints to the invocation parameters.
  *
@@ -1370,11 +1393,14 @@ export const applyProviderInvocationParameterConstraints = (
   provider: ModelProvider,
   model: string | null
 ): InvocationParameterInput[] => {
+  // We want to remove 0 values for parameters where 0 and null have the same effect
+  const filteredInvocationParameters =
+    filterZeroValueInvocationParameters(invocationParameters);
   if (provider === "ANTHROPIC") {
     return applyAnthropicInvocationParameterConstraints(
-      invocationParameters,
+      filteredInvocationParameters,
       model
     );
   }
-  return invocationParameters;
+  return filteredInvocationParameters;
 };
