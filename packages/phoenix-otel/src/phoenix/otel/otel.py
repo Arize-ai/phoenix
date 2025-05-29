@@ -510,6 +510,10 @@ _KNOWN_PROVIDERS = {
 }
 
 
+def _has_scheme(s: str) -> bool:
+    return "//" in s
+
+
 def _normalized_endpoint(
     endpoint: Optional[str], use_http: bool = False
 ) -> Tuple[ParseResult, str]:
@@ -523,8 +527,12 @@ def _normalized_endpoint(
         else:
             parsed = _construct_grpc_endpoint(parsed)
     else:
+        if not _has_scheme(endpoint):
+            # Use // to indicate an "authority" to properly parse the URL
+            # https://en.wikipedia.org/wiki/Uniform_Resource_Identifier#Syntax
+            # However, return the original endpoint to avoid overspecifying the URL scheme
+            return urlparse(f"//{endpoint}"), endpoint
         parsed = urlparse(endpoint)
-    parsed = cast(ParseResult, parsed)
     return parsed, parsed.geturl()
 
 
