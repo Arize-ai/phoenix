@@ -1216,6 +1216,7 @@ enum GenerativeProviderKey {
   ANTHROPIC
   AZURE_OPENAI
   GOOGLE
+  DEEPSEEK
 }
 
 """
@@ -1373,6 +1374,7 @@ enum ModelProvider {
   AZURE_OPENAI
   ANTHROPIC
   GOOGLE
+  DEEPSEEK
 }
 
 input ModelsInput {

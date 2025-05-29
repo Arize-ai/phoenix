@@ -60,7 +60,9 @@ class PromptVersion:
         *,
         model_name: str,
         description: Optional[str] = None,
-        model_provider: Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE"] = "OPENAI",
+        model_provider: Literal[
+            "OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE", "DEEPSEEK"
+        ] = "OPENAI",
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
     ) -> None:
         """
@@ -70,17 +72,17 @@ class PromptVersion:
             prompt (Sequence[v1.PromptMessage]): A sequence of prompt messages.
             model_name (str): The name of the model to use for the prompt.
             description (Optional[str]): A description of the prompt. Defaults to None.
-            model_provider (Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE"]): The provider
-                of the model to use for the prompt. Defaults to "OPENAI".
+            model_provider (Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE", "DEEPSEEK"]):
+                The provider of the model to use for the prompt. Defaults to "OPENAI".
             template_format (Literal["F_STRING", "MUSTACHE", "NONE"]): The format of the template
                 to use for the prompt. Defaults to "MUSTACHE".
         """
         self._template = v1.PromptChatTemplate(messages=prompt, type="chat")
         self._template_type: Literal["CHAT"] = "CHAT"
         self._model_name = model_name
-        self._model_provider: Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE"] = (
-            model_provider
-        )
+        self._model_provider: Literal[
+            "OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE", "DEEPSEEK"
+        ] = model_provider
         self._template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = template_format
         self._description = description
         self._invocation_parameters: Union[
@@ -88,6 +90,7 @@ class PromptVersion:
             v1.PromptAzureOpenAIInvocationParameters,
             v1.PromptAnthropicInvocationParameters,
             v1.PromptGoogleInvocationParameters,
+            v1.PromptDeepSeekInvocationParameters,
         ]
         if model_provider == "OPENAI":
             self._invocation_parameters = v1.PromptOpenAIInvocationParameters(
@@ -110,6 +113,11 @@ class PromptVersion:
             self._invocation_parameters = v1.PromptGoogleInvocationParameters(
                 type="google",
                 google=v1.PromptGoogleInvocationParametersContent(),
+            )
+        elif model_provider == "DEEPSEEK":
+            self._invocation_parameters = v1.PromptDeepSeekInvocationParameters(
+                type="deepseek",
+                deepseek=v1.PromptDeepSeekInvocationParametersContent(),
             )
         else:
             assert_never(model_provider)
@@ -231,7 +239,7 @@ class PromptVersion:
         *,
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
         description: Optional[str] = None,
-        model_provider: Literal["OPENAI", "AZURE_OPENAI"] = "OPENAI",
+        model_provider: Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK"] = "OPENAI",
     ) -> Self:
         """
         Creates a prompt version from an OpenAI chat completion model.
@@ -241,8 +249,8 @@ class PromptVersion:
             template_format (Literal["F_STRING", "MUSTACHE", "NONE"]): The format of the template
                 to use for the prompt. Defaults to "MUSTACHE".
             description (Optional[str]): A description of the prompt. Defaults to None.
-            model_provider (Literal["OPENAI", "AZURE_OPENAI"]): The provider of the model to use
-                for the prompt. Defaults to "OPENAI".
+            model_provider (Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK"]):
+                The provider of the model to use for the prompt. Defaults to "OPENAI".
 
         Returns:
             PromptVersion: The prompt version.
@@ -377,6 +385,7 @@ def _to_sdk(
         "AZURE_OPENAI",
         "ANTHROPIC",
         "GOOGLE",
+        "DEEPSEEK",
     ],
 ) -> SDK:
     if model_provider == "OPENAI":
@@ -387,4 +396,6 @@ def _to_sdk(
         return "anthropic"
     if model_provider == "GOOGLE":
         return "google_generativeai"
+    if model_provider == "DEEPSEEK":
+        return "openai"
     assert_never(model_provider)
