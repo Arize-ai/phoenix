@@ -263,17 +263,38 @@ class TestClientForSpanAnnotationsRetrieval:
                 project_identifier="default",
             )
 
+        # Create complete v1.Span objects for testing
+        test_span_1 = cast(v1.Span, {
+            "id": "test_1",
+            "name": "test_span_no_id", 
+            "context": {"trace_id": "trace123", "span_id": "abc"},
+            "span_kind": "INTERNAL",
+            "start_time": "2023-01-01T00:00:00Z",
+            "end_time": "2023-01-01T00:01:00Z",
+            "status_code": "OK"
+        })
+
+        test_span_2 = cast(v1.Span, {
+            "id": "test_2",
+            "name": "valid_span", 
+            "context": {"trace_id": "trace456", "span_id": "def"},
+            "span_kind": "INTERNAL",
+            "start_time": "2023-01-01T00:00:00Z",
+            "end_time": "2023-01-01T00:01:00Z",
+            "status_code": "OK"
+        })
+
         with pytest.raises(ValueError):
             spans_client.get_span_annotations_dataframe(
                 spans_dataframe=dummy_df,
-                spans=[{"context": {"span_id": "abc"}}],
+                spans=[test_span_1],
                 project_identifier="default",
             )
 
         with pytest.raises(ValueError):
             spans_client.get_span_annotations_dataframe(
                 span_ids=["abc"],
-                spans=[{"context": {"span_id": "def"}}],
+                spans=[test_span_2],
                 project_identifier="default",
             )
 
@@ -284,7 +305,7 @@ class TestClientForSpanAnnotationsRetrieval:
         with pytest.raises(ValueError):
             spans_client.get_span_annotations(
                 span_ids=["abc"],
-                spans=[{"context": {"span_id": "def"}}],
+                spans=[test_span_2],
                 project_identifier="default",
             )
 
@@ -385,8 +406,24 @@ class TestClientForSpanAnnotationsRetrieval:
 
         # Test with spans that have missing span_ids (should not cause errors)
         spans_with_missing_ids: list[v1.Span] = [
-            cast(v1.Span, {"name": "test_span_no_id", "context": {}}),  # No span_id in context
-            cast(v1.Span, {"context": {"span_id": span_id1}, "name": "valid_span"}),
+            cast(v1.Span, {
+                "id": "test_missing_1",
+                "name": "test_span_no_id", 
+                "context": {"trace_id": "trace789", "span_id": ""},  # Empty span_id
+                "span_kind": "INTERNAL",
+                "start_time": "2023-01-01T00:00:00Z",
+                "end_time": "2023-01-01T00:01:00Z",
+                "status_code": "OK"
+            }),
+            cast(v1.Span, {
+                "id": "test_valid_1",
+                "name": "valid_span", 
+                "context": {"trace_id": "trace999", "span_id": span_id1},
+                "span_kind": "INTERNAL",
+                "start_time": "2023-01-01T00:00:00Z",
+                "end_time": "2023-01-01T00:01:00Z",
+                "status_code": "OK"
+            }),
         ]
 
         annotations_filtered = await _await_or_return(
@@ -483,7 +520,7 @@ class TestClientForSpansRetrieval:
             pytest.skip("Not enough spans for time filtering test")
 
         # Parse timestamps and sort spans
-        spans_with_time = []
+        spans_with_time: list[tuple[v1.Span, datetime]] = []
         for span in all_spans:
             try:
                 start_time = datetime.fromisoformat(span["start_time"].replace("Z", "+00:00"))
@@ -494,9 +531,9 @@ class TestClientForSpansRetrieval:
         if len(spans_with_time) < 2:
             pytest.skip("Not enough spans with valid timestamps")
 
-        sorted_spans = sorted(spans_with_time, key=lambda x: x[1])
-        earliest_time = sorted_spans[0][1]
-        latest_time = sorted_spans[-1][1]
+        sorted_spans: list[tuple[v1.Span, datetime]] = sorted(spans_with_time, key=lambda x: x[1])
+        earliest_time: datetime = sorted_spans[0][1]
+        latest_time: datetime = sorted_spans[-1][1]
 
         # Test with start_time filter
         spans_after = await _await_or_return(
