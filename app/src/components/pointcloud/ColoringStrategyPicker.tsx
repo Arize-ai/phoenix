@@ -1,8 +1,8 @@
 import { Content, ContextualHelp } from "@arizeai/components";
 
-import { 
+import {
   Button,
-  Heading, 
+  Heading,
   Label,
   ListBox,
   Popover,
@@ -10,7 +10,7 @@ import {
   SelectChevronUpDownIcon,
   SelectItem,
   SelectValue,
-  Text 
+  Text,
 } from "@phoenix/components";
 import { ColoringStrategy } from "@phoenix/constants/pointCloudConstants";
 
@@ -65,7 +65,9 @@ export function ColoringStrategyPicker(props: ColoringStrategyPickerProps) {
       <Popover>
         <ListBox>
           {ColoringStrategies.map((item) => (
-            <SelectItem key={item} id={item}>{item}</SelectItem>
+            <SelectItem key={item} id={item}>
+              {item}
+            </SelectItem>
           ))}
         </ListBox>
       </Popover>
