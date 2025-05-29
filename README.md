@@ -108,7 +108,7 @@ Phoenix is built on top of OpenTelemetry and is vendor, language, and framework 
 | [LangChain.js](https://docs.arize.com/phoenix/tracing/integrations-tracing/langchain.js)   | `@arizeai/openinference-instrumentation-langchain` | [![NPM Version](https://img.shields.io/npm/v/@arizeai/openinference-instrumentation-langchain.svg)](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-langchain) |
 | [Vercel AI SDK](https://docs.arize.com/phoenix/tracing/integrations-tracing/vercel-ai-sdk) | `@arizeai/openinference-vercel`                    | [![NPM Version](https://img.shields.io/npm/v/@arizeai/openinference-vercel)](https://www.npmjs.com/package/@arizeai/openinference-vercel)                                           |
 | [BeeAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/beeai)                 | `@arizeai/openinference-instrumentation-beeai`     | [![NPM Version](https://img.shields.io/npm/v/@arizeai/openinference-vercel)](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-beeai)                            |
-| [Mastra](https://docs.arize.com/phoenix/integrations/mastra)                               | `@arizeai/openinference-instrumentation-mastra`    | [![NPM Version](https://img.shields.io/npm/v/@arizeai/openinference-instrumentation-mastra.svg)](https://www.npmjs.com/package/@arizeai/openinference-mastra)                       |
+| [Mastra](https://docs.arize.com/phoenix/integrations/mastra)                               | `@arizeai/openinference-mastra`                    | [![NPM Version](https://img.shields.io/npm/v/@arizeai/openinference-mastra.svg)](https://www.npmjs.com/package/@arizeai/openinference-mastra)                                       |
 
 ### Platforms
 
