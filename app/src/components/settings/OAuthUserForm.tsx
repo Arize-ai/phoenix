@@ -14,7 +14,7 @@ import {
 } from "@phoenix/components";
 import { UserRole } from "@phoenix/constants";
 
-import { RolePicker } from "./RolePicker";
+import { RoleSelect } from "./RoleSelect";
 
 export type OAuthUserFormParams = {
   email: string;
@@ -56,7 +56,7 @@ export function OAuthUserForm({
   return (
     <div
       css={css`
-        .role-picker {
+        .role-select {
           width: 100%;
           .ac-dropdown--picker,
           .ac-dropdown-button {
@@ -80,14 +80,14 @@ export function OAuthUserForm({
               }}
               render={({
                 field: { name, onChange, onBlur, value },
-                fieldState: { invalid, error },
+                fieldState: { error },
               }) => (
                 <TextField
                   type="email"
                   name={name}
                   isRequired
                   onChange={onChange}
-                  isInvalid={invalid}
+                  isInvalid={!!error}
                   onBlur={onBlur}
                   value={value}
                 >
@@ -111,13 +111,13 @@ export function OAuthUserForm({
               }}
               render={({
                 field: { name, onChange, onBlur, value },
-                fieldState: { invalid, error },
+                fieldState: { error },
               }) => (
                 <TextField
                   name={name}
                   isRequired
                   onChange={onChange}
-                  isInvalid={invalid}
+                  isInvalid={!!error}
                   onBlur={onBlur}
                   value={value}
                 >
@@ -136,12 +136,11 @@ export function OAuthUserForm({
               control={control}
               render={({
                 field: { onChange, value },
-                fieldState: { invalid, error },
+                fieldState: { error },
               }) => (
-                <RolePicker
+                <RoleSelect
                   onChange={onChange}
                   role={value}
-                  validationState={invalid ? "invalid" : "valid"}
                   errorMessage={error?.message}
                 />
               )}
