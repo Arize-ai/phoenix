@@ -74,8 +74,7 @@ const versionsConnectorCSS = css`
   height: calc(100% - 32px);
   width: 2px;
   --connector-color: var(--ac-global-color-grey-400);
-  background:
-    repeating-linear-gradient(
+  background: repeating-linear-gradient(
       to bottom,
       transparent 0 4px,
       var(--ac-global-color-grey-50) 4px 8px
@@ -85,8 +84,7 @@ const versionsConnectorCSS = css`
   background-position: 80%;
   background-repeat: no-repeat;
   &[data-last="true"] {
-    background:
-      repeating-linear-gradient(
+    background: repeating-linear-gradient(
         to bottom,
         transparent 0 4px,
         var(--ac-global-color-grey-50) 4px 8px

@@ -86,8 +86,7 @@ export function ProjectPageHeader(props: {
             overflow-x: auto;
             overflow-y: hidden;
             flex: 1 1 auto;
-            background-image:
-              linear-gradient(
+            background-image: linear-gradient(
                 to right,
                 var(--ac-global-color-grey-75),
                 var(--ac-global-color-grey-75)
