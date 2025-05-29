@@ -35,6 +35,10 @@ type RoleSelectProps = {
    * Error message to display below the select
    */
   errorMessage?: string;
+  /**
+   * Whether the field is invalid
+   */
+  isInvalid?: boolean;
 } & Omit<SelectProps, "children" | "onSelectionChange" | "selectedKey">;
 
 export function RoleSelect({
@@ -42,6 +46,7 @@ export function RoleSelect({
   role,
   includeLabel = true,
   errorMessage,
+  isInvalid = false,
   ...selectProps
 }: RoleSelectProps) {
   return (
@@ -50,7 +55,7 @@ export function RoleSelect({
       className="role-select"
       selectedKey={role ?? undefined}
       aria-label="User Role"
-      isInvalid={!!errorMessage}
+      isInvalid={isInvalid}
       onSelectionChange={(key) => {
         if (isUserRole(key)) {
           onChange(key);
