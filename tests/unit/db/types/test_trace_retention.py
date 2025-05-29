@@ -1,4 +1,5 @@
 from collections import defaultdict
+from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 from typing import Any, Dict, Type, Union
@@ -7,6 +8,7 @@ import pytest
 import sqlalchemy as sa
 from faker import Faker
 from freezegun import freeze_time
+from pydantic import ValidationError
 
 from phoenix.db import models
 from phoenix.db.types.trace_retention import (
@@ -14,11 +16,58 @@ from phoenix.db.types.trace_retention import (
     MaxDaysOrCountRule,
     MaxDaysRule,
     TraceRetentionRule,
+    _MaxCount,
+    _MaxDays,
     _time_of_next_run,
 )
 from phoenix.server.types import DbSessionFactory
 
 fake = Faker()
+
+
+class TestMaxDaysMixin:
+    @pytest.mark.parametrize(
+        "max_days,is_valid",
+        [
+            pytest.param(0, True, id="zero_days"),
+            pytest.param(0.5, True, id="half_days"),
+            pytest.param(-10, False, id="negative_days"),
+        ],
+    )
+    def test_init(self, max_days: float, is_valid: bool) -> None:
+        """Test that _MaxDays fails with invalid inputs."""
+        with nullcontext() if is_valid else pytest.raises(ValidationError):
+            _MaxDays(max_days=max_days)
+
+    @pytest.mark.parametrize(
+        "max_days,expected",
+        [
+            pytest.param(0, "false", id="zero_days"),
+            pytest.param(0.5, "traces.start_time < '2023-01-15 00:00:00+00:00'", id="half_days"),
+        ],
+    )
+    def test_filter(self, max_days: int, expected: str) -> None:
+        """Test that max_days_filter generates correct SQL query."""
+        rule: _MaxDays = _MaxDays(max_days=max_days)
+        with freeze_time("2023-01-15 12:00:00", tz_offset=0):
+            actual = str(rule.max_days_filter.compile(compile_kwargs={"literal_binds": True}))
+        assert actual == expected
+
+
+class TestMaxCountMixin:
+    @pytest.mark.parametrize(
+        "max_count,is_valid",
+        [
+            pytest.param(0, True, id="zero_count"),
+            pytest.param(10, True, id="ten_count"),
+            pytest.param(0.5, False, id="float_count"),
+            pytest.param(-10, False, id="negative_count"),
+        ],
+    )
+    def test_init(self, max_count: int, is_valid: bool) -> None:
+        """Test that _MaxCount fails with invalid inputs."""
+        with nullcontext() if is_valid else pytest.raises(ValidationError):
+            _MaxCount(max_count=max_count)
 
 
 class TestTraceRetentionRuleMaxDays:
