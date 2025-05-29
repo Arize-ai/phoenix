@@ -5,6 +5,7 @@ from typing import Annotated, Iterable, Literal, Optional, Union
 
 import sqlalchemy as sa
 from pydantic import AfterValidator, BaseModel, Field, RootModel
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.utilities import hour_of_week
@@ -31,13 +32,14 @@ class _MaxCount(BaseModel):
             return sa.literal(False)
         from phoenix.db.models import Trace
 
-        return Trace.start_time < (
-            sa.select(Trace.start_time)
-            .order_by(Trace.start_time.desc())
-            .offset(self.max_count - 1)
-            .limit(1)
-            .scalar_subquery()
-        )
+        ranked = sa.select(
+            Trace.id,
+            func.row_number()
+            .over(partition_by=Trace.project_rowid, order_by=Trace.start_time.desc())
+            .label("rn"),
+        ).cte("ranked")
+
+        return Trace.id.in_(sa.select(ranked.c.id).where(ranked.c.rn > self.max_count))
 
 
 class MaxDaysRule(_MaxDays, BaseModel):
