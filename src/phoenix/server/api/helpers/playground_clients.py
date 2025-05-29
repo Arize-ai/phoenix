@@ -472,7 +472,7 @@ class DeepSeekStreamingClient(OpenAIBaseStreamingClient):
         base_url = model.base_url or getenv("DEEPSEEK_BASE_URL")
         if not (api_key := api_key or getenv("DEEPSEEK_API_KEY")):
             if not base_url:
-                raise BadRequest("An API key is required for OpenAI models")
+                raise BadRequest("An API key is required for DeepSeek models")
             api_key = "sk-fake-api-key"
         client = AsyncOpenAI(api_key=api_key, base_url=base_url or "https://api.deepseek.com")
         super().__init__(client=client, model=model, api_key=api_key)
