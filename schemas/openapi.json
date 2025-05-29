@@ -1857,6 +1857,178 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "$ref": "#/components/schemas/OtlpSpanSearchResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/projects/{project_identifier}/spans": {
+      "get": {
+        "tags": [
+          "spans"
+        ],
+        "summary": "Search spans with simple filters (no DSL)",
+        "description": "Return spans within a project filtered by time range, annotation names, and ordered by start_time. Supports cursor-based pagination.",
+        "operationId": "spanSearchPhoenix",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Pagination cursor (GlobalID of Span)",
+              "title": "Cursor"
+            },
+            "description": "Pagination cursor (GlobalID of Span)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "exclusiveMinimum": 0,
+              "description": "Maximum number of spans to return",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "Maximum number of spans to return"
+          },
+          {
+            "name": "sort_direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string",
+              "description": "Sort direction for the sort field",
+              "default": "desc",
+              "title": "Sort Direction"
+            },
+            "description": "Sort direction for the sort field"
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive lower bound time",
+              "title": "Start Time"
+            },
+            "description": "Inclusive lower bound time"
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Exclusive upper bound time",
+              "title": "End Time"
+            },
+            "description": "Exclusive upper bound time"
+          },
+          {
+            "name": "annotation_names",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "If provided, only include spans that have at least one annotation with one of these names.",
+              "title": "Annotation Names"
+            },
+            "description": "If provided, only include spans that have at least one annotation with one of these names."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
                   "$ref": "#/components/schemas/SpanSearchResponseBody"
                 }
               }
@@ -5419,6 +5591,35 @@
         "type": "object",
         "title": "OtlpSpan"
       },
+      "OtlpSpanSearchResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/OtlpSpan"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "OtlpSpanSearchResponseBody",
+        "description": "Paginated response where each span follows OTLP JSON structure."
+      },
       "OtlpStatus": {
         "properties": {
           "code": {
@@ -6602,6 +6803,89 @@
         "type": "object",
         "title": "PromptXAIInvocationParametersContent"
       },
+      "Span": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Phoenix span ID"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Name of the span operation"
+          },
+          "context": {
+            "$ref": "#/components/schemas/SpanContext",
+            "description": "Span context containing trace_id and span_id"
+          },
+          "span_kind": {
+            "type": "string",
+            "title": "Span Kind",
+            "description": "Type of work that the span encapsulates"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id",
+            "description": "OpenTelemetry span ID of the parent span"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start Time",
+            "description": "Start time of the span"
+          },
+          "end_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End Time",
+            "description": "End time of the span"
+          },
+          "status_code": {
+            "type": "string",
+            "title": "Status Code",
+            "description": "Status code of the span"
+          },
+          "status_message": {
+            "type": "string",
+            "title": "Status Message",
+            "description": "Status message",
+            "default": ""
+          },
+          "attributes": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Attributes",
+            "description": "Span attributes"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/SpanEvent"
+            },
+            "type": "array",
+            "title": "Events",
+            "description": "Span events"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "context",
+          "span_kind",
+          "start_time",
+          "end_time",
+          "status_code"
+        ],
+        "title": "Span"
+      },
       "SpanAnnotation": {
         "properties": {
           "span_id": {
@@ -6832,11 +7116,60 @@
         ],
         "title": "SpanAnnotationsResponseBody"
       },
+      "SpanContext": {
+        "properties": {
+          "trace_id": {
+            "type": "string",
+            "title": "Trace Id",
+            "description": "OpenTelemetry trace ID"
+          },
+          "span_id": {
+            "type": "string",
+            "title": "Span Id",
+            "description": "OpenTelemetry span ID"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trace_id",
+          "span_id"
+        ],
+        "title": "SpanContext",
+        "description": "Context propagation for a span"
+      },
+      "SpanEvent": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Name of the event"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp",
+            "description": "When the event occurred"
+          },
+          "attributes": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Attributes",
+            "description": "Event attributes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "timestamp"
+        ],
+        "title": "SpanEvent",
+        "description": "A Span Event can be thought of as a structured log message (or annotation)\non a Span, typically used to denote a meaningful, singular point in time\nduring the Span's duration."
+      },
       "SpanSearchResponseBody": {
         "properties": {
           "data": {
             "items": {
-              "$ref": "#/components/schemas/OtlpSpan"
+              "$ref": "#/components/schemas/Span"
             },
             "type": "array",
             "title": "Data"
@@ -6858,8 +7191,7 @@
           "data",
           "next_cursor"
         ],
-        "title": "SpanSearchResponseBody",
-        "description": "Paginated response where each span follows OTLP JSON structure."
+        "title": "SpanSearchResponseBody"
       },
       "TextContentPart": {
         "properties": {
