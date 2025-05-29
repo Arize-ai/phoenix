@@ -283,6 +283,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
             BoundedFloatInvocationParameter(
                 invocation_name="presence_penalty",
                 label="Presence Penalty",
+                default_value=0.0,
                 min_value=-2.0,
                 max_value=2.0,
             ),
