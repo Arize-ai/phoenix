@@ -3,7 +3,7 @@ import { css } from "@emotion/react";
 import { Form } from "@arizeai/components";
 
 import { Alert } from "@phoenix/components";
-import { ConnectedDimensionPicker } from "@phoenix/components/form";
+import { ConnectedDimensionSelect } from "@phoenix/components/form";
 import { ColoringStrategy } from "@phoenix/constants/pointCloudConstants";
 import { useInferences, usePointCloudContext } from "@phoenix/contexts";
 
@@ -63,7 +63,7 @@ export function PointCloudDisplaySettings() {
             onChange={setColoringStrategy}
           />
           {coloringStrategy === ColoringStrategy.dimension ? (
-            <ConnectedDimensionPicker
+            <ConnectedDimensionSelect
               selectedDimension={null}
               onChange={(dimension) => {
                 setDimension(dimension);
