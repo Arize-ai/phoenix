@@ -8,6 +8,13 @@ evaluations, annotations, datasets, and prompts.
 Usage:
   cd export
   python export_all_projects.py [--all] [--datasets] [--traces] [--prompts] [--annotations] [--projects]
+
+Environment Variables:
+  PHOENIX_ENDPOINT: Base URL of the Phoenix server.
+                    For self-hosted, e.g., http://localhost:6006
+                    For Phoenix Cloud, e.g., https://app.phoenix.arize.com
+  PHOENIX_API_KEY: API key for Phoenix Cloud authentication (if required).
+  PHOENIX_EXPORT_DIR: Directory to save exported data (default: "phoenix_export").
 """
 
 import os
@@ -44,7 +51,7 @@ def main() -> None:
     
     # Check for required arguments
     if not args.base_url:
-        logger.error("No Phoenix Endpoint URL provided. Set the PHOENIX_ENDPOINT environment variable or use --base-url")
+        logger.error("No Phoenix Endpoint URL provided. Set the PHOENIX_ENDPOINT environment variable (e.g., https://app.phoenix.arize.com for Cloud, http://localhost:6006 for self-hosted) or use --base-url.")
         return
     
     # Set up logging level
@@ -65,7 +72,7 @@ def main() -> None:
         'Content-Type': 'application/json'
     }
     if args.api_key:
-        headers['Authorization'] = f'Bearer {args.api_key}'
+        headers['api_key'] = args.api_key
     
     client = create_client_with_retry(
         base_url=args.base_url.rstrip('/'),

@@ -3,6 +3,7 @@
 ## Overview
 
 Tools to export data from Phoenix server and import it into Arize, supporting:
+- Self-hosted & Cloud instances
 - Projects
 - traces
 - Annotations
@@ -15,7 +16,6 @@ Not Supported
 
 Still WIP
  - Evals
- - Phoenix Cloud
 
 ## Installation
 
