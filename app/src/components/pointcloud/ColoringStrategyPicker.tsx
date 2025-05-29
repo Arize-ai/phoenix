@@ -1,6 +1,17 @@
-import { Content, ContextualHelp, Item, Picker } from "@arizeai/components";
+import { Content, ContextualHelp } from "@arizeai/components";
 
-import { Heading, Text } from "@phoenix/components";
+import { 
+  Button,
+  Heading, 
+  Label,
+  ListBox,
+  Popover,
+  Select,
+  SelectChevronUpDownIcon,
+  SelectItem,
+  SelectValue,
+  Text 
+} from "@phoenix/components";
 import { ColoringStrategy } from "@phoenix/constants/pointCloudConstants";
 
 function isColoringStrategy(strategy: unknown): strategy is ColoringStrategy {
@@ -34,7 +45,7 @@ const contextualHelp = (
 export function ColoringStrategyPicker(props: ColoringStrategyPickerProps) {
   const { strategy, onChange } = props;
   return (
-    <Picker
+    <Select
       defaultSelectedKey={strategy}
       aria-label="Coloring strategy"
       onSelectionChange={(key) => {
@@ -42,12 +53,22 @@ export function ColoringStrategyPicker(props: ColoringStrategyPickerProps) {
           onChange(key);
         }
       }}
-      label="Color By"
-      labelExtra={contextualHelp}
     >
-      {ColoringStrategies.map((item) => (
-        <Item key={item}>{item}</Item>
-      ))}
-    </Picker>
+      <Label>
+        Color By
+        {contextualHelp}
+      </Label>
+      <Button>
+        <SelectValue />
+        <SelectChevronUpDownIcon />
+      </Button>
+      <Popover>
+        <ListBox>
+          {ColoringStrategies.map((item) => (
+            <SelectItem key={item} id={item}>{item}</SelectItem>
+          ))}
+        </ListBox>
+      </Popover>
+    </Select>
   );
 }
