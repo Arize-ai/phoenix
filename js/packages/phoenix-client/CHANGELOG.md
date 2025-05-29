@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 2.1.0
+
+### Minor Changes
+
+- b162720: add support for deepseek
+
 ## 2.0.1
 
 ### Patch Changes
