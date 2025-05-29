@@ -80,7 +80,7 @@ export function OAuthUserForm({
               }}
               render={({
                 field: { name, onChange, onBlur, value },
-                fieldState: { error },
+                fieldState: { error, invalid },
               }) => (
                 <TextField
                   type="email"
@@ -111,13 +111,13 @@ export function OAuthUserForm({
               }}
               render={({
                 field: { name, onChange, onBlur, value },
-                fieldState: { error },
+                fieldState: { error, invalid },
               }) => (
                 <TextField
                   name={name}
                   isRequired
                   onChange={onChange}
-                  isInvalid={!!error}
+                  isInvalid={invalid}
                   onBlur={onBlur}
                   value={value}
                 >

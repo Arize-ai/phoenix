@@ -207,12 +207,13 @@ export function UserForm({
               control={control}
               render={({
                 field: { onChange, value },
-                fieldState: { error },
+                fieldState: { error, invalid },
               }) => (
                 <RoleSelect
                   onChange={onChange}
                   role={value}
                   errorMessage={error?.message}
+                  isInvalid={invalid}
                 />
               )}
             />
