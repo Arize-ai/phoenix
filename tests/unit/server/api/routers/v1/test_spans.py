@@ -229,7 +229,7 @@ async def span_search_test_data(db: DbSessionFactory) -> None:
             )
 
 
-async def test_span_search_basic(
+async def test_otlp_span_search_basic(
     httpx_client: httpx.AsyncClient, span_search_test_data: None
 ) -> None:
     resp = await httpx_client.get("v1/projects/search-test/spans/otlpv1")
@@ -251,7 +251,7 @@ async def test_span_search_basic(
             assert span.status.code in (0, 1, 2)  # Valid OTLP status codes
 
 
-async def test_span_search_annotation_filter(
+async def test_otlp_span_search_annotation_filter(
     httpx_client: httpx.AsyncClient, span_search_test_data: None
 ) -> None:
     resp = await httpx_client.get(
@@ -276,7 +276,7 @@ async def test_span_search_annotation_filter(
             assert span.status.code in (0, 1, 2)  # Valid OTLP status codes
 
 
-async def test_span_search_time_slice(
+async def test_otlp_span_search_time_slice(
     httpx_client: httpx.AsyncClient, span_search_test_data: None
 ) -> None:
     start = "2021-01-01T00:01:00+00:00"
@@ -304,7 +304,7 @@ async def test_span_search_time_slice(
             assert span.status.code in (0, 1, 2)  # Valid OTLP status codes
 
 
-async def test_span_search_sort_direction(
+async def test_otlp_span_search_sort_direction(
     httpx_client: httpx.AsyncClient, span_search_test_data: None
 ) -> None:
     resp_desc = await httpx_client.get(
@@ -321,7 +321,7 @@ async def test_span_search_sort_direction(
     assert ids_desc == list(reversed(ids_asc))
 
 
-async def test_span_search_pagination(
+async def test_otlp_span_search_pagination(
     httpx_client: httpx.AsyncClient, span_search_test_data: None
 ) -> None:
     resp1 = await httpx_client.get(
@@ -359,7 +359,7 @@ async def test_span_search_pagination(
                 assert span.status.code in (0, 1, 2)  # Valid OTLP status codes
 
 
-async def test_span_attributes_conversion(
+async def test_otlp_span_attributes_conversion(
     httpx_client: httpx.AsyncClient, project_with_a_single_trace_and_span: None
 ) -> None:
     """Test that span attributes are properly converted to OTLP format."""
@@ -389,7 +389,7 @@ async def test_span_attributes_conversion(
     assert output_attr.value.string_value == "chain-span-output-value"
 
 
-async def test_span_events_conversion(
+async def test_otlp_span_events_conversion(
     httpx_client: httpx.AsyncClient,
     project_with_a_single_trace_and_span_with_events: None,
 ) -> None:
@@ -431,7 +431,7 @@ async def test_span_events_conversion(
     assert float_attr.value.double_value == 3.14
 
 
-async def test_phoenix_span_search_basic(
+async def test_span_search_basic(
     httpx_client: httpx.AsyncClient, span_search_test_data: None
 ) -> None:
     resp = await httpx_client.get("v1/projects/search-test/spans")
@@ -450,7 +450,7 @@ async def test_phoenix_span_search_basic(
         assert isinstance(span.status_code, str)
 
 
-async def test_phoenix_span_search_annotation_filter(
+async def test_span_search_annotation_filter(
     httpx_client: httpx.AsyncClient, span_search_test_data: None
 ) -> None:
     resp = await httpx_client.get(
@@ -472,7 +472,7 @@ async def test_phoenix_span_search_annotation_filter(
         assert isinstance(span.status_code, str)
 
 
-async def test_phoenix_span_search_time_slice(
+async def test_span_search_time_slice(
     httpx_client: httpx.AsyncClient, span_search_test_data: None
 ) -> None:
     start = "2021-01-01T00:01:00+00:00"
@@ -496,7 +496,7 @@ async def test_phoenix_span_search_time_slice(
         assert isinstance(span.status_code, str)
 
 
-async def test_phoenix_span_search_sort_direction(
+async def test_span_search_sort_direction(
     httpx_client: httpx.AsyncClient, span_search_test_data: None
 ) -> None:
     resp_desc = await httpx_client.get(
@@ -513,7 +513,7 @@ async def test_phoenix_span_search_sort_direction(
     assert ids_desc == list(reversed(ids_asc))
 
 
-async def test_phoenix_span_search_pagination(
+async def test_span_search_pagination(
     httpx_client: httpx.AsyncClient, span_search_test_data: None
 ) -> None:
     resp1 = await httpx_client.get(
@@ -547,7 +547,7 @@ async def test_phoenix_span_search_pagination(
             assert isinstance(span.status_code, str)
 
 
-async def test_phoenix_span_attributes_conversion(
+async def test_span_attributes_conversion(
     httpx_client: httpx.AsyncClient, project_with_a_single_trace_and_span: None
 ) -> None:
     resp = await httpx_client.get("v1/projects/project-name/spans")
@@ -563,7 +563,7 @@ async def test_phoenix_span_attributes_conversion(
     assert span.attributes["output"]["value"] == "chain-span-output-value"
 
 
-async def test_phoenix_span_events_conversion(
+async def test_span_events_conversion(
     httpx_client: httpx.AsyncClient,
     project_with_a_single_trace_and_span_with_events: None,
 ) -> None:
