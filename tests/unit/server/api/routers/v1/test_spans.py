@@ -490,6 +490,7 @@ async def test_otlp_attribute_flattening(
     assert len(spans) == 1
 
     span = spans[0]
+    assert span.attributes is not None
     attr_dict = {attr.key: attr.value for attr in span.attributes}
 
     assert "simple" in attr_dict
@@ -500,18 +501,26 @@ async def test_otlp_attribute_flattening(
     assert "array" in attr_dict
     assert "mixed.numbers" in attr_dict
 
+    assert attr_dict["simple"] is not None
     assert attr_dict["simple"].string_value == "value"
+    assert attr_dict["nested.key"] is not None
     assert attr_dict["nested.key"].string_value == "nested_value"
+    assert attr_dict["nested.deep.deeper"] is not None
     assert attr_dict["nested.deep.deeper"].string_value == "deepest"
+    assert attr_dict["mixed.text"] is not None
     assert attr_dict["mixed.text"].string_value == "hello"
 
+    assert attr_dict["array"] is not None
     assert attr_dict["array"].array_value is not None
+    assert attr_dict["array"].array_value.values is not None
     assert len(attr_dict["array"].array_value.values) == 3
     assert attr_dict["array"].array_value.values[0].int_value == 1
     assert attr_dict["array"].array_value.values[1].int_value == 2
     assert attr_dict["array"].array_value.values[2].int_value == 3
 
+    assert attr_dict["mixed.numbers"] is not None
     assert attr_dict["mixed.numbers"].array_value is not None
+    assert attr_dict["mixed.numbers"].array_value.values is not None
     assert len(attr_dict["mixed.numbers"].array_value.values) == 2
     assert attr_dict["mixed.numbers"].array_value.values[0].int_value == 10
     assert attr_dict["mixed.numbers"].array_value.values[1].int_value == 20

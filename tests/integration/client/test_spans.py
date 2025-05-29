@@ -264,25 +264,31 @@ class TestClientForSpanAnnotationsRetrieval:
             )
 
         # Create complete v1.Span objects for testing
-        test_span_1 = cast(v1.Span, {
-            "id": "test_1",
-            "name": "test_span_no_id", 
-            "context": {"trace_id": "trace123", "span_id": "abc"},
-            "span_kind": "INTERNAL",
-            "start_time": "2023-01-01T00:00:00Z",
-            "end_time": "2023-01-01T00:01:00Z",
-            "status_code": "OK"
-        })
+        test_span_1 = cast(
+            v1.Span,
+            {
+                "id": "test_1",
+                "name": "test_span_no_id",
+                "context": {"trace_id": "trace123", "span_id": "abc"},
+                "span_kind": "INTERNAL",
+                "start_time": "2023-01-01T00:00:00Z",
+                "end_time": "2023-01-01T00:01:00Z",
+                "status_code": "OK",
+            },
+        )
 
-        test_span_2 = cast(v1.Span, {
-            "id": "test_2",
-            "name": "valid_span", 
-            "context": {"trace_id": "trace456", "span_id": "def"},
-            "span_kind": "INTERNAL",
-            "start_time": "2023-01-01T00:00:00Z",
-            "end_time": "2023-01-01T00:01:00Z",
-            "status_code": "OK"
-        })
+        test_span_2 = cast(
+            v1.Span,
+            {
+                "id": "test_2",
+                "name": "valid_span",
+                "context": {"trace_id": "trace456", "span_id": "def"},
+                "span_kind": "INTERNAL",
+                "start_time": "2023-01-01T00:00:00Z",
+                "end_time": "2023-01-01T00:01:00Z",
+                "status_code": "OK",
+            },
+        )
 
         with pytest.raises(ValueError):
             spans_client.get_span_annotations_dataframe(
@@ -406,24 +412,30 @@ class TestClientForSpanAnnotationsRetrieval:
 
         # Test with spans that have missing span_ids (should not cause errors)
         spans_with_missing_ids: list[v1.Span] = [
-            cast(v1.Span, {
-                "id": "test_missing_1",
-                "name": "test_span_no_id", 
-                "context": {"trace_id": "trace789", "span_id": ""},  # Empty span_id
-                "span_kind": "INTERNAL",
-                "start_time": "2023-01-01T00:00:00Z",
-                "end_time": "2023-01-01T00:01:00Z",
-                "status_code": "OK"
-            }),
-            cast(v1.Span, {
-                "id": "test_valid_1",
-                "name": "valid_span", 
-                "context": {"trace_id": "trace999", "span_id": span_id1},
-                "span_kind": "INTERNAL",
-                "start_time": "2023-01-01T00:00:00Z",
-                "end_time": "2023-01-01T00:01:00Z",
-                "status_code": "OK"
-            }),
+            cast(
+                v1.Span,
+                {
+                    "id": "test_missing_1",
+                    "name": "test_span_no_id",
+                    "context": {"trace_id": "trace789", "span_id": ""},  # Empty span_id
+                    "span_kind": "INTERNAL",
+                    "start_time": "2023-01-01T00:00:00Z",
+                    "end_time": "2023-01-01T00:01:00Z",
+                    "status_code": "OK",
+                },
+            ),
+            cast(
+                v1.Span,
+                {
+                    "id": "test_valid_1",
+                    "name": "valid_span",
+                    "context": {"trace_id": "trace999", "span_id": span_id1},
+                    "span_kind": "INTERNAL",
+                    "start_time": "2023-01-01T00:00:00Z",
+                    "end_time": "2023-01-01T00:01:00Z",
+                    "status_code": "OK",
+                },
+            ),
         ]
 
         annotations_filtered = await _await_or_return(
