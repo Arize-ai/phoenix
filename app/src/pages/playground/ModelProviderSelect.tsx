@@ -1,7 +1,4 @@
-import { Fragment } from "react";
 import { graphql, useFragment } from "react-relay";
-
-import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
 import {
   Button,
@@ -16,6 +13,7 @@ import {
   SelectItem,
   SelectProps,
   SelectValue,
+  Text,
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
@@ -57,6 +55,8 @@ export function ModelProviderSelect({
   return (
     <Flex direction="row" gap="size-100">
       <Select
+        {...props}
+        key="model-provider-select"
         data-testid="model-provider-picker"
         selectedKey={props.provider ?? undefined}
         aria-label="Model Provider"
@@ -67,7 +67,6 @@ export function ModelProviderSelect({
             onChange(provider);
           }
         }}
-        {...props}
       >
         <Label>Provider</Label>
         <Button>
@@ -78,13 +77,17 @@ export function ModelProviderSelect({
           <ListBox>
             {data.modelProviders.map((provider) => {
               return (
-                <SelectItem key={provider.key} id={provider.key}>
+                <SelectItem
+                  key={provider.key}
+                  id={provider.key}
+                  textValue={provider.name}
+                >
                   <Flex direction="row" gap="size-100" alignItems="center">
                     <GenerativeProviderIcon
                       provider={provider.key}
                       height={16}
                     />
-                    {provider.name}
+                    <Text>{provider.name}</Text>
                   </Flex>
                 </SelectItem>
               );
@@ -93,44 +96,9 @@ export function ModelProviderSelect({
         </Popover>
       </Select>
       {selectedProviderNotInstalled ? (
-        <TooltipTrigger delay={0} offset={5}>
-          <span>
-            <TriggerWrap>
-              <Icon color="red-700" svg={<Icons.InfoOutline />} />
-            </TriggerWrap>
-          </span>
-          <Tooltip>
-            The selected provider is not installed. Install{" "}
-            {data.modelProviders
-              .find((p) => p.key === props.provider)
-              ?.dependencies?.join(", ") ?? "the dependencies"}{" "}
-            to use its models in Playground.
-          </Tooltip>
-        </TooltipTrigger>
+        <Icon color="red-700" svg={<Icons.InfoOutline />} />
       ) : hasMissingDependencies ? (
-        <TooltipTrigger delay={0} offset={5}>
-          <span>
-            <TriggerWrap>
-              <Icon svg={<Icons.InfoOutline />} />
-            </TriggerWrap>
-          </span>
-          <Tooltip>
-            Some providers are missing dependencies. Install them to use their
-            models in Playground.
-            <br />
-            <br />
-            Missing providers:
-            <br />
-            {data.modelProviders
-              .filter((provider) => !provider.dependenciesInstalled)
-              .map((provider) => (
-                <Fragment key={provider.key}>
-                  {provider.dependencies?.join(", ") ?? provider.name}
-                  <br />
-                </Fragment>
-              ))}
-          </Tooltip>
-        </TooltipTrigger>
+        <Icon svg={<Icons.InfoOutline />} />
       ) : null}
     </Flex>
   );

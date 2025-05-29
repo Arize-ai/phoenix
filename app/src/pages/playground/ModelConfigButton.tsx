@@ -7,27 +7,26 @@ import {
   useMemo,
   useState,
 } from "react";
+import { Tooltip, TooltipTrigger } from "react-aria-components";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import debounce from "lodash/debounce";
 import { css } from "@emotion/react";
 
 import {
-  Dialog,
-  DialogContainer,
-  Tooltip,
-  TooltipTrigger,
-  TriggerWrap,
-} from "@arizeai/components";
-
-import {
   Button,
   ComboBox,
   ComboBoxItem,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
   Flex,
   Icon,
   Icons,
   Input,
   Label,
+  Modal,
   Text,
   TextField,
 } from "@phoenix/components";
@@ -281,11 +280,9 @@ export function ModelConfigButton(props: ModelConfigButtonProps) {
             <Text>{instance.model.modelName || "--"}</Text>
           </Truncate>
           {!requiredInvocationParametersConfigured ? (
-            <TooltipTrigger delay={0} offset={5}>
+            <TooltipTrigger delay={0}>
               <span>
-                <TriggerWrap>
-                  <Icon color="danger" svg={<Icons.InfoOutline />} />
-                </TriggerWrap>
+                <Icon color="danger" svg={<Icons.InfoOutline />} />
               </span>
               <Tooltip>
                 Some required invocation parameters are not configured.
@@ -294,15 +291,18 @@ export function ModelConfigButton(props: ModelConfigButtonProps) {
           ) : null}
         </Flex>
       </Button>
-      <DialogContainer
-        type="slideOver"
-        isDismissable
-        onDismiss={() => {
-          setDialog(null);
+      <Modal
+        isOpen={dialog !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setDialog(null);
+          }
         }}
+        isDismissable
+        variant="slideover"
       >
         {dialog}
-      </DialogContainer>
+      </Modal>
     </Fragment>
   );
 }
@@ -343,29 +343,31 @@ function ModelConfigDialog(props: ModelConfigDialogProps) {
     });
   }, [instance.model, notifySuccess, setModelConfigForProvider]);
   return (
-    <Dialog
-      title="Model Configuration"
-      size="M"
-      extra={
-        <TooltipTrigger delay={0} offset={5}>
-          <Button
-            size="S"
-            variant="default"
-            onPress={onSaveConfig}
-            leadingVisual={<Icon svg={<Icons.SaveOutline />} />}
-          >
-            Save as Default
-          </Button>
-          <Tooltip>
-            Saves the current configuration as the default for{" "}
-            {ModelProviders[instance.model.provider] ?? "this provider"}.
-          </Tooltip>
-        </TooltipTrigger>
-      }
-    >
-      <Suspense>
-        <ModelConfigDialogContent {...props} />
-      </Suspense>
+    <Dialog>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Model Configuration</DialogTitle>
+          <DialogTitleExtra>
+            <TooltipTrigger delay={0}>
+              <Button
+                size="S"
+                variant="default"
+                onPress={onSaveConfig}
+                leadingVisual={<Icon svg={<Icons.SaveOutline />} />}
+              >
+                Save as Default
+              </Button>
+              <Tooltip>
+                Saves the current configuration as the default for{" "}
+                {ModelProviders[instance.model.provider] ?? "this provider"}.
+              </Tooltip>
+            </TooltipTrigger>
+          </DialogTitleExtra>
+        </DialogHeader>
+        <Suspense>
+          <ModelConfigDialogContent {...props} />
+        </Suspense>
+      </DialogContent>
     </Dialog>
   );
 }
