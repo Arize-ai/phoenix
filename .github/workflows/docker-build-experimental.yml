@@ -39,7 +39,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
-          repository: ${{ env.REGISTRY }}/phoenix-helm
+          repository: ${{ secrets.DOCKERHUB_USERNAME }}/phoenix-helm
           readme-filepath: ./README.md
  
   push_to_registry:
