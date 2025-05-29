@@ -161,9 +161,15 @@ const ProjectConfigCard = ({
               </Button>
               <Popover>
                 <ListBox>
-                  <SelectItem key="spans" id="spans">Spans</SelectItem>
-                  <SelectItem key="traces" id="traces">Traces</SelectItem>
-                  <SelectItem key="sessions" id="sessions">Sessions</SelectItem>
+                  <SelectItem key="spans" id="spans">
+                    Spans
+                  </SelectItem>
+                  <SelectItem key="traces" id="traces">
+                    Traces
+                  </SelectItem>
+                  <SelectItem key="sessions" id="sessions">
+                    Sessions
+                  </SelectItem>
                 </ListBox>
               </Popover>
             </Select>
