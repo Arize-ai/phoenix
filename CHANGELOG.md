@@ -1,5 +1,34 @@
 # Changelog
 
+## [10.2.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.2.1...arize-phoenix-v10.2.2) (2025-05-29)
+
+
+### Bug Fixes
+
+* trace retention max_count deletion query did not properly group by project ([#7766](https://github.com/Arize-ai/phoenix/issues/7766)) ([3b60f46](https://github.com/Arize-ai/phoenix/commit/3b60f46e99635a42d6ab15b058eb2230e84e034f))
+
+## [10.2.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.2.0...arize-phoenix-v10.2.1) (2025-05-29)
+
+
+### Bug Fixes
+
+* typo in deepseek error message for missing api key ([#7771](https://github.com/Arize-ai/phoenix/issues/7771)) ([982e9e5](https://github.com/Arize-ai/phoenix/commit/982e9e5eed52817ec5c93ee8e256d1ebce7970a4))
+
+## [10.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.1.0...arize-phoenix-v10.2.0) (2025-05-29)
+
+
+### Features
+
+* **helm:** add initial helm chart ([#7430](https://github.com/Arize-ai/phoenix/issues/7430)) ([61806d1](https://github.com/Arize-ai/phoenix/commit/61806d100037e73ee17b4e023cc0a5419adb3890))
+* Playground add deepseek ([#7675](https://github.com/Arize-ai/phoenix/issues/7675)) ([b162720](https://github.com/Arize-ai/phoenix/commit/b162720325c7fe7c20cda75feb161b4646127cf8))
+* predefined query for extracting tool calls ([#7438](https://github.com/Arize-ai/phoenix/issues/7438)) ([8be7147](https://github.com/Arize-ai/phoenix/commit/8be7147a1d479ce08590e6349666092b0e20419d))
+* Return version id from /v1/datasets/upload ([#7740](https://github.com/Arize-ai/phoenix/issues/7740)) ([6554999](https://github.com/Arize-ai/phoenix/commit/65549997b54097ab604a02e7ffc23943a76341f8))
+
+
+### Bug Fixes
+
+* Prevent trace details slideover from prematurely closing ([#7764](https://github.com/Arize-ai/phoenix/issues/7764)) ([8cc421d](https://github.com/Arize-ai/phoenix/commit/8cc421d6f8d377e10d0c61bc8eb657bd02dd5697))
+
 ## [10.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.0.4...arize-phoenix-v10.1.0) (2025-05-28)
 
 
