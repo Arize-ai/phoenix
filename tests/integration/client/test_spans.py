@@ -8,7 +8,6 @@ from typing import cast
 import pandas as pd
 import pytest
 from phoenix.client.__generated__ import v1
-from phoenix.client.types.spans import Span
 from typing_extensions import TypeAlias
 
 from .._helpers import (
@@ -267,14 +266,14 @@ class TestClientForSpanAnnotationsRetrieval:
         with pytest.raises(ValueError):
             spans_client.get_span_annotations_dataframe(
                 spans_dataframe=dummy_df,
-                spans=[{"span_id": "abc"}],
+                spans=[{"context": {"span_id": "abc"}}],
                 project_identifier="default",
             )
 
         with pytest.raises(ValueError):
             spans_client.get_span_annotations_dataframe(
                 span_ids=["abc"],
-                spans=[{"span_id": "def"}],
+                spans=[{"context": {"span_id": "def"}}],
                 project_identifier="default",
             )
 
@@ -285,7 +284,7 @@ class TestClientForSpanAnnotationsRetrieval:
         with pytest.raises(ValueError):
             spans_client.get_span_annotations(
                 span_ids=["abc"],
-                spans=[{"span_id": "def"}],
+                spans=[{"context": {"span_id": "def"}}],
                 project_identifier="default",
             )
 
@@ -350,7 +349,7 @@ class TestClientForSpanAnnotationsRetrieval:
         )
 
         # Filter to only the spans we're interested in
-        target_spans = [s for s in spans if s.get("span_id") in [span_id1, span_id2]]
+        target_spans = [s for s in spans if s["context"]["span_id"] in [span_id1, span_id2]]
         assert len(target_spans) >= 2, "Should find at least the two test spans"
 
         # Test get_span_annotations_dataframe with spans objects
@@ -385,9 +384,9 @@ class TestClientForSpanAnnotationsRetrieval:
         assert key2 in by_span_name, f"Annotation {key2} not found"
 
         # Test with spans that have missing span_ids (should not cause errors)
-        spans_with_missing_ids: list[Span] = [
-            cast(Span, {"name": "test_span_no_id"}),  # No span_id
-            cast(Span, {"span_id": span_id1, "name": "valid_span"}),
+        spans_with_missing_ids: list[v1.Span] = [
+            cast(v1.Span, {"name": "test_span_no_id", "context": {}}),  # No span_id in context
+            cast(v1.Span, {"context": {"span_id": span_id1}, "name": "valid_span"}),
         ]
 
         annotations_filtered = await _await_or_return(
@@ -439,13 +438,22 @@ class TestClientForSpansRetrieval:
         # Each span should be a dict with the expected structure
         for span in spans:
             assert isinstance(span, dict)
-            # Check basic fields exist (all are optional)
-            if "span_id" in span:
-                assert isinstance(span["span_id"], str)
-            if "trace_id" in span:
-                assert isinstance(span["trace_id"], str)
-            if "name" in span:
-                assert isinstance(span["name"], str)
+            # Check required fields exist according to v1.Span
+            assert "id" in span
+            assert "name" in span
+            assert "context" in span
+            assert "span_kind" in span
+            assert "start_time" in span
+            assert "end_time" in span
+            assert "status_code" in span
+            
+            # Check context structure
+            context = span["context"]
+            assert isinstance(context, dict)
+            assert "trace_id" in context
+            assert "span_id" in context
+            assert isinstance(context["trace_id"], str)
+            assert isinstance(context["span_id"], str)
 
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_time_filtering(
@@ -474,22 +482,27 @@ class TestClientForSpansRetrieval:
         if len(all_spans) < 2:
             pytest.skip("Not enough spans for time filtering test")
 
-        # Find spans with different timestamps
-        sorted_spans = sorted(
-            [s for s in all_spans if "start_time" in s], key=lambda s: s["start_time"]
-        )
+        # Parse timestamps and sort spans
+        spans_with_time = []
+        for span in all_spans:
+            try:
+                start_time = datetime.fromisoformat(span["start_time"].replace("Z", "+00:00"))
+                spans_with_time.append((span, start_time))
+            except (ValueError, KeyError):
+                continue
 
-        if len(sorted_spans) < 2:
-            pytest.skip("Not enough spans with timestamps")
+        if len(spans_with_time) < 2:
+            pytest.skip("Not enough spans with valid timestamps")
 
-        earliest = sorted_spans[0]["start_time"]
-        latest = sorted_spans[-1]["start_time"]
+        sorted_spans = sorted(spans_with_time, key=lambda x: x[1])
+        earliest_time = sorted_spans[0][1]
+        latest_time = sorted_spans[-1][1]
 
         # Test with start_time filter
         spans_after = await _await_or_return(
             Client().spans.get_spans(
                 project_identifier="default",
-                start_time=earliest + timedelta(microseconds=1),
+                start_time=earliest_time + timedelta(microseconds=1),
                 limit=50,
             )
         )
@@ -499,22 +512,28 @@ class TestClientForSpansRetrieval:
 
         # All returned spans should be after the start_time
         for span in spans_after:
-            if "start_time" in span:
-                assert span["start_time"] >= earliest
+            try:
+                span_start_time = datetime.fromisoformat(span["start_time"].replace("Z", "+00:00"))
+                assert span_start_time >= earliest_time
+            except (ValueError, KeyError):
+                continue
 
         # Test with end_time filter
         spans_before = await _await_or_return(
             Client().spans.get_spans(
                 project_identifier="default",
-                end_time=latest,
+                end_time=latest_time,
                 limit=50,
             )
         )
 
         # All returned spans should be before the end_time
         for span in spans_before:
-            if "start_time" in span:
-                assert span["start_time"] < latest
+            try:
+                span_start_time = datetime.fromisoformat(span["start_time"].replace("Z", "+00:00"))
+                assert span_start_time < latest_time
+            except (ValueError, KeyError):
+                continue
 
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_annotation_name_filtering(
@@ -570,7 +589,7 @@ class TestClientForSpansRetrieval:
         )
 
         # Should include span_id1
-        span_ids = [s.get("span_id") for s in spans_with_anno1]
+        span_ids = [s["context"]["span_id"] for s in spans_with_anno1]
         assert span_id1 in span_ids
 
         # Get spans with both annotation names
@@ -583,7 +602,7 @@ class TestClientForSpansRetrieval:
         )
 
         # Should include both spans
-        span_ids_both = [s.get("span_id") for s in spans_with_both]
+        span_ids_both = [s["context"]["span_id"] for s in spans_with_both]
         assert span_id1 in span_ids_both
         assert span_id2 in span_ids_both
 
@@ -636,12 +655,14 @@ class TestClientForSpansRetrieval:
 
         for span in spans_asc + spans_desc:
             assert isinstance(span, dict)
-            assert any(key in span for key in ["span_id", "trace_id", "name"])
+            assert "id" in span
+            assert "context" in span
+            assert "name" in span
 
         assert len(spans_asc) >= 2
         assert len(spans_desc) >= 2
-        asc_span_ids = [s.get("span_id") for s in spans_asc if s.get("span_id")]
-        desc_span_ids = [s.get("span_id") for s in spans_desc if s.get("span_id")]
+        asc_span_ids = [s["context"]["span_id"] for s in spans_asc]
+        desc_span_ids = [s["context"]["span_id"] for s in spans_desc]
 
         assert asc_span_ids[0] != desc_span_ids[0], (
             f"ASC and DESC should return different orderings. "
@@ -759,49 +780,41 @@ class TestClientForSpansRetrieval:
         assert len(spans) > 0
 
         for span in spans:
-            # Check datetime fields
-            if "start_time" in span:
-                assert isinstance(span["start_time"], datetime)
-                assert span["start_time"].tzinfo is not None  # Should be timezone-aware
+            # Check required fields from v1.Span
+            assert "id" in span
+            assert "name" in span
+            assert "context" in span
+            assert "span_kind" in span
+            assert "start_time" in span
+            assert "end_time" in span
+            assert "status_code" in span
+            
+            # Check datetime fields are strings (ISO format)
+            assert isinstance(span["start_time"], str)
+            assert isinstance(span["end_time"], str)
 
-            if "end_time" in span:
-                assert isinstance(span["end_time"], datetime)
-                assert span["end_time"].tzinfo is not None
+            # Check context structure
+            context = span["context"]
+            assert isinstance(context, dict)
+            assert "trace_id" in context
+            assert "span_id" in context
+            assert isinstance(context["trace_id"], str)
+            assert isinstance(context["span_id"], str)
 
-            # Check attributes are flattened
+            # Check optional attributes
             if "attributes" in span:
                 assert isinstance(span["attributes"], dict)
-                # Values should be simple types, not OTLP AnyValue structures
-                for key, value in span["attributes"].items():
-                    assert isinstance(key, str)
-                    # Value should not be a dict with "string_value", "int_value", etc.
-                    if isinstance(value, dict):
-                        # Check that it's not an OTLP AnyValue structure
-                        otlp_value_keys = [
-                            "string_value",
-                            "int_value",
-                            "double_value",
-                            "bool_value",
-                            "array_value",
-                        ]
-                        assert not any(k in value for k in otlp_value_keys)
 
             # Check events if present
             if "events" in span:
                 assert isinstance(span["events"], list)
                 for event in span["events"]:
-                    if "timestamp" in event:
-                        assert isinstance(event["timestamp"], datetime)
+                    assert isinstance(event, dict)
+                    assert "name" in event
+                    assert "timestamp" in event
+                    assert isinstance(event["timestamp"], str)
                     if "attributes" in event:
                         assert isinstance(event["attributes"], dict)
-
-            # Check status if present
-            if "status" in span:
-                assert isinstance(span["status"], dict)
-                if "code" in span["status"]:
-                    # Should be string like "OK", "ERROR", not integer
-                    assert isinstance(span["status"]["code"], str)
-                    assert span["status"]["code"] in ["UNSET", "OK", "ERROR"]
 
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_empty_results(
