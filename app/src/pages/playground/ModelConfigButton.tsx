@@ -48,7 +48,7 @@ import {
 import { ModelConfigButtonDialogQuery } from "./__generated__/ModelConfigButtonDialogQuery.graphql";
 import { InvocationParametersFormFields } from "./InvocationParametersFormFields";
 import { ModelComboBox } from "./ModelComboBox";
-import { ModelProviderPicker } from "./ModelProviderPicker";
+import { ModelProviderSelect } from "./ModelProviderSelect";
 import { areRequiredInvocationParametersConfigured } from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
 
@@ -431,7 +431,7 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
           </Text>
         </Flex>
       ) : null}
-      <ModelProviderPicker
+      <ModelProviderSelect
         provider={instance.model.provider}
         query={query}
         onChange={(provider) => {

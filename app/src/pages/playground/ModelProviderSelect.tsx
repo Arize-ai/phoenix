@@ -1,35 +1,38 @@
 import { Fragment } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import {
-  Item,
-  Picker,
-  PickerProps,
-  Tooltip,
-  TooltipTrigger,
-  TriggerWrap,
-} from "@arizeai/components";
+import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
-import { Flex, Icon, Icons } from "@phoenix/components";
+import {
+  Button,
+  Flex,
+  Icon,
+  Icons,
+  Label,
+  ListBox,
+  Popover,
+  Select,
+  SelectChevronUpDownIcon,
+  SelectItem,
+  SelectProps,
+  SelectValue,
+} from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import type { ModelProviderPickerFragment$key } from "./__generated__/ModelProviderPickerFragment.graphql";
 
-type ModelProviderPickerProps = {
+type ModelProviderSelectProps = {
   onChange: (provider: ModelProvider) => void;
   query: ModelProviderPickerFragment$key;
   provider?: ModelProvider;
-} & Omit<
-  PickerProps<ModelProvider>,
-  "children" | "onSelectionChange" | "defaultSelectedKey"
->;
+} & Omit<SelectProps, "children" | "onSelectionChange" | "selectedKey">;
 
-export function ModelProviderPicker({
+export function ModelProviderSelect({
   onChange,
   query,
   ...props
-}: ModelProviderPickerProps) {
+}: ModelProviderSelectProps) {
   const data = useFragment<ModelProviderPickerFragment$key>(
     graphql`
       fragment ModelProviderPickerFragment on Query {
@@ -53,8 +56,7 @@ export function ModelProviderPicker({
     !installedProviders.some((provider) => provider.key === props.provider);
   return (
     <Flex direction="row" gap="size-100">
-      <Picker
-        label={"Provider"}
+      <Select
         data-testid="model-provider-picker"
         selectedKey={props.provider ?? undefined}
         aria-label="Model Provider"
@@ -65,20 +67,31 @@ export function ModelProviderPicker({
             onChange(provider);
           }
         }}
-        width={"100%"}
         {...props}
       >
-        {data.modelProviders.map((provider) => {
-          return (
-            <Item key={provider.key}>
-              <Flex direction="row" gap="size-100" alignItems="center">
-                <GenerativeProviderIcon provider={provider.key} height={16} />
-                {provider.name}
-              </Flex>
-            </Item>
-          );
-        })}
-      </Picker>
+        <Label>Provider</Label>
+        <Button>
+          <SelectValue />
+          <SelectChevronUpDownIcon />
+        </Button>
+        <Popover>
+          <ListBox>
+            {data.modelProviders.map((provider) => {
+              return (
+                <SelectItem key={provider.key} id={provider.key}>
+                  <Flex direction="row" gap="size-100" alignItems="center">
+                    <GenerativeProviderIcon
+                      provider={provider.key}
+                      height={16}
+                    />
+                    {provider.name}
+                  </Flex>
+                </SelectItem>
+              );
+            })}
+          </ListBox>
+        </Popover>
+      </Select>
       {selectedProviderNotInstalled ? (
         <TooltipTrigger delay={0} offset={5}>
           <span>
