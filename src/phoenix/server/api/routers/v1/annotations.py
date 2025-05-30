@@ -92,6 +92,7 @@ async def list_span_annotations(
             .where(
                 models.Project.id == project.id,
                 models.Span.span_id.in_(span_ids),
+                models.SpanAnnotation.name != "note",
             )
             .order_by(models.SpanAnnotation.id.desc())
             .limit(limit + 1)
