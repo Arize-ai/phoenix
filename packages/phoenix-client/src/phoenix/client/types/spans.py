@@ -1,21 +1,6 @@
 from dataclasses import dataclass
 from dataclasses import field as dataclass_field
-from datetime import datetime
 from typing import Any, Optional
-
-from typing_extensions import NotRequired, TypedDict
-
-
-class SpanStatus(TypedDict):
-    code: NotRequired[str]  # "UNSET", "OK", "ERROR"
-    message: NotRequired[str]
-
-
-class SpanEvent(TypedDict):
-    name: NotRequired[str]
-    timestamp: NotRequired[datetime]
-    attributes: NotRequired[dict[str, Any]]
-
 
 _BACKWARD_COMPATIBILITY_REPLACEMENTS: dict[str, str] = {
     "context.span_id": "span_id",

@@ -382,19 +382,11 @@ class OtlpSpanSearchResponseBody(PaginatedResponseBody[OtlpSpan]):
 
 
 class SpanContext(V1RoutesBaseModel):
-    """Context propagation for a span"""
-
     trace_id: str = Field(description="OpenTelemetry trace ID")
     span_id: str = Field(description="OpenTelemetry span ID")
 
 
 class SpanEvent(V1RoutesBaseModel):
-    """
-    A Span Event can be thought of as a structured log message (or annotation)
-    on a Span, typically used to denote a meaningful, singular point in time
-    during the Span's duration.
-    """
-
     name: str = Field(description="Name of the event")
     timestamp: datetime = Field(description="When the event occurred")
     attributes: dict[str, Any] = Field(default_factory=dict, description="Event attributes")
@@ -569,7 +561,7 @@ async def span_search(
             "it cannot contain slash (/), question mark (?), or pound sign (#) characters."
         )
     ),
-    cursor: Optional[str] = Query(default=None, description="Pagination cursor (GlobalID of Span)"),
+    cursor: Optional[str] = Query(default=None, description="Pagination cursor (Phoenix Span ID)"),
     limit: int = Query(default=100, gt=0, le=1000, description="Maximum number of spans to return"),
     sort_direction: Literal["asc", "desc"] = Query(
         default="desc",
@@ -730,7 +722,7 @@ async def span_search_phoenix(
             "it cannot contain slash (/), question mark (?), or pound sign (#) characters."
         )
     ),
-    cursor: Optional[str] = Query(default=None, description="Pagination cursor (GlobalID of Span)"),
+    cursor: Optional[str] = Query(default=None, description="Pagination cursor (Phoenix Span ID)"),
     limit: int = Query(default=100, gt=0, le=1000, description="Maximum number of spans to return"),
     sort_direction: Literal["asc", "desc"] = Query(
         default="desc",
@@ -780,12 +772,12 @@ async def span_search_phoenix(
     if cursor:
         try:
             cursor_rowid = int(GlobalID.from_id(cursor).node_id)
-            if sort_direction == "asc":
-                stmt = stmt.where(models.Span.id >= cursor_rowid)
-            else:
-                stmt = stmt.where(models.Span.id <= cursor_rowid)
         except Exception:
             raise HTTPException(status_code=HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid cursor")
+        if sort_direction == "asc":
+            stmt = stmt.where(models.Span.id >= cursor_rowid)
+        else:
+            stmt = stmt.where(models.Span.id <= cursor_rowid)
 
     stmt = stmt.limit(limit + 1)
 
@@ -806,47 +798,44 @@ async def span_search_phoenix(
     for span_orm, trace_id in rows:
         # Convert events to Phoenix Event list
         events: list[SpanEvent] = []
-        if span_orm.events:
-            for event in span_orm.events:
-                event_time = event.get("timestamp")
-                parsed_time = None
+        for event in span_orm.events:
+            event_time = event.get("timestamp")
+            parsed_time = None
 
-                if event_time:
-                    if isinstance(event_time, datetime):
-                        parsed_time = normalize_datetime(event_time, timezone.utc)
-                    elif isinstance(event_time, str):
+            if event_time:
+                if isinstance(event_time, datetime):
+                    parsed_time = normalize_datetime(event_time, timezone.utc)
+                elif isinstance(event_time, str):
+                    try:
+                        naive_time = datetime.fromisoformat(event_time)
+                        parsed_time = normalize_datetime(naive_time, timezone.utc)
+                    except ValueError:
+                        # If ISO format fails, try to parse as timestamp
                         try:
-                            naive_time = datetime.fromisoformat(event_time)
-                            parsed_time = normalize_datetime(naive_time, timezone.utc)
-                        except ValueError:
-                            # If ISO format fails, try to parse as timestamp
-                            try:
-                                parsed_time = datetime.fromtimestamp(
-                                    float(event_time), tz=timezone.utc
-                                )
-                            except (ValueError, TypeError):
-                                parsed_time = datetime.now(timezone.utc)  # fallback
-                    elif isinstance(event_time, (int, float)):
-                        try:
-                            # Assume nanoseconds if very large, otherwise seconds
-                            if event_time > 1e12:  # nanoseconds
-                                parsed_time = datetime.fromtimestamp(
-                                    event_time / 1_000_000_000, tz=timezone.utc
-                                )
-                            else:  # seconds
-                                parsed_time = datetime.fromtimestamp(event_time, tz=timezone.utc)
-                        except (ValueError, OSError):
+                            parsed_time = datetime.fromtimestamp(float(event_time), tz=timezone.utc)
+                        except (ValueError, TypeError):
                             parsed_time = datetime.now(timezone.utc)  # fallback
-                else:
-                    parsed_time = datetime.now(timezone.utc)  # fallback
+                elif isinstance(event_time, (int, float)):
+                    try:
+                        # Assume nanoseconds if very large, otherwise seconds
+                        if event_time > 1e12:  # nanoseconds
+                            parsed_time = datetime.fromtimestamp(
+                                event_time / 1_000_000_000, tz=timezone.utc
+                            )
+                        else:  # seconds
+                            parsed_time = datetime.fromtimestamp(event_time, tz=timezone.utc)
+                    except (ValueError, OSError):
+                        parsed_time = datetime.now(timezone.utc)  # fallback
+            else:
+                parsed_time = datetime.now(timezone.utc)  # fallback
 
-                events.append(
-                    SpanEvent(
-                        name=event.get("name", ""),
-                        timestamp=parsed_time,
-                        attributes=event.get("attributes", {}),
-                    )
+            events.append(
+                SpanEvent(
+                    name=event.get("name", ""),
+                    timestamp=parsed_time,
+                    attributes=event.get("attributes", {}),
                 )
+            )
 
         attributes = {
             k: v for k, v in flatten(span_orm.attributes or dict(), recurse_on_sequence=True)
@@ -863,8 +852,8 @@ async def span_search_phoenix(
                 ),
                 span_kind=openinference_span_kind,
                 parent_id=span_orm.parent_id,
-                start_time=normalize_datetime(span_orm.start_time, timezone.utc),
-                end_time=normalize_datetime(span_orm.end_time, timezone.utc),
+                start_time=span_orm.start_time,
+                end_time=span_orm.end_time,
                 status_code=span_orm.status_code,
                 status_message=span_orm.status_message or "",
                 attributes=attributes,
