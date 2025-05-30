@@ -5,22 +5,30 @@ import { css } from "@emotion/react";
 import {
   Content,
   ContextualHelp,
-  Item,
-  Picker,
-  PickerProps,
 } from "@arizeai/components";
 
-import { Heading, Text, Token, TokenProps } from "@phoenix/components";
+import { 
+  Button,
+  Flex,
+  Heading, 
+  Label,
+  ListBox,
+  Popover,
+  Select,
+  SelectChevronUpDownIcon,
+  SelectItem,
+  SelectValue,
+  Text,
+  Token, 
+  TokenProps 
+} from "@phoenix/components";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import { Dimension } from "@phoenix/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { DimensionPickerQuery } from "./__generated__/DimensionPickerQuery.graphql";
 
-type DimensionPickerProps<T> = Omit<
-  PickerProps<T>,
-  "onSelectionChange" | "children"
-> & {
+type DimensionPickerProps = {
   selectedDimension: Dimension | null;
   onChange: (dimension: Dimension) => void;
   dimensions: Dimension[];
@@ -78,16 +86,14 @@ const contextualHelp = (
   </ContextualHelp>
 );
 
-export function DimensionPicker<T>(props: DimensionPickerProps<T>) {
-  const { selectedDimension, dimensions, onChange, isLoading, ...restProps } =
-    props;
+export function DimensionPicker(props: DimensionPickerProps) {
+  const { selectedDimension, dimensions, onChange, isLoading } = props;
   return (
-    <Picker
-      {...restProps}
+    <Select
       defaultSelectedKey={
         selectedDimension ? selectedDimension.name : undefined
       }
-      aria-Token="Select a dimension"
+      aria-label="Select a dimension"
       onSelectionChange={(key) => {
         // Find the dimension in the list
         const dimension = dimensions.find((d) => d.name === key);
@@ -95,40 +101,51 @@ export function DimensionPicker<T>(props: DimensionPickerProps<T>) {
           startTransition(() => onChange(dimension));
         }
       }}
-      label="Dimension"
-      labelExtra={contextualHelp}
       isDisabled={isLoading}
-      placeholder={isLoading ? "Loading..." : "Select a dimension..."}
+      data-testid="dimension-picker"
     >
-      {dimensions.map((dimension) => (
-        <Item key={dimension.name} textValue={dimension.name}>
-          <div
-            css={css`
-              .ac-Token {
-                margin-right: var(--ac-global-dimension-static-size-100);
-              }
-            `}
-          >
-            <DimensionTypeToken type={dimension.type} />
-            {dimension.name}
-          </div>
-        </Item>
-      ))}
-    </Picker>
+      <Flex direction="row" alignItems="center" gap="size-25">
+        <Label>Dimension</Label>
+        {contextualHelp}
+      </Flex>
+      <Button>
+        <SelectValue />
+        <SelectChevronUpDownIcon />
+      </Button>
+      <Text slot="description">{""}</Text>
+      <Popover>
+        <ListBox>
+          {dimensions.map((dimension) => (
+            <SelectItem key={dimension.name} id={dimension.name}>
+              <div
+                css={css`
+                  .ac-Token {
+                    margin-right: var(--ac-global-dimension-static-size-100);
+                  }
+                `}
+              >
+                <DimensionTypeToken type={dimension.type} />
+                {dimension.name}
+              </div>
+            </SelectItem>
+          ))}
+        </ListBox>
+      </Popover>
+    </Select>
   );
 }
 
-type ConnectedDimensionPickerProps<T> = Omit<
-  DimensionPickerProps<T>,
+type ConnectedDimensionPickerProps = Omit<
+  DimensionPickerProps,
   "dimensions"
 >;
 
-export function ConnectedDimensionPicker<T>(
-  props: ConnectedDimensionPickerProps<T>
+export function ConnectedDimensionPicker(
+  props: ConnectedDimensionPickerProps
 ) {
   const [dimensions, setDimensions] = useState<Dimension[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const { selectedDimension, onChange, ...restProps } = props;
+  const { selectedDimension, onChange } = props;
 
   // Async load the dimensions
   useEffect(() => {
@@ -166,10 +183,8 @@ export function ConnectedDimensionPicker<T>(
 
   return (
     <DimensionPicker
-      {...restProps}
       onChange={onChange}
       dimensions={dimensions}
-      label="Dimension"
       selectedDimension={selectedDimension}
       isLoading={isLoading}
     />
