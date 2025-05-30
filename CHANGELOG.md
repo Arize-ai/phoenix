@@ -1,5 +1,12 @@
 # Changelog
 
+## [10.3.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.3.0...arize-phoenix-v10.3.1) (2025-05-30)
+
+
+### Bug Fixes
+
+* no local storage should skip creating dirs ([#7805](https://github.com/Arize-ai/phoenix/issues/7805)) ([b56a425](https://github.com/Arize-ai/phoenix/commit/b56a4259b097efe951474b860b5bbd63a93c3fb9))
+
 ## [10.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.2.2...arize-phoenix-v10.3.0) (2025-05-30)
 
 
