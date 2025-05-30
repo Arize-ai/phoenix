@@ -15,10 +15,7 @@ from phoenix.otel import register
 
 load_dotenv()
 
-tracer_provider = register(
-    auto_instrument=True,
-    endpoint="http://localhost:6006/v1/traces",
-)
+tracer_provider = register(auto_instrument=True)
 
 # Get a tracer
 tracer = tracer_provider.get_tracer("financial-analysis-server")
