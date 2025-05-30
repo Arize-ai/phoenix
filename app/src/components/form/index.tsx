@@ -1,1 +1,1 @@
-export * from "./DimensionPicker";
+export * from "./DimensionSelect";
