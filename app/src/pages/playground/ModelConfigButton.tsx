@@ -1,12 +1,4 @@
-import {
-  Fragment,
-  ReactNode,
-  startTransition,
-  Suspense,
-  useCallback,
-  useMemo,
-  useState,
-} from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
 import { Tooltip, TooltipTrigger } from "react-aria-components";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import debounce from "lodash/debounce";
@@ -22,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
+  DialogTrigger,
   Flex,
   Icon,
   Icons,
@@ -238,7 +231,6 @@ function AzureOpenAiModelConfigFormField({
 
 interface ModelConfigButtonProps extends PlaygroundInstanceProps {}
 export function ModelConfigButton(props: ModelConfigButtonProps) {
-  const [dialog, setDialog] = useState<ReactNode>(null);
   const instance = usePlaygroundContext((state) =>
     state.instances.find(
       (instance) => instance.id === props.playgroundInstanceId
@@ -261,14 +253,9 @@ export function ModelConfigButton(props: ModelConfigButtonProps) {
     );
 
   return (
-    <Fragment>
+    <DialogTrigger>
       <Button
         size="S"
-        onPress={() => {
-          startTransition(() => {
-            setDialog(<ModelConfigDialog {...props} />);
-          });
-        }}
         leadingVisual={
           <GenerativeProviderIcon
             provider={instance.model.provider}
@@ -292,19 +279,10 @@ export function ModelConfigButton(props: ModelConfigButtonProps) {
           ) : null}
         </Flex>
       </Button>
-      <Modal
-        isOpen={dialog !== null}
-        onOpenChange={(isOpen) => {
-          if (!isOpen) {
-            setDialog(null);
-          }
-        }}
-        isDismissable
-        variant="slideover"
-      >
-        {dialog}
+      <Modal isDismissable variant="slideover">
+        <ModelConfigDialog {...props} />
       </Modal>
-    </Fragment>
+    </DialogTrigger>
   );
 }
 
