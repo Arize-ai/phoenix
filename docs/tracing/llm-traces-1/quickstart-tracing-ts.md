@@ -4,7 +4,7 @@
 
 Phoenix supports three main options to collect traces:
 
-1. Use [automatic instrumentation](../integrations-tracing/) to capture all calls made to supported frameworks.
+1. Use [automatic instrumentation](https://docs.arize.com/phoenix/integrations) to capture all calls made to supported frameworks.
 2. Use [base OpenTelemetry ](../how-to-tracing/setup-tracing/custom-spans.md)instrumentation. Supported in [Python](../how-to-tracing/setup-tracing/custom-spans.md) and [TS / JS](../how-to-tracing/setup-tracing/javascript.md), among many other languages.
 
 This example uses options 2 and 3.
@@ -204,6 +204,6 @@ You should now see traces in Phoenix!
 
 ## Next Steps
 
-* Explore tracing [integrations](../integrations-tracing/)
+* Explore tracing [integrations](https://docs.arize.com/phoenix/integrations)
 * [Customize tracing](../how-to-tracing/)
 * View use cases to see [end-to-end examples](https://docs.arize.com/phoenix/cookbook/guide)
