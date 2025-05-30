@@ -1,5 +1,13 @@
 # Changelog
 
+## [10.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.3.1...arize-phoenix-v10.4.0) (2025-05-30)
+
+
+### Features
+
+* helm chart release ([#7793](https://github.com/Arize-ai/phoenix/issues/7793)) ([5cd927b](https://github.com/Arize-ai/phoenix/commit/5cd927b518244ec26d551ea3d6b4818b2d792550))
+* toolCHoiceSelect ([#7807](https://github.com/Arize-ai/phoenix/issues/7807)) ([24499ef](https://github.com/Arize-ai/phoenix/commit/24499efc4c58799b0f33c11c11557e941f914ceb))
+
 ## [10.3.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.3.0...arize-phoenix-v10.3.1) (2025-05-30)
 
 
