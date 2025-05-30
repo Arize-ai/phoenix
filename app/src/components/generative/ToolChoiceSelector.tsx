@@ -276,7 +276,11 @@ export function ToolChoiceSelector<
               : []),
             // Add "TOOL_NAME_PREFIX" prefix to user defined tool names to avoid conflicts with default keys
             ...toolNames.map((toolName) => (
-              <SelectItem key={addToolNamePrefix(toolName)} id={addToolNamePrefix(toolName)} textValue={toolName}>
+              <SelectItem
+                key={addToolNamePrefix(toolName)}
+                id={addToolNamePrefix(toolName)}
+                textValue={toolName}
+              >
                 {toolName}
               </SelectItem>
             )),
