@@ -200,7 +200,6 @@ def get_annotations(client: httpx.Client, project_name: str, span_ids: List[str]
         )
         response.raise_for_status()
         response_data = response.text
-        
         # Process the response based on type
         content_type = response.headers.get('content-type', '')
         
@@ -305,7 +304,7 @@ def export_project_annotations(
         
         # Get annotations for these spans in batches to avoid URL length limitations
         all_annotations = []
-        batch_size = 100  # Smaller batch size for better stability
+        batch_size = 10  # The API can only handle 10 span_ids per request
         span_ids_list = list(span_ids)
         
         for i in range(0, len(span_ids_list), batch_size):
