@@ -442,7 +442,8 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
           });
         }}
       />
-      {instance.model.provider === "OPENAI" || instance.model.provider === "OLLAMA" ? (
+      {instance.model.provider === "OPENAI" ||
+      instance.model.provider === "OLLAMA" ? (
         <OpenAiModelConfigFormField
           instance={instance}
           container={container ?? null}
