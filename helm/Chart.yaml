@@ -1,7 +1,19 @@
 apiVersion: v2
 name: phoenix-helm
 description: A Helm chart for Arize Phoenix
-
+home: https://phoenix.arize.com/
+keywords:
+  - arize
+  - evals
+  - tracing
+  - otel
+  - phoenix
+  - llm
+  - observability
+  - prompt management
+  - metrics
+sources:
+  - https://github.com/Arize-ai/phoenix
 # A chart can be either an 'application' or a 'library' chart.
 #
 # Application charts are a collection of templates that can be packaged into versioned archives
@@ -22,3 +34,8 @@ version: 0.1.1
 # follow Semantic Versioning. They should reflect the version the application is using.
 # It is recommended to use it with quotes.
 appVersion: "10.2.2"
+icon: https://phoenix.arize.com/wp-content/uploads/2025/04/logo-with-arize.svg
+maintainers:
+  - name: arize
+    email: phoenix-devs@arize.com
+    url: https://phoenix.arize.com/

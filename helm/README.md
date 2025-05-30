@@ -1,8 +1,20 @@
 # phoenix-helm
 
-![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.2.2](https://img.shields.io/badge/AppVersion-10.2.2-informational?style=flat-square)
+![Version: 0.1.1](https://img.shields.io/badge/Version-0.1.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.2.2](https://img.shields.io/badge/AppVersion-10.2.2-informational?style=flat-square)
 
 A Helm chart for Arize Phoenix
+
+**Homepage:** <https://phoenix.arize.com/>
+
+## Maintainers
+
+| Name | Email | Url |
+| ---- | ------ | --- |
+| arize | <phoenix-devs@arize.com> | <https://phoenix.arize.com/> |
+
+## Source Code
+
+* <https://github.com/Arize-ai/phoenix>
 
 ## Values
 
