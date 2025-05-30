@@ -14,13 +14,6 @@
 * [AWS with CloudFormation](aws-with-cloudformation.md)
 * [Railway](railway.md)
 
-## Deployment
-
-* [Docker](deployment-1/docker.md)
-* [Kubernetes](deployment-1/kubernetes.md)
-* [AWS with CloudFormation](deployment-1/aws-with-cloudformation.md)
-* [Railway](deployment-1/railway.md)
-
 ## Features
 
 * [Provisioning](provisioning.md)
