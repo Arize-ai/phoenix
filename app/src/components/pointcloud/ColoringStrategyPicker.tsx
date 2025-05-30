@@ -62,6 +62,7 @@ export function ColoringStrategyPicker(props: ColoringStrategyPickerProps) {
         <SelectValue />
         <SelectChevronUpDownIcon />
       </Button>
+      <Text slot="description">{""}</Text>
       <Popover>
         <ListBox>
           {ColoringStrategies.map((item) => (
