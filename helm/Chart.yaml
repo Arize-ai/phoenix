@@ -1,6 +1,26 @@
 apiVersion: v2
-name: phoenix
-description: A Helm chart for Arize Phoenix
+name: phoenix-helm
+home: https://phoenix.arize.com/
+keywords:
+  - arize
+  - evals
+  - tracing
+  - otel
+  - phoenix
+  - llm
+  - observability
+  - prompt management
+  - metrics
+sources:
+  - https://github.com/Arize-ai/phoenix
+description: |
+  Phoenix is an open-source AI observability platform designed for experimentation, evaluation, and troubleshooting. For instructions on how to deploy this Helm chart, see the [self-hosting docs](https://arize.com/docs/phoenix/self-hosting).
+    - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Trace your LLM application's runtime using OpenTelemetry-based instrumentation.
+    - [**_Evaluation_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - Leverage LLMs to benchmark your application's performance using response and retrieval evals.
+    - [**_Datasets_**](https://arize.com/docs/phoenix/datasets-and-experiments/overview-datasets) - Create versioned datasets of examples for experimentation, evaluation, and fine-tuning.
+    - [**_Experiments_**](https://arize.com/docs/phoenix/datasets-and-experiments/overview-datasets#experiments) - Track and evaluate changes to prompts, LLMs, and retrieval.
+    - [**_Playground_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts)- Optimize prompts, compare models, adjust parameters, and replay traced LLM calls.
+    - [**_Prompt Management_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts/prompt-management)- Manage and test prompt changes systematically using version control, tagging, and experimentation.
 
 # A chart can be either an 'application' or a 'library' chart.
 #
@@ -15,10 +35,15 @@ type: application
 # This is the chart version. This version number should be incremented each time you make changes
 # to the chart and its templates, including the app version.
 # Versions are expected to follow Semantic Versioning (https://semver.org/)
-version: 0.1.0
+version: 0.1.2
 
 # This is the version number of the application being deployed. This version number should be
 # incremented each time you make changes to the application. Versions are not expected to
 # follow Semantic Versioning. They should reflect the version the application is using.
 # It is recommended to use it with quotes.
-appVersion: "10.2.1"
+appVersion: "10.4.0"
+icon: https://phoenix.arize.com/wp-content/uploads/2025/04/logo-with-arize.svg
+maintainers:
+  - name: arize
+    email: phoenix-devs@arize.com
+    url: https://phoenix.arize.com/

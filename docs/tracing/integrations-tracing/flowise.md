@@ -15,7 +15,7 @@ Flowise is a low-code platform for building customized chatflows and agentflows.
 
 2.  **Connect to Phoenix:** Go to the **Analyze Chatflow** tab and configure your application with Phoenix. Get your API key from your Phoenix instance to create your credentials. Be sure to name your project and confirm that the Phoenix toggle is enabled before saving.&#x20;
 
-    **Note**: If you are using using an environment that is not [Phoenix Cloud](https://docs.arize.com/phoenix/environments), you may need to modify the Endpoint field.&#x20;
+    **Note**: If you are using using an environment that is not [Phoenix Cloud](https://arize.com/docs/phoenix/environments), you may need to modify the Endpoint field.&#x20;
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/flowise_config2.gif" %}
 

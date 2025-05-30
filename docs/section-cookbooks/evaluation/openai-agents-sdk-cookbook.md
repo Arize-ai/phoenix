@@ -23,7 +23,7 @@ This guide shows you how to create and evaluate agents with Phoenix to improve p
 
 #### Setup Dependencies and Keys
 
-Next you need to connect to Phoenix. The code below will connect you to a Phoenix Cloud instance. You can also [connect to a self-hosted Phoenix instance](https://docs.arize.com/phoenix/deployment) if you'd prefer.
+Next you need to connect to Phoenix. The code below will connect you to a Phoenix Cloud instance. You can also [connect to a self-hosted Phoenix instance](https://arize.com/docs/phoenix/deployment) if you'd prefer.
 
 ```python
 import os

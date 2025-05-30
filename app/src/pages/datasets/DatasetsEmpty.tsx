@@ -31,7 +31,7 @@ export function DatasetsEmpty() {
             />
             <Flex direction="row" gap="size-200">
               <ExternalLinkButton
-                href="https://docs.arize.com/phoenix/datasets-and-experiments/overview-datasets"
+                href="https://arize.com/docs/phoenix/datasets-and-experiments/overview-datasets"
                 target="_blank"
                 leadingVisual={<Icon svg={<Icons.BookOutline />} />}
               >

@@ -6,5 +6,5 @@ hidden: true
 # Ragas
 
 {% hint style="info" %}
-This page has moved, check out the new location [here](https://docs.arize.com/phoenix/integrations/evaluation-libraries/ragas).
+This page has moved, check out the new location [here](https://arize.com/docs/phoenix/integrations/evaluation-libraries/ragas).
 {% endhint %}

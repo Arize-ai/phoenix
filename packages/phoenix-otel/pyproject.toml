@@ -38,7 +38,7 @@ test = [
 ]
 
 [project.urls]
-Documentation = "https://docs.arize.com/phoenix/"
+Documentation = "https://arize.com/docs/phoenix/"
 Issues = "https://github.com/Arize-ai/phoenix/issues"
 Source = "https://github.com/Arize-ai/phoenix"
 

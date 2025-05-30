@@ -115,6 +115,6 @@ See our [Agent Reflection evaluation template](../how-to-evals/running-pre-teste
 
 Through a combination of the evaluations above, you can get a far more accurate picture of how your agent is performing.
 
-For an example of using these evals in combination, see [Evaluating an Agent](https://docs.arize.com/phoenix/cookbook/evaluation/evaluate-an-agent).\
+For an example of using these evals in combination, see [Evaluating an Agent](https://arize.com/docs/phoenix/cookbook/evaluation/evaluate-an-agent).\
 \
 You can also review our [agent evaluation guide](https://arize.com/ai-agents/).

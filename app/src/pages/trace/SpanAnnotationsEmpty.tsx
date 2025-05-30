@@ -28,7 +28,7 @@ export function SpanAnnotationsEmpty() {
             of your application. Phoenix allows for both LLM and HUMAN
             annotations.
           </p>
-          <ExternalLink href="https://docs.arize.com/phoenix/tracing/concepts-tracing/how-to-evaluate-traces">
+          <ExternalLink href="https://arize.com/docs/phoenix/tracing/concepts-tracing/how-to-evaluate-traces">
             View annotation documentation
           </ExternalLink>
         </View>

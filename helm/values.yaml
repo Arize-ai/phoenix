@@ -1,130 +1,250 @@
 # Phoenix Helm Chart Values
 # This file contains configuration values for deploying Phoenix via Helm.
-# Each value corresponds to an environment variable described in https://docs.arize.com/phoenix/self-hosting/configuration.
-
+# Each value corresponds to an environment variable described in https://arize.com/docs/phoenix/self-hosting/configuration.
 
 # ADDONS
 # - Ingress
 # - Postgres
+
 ingress:
-  # create ingress to expose phoenix server
-  enabled: true
-  tls:
-    enabled: false
-  host: ""
-  api_path: /
-  path_type: Prefix
+  # -- Annotations to add to the ingress resource
   annotations: {}
+
+  # -- Path prefix for the Phoenix API
+  api_path: "/"
+
+  # -- Enable ingress controller for external access
+  enabled: true
+
+  # -- Hostname for ingress
+  host: ""
+
+  # -- Labels to add to the ingress resource
   labels: {}
+
+  # -- Ingress path type (Prefix, Exact, or ImplementationSpecific)
+  path_type: "Prefix"
+
+  tls:
+    # -- Enable TLS/HTTPS for ingress
+    enabled: false
 
 postgres:
-  # create postgres deployment for in-cluster use
+  # -- Deploy PostgreSQL as part of the Helm release
   enabled: true
-  image: postgres:14.5 
-  resources:
-    requests:
-      memory: "256Mi"
-      cpu: "100m"
-    limits:
-      memory: "512Mi"
-      cpu: "500m"
+
+  # -- Docker image for PostgreSQL
+  image: "postgres:14.5"
+
   persistence:
+    # -- Enable persistent storage for PostgreSQL data
     enabled: true
-    storageClass: "standard"  # Minikube's default storage class
-    size: 10Gi
+
+    # -- Size of the persistent volume for PostgreSQL
+    size: "10Gi"
+
+    # -- Kubernetes storage class for PostgreSQL volume
+    storageClass: "standard"
+
+  resources:
+    limits:
+      # -- CPU limit for PostgreSQL container
+      cpu: "500m"
+
+      # -- Memory limit for PostgreSQL container
+      memory: "512Mi"
+
+    requests:
+      # -- CPU request for PostgreSQL container
+      cpu: "100m"
+
+      # -- Memory request for PostgreSQL container
+      memory: "256Mi"
 
 server:
-  # The host the server will run on
-  host: "0.0.0.0" # PHOENIX_HOST
-  # The port the server will run on
-  port: 6006 # PHOENIX_PORT
-  # The gRPC port the server will run on
-  grpcPort: 4317 # PHOENIX_GRPC_PORT
-  # The ASGI root path of the server
-  hostRootPath: "" # PHOENIX_HOST_ROOT_PATH
-  # The working directory for saving, loading, and exporting datasets
-  workingDir: "" # PHOENIX_WORKING_DIR
-  # The root URL used to access Phoenix from a web browser
-  rootUrl: "" # PHOENIX_ROOT_URL
-  # Enable Prometheus metrics
-  enablePrometheus: false # PHOENIX_ENABLE_PROMETHEUS 
+  # -- Annotations to add to the Phoenix service
   annotations: {}
+
+  # -- Enable Prometheus metrics endpoint on port 9090
+  enablePrometheus: false
+
+  # -- Port for OpenTelemetry gRPC collector (PHOENIX_GRPC_PORT)
+  grpcPort: 4317
+
+  # -- Host IP to bind Phoenix server (PHOENIX_HOST)
+  host: "0.0.0.0"
+
+  # -- Root path prefix for Phoenix UI and API (PHOENIX_HOST_ROOT_PATH)
+  hostRootPath: ""
+
+  # -- Labels to add to the Phoenix service
   labels: {}
+
+  # -- Port for Phoenix web UI and HTTP API (PHOENIX_PORT)
+  port: 6006
+
+  # -- External root URL for Phoenix (PHOENIX_ROOT_URL)
+  rootUrl: ""
+
+  # -- The working directory for saving, loading, and exporting datasets (PHOENIX_WORKING_DIR)
+  workingDir: ""
 
 # Database configuration
 # You can use either a full SQL database URL or individual Postgres settings
 # If using SQLite, the database will be stored in the working directory
 #
 database:
-  # The SQL database URL (overrides Postgres settings if set)
-  url: "" # PHOENIX_SQL_DATABASE_URL
-  # PostgreSQL connection settings (used if url is not set)
+  # -- Storage allocation in GiB for the database persistent volume
+  allocatedStorageGiB: 10
+
   postgres:
-    host: "postgres-phoenix-svc" # PHOENIX_POSTGRES_HOST
-    port: 5432 # PHOENIX_POSTGRES_PORT
-    user: "postgres" # PHOENIX_POSTGRES_USER
-    password: "postgres" # PHOENIX_POSTGRES_PASSWORD
-    db: "phoenix" # PHOENIX_POSTGRES_DB
-    schema: "" # PHOENIX_SQL_DATABASE_SCHEMA
-  # Allocated storage capacity for the database (in GiB, informational)
-  allocatedStorageGiB: 10 # PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES
+    # -- Name of the PostgreSQL database (PHOENIX_POSTGRES_DB)
+    db: "phoenix"
+
+    # -- Postgres Host (currently points to provided postgres deployment, PHOENIX_POSTGRES_HOST)
+    host: "postgres-phoenix-svc"
+
+    # -- PostgreSQL password (should match auth.secret."PHOENIX_POSTGRES_PASSWORD", PHOENIX_POSTGRES_PASSWORD)
+    password: "postgres"
+
+    # -- Port number for PostgreSQL connections (PHOENIX_POSTGRES_PORT)
+    port: 5432
+
+    # -- PostgreSQL schema to use (PHOENIX_SQL_DATABASE_SCHEMA)
+    schema: ""
+
+    # -- PostgreSQL username (PHOENIX_POSTGRES_USER)
+    user: "postgres"
+
+  # -- Full database connection URL (overrides postgres settings if provided), recommend to disable postgres if using own
+  url: ""
 
 # Authentication and security
 auth:
-  enable_auth: true # PHOENIX_ENABLE_AUTH
+  # -- Duration in minutes before access tokens expire and require renewal (PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES)
+  accessTokenExpiryMinutes: 60
+
+  # -- List of allowed CORS origins for cross-origin requests to the Phoenix API (PHOENIX_ALLOWED_ORIGINS)
+  allowedOrigins: []
+
+  # -- List of trusted origins for CSRF protection to prevent cross-site request forgery attacks (PHOENIX_CSRF_TRUSTED_ORIGINS)
+  csrfTrustedOrigins: []
+
+  # -- Default password for the admin user on initial setup (PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD)
+  defaultAdminPassword: "admin"
+
+  # -- Enable authentication and authorization for Phoenix (PHOENIX_ENABLE_AUTH)
+  enable_auth: true
+
+  # -- Name of the Kubernetes secret containing authentication credentials
   name: "phoenix-secret"
+
+  # -- Duration in minutes before password reset tokens expire (PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES)
+  passwordResetTokenExpiryMinutes: 60
+
+  # -- Duration in minutes before refresh tokens expire (PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES)
+  refreshTokenExpiryMinutes: 43200
+
   secret:
-    - value: ""
-      key: "PHOENIX_SECRET"
-    - value: ""
-      key: "PHOENIX_ADMIN_SECRET"
-    - value: "postgres"
-      key: "PHOENIX_POSTGRES_PASSWORD"
-    - value: ""
-      key: "PHOENIX_SMTP_PASSWORD"
-  defaultAdminPassword: "admin" # PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD
-  useSecureCookies: false # PHOENIX_USE_SECURE_COOKIES
-  accessTokenExpiryMinutes: 60 # PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES
-  refreshTokenExpiryMinutes: 43200 # PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES
-  passwordResetTokenExpiryMinutes: 60 # PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES
-  csrfTrustedOrigins: [] # PHOENIX_CSRF_TRUSTED_ORIGINS (list)
-  allowedOrigins: [] # PHOENIX_ALLOWED_ORIGINS (CORS)
+    # -- Environment variable name for the main Phoenix secret key used for encryption
+    - key: "PHOENIX_SECRET"
+      # -- Autogenerated if empty
+      value: ""
+
+    # -- Environment variable name for the admin secret key
+    - key: "PHOENIX_ADMIN_SECRET"
+      # -- Autogenerated if empty
+      value: ""
+
+    # -- Environment variable name for the PostgreSQL password
+    - key: "PHOENIX_POSTGRES_PASSWORD"
+      # -- If using postgres in this chart, password must match with database.postgres.password
+      value: "postgres"
+
+    # -- Environment variable name for the SMTP password
+    - key: "PHOENIX_SMTP_PASSWORD"
+      # -- Autogenerated if empty
+      value: ""
+
+  # -- Enable secure cookies (should be true when using HTTPS)
+  useSecureCookies: false
 
 # SMTP (email) settings
 smtp:
-  hostname: "" # PHOENIX_SMTP_HOSTNAME
-  port: 587 # PHOENIX_SMTP_PORT
-  username: "" # PHOENIX_SMTP_USERNAME
-  password: "" # PHOENIX_SMTP_PASSWORD
-  mailFrom: "noreply@arize.com" # PHOENIX_SMTP_MAIL_FROM
-  validateCerts: true # PHOENIX_SMTP_VALIDATE_CERTS
+  # -- SMTP server hostname for sending emails (PHOENIX_SMTP_HOSTNAME)
+  hostname: ""
+
+  # -- Email address to use as sender for system emails (PHOENIX_SMTP_MAIL_FROM)
+  mailFrom: "noreply@arize.com"
+
+  # -- SMTP authentication password (PHOENIX_SMTP_PASSWORD)
+  password: ""
+
+  # -- SMTP server port (typically 587 for TLS, PHOENIX_SMTP_PORT)
+  port: 587
+
+  # -- SMTP authentication username (PHOENIX_SMTP_USERNAME_
+  username: ""
+
+  # -- Validate SMTP server TLS certificates (PHOENIX_SMTP_VALIDATE_CERTS)
+  validateCerts: true
 
 # TLS/SSL settings
 # To enable TLS, set enabled to true and provide cert/key files
 # For mTLS, also provide caFile and set verifyClient to true
 tls:
-  enabled: false # PHOENIX_TLS_ENABLED
-  enabledForHttp: false # PHOENIX_TLS_ENABLED_FOR_HTTP
-  enabledForGrpc: false # PHOENIX_TLS_ENABLED_FOR_GRPC
-  certFile: "" # PHOENIX_TLS_CERT_FILE
-  keyFile: "" # PHOENIX_TLS_KEY_FILE
-  keyFilePassword: "" # PHOENIX_TLS_KEY_FILE_PASSWORD
-  caFile: "" # PHOENIX_TLS_CA_FILE
-  verifyClient: false # PHOENIX_TLS_VERIFY_CLIENT
+  # -- Path to CA certificate file for TLS (PHOENIX_TLS_CA_FILE)
+  caFile: ""
+
+  # -- Path to TLS certificate file (PHOENIX_TLS_CERT_FILE)
+  certFile: ""
+
+  # -- Enable TLS for Phoenix server (PHOENIX_TLS_ENABLED)
+  enabled: false
+
+  # -- Enable TLS for gRPC endpoints (PHOENIX_TLS_ENABLED_FOR_GRPC)
+  enabledForGrpc: false
+
+  # -- Enable TLS for HTTP endpoints (PHOENIX_TLS_ENABLED_FOR_HTTP)
+  enabledForHttp: false
+
+  # -- Path to TLS private key file (PHOENIX_TLS_KEY_FILE)
+  keyFile: ""
+
+  # -- Password for encrypted TLS private key (PHOENIX_TLS_KEY_FILE_PASSWORD)
+  keyFilePassword: ""
+
+  # -- Enable client certificate verification for mutual TLS (PHOENIX_TLS_VERIFY_CLIENT)
+  verifyClient: false
 
 # Logging
 logging:
-  mode: "default" # PHOENIX_LOGGING_MODE (default|structured)
-  level: "info" # PHOENIX_LOGGING_LEVEL
-  dbLevel: "warning" # PHOENIX_DB_LOGGING_LEVEL
-  logMigrations: true # PHOENIX_LOG_MIGRATIONS
+  # -- Database logging level (debug, info, warning, error) PHOENIX_LOGGING_MODE
+  dbLevel: "warning"
+
+  # -- Application logging level (debug, info, warning, error) PHOENIX_LOGGING_LEVEL
+  level: "info"
+
+  # -- Enable logging of database migration operations (PHOENIX_LOG_MIGRATIONS)
+  logMigrations: true
+
+  # -- Logging mode configuration - PHOENIX_LOGGING_MODE (default|structured)
+  mode: "default"
 
 # Instrumentation
 instrumentation:
-  otlpTraceCollectorHttpEndpoint: "" # PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT
-  otlpTraceCollectorGrpcEndpoint: "" # PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT
+  # -- OpenTelemetry collector gRPC endpoint for sending traces (PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT)
+  otlpTraceCollectorGrpcEndpoint: ""
+
+  # -- OpenTelemetry collector HTTP endpoint for sending traces (PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT)
+  otlpTraceCollectorHttpEndpoint: ""
 
 image:
-  repository: arizephoenix/phoenix
-  tag: version-10.2.1
-  pullPolicy: IfNotPresent
+  # -- Image pull policy for Phoenix container (Always, IfNotPresent, or Never)
+  pullPolicy: "IfNotPresent"
+
+  # -- Docker image repository for Phoenix
+  repository: "arizephoenix/phoenix"
+
+  # -- Docker image tag/version to deploy
+  tag: "version-10.2.2-nonroot"

@@ -14,7 +14,7 @@ import {
 } from "@phoenix/components";
 import { UserRole } from "@phoenix/constants";
 
-import { RolePicker } from "./RolePicker";
+import { RoleSelect } from "./RoleSelect";
 
 const MIN_PASSWORD_LENGTH = 4;
 
@@ -53,7 +53,7 @@ export function UserForm({
   return (
     <div
       css={css`
-        .role-picker {
+        .role-select {
           width: 100%;
           .ac-dropdown--picker,
           .ac-dropdown-button {
@@ -150,7 +150,7 @@ export function UserForm({
                     isInvalid={invalid}
                     onChange={onChange}
                     onBlur={onBlur}
-                    defaultValue={value}
+                    value={value || ""}
                     autoComplete="new-password"
                   >
                     <Label>Password</Label>
@@ -188,7 +188,7 @@ export function UserForm({
                     isInvalid={invalid}
                     onChange={onChange}
                     onBlur={onBlur}
-                    defaultValue={value ?? undefined}
+                    value={value || ""}
                     autoComplete="new-password"
                   >
                     <Label>Confirm Password</Label>
@@ -207,13 +207,13 @@ export function UserForm({
               control={control}
               render={({
                 field: { onChange, value },
-                fieldState: { invalid, error },
+                fieldState: { error, invalid },
               }) => (
-                <RolePicker
+                <RoleSelect
                   onChange={onChange}
                   role={value}
-                  validationState={invalid ? "invalid" : "valid"}
                   errorMessage={error?.message}
+                  isInvalid={invalid}
                 />
               )}
             />
