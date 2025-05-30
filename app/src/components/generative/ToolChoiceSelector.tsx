@@ -149,8 +149,13 @@ export const ChoiceLabel = ({
     case "any":
     case "required":
       return (
-        <Flex gap={"size-100"} width={"100%"}>
-          Use at least one tool{" "}
+        <Flex
+          gap="size-200"
+          alignItems="center"
+          justifyContent="space-between"
+          width="100%"
+        >
+          <span>Use at least one tool</span>
           <Token color="var(--ac-global-color-grey-900)" size="S">
             {choiceType}
           </Token>
@@ -158,8 +163,13 @@ export const ChoiceLabel = ({
       );
     case "none":
       return (
-        <Flex gap={"size-100"} width={"100%"}>
-          Don&apos;t use any tools{" "}
+        <Flex
+          gap="size-200"
+          alignItems="center"
+          justifyContent="space-between"
+          width="100%"
+        >
+          <span>Don&apos;t use any tools</span>
           <Token color="var(--ac-global-color-grey-900)" size="S">
             {choiceType}
           </Token>
@@ -168,8 +178,13 @@ export const ChoiceLabel = ({
     case "auto":
     default:
       return (
-        <Flex gap={"size-100"} width={"100%"}>
-          Tools auto-selected by LLM{" "}
+        <Flex
+          gap="size-200"
+          alignItems="center"
+          justifyContent="space-between"
+          width="100%"
+        >
+          <span>Tools auto-selected by LLM</span>
           <Token color="var(--ac-global-color-grey-900)" size="S">
             {choiceType}
           </Token>
