@@ -3181,7 +3181,7 @@
                 }
               }
             },
-            "description": "Forbidden"
+            "description": "Cannot delete the default admin or system user"
           },
           "404": {
             "content": {
@@ -3202,16 +3202,6 @@
               }
             },
             "description": "Unprocessable Entity"
-          },
-          "409": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Cannot delete the default admin or system user"
           }
         }
       }
