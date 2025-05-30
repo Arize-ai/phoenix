@@ -110,7 +110,7 @@ def create_prompt_version_from_openai(
     *,
     description: Optional[str] = None,
     template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
-    model_provider: Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI"] = "OPENAI",
+    model_provider: Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "OLLAMA"] = "OPENAI",
 ) -> v1.PromptVersionData:
     messages: list[ChatCompletionMessageParam] = list(obj["messages"])
     template = v1.PromptChatTemplate(
@@ -195,6 +195,7 @@ class _InvocationParametersConversion:
             v1.PromptGoogleInvocationParameters,
             v1.PromptDeepSeekInvocationParameters,
             v1.PromptXAIInvocationParameters,
+            v1.PromptOllamaInvocationParameters,
         ],
     ) -> _InvocationParameters:
         ans: _InvocationParameters = {}
@@ -274,6 +275,25 @@ class _InvocationParametersConversion:
                 ans["seed"] = xai_params["seed"]
             if "reasoning_effort" in xai_params:
                 ans["reasoning_effort"] = xai_params["reasoning_effort"]
+        elif obj["type"] == "ollama":
+            ollama_params: v1.PromptOllamaInvocationParametersContent
+            ollama_params = obj["ollama"]
+            if "max_completion_tokens" in ollama_params:
+                ans["max_completion_tokens"] = ollama_params["max_completion_tokens"]
+            if "max_tokens" in ollama_params:
+                ans["max_tokens"] = ollama_params["max_tokens"]
+            if "temperature" in ollama_params:
+                ans["temperature"] = ollama_params["temperature"]
+            if "top_p" in ollama_params:
+                ans["top_p"] = ollama_params["top_p"]
+            if "presence_penalty" in ollama_params:
+                ans["presence_penalty"] = ollama_params["presence_penalty"]
+            if "frequency_penalty" in ollama_params:
+                ans["frequency_penalty"] = ollama_params["frequency_penalty"]
+            if "seed" in ollama_params:
+                ans["seed"] = ollama_params["seed"]
+            if "reasoning_effort" in ollama_params:
+                ans["reasoning_effort"] = ollama_params["reasoning_effort"]
         elif obj["type"] == "anthropic":
             anthropic_params: v1.PromptAnthropicInvocationParametersContent
             anthropic_params = obj["anthropic"]
@@ -342,23 +362,34 @@ class _InvocationParametersConversion:
         model_provider: Literal["XAI"],
     ) -> v1.PromptXAIInvocationParameters: ...
 
+    @overload
     @staticmethod
     def from_openai(
         obj: CompletionCreateParamsBase,
         /,
         *,
-        model_provider: Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI"] = "OPENAI",
+        model_provider: Literal["OLLAMA"],
+    ) -> v1.PromptOllamaInvocationParameters: ...
+
+    @staticmethod
+    def from_openai(
+        obj: CompletionCreateParamsBase,
+        /,
+        *,
+        model_provider: Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "OLLAMA"] = "OPENAI",
     ) -> Union[
         v1.PromptOpenAIInvocationParameters,
         v1.PromptAzureOpenAIInvocationParameters,
         v1.PromptDeepSeekInvocationParameters,
         v1.PromptXAIInvocationParameters,
+        v1.PromptOllamaInvocationParameters,
     ]:
         content: Union[
             v1.PromptOpenAIInvocationParametersContent,
             v1.PromptAzureOpenAIInvocationParametersContent,
             v1.PromptDeepSeekInvocationParametersContent,
             v1.PromptXAIInvocationParametersContent,
+            v1.PromptOllamaInvocationParametersContent,
         ]
         if model_provider == "OPENAI":
             content = v1.PromptOpenAIInvocationParametersContent()
@@ -368,6 +399,8 @@ class _InvocationParametersConversion:
             content = v1.PromptDeepSeekInvocationParametersContent()
         elif model_provider == "XAI":
             content = v1.PromptXAIInvocationParametersContent()
+        elif model_provider == "OLLAMA":
+            content = v1.PromptOllamaInvocationParametersContent()
         else:
             assert_never(model_provider)
         if "max_completion_tokens" in obj and obj["max_completion_tokens"] is not None:
@@ -407,6 +440,11 @@ class _InvocationParametersConversion:
             return v1.PromptXAIInvocationParameters(
                 type="xai",
                 xai=content,
+            )
+        elif model_provider == "OLLAMA":
+            return v1.PromptOllamaInvocationParameters(
+                type="ollama",
+                ollama=content,
             )
         else:
             assert_never(model_provider)

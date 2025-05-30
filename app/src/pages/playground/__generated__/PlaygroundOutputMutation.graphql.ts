@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<76523ab935b72f0441cbe08231cc6c3c>>
+ * @generated SignedSource<<304937f64c3f8e990cca0048a203f29d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type CanonicalParameterName = "ANTHROPIC_EXTENDED_THINKING" | "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "REASONING_EFFORT" | "RESPONSE_FORMAT" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOOL_CHOICE" | "TOP_P";
 export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
-export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OPENAI" | "XAI";
+export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionInput = {
   apiKey?: string | null;

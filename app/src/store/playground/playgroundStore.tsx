@@ -406,6 +406,14 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             p.invocationName === RESPONSE_FORMAT_PARAM_NAME
         );
 
+      // Set default baseUrl for OLLAMA if no saved config exists
+      const getDefaultBaseUrl = (provider: ModelProvider) => {
+        if (provider === "OLLAMA") {
+          return "http://localhost:11434/v1";
+        }
+        return null;
+      };
+
       const patch: Partial<PlaygroundNormalizedInstance> = {
         // If we have a saved config for the provider, use it as the default otherwise reset the
         // model config entirely to defaults / unset which will be controlled by invocation params coming from the server
@@ -424,7 +432,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           : {
               ...instance.model,
               modelName: null,
-              baseUrl: null,
+              baseUrl: getDefaultBaseUrl(provider),
               apiVersion: null,
               endpoint: null,
               provider,

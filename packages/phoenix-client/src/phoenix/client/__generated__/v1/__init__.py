@@ -259,6 +259,17 @@ class PromptOpenAIInvocationParametersContent(TypedDict):
     reasoning_effort: NotRequired[Literal["low", "medium", "high"]]
 
 
+class PromptOllamaInvocationParametersContent(TypedDict):
+    temperature: NotRequired[float]
+    max_tokens: NotRequired[int]
+    max_completion_tokens: NotRequired[int]
+    frequency_penalty: NotRequired[float]
+    presence_penalty: NotRequired[float]
+    top_p: NotRequired[float]
+    seed: NotRequired[int]
+    reasoning_effort: NotRequired[Literal["low", "medium", "high"]]
+
+
 class PromptResponseFormatJSONSchemaDefinition(TypedDict):
     name: str
     description: NotRequired[str]
@@ -517,6 +528,11 @@ class PromptOpenAIInvocationParameters(TypedDict):
     openai: PromptOpenAIInvocationParametersContent
 
 
+class PromptOllamaInvocationParameters(TypedDict):
+    type: Literal["ollama"]
+    ollama: PromptOllamaInvocationParametersContent
+
+
 class PromptResponseFormatJSONSchema(TypedDict):
     type: Literal["json_schema"]
     json_schema: PromptResponseFormatJSONSchemaDefinition
@@ -604,7 +620,9 @@ class PromptChatTemplate(TypedDict):
 
 
 class PromptVersionData(TypedDict):
-    model_provider: Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE", "DEEPSEEK", "XAI"]
+    model_provider: Literal[
+        "OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE", "DEEPSEEK", "XAI", "OLLAMA"
+    ]
     model_name: str
     template: Union[PromptChatTemplate, PromptStringTemplate]
     template_type: Literal["STR", "CHAT"]
@@ -616,6 +634,7 @@ class PromptVersionData(TypedDict):
         PromptGoogleInvocationParameters,
         PromptDeepSeekInvocationParameters,
         PromptXAIInvocationParameters,
+        PromptOllamaInvocationParameters,
     ]
     description: NotRequired[str]
     tools: NotRequired[PromptTools]

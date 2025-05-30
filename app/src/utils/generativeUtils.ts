@@ -8,6 +8,7 @@ export function isModelProvider(provider: string): provider is ModelProvider {
     provider === "ANTHROPIC" ||
     provider === "GOOGLE" ||
     provider === "DEEPSEEK" ||
-    provider === "XAI"
+    provider === "XAI" ||
+    provider === "OLLAMA"
   );
 }

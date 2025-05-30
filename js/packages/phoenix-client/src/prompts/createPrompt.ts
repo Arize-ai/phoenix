@@ -8,6 +8,9 @@ import {
   AzureOpenAIInvocationParameters,
   AnthropicInvocationParameters,
   GoogleInvocationParameters,
+  DeepSeekInvocationParameters,
+  XAIInvocationParameters,
+  OllamaInvocationParameters,
   PromptChatMessage,
 } from "../types/prompts";
 import { assertUnreachable } from "../utils/assertUnreachable";
@@ -104,12 +107,17 @@ interface GooglePromptVersionInput extends PromptVersionInputBase {
 
 interface DeepSeekPromptVersionInput extends PromptVersionInputBase {
   modelProvider: "DEEPSEEK";
-  invocationParameters?: OpenAIInvocationParameters;
+  invocationParameters?: DeepSeekInvocationParameters;
 }
 
 interface XAIPromptVersionInput extends PromptVersionInputBase {
   modelProvider: "XAI";
-  invocationParameters?: OpenAIInvocationParameters;
+  invocationParameters?: XAIInvocationParameters;
+}
+
+interface OllamaPromptVersionInput extends PromptVersionInputBase {
+  modelProvider: "OLLAMA";
+  invocationParameters?: OllamaInvocationParameters;
 }
 
 type PromptVersionInput =
@@ -118,7 +126,8 @@ type PromptVersionInput =
   | AnthropicPromptVersionInput
   | GooglePromptVersionInput
   | DeepSeekPromptVersionInput
-  | XAIPromptVersionInput;
+  | XAIPromptVersionInput
+  | OllamaPromptVersionInput;
 
 /**
  * A helper function to construct a prompt version declaratively.
@@ -232,6 +241,22 @@ export function promptVersion(params: PromptVersionInput): PromptVersionData {
         invocation_parameters: {
           type: "xai",
           xai: invocation_parameters ?? {},
+        },
+      };
+    case "OLLAMA":
+      return {
+        description,
+        model_provider,
+        model_name,
+        template_type: "CHAT",
+        template_format,
+        template: {
+          type: "chat",
+          messages: templateMessages,
+        },
+        invocation_parameters: {
+          type: "ollama",
+          ollama: invocation_parameters ?? {},
         },
       };
     default:

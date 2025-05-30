@@ -125,7 +125,7 @@ function OpenAiModelConfigFormField({
         container={container ?? undefined}
       />
       <TextField
-        defaultValue={instance.model.baseUrl ?? ""}
+        value={instance.model.baseUrl ?? ""}
         onChange={(value) => {
           updateModelConfig({
             configKey: "baseUrl",
@@ -181,7 +181,7 @@ function AzureOpenAiModelConfigFormField({
   return (
     <>
       <TextField
-        defaultValue={instance.model.modelName ?? ""}
+        value={instance.model.modelName ?? ""}
         onChange={(value) => {
           debouncedUpdateModelName(value);
         }}
@@ -190,7 +190,7 @@ function AzureOpenAiModelConfigFormField({
         <Input placeholder="e.x. azure-openai-deployment-name" />
       </TextField>
       <TextField
-        defaultValue={instance.model.endpoint ?? ""}
+        value={instance.model.endpoint ?? ""}
         onChange={(value) => {
           updateModelConfig({
             configKey: "endpoint",
@@ -442,7 +442,7 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
           });
         }}
       />
-      {instance.model.provider === "OPENAI" ? (
+      {instance.model.provider === "OPENAI" || instance.model.provider === "OLLAMA" ? (
         <OpenAiModelConfigFormField
           instance={instance}
           container={container ?? null}

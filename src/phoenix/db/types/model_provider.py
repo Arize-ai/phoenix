@@ -8,3 +8,4 @@ class ModelProvider(Enum):
     GOOGLE = "GOOGLE"
     DEEPSEEK = "DEEPSEEK"
     XAI = "XAI"
+    OLLAMA = "OLLAMA"
