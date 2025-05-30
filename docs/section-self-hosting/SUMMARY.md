@@ -7,12 +7,9 @@
 ## Deployment Options <a href="#deployment" id="deployment"></a>
 
 * [Docker](deployment/docker.md)
-
-***
-
-* [Kubernetes](kubernetes.md)
-* [AWS with CloudFormation](aws-with-cloudformation.md)
-* [Railway](railway.md)
+* [Kubernetes](deployment/kubernetes.md)
+* [AWS with CloudFormation](deployment/aws-with-cloudformation.md)
+* [Railway](deployment/railway.md)
 
 ## Features
 
