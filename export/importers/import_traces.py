@@ -11,7 +11,7 @@ import os
 import json
 import time
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional, Union
 
 import pandas as pd
@@ -96,37 +96,35 @@ def get_projects(export_dir: Union[str, Path]) -> List[str]:
     # Return list of project directories
     return [d.name for d in projects_dir.iterdir() if d.is_dir()]
 
-def convert_timestamp_format(timestamp_str: Optional[str]) -> Optional[str]:
+def phoenix_timestamp_to_nanos_utc(timestamp_str: Optional[str]) -> Optional[int]:
     """
-    Convert Phoenix timestamp format to Arize format.
-    
-    Phoenix format: 2025-05-13T05:12:32.418894000Z
-    Arize format:   2025-05-13T05:12:32.418894+00:00
-    
-    Args:
-        timestamp_str: Phoenix timestamp string
-        
-    Returns:
-        Arize-compatible timestamp string
+    Convert Phoenix timestamp string (e.g., "2025-05-13T05:12:32.418894000Z")
+    to nanoseconds since Unix epoch, UTC.
     """
     if not timestamp_str:
-        return timestamp_str
-    
-    # Remove the trailing Z and handle the nanosecond precision
-    if timestamp_str.endswith('Z'):
-        # Remove trailing zeros from microseconds part and the Z
-        timestamp_parts = timestamp_str.rstrip('Z').split('.')
-        if len(timestamp_parts) > 1:
-            base = timestamp_parts[0]
-            fraction = timestamp_parts[1]
-            # Keep only microseconds (up to 6 digits)
-            if len(fraction) > 6:
-                fraction = fraction[:6]
-            timestamp_str = f"{base}.{fraction}+00:00"
-        else:
-            timestamp_str = f"{timestamp_str.rstrip('Z')}+00:00"
-    
-    return timestamp_str
+        return None
+    try:
+        # Remove 'Z' and handle potential extra precision if any beyond microseconds for parsing
+        if timestamp_str.endswith('Z'):
+            ts_to_parse = timestamp_str[:-1] # Remove Z
+            # datetime.fromisoformat doesn't like more than 6 decimal places for seconds by default
+            parts = ts_to_parse.split('.')
+            if len(parts) == 2 and len(parts[1]) > 6:
+                ts_to_parse = parts[0] + '.' + parts[1][:6]
+            else: # handles cases with no fractional seconds or <= 6 fractional seconds
+                 ts_to_parse = ts_to_parse 
+        else: # Should not happen if Phoenix always uses Z, but as a fallback
+            ts_to_parse = timestamp_str
+
+
+        dt_object_naive = datetime.fromisoformat(ts_to_parse)
+        # Assume the naive datetime object is already UTC as per 'Z' suffix
+        dt_object_utc = dt_object_naive.replace(tzinfo=timezone.utc)
+        
+        return int(dt_object_utc.timestamp() * 1_000_000_000)
+    except ValueError as e:
+        # print(f"Error converting timestamp '{timestamp_str}': {e}") # Optional: for debugging
+        return None
 
 def convert_traces_to_dataframe(traces: List[Dict], verbose: bool = False) -> pd.DataFrame:
     """
@@ -192,10 +190,10 @@ def convert_traces_to_dataframe(traces: List[Dict], verbose: bool = False) -> pd
                     continue
                 # Extract start_time
                 elif key.endswith("start_time"):
-                    row["start_time"] = convert_timestamp_format(trace[key])
+                    row["start_time"] = phoenix_timestamp_to_nanos_utc(trace[key])
                 # Extract end_time
                 elif key.endswith("end_time"):
-                    row["end_time"] = convert_timestamp_format(trace[key])
+                    row["end_time"] = phoenix_timestamp_to_nanos_utc(trace[key])
                 # Extract status
                 elif key.endswith("status_code"):
                     row["status"] = trace[key]
