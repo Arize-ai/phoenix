@@ -28,6 +28,9 @@
     <a target="_blank" href="https://hub.docker.com/r/arizephoenix/phoenix/tags">
         <img src="https://img.shields.io/docker/v/arizephoenix/phoenix?sort=semver&logo=docker&label=image&color=blue">
     </a>
+    <a target="_blank" href="https://hub.docker.com/r/arizephoenix/phoenix-helm">
+        <img src="https://img.shields.io/badge/Helm-blue?style=flat&logo=helm&labelColor=grey"/>
+    </a>
     <a target="_blank" href="https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp">
         <img src="https://badge.mcpx.dev?status=on" title="MCP Enabled"/>
     </a>
