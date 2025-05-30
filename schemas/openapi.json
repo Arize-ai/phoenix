@@ -4412,7 +4412,8 @@
           "AZURE_OPENAI",
           "ANTHROPIC",
           "GOOGLE",
-          "DEEPSEEK"
+          "DEEPSEEK",
+          "XAI"
         ],
         "title": "ModelProvider"
       },
@@ -5758,6 +5759,9 @@
               },
               {
                 "$ref": "#/components/schemas/PromptDeepSeekInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptXAIInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -5768,7 +5772,8 @@
                 "azure_openai": "#/components/schemas/PromptAzureOpenAIInvocationParameters",
                 "deepseek": "#/components/schemas/PromptDeepSeekInvocationParameters",
                 "google": "#/components/schemas/PromptGoogleInvocationParameters",
-                "openai": "#/components/schemas/PromptOpenAIInvocationParameters"
+                "openai": "#/components/schemas/PromptOpenAIInvocationParameters",
+                "xai": "#/components/schemas/PromptXAIInvocationParameters"
               }
             }
           },
@@ -5880,6 +5885,9 @@
               },
               {
                 "$ref": "#/components/schemas/PromptDeepSeekInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptXAIInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -5890,7 +5898,8 @@
                 "azure_openai": "#/components/schemas/PromptAzureOpenAIInvocationParameters",
                 "deepseek": "#/components/schemas/PromptDeepSeekInvocationParameters",
                 "google": "#/components/schemas/PromptGoogleInvocationParameters",
-                "openai": "#/components/schemas/PromptOpenAIInvocationParameters"
+                "openai": "#/components/schemas/PromptOpenAIInvocationParameters",
+                "xai": "#/components/schemas/PromptXAIInvocationParameters"
               }
             }
           },
@@ -5987,6 +5996,69 @@
           "name"
         ],
         "title": "PromptVersionTagData"
+      },
+      "PromptXAIInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "xai",
+            "title": "Type"
+          },
+          "xai": {
+            "$ref": "#/components/schemas/PromptXAIInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "xai"
+        ],
+        "title": "PromptXAIInvocationParameters"
+      },
+      "PromptXAIInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "title": "Max Completion Tokens"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Reasoning Effort"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptXAIInvocationParametersContent"
       },
       "SpanAnnotation": {
         "properties": {

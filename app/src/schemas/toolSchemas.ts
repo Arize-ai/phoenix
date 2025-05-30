@@ -230,6 +230,7 @@ type ProviderToToolDefinitionMap = {
   // Use generic JSON type for unknown tool formats / new providers
   GOOGLE: JSONLiteral;
   DEEPSEEK: OpenAIToolDefinition;
+  XAI: OpenAIToolDefinition;
 };
 
 /**
@@ -267,6 +268,7 @@ export const fromOpenAIToolDefinition = <T extends ModelProvider>({
     case "AZURE_OPENAI":
     case "OPENAI":
     case "DEEPSEEK":
+    case "XAI":
       return toolDefinition as ProviderToToolDefinitionMap[T];
     case "ANTHROPIC":
       return openAIToolToAnthropic.parse(

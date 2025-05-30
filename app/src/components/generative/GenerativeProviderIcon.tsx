@@ -89,6 +89,20 @@ const DeepSeekSVG = ({ height }: { height: number }) => (
   </svg>
 );
 
+const XAISVG = ({ height }: { height: number }) => (
+  <svg
+    fill="var(--ac-global-text-color-900)"
+    fillRule="evenodd"
+    viewBox="0 0 24 24"
+    width={height}
+    height={height}
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title>xAI</title>
+    <path d="M6.469 8.776L16.512 23h-4.464L2.005 8.776H6.47zm-.004 7.9l2.233 3.164L6.467 23H2l4.465-6.324zM22 2.582V23h-3.659V7.764L22 2.582zM22 1l-9.952 14.095-2.233-3.163L17.533 1H22z"></path>
+  </svg>
+);
+
 const PROVIDER_ICONS: Record<
   ModelProvider,
   ({ height }: { height: number }) => React.ReactNode
@@ -98,6 +112,7 @@ const PROVIDER_ICONS: Record<
   OPENAI: OpenAISVG,
   ANTHROPIC: AnthropicSVG,
   DEEPSEEK: DeepSeekSVG,
+  XAI: XAISVG,
 };
 
 export type GenerativeProviderIconProps = {

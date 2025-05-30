@@ -89,6 +89,7 @@ export function ChatMessageToolCallsEditor({
       case "OPENAI":
       case "AZURE_OPENAI":
       case "DEEPSEEK":
+      case "XAI":
         return openAIToolCallsJSONSchema as JSONSchema7;
       case "ANTHROPIC":
         return anthropicToolCallsJSONSchema as JSONSchema7;

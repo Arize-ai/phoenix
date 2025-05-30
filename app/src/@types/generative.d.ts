@@ -4,7 +4,8 @@ declare type ModelProvider =
   | "AZURE_OPENAI"
   | "ANTHROPIC"
   | "GOOGLE"
-  | "DEEPSEEK";
+  | "DEEPSEEK"
+  | "XAI";
 
 /**
  * The role of a chat message
