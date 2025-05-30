@@ -60,7 +60,3 @@ You can deploy Phoenix on any cloud provider or on-premise. Here are some servic
 * LocalHost
 * Notebook
 * Docker / Kubernetes
-
-## Railway
-
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/PTHRoq?referralCode=Xe2txW)
