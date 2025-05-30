@@ -2,15 +2,12 @@ import { startTransition, useEffect, useState } from "react";
 import { fetchQuery, graphql } from "react-relay";
 import { css } from "@emotion/react";
 
-import {
-  Content,
-  ContextualHelp,
-} from "@arizeai/components";
+import { Content, ContextualHelp } from "@arizeai/components";
 
-import { 
+import {
   Button,
   Flex,
-  Heading, 
+  Heading,
   Label,
   ListBox,
   Popover,
@@ -19,8 +16,8 @@ import {
   SelectItem,
   SelectValue,
   Text,
-  Token, 
-  TokenProps 
+  Token,
+  TokenProps,
 } from "@phoenix/components";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import { Dimension } from "@phoenix/types";
@@ -89,60 +86,56 @@ const contextualHelp = (
 export function DimensionPicker(props: DimensionPickerProps) {
   const { selectedDimension, dimensions, onChange, isLoading } = props;
   return (
-    <Select
-      defaultSelectedKey={
-        selectedDimension ? selectedDimension.name : undefined
-      }
-      aria-label="Select a dimension"
-      onSelectionChange={(key) => {
-        // Find the dimension in the list
-        const dimension = dimensions.find((d) => d.name === key);
-        if (dimension) {
-          startTransition(() => onChange(dimension));
-        }
-      }}
-      isDisabled={isLoading}
-      data-testid="dimension-picker"
-    >
+    <div>
       <Flex direction="row" alignItems="center" gap="size-25">
         <Label>Dimension</Label>
         {contextualHelp}
       </Flex>
-      <Button>
-        <SelectValue />
-        <SelectChevronUpDownIcon />
-      </Button>
-      <Text slot="description">{""}</Text>
-      <Popover>
-        <ListBox>
-          {dimensions.map((dimension) => (
-            <SelectItem key={dimension.name} id={dimension.name}>
-              <div
-                css={css`
-                  .ac-Token {
-                    margin-right: var(--ac-global-dimension-static-size-100);
-                  }
-                `}
-              >
-                <DimensionTypeToken type={dimension.type} />
-                {dimension.name}
-              </div>
-            </SelectItem>
-          ))}
-        </ListBox>
-      </Popover>
-    </Select>
+      <Select
+        defaultSelectedKey={
+          selectedDimension ? selectedDimension.name : undefined
+        }
+        aria-label="Select a dimension"
+        onSelectionChange={(key) => {
+          // Find the dimension in the list
+          const dimension = dimensions.find((d) => d.name === key);
+          if (dimension) {
+            startTransition(() => onChange(dimension));
+          }
+        }}
+        isDisabled={isLoading}
+        data-testid="dimension-picker"
+      >
+        <Button>
+          <SelectValue />
+          <SelectChevronUpDownIcon />
+        </Button>
+        <Popover>
+          <ListBox>
+            {dimensions.map((dimension) => (
+              <SelectItem key={dimension.name} id={dimension.name}>
+                <div
+                  css={css`
+                    .ac-Token {
+                      margin-right: var(--ac-global-dimension-static-size-100);
+                    }
+                  `}
+                >
+                  <DimensionTypeToken type={dimension.type} />
+                  {dimension.name}
+                </div>
+              </SelectItem>
+            ))}
+          </ListBox>
+        </Popover>
+      </Select>
+    </div>
   );
 }
 
-type ConnectedDimensionPickerProps = Omit<
-  DimensionPickerProps,
-  "dimensions"
->;
+type ConnectedDimensionPickerProps = Omit<DimensionPickerProps, "dimensions">;
 
-export function ConnectedDimensionPicker(
-  props: ConnectedDimensionPickerProps
-) {
+export function ConnectedDimensionPicker(props: ConnectedDimensionPickerProps) {
   const [dimensions, setDimensions] = useState<Dimension[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { selectedDimension, onChange } = props;
