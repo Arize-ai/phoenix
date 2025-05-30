@@ -11,15 +11,6 @@ from phoenix.server.types import DbSessionFactory
 
 @pytest.fixture
 async def project_with_spans_and_annotations(db: DbSessionFactory) -> None:
-    """
-    Creates a project with traces, spans, and various annotations including 'note' annotations.
-    This fixture sets up test data with:
-    - A project named "test-project"
-    - A trace with ID "test-trace-id"
-    - Two spans with IDs "span1" and "span2"
-    - Regular annotations (should be returned)
-    - "note" annotations (should NOT be returned)
-    """
     async with db() as session:
         project_row_id = await session.scalar(
             insert(models.Project).values(name="test-project").returning(models.Project.id)
@@ -136,24 +127,25 @@ async def project_with_spans_and_annotations(db: DbSessionFactory) -> None:
         await session.commit()
 
 
-async def test_list_span_annotations_excludes_notes(
+async def test_list_span_annotations_default_behavior(
     httpx_client: httpx.AsyncClient,
     project_with_spans_and_annotations: Any,
 ) -> None:
-    """Test that the list_span_annotations endpoint excludes annotations with name 'note'."""
     response = await httpx_client.get(
-        "v1/projects/test-project/span_annotations", params={"span_ids": ["span1", "span2"]}
+        "v1/projects/test-project/span_annotations", 
+        params={"span_ids": ["span1", "span2"]}
     )
 
     assert response.status_code == 200
     data = response.json()
 
-    assert len(data["data"]) == 2
+    assert len(data["data"]) == 4
 
     annotation_names = {annotation["name"] for annotation in data["data"]}
-    assert annotation_names == {"correctness", "relevance"}
+    assert annotation_names == {"correctness", "relevance", "note"}
 
-    assert "note" not in annotation_names
+    note_count = sum(1 for anno in data["data"] if anno["name"] == "note")
+    assert note_count == 2
 
     for annotation in data["data"]:
         assert "id" in annotation
@@ -168,20 +160,80 @@ async def test_list_span_annotations_excludes_notes(
         assert "source" in annotation
 
 
-async def test_list_span_annotations_returns_empty_when_only_notes_exist(
+async def test_list_span_annotations_inclusion_filter(
+    httpx_client: httpx.AsyncClient,
+    project_with_spans_and_annotations: Any,
+) -> None:
+    response = await httpx_client.get(
+        "v1/projects/test-project/span_annotations", 
+        params={"span_ids": ["span1", "span2"], "annotation_names": ["correctness", "note"]}
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert len(data["data"]) == 3
+
+    annotation_names = {annotation["name"] for annotation in data["data"]}
+    assert annotation_names == {"correctness", "note"}
+    assert "relevance" not in annotation_names
+
+
+async def test_list_span_annotations_exclusion_filter(
+    httpx_client: httpx.AsyncClient,
+    project_with_spans_and_annotations: Any,
+) -> None:
+    response = await httpx_client.get(
+        "v1/projects/test-project/span_annotations", 
+        params={"span_ids": ["span1", "span2"], "exclude_annotation_names": ["note"]}
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert len(data["data"]) == 2
+
+    annotation_names = {annotation["name"] for annotation in data["data"]}
+    assert annotation_names == {"correctness", "relevance"}
+    assert "note" not in annotation_names
+
+
+async def test_list_span_annotations_combined_filters(
+    httpx_client: httpx.AsyncClient,
+    project_with_spans_and_annotations: Any,
+) -> None:
+    response = await httpx_client.get(
+        "v1/projects/test-project/span_annotations", 
+        params={
+            "span_ids": ["span1", "span2"], 
+            "annotation_names": ["correctness", "relevance", "note"],
+            "exclude_annotation_names": ["note"]
+        }
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert len(data["data"]) == 2
+
+    annotation_names = {annotation["name"] for annotation in data["data"]}
+    assert annotation_names == {"correctness", "relevance"}
+    assert "note" not in annotation_names
+
+
+async def test_list_span_annotations_empty_result_when_all_excluded(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
-    """Test that the endpoint returns empty data when only 'note' annotations exist."""
     async with db() as session:
         project_row_id = await session.scalar(
-            insert(models.Project).values(name="notes-only-project").returning(models.Project.id)
+            insert(models.Project).values(name="filtered-project").returning(models.Project.id)
         )
 
         trace_id = await session.scalar(
             insert(models.Trace)
             .values(
-                trace_id="notes-trace-id",
+                trace_id="filtered-trace-id",
                 project_rowid=project_row_id,
                 start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
                 end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
@@ -193,9 +245,9 @@ async def test_list_span_annotations_returns_empty_when_only_notes_exist(
             insert(models.Span)
             .values(
                 trace_rowid=trace_id,
-                span_id="notes-span",
+                span_id="filtered-span",
                 parent_id=None,
-                name="test span with notes only",
+                name="test span with filtered annotations",
                 span_kind="CHAIN",
                 start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
                 end_time=datetime.fromisoformat("2021-01-01T00:00:30.000+00:00"),
@@ -213,21 +265,22 @@ async def test_list_span_annotations_returns_empty_when_only_notes_exist(
         await session.execute(
             insert(models.SpanAnnotation).values(
                 span_rowid=span_id,
-                name="note",
+                name="test-annotation",
                 label=None,
                 score=None,
-                explanation="This is only a note",
+                explanation="This annotation will be excluded",
                 metadata_={},
                 annotator_kind="HUMAN",
                 source="APP",
-                identifier="only-note-identifier",
+                identifier="test-identifier",
             )
         )
 
         await session.commit()
 
     response = await httpx_client.get(
-        "v1/projects/notes-only-project/span_annotations", params={"span_ids": ["notes-span"]}
+        "v1/projects/filtered-project/span_annotations", 
+        params={"span_ids": ["filtered-span"], "exclude_annotation_names": ["test-annotation"]}
     )
 
     assert response.status_code == 200
@@ -237,11 +290,10 @@ async def test_list_span_annotations_returns_empty_when_only_notes_exist(
     assert data["next_cursor"] is None
 
 
-async def test_list_span_annotations_pagination_excludes_notes(
+async def test_list_span_annotations_pagination_with_filters(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
-    """Test that pagination works correctly when excluding 'note' annotations."""
     async with db() as session:
         project_row_id = await session.scalar(
             insert(models.Project).values(name="pagination-project").returning(models.Project.id)
@@ -298,14 +350,14 @@ async def test_list_span_annotations_pagination_excludes_notes(
             await session.execute(
                 insert(models.SpanAnnotation).values(
                     span_rowid=span_id,
-                    name="note",
+                    name="excluded-annotation",
                     label=None,
                     score=None,
-                    explanation=f"Note {i}",
+                    explanation=f"Excluded annotation {i}",
                     metadata_={},
                     annotator_kind="HUMAN",
                     source="APP",
-                    identifier=f"note-identifier-{i}",
+                    identifier=f"excluded-identifier-{i}",
                 )
             )
 
@@ -313,7 +365,7 @@ async def test_list_span_annotations_pagination_excludes_notes(
 
     response = await httpx_client.get(
         "v1/projects/pagination-project/span_annotations",
-        params={"span_ids": ["pagination-span"], "limit": 3},
+        params={"span_ids": ["pagination-span"], "limit": 3, "exclude_annotation_names": ["excluded-annotation"]},
     )
 
     assert response.status_code == 200
@@ -322,7 +374,7 @@ async def test_list_span_annotations_pagination_excludes_notes(
     assert len(data["data"]) == 3
 
     for annotation in data["data"]:
-        assert annotation["name"] != "note"
+        assert annotation["name"] != "excluded-annotation"
         assert annotation["name"].startswith("annotation-")
 
     assert data["next_cursor"] is not None

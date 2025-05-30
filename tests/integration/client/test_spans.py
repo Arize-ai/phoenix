@@ -141,6 +141,107 @@ class TestClientForSpanAnnotationsRetrieval:
             assert abs(float(row["result.score"]) - scr) < 1e-6  # type: ignore[unused-ignore]
             assert row["result.explanation"] == expl
 
+    @pytest.mark.parametrize("is_async", [True, False])
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    async def test_note_annotations_filtering_behavior(
+        self,
+        is_async: bool,
+        role_or_user: _RoleOrUser,
+        _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        (span_id1, span_gid1), (span_id2, span_gid2) = _span_ids
+
+        user = _get_user(role_or_user).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        regular_annotation_name = f"test_anno_{token_hex(4)}"
+
+        score1 = random()
+        label1 = token_hex(4)
+        explanation1 = token_hex(8)
+
+        await _await_or_return(
+            Client().annotations.add_span_annotation(
+                annotation_name=regular_annotation_name,
+                span_id=span_id1,
+                annotator_kind="LLM",
+                label=label1,
+                score=score1,
+                explanation=explanation1,
+                sync=True,
+            )
+        )
+
+        df_default = await _await_or_return(
+            Client().spans.get_span_annotations_dataframe(
+                span_ids=[span_id1, span_id2],
+                project_identifier="default",
+            )
+        )
+
+        assert isinstance(df_default, pd.DataFrame)
+        if not df_default.empty:
+            annotation_names_default = set(df_default["annotation_name"].tolist())
+            assert regular_annotation_name in annotation_names_default
+
+        df_with_notes = await _await_or_return(
+            Client().spans.get_span_annotations_dataframe(
+                span_ids=[span_id1, span_id2],
+                project_identifier="default",
+                annotation_names=[regular_annotation_name, "note"],
+            )
+        )
+
+        assert isinstance(df_with_notes, pd.DataFrame)
+        if not df_with_notes.empty:
+            annotation_names_with_notes = set(df_with_notes["annotation_name"].tolist())
+            assert regular_annotation_name in annotation_names_with_notes
+
+        df_excluded = await _await_or_return(
+            Client().spans.get_span_annotations_dataframe(
+                span_ids=[span_id1, span_id2],
+                project_identifier="default",
+                exclude_annotation_names=[regular_annotation_name],
+            )
+        )
+
+        assert isinstance(df_excluded, pd.DataFrame)
+        if not df_excluded.empty:
+            annotation_names_excluded = set(df_excluded["annotation_name"].tolist())
+            assert regular_annotation_name not in annotation_names_excluded
+
+        annotations_default = await _await_or_return(
+            Client().spans.get_span_annotations(
+                span_ids=[span_id1, span_id2],
+                project_identifier="default",
+            )
+        )
+
+        assert isinstance(annotations_default, list)
+        if annotations_default:
+            default_names = {a["name"] for a in annotations_default}
+            assert regular_annotation_name in default_names
+
+        annotations_with_notes = await _await_or_return(
+            Client().spans.get_span_annotations(
+                span_ids=[span_id1, span_id2],
+                project_identifier="default",
+                annotation_names=[regular_annotation_name, "note"],
+            )
+        )
+
+        assert isinstance(annotations_with_notes, list)
+        if annotations_with_notes:
+            with_notes_names = {a["name"] for a in annotations_with_notes}
+            assert regular_annotation_name in with_notes_names
+
     def test_invalid_arguments_validation(self) -> None:
         """Supplying both or neither of span_ids / spans_dataframe should error."""
         from phoenix.client import Client
