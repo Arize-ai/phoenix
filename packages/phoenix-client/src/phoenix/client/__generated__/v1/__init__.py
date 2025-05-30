@@ -155,6 +155,37 @@ class ListExperimentsResponseBody(TypedDict):
     data: Sequence[Experiment]
 
 
+class LocalUserData(TypedDict):
+    email: str
+    username: str
+    role: Literal["SYSTEM", "ADMIN", "MEMBER"]
+    auth_method: Literal["LOCAL"]
+    password: NotRequired[str]
+
+
+class LocalUser(LocalUserData):
+    id: str
+    created_at: str
+    updated_at: str
+    password_needs_reset: bool
+
+
+class OAuth2UserData(TypedDict):
+    email: str
+    username: str
+    role: Literal["SYSTEM", "ADMIN", "MEMBER"]
+    auth_method: Literal["OAUTH2"]
+    oauth2_client_id: NotRequired[str]
+    oauth2_user_id: NotRequired[str]
+
+
+class OAuth2User(OAuth2UserData):
+    id: str
+    created_at: str
+    updated_at: str
+    profile_picture_url: NotRequired[str]
+
+
 class OtlpStatus(TypedDict):
     code: NotRequired[int]
     message: NotRequired[str]
@@ -404,6 +435,15 @@ class CreateProjectResponseBody(TypedDict):
     data: Project
 
 
+class CreateUserRequestBody(TypedDict):
+    user: Union[LocalUserData, OAuth2UserData]
+    send_welcome_email: NotRequired[bool]
+
+
+class CreateUserResponseBody(TypedDict):
+    data: Union[LocalUser, OAuth2User]
+
+
 class DeleteAnnotationConfigResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
@@ -435,6 +475,11 @@ class GetPromptVersionTagsResponseBody(TypedDict):
 
 class GetPromptsResponseBody(TypedDict):
     data: Sequence[Prompt]
+    next_cursor: Optional[str]
+
+
+class GetUsersResponseBody(TypedDict):
+    data: Sequence[Union[LocalUser, OAuth2User]]
     next_cursor: Optional[str]
 
 

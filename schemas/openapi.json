@@ -3009,6 +3009,202 @@
           }
         }
       }
+    },
+    "/v1/users": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "List all users",
+        "description": "Retrieve a paginated list of all users in the system.",
+        "operationId": "getUsers",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Cursor for pagination (base64-encoded user ID)",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination (base64-encoded user ID)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "The max number of users to return at a time.",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "The max number of users to return at a time."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A list of users.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUsersResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Create a new user",
+        "description": "Create a new user with the specified configuration.",
+        "operationId": "createUser",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The newly created user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateUserResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Role not found."
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Username or email already exists."
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/users/{user_id}": {
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Delete a user by ID",
+        "description": "Delete an existing user by their unique GlobalID.",
+        "operationId": "deleteUser",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The GlobalID of the user (e.g. 'VXNlcjox').",
+              "title": "User Id"
+            },
+            "description": "The GlobalID of the user (e.g. 'VXNlcjox')."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content returned on successful deletion."
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Cannot delete the default admin or system user"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "User not found."
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3555,6 +3751,65 @@
           "data"
         ],
         "title": "CreatePromptResponseBody"
+      },
+      "CreateUserRequestBody": {
+        "properties": {
+          "user": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/LocalUserData"
+              },
+              {
+                "$ref": "#/components/schemas/OAuth2UserData"
+              }
+            ],
+            "title": "User",
+            "discriminator": {
+              "propertyName": "auth_method",
+              "mapping": {
+                "LOCAL": "#/components/schemas/LocalUserData",
+                "OAUTH2": "#/components/schemas/OAuth2UserData"
+              }
+            }
+          },
+          "send_welcome_email": {
+            "type": "boolean",
+            "title": "Send Welcome Email",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "user"
+        ],
+        "title": "CreateUserRequestBody"
+      },
+      "CreateUserResponseBody": {
+        "properties": {
+          "data": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/LocalUser"
+              },
+              {
+                "$ref": "#/components/schemas/OAuth2User"
+              }
+            ],
+            "title": "Data",
+            "discriminator": {
+              "propertyName": "auth_method",
+              "mapping": {
+                "LOCAL": "#/components/schemas/LocalUser",
+                "OAUTH2": "#/components/schemas/OAuth2User"
+              }
+            }
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateUserResponseBody"
       },
       "Dataset": {
         "properties": {
@@ -4247,6 +4502,48 @@
         ],
         "title": "GetPromptsResponseBody"
       },
+      "GetUsersResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/LocalUser"
+                },
+                {
+                  "$ref": "#/components/schemas/OAuth2User"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "auth_method",
+                "mapping": {
+                  "LOCAL": "#/components/schemas/LocalUser",
+                  "OAUTH2": "#/components/schemas/OAuth2User"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "GetUsersResponseBody"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -4405,6 +4702,104 @@
         ],
         "title": "ListExperimentsResponseBody"
       },
+      "LocalUser": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "SYSTEM",
+              "ADMIN",
+              "MEMBER"
+            ],
+            "title": "Role"
+          },
+          "auth_method": {
+            "type": "string",
+            "const": "LOCAL",
+            "title": "Auth Method"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          },
+          "password_needs_reset": {
+            "type": "boolean",
+            "title": "Password Needs Reset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "email",
+          "username",
+          "role",
+          "auth_method",
+          "password_needs_reset"
+        ],
+        "title": "LocalUser"
+      },
+      "LocalUserData": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "SYSTEM",
+              "ADMIN",
+              "MEMBER"
+            ],
+            "title": "Role"
+          },
+          "auth_method": {
+            "type": "string",
+            "const": "LOCAL",
+            "title": "Auth Method"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "username",
+          "role",
+          "auth_method"
+        ],
+        "title": "LocalUserData"
+      },
       "ModelProvider": {
         "type": "string",
         "enum": [
@@ -4416,6 +4811,111 @@
           "XAI"
         ],
         "title": "ModelProvider"
+      },
+      "OAuth2User": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "SYSTEM",
+              "ADMIN",
+              "MEMBER"
+            ],
+            "title": "Role"
+          },
+          "auth_method": {
+            "type": "string",
+            "const": "OAUTH2",
+            "title": "Auth Method"
+          },
+          "oauth2_client_id": {
+            "type": "string",
+            "title": "Oauth2 Client Id"
+          },
+          "oauth2_user_id": {
+            "type": "string",
+            "title": "Oauth2 User Id"
+          },
+          "profile_picture_url": {
+            "type": "string",
+            "title": "Profile Picture Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "email",
+          "username",
+          "role",
+          "auth_method"
+        ],
+        "title": "OAuth2User"
+      },
+      "OAuth2UserData": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "SYSTEM",
+              "ADMIN",
+              "MEMBER"
+            ],
+            "title": "Role"
+          },
+          "auth_method": {
+            "type": "string",
+            "const": "OAUTH2",
+            "title": "Auth Method"
+          },
+          "oauth2_client_id": {
+            "type": "string",
+            "title": "Oauth2 Client Id"
+          },
+          "oauth2_user_id": {
+            "type": "string",
+            "title": "Oauth2 User Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "username",
+          "role",
+          "auth_method"
+        ],
+        "title": "OAuth2UserData"
       },
       "OptimizationDirection": {
         "type": "string",

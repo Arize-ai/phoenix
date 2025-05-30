@@ -553,6 +553,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List all users
+         * @description Retrieve a paginated list of all users in the system.
+         */
+        get: operations["getUsers"];
+        put?: never;
+        /**
+         * Create a new user
+         * @description Create a new user with the specified configuration.
+         */
+        post: operations["createUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/users/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a user by ID
+         * @description Delete an existing user by their unique GlobalID.
+         */
+        delete: operations["deleteUser"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -758,6 +802,21 @@ export interface components {
         /** CreatePromptResponseBody */
         CreatePromptResponseBody: {
             data: components["schemas"]["PromptVersion"];
+        };
+        /** CreateUserRequestBody */
+        CreateUserRequestBody: {
+            /** User */
+            user: components["schemas"]["LocalUserData"] | components["schemas"]["OAuth2UserData"];
+            /**
+             * Send Welcome Email
+             * @default true
+             */
+            send_welcome_email?: boolean;
+        };
+        /** CreateUserResponseBody */
+        CreateUserResponseBody: {
+            /** Data */
+            data: components["schemas"]["LocalUser"] | components["schemas"]["OAuth2User"];
         };
         /** Dataset */
         Dataset: {
@@ -1047,6 +1106,13 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
+        /** GetUsersResponseBody */
+        GetUsersResponseBody: {
+            /** Data */
+            data: (components["schemas"]["LocalUser"] | components["schemas"]["OAuth2User"])[];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1099,11 +1165,119 @@ export interface components {
             /** Data */
             data: components["schemas"]["Experiment"][];
         };
+        /** LocalUser */
+        LocalUser: {
+            /** Id */
+            id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Email */
+            email: string;
+            /** Username */
+            username: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "SYSTEM" | "ADMIN" | "MEMBER";
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            auth_method: "LOCAL";
+            /** Password */
+            password?: string;
+            /** Password Needs Reset */
+            password_needs_reset: boolean;
+        };
+        /** LocalUserData */
+        LocalUserData: {
+            /** Email */
+            email: string;
+            /** Username */
+            username: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "SYSTEM" | "ADMIN" | "MEMBER";
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            auth_method: "LOCAL";
+            /** Password */
+            password?: string;
+        };
         /**
          * ModelProvider
          * @enum {string}
          */
         ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK" | "XAI";
+        /** OAuth2User */
+        OAuth2User: {
+            /** Id */
+            id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Email */
+            email: string;
+            /** Username */
+            username: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "SYSTEM" | "ADMIN" | "MEMBER";
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            auth_method: "OAUTH2";
+            /** Oauth2 Client Id */
+            oauth2_client_id?: string;
+            /** Oauth2 User Id */
+            oauth2_user_id?: string;
+            /** Profile Picture Url */
+            profile_picture_url?: string;
+        };
+        /** OAuth2UserData */
+        OAuth2UserData: {
+            /** Email */
+            email: string;
+            /** Username */
+            username: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "SYSTEM" | "ADMIN" | "MEMBER";
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            auth_method: "OAUTH2";
+            /** Oauth2 Client Id */
+            oauth2_client_id?: string;
+            /** Oauth2 User Id */
+            oauth2_user_id?: string;
+        };
         /**
          * OptimizationDirection
          * @enum {string}
@@ -3925,6 +4099,157 @@ export interface operations {
                 };
             };
             /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getUsers: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination (base64-encoded user ID) */
+                cursor?: string;
+                /** @description The max number of users to return at a time. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A list of users. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetUsersResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    createUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateUserRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The newly created user. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateUserResponseBody"];
+                };
+            };
+            /** @description Role not found. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Username or email already exists. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    deleteUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The GlobalID of the user (e.g. 'VXNlcjox'). */
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content returned on successful deletion. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Cannot delete the default admin or system user */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description User not found. */
             404: {
                 headers: {
                     [name: string]: unknown;
