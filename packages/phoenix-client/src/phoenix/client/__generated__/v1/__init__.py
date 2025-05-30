@@ -362,24 +362,6 @@ class UpsertExperimentEvaluationResponseBodyData(TypedDict):
     id: str
 
 
-class User(TypedDict):
-    id: str
-    email: str
-    username: str
-    created_at: str
-    role: str
-    password_needs_reset: bool
-    profile_picture_url: NotRequired[str]
-    auth_method: NotRequired[str]
-
-
-class UserCreate(TypedDict):
-    email: str
-    username: str
-    password: str
-    role: str
-
-
 class ValidationError(TypedDict):
     loc: Sequence[Union[str, int]]
     msg: str
