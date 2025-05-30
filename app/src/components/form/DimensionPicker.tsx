@@ -1,6 +1,5 @@
 import { startTransition, useEffect, useState } from "react";
 import { fetchQuery, graphql } from "react-relay";
-import { css } from "@emotion/react";
 
 import { Content, ContextualHelp } from "@arizeai/components";
 
@@ -114,16 +113,10 @@ export function DimensionPicker(props: DimensionPickerProps) {
           <ListBox>
             {dimensions.map((dimension) => (
               <SelectItem key={dimension.name} id={dimension.name}>
-                <div
-                  css={css`
-                    .ac-Token {
-                      margin-right: var(--ac-global-dimension-static-size-100);
-                    }
-                  `}
-                >
+                <Flex direction="row" alignItems="center" gap="size-100">
                   <DimensionTypeToken type={dimension.type} />
                   {dimension.name}
-                </div>
+                </Flex>
               </SelectItem>
             ))}
           </ListBox>
