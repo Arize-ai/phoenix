@@ -2,7 +2,7 @@ import { Key, useCallback, useTransition } from "react";
 import { graphql, useFragment } from "react-relay";
 import { css } from "@emotion/react";
 
-import { HelpTooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
+import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
 import {
   Button,
@@ -235,7 +235,6 @@ export function MetricSelector({
             <SelectValue />
             <SelectChevronUpDownIcon />
           </Button>
-          <Text slot="description">{""}</Text>
           <Popover>
             <ListBox>
               {allMetrics.map((metric) => (
@@ -247,7 +246,7 @@ export function MetricSelector({
           </Popover>
         </Select>
       </TriggerWrap>
-      <HelpTooltip>
+      <Tooltip>
         <section
           css={css`
             h4 {
@@ -256,18 +255,18 @@ export function MetricSelector({
           `}
         >
           <Heading level={4}>Analysis Metric</Heading>
-          <div>Select a metric to drive the analysis of your embeddings.</div>
-          <div>
+          <Text>Select a metric to drive the analysis of your embeddings.</Text>
+          <Text>
             To analyze the the drift between your two inferences, select a drift
             metric and the UI will highlight areas of high drift.
-          </div>
-          <div>
+          </Text>
+          <Text>
             To analyze the quality of your embeddings, select a dimension data
             quality metric by which to analyze the point cloud. The UI will
             highlight areas where the data quality is degrading.
-          </div>
+          </Text>
         </section>
-      </HelpTooltip>
+      </Tooltip>
     </TooltipTrigger>
   );
 }
