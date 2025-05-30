@@ -1,0 +1,130 @@
+# Phoenix Helm Chart Values
+# This file contains configuration values for deploying Phoenix via Helm.
+# Each value corresponds to an environment variable described in https://docs.arize.com/phoenix/self-hosting/configuration.
+
+
+# ADDONS
+# - Ingress
+# - Postgres
+ingress:
+  # create ingress to expose phoenix server
+  enabled: true
+  tls:
+    enabled: false
+  host: ""
+  api_path: /
+  path_type: Prefix
+  annotations: {}
+  labels: {}
+
+postgres:
+  # create postgres deployment for in-cluster use
+  enabled: true
+  image: postgres:14.5 
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  persistence:
+    enabled: true
+    storageClass: "standard"  # Minikube's default storage class
+    size: 10Gi
+
+server:
+  # The host the server will run on
+  host: "0.0.0.0" # PHOENIX_HOST
+  # The port the server will run on
+  port: 6006 # PHOENIX_PORT
+  # The gRPC port the server will run on
+  grpcPort: 4317 # PHOENIX_GRPC_PORT
+  # The ASGI root path of the server
+  hostRootPath: "" # PHOENIX_HOST_ROOT_PATH
+  # The working directory for saving, loading, and exporting datasets
+  workingDir: "" # PHOENIX_WORKING_DIR
+  # The root URL used to access Phoenix from a web browser
+  rootUrl: "" # PHOENIX_ROOT_URL
+  # Enable Prometheus metrics
+  enablePrometheus: false # PHOENIX_ENABLE_PROMETHEUS 
+  annotations: {}
+  labels: {}
+
+# Database configuration
+# You can use either a full SQL database URL or individual Postgres settings
+# If using SQLite, the database will be stored in the working directory
+#
+database:
+  # The SQL database URL (overrides Postgres settings if set)
+  url: "" # PHOENIX_SQL_DATABASE_URL
+  # PostgreSQL connection settings (used if url is not set)
+  postgres:
+    host: "postgres-phoenix-svc" # PHOENIX_POSTGRES_HOST
+    port: 5432 # PHOENIX_POSTGRES_PORT
+    user: "postgres" # PHOENIX_POSTGRES_USER
+    password: "postgres" # PHOENIX_POSTGRES_PASSWORD
+    db: "phoenix" # PHOENIX_POSTGRES_DB
+    schema: "" # PHOENIX_SQL_DATABASE_SCHEMA
+  # Allocated storage capacity for the database (in GiB, informational)
+  allocatedStorageGiB: 10 # PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES
+
+# Authentication and security
+auth:
+  enable_auth: true # PHOENIX_ENABLE_AUTH
+  name: "phoenix-secret"
+  secret:
+    - value: ""
+      key: "PHOENIX_SECRET"
+    - value: ""
+      key: "PHOENIX_ADMIN_SECRET"
+    - value: "postgres"
+      key: "PHOENIX_POSTGRES_PASSWORD"
+    - value: ""
+      key: "PHOENIX_SMTP_PASSWORD"
+  defaultAdminPassword: "admin" # PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD
+  useSecureCookies: false # PHOENIX_USE_SECURE_COOKIES
+  accessTokenExpiryMinutes: 60 # PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES
+  refreshTokenExpiryMinutes: 43200 # PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES
+  passwordResetTokenExpiryMinutes: 60 # PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES
+  csrfTrustedOrigins: [] # PHOENIX_CSRF_TRUSTED_ORIGINS (list)
+  allowedOrigins: [] # PHOENIX_ALLOWED_ORIGINS (CORS)
+
+# SMTP (email) settings
+smtp:
+  hostname: "" # PHOENIX_SMTP_HOSTNAME
+  port: 587 # PHOENIX_SMTP_PORT
+  username: "" # PHOENIX_SMTP_USERNAME
+  password: "" # PHOENIX_SMTP_PASSWORD
+  mailFrom: "noreply@arize.com" # PHOENIX_SMTP_MAIL_FROM
+  validateCerts: true # PHOENIX_SMTP_VALIDATE_CERTS
+
+# TLS/SSL settings
+# To enable TLS, set enabled to true and provide cert/key files
+# For mTLS, also provide caFile and set verifyClient to true
+tls:
+  enabled: false # PHOENIX_TLS_ENABLED
+  enabledForHttp: false # PHOENIX_TLS_ENABLED_FOR_HTTP
+  enabledForGrpc: false # PHOENIX_TLS_ENABLED_FOR_GRPC
+  certFile: "" # PHOENIX_TLS_CERT_FILE
+  keyFile: "" # PHOENIX_TLS_KEY_FILE
+  keyFilePassword: "" # PHOENIX_TLS_KEY_FILE_PASSWORD
+  caFile: "" # PHOENIX_TLS_CA_FILE
+  verifyClient: false # PHOENIX_TLS_VERIFY_CLIENT
+
+# Logging
+logging:
+  mode: "default" # PHOENIX_LOGGING_MODE (default|structured)
+  level: "info" # PHOENIX_LOGGING_LEVEL
+  dbLevel: "warning" # PHOENIX_DB_LOGGING_LEVEL
+  logMigrations: true # PHOENIX_LOG_MIGRATIONS
+
+# Instrumentation
+instrumentation:
+  otlpTraceCollectorHttpEndpoint: "" # PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT
+  otlpTraceCollectorGrpcEndpoint: "" # PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT
+
+image:
+  repository: arizephoenix/phoenix
+  tag: version-10.2.1
+  pullPolicy: IfNotPresent

@@ -28,6 +28,9 @@
     <a target="_blank" href="https://hub.docker.com/r/arizephoenix/phoenix/tags">
         <img src="https://img.shields.io/docker/v/arizephoenix/phoenix?sort=semver&logo=docker&label=image&color=blue">
     </a>
+    <a target="_blank" href="https://hub.docker.com/r/arizephoenix/phoenix-helm">
+        <img src="https://img.shields.io/badge/Helm-blue?style=flat&logo=helm&labelColor=grey"/>
+    </a>
     <a target="_blank" href="https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp">
         <img src="https://badge.mcpx.dev?status=on" title="MCP Enabled"/>
     </a>
@@ -96,6 +99,9 @@ Phoenix is built on top of OpenTelemetry and is vendor, language, and framework 
 | [Smolagents](https://huggingface.co/docs/smolagents/en/tutorials/inspect_runs) | `openinference-instrumentation-smolagents` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-smolagents.svg)](https://pypi.python.org/pypi/openinference-instrumentation-smolagents) |
 | [Agno](https://docs.arize.com/phoenix/tracing/integrations-tracing/agno) | `openinference-instrumentation-agno` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-agno.svg)](https://pypi.python.org/pypi/openinference-instrumentation-agno) |
 | [MCP](https://docs.arize.com/phoenix/tracing/integrations-tracing/model-context-protocol-mcp) | `openinference-instrumentation-mcp` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-mcp.svg)](https://pypi.python.org/pypi/openinference-instrumentation-mcp) |
+| [Pydantic AI](https://docs.arize.com/phoenix/integrations/pydantic) | `openinference-instrumentation-pydantic-ai` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-pydantic-ai.svg)](https://pypi.python.org/pypi/openinference-instrumentation-pydantic-ai) |
+| [Autogen AgentChat](https://docs.arize.com/phoenix/integrations/frameworks/autogen/autogen-tracing) | `openinference-instrumentation-autogen-agentchat` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-autogen-agentchat.svg)](https://pypi.python.org/pypi/openinference-instrumentation-autogen-agentchat) |
+| [Portkey](https://docs.arize.com/phoenix/integrations/portkey) | `openinference-instrumentation-portkey` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-portkey.svg)](https://pypi.python.org/pypi/openinference-instrumentation-portkey) |
 
 ### JavaScript Integrations
 
@@ -105,6 +111,7 @@ Phoenix is built on top of OpenTelemetry and is vendor, language, and framework 
 | [LangChain.js](https://docs.arize.com/phoenix/tracing/integrations-tracing/langchain.js)   | `@arizeai/openinference-instrumentation-langchain` | [![NPM Version](https://img.shields.io/npm/v/@arizeai/openinference-instrumentation-langchain.svg)](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-langchain) |
 | [Vercel AI SDK](https://docs.arize.com/phoenix/tracing/integrations-tracing/vercel-ai-sdk) | `@arizeai/openinference-vercel`                    | [![NPM Version](https://img.shields.io/npm/v/@arizeai/openinference-vercel)](https://www.npmjs.com/package/@arizeai/openinference-vercel)                                           |
 | [BeeAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/beeai)                 | `@arizeai/openinference-instrumentation-beeai`     | [![NPM Version](https://img.shields.io/npm/v/@arizeai/openinference-vercel)](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-beeai)                            |
+| [Mastra](https://docs.arize.com/phoenix/integrations/mastra)                               | `@arizeai/openinference-mastra`                    | [![NPM Version](https://img.shields.io/npm/v/@arizeai/openinference-mastra.svg)](https://www.npmjs.com/package/@arizeai/openinference-mastra)                                       |
 
 ### Platforms
 

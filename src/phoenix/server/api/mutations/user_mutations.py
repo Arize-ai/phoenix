@@ -25,7 +25,7 @@ from phoenix.auth import (
     validate_password_format,
 )
 from phoenix.config import get_env_disable_basic_auth
-from phoenix.db import enums, models
+from phoenix.db import models
 from phoenix.server.api.auth import IsAdmin, IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound, Unauthorized
@@ -256,16 +256,8 @@ class UserMutationMixin:
                 set(input.user_ids),
             )
         )
-        system_user_role_id = (
-            select(models.UserRole.id)
-            .where(models.UserRole.name == enums.UserRole.SYSTEM.value)
-            .scalar_subquery()
-        )
-        admin_user_role_id = (
-            select(models.UserRole.id)
-            .where(models.UserRole.name == enums.UserRole.ADMIN.value)
-            .scalar_subquery()
-        )
+        system_user_role_id = select(models.UserRole.id).filter_by(name="SYSTEM").scalar_subquery()
+        admin_user_role_id = select(models.UserRole.id).filter_by(name="ADMIN").scalar_subquery()
         default_admin_user_id = (
             select(models.User.id)
             .where(

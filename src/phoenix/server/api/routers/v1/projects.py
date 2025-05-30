@@ -14,7 +14,6 @@ from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
-from phoenix.db.enums import UserRole
 from phoenix.db.helpers import exclude_experiment_projects
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
@@ -257,7 +256,7 @@ async def update_project(
                 .where(models.User.id == int(request.user.identity))
             )
             role_name = await session.scalar(stmt)
-        if role_name != UserRole.ADMIN.value:
+        if role_name != "ADMIN":
             raise HTTPException(
                 status_code=HTTP_403_FORBIDDEN,
                 detail="Only admins can update projects",
@@ -317,7 +316,7 @@ async def delete_project(
                 .where(models.User.id == int(request.user.identity))
             )
             role_name = await session.scalar(stmt)
-        if role_name != UserRole.ADMIN.value:
+        if role_name != "ADMIN":
             raise HTTPException(
                 status_code=HTTP_403_FORBIDDEN,
                 detail="Only admins can delete projects",

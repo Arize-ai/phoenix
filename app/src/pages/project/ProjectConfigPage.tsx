@@ -7,14 +7,21 @@ import {
 } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Card, Item, Picker } from "@arizeai/components";
+import { Card } from "@arizeai/components";
 
 import {
+  Button,
   CopyToClipboardButton,
   Flex,
   Input,
   Label,
+  ListBox,
   Loading,
+  Popover,
+  Select,
+  SelectChevronUpDownIcon,
+  SelectItem,
+  SelectValue,
   TextField,
 } from "@phoenix/components";
 import { useProjectContext } from "@phoenix/contexts";
@@ -138,21 +145,34 @@ const ProjectConfigCard = ({
               </TextField>
               <CopyToClipboardButton text={data.name} size="M" />
             </Flex>
-            <Picker
-              label="Default Project Tab"
+            <Select
               selectedKey={defaultTab}
               onSelectionChange={(key) => {
                 if (typeof key === "string" && isProjectTab(key)) {
                   setDefaultTab(key);
                 }
               }}
-              size="default"
               placeholder="Select a default tab"
             >
-              <Item key="spans">Spans</Item>
-              <Item key="traces">Traces</Item>
-              <Item key="sessions">Sessions</Item>
-            </Picker>
+              <Label>Default Project Tab</Label>
+              <Button>
+                <SelectValue />
+                <SelectChevronUpDownIcon />
+              </Button>
+              <Popover>
+                <ListBox>
+                  <SelectItem key="spans" id="spans">
+                    Spans
+                  </SelectItem>
+                  <SelectItem key="traces" id="traces">
+                    Traces
+                  </SelectItem>
+                  <SelectItem key="sessions" id="sessions">
+                    Sessions
+                  </SelectItem>
+                </ListBox>
+              </Popover>
+            </Select>
           </Flex>
         </div>
       </Flex>

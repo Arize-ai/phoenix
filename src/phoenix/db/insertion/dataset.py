@@ -35,6 +35,7 @@ Examples: TypeAlias = Iterable[ExampleContent]
 @dataclass(frozen=True)
 class DatasetExampleAdditionEvent(DataManipulationEvent):
     dataset_id: DatasetId
+    dataset_version_id: DatasetVersionId
 
 
 async def insert_dataset(
@@ -205,7 +206,7 @@ async def add_dataset_examples(
                 f"{dataset_example_id=}"
             )
             raise
-    return DatasetExampleAdditionEvent(dataset_id=dataset_id)
+    return DatasetExampleAdditionEvent(dataset_id=dataset_id, dataset_version_id=dataset_version_id)
 
 
 @dataclass(frozen=True)

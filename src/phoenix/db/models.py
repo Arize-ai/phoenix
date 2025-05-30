@@ -146,6 +146,7 @@ def render_values_w_union(
     return compiler.process(subquery, from_linter=from_linter, **kw)
 
 
+UserRoleName: TypeAlias = Literal["SYSTEM", "ADMIN", "MEMBER"]
 AuthMethod: TypeAlias = Literal["LOCAL", "OAUTH2"]
 
 
@@ -1132,7 +1133,7 @@ class ExperimentRunAnnotation(Base):
 
 class UserRole(Base):
     __tablename__ = "user_roles"
-    name: Mapped[str] = mapped_column(unique=True, index=True)
+    name: Mapped[UserRoleName] = mapped_column(unique=True, index=True)
     users: Mapped[list["User"]] = relationship("User", back_populates="role")
 
 
@@ -1231,6 +1232,8 @@ class OAuth2User(User):
         *,
         email: str,
         username: str,
+        oauth2_client_id: Optional[str] = None,
+        oauth2_user_id: Optional[str] = None,
         user_role_id: Optional[int] = None,
     ) -> None:
         super().__init__(
@@ -1239,6 +1242,8 @@ class OAuth2User(User):
             user_role_id=user_role_id,
             reset_password=False,
             auth_method="OAUTH2",
+            oauth2_client_id=oauth2_client_id,
+            oauth2_user_id=oauth2_user_id,
         )
 
 
