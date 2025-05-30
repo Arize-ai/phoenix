@@ -261,16 +261,21 @@ class TestClientForUsersAPI:
                 assert_never(created_user["auth_method"])
 
         # Test username uniqueness (CREATE operation)
-        duplicate_local_user = users_to_create[0]
+        duplicate_local_user_data = v1.LocalUserData(
+            email=f"{token_hex(8)}@example.com",
+            username=users_to_create[0]["username"],
+            role="MEMBER",
+            auth_method="LOCAL",
+        )
         with pytest.raises(Exception):
             users_api.create(
-                user=duplicate_local_user,
+                user=duplicate_local_user_data,
             )
 
         # Test email uniqueness (CREATE operation)
         duplicate_local_user_data = v1.LocalUserData(
             email=users_to_create[0]["email"],
-            username=f"different_{token_hex(8)}",
+            username=f"username_{token_hex(8)}",
             role="MEMBER",
             auth_method="LOCAL",
         )
@@ -369,7 +374,7 @@ class TestClientForUsersAPI:
         users_api = _UsersApi(_httpx_client(u.create_api_key()))
 
         # Create test data based on auth method
-        email = f"{token_hex(16)}@{token_hex(16)}.com"
+        email = f"{token_hex(8)}@example.com"
         username = f"username_{token_hex(8)}"
         user_data: Union[v1.LocalUserData, v1.OAuth2UserData]
         if auth_method == "LOCAL":
@@ -544,7 +549,7 @@ class TestClientForUsersAPI:
         users_api = _UsersApi(_httpx_client(u.create_api_key()))
 
         password = token_hex(16)
-        email = f"{token_hex(16)}@{token_hex(16)}.com"
+        email = f"{token_hex(8)}@example.com"
         username = f"username_{token_hex(8)}"
 
         users_api.create(
@@ -581,7 +586,7 @@ class TestClientForUsersAPI:
         users_api = _UsersApi(_httpx_client(u.create_api_key()))
 
         # Create user with specified welcome email setting
-        email = f"{token_hex(16)}@{token_hex(16)}.com"
+        email = f"{token_hex(8)}@example.com"
         username = f"username_{token_hex(8)}"
         user_data: Union[v1.LocalUserData, v1.OAuth2UserData]
         if auth_method == "LOCAL":
