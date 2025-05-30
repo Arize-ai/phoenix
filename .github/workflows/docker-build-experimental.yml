@@ -40,7 +40,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
           repository: ${{ env.REGISTRY }}/phoenix-helm
-          readme-filepath: ./README.md
+          readme-filepath: ./helm/README.md
  
   push_to_registry:
     name: Push experimental Docker image to Docker Hub
