@@ -17,6 +17,7 @@ import {
   ComboBox,
   ComboBoxItem,
   Dialog,
+  DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -362,6 +363,7 @@ function ModelConfigDialog(props: ModelConfigDialogProps) {
                 {ModelProviders[instance.model.provider] ?? "this provider"}.
               </Tooltip>
             </TooltipTrigger>
+            <DialogCloseButton />
           </DialogTitleExtra>
         </DialogHeader>
         <Suspense>
