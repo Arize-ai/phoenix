@@ -44,7 +44,6 @@ from typing_extensions import TypeAlias
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
-from phoenix.db.enums import UserRoleName
 from phoenix.db.types.annotation_configs import (
     AnnotationConfig as AnnotationConfigModel,
 )

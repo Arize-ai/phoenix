@@ -7081,94 +7081,13 @@
             "type": "string",
             "title": "Id",
             "description": "The ID of the upserted experiment evaluation"
-      "User": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "email": {
-            "type": "string",
-            "title": "Email"
-          },
-          "username": {
-            "type": "string",
-            "title": "Username"
-          },
-          "profile_picture_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Profile Picture Url"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "role": {
-            "type": "string",
-            "title": "Role"
-          },
-          "password_needs_reset": {
-            "type": "boolean",
-            "title": "Password Needs Reset"
-          },
-          "auth_method": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Auth Method"
           }
         },
         "type": "object",
         "required": [
-          "id",
-          "email",
-          "username",
-          "created_at",
-          "role",
-          "password_needs_reset"
+          "id"
         ],
-        "title": "User"
-      },
-      "UserCreate": {
-        "properties": {
-          "email": {
-            "type": "string",
-            "title": "Email"
-          },
-          "username": {
-            "type": "string",
-            "title": "Username"
-          },
-          "password": {
-            "type": "string",
-            "title": "Password"
-          },
-          "role": {
-            "type": "string",
-            "title": "Role"
-          }
-        },
-        "type": "object",
-        "required": [
-          "email",
-          "username",
-          "password",
-          "role"
-        ],
-        "title": "UserCreate"
+        "title": "UpsertExperimentEvaluationResponseBodyData"
       },
       "ValidationError": {
         "properties": {

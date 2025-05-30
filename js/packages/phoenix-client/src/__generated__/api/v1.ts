@@ -1221,7 +1221,7 @@ export interface components {
          * ModelProvider
          * @enum {string}
          */
-        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE";
+        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK";
         /** OAuth2User */
         OAuth2User: {
             /** Id */
@@ -2100,38 +2100,6 @@ export interface components {
              * @description The ID of the upserted experiment evaluation
              */
             id: string;
-        /** User */
-        User: {
-            /** Id */
-            id: string;
-            /** Email */
-            email: string;
-            /** Username */
-            username: string;
-            /** Profile Picture Url */
-            profile_picture_url?: string | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Role */
-            role: string;
-            /** Password Needs Reset */
-            password_needs_reset: boolean;
-            /** Auth Method */
-            auth_method?: string | null;
-        };
-        /** UserCreate */
-        UserCreate: {
-            /** Email */
-            email: string;
-            /** Username */
-            username: string;
-            /** Password */
-            password: string;
-            /** Role */
-            role: string;
         };
         /** ValidationError */
         ValidationError: {
