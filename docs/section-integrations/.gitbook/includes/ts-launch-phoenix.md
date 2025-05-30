@@ -28,7 +28,7 @@ phoenix serve
 
 This will expose the Phoenix on `localhost:6006`
 
-For details on customizing a local terminal deployment, see [Terminal Setup](https://docs.arize.com/phoenix/setup/environments#terminal).
+For details on customizing a local terminal deployment, see [Terminal Setup](https://arize.com/docs/phoenix/setup/environments#terminal).
 
 **Set your Phoenix endpoint and API Key:**
 
@@ -60,6 +60,6 @@ export PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006/v1/traces"
 export PHOENIX_API_KEY="YOUR PHOENIX API KEY" # only necessary if you've enabled auth
 ```
 
-For more info on using Phoenix with Docker, see [Docker](https://docs.arize.com/phoenix/self-hosting/deployment-options/docker).
+For more info on using Phoenix with Docker, see [Docker](https://arize.com/docs/phoenix/self-hosting/deployment-options/docker).
 {% endtab %}
 {% endtabs %}

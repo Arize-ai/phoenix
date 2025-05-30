@@ -2,7 +2,7 @@
 
 ## Embedding Details <a href="#embedding-details" id="embedding-details"></a>
 
-For each [embedding](https://docs.arize.com/phoenix/inferences/use-cases-inferences/embeddings-analysis#embeddings) described in the inference [schema](https://github.com/Arize-ai/phoenix/blob/main/docs/inferences/use-cases-inferences/broken-reference/README.md)(s), Phoenix serves a embeddings troubleshooting view to help you identify areas of drift and performance degradation. Let's start with embedding drift.
+For each [embedding](https://arize.com/docs/phoenix/inferences/use-cases-inferences/embeddings-analysis#embeddings) described in the inference [schema](https://github.com/Arize-ai/phoenix/blob/main/docs/inferences/use-cases-inferences/broken-reference/README.md)(s), Phoenix serves a embeddings troubleshooting view to help you identify areas of drift and performance degradation. Let's start with embedding drift.
 
 <figure><img src="https://docs.arize.com/~gitbook/image?url=https%3A%2F%2Fstorage.googleapis.com%2Farize-assets%2Fphoenix%2Fassets%2Fimages%2Fner_color_by_correctness.png&#x26;width=768&#x26;dpr=4&#x26;quality=100&#x26;sign=3568e353&#x26;sv=2" alt=""><figcaption></figcaption></figure>
 
@@ -10,7 +10,7 @@ For each [embedding](https://docs.arize.com/phoenix/inferences/use-cases-inferen
 
 The picture below shows a time series graph of the drift between two groups of vectors –- the primary (typically production) vectors and reference / baseline vectors. Phoenix uses euclidean distance as the primary measure of embedding drift and helps us identify times where your inference set is diverging from a given reference baseline.
 
-Note that when you are troubleshooting search and retrieval using [corpus](https://docs.arize.com/phoenix/inferences/how-to-inferences/define-your-schema/corpus-data) inferences, the euclidean distance of your queries to your knowledge base vectors is presented as **query distance.**
+Note that when you are troubleshooting search and retrieval using [corpus](https://arize.com/docs/phoenix/inferences/how-to-inferences/define-your-schema/corpus-data) inferences, the euclidean distance of your queries to your knowledge base vectors is presented as **query distance.**
 
 <figure><img src="https://docs.arize.com/~gitbook/image?url=https%3A%2F%2Fstorage.googleapis.com%2Farize-assets%2Fphoenix%2Fassets%2Fimages%2Feuclidean_distance_timeseries_graph.png&#x26;width=768&#x26;dpr=4&#x26;quality=100&#x26;sign=7991f28e&#x26;sv=2" alt=""><figcaption><p>Euclidean distance over time</p></figcaption></figure>
 

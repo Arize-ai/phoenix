@@ -22,7 +22,7 @@ In this tutorial, you will:
 !pip install -q "arize-phoenix>=8.0.0" datasets openinference-instrumentation-openai
 ```
 
-Next you need to connect to Phoenix. The code below will connect you to a Phoenix Cloud instance. You can also [connect to a self-hosted Phoenix instance](https://docs.arize.com/phoenix/deployment) if you'd prefer.
+Next you need to connect to Phoenix. The code below will connect you to a Phoenix Cloud instance. You can also [connect to a self-hosted Phoenix instance](https://arize.com/docs/phoenix/deployment) if you'd prefer.
 
 ```python
 import os
@@ -38,7 +38,7 @@ if not os.environ.get("OPENAI_API_KEY"):
 
 ## **Load Dataset into Phoenix**
 
-Phoenix offers many [pre-built evaluation templates](https://docs.arize.com/phoenix/evaluation/concepts-evals/evaluation) for LLM as a Judge, but often, you may need to build a custom evaluator for specific use cases.
+Phoenix offers many [pre-built evaluation templates](https://arize.com/docs/phoenix/evaluation/concepts-evals/evaluation) for LLM as a Judge, but often, you may need to build a custom evaluator for specific use cases.
 
 In this tutorial, we will focus on creating an LLM as a Judge prompt designed to assess empathy and emotional intelligence in chatbot responses. This is especially useful for use cases like mental health chatbots or customer support interactions.
 
@@ -240,7 +240,7 @@ experiment = run_experiment(
 
 ### Technique 2: Human in the Loop
 
-Keeping a human in the loop improves the accuracy of an LLM as a Judge by providing oversight, validation, and corrections where needed. In Phoenix, we can do this with [annotations](https://docs.arize.com/phoenix/tracing/features-tracing/how-to-annotate-traces). While LLMs can evaluate responses based on predefined criteria, human reviewers help:
+Keeping a human in the loop improves the accuracy of an LLM as a Judge by providing oversight, validation, and corrections where needed. In Phoenix, we can do this with [annotations](https://arize.com/docs/phoenix/tracing/features-tracing/how-to-annotate-traces). While LLMs can evaluate responses based on predefined criteria, human reviewers help:
 
 * Catch edge cases and biases that the model may overlook.
 * Refine scoring guidelines by identifying inconsistencies in LLM outputs.

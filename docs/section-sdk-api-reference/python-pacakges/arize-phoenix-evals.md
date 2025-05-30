@@ -77,4 +77,4 @@ y_pred = df["eval_relevance"]
 precision, recall, f1, support = precision_recall_fscore_support(y_true, y_pred)
 ```
 
-To learn more about LLM Evals, see the [LLM Evals documentation](https://docs.arize.com/phoenix/concepts/llm-evals/).
+To learn more about LLM Evals, see the [LLM Evals documentation](https://arize.com/docs/phoenix/concepts/llm-evals/).

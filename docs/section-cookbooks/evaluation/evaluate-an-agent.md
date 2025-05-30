@@ -56,7 +56,7 @@ project_name = "talk-to-your-data-agent"
 
 ## Enable Phoenix Tracing
 
-Sign up for a free instance of [Phoenix Cloud](https://app.phoenix.arize.com) to get your API key. If you'd prefer, you can instead [self-host Phoenix](https://docs.arize.com/phoenix/deployment).
+Sign up for a free instance of [Phoenix Cloud](https://app.phoenix.arize.com) to get your API key. If you'd prefer, you can instead [self-host Phoenix](https://arize.com/docs/phoenix/deployment).
 
 ```python
 if os.getenv("PHOENIX_API_KEY") is None:
@@ -689,7 +689,7 @@ experiment = run_experiment(
 
 ### Tool Evals
 
-The next piece of your agent to evaluate is its tools. Each tool is usually evaluated differently - we've included some examples below. If you need other ideas, [Phoenix's built-in evaluators](https://docs.arize.com/phoenix/evaluation/how-to-evals/running-pre-tested-evals) give you an idea of other metrics to use.
+The next piece of your agent to evaluate is its tools. Each tool is usually evaluated differently - we've included some examples below. If you need other ideas, [Phoenix's built-in evaluators](https://arize.com/docs/phoenix/evaluation/how-to-evals/running-pre-tested-evals) give you an idea of other metrics to use.
 
 #### Evaluating our SQL generation tool
 

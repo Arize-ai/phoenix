@@ -26,7 +26,7 @@ Let’s get started! 🚀
 !pip install -qqq "arize-phoenix>=8.0.0" datasets openinference-instrumentation-openai
 ```
 
-Next you need to connect to Phoenix. The code below will connect you to a Phoenix Cloud instance. You can also [connect to a self-hosted Phoenix instance](https://docs.arize.com/phoenix/deployment) if you'd prefer.
+Next you need to connect to Phoenix. The code below will connect you to a Phoenix Cloud instance. You can also [connect to a self-hosted Phoenix instance](https://arize.com/docs/phoenix/deployment) if you'd prefer.
 
 ```python
 import os
@@ -298,4 +298,4 @@ Note: Performance may still vary, and in some cases, results might decline. Like
 
 ![](https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/s-few-shot-1.png)
 
-From here, you can check out more [examples on Phoenix](https://docs.arize.com/phoenix/notebooks), and if you haven't already, [please give us a star on GitHub!](https://github.com/Arize-ai/phoenix) ⭐️
+From here, you can check out more [examples on Phoenix](https://arize.com/docs/phoenix/notebooks), and if you haven't already, [please give us a star on GitHub!](https://github.com/Arize-ai/phoenix) ⭐️

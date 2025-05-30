@@ -101,7 +101,7 @@ function ExternalLink(props: {
 export function DocsLink() {
   return (
     <ExternalLink
-      href="https://docs.arize.com/phoenix"
+      href="https://arize.com/docs/phoenix"
       leadingVisual={<Icon svg={<Icons.BookOutline />} />}
       text="Documentation"
     />

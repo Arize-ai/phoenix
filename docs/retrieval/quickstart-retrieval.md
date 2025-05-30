@@ -59,7 +59,7 @@ primary_schema = Schema(
 
 In order to run retrieval Evals the following code can be used for quick analysis of common frameworks of LangChain and LlamaIndex.
 
-Independent of the framework you are instrumenting, Phoenix traces allow you to get retrieval data in a common dataframe format that follows the [OpenInference](https://docs.arize.com/phoenix/references/openinference) specification.
+Independent of the framework you are instrumenting, Phoenix traces allow you to get retrieval data in a common dataframe format that follows the [OpenInference](https://arize.com/docs/phoenix/references/openinference) specification.
 
 ```python
 # Get traces from Phoenix into dataframe 

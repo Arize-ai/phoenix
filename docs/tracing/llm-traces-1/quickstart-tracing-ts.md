@@ -4,7 +4,7 @@
 
 Phoenix supports three main options to collect traces:
 
-1. Use [automatic instrumentation](https://docs.arize.com/phoenix/integrations) to capture all calls made to supported frameworks.
+1. Use [automatic instrumentation](https://arize.com/docs/phoenix/integrations) to capture all calls made to supported frameworks.
 2. Use [base OpenTelemetry ](../how-to-tracing/setup-tracing/custom-spans.md)instrumentation. Supported in [Python](../how-to-tracing/setup-tracing/custom-spans.md) and [TS / JS](../how-to-tracing/setup-tracing/javascript.md), among many other languages.
 
 This example uses options 2 and 3.
@@ -27,7 +27,7 @@ PHOENIX_COLLECTOR_ENDPOINT="https://app.phoenix.arize.com"
 
 ### Using Self-hosted Phoenix
 
-1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, see [self-hosting](https://docs.arize.com/phoenix/self-hosting).
+1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, see [self-hosting](https://arize.com/docs/phoenix/self-hosting).
 2. In your code, configure environment variables for your endpoint and API key:
 
 ```shell
@@ -204,6 +204,6 @@ You should now see traces in Phoenix!
 
 ## Next Steps
 
-* Explore tracing [integrations](https://docs.arize.com/phoenix/integrations)
+* Explore tracing [integrations](https://arize.com/docs/phoenix/integrations)
 * [Customize tracing](../how-to-tracing/)
-* View use cases to see [end-to-end examples](https://docs.arize.com/phoenix/cookbook/guide)
+* View use cases to see [end-to-end examples](https://arize.com/docs/phoenix/cookbook/guide)

@@ -17,7 +17,7 @@
 * [Authentication](authentication.md)
 * [Email](email.md)
 * [Management](management.md)
-* [Data Retention](https://docs.arize.com/phoenix/settings/data-retention)
+* [Data Retention](https://arize.com/docs/phoenix/settings/data-retention)
 
 ## Upgrate
 
@@ -25,7 +25,7 @@
 
 ## Security
 
-* [RBAC](https://docs.arize.com/phoenix/settings/access-control-rbac)
+* [RBAC](https://arize.com/docs/phoenix/settings/access-control-rbac)
 
 ## Misc
 

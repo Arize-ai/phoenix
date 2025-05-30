@@ -6,7 +6,7 @@ description: How to use an LLM judge to label and score your application
 
 This guide will walk you through the process of evaluating traces captured in Phoenix, and exporting the results to the Phoenix UI.
 
-This process is similar to the [evaluation quickstart guide](https://docs.arize.com/phoenix/evaluation/evals), but instead of creating your own dataset or using an existing external one, you'll export a trace dataset from Phoenix and log the evaluation results to Phoenix.
+This process is similar to the [evaluation quickstart guide](https://arize.com/docs/phoenix/evaluation/evals), but instead of creating your own dataset or using an existing external one, you'll export a trace dataset from Phoenix and log the evaluation results to Phoenix.
 
 ### Install dependencies & Set environment variables
 
@@ -110,8 +110,8 @@ Now that we have our trace dataset, we can generate evaluations for each trace. 
 You can generate evaluations using:
 
 * Plain code
-* Phoenix's [built-in LLM as a Judge evaluators](https://docs.arize.com/phoenix/evaluation/how-to-evals/running-pre-tested-evals)
-* Your own [custom LLM as a Judge evaluator](https://docs.arize.com/phoenix/evaluation/how-to-evals/bring-your-own-evaluator)
+* Phoenix's [built-in LLM as a Judge evaluators](https://arize.com/docs/phoenix/evaluation/how-to-evals/running-pre-tested-evals)
+* Your own [custom LLM as a Judge evaluator](https://arize.com/docs/phoenix/evaluation/how-to-evals/bring-your-own-evaluator)
 * Other evaluation packages
 
 As long as you format your evaluation results properly, you can upload them to Phoenix and visualize them in the UI.
@@ -168,5 +168,5 @@ You should now see evaluations in the Phoenix UI!
 
 From here you can continue collecting and evaluating traces, or move on to one of these other guides:
 
-* If you're interested in more complex evaluation and evaluators, start with [how to use LLM as a Judge evaluators](https://docs.arize.com/phoenix/evaluation/how-to-evals/running-pre-tested-evals)
-* If you're ready to start testing your application in a more rigorous manner, check out [how to run structured experiments](https://docs.arize.com/phoenix/datasets-and-experiments/how-to-experiments/run-experiments)
+* If you're interested in more complex evaluation and evaluators, start with [how to use LLM as a Judge evaluators](https://arize.com/docs/phoenix/evaluation/how-to-evals/running-pre-tested-evals)
+* If you're ready to start testing your application in a more rigorous manner, check out [how to run structured experiments](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments)

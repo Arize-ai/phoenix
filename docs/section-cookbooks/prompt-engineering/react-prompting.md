@@ -25,7 +25,7 @@ Let’s get started! 🚀
 !pip install -qqq "arize-phoenix>=8.0.0" datasets openinference-instrumentation-openai
 ```
 
-Next you need to connect to Phoenix. The code below will connect you to a Phoenix Cloud instance. You can also [connect to a self-hosted Phoenix instance](https://docs.arize.com/phoenix/deployment) if you'd prefer.
+Next you need to connect to Phoenix. The code below will connect you to a Phoenix Cloud instance. You can also [connect to a self-hosted Phoenix instance](https://arize.com/docs/phoenix/deployment) if you'd prefer.
 
 ```python
 import os
@@ -237,7 +237,7 @@ Prompts in Phoenix store more than just text—they also include key details suc
 
 ![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/react_prompt1.png)
 
-Next, we will define the Tool Calling Prompt Template. In this step, we use [**LLM as a Judge**](https://docs.arize.com/phoenix/evaluation/concepts-evals/llm-as-a-judge) to evaluate the output. LLM as a Judge is a technique where one LLM assesses the performance of another LLM.
+Next, we will define the Tool Calling Prompt Template. In this step, we use [**LLM as a Judge**](https://arize.com/docs/phoenix/evaluation/concepts-evals/llm-as-a-judge) to evaluate the output. LLM as a Judge is a technique where one LLM assesses the performance of another LLM.
 
 This prompt is provided to the LLM-as-Judge model, which takes in both the user's query and the tools the system has selected. The model then uses reasoning to assess how effectively the chosen tools addressed the query, providing an explanation for its evaluation.
 
@@ -398,4 +398,4 @@ Keep in mind that results may vary due to randomness and the model's non-determi
 
 To refine and test these prompts against other datasets, experiment with alternative techniques like Chain of Thought (CoT) prompting to assess how they complement or contrast with ReAct in your specific use cases. With Phoenix, you can seamlessly integrate this process into your workflow using both the TypeScript and Python Clients.
 
-From here, you can check out more [examples on Phoenix](https://docs.arize.com/phoenix/notebooks), and if you haven't already, [please give us a star on GitHub!](https://github.com/Arize-ai/phoenix) ⭐️
+From here, you can check out more [examples on Phoenix](https://arize.com/docs/phoenix/notebooks), and if you haven't already, [please give us a star on GitHub!](https://github.com/Arize-ai/phoenix) ⭐️

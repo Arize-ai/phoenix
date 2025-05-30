@@ -16,4 +16,4 @@ Authentication: bearer $PHOENIX_ADMIN_SECRET
 
 The API provides endpoints for creating, updating, and deleting users, projects, and more.
 
-See the [REST API](https://docs.arize.com/phoenix/sdk-api-reference/rest-api/overview) for details.
+See the [REST API](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/overview) for details.

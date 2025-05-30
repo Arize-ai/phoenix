@@ -41,7 +41,7 @@ pip install arize-phoenix
 phoenix serve
 ```
 
-For details on customizing a local terminal deployment, see [Terminal Setup](https://docs.arize.com/phoenix/setup/environments#terminal).
+For details on customizing a local terminal deployment, see [Terminal Setup](https://arize.com/docs/phoenix/setup/environments#terminal).
 
 **Install packages:**
 
@@ -89,7 +89,7 @@ import os
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
 ```
 
-For more info on using Phoenix with Docker, see [Docker](https://docs.arize.com/phoenix/self-hosting/deployment-options/docker).
+For more info on using Phoenix with Docker, see [Docker](https://arize.com/docs/phoenix/self-hosting/deployment-options/docker).
 {% endtab %}
 
 {% tab title="Notebook" %}
@@ -107,7 +107,7 @@ px.launch_app()
 ```
 
 {% hint style="warning" %}
-By default, notebook instances do not have persistent storage, so your traces will disappear after the notebook is closed. See [self-hosting](https://docs.arize.com/phoenix/self-hosting) or use one of the other deployment options to retain traces.
+By default, notebook instances do not have persistent storage, so your traces will disappear after the notebook is closed. See [self-hosting](https://arize.com/docs/phoenix/self-hosting) or use one of the other deployment options to retain traces.
 {% endhint %}
 {% endtab %}
 {% endtabs %}

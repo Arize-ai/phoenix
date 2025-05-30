@@ -36,7 +36,7 @@ There are five key stages within RAG, which will in turn be a part of any larger
 
 ### Build a RAG system <a href="#build-a-rag-system" id="build-a-rag-system"></a>
 
-Now that we have understood the stages of RAG, let's build a pipeline. We will use [LlamaIndex](https://www.llamaindex.ai/) for RAG and [Phoenix Evals](https://docs.arize.com/phoenix/llm-evals/llm-evals) for evaluation.
+Now that we have understood the stages of RAG, let's build a pipeline. We will use [LlamaIndex](https://www.llamaindex.ai/) for RAG and [Phoenix Evals](https://arize.com/docs/phoenix/llm-evals/llm-evals) for evaluation.
 
 ```bash
 !pip install -qq "arize-phoenix[experimental,llama-index]>=2.0"
@@ -328,7 +328,7 @@ px.launch_app()
 ```python
 🌍 To view the Phoenix app in your browser, visit http://localhost:6006/
 📺 To view the Phoenix app in a notebook, run `px.active_session().view()`
-📖 For more information on how to use Phoenix, check out https://docs.arize.com/phoenix
+📖 For more information on how to use Phoenix, check out https://arize.com/docs/phoenix
 
 
 
@@ -345,7 +345,7 @@ for _, row in questions_with_document_chunk_df.iterrows():
     print(f"Question: {question}\nAnswer: {response_vector.response}\n")
 ```
 
-Now that we have executed the queries, we can start validating whether or not the RAG system was able to retrieve the correct context. Let's extract all the retrieved documents from the traces logged to phoenix. (For an in-depth explanation of how to export trace data from the phoenix runtime, consult the [docs](https://docs.arize.com/phoenix/how-to/extract-data-from-spans)).
+Now that we have executed the queries, we can start validating whether or not the RAG system was able to retrieve the correct context. Let's extract all the retrieved documents from the traces logged to phoenix. (For an in-depth explanation of how to export trace data from the phoenix runtime, consult the [docs](https://arize.com/docs/phoenix/how-to/extract-data-from-spans)).
 
 ```python
 from phoenix.session.evaluation import get_retrieved_documents
@@ -515,7 +515,7 @@ qa_with_reference_df = get_qa_with_reference(px.active_session())
 qa_with_reference_df
 ```
 
-Now that we have a dataset of the question, context, and response (input, reference, and output), we now can measure how well the LLM is responding to the queries. For details on the QA correctness evaluation, see the [LLM Evals documentation](https://docs.arize.com/phoenix/llm-evals/running-pre-tested-evals/q-and-a-on-retrieved-data).
+Now that we have a dataset of the question, context, and response (input, reference, and output), we now can measure how well the LLM is responding to the queries. For details on the QA correctness evaluation, see the [LLM Evals documentation](https://arize.com/docs/phoenix/llm-evals/running-pre-tested-evals/q-and-a-on-retrieved-data).
 
 ```python
 from phoenix.evals import (
@@ -597,4 +597,4 @@ phoenix URL http://localhost:6006/
 
 We have explored how to build and evaluate a RAG pipeline using LlamaIndex and Phoenix, with a specific focus on evaluating the retrieval system and generated responses within the pipelines.
 
-Phoenix offers a variety of other evaluations that can be used to assess the performance of your LLM Application. For more details, see the [LLM Evals](https://docs.arize.com/phoenix/llm-evals/llm-evals) documentation.
+Phoenix offers a variety of other evaluations that can be used to assess the performance of your LLM Application. For more details, see the [LLM Evals](https://arize.com/docs/phoenix/llm-evals/llm-evals) documentation.

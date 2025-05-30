@@ -7,5 +7,5 @@ To learn more about the release, try:
   $ helm status {{ .Release.Name }}
   $ helm get all {{ .Release.Name }}
 
- - Phoenix docs: https://docs.arize.com/phoenix
- - Phoenix configuration: https://docs.arize.com/phoenix/self-hosting/configuration
+ - Phoenix docs: https://arize.com/docs/phoenix
+ - Phoenix configuration: https://arize.com/docs/phoenix/self-hosting/configuration
