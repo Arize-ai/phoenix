@@ -1,5 +1,5 @@
 ---
-description: Phoenix can be deployed on AWS Fargate using CloudFormation.
+description: Phoenix can be deployed on AWS Fargate using CloudFormation
 ---
 
 # AWS with CloudFormation

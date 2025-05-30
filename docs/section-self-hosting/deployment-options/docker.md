@@ -1,3 +1,7 @@
+---
+description: Deploy using docker compose for a local or cloud deployment
+---
+
 # Docker
 
 {% embed url="https://hub.docker.com/r/arizephoenix/phoenix" %}

@@ -1,7 +1,5 @@
 ---
-description: >-
-  Phoenix can be deployed on Kubernetes with either SQLite backed by a
-  persistent disc or with PostgreSQL.
+description: Phoenix can be deployed on Kubernetes with PostGres
 ---
 
 # Kubernetes
