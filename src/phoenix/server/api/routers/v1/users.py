@@ -25,8 +25,10 @@ from typing_extensions import TypeAlias, assert_never
 
 from phoenix.auth import (
     DEFAULT_ADMIN_EMAIL,
+    DEFAULT_ADMIN_USERNAME,
     DEFAULT_SECRET_LENGTH,
     DEFAULT_SYSTEM_EMAIL,
+    DEFAULT_SYSTEM_USERNAME,
     compute_password_hash,
     validate_email_format,
     validate_password_format,
@@ -330,32 +332,14 @@ async def delete_user(
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         # Prevent deletion of system and default admin users
-        if user.email == DEFAULT_ADMIN_EMAIL or user.email == DEFAULT_SYSTEM_EMAIL:
-            raise HTTPException(
-                status_code=409, detail="Cannot delete the default admin or system user"
-            )
-        first_system_user_id = await session.scalar(
-            select(models.User.id)
-            .join(models.UserRole)
-            .where(models.UserRole.name == "SYSTEM")
-            .order_by(models.User.id)
-            .limit(1)
-        )
-        first_admin_user_id = await session.scalar(
-            select(models.User.id)
-            .join(models.UserRole)
-            .where(models.UserRole.name == "ADMIN")
-            .order_by(models.User.id)
-            .limit(1)
-        )
         if (
-            first_system_user_id is not None
-            and id_ == first_system_user_id
-            or first_admin_user_id is not None
-            and id_ == first_admin_user_id
+            user.email == DEFAULT_ADMIN_EMAIL
+            or user.email == DEFAULT_SYSTEM_EMAIL
+            or user.username == DEFAULT_ADMIN_USERNAME
+            or user.username == DEFAULT_SYSTEM_USERNAME
         ):
             raise HTTPException(
-                status_code=409, detail="Cannot delete the first admin or system user"
+                status_code=409, detail="Cannot delete the default admin or system user"
             )
         await session.delete(user)
     return None

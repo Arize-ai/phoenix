@@ -7,9 +7,14 @@ from typing import Literal, Optional, Union, cast
 import httpx
 import pytest
 import smtpdfix
+from phoenix.auth import (
+    DEFAULT_ADMIN_EMAIL,
+    DEFAULT_ADMIN_USERNAME,
+    DEFAULT_SYSTEM_EMAIL,
+    DEFAULT_SYSTEM_USERNAME,
+)
 from phoenix.client.__generated__ import v1
 from phoenix.server.api.routers.v1.users import DEFAULT_PAGINATION_PAGE_LIMIT
-from strawberry.relay import GlobalID
 from typing_extensions import assert_never
 
 from .._helpers import _ADMIN, _MEMBER, _GetUser, _httpx_client, _log_in
@@ -320,34 +325,44 @@ class TestClientForUsersAPI:
                 created_user["id"] not in all_users_by_id
             ), f"User {i} with ID {created_user['id']} should have been deleted"
 
-        # Find the first system user and admin user by ID
-        system_users = [u for u in all_users if u["role"] == "SYSTEM"]
-        admin_users = [u for u in all_users if u["role"] == "ADMIN"]
+        # Find users with default system/admin credentials that should be protected from deletion
+        system_users = [
+            u
+            for u in all_users
+            if u["email"] == DEFAULT_SYSTEM_EMAIL or u["username"] == DEFAULT_SYSTEM_USERNAME
+        ]
+        admin_users = [
+            u
+            for u in all_users
+            if u["email"] == DEFAULT_ADMIN_EMAIL or u["username"] == DEFAULT_ADMIN_USERNAME
+        ]
 
-        assert system_users, "Should have at least one system user"
-        assert admin_users, "Should have at least one admin user"
+        assert (
+            len(system_users) == 1
+        ), "Should have exactly one user with default system credentials"
+        assert len(admin_users) == 1, "Should have exactly one user with default admin credentials"
 
-        # Sort by ID to find the smallest ones
-        first_system_user = min(system_users, key=lambda u: int(GlobalID.from_id(u["id"]).node_id))
-        first_admin_user = min(admin_users, key=lambda u: int(GlobalID.from_id(u["id"]).node_id))
+        # Get the users with default credentials
+        system_user = system_users[0]
+        admin_user = admin_users[0]
 
-        # Try to delete the first system user
+        # Try to delete a user with default system credentials
         with pytest.raises(Exception) as exc_info:
             users_api.delete(
-                user_id=first_system_user["id"],
+                user_id=system_user["id"],
             )
         assert (
             "409" in str(exc_info.value)
-        ), f"Should receive 409 Conflict when attempting to delete system user with ID {first_system_user['id']}"  # noqa: E501
+        ), f"Should receive 409 Conflict when attempting to delete user with default system credentials (ID: {system_user['id']})"  # noqa: E501
 
-        # Try to delete the first admin user
+        # Try to delete a user with default admin credentials
         with pytest.raises(Exception) as exc_info:
             users_api.delete(
-                user_id=first_admin_user["id"],
+                user_id=admin_user["id"],
             )
         assert (
             "409" in str(exc_info.value)
-        ), f"Should receive 409 Conflict when attempting to delete admin user with ID {first_admin_user['id']}"  # noqa: E501
+        ), f"Should receive 409 Conflict when attempting to delete user with default admin credentials (ID: {admin_user['id']})"  # noqa: E501
 
     async def test_list_pagination(
         self,
