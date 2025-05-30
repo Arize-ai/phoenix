@@ -349,7 +349,7 @@ function ModelConfigDialog(props: ModelConfigDialogProps) {
         <DialogHeader>
           <DialogTitle>Model Configuration</DialogTitle>
           <DialogTitleExtra>
-            <TooltipTrigger delay={0}>
+            <TooltipTrigger delay={0} closeDelay={0}>
               <Button
                 size="S"
                 variant="default"
@@ -358,7 +358,7 @@ function ModelConfigDialog(props: ModelConfigDialogProps) {
               >
                 Save as Default
               </Button>
-              <Tooltip>
+              <Tooltip placement="bottom" offset={5}>
                 Saves the current configuration as the default for{" "}
                 {ModelProviders[instance.model.provider] ?? "this provider"}.
               </Tooltip>
