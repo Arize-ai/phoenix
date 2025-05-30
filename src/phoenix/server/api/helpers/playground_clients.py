@@ -486,8 +486,12 @@ class DeepSeekStreamingClient(OpenAIBaseStreamingClient):
     provider_key=GenerativeProviderKey.XAI,
     model_names=[
         PROVIDER_DEFAULT,
-        "grok-beta",
-        "grok-vision-beta",
+        "grok-3",
+        "grok-3-fast",
+        "grok-3-mini",
+        "grok-3-mini-fast",
+        "grok-2-1212",
+        "grok-2-vision-1212",
     ],
 )
 class XAIStreamingClient(OpenAIBaseStreamingClient):
