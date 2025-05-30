@@ -16,6 +16,7 @@ from starlette.status import (
     HTTP_201_CREATED,
     HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST,
+    HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
     HTTP_409_CONFLICT,
     HTTP_422_UNPROCESSABLE_ENTITY,
@@ -309,7 +310,7 @@ async def create_user(
             {"status_code": HTTP_404_NOT_FOUND, "description": "User not found."},
             HTTP_422_UNPROCESSABLE_ENTITY,
             {
-                "status_code": HTTP_409_CONFLICT,
+                "status_code": HTTP_403_FORBIDDEN,
                 "description": "Cannot delete the default admin or system user",
             },
         ]
@@ -339,7 +340,7 @@ async def delete_user(
             or user.username == DEFAULT_SYSTEM_USERNAME
         ):
             raise HTTPException(
-                status_code=409, detail="Cannot delete the default admin or system user"
+                status_code=403, detail="Cannot delete the default admin or system user"
             )
         await session.delete(user)
     return None

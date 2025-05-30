@@ -352,8 +352,8 @@ class TestClientForUsersAPI:
                 user_id=system_user["id"],
             )
         assert (
-            "409" in str(exc_info.value)
-        ), f"Should receive 409 Conflict when attempting to delete user with default system credentials (ID: {system_user['id']})"  # noqa: E501
+            "403" in str(exc_info.value)
+        ), f"Should receive 403 Forbidden when attempting to delete user with default system credentials (ID: {system_user['id']})"  # noqa: E501
 
         # Try to delete a user with default admin credentials
         with pytest.raises(Exception) as exc_info:
@@ -361,8 +361,8 @@ class TestClientForUsersAPI:
                 user_id=admin_user["id"],
             )
         assert (
-            "409" in str(exc_info.value)
-        ), f"Should receive 409 Conflict when attempting to delete user with default admin credentials (ID: {admin_user['id']})"  # noqa: E501
+            "403" in str(exc_info.value)
+        ), f"Should receive 403 Forbidden when attempting to delete user with default admin credentials (ID: {admin_user['id']})"  # noqa: E501
 
     async def test_list_pagination(
         self,
