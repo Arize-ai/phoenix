@@ -3,6 +3,12 @@ import { graphql, useMutation } from "react-relay";
 
 import { Dialog, Modal } from "@phoenix/components";
 import {
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@phoenix/components/dialog";
+import {
   OAuthUserForm,
   OAuthUserFormParams,
 } from "@phoenix/components/settings/OAuthUserForm";
@@ -91,20 +97,25 @@ export function NewUserDialog({
       isDismissable
     >
       <Dialog>
-        <h2>Add User</h2>
-        {window.Config.basicAuthDisabled ? (
-          <OAuthUserForm
-            key="oauth-form"
-            onSubmit={onSubmitOauthUser}
-            isSubmitting={isCommitting}
-          />
-        ) : (
-          <UserForm
-            key="user-form"
-            onSubmit={onSubmit}
-            isSubmitting={isCommitting}
-          />
-        )}
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add User</DialogTitle>
+            <DialogCloseButton />
+          </DialogHeader>
+          {window.Config.basicAuthDisabled ? (
+            <OAuthUserForm
+              key="oauth-form"
+              onSubmit={onSubmitOauthUser}
+              isSubmitting={isCommitting}
+            />
+          ) : (
+            <UserForm
+              key="user-form"
+              onSubmit={onSubmit}
+              isSubmitting={isCommitting}
+            />
+          )}
+        </DialogContent>
       </Dialog>
     </Modal>
   );
