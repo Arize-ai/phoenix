@@ -46,15 +46,6 @@ The following environment variables will control how your phoenix server runs.
 * **PHOENIX\_SERVER\_INSTRUMENTATION\_OTLP\_TRACE\_COLLECTOR\_GRPC\_ENDPOINT:** Specifies an gRPC endpoint for the OTLP trace collector. Specifying this variable enables the OpenTelemetry tracer and exporter for the Phoenix server.
 * **PHOENIX\_CSRF\_TRUSTED\_ORIGINS:** A comma-separated list of origins allowed to bypass Cross-Site Request Forgery (CSRF) protection. This setting is recommended when configuring OAuth2 clients or sending password reset emails. If this variable is left unspecified or contains no origins, CSRF protection will not be enabled. In such cases, when a request includes `origin` or `referer` headers, those values will not be validated.
 
-#### SMTP Configuration for Password Reset (When Auth Is Enabled)
-
-* **PHOENIX\_SMTP\_HOSTNAME:** The SMTP hostname to use for sending password reset emails.
-* **PHOENIX\_SMTP\_PORT:** The SMTP port. Defaults to `587`.
-* **PHOENIX\_SMTP\_USERNAME:** The SMTP username.
-* **PHOENIX\_SMTP\_PASSWORD:** The SMTP password.
-* **PHOENIX\_SMTP\_MAIL\_FROM:** The `from` address in the emails. Defaults to `noreply@arize.com`.
-* **PHOENIX\_SMTP\_VALIDATE\_CERTS:** Whether to validate the SMTP server's certificate. Defaults to `true`.
-
 ### Client Configuration
 
 The following environment variables will control your client or notebook environment.
@@ -70,13 +61,6 @@ The following environment variables will control your client or notebook environ
 
 Some phoenix containers run as nonroot and therefore must be granted explicit write permissions to the mounted disc (see [https://kubernetes.io/docs/tasks/configure-pod-container/security-context/](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/)). Phoenix 4.1.3 and above run as root by default to avoid this. However there are `debug` and `nonroot` variants of the image as well.
 
-### Persistence using launch\_app
-
-While it's not recommended to deploy phoenix via `launch_app` which is designed to be used only in jupyter notebooks, you can set the `use_temp_dir` parameter to false to write to the PHOENIX\_WORKING\_DIR.
-
-### Interacting with a deployed instance
-
-If you have deployed a phoenix instance, there is no need to use `px.launch_app`. Simply set the endpoint parameter in `px.Client` to the url of your phoenix instance. See&#x20;
 
 ### Using gRPC for trace collection
 
