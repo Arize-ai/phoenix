@@ -4209,7 +4209,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Forbidden */
+            /** @description Cannot delete the default admin or system user */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4220,15 +4220,6 @@ export interface operations {
             };
             /** @description User not found. */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Cannot delete the default admin or system user */
-            409: {
                 headers: {
                     [name: string]: unknown;
                 };
