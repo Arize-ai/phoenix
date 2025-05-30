@@ -7,7 +7,8 @@ from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
-from phoenix.db import enums, models
+from phoenix.db import models
+from phoenix.db.models import UserRoleName
 from phoenix.server.api.auth import IsAdmin, IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import Unauthorized
@@ -65,13 +66,13 @@ class ApiKeyMutationMixin:
         self, info: Info[Context, None], input: CreateApiKeyInput
     ) -> CreateSystemApiKeyMutationPayload:
         assert (token_store := info.context.token_store) is not None
-        user_role = enums.UserRole.SYSTEM
+        user_role: UserRoleName = "SYSTEM"
         async with info.context.db() as session:
             # Get the system user - note this could be pushed into a dataloader
             system_user = await session.scalar(
                 select(models.User)
                 .join(models.UserRole)  # Join User with UserRole
-                .where(models.UserRole.name == user_role.value)  # Filter where role is SYSTEM
+                .where(models.UserRole.name == user_role)  # Filter where role is SYSTEM
                 .order_by(models.User.id)
                 .limit(1)
             )
@@ -117,7 +118,7 @@ class ApiKeyMutationMixin:
             issued_at=issued_at,
             expiration_time=input.expires_at or None,
             attributes=ApiKeyAttributes(
-                user_role=enums.UserRole.MEMBER,
+                user_role="ADMIN" if user.is_admin else "MEMBER",
                 name=input.name,
                 description=input.description,
             ),

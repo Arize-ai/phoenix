@@ -20,7 +20,7 @@ from phoenix.auth import (
     Token,
 )
 from phoenix.config import get_env_phoenix_admin_secret
-from phoenix.db import enums, models
+from phoenix.db import models
 from phoenix.server.types import (
     AccessToken,
     AccessTokenAttributes,
@@ -74,8 +74,7 @@ class PhoenixUser(BaseUser):
         self.claims = claims
         assert claims.attributes
         self._is_admin = (
-            claims.status is ClaimSetStatus.VALID
-            and claims.attributes.user_role == enums.UserRole.ADMIN
+            claims.status is ClaimSetStatus.VALID and claims.attributes.user_role == "ADMIN"
         )
 
     @cached_property
@@ -163,7 +162,7 @@ async def create_access_and_refresh_tokens(
 ) -> tuple[AccessToken, RefreshToken]:
     issued_at = datetime.now(timezone.utc)
     user_id = UserId(user.id)
-    user_role = enums.UserRole(user.role.name)
+    user_role = user.role.name
     refresh_token_claims = RefreshTokenClaims(
         subject=user_id,
         issued_at=issued_at,

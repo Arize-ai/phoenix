@@ -1,6 +1,9 @@
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
+
+from phoenix.db.types.db_models import UNDEFINED
 
 
 def datetime_encoder(dt: datetime) -> str:
@@ -43,3 +46,7 @@ class V1RoutesBaseModel(BaseModel):
             []
         ),  # suppress warnings about protected namespaces starting with `model_` on pydantic 2.9
     )
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        kwargs = {k: v for k, v in kwargs.items() if v is not UNDEFINED}
+        super().__init__(*args, **kwargs)
