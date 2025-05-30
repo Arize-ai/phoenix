@@ -19,6 +19,9 @@
 * [Management](management.md)
 * [Data Retention](https://docs.arize.com/phoenix/settings/data-retention)
 
+## Upgrate
+* [Migrations](migrations.md)
+
 ## Security
 
 * [RBAC](https://docs.arize.com/phoenix/settings/access-control-rbac)

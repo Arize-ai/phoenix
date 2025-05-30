@@ -12,7 +12,7 @@ Phoenix runs as a containerized application backed by a SQL database that collec
 
 ### SQLite
 
-By default, Phoenix uses SQLite mounted in `~/.phoenix/` or the directory specified by the **PHOENIX\_WORKING\_DIR** environment variable.
+While we recomment Postgres for deployments, by default, Phoenix uses SQLite mounted in `~/.phoenix/` or the directory specified by the **PHOENIX\_WORKING\_DIR** environment variable. This means that phoenix can be run with a simple volume mount.
 
 ### PostgreSQL
 
@@ -21,10 +21,6 @@ Phoenix can be configured to use PostgreSQL using the **PHOENIX\_SQL\_DATABASE\_
 {% hint style="info" %}
 See the [SQLite](https://docs.arize.com/phoenix/self-hosting/deployment-options/kubernetes#sqlite-with-a-statefulset) and [PostgreSQL](https://docs.arize.com/phoenix/self-hosting/deployment-options/kubernetes#postgresql) sections for details.
 {% endhint %}
-
-### Migrations
-
-New major versions of Phoenix may contain database migrations that run automatically upon the start of the application. This process is intended to be seamless and should not require manual intervention except in exceptional circumstances.
 
 ## Deployment Options
 
