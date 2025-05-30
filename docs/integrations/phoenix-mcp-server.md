@@ -9,5 +9,5 @@ hidden: true
 # Phoenix MCP Server
 
 {% hint style="info" %}
-This page has moved, see its new location [here](https://docs.arize.com/phoenix/integrations/model-context-protocol/phoenix-mcp-server).
+This page has moved, see its new location [here](https://arize.com/docs/phoenix/integrations/model-context-protocol/phoenix-mcp-server).
 {% endhint %}

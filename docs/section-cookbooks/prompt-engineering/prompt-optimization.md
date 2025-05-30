@@ -27,7 +27,7 @@ Let's get started!
 !pip install -q "arize-phoenix>=8.0.0" datasets
 ```
 
-Next you need to connect to Phoenix. The code below will connect you to a Phoenix Cloud instance. You can also [connect to a self-hosted Phoenix instance](https://docs.arize.com/phoenix/deployment) if you'd prefer.
+Next you need to connect to Phoenix. The code below will connect you to a Phoenix Cloud instance. You can also [connect to a self-hosted Phoenix instance](https://arize.com/docs/phoenix/deployment) if you'd prefer.
 
 ```python
 import os
@@ -621,4 +621,4 @@ You should have a set of experiments that looks like this:
 
 ![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt-optimization-experiment-screenshot.png)
 
-From here, you can check out more [examples on Phoenix](https://docs.arize.com/phoenix/notebooks), and if you haven't already, [please give us a star on GitHub!](https://github.com/Arize-ai/phoenix) ⭐️
+From here, you can check out more [examples on Phoenix](https://arize.com/docs/phoenix/notebooks), and if you haven't already, [please give us a star on GitHub!](https://github.com/Arize-ai/phoenix) ⭐️

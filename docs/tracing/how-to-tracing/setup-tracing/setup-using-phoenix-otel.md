@@ -128,6 +128,6 @@ tracer_provider = register(
 
 Once you've connected your application to your Phoenix instance using `phoenix.otel.register`, you need to instrument your application. You have a few options to do this:
 
-1. **Using OpenInference auto-instrumentors**. If you've used the `auto_instrument` flag above, then any instrumentor packages in your environment will be called automatically. For a full list of OpenInference packages, see [https://docs.arize.com/phoenix/integrations](https://docs.arize.com/phoenix/integrations "mention")
+1. **Using OpenInference auto-instrumentors**. If you've used the `auto_instrument` flag above, then any instrumentor packages in your environment will be called automatically. For a full list of OpenInference packages, see [https://arize.com/docs/phoenix/integrations](https://arize.com/docs/phoenix/integrations "mention")
 2. Using [Phoenix Decorators](instrument-python.md).
 3. Using [Base OTEL](custom-spans.md).

@@ -4,10 +4,10 @@ Phoenix provides tooling to evaluate LLM applications, including tools to determ
 
 Phoenix's approach to LLM evals is notable for the following reasons:
 
--   Includes pre-tested templates and convenience functions for a set of common Eval “tasks”
--   Data science rigor applied to the testing of model and template combinations
--   Designed to run as fast as possible on batches of data
--   Includes benchmark datasets and tests for each eval function
+- Includes pre-tested templates and convenience functions for a set of common Eval “tasks”
+- Data science rigor applied to the testing of model and template combinations
+- Designed to run as fast as possible on batches of data
+- Includes benchmark datasets and tests for each eval function
 
 ## Installation
 
@@ -69,4 +69,4 @@ y_pred = df["eval_relevance"]
 precision, recall, f1, support = precision_recall_fscore_support(y_true, y_pred)
 ```
 
-To learn more about LLM Evals, see the [LLM Evals documentation](https://docs.arize.com/phoenix/concepts/llm-evals/).
+To learn more about LLM Evals, see the [LLM Evals documentation](https://arize.com/docs/phoenix/concepts/llm-evals/).

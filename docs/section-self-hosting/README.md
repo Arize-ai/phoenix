@@ -19,7 +19,7 @@ By default, Phoenix uses SQLite, storing data in `~/.phoenix/` or the directory 
 For production and scalable deployments, Phoenix supports PostgreSQL. Configure the **PHOENIX_SQL_DATABASE_URL** environment variable to connect Phoenix to your PostgreSQL instance.
 
 {% hint style="info" %}
-See the [SQLite](https://docs.arize.com/phoenix/self-hosting/deployment-options/kubernetes#sqlite-with-a-statefulset) and [PostgreSQL](https://docs.arize.com/phoenix/self-hosting/deployment-options/kubernetes#postgresql) sections for details.
+See the [SQLite](https://arize.com/docs/phoenix/self-hosting/deployment-options/kubernetes#sqlite-with-a-statefulset) and [PostgreSQL](https://arize.com/docs/phoenix/self-hosting/deployment-options/kubernetes#postgresql) sections for details.
 {% endhint %}
 
 ## Deployment Options
@@ -27,20 +27,20 @@ See the [SQLite](https://docs.arize.com/phoenix/self-hosting/deployment-options/
 Phoenix can be deployed using several methods, including Docker and Kubernetes. Choose the option that best fits your infrastructure and operational requirements.
 
 {% hint style="info" %}
-For other ways to run Phoenix, including Phoenix Cloud, see [Phoenix Deployments](https://docs.arize.com/phoenix/environments).
+For other ways to run Phoenix, including Phoenix Cloud, see [Phoenix Deployments](https://arize.com/docs/phoenix/environments).
 {% endhint %}
 
-<table data-card-size="large" data-view="cards"><thead><tr><th></th><th></th><th></th><th data-hidden data-card-cover data-type="files"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td></td><td><strong>Docker</strong></td><td>How to deploy Phoenix using Docker</td><td></td><td><a href="https://docs.arize.com/phoenix/self-hosting/deployment-options/docker">https://docs.arize.com/phoenix/self-hosting/deployment-options/docker</a></td></tr><tr><td></td><td><strong>Kubernetes</strong></td><td>How to deploy Phoenix on K8S</td><td></td><td><a href="https://docs.arize.com/phoenix/self-hosting/deployment-options/kubernetes">https://docs.arize.com/phoenix/self-hosting/deployment-options/kubernetes</a></td></tr></tbody></table>
+<table data-card-size="large" data-view="cards"><thead><tr><th></th><th></th><th></th><th data-hidden data-card-cover data-type="files"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td></td><td><strong>Docker</strong></td><td>How to deploy Phoenix using Docker</td><td></td><td><a href="https://arize.com/docs/phoenix/self-hosting/deployment-options/docker">https://arize.com/docs/phoenix/self-hosting/deployment-options/docker</a></td></tr><tr><td></td><td><strong>Kubernetes</strong></td><td>How to deploy Phoenix on K8S</td><td></td><td><a href="https://arize.com/docs/phoenix/self-hosting/deployment-options/kubernetes">https://arize.com/docs/phoenix/self-hosting/deployment-options/kubernetes</a></td></tr></tbody></table>
 
 ## Configure Phoenix
 
-* See available [ports](https://docs.arize.com/phoenix/self-hosting/configuration#ports) to run Phoenix
-* Customize Phoenix using [environment variables](https://docs.arize.com/phoenix/self-hosting/configuration#environment-variables)
+* See available [ports](https://arize.com/docs/phoenix/self-hosting/configuration#ports) to run Phoenix
+* Customize Phoenix using [environment variables](https://arize.com/docs/phoenix/self-hosting/configuration#environment-variables)
 
 ## Setup Authentication
 
-* Setup [authentication](https://docs.arize.com/phoenix/self-hosting/authentication)
-* Configuring [OAuth2 identity providers](https://docs.arize.com/phoenix/self-hosting/authentication#configuring-oauth2-identity-providers)
+* Setup [authentication](https://arize.com/docs/phoenix/self-hosting/authentication)
+* Configuring [OAuth2 identity providers](https://arize.com/docs/phoenix/self-hosting/authentication#configuring-oauth2-identity-providers)
 
 ## Images
 

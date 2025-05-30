@@ -21,7 +21,7 @@ export PHOENIX_COLLECTOR_ENDPOINT = "https://app.phoenix.arize.com"
 
 ### Container
 
-See [Self-Hosting](https://docs.arize.com/phoenix/self-hosting).
+See [Self-Hosting](https://arize.com/docs/phoenix/self-hosting).
 
 ### Notebooks
 

@@ -16,7 +16,7 @@ During the development phase, Phoenix offers essential tools for debugging, expe
 
 Phoenix's tracing and span analysis capabilities are invaluable during the prototyping and debugging stages. By instrumenting application code with Phoenix, teams gain detailed insights into the execution flow, making it easier to identify and resolve issues. Developers can drill down into specific spans, analyze performance metrics, and access relevant logs and metadata to streamline debugging efforts.
 
-* [Quickstart: Tracing](https://docs.arize.com/phoenix/tracing/llm-traces-1)
+* [Quickstart: Tracing](https://arize.com/docs/phoenix/tracing/llm-traces-1)
 {% endtab %}
 
 {% tab title="Experimentation" %}
@@ -36,7 +36,7 @@ Leverage experiments to measure prompt and model performance. Typically during t
 
 Either as a part of experiments or a standalone feature, evaluations help you understand how your app is performing at a granular level. Typical evaluations might be correctness evals compared against a ground truth data set, or LLM-as-a-judge evals to detect hallucinations or relevant RAG output.
 
-* [Quickstart: Evals](https://docs.arize.com/phoenix/evaluation/evals)
+* [Quickstart: Evals](https://arize.com/docs/phoenix/evaluation/evals)
 {% endtab %}
 
 {% tab title="Prompt Engineering" %}
@@ -148,7 +148,7 @@ Phoenix and Arize together help teams identify data points for fine-tuning based
 
 Phoenix, in collaboration with Arize, empowers teams to build, optimize, and maintain high-quality LLM applications throughout the entire lifecycle. By providing a comprehensive observability platform and seamless integration with production monitoring tools, Phoenix and Arize enable teams to deliver exceptional LLM-driven experiences with confidence and efficiency.
 
-* [Fine-Tuning](https://docs.arize.com/phoenix/datasets-and-experiments/how-to-datasets/exporting-datasets#exporting-for-fine-tuning)
+* [Fine-Tuning](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets/exporting-datasets#exporting-for-fine-tuning)
 {% endtab %}
 {% endtabs %}
 

@@ -3,7 +3,7 @@
         <img alt="phoenix logo" src="https://raw.githubusercontent.com/Arize-ai/phoenix-assets/9e6101d95936f4bd4d390efc9ce646dc6937fb2d/images/socal/github-large-banner-phoenix.jpg" width="1000"/>
         <br>
         <br>
-        <a href="https://docs.arize.com/phoenix/">Docs</a>
+        <a href="https://arize.com/docs/phoenix/">Docs</a>
         |
         <a href="https://github.com/Arize-ai/phoenix">GitHub</a>
         |

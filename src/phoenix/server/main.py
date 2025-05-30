@@ -98,7 +98,7 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 |  https://github.com/Arize-ai/phoenix
 |
 |  📚 Documentation 📚
-|  https://docs.arize.com/phoenix
+|  https://arize.com/docs/phoenix
 |
 |  🚀 Phoenix Server 🚀
 |  Phoenix UI: {{ ui_path }}

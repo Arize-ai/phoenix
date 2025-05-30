@@ -181,7 +181,7 @@ html_theme_options = {
         },
     ],
     "external_links": [
-        {"name": "Docs", "url": "https://docs.arize.com/phoenix"},
+        {"name": "Docs", "url": "https://arize.com/docs/phoenix"},
     ],
     "navbar_align": "content",
     "navbar_start": ["navbar-logo", "version-switcher"],
