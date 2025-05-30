@@ -16,7 +16,6 @@ Phoenix supports the use of the `PHOENIX_ADMIN_SECRET` environment variable to e
 
 Phoenix allows you to provision the first set of admin users at deploy time using the `PHOENIX_ADMINS` environment variable. This is useful for bootstrapping access in self-hosted or automated environments.
 
-### How It Works
 - Set the `PHOENIX_ADMINS` environment variable to a semicolon-separated list of `username=email` pairs.
 - On startup, Phoenix will create admin users for each pair if they do not already exist.
 - Passwords for these users will be randomly generated and must be reset by the user.
