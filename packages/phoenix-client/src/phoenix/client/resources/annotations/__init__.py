@@ -456,9 +456,14 @@ class AsyncAnnotations:
             )
             ```
         """  # noqa: E501
+        # Convert to list and validate input
+        annotations_list: list[v1.SpanAnnotationData] = list(span_annotations)
+        if not annotations_list:
+            raise ValueError("span_annotations cannot be empty")
+
         url = "v1/span_annotations"
         params = {"sync": sync} if sync else {}
-        json_ = v1.AnnotateSpansRequestBody(data=list(span_annotations))
+        json_ = v1.AnnotateSpansRequestBody(data=annotations_list)
         response = await self._client.post(url=url, json=json_, params=params)
         response.raise_for_status()
         if not sync:
@@ -520,7 +525,7 @@ def _get_span_annotation(
     if metadata is not None and not isinstance(metadata, dict):  # pyright: ignore[reportUnnecessaryIsInstance]
         raise ValueError("metadata must be a dictionary")
 
-    result = v1.SpanAnnotationResult()
+    result: v1.SpanAnnotationResult = {}
     if label:
         result["label"] = label
     if score is not None:

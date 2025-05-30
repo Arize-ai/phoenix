@@ -338,6 +338,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/projects/{project_identifier}/spans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search spans with simple filters (no DSL)
+         * @description Return spans within a project filtered by time range, annotation names, and ordered by start_time. Supports cursor-based pagination.
+         */
+        get: operations["spanSearchPhoenix"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/span_annotations": {
         parameters: {
             query?: never;
@@ -1463,6 +1483,16 @@ export interface components {
              */
             trace_state?: string | null;
         };
+        /**
+         * OtlpSpanSearchResponseBody
+         * @description Paginated response where each span follows OTLP JSON structure.
+         */
+        OtlpSpanSearchResponseBody: {
+            /** Data */
+            data: components["schemas"]["OtlpSpan"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
         /** OtlpStatus */
         OtlpStatus: {
             /**
@@ -1844,6 +1874,66 @@ export interface components {
             /** Description */
             description?: string | null;
         };
+        /** Span */
+        Span: {
+            /**
+             * Id
+             * @description Phoenix span ID
+             */
+            id: string;
+            /**
+             * Name
+             * @description Name of the span operation
+             */
+            name: string;
+            /** @description Span context containing trace_id and span_id */
+            context: components["schemas"]["SpanContext"];
+            /**
+             * Span Kind
+             * @description Type of work that the span encapsulates
+             */
+            span_kind: string;
+            /**
+             * Parent Id
+             * @description OpenTelemetry span ID of the parent span
+             */
+            parent_id?: string | null;
+            /**
+             * Start Time
+             * Format: date-time
+             * @description Start time of the span
+             */
+            start_time: string;
+            /**
+             * End Time
+             * Format: date-time
+             * @description End time of the span
+             */
+            end_time: string;
+            /**
+             * Status Code
+             * @description Status code of the span
+             */
+            status_code: string;
+            /**
+             * Status Message
+             * @description Status message
+             * @default
+             */
+            status_message?: string;
+            /**
+             * Attributes
+             * @description Span attributes
+             */
+            attributes?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Events
+             * @description Span events
+             */
+            events?: components["schemas"]["SpanEvent"][];
+        };
         /** SpanAnnotation */
         SpanAnnotation: {
             /**
@@ -1956,13 +2046,44 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
-        /**
-         * SpanSearchResponseBody
-         * @description Paginated response where each span follows OTLP JSON structure.
-         */
+        /** SpanContext */
+        SpanContext: {
+            /**
+             * Trace Id
+             * @description OpenTelemetry trace ID
+             */
+            trace_id: string;
+            /**
+             * Span Id
+             * @description OpenTelemetry span ID
+             */
+            span_id: string;
+        };
+        /** SpanEvent */
+        SpanEvent: {
+            /**
+             * Name
+             * @description Name of the event
+             */
+            name: string;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description When the event occurred
+             */
+            timestamp: string;
+            /**
+             * Attributes
+             * @description Event attributes
+             */
+            attributes?: {
+                [key: string]: unknown;
+            };
+        };
+        /** SpanSearchResponseBody */
         SpanSearchResponseBody: {
             /** Data */
-            data: components["schemas"]["OtlpSpan"][];
+            data: components["schemas"]["Span"][];
             /** Next Cursor */
             next_cursor: string | null;
         };
@@ -3232,7 +3353,7 @@ export interface operations {
     spanSearch: {
         parameters: {
             query?: {
-                /** @description Pagination cursor (GlobalID of Span) */
+                /** @description Pagination cursor (Phoenix Span ID) */
                 cursor?: string | null;
                 /** @description Maximum number of spans to return */
                 limit?: number;
@@ -3243,7 +3364,70 @@ export interface operations {
                 /** @description Exclusive upper bound time */
                 end_time?: string | null;
                 /** @description If provided, only include spans that have at least one annotation with one of these names. */
-                annotationNames?: string[] | null;
+                annotation_names?: string[] | null;
+            };
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OtlpSpanSearchResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    spanSearchPhoenix: {
+        parameters: {
+            query?: {
+                /** @description Pagination cursor (Phoenix Span ID) */
+                cursor?: string | null;
+                /** @description Maximum number of spans to return */
+                limit?: number;
+                /** @description Sort direction for the sort field */
+                sort_direction?: "asc" | "desc";
+                /** @description Inclusive lower bound time */
+                start_time?: string | null;
+                /** @description Exclusive upper bound time */
+                end_time?: string | null;
+                /** @description If provided, only include spans that have at least one annotation with one of these names. */
+                annotation_names?: string[] | null;
             };
             header?: never;
             path: {
