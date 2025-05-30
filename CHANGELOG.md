@@ -1,5 +1,22 @@
 # Changelog
 
+## [10.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.2.2...arize-phoenix-v10.3.0) (2025-05-30)
+
+
+### Features
+
+* **admin:** users REST api ([#7314](https://github.com/Arize-ai/phoenix/issues/7314)) ([c7bcc36](https://github.com/Arize-ai/phoenix/commit/c7bcc36b8469e76db3038f53859e24c7bb5da000))
+
+
+### Bug Fixes
+
+* remove precense_penalty if its default value ([#7689](https://github.com/Arize-ai/phoenix/issues/7689)) ([9604180](https://github.com/Arize-ai/phoenix/commit/96041809de3b96332ec74e81292c35927fe9ea27))
+
+
+### Documentation
+
+* add helm logo to readme ([#7801](https://github.com/Arize-ai/phoenix/issues/7801)) ([aa2f9cf](https://github.com/Arize-ai/phoenix/commit/aa2f9cfff55569c31f15cec125c5281972215076))
+
 ## [10.2.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.2.1...arize-phoenix-v10.2.2) (2025-05-29)
 
 
