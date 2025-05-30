@@ -4,12 +4,12 @@
 * [License](license.md)
 * [Configuration](configuration.md)
 
-## Deployment Options <a href="#deployment" id="deployment"></a>
+## Deployment Options
 
-* [Docker](deployment/docker.md)
-* [Kubernetes](deployment/kubernetes.md)
-* [AWS with CloudFormation](deployment/aws-with-cloudformation.md)
-* [Railway](deployment/railway.md)
+* [Docker](deployment-options/docker.md)
+* [Kubernetes](deployment-options/kubernetes.md)
+* [AWS with CloudFormation](deployment-options/aws-with-cloudformation.md)
+* [Railway](deployment-options/railway.md)
 
 ## Features
 
