@@ -2,8 +2,7 @@
 description: How to provision Phoenix at deploy time
 ---
 
-Phoenix can be configured to immediately recieve data via 
-
+Phoenix can be configured to immediately recieve data.
 ## Admin Access
 
 Phoenix supports the use of the `PHOENIX_ADMIN_SECRET` environment variable to enable immediate, programmatic access for sending data to your Phoenix instance. This secret acts as a bearer token, authenticating as the first system user, and can be used in place of an API key for secure automation and provisioning workflows.
