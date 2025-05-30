@@ -1,6 +1,15 @@
-import { Item, Picker } from "@arizeai/components";
-
-import { Flex, Token } from "@phoenix/components";
+import {
+  Button,
+  Flex,
+  Label,
+  ListBox,
+  Popover,
+  Select,
+  SelectChevronUpDownIcon,
+  SelectItem,
+  SelectValue,
+  Token,
+} from "@phoenix/components";
 import {
   AnthropicToolChoice,
   findToolChoiceName,
@@ -196,9 +205,8 @@ export function ToolChoiceSelector<
     ? currentChoiceType
     : addToolNamePrefix(findToolChoiceName(choice) ?? "");
   return (
-    <Picker
+    <Select
       selectedKey={currentKey}
-      label="Tool Choice"
       aria-label="Tool Choice for an LLM"
       onSelectionChange={(choice) => {
         if (typeof choice !== "string") {
@@ -251,21 +259,30 @@ export function ToolChoiceSelector<
         }
       }}
     >
-      {[
-        ...(DEFAULT_TOOL_CHOICES_BY_PROVIDER[provider]
-          ? DEFAULT_TOOL_CHOICES_BY_PROVIDER[provider].map((choice) => (
-              <Item key={choice} textValue={choice}>
-                <ChoiceLabel choiceType={choice} />
-              </Item>
-            ))
-          : []),
-        // Add "TOOL_NAME_PREFIX" prefix to user defined tool names to avoid conflicts with default keys
-        ...toolNames.map((toolName) => (
-          <Item key={addToolNamePrefix(toolName)} textValue={toolName}>
-            {toolName}
-          </Item>
-        )),
-      ]}
-    </Picker>
+      <Label>Tool Choice</Label>
+      <Button>
+        <SelectValue />
+        <SelectChevronUpDownIcon />
+      </Button>
+      <Popover>
+        <ListBox>
+          {[
+            ...(DEFAULT_TOOL_CHOICES_BY_PROVIDER[provider]
+              ? DEFAULT_TOOL_CHOICES_BY_PROVIDER[provider].map((choice) => (
+                  <SelectItem key={choice} id={choice} textValue={choice}>
+                    <ChoiceLabel choiceType={choice} />
+                  </SelectItem>
+                ))
+              : []),
+            // Add "TOOL_NAME_PREFIX" prefix to user defined tool names to avoid conflicts with default keys
+            ...toolNames.map((toolName) => (
+              <SelectItem key={addToolNamePrefix(toolName)} id={addToolNamePrefix(toolName)} textValue={toolName}>
+                {toolName}
+              </SelectItem>
+            )),
+          ]}
+        </ListBox>
+      </Popover>
+    </Select>
   );
 }
