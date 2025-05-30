@@ -23,4 +23,6 @@
 * [Email](email.md)
 * [Management](management.md)
 
+* [FAQs](frequently-asked-questions.md)
+
 ***
