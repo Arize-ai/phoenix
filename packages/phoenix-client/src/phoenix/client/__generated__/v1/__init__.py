@@ -306,6 +306,17 @@ class PromptVersionTagData(TypedDict):
     description: NotRequired[str]
 
 
+class PromptXAIInvocationParametersContent(TypedDict):
+    temperature: NotRequired[float]
+    max_tokens: NotRequired[int]
+    max_completion_tokens: NotRequired[int]
+    frequency_penalty: NotRequired[float]
+    presence_penalty: NotRequired[float]
+    top_p: NotRequired[float]
+    seed: NotRequired[int]
+    reasoning_effort: NotRequired[Literal["low", "medium", "high"]]
+
+
 class SpanAnnotationResult(TypedDict):
     label: NotRequired[str]
     score: NotRequired[float]
@@ -530,6 +541,11 @@ class PromptTools(TypedDict):
     disable_parallel_tool_calls: NotRequired[bool]
 
 
+class PromptXAIInvocationParameters(TypedDict):
+    type: Literal["xai"]
+    xai: PromptXAIInvocationParametersContent
+
+
 class SpanAnnotationData(TypedDict):
     span_id: str
     name: str
@@ -588,7 +604,7 @@ class PromptChatTemplate(TypedDict):
 
 
 class PromptVersionData(TypedDict):
-    model_provider: Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE", "DEEPSEEK"]
+    model_provider: Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE", "DEEPSEEK", "XAI"]
     model_name: str
     template: Union[PromptChatTemplate, PromptStringTemplate]
     template_type: Literal["STR", "CHAT"]
@@ -599,6 +615,7 @@ class PromptVersionData(TypedDict):
         PromptAnthropicInvocationParameters,
         PromptGoogleInvocationParameters,
         PromptDeepSeekInvocationParameters,
+        PromptXAIInvocationParameters,
     ]
     description: NotRequired[str]
     tools: NotRequired[PromptTools]

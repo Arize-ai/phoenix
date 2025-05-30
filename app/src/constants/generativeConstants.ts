@@ -7,6 +7,7 @@ export const ModelProviders: Record<ModelProvider, string> = {
   ANTHROPIC: "Anthropic",
   GOOGLE: "Google",
   DEEPSEEK: "DeepSeek",
+  XAI: "xAI",
 };
 
 /**

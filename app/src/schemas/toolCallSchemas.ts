@@ -195,6 +195,7 @@ type ProviderToToolCallMap = {
   OPENAI: OpenAIToolCall;
   AZURE_OPENAI: OpenAIToolCall;
   DEEPSEEK: OpenAIToolCall;
+  XAI: OpenAIToolCall;
   ANTHROPIC: AnthropicToolCall;
   // Use generic JSON type for unknown tool formats / new providers
   GOOGLE: JSONLiteral;
@@ -239,6 +240,7 @@ export const fromOpenAIToolCall = <T extends ModelProvider>({
     case "AZURE_OPENAI":
     case "OPENAI":
     case "DEEPSEEK":
+    case "XAI":
       return toolCall as ProviderToToolCallMap[T];
     case "ANTHROPIC":
       return openAIToolCallToAnthropic.parse(

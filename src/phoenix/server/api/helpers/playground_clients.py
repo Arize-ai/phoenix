@@ -483,6 +483,39 @@ class DeepSeekStreamingClient(OpenAIBaseStreamingClient):
 
 
 @register_llm_client(
+    provider_key=GenerativeProviderKey.XAI,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "grok-3",
+        "grok-3-fast",
+        "grok-3-mini",
+        "grok-3-mini-fast",
+        "grok-2-1212",
+        "grok-2-vision-1212",
+    ],
+)
+class XAIStreamingClient(OpenAIBaseStreamingClient):
+    def __init__(
+        self,
+        model: GenerativeModelInput,
+        api_key: Optional[str] = None,
+    ) -> None:
+        from openai import AsyncOpenAI
+
+        base_url = model.base_url or getenv("XAI_BASE_URL")
+        if not (api_key := api_key or getenv("XAI_API_KEY")):
+            if not base_url:
+                raise BadRequest("An API key is required for xAI models")
+            api_key = "sk-fake-api-key"
+        client = AsyncOpenAI(api_key=api_key, base_url=base_url or "https://api.x.ai/v1")
+        super().__init__(client=client, model=model, api_key=api_key)
+        # xAI uses OpenAI-compatible API but we'll track it as a separate provider
+        # Adding a custom "xai" provider value to make it distinguishable in traces
+        self._attributes[LLM_PROVIDER] = "xai"
+        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
+
+
+@register_llm_client(
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=[
         PROVIDER_DEFAULT,

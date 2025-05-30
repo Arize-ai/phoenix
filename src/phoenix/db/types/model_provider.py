@@ -7,3 +7,4 @@ class ModelProvider(Enum):
     ANTHROPIC = "ANTHROPIC"
     GOOGLE = "GOOGLE"
     DEEPSEEK = "DEEPSEEK"
+    XAI = "XAI"
