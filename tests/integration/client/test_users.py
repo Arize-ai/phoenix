@@ -279,36 +279,6 @@ class TestClientForUsersAPI:
                 user=duplicate_local_user_data,
             )
 
-        # Test that SYSTEM users cannot be created (both LOCAL and OAuth2)
-        system_user_data_local = v1.LocalUserData(
-            email=f"test_local_system_{token_hex(8)}@example.com",
-            username=f"test_user_local_system_{token_hex(8)}",
-            role="SYSTEM",
-            auth_method="LOCAL",
-        )
-        with pytest.raises(Exception) as exc_info:
-            users_api.create(
-                user=system_user_data_local,
-            )
-        assert "400" in str(
-            exc_info.value
-        ), "Should receive 400 Bad Request when attempting to create LOCAL SYSTEM user"
-
-        system_user_data_oauth2 = v1.OAuth2UserData(
-            email=f"test_oauth2_system_{token_hex(8)}@example.com",
-            username=f"test_user_oauth2_system_{token_hex(8)}",
-            role="SYSTEM",
-            auth_method="OAUTH2",
-            oauth2_client_id=f"client_{token_hex(8)}",
-        )
-        with pytest.raises(Exception) as exc_info:
-            users_api.create(
-                user=system_user_data_oauth2,
-            )
-        assert "400" in str(
-            exc_info.value
-        ), "Should receive 400 Bad Request when attempting to create OAuth2 SYSTEM user"
-
         # Delete the users (DELETE operation)
         for user in created_users:
             users_api.delete(
@@ -324,6 +294,24 @@ class TestClientForUsersAPI:
             assert (
                 created_user["id"] not in all_users_by_id
             ), f"User {i} with ID {created_user['id']} should have been deleted"
+
+    async def test_cannot_delete_default_users(
+        self,
+        _get_user: _GetUser,
+    ) -> None:
+        """Test that users with default system/admin credentials cannot be deleted.
+
+        This test verifies that:
+        1. Cannot delete users with default system credentials
+        2. Cannot delete users with default admin credentials
+        3. Both attempts return 403 Forbidden
+        """
+        # Set up test environment with logged-in admin user
+        u = _get_user(_ADMIN).log_in()
+        users_api = _UsersApi(_httpx_client(u.create_api_key()))
+
+        # Get all users to find default ones
+        all_users = users_api.list()
 
         # Find users with default system/admin credentials that should be protected from deletion
         system_users = [
@@ -363,6 +351,52 @@ class TestClientForUsersAPI:
         assert (
             "403" in str(exc_info.value)
         ), f"Should receive 403 Forbidden when attempting to delete user with default admin credentials (ID: {admin_user['id']})"  # noqa: E501
+
+    @pytest.mark.parametrize("auth_method", ["LOCAL", "OAUTH2"])
+    async def test_cannot_create_system_users(
+        self,
+        auth_method: Literal["LOCAL", "OAUTH2"],
+        _get_user: _GetUser,
+    ) -> None:
+        """Test that users with SYSTEM role cannot be created.
+
+        This test verifies that:
+        1. Cannot create users with SYSTEM role for both LOCAL and OAuth2 auth methods
+        2. Both attempts return 400 Bad Request
+        """
+        # Set up test environment with logged-in admin user
+        u = _get_user(_ADMIN).log_in()
+        users_api = _UsersApi(_httpx_client(u.create_api_key()))
+
+        # Create test data based on auth method
+        email = f"{token_hex(16)}@{token_hex(16)}.com"
+        username = f"username_{token_hex(8)}"
+        user_data: Union[v1.LocalUserData, v1.OAuth2UserData]
+        if auth_method == "LOCAL":
+            user_data = v1.LocalUserData(
+                email=email,
+                username=username,
+                role="SYSTEM",
+                auth_method=auth_method,
+            )
+        elif auth_method == "OAUTH2":
+            user_data = v1.OAuth2UserData(
+                email=email,
+                username=username,
+                role="SYSTEM",
+                auth_method=auth_method,
+            )
+        else:
+            assert_never(auth_method)
+
+        # Test that SYSTEM users cannot be created
+        with pytest.raises(Exception) as exc_info:
+            users_api.create(
+                user=user_data,
+            )
+        assert "400" in str(
+            exc_info.value
+        ), f"Should receive 400 Bad Request when attempting to create {auth_method} SYSTEM user"
 
     async def test_list_pagination(
         self,
@@ -502,8 +536,8 @@ class TestClientForUsersAPI:
     @pytest.mark.parametrize("role", ["MEMBER", "ADMIN"])
     def test_new_local_user_can_login_with_assigned_password(
         self,
-        _get_user: _GetUser,
         role: Literal["MEMBER", "ADMIN"],
+        _get_user: _GetUser,
     ) -> None:
         """Test that a new local user can log in with the assigned password."""
         u = _get_user(_ADMIN).log_in()
@@ -511,11 +545,12 @@ class TestClientForUsersAPI:
 
         password = token_hex(16)
         email = f"{token_hex(16)}@{token_hex(16)}.com"
+        username = f"username_{token_hex(8)}"
 
         users_api.create(
             user=v1.LocalUserData(
                 email=email,
-                username=f"test_user_{token_hex(8)}",
+                username=username,
                 role=role,
                 auth_method="LOCAL",
                 password=password,
@@ -547,18 +582,19 @@ class TestClientForUsersAPI:
 
         # Create user with specified welcome email setting
         email = f"{token_hex(16)}@{token_hex(16)}.com"
+        username = f"username_{token_hex(8)}"
         user_data: Union[v1.LocalUserData, v1.OAuth2UserData]
         if auth_method == "LOCAL":
             user_data = v1.LocalUserData(
                 email=email,
-                username=f"test_user_{token_hex(8)}",
+                username=username,
                 role=role,
                 auth_method=auth_method,
             )
         elif auth_method == "OAUTH2":
             user_data = v1.OAuth2UserData(
                 email=email,
-                username=f"test_user_{token_hex(8)}",
+                username=username,
                 role=role,
                 auth_method=auth_method,
             )
@@ -571,14 +607,8 @@ class TestClientForUsersAPI:
         )
 
         # Verify email behavior
+        welcome_emails_to_user = [msg for msg in _smtpd.messages if msg["to"] == user["email"]]
         if send_welcome_email:
-            assert _smtpd.messages, "Welcome email should be sent when send_welcome_email=True"
-            assert (
-                _smtpd.messages[-1]["to"] == user["email"]
-            ), "Email should be sent to correct address"
+            assert len(welcome_emails_to_user) == 1, "Welcome email should be sent"
         else:
-            # Check that no welcome email was sent to this user
-            welcome_emails_to_user = [msg for msg in _smtpd.messages if msg["to"] == user["email"]]
-            assert (
-                not welcome_emails_to_user
-            ), "No welcome email should be sent when send_welcome_email=False"
+            assert not welcome_emails_to_user, "No welcome email should be sent"
