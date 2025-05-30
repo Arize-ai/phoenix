@@ -2079,10 +2079,7 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
-        /**
-         * SpanContext
-         * @description Context propagation for a span
-         */
+        /** SpanContext */
         SpanContext: {
             /**
              * Trace Id
@@ -2095,12 +2092,7 @@ export interface components {
              */
             span_id: string;
         };
-        /**
-         * SpanEvent
-         * @description A Span Event can be thought of as a structured log message (or annotation)
-         *     on a Span, typically used to denote a meaningful, singular point in time
-         *     during the Span's duration.
-         */
+        /** SpanEvent */
         SpanEvent: {
             /**
              * Name
@@ -3398,7 +3390,7 @@ export interface operations {
     spanSearch: {
         parameters: {
             query?: {
-                /** @description Pagination cursor (GlobalID of Span) */
+                /** @description Pagination cursor (Phoenix Span ID) */
                 cursor?: string | null;
                 /** @description Maximum number of spans to return */
                 limit?: number;
@@ -3461,7 +3453,7 @@ export interface operations {
     spanSearchPhoenix: {
         parameters: {
             query?: {
-                /** @description Pagination cursor (GlobalID of Span) */
+                /** @description Pagination cursor (Phoenix Span ID) */
                 cursor?: string | null;
                 /** @description Maximum number of spans to return */
                 limit?: number;
