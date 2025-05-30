@@ -2,7 +2,13 @@
 
 ![Version: 0.1.1](https://img.shields.io/badge/Version-0.1.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.2.2](https://img.shields.io/badge/AppVersion-10.2.2-informational?style=flat-square)
 
-A Helm chart for Arize Phoenix
+Phoenix is an open-source AI observability platform designed for experimentation, evaluation, and troubleshooting. For instructions on how to deploy this Helm chart, see the [self-hosting docs](https://docs.arize.com/phoenix/self-hosting).
+  - [**_Tracing_**](https://docs.arize.com/phoenix/tracing/llm-traces) - Trace your LLM application's runtime using OpenTelemetry-based instrumentation.
+  - [**_Evaluation_**](https://docs.arize.com/phoenix/evaluation/llm-evals) - Leverage LLMs to benchmark your application's performance using response and retrieval evals.
+  - [**_Datasets_**](https://docs.arize.com/phoenix/datasets-and-experiments/overview-datasets) - Create versioned datasets of examples for experimentation, evaluation, and fine-tuning.
+  - [**_Experiments_**](https://docs.arize.com/phoenix/datasets-and-experiments/overview-datasets#experiments) - Track and evaluate changes to prompts, LLMs, and retrieval.
+  - [**_Playground_**](https://docs.arize.com/phoenix/prompt-engineering/overview-prompts)- Optimize prompts, compare models, adjust parameters, and replay traced LLM calls.
+  - [**_Prompt Management_**](https://docs.arize.com/phoenix/prompt-engineering/overview-prompts/prompt-management)- Manage and test prompt changes systematically using version control, tagging, and experimentation.
 
 **Homepage:** <https://phoenix.arize.com/>
 

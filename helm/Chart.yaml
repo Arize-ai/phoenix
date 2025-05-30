@@ -1,6 +1,5 @@
 apiVersion: v2
 name: phoenix-helm
-description: A Helm chart for Arize Phoenix
 home: https://phoenix.arize.com/
 keywords:
   - arize
