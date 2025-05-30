@@ -8,21 +8,23 @@ description: How to self-host a Phoenix instance
 
 <figure><img src="https://storage.cloud.google.com/arize-assets/phoenix/assets/images/phoenix-architecture.png" alt=""><figcaption><p>Phoenix running on your virtual private cloud</p></figcaption></figure>
 
-Phoenix runs as a containerized application backed by a SQL database that collects and analyzes OpenTelemetry traces from your LLM or AI application. By default, Phoenix is backed by SQLite, but it can also be configured to use PostgreSQL.
+Phoenix is a containerized application designed to collect and analyze  traces from your LLM or AI application. It operates with a SQL database backend and provides a robust tracing UI. By default, Phoenix uses SQLite for storage, but it can be configured to use PostgreSQL for production deployments.
 
 ### SQLite
 
-While we recomment Postgres for deployments, by default, Phoenix uses SQLite mounted in `~/.phoenix/` or the directory specified by the **PHOENIX\_WORKING\_DIR** environment variable. This means that phoenix can be run with a simple volume mount.
+By default, Phoenix uses SQLite, storing data in `~/.phoenix/` or the directory specified by the **PHOENIX_WORKING_DIR** environment variable. This allows for simple deployments using a volume mount, making it easy to get started without additional database setup.
 
 ### PostgreSQL
 
-Phoenix can be configured to use PostgreSQL using the **PHOENIX\_SQL\_DATABASE\_URL** environment variable.
+For production and scalable deployments, Phoenix supports PostgreSQL. Configure the **PHOENIX_SQL_DATABASE_URL** environment variable to connect Phoenix to your PostgreSQL instance.
 
 {% hint style="info" %}
 See the [SQLite](https://docs.arize.com/phoenix/self-hosting/deployment-options/kubernetes#sqlite-with-a-statefulset) and [PostgreSQL](https://docs.arize.com/phoenix/self-hosting/deployment-options/kubernetes#postgresql) sections for details.
 {% endhint %}
 
 ## Deployment Options
+
+Phoenix can be deployed using several methods, including Docker and Kubernetes. Choose the option that best fits your infrastructure and operational requirements.
 
 {% hint style="info" %}
 For other ways to run Phoenix, including Phoenix Cloud, see [Phoenix Deployments](https://docs.arize.com/phoenix/environments).
