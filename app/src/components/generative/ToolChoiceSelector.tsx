@@ -153,7 +153,7 @@ export const ChoiceLabel = ({
     case "required":
       return (
         <Flex
-          gap="size-200"
+          gap="size-100"
           alignItems="center"
           justifyContent="space-between"
           width="100%"
@@ -167,7 +167,7 @@ export const ChoiceLabel = ({
     case "none":
       return (
         <Flex
-          gap="size-200"
+          gap="size-100"
           alignItems="center"
           justifyContent="space-between"
           width="100%"
@@ -182,7 +182,7 @@ export const ChoiceLabel = ({
     default:
       return (
         <Flex
-          gap="size-200"
+          gap="size-100"
           alignItems="center"
           justifyContent="space-between"
           width="100%"
