@@ -1,4 +1,3 @@
-import React from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 
 import { Item, Picker } from "@arizeai/components";
@@ -58,9 +57,6 @@ type Story = StoryObj<typeof meta>;
 const options = [
   { id: "1", name: "Option 1" },
   { id: "2", name: "Option 2" },
-  { id: "3", name: "Option 3" },
-  { id: "4", name: "Option 4" },
-  { id: "5", name: "Option 5" },
 ];
 
 const SelectContent = () => (
