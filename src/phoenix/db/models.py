@@ -1303,6 +1303,49 @@ class ApiKey(Base):
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
+CostType: TypeAlias = Literal["DEFAULT", "OVERRIDE"]
+
+
+class Model(Base):
+    __tablename__ = "models"
+    name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    provider: Mapped[Optional[str]]
+    pattern: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class ModelCost(Base):
+    __tablename__ = "model_costs"
+    model_id: Mapped[int] = mapped_column(
+        ForeignKey("models.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    token_type: Mapped[str] = mapped_column(String, nullable=False)
+    cost_type: Mapped[CostType] = mapped_column(
+        String,
+        CheckConstraint("cost_type IN ('DEFAULT', 'OVERRIDE')", name="valid_cost_type"),
+        nullable=False,
+    )
+    cost_per_token: Mapped[float] = mapped_column(Float, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "model_id",
+            "token_type",
+            "cost_type",
+        ),
+    )
+
+
 class PromptLabel(Base):
     __tablename__ = "prompt_labels"
 
