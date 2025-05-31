@@ -163,7 +163,10 @@ export function MetricSelector({
   );
   const hasNumericDimensions = numericDimensions.length > 0;
   const onSelectionChange = useCallback(
-    (key: Key) => {
+    (key: Key | null) => {
+      if (!key) {
+        return;
+      }
       const metricDefinition = parseMetricKey({
         metricKey: key as string,
         dimensions: numericDimensions,
