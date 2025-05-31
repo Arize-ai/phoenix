@@ -71,13 +71,8 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
                 <CustomTimeRangeWrap visible={timeRangeKey === "custom"}>
                   {/* We force re-mount to reset the dirty state in the form */}
                   {timeRangeKey === "custom" && (
-                    <Flex
-                      direction="column"
-                      gap="size-100"
-                      justifyContent="end"
-                      height="100%"
-                    >
-                      <Heading level={4} weight="heavy">
+                    <Flex direction="column" gap="size-100" height="100%">
+                      <Heading level={2} weight="heavy">
                         Time Range
                       </Heading>
                       <TimeRangeForm
@@ -107,7 +102,6 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
                     }
                     const timeRangeKey = selection.keys().next().value;
                     if (!isTimeRangeKey(timeRangeKey)) {
-                      close();
                       return;
                     }
                     if (timeRangeKey !== "custom") {
@@ -158,7 +152,7 @@ function CustomTimeRangeWrap({
       <View
         borderEndWidth="thin"
         borderColor="light"
-        padding="size-100"
+        padding="size-200"
         height="100%"
       >
         {children}
