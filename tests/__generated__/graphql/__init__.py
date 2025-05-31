@@ -684,7 +684,9 @@ class Functionality(BaseModel):
 class GenerativeModel(BaseModel):
     model_config = ConfigDict(frozen=True)
     name: str
-    providerKey: Literal["ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OPENAI", "XAI"]
+    providerKey: Literal[
+        "ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"
+    ]
 
 
 class GenerativeProvider(BaseModel):
@@ -693,7 +695,7 @@ class GenerativeProvider(BaseModel):
     apiKeySet: bool = Field(...)
     dependencies: list[str]
     dependenciesInstalled: bool
-    key: Literal["ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OPENAI", "XAI"]
+    key: Literal["ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"]
     name: str
 
 
@@ -1014,7 +1016,9 @@ class PromptVersion(Node):
     invocationParameters: Optional[dict[str, Any]] = None
     metadata: dict[str, Any]
     modelName: str
-    modelProvider: Literal["ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OPENAI", "XAI"]
+    modelProvider: Literal[
+        "ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"
+    ]
     previousVersion: Optional[PromptVersion] = None
     responseFormat: Optional[ResponseFormat] = None
     sequenceNumber: int = Field(...)
@@ -1592,7 +1596,9 @@ class ChatPromptVersionInput(BaseModel):
     description: Optional[str] = None
     invocationParameters: dict[str, Any]
     modelName: str
-    modelProvider: Literal["ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OPENAI", "XAI"]
+    modelProvider: Literal[
+        "ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"
+    ]
     responseFormat: Optional[ResponseFormatInput] = None
     template: PromptChatTemplateInput
     templateFormat: Literal["F_STRING", "MUSTACHE", "NONE"]
@@ -1865,7 +1871,9 @@ class GenerativeModelInput(BaseModel):
     baseUrl: Optional[str] = None
     endpoint: Optional[str] = None
     name: str
-    providerKey: Literal["ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OPENAI", "XAI"]
+    providerKey: Literal[
+        "ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"
+    ]
 
 
 class Granularity(BaseModel):
@@ -1916,7 +1924,7 @@ class ModelsInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     modelName: Optional[str] = None
     providerKey: Optional[
-        Literal["ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OPENAI", "XAI"]
+        Literal["ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"]
     ] = None
 
 

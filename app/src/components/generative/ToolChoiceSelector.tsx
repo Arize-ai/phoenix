@@ -31,6 +31,7 @@ export const DEFAULT_TOOL_CHOICES_BY_PROVIDER = {
   AZURE_OPENAI: ["required", "auto", "none"] as const,
   DEEPSEEK: ["required", "auto", "none"] as const,
   XAI: ["required", "auto", "none"] as const,
+  OLLAMA: ["required", "auto", "none"] as const,
   ANTHROPIC: ["any", "auto", "none"] as const,
 } satisfies Partial<
   Record<ModelProvider, (string | Record<string, unknown>)[]>
@@ -53,6 +54,7 @@ export const findToolChoiceType = (
     case "AZURE_OPENAI":
     case "DEEPSEEK":
     case "XAI":
+    case "OLLAMA":
     case "OPENAI":
       if (
         isObject(choice) &&
@@ -235,6 +237,7 @@ export function ToolChoiceSelector<
             case "AZURE_OPENAI":
             case "DEEPSEEK":
             case "XAI":
+            case "OLLAMA":
             case "OPENAI":
               onChange(
                 makeOpenAIToolChoice({
@@ -261,6 +264,7 @@ export function ToolChoiceSelector<
             case "AZURE_OPENAI":
             case "DEEPSEEK":
             case "XAI":
+            case "OLLAMA":
             case "OPENAI":
               onChange(
                 makeOpenAIToolChoice(

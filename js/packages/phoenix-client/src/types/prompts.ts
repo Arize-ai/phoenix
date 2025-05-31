@@ -7,7 +7,10 @@ export type PromptModelProvider =
   | "OPENAI"
   | "AZURE_OPENAI"
   | "ANTHROPIC"
-  | "GOOGLE";
+  | "GOOGLE"
+  | "DEEPSEEK"
+  | "XAI"
+  | "OLLAMA";
 
 /**
  * Supported prompt provider SDKs
@@ -106,6 +109,24 @@ export type AnthropicInvocationParameters =
  */
 export type GoogleInvocationParameters =
   components["schemas"]["PromptGoogleInvocationParametersContent"];
+
+/**
+ * The invocation parameters for a prompt version for DeepSeek.
+ */
+export type DeepSeekInvocationParameters =
+  components["schemas"]["PromptDeepSeekInvocationParametersContent"];
+
+/**
+ * The invocation parameters for a prompt version for xAI.
+ */
+export type XAIInvocationParameters =
+  components["schemas"]["PromptXAIInvocationParametersContent"];
+
+/**
+ * The invocation parameters for a prompt version for Ollama.
+ */
+export type OllamaInvocationParameters =
+  components["schemas"]["PromptOllamaInvocationParametersContent"];
 
 /**
  * The format of the prompt template message(s).

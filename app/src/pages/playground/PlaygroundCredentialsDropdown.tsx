@@ -20,6 +20,7 @@ import {
 } from "@phoenix/components";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+
 export const ProviderToCredentialNameMap: Record<ModelProvider, string> = {
   OPENAI: "OPENAI_API_KEY",
   ANTHROPIC: "ANTHROPIC_API_KEY",
@@ -27,6 +28,7 @@ export const ProviderToCredentialNameMap: Record<ModelProvider, string> = {
   GOOGLE: "GEMINI_API_KEY",
   DEEPSEEK: "DEEPSEEK_API_KEY",
   XAI: "XAI_API_KEY",
+  OLLAMA: "OLLAMA_API_KEY",
 };
 
 export function PlaygroundCredentialsDropdown() {
@@ -41,6 +43,17 @@ export function PlaygroundCredentialsDropdown() {
   const setCredential = useCredentialsContext((state) => state.setCredential);
   const credentials = useCredentialsContext((state) => state);
   const [isOpen, setIsOpen] = useState(false);
+
+  // Auto-set default API key for OLLAMA if not already set
+  const getCredentialValue = (provider: ModelProvider) => {
+    if (provider === "OLLAMA" && !credentials[provider]) {
+      // Set default value for OLLAMA if not already set
+      setCredential({ provider, value: "ollama" });
+      return "ollama";
+    }
+    return credentials[provider] || "";
+  };
+
   return (
     <div
       css={css`
@@ -79,22 +92,25 @@ export function PlaygroundCredentialsDropdown() {
               <Flex direction="column" gap="size-100">
                 {currentProviders.map((provider) => {
                   const credentialName = ProviderToCredentialNameMap[provider];
+                  const isOllama = provider === "OLLAMA";
                   return (
                     <TextField
                       size="S"
                       key={provider}
                       type="password"
                       autoComplete="off"
-                      isRequired
+                      isRequired={!isOllama}
                       onChange={(value) => {
                         setCredential({ provider, value });
                       }}
-                      value={credentials[provider]}
+                      value={getCredentialValue(provider)}
                     >
                       <Label>{credentialName}</Label>
                       <Input />
                       <Text slot="description">
-                        {`Alternatively, you can set the "${credentialName}" environment variable on the phoenix server.`}
+                        {isOllama
+                          ? "Ollama doesn't require an API key. This is a placeholder value for OpenAI SDK compatibility."
+                          : `Alternatively, you can set the "${credentialName}" environment variable on the phoenix server.`}
                       </Text>
                     </TextField>
                   );

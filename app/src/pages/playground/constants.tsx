@@ -31,6 +31,7 @@ export const modelProviderToModelPrefixMap: Record<ModelProvider, string[]> = {
   GOOGLE: ["gemini"],
   DEEPSEEK: ["deepseek"],
   XAI: ["grok"],
+  OLLAMA: ["llama", "mistral", "codellama", "phi", "qwen", "gemma"],
 };
 
 export const TOOL_CHOICE_PARAM_CANONICAL_NAME: Extract<

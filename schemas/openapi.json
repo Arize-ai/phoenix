@@ -4808,7 +4808,8 @@
           "ANTHROPIC",
           "GOOGLE",
           "DEEPSEEK",
-          "XAI"
+          "XAI",
+          "OLLAMA"
         ],
         "title": "ModelProvider"
       },
@@ -5878,6 +5879,69 @@
         ],
         "title": "PromptMessage"
       },
+      "PromptOllamaInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "ollama",
+            "title": "Type"
+          },
+          "ollama": {
+            "$ref": "#/components/schemas/PromptOllamaInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "ollama"
+        ],
+        "title": "PromptOllamaInvocationParameters"
+      },
+      "PromptOllamaInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "title": "Max Completion Tokens"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Reasoning Effort"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptOllamaInvocationParametersContent"
+      },
       "PromptOpenAIInvocationParameters": {
         "properties": {
           "type": {
@@ -6262,6 +6326,9 @@
               },
               {
                 "$ref": "#/components/schemas/PromptXAIInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptOllamaInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -6272,6 +6339,7 @@
                 "azure_openai": "#/components/schemas/PromptAzureOpenAIInvocationParameters",
                 "deepseek": "#/components/schemas/PromptDeepSeekInvocationParameters",
                 "google": "#/components/schemas/PromptGoogleInvocationParameters",
+                "ollama": "#/components/schemas/PromptOllamaInvocationParameters",
                 "openai": "#/components/schemas/PromptOpenAIInvocationParameters",
                 "xai": "#/components/schemas/PromptXAIInvocationParameters"
               }
@@ -6388,6 +6456,9 @@
               },
               {
                 "$ref": "#/components/schemas/PromptXAIInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptOllamaInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -6398,6 +6469,7 @@
                 "azure_openai": "#/components/schemas/PromptAzureOpenAIInvocationParameters",
                 "deepseek": "#/components/schemas/PromptDeepSeekInvocationParameters",
                 "google": "#/components/schemas/PromptGoogleInvocationParameters",
+                "ollama": "#/components/schemas/PromptOllamaInvocationParameters",
                 "openai": "#/components/schemas/PromptOpenAIInvocationParameters",
                 "xai": "#/components/schemas/PromptXAIInvocationParameters"
               }

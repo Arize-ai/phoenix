@@ -16,6 +16,7 @@ class GenerativeProviderKey(Enum):
     GOOGLE = "Google AI Studio"
     DEEPSEEK = "DeepSeek"
     XAI = "xAI"
+    OLLAMA = "Ollama"
 
 
 @strawberry.type
@@ -30,6 +31,7 @@ class GenerativeProvider:
         GenerativeProviderKey.GOOGLE: ["gemini"],
         GenerativeProviderKey.DEEPSEEK: ["deepseek"],
         GenerativeProviderKey.XAI: ["grok"],
+        GenerativeProviderKey.OLLAMA: ["llama", "mistral", "codellama", "phi", "qwen", "gemma"],
     }
 
     attribute_provider_to_generative_provider_map: ClassVar[dict[str, GenerativeProviderKey]] = {
@@ -41,6 +43,8 @@ class GenerativeProvider:
         # The provider will be determined through model name prefix matching instead
         # Note: xAI uses OpenAI compatibility but we can't duplicate the key in the dict
         # The provider will be determined through model name prefix matching instead
+        # Note: Ollama uses OpenAI compatibility but we can't duplicate the key in the dict
+        # The provider will be determined through model name prefix matching instead
     }
 
     model_provider_to_api_key_env_var_map: ClassVar[dict[GenerativeProviderKey, str]] = {
@@ -50,6 +54,7 @@ class GenerativeProvider:
         GenerativeProviderKey.GOOGLE: "GEMINI_API_KEY",
         GenerativeProviderKey.DEEPSEEK: "DEEPSEEK_API_KEY",
         GenerativeProviderKey.XAI: "XAI_API_KEY",
+        GenerativeProviderKey.OLLAMA: "OLLAMA_API_KEY",
     }
 
     @strawberry.field

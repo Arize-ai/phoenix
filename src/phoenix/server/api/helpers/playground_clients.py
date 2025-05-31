@@ -516,6 +516,44 @@ class XAIStreamingClient(OpenAIBaseStreamingClient):
 
 
 @register_llm_client(
+    provider_key=GenerativeProviderKey.OLLAMA,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "llama3.3",
+        "llama3.2",
+        "llama3.1",
+        "llama3",
+        "llama2",
+        "mistral",
+        "mixtral",
+        "codellama",
+        "phi3",
+        "qwen2.5",
+        "gemma2",
+    ],
+)
+class OllamaStreamingClient(OpenAIBaseStreamingClient):
+    def __init__(
+        self,
+        model: GenerativeModelInput,
+        api_key: Optional[str] = None,
+    ) -> None:
+        from openai import AsyncOpenAI
+
+        base_url = model.base_url or getenv("OLLAMA_BASE_URL")
+        if not (api_key := api_key or getenv("OLLAMA_API_KEY")):
+            if not base_url:
+                raise BadRequest("An API key is required for Ollama models")
+            api_key = "sk-fake-api-key"
+        client = AsyncOpenAI(api_key=api_key, base_url=base_url or "http://localhost:11434/v1")
+        super().__init__(client=client, model=model, api_key=api_key)
+        # Ollama uses OpenAI-compatible API but we'll track it as a separate provider
+        # Adding a custom "ollama" provider value to make it distinguishable in traces
+        self._attributes[LLM_PROVIDER] = "ollama"
+        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
+
+
+@register_llm_client(
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=[
         PROVIDER_DEFAULT,

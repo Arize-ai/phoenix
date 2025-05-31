@@ -1218,6 +1218,7 @@ enum GenerativeProviderKey {
   GOOGLE
   DEEPSEEK
   XAI
+  OLLAMA
 }
 
 """
@@ -1377,6 +1378,7 @@ enum ModelProvider {
   GOOGLE
   DEEPSEEK
   XAI
+  OLLAMA
 }
 
 input ModelsInput {
