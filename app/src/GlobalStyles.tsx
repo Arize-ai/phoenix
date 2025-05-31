@@ -649,7 +649,7 @@ export const darkThemeCSS = css`
       var(--ac-global-color-warning-rgb),
       0.5
     );
-    --ac-global-color-severe-rgb: 188, 76, 0; // rgb(188, 76, 0)
+    --ac-global-color-severe-rgb: 188, 76, 0;
     --ac-global-color-severe: rgb(var(--ac-global-color-severe-rgb));
     --ac-global-color-severe-900: rgba(var(--ac-global-color-severe-rgb), 0.9);
     --ac-global-color-severe-700: rgba(var(--ac-global-color-severe-rgb), 0.7);
