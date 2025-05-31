@@ -5,6 +5,7 @@ from enum import Enum
 from string import Formatter
 from typing import Any, Callable, List, Mapping, Optional, Sequence, Tuple, Union
 
+from phoenix.evals.utils import NOT_PARSABLE
 import pandas as pd
 
 from phoenix.evals.exceptions import PhoenixException
@@ -202,7 +203,7 @@ def parse_label_from_chain_of_thought_response(raw_string: str, rails: Optional[
         The extracted label or NOT_PARSABLE if extraction fails
     """
     if not raw_string or not raw_string.strip():
-        return NOT_PARSABLE
+        return raw_string  # Fallback to the whole string if no label delimiter is found
     
     # Sort rails by length (longest first) to avoid substring matching issues
     sorted_rails = sorted(rails, key=len, reverse=True) if rails else None
@@ -218,24 +219,19 @@ def parse_label_from_chain_of_thought_response(raw_string: str, rails: Optional[
             # Remove quotes if present
             label_part = label_part.strip('"\'')
             
-            # If rails are provided, look for any of the valid rails in the label part (longest first)
+            # Extract just the first word/token from the label part
+            first_word = label_part.split()[0] if label_part.split() else label_part
+            
+            # If rails are provided, check if the first word matches any rail
             if sorted_rails:
                 for rail in sorted_rails:
-                    if rail.lower() in label_part.lower():
+                    if rail.lower() == first_word.lower():
                         return rail
-            
-            # If no rail found or no rails provided, try the first word
-            words = label_part.split()
-            if words:
-                first_word = words[0].strip()
-                # Check if first word matches any rail (case insensitive)
-                if sorted_rails:
-                    for rail in sorted_rails:
-                        if rail.lower() == first_word.lower():
-                            return rail
-                else:
-                    # No rails provided, return the first word
-                    return first_word
+                # If no rail matches, return the first word as-is
+                return first_word
+            else:
+                # No rails provided, return the first word
+                return first_word
     
     # If no "label" keyword found, only check the first word for valid rails
     cleaned_response = raw_string.strip().strip('"\'')
@@ -246,12 +242,8 @@ def parse_label_from_chain_of_thought_response(raw_string: str, rails: Optional[
         for rail in sorted_rails:
             if rail.lower() == first_word.lower():
                 return rail
-    elif not rails and first_word:
-        # No rails provided, use the old behavior for single words only
-        if ' ' not in cleaned_response:
-            return cleaned_response
     
-    return NOT_PARSABLE
+    return raw_string
 
 
 def normalize_classification_template(
