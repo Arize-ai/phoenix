@@ -1023,6 +1023,12 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     );
     --ac-global-button-success-border-color: var(--ac-global-color-success);
 
+    // Styles for disclosure
+    --ac-global-disclosure-background-color-active: rgba(
+      var(--ac-global-color-grey-900-rgb),
+      0.05
+    );
+
     // Style for tooltips
     --ac-global-tooltip-background-color: var(--ac-global-color-grey-100);
     --ac-global-tooltip-border-color: var(--ac-global-color-grey-300);
