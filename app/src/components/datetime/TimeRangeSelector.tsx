@@ -102,6 +102,8 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
                     }
                     const timeRangeKey = selection.keys().next().value;
                     if (!isTimeRangeKey(timeRangeKey)) {
+                      // Sometimes the time range is undefined for some reason
+                      // TODO: figure out why this happens
                       return;
                     }
                     if (timeRangeKey !== "custom") {
