@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9bbcd105114fa67c29e6353583f88aad>>
+ * @generated SignedSource<<be7a515899fb982b6b0cf59c8667b8f6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,25 +11,25 @@
 import { ReaderFragment } from 'relay-runtime';
 export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OPENAI" | "XAI";
 import { FragmentRefs } from "relay-runtime";
-export type ModelProviderPickerFragment$data = {
+export type ModelProviderSelectFragment$data = {
   readonly modelProviders: ReadonlyArray<{
     readonly dependencies: ReadonlyArray<string>;
     readonly dependenciesInstalled: boolean;
     readonly key: GenerativeProviderKey;
     readonly name: string;
   }>;
-  readonly " $fragmentType": "ModelProviderPickerFragment";
+  readonly " $fragmentType": "ModelProviderSelectFragment";
 };
-export type ModelProviderPickerFragment$key = {
-  readonly " $data"?: ModelProviderPickerFragment$data;
-  readonly " $fragmentSpreads": FragmentRefs<"ModelProviderPickerFragment">;
+export type ModelProviderSelectFragment$key = {
+  readonly " $data"?: ModelProviderSelectFragment$data;
+  readonly " $fragmentSpreads": FragmentRefs<"ModelProviderSelectFragment">;
 };
 
 const node: ReaderFragment = {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
-  "name": "ModelProviderPickerFragment",
+  "name": "ModelProviderSelectFragment",
   "selections": [
     {
       "alias": null,
@@ -75,6 +75,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "1d4ba7f81a958c9a17bd45dce0456ddb";
+(node as any).hash = "fa50b98980c4687ef0574fa47c3ef4be";
 
 export default node;
