@@ -325,7 +325,7 @@ export function SpanDetails({
                       }
                     }
                   }}
-                  leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+                  leadingVisual={<Icon svg={<Icons.Edit2Outline />} />}
                   trailingVisual={
                     !isCondensedView &&
                     !isAnnotatingSpans && (

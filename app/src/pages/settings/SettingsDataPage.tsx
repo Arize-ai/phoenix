@@ -6,8 +6,12 @@ import { Card } from "@arizeai/components";
 import {
   Button,
   Dialog,
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
   DialogTrigger,
-  Heading,
   Icon,
   Icons,
   Modal,
@@ -39,15 +43,20 @@ export function SettingsDataPage() {
             <Modal>
               <Dialog>
                 {({ close }) => (
-                  <>
-                    <Heading slot="title">New Retention Policy</Heading>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>New Retention Policy</DialogTitle>
+                      <DialogTitleExtra>
+                        <DialogCloseButton slot="close" />
+                      </DialogTitleExtra>
+                    </DialogHeader>
                     <CreateRetentionPolicy
                       queryId={queryId}
                       onCreate={() => {
                         close();
                       }}
                     />
-                  </>
+                  </DialogContent>
                 )}
               </Dialog>
             </Modal>
