@@ -5,7 +5,6 @@ from enum import Enum
 from string import Formatter
 from typing import Any, Callable, List, Mapping, Optional, Sequence, Tuple, Union
 
-from phoenix.evals.utils import NOT_PARSABLE
 import pandas as pd
 
 from phoenix.evals.exceptions import PhoenixException
@@ -187,41 +186,43 @@ class ClassificationTemplate(PromptTemplate):
             return 0.0
 
 
-def parse_label_from_chain_of_thought_response(raw_string: str, rails: Optional[List[str]] = None) -> str:
+def parse_label_from_chain_of_thought_response(
+    raw_string: str, rails: Optional[List[str]] = None
+) -> str:
     """
     Parse label from chain of thought response.
-    
+
     Handles two cases:
     1. Structured response with "LABEL:" keyword (e.g., "EXPLANATION: ... LABEL: relevant")
     2. Simple response with just the label as the first word (e.g., "relevant" or "incorrect some explanation")
-    
+
     Args:
         raw_string: The raw response string from the LLM
         rails: The list of valid labels for the classification (optional)
-        
+
     Returns:
         The extracted label or NOT_PARSABLE if extraction fails
     """
     if not raw_string or not raw_string.strip():
         return raw_string  # Fallback to the whole string if no label delimiter is found
-    
+
     # Sort rails by length (longest first) to avoid substring matching issues
     sorted_rails = sorted(rails, key=len, reverse=True) if rails else None
-    
+
     # First, try to find a label after "LABEL:" keyword (case insensitive)
     label_delimiter = r"\W*label\W*"
     parts = re.split(label_delimiter, raw_string, maxsplit=1, flags=re.IGNORECASE)
-    
+
     if len(parts) == 2:
         # Found "label" keyword, extract what comes after it
         label_part = parts[1].strip()
         if label_part:
             # Remove quotes if present
-            label_part = label_part.strip('"\'')
-            
+            label_part = label_part.strip("\"'")
+
             # Extract just the first word/token from the label part
             first_word = label_part.split()[0] if label_part.split() else label_part
-            
+
             # If rails are provided, check if the first word matches any rail
             if sorted_rails:
                 for rail in sorted_rails:
@@ -232,17 +233,17 @@ def parse_label_from_chain_of_thought_response(raw_string: str, rails: Optional[
             else:
                 # No rails provided, return the first word
                 return first_word
-    
+
     # If no "label" keyword found, only check the first word for valid rails
-    cleaned_response = raw_string.strip().strip('"\'')
+    cleaned_response = raw_string.strip().strip("\"'")
     first_word = cleaned_response.split()[0] if cleaned_response.split() else ""
-    
+
     # If rails are provided, check if first word matches any rail (longest first)
     if sorted_rails and first_word:
         for rail in sorted_rails:
             if rail.lower() == first_word.lower():
                 return rail
-    
+
     return raw_string
 
 
