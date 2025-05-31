@@ -1,33 +1,26 @@
-import {
-  Fragment,
-  ReactNode,
-  startTransition,
-  Suspense,
-  useCallback,
-  useMemo,
-  useState,
-} from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
+import { Tooltip, TooltipTrigger } from "react-aria-components";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import debounce from "lodash/debounce";
 import { css } from "@emotion/react";
 
 import {
-  Dialog,
-  DialogContainer,
-  Tooltip,
-  TooltipTrigger,
-  TriggerWrap,
-} from "@arizeai/components";
-
-import {
   Button,
   ComboBox,
   ComboBoxItem,
+  Dialog,
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+  DialogTrigger,
   Flex,
   Icon,
   Icons,
   Input,
   Label,
+  Modal,
   Text,
   TextField,
 } from "@phoenix/components";
@@ -48,7 +41,7 @@ import {
 import { ModelConfigButtonDialogQuery } from "./__generated__/ModelConfigButtonDialogQuery.graphql";
 import { InvocationParametersFormFields } from "./InvocationParametersFormFields";
 import { ModelComboBox } from "./ModelComboBox";
-import { ModelProviderPicker } from "./ModelProviderPicker";
+import { ModelProviderSelect } from "./ModelProviderSelect";
 import { areRequiredInvocationParametersConfigured } from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
 
@@ -238,7 +231,6 @@ function AzureOpenAiModelConfigFormField({
 
 interface ModelConfigButtonProps extends PlaygroundInstanceProps {}
 export function ModelConfigButton(props: ModelConfigButtonProps) {
-  const [dialog, setDialog] = useState<ReactNode>(null);
   const instance = usePlaygroundContext((state) =>
     state.instances.find(
       (instance) => instance.id === props.playgroundInstanceId
@@ -261,14 +253,9 @@ export function ModelConfigButton(props: ModelConfigButtonProps) {
     );
 
   return (
-    <Fragment>
+    <DialogTrigger>
       <Button
         size="S"
-        onPress={() => {
-          startTransition(() => {
-            setDialog(<ModelConfigDialog {...props} />);
-          });
-        }}
         leadingVisual={
           <GenerativeProviderIcon
             provider={instance.model.provider}
@@ -281,11 +268,9 @@ export function ModelConfigButton(props: ModelConfigButtonProps) {
             <Text>{instance.model.modelName || "--"}</Text>
           </Truncate>
           {!requiredInvocationParametersConfigured ? (
-            <TooltipTrigger delay={0} offset={5}>
+            <TooltipTrigger delay={0}>
               <span>
-                <TriggerWrap>
-                  <Icon color="danger" svg={<Icons.InfoOutline />} />
-                </TriggerWrap>
+                <Icon color="danger" svg={<Icons.InfoOutline />} />
               </span>
               <Tooltip>
                 Some required invocation parameters are not configured.
@@ -294,16 +279,10 @@ export function ModelConfigButton(props: ModelConfigButtonProps) {
           ) : null}
         </Flex>
       </Button>
-      <DialogContainer
-        type="slideOver"
-        isDismissable
-        onDismiss={() => {
-          setDialog(null);
-        }}
-      >
-        {dialog}
-      </DialogContainer>
-    </Fragment>
+      <Modal isDismissable variant="slideover">
+        <ModelConfigDialog {...props} />
+      </Modal>
+    </DialogTrigger>
   );
 }
 
@@ -343,29 +322,32 @@ function ModelConfigDialog(props: ModelConfigDialogProps) {
     });
   }, [instance.model, notifySuccess, setModelConfigForProvider]);
   return (
-    <Dialog
-      title="Model Configuration"
-      size="M"
-      extra={
-        <TooltipTrigger delay={0} offset={5}>
-          <Button
-            size="S"
-            variant="default"
-            onPress={onSaveConfig}
-            leadingVisual={<Icon svg={<Icons.SaveOutline />} />}
-          >
-            Save as Default
-          </Button>
-          <Tooltip>
-            Saves the current configuration as the default for{" "}
-            {ModelProviders[instance.model.provider] ?? "this provider"}.
-          </Tooltip>
-        </TooltipTrigger>
-      }
-    >
-      <Suspense>
-        <ModelConfigDialogContent {...props} />
-      </Suspense>
+    <Dialog>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Model Configuration</DialogTitle>
+          <DialogTitleExtra>
+            <TooltipTrigger delay={0} closeDelay={0}>
+              <Button
+                size="S"
+                variant="default"
+                onPress={onSaveConfig}
+                leadingVisual={<Icon svg={<Icons.SaveOutline />} />}
+              >
+                Save as Default
+              </Button>
+              <Tooltip placement="bottom" offset={5}>
+                Saves the current configuration as the default for{" "}
+                {ModelProviders[instance.model.provider] ?? "this provider"}.
+              </Tooltip>
+            </TooltipTrigger>
+            <DialogCloseButton />
+          </DialogTitleExtra>
+        </DialogHeader>
+        <Suspense>
+          <ModelConfigDialogContent {...props} />
+        </Suspense>
+      </DialogContent>
     </Dialog>
   );
 }
@@ -401,7 +383,7 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
   const query = useLazyLoadQuery<ModelConfigButtonDialogQuery>(
     graphql`
       query ModelConfigButtonDialogQuery {
-        ...ModelProviderPickerFragment
+        ...ModelProviderSelectFragment
       }
     `,
     {}
@@ -431,7 +413,7 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
           </Text>
         </Flex>
       ) : null}
-      <ModelProviderPicker
+      <ModelProviderSelect
         provider={instance.model.provider}
         query={query}
         onChange={(provider) => {
