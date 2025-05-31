@@ -1,10 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { Item, Picker } from "@arizeai/components";
-
 import {
   Button,
-  Flex,
   Label,
   ListBox,
   ListBoxItem,
@@ -166,27 +163,5 @@ export const WithLongOptions: Story = {
         </ListBox>
       </Popover>
     </Select>
-  ),
-};
-
-export const Comparison: Story = {
-  args: {},
-  render: (args) => (
-    <Flex direction="column">
-      <div>
-        <h3>Phoenix Select</h3>
-        <Select {...args}>
-          <SelectContent />
-        </Select>
-      </div>
-      <div>
-        <h3>Arize Picker</h3>
-        <Picker label="Select an option" size="default">
-          {options.map((option) => (
-            <Item key={option.id}>{option.name}</Item>
-          ))}
-        </Picker>
-      </div>
-    </Flex>
   ),
 };
