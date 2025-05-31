@@ -280,7 +280,7 @@ export function ModelConfigButton(props: ModelConfigButtonProps) {
           ) : null}
         </Flex>
       </Button>
-      <Modal isDismissable variant="slideover">
+      <Modal isDismissable variant="slideover" size="S">
         <ModelConfigDialog {...props} />
       </Modal>
     </DialogTrigger>
