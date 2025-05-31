@@ -346,7 +346,7 @@ function EmbeddingMain() {
             onChange={(isSelected) => {
               setShowChart(isSelected);
             }}
-            defaultSelected={true}
+            selected={showChart}
             labelPlacement="start"
           >
             Show Timeseries
