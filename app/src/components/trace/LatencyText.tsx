@@ -18,13 +18,13 @@ export function LatencyText({
 }) {
   const color = useMemo(() => {
     if (latencyMs < 3000) {
-      return "green-1200";
+      return "success";
     } else if (latencyMs < 8000) {
-      return "yellow-1200";
+      return "warning";
     } else if (latencyMs < 12000) {
-      return "orange-1200";
+      return "danger";
     } else {
-      return "red-1200";
+      return "severe";
     }
   }, [latencyMs]);
   const latencyText = useMemo(() => {

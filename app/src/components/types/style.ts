@@ -206,6 +206,7 @@ export type ColorValue =
   | "success"
   | "warning"
   | "danger"
+  | "severe"
   | "info";
 
 /**
