@@ -97,10 +97,7 @@ def test_parse_label_from_chain_of_thought_response_extracts_first_word_when_mat
 
     # Input has uppercase, rail has lowercase - should return rail's casing
     assert (
-        parse_label_from_chain_of_thought_response(
-            "LABEL: Correct", rails=["correct"]
-        )
-        == "correct"
+        parse_label_from_chain_of_thought_response("LABEL: Correct", rails=["correct"]) == "correct"
     )
 
     # Mixed case input with mixed case rail
@@ -157,7 +154,8 @@ def test_parse_label_from_chain_of_thought_response_handles_label_keyword_positi
     # LABEL at beginning with incomplete explanation
     assert (
         parse_label_from_chain_of_thought_response(
-            "LABEL: incorrect EXPLANATION: The user is asking about the availability of", rails=rails
+            "LABEL: incorrect EXPLANATION: The user is asking about the availability of",
+            rails=rails,
         )
         == "incorrect"
     )
@@ -209,23 +207,19 @@ def test_parse_label_from_chain_of_thought_response_handles_edge_cases():
 
     # Test labels with trailing punctuation
     rails_punctuation = ["incorrect", "correct"]
-    
+
     # With LABEL keyword and trailing period
     assert (
-        parse_label_from_chain_of_thought_response(
-            "LABEL: incorrect.", rails=rails_punctuation
-        )
+        parse_label_from_chain_of_thought_response("LABEL: incorrect.", rails=rails_punctuation)
         == "incorrect."  # Returns with punctuation since no exact match found
     )
-    
+
     # With LABEL keyword and trailing exclamation
     assert (
-        parse_label_from_chain_of_thought_response(
-            "LABEL: correct!", rails=rails_punctuation
-        )
+        parse_label_from_chain_of_thought_response("LABEL: correct!", rails=rails_punctuation)
         == "correct!"  # Returns with punctuation since no exact match found
     )
-    
+
     # First word with trailing punctuation
     assert (
         parse_label_from_chain_of_thought_response(
@@ -233,7 +227,7 @@ def test_parse_label_from_chain_of_thought_response_handles_edge_cases():
         )
         == "incorrect! EXPLANATION: Strong disagreement"  # No match, returns full string
     )
-    
+
     # First word with trailing comma
     assert (
         parse_label_from_chain_of_thought_response(
@@ -241,15 +235,13 @@ def test_parse_label_from_chain_of_thought_response_handles_edge_cases():
         )
         == "correct, but needs clarification"  # No match, returns full string
     )
-    
+
     # With LABEL keyword and multiple punctuation marks
     assert (
-        parse_label_from_chain_of_thought_response(
-            "LABEL: incorrect...", rails=rails_punctuation
-        )
+        parse_label_from_chain_of_thought_response("LABEL: incorrect...", rails=rails_punctuation)
         == "incorrect..."  # Returns with punctuation since no exact match found
     )
-    
+
     # Test that exact matches still work (no punctuation)
     assert (
         parse_label_from_chain_of_thought_response(
@@ -271,7 +263,7 @@ def test_parse_label_from_chain_of_thought_response_handles_quoted_labels():
         == "correct"
     )
 
-    # Label with single quotes  
+    # Label with single quotes
     assert (
         parse_label_from_chain_of_thought_response(
             "Label: 'incorrect' - Some explanation", rails=rails

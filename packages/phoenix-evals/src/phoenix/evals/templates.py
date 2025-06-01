@@ -232,7 +232,7 @@ def parse_label_from_chain_of_thought_response(
         for rail in sorted_labels:
             if rail.lower() == first_word.lower():
                 return rail
-    
+
     # Return the first word if found, otherwise the original string
     return first_word if first_word and len(parts) == 2 else raw_string
 
