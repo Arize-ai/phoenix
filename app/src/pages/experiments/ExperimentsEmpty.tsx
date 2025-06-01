@@ -8,7 +8,9 @@ import {
   View,
 } from "@phoenix/components";
 
-export function DatasetsEmpty() {
+import { RunExperimentButton } from "../dataset/RunExperimentButton";
+
+export function ExperimentsEmpty() {
   return (
     <View width="100%" paddingY="size-400">
       <Flex
@@ -20,30 +22,30 @@ export function DatasetsEmpty() {
         <View width="100%" maxWidth="780px">
           <Flex direction="column" gap="size-400" alignItems="center">
             <Text size="XL">
-              Create datasets for testing prompts, experimentation, and
-              fine-tuning.
+              Run experiments to evaluate and improve your AI applications.
             </Text>
             <Video
-              src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/datasets.mp4"
+              src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/experiments.mp4"
               autoPlay
               muted
               loop
             />
             <Flex direction="row" gap="size-200">
               <ExternalLinkButton
-                href="https://arize.com/docs/phoenix/datasets-and-experiments/overview-datasets"
+                href="https://docs.arize.com/phoenix/datasets-and-experiments/how-to-experiments/run-experiments"
                 target="_blank"
                 leadingVisual={<Icon svg={<Icons.BookOutline />} />}
               >
                 Documentation
               </ExternalLinkButton>
               <ExternalLinkButton
-                href="https://colab.research.google.com/github/arize-ai/phoenix/blob/main/tutorials/experiments/datasets_and_experiments_quickstart.ipynb"
+                href="https://docs.arize.com/phoenix/cookbook/datasets-and-experiments/summarization"
                 target="_blank"
-                leadingVisual={<Icon svg={<Icons.Rocket />} />}
+                leadingVisual={<Icon svg={<Icons.BulbOutline />} />}
               >
-                Quickstart
+                Example
               </ExternalLinkButton>
+              <RunExperimentButton variant="primary" />
             </Flex>
           </Flex>
         </View>

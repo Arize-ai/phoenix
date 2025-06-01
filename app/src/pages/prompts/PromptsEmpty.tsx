@@ -1,4 +1,7 @@
+import { useNavigate } from "react-router";
+
 import {
+  Button,
   ExternalLinkButton,
   Flex,
   Icon,
@@ -8,7 +11,9 @@ import {
   View,
 } from "@phoenix/components";
 
-export function DatasetsEmpty() {
+export function PromptsEmpty() {
+  const navigate = useNavigate();
+
   return (
     <View width="100%" paddingY="size-400">
       <Flex
@@ -20,30 +25,29 @@ export function DatasetsEmpty() {
         <View width="100%" maxWidth="780px">
           <Flex direction="column" gap="size-400" alignItems="center">
             <Text size="XL">
-              Create datasets for testing prompts, experimentation, and
-              fine-tuning.
+              Create and manage prompt templates for your AI applications.
             </Text>
             <Video
-              src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/datasets.mp4"
+              src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/prompts.mp4"
               autoPlay
               muted
               loop
             />
             <Flex direction="row" gap="size-200">
               <ExternalLinkButton
-                href="https://arize.com/docs/phoenix/datasets-and-experiments/overview-datasets"
+                href="https://arize.com/docs/phoenix/prompt-engineering/quickstart-prompts/quickstart-prompts-ui"
                 target="_blank"
                 leadingVisual={<Icon svg={<Icons.BookOutline />} />}
               >
                 Documentation
               </ExternalLinkButton>
-              <ExternalLinkButton
-                href="https://colab.research.google.com/github/arize-ai/phoenix/blob/main/tutorials/experiments/datasets_and_experiments_quickstart.ipynb"
-                target="_blank"
-                leadingVisual={<Icon svg={<Icons.Rocket />} />}
+              <Button
+                variant="primary"
+                leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+                onPress={() => navigate("/playground")}
               >
-                Quickstart
-              </ExternalLinkButton>
+                Playground
+              </Button>
             </Flex>
           </Flex>
         </View>
