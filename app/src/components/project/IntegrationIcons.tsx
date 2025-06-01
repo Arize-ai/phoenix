@@ -612,6 +612,8 @@ export const PydanticAISVG = () => (
     height="32"
     viewBox="0 0 115 115"
     xmlns="http://www.w3.org/2000/svg"
+    aria-hidden="true"
+    focusable="false"
   >
     <path
       fill="#FFBDDB"
