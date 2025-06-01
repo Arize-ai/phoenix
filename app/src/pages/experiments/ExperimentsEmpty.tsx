@@ -19,7 +19,7 @@ export function ExperimentsEmpty() {
         alignItems="center"
         justifyContent="center"
       >
-        <View width="780px">
+        <View width="100%" maxWidth="780px">
           <Flex direction="column" gap="size-400" alignItems="center">
             <Text size="XL">
               Run experiments to evaluate and improve your AI applications.
