@@ -1,6 +1,6 @@
 import { ReactNode, useCallback, useMemo, useState } from "react";
 
-import { Dialog, DialogContainer } from "@arizeai/components";
+import { ButtonProps, Dialog, DialogContainer } from "@arizeai/components";
 
 import {
   Button,
@@ -216,7 +216,11 @@ function RunExperimentExampleSwitcher() {
   );
 }
 
-export function RunExperimentButton() {
+export function RunExperimentButton({
+  variant = "default",
+}: {
+  variant?: ButtonProps["variant"];
+}) {
   const [dialog, setDialog] = useState<ReactNode>(null);
   const onRunExample = useCallback(() => {
     setDialog(<RunExperimentExampleSwitcher />);
@@ -225,6 +229,7 @@ export function RunExperimentButton() {
     <>
       <Button
         size="S"
+        variant={variant}
         leadingVisual={<Icon svg={<Icons.ExperimentOutline />} />}
         onPress={onRunExample}
       >
