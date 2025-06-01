@@ -24,6 +24,11 @@ const hiddenLabelCSS = css`
 
 type RoleSelectProps = {
   onChange: (role: UserRole) => void;
+  /**
+   * Size of the select
+   * @default "M"
+   */
+  size?: SelectProps["size"];
   role?: UserRole;
   /**
    * Whether to display a label for the select
@@ -47,12 +52,14 @@ export function RoleSelect({
   includeLabel = true,
   errorMessage,
   isInvalid = false,
+  size = "M",
   ...selectProps
 }: RoleSelectProps) {
   return (
     <Select
       css={!includeLabel ? hiddenLabelCSS : undefined}
       className="role-select"
+      size={size}
       selectedKey={role ?? undefined}
       aria-label="User Role"
       isInvalid={isInvalid}

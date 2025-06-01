@@ -138,6 +138,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
           return (
             <RoleSelect
               includeLabel={false}
+              size="S"
               onChange={(key) => {
                 if (key === row.original.role) {
                   return;
