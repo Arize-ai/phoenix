@@ -195,7 +195,7 @@ class TestClientForSpanAnnotationsRetrieval:
             Client().spans.get_span_annotations_dataframe(
                 span_ids=[span_id1, span_id2],
                 project_identifier="default",
-                annotation_names=[regular_annotation_name, "note"],
+                include_annotation_names=[regular_annotation_name, "note"],
             )
         )
 
@@ -233,7 +233,7 @@ class TestClientForSpanAnnotationsRetrieval:
             Client().spans.get_span_annotations(
                 span_ids=[span_id1, span_id2],
                 project_identifier="default",
-                annotation_names=[regular_annotation_name, "note"],
+                include_annotation_names=[regular_annotation_name, "note"],
             )
         )
 
