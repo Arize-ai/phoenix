@@ -7,7 +7,8 @@
 ## Deployment Options
 
 * [Docker](deployment-options/docker.md)
-* [Kubernetes](deployment-options/kubernetes.md)
+* [Kubernetes (kustomize)](deployment-options/kubernetes.md)
+* [Kubernetes (helm)](deployment-options/kubernetes-helm.md)
 * [AWS with CloudFormation](deployment-options/aws-with-cloudformation.md)
 * [Railway](deployment-options/railway.md)
 
