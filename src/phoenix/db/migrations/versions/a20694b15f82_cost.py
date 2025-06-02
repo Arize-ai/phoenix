@@ -30,7 +30,6 @@ def upgrade() -> None:
             "name",
             sa.String,
             nullable=False,
-            unique=True,
         ),
         sa.Column(
             "provider",

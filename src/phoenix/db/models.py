@@ -1308,7 +1308,7 @@ CostType: TypeAlias = Literal["DEFAULT", "OVERRIDE"]
 
 class Model(Base):
     __tablename__ = "models"
-    name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
     provider: Mapped[Optional[str]]
     pattern: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
