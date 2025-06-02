@@ -1,11 +1,12 @@
 # Table of contents
 
 * [Release Notes](README.md)
+* [05.30.2025: xAI and Deepseek Support in Playground](05.30.2025-xai-and-deepseek-support-in-playground.md)
 * [05.20.2025: Datasets and Experiment Evaluations in the JS Client](05.20.2025-datasets-and-experiment-evaluations-in-the-js-client.md)
 * [05.14.2025: Experiments in the JS Client](05.14.2025-experiments-in-the-js-client.md)
 * [05.09.2025: Annotations, Data Retention Policies, Hotkeys 📓](05.09.2025-annotations-data-retention-policies-hotkeys.md)
 * [05.05.2025: OpenInference Google GenAI Instrumentation](05.05.2025-openinference-google-genai-instrumentation.md)
-* [04.30.2025:  Span Querying & Data Extraction for Phoenix Client 📊](04.30.2025-span-querying-and-data-extraction-for-phoenix-client.md)
+* [04.30.2025: Span Querying & Data Extraction for Phoenix Client 📊](04.30.2025-span-querying-and-data-extraction-for-phoenix-client.md)
 * [04.28.2025: TLS Support for Phoenix Server 🔐](04.28.2025-tls-support-for-phoenix-server.md)
 * [04.28.2025: Improved Shutdown Handling 🛑](04.28.2025-improved-shutdown-handling.md)
 * [04.25.2025: Scroll Selected Span Into View 🖱️](04.25.2025-scroll-selected-span-into-view.md)
