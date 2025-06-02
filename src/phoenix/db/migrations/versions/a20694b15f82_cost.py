@@ -38,7 +38,7 @@ def upgrade() -> None:
             nullable=True,
         ),
         sa.Column(
-            "pattern",
+            "name_pattern",
             sa.String,
             nullable=False,
         ),
