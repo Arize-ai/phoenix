@@ -140,8 +140,8 @@ class Spans:
         spans_dataframe: Optional["pd.DataFrame"] = None,
         span_ids: Optional[Iterable[str]] = None,
         project_identifier: str = "default",
-        annotation_names: Optional[list[str]] = None,
-        exclude_annotation_names: Optional[list[str]] = None,
+        annotation_names: Optional[Iterable[str]] = None,
+        exclude_annotation_names: Optional[Iterable[str]] = ["note"],
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> "pd.DataFrame":
@@ -155,11 +155,11 @@ class Spans:
                 `context.span_id` or `span_id` column.
             span_ids: An iterable of span IDs.
             project_identifier: The project identifier (name or ID) used in the API path.
-            annotation_names: Optional list of annotation names to include. If provided, only 
-                annotations with these names will be returned. "note" annotations are excluded 
-                by default unless explicitly included in this list.
+            annotation_names: Optional list of annotation names to include. If provided, only
+                annotations with these names will be returned.
             exclude_annotation_names: Optional list of annotation names to exclude from results.
-                "note" annotations are always excluded unless explicitly included in annotation_names.
+                Defaults to ["note"] to exclude note annotations, which are reserved for notes
+                added via the UI.
             limit: Maximum number of annotations returned per request page.
             timeout: Optional request timeout in seconds.
 
@@ -198,11 +198,6 @@ class Spans:
         if not span_ids_list:
             return pd.DataFrame()
 
-        effective_exclude_names = (exclude_annotation_names or []).copy()
-        if annotation_names is None or "note" not in annotation_names:
-            if "note" not in effective_exclude_names:
-                effective_exclude_names.append("note")
-
         annotations: list[v1.SpanAnnotation] = []
         path = f"v1/projects/{project_identifier}/span_annotations"
 
@@ -215,7 +210,7 @@ class Spans:
                     "limit": limit,
                 }
                 if annotation_names is not None:
-                    params["annotation_names"] = annotation_names
+                    params["include_annotation_names"] = annotation_names
                 if effective_exclude_names:
                     params["exclude_annotation_names"] = effective_exclude_names
                 if cursor:
@@ -248,8 +243,8 @@ class Spans:
         *,
         span_ids: Iterable[str],
         project_identifier: str,
-        annotation_names: Optional[list[str]] = None,
-        exclude_annotation_names: Optional[list[str]] = None,
+        annotation_names: Optional[Iterable[str]] = None,
+        exclude_annotation_names: Optional[Iterable[str]] = ["note"],
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.SpanAnnotation]:
@@ -259,11 +254,11 @@ class Spans:
         Args:
             span_ids: An iterable of span IDs.
             project_identifier: The project identifier (name or ID) used in the API path.
-            annotation_names: Optional list of annotation names to include. If provided, only 
-                annotations with these names will be returned. "note" annotations are excluded 
-                by default unless explicitly included in this list.
+            annotation_names: Optional list of annotation names to include. If provided, only
+                annotations with these names will be returned.
             exclude_annotation_names: Optional list of annotation names to exclude from results.
-                "note" annotations are always excluded unless explicitly included in annotation_names.
+                Defaults to ["note"] to exclude note annotations, which are reserved for notes
+                added via the UI.
             limit: Maximum number of annotations returned per request page.
             timeout: Optional request timeout in seconds.
 
@@ -278,11 +273,6 @@ class Spans:
         if not span_ids_list:
             return []
 
-        effective_exclude_names = (exclude_annotation_names or []).copy()
-        if annotation_names is None or "note" not in annotation_names:
-            if "note" not in effective_exclude_names:
-                effective_exclude_names.append("note")
-
         annotations: list[v1.SpanAnnotation] = []
         path = f"v1/projects/{project_identifier}/span_annotations"
 
@@ -295,7 +285,7 @@ class Spans:
                     "limit": limit,
                 }
                 if annotation_names is not None:
-                    params["annotation_names"] = annotation_names
+                    params["include_annotation_names"] = annotation_names
                 if effective_exclude_names:
                     params["exclude_annotation_names"] = effective_exclude_names
                 if cursor:
@@ -437,8 +427,8 @@ class AsyncSpans:
         spans_dataframe: Optional["pd.DataFrame"] = None,
         span_ids: Optional[Iterable[str]] = None,
         project_identifier: str,
-        annotation_names: Optional[list[str]] = None,
-        exclude_annotation_names: Optional[list[str]] = None,
+        annotation_names: Optional[Iterable[str]] = None,
+        exclude_annotation_names: Optional[Iterable[str]] = ["note"],
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> "pd.DataFrame":
@@ -452,11 +442,11 @@ class AsyncSpans:
                 `context.span_id` or `span_id` column.
             span_ids: An iterable of span IDs.
             project_identifier: The project identifier (name or ID) used in the API path.
-            annotation_names: Optional list of annotation names to include. If provided, only 
-                annotations with these names will be returned. "note" annotations are excluded 
-                by default unless explicitly included in this list.
+            annotation_names: Optional list of annotation names to include. If provided, only
+                annotations with these names will be returned.
             exclude_annotation_names: Optional list of annotation names to exclude from results.
-                "note" annotations are always excluded unless explicitly included in annotation_names.
+                Defaults to ["note"] to exclude note annotations, which are reserved for notes
+                added via the UI.
             limit: Maximum number of annotations returned per request page.
             timeout: Optional request timeout in seconds.
 
@@ -494,11 +484,6 @@ class AsyncSpans:
         if not span_ids_list:
             return pd.DataFrame()
 
-        effective_exclude_names = (exclude_annotation_names or []).copy()
-        if annotation_names is None or "note" not in annotation_names:
-            if "note" not in effective_exclude_names:
-                effective_exclude_names.append("note")
-
         annotations: list[v1.SpanAnnotation] = []
         path = f"v1/projects/{project_identifier}/span_annotations"
 
@@ -511,7 +496,7 @@ class AsyncSpans:
                     "limit": limit,
                 }
                 if annotation_names is not None:
-                    params["annotation_names"] = annotation_names
+                    params["include_annotation_names"] = annotation_names
                 if effective_exclude_names:
                     params["exclude_annotation_names"] = effective_exclude_names
                 if cursor:
@@ -544,8 +529,8 @@ class AsyncSpans:
         *,
         span_ids: Iterable[str],
         project_identifier: str,
-        annotation_names: Optional[list[str]] = None,
-        exclude_annotation_names: Optional[list[str]] = None,
+        annotation_names: Optional[Iterable[str]] = None,
+        exclude_annotation_names: Optional[Iterable[str]] = ["note"],
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.SpanAnnotation]:
@@ -555,11 +540,11 @@ class AsyncSpans:
         Args:
             span_ids: An iterable of span IDs.
             project_identifier: The project identifier (name or ID) used in the API path.
-            annotation_names: Optional list of annotation names to include. If provided, only 
-                annotations with these names will be returned. "note" annotations are excluded 
-                by default unless explicitly included in this list.
+            annotation_names: Optional list of annotation names to include. If provided, only
+                annotations with these names will be returned.
             exclude_annotation_names: Optional list of annotation names to exclude from results.
-                "note" annotations are always excluded unless explicitly included in annotation_names.
+                Defaults to ["note"] to exclude note annotations, which are reserved for notes
+                added via the UI.
             limit: Maximum number of annotations returned per request page.
             timeout: Optional request timeout in seconds.
 
@@ -574,11 +559,6 @@ class AsyncSpans:
         if not span_ids_list:
             return []
 
-        effective_exclude_names = (exclude_annotation_names or []).copy()
-        if annotation_names is None or "note" not in annotation_names:
-            if "note" not in effective_exclude_names:
-                effective_exclude_names.append("note")
-
         annotations: list[v1.SpanAnnotation] = []
         path = f"v1/projects/{project_identifier}/span_annotations"
 
@@ -591,9 +571,9 @@ class AsyncSpans:
                     "limit": limit,
                 }
                 if annotation_names is not None:
-                    params["annotation_names"] = annotation_names
-                if effective_exclude_names:
-                    params["exclude_annotation_names"] = effective_exclude_names
+                    params["include_annotation_names"] = annotation_names
+                if exclude_annotation_names:
+                    params["exclude_annotation_names"] = exclude_annotation_names
                 if cursor:
                     params["cursor"] = cursor
                 response = await self._client.get(

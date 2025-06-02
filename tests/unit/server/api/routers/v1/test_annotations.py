@@ -132,8 +132,7 @@ async def test_list_span_annotations_default_behavior(
     project_with_spans_and_annotations: Any,
 ) -> None:
     response = await httpx_client.get(
-        "v1/projects/test-project/span_annotations", 
-        params={"span_ids": ["span1", "span2"]}
+        "v1/projects/test-project/span_annotations", params={"span_ids": ["span1", "span2"]}
     )
 
     assert response.status_code == 200
@@ -165,8 +164,11 @@ async def test_list_span_annotations_inclusion_filter(
     project_with_spans_and_annotations: Any,
 ) -> None:
     response = await httpx_client.get(
-        "v1/projects/test-project/span_annotations", 
-        params={"span_ids": ["span1", "span2"], "annotation_names": ["correctness", "note"]}
+        "v1/projects/test-project/span_annotations",
+        params={
+            "span_ids": ["span1", "span2"],
+            "include_annotation_names": ["correctness", "note"],
+        },
     )
 
     assert response.status_code == 200
@@ -184,8 +186,8 @@ async def test_list_span_annotations_exclusion_filter(
     project_with_spans_and_annotations: Any,
 ) -> None:
     response = await httpx_client.get(
-        "v1/projects/test-project/span_annotations", 
-        params={"span_ids": ["span1", "span2"], "exclude_annotation_names": ["note"]}
+        "v1/projects/test-project/span_annotations",
+        params={"span_ids": ["span1", "span2"], "exclude_annotation_names": ["note"]},
     )
 
     assert response.status_code == 200
@@ -203,12 +205,12 @@ async def test_list_span_annotations_combined_filters(
     project_with_spans_and_annotations: Any,
 ) -> None:
     response = await httpx_client.get(
-        "v1/projects/test-project/span_annotations", 
+        "v1/projects/test-project/span_annotations",
         params={
-            "span_ids": ["span1", "span2"], 
-            "annotation_names": ["correctness", "relevance", "note"],
-            "exclude_annotation_names": ["note"]
-        }
+            "span_ids": ["span1", "span2"],
+            "include_annotation_names": ["correctness", "relevance", "note"],
+            "exclude_annotation_names": ["note"],
+        },
     )
 
     assert response.status_code == 200
@@ -279,8 +281,8 @@ async def test_list_span_annotations_empty_result_when_all_excluded(
         await session.commit()
 
     response = await httpx_client.get(
-        "v1/projects/filtered-project/span_annotations", 
-        params={"span_ids": ["filtered-span"], "exclude_annotation_names": ["test-annotation"]}
+        "v1/projects/filtered-project/span_annotations",
+        params={"span_ids": ["filtered-span"], "exclude_annotation_names": ["test-annotation"]},
     )
 
     assert response.status_code == 200
@@ -365,7 +367,11 @@ async def test_list_span_annotations_pagination_with_filters(
 
     response = await httpx_client.get(
         "v1/projects/pagination-project/span_annotations",
-        params={"span_ids": ["pagination-span"], "limit": 3, "exclude_annotation_names": ["excluded-annotation"]},
+        params={
+            "span_ids": ["pagination-span"],
+            "limit": 3,
+            "exclude_annotation_names": ["excluded-annotation"],
+        },
     )
 
     assert response.status_code == 200
