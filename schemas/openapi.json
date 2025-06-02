@@ -356,29 +356,6 @@
             "description": "Optional list of annotation names to include. If provided, only annotations with these names will be returned. 'note' annotations are excluded by default unless explicitly included in this list."
           },
           {
-            "name": "annotation_names",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "[DEPRECATED] Use include_annotation_names instead. Optional list of annotation names to include.",
-              "deprecated": true,
-              "title": "Annotation Names"
-            },
-            "description": "[DEPRECATED] Use include_annotation_names instead. Optional list of annotation names to include.",
-            "deprecated": true
-          },
-          {
             "name": "exclude_annotation_names",
             "in": "query",
             "required": false,
