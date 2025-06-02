@@ -141,7 +141,7 @@ class Spans:
         span_ids: Optional[Iterable[str]] = None,
         project_identifier: str = "default",
         include_annotation_names: Optional[Sequence[str]] = None,
-        exclude_annotation_names: Optional[Sequence[str]] = ["note"],
+        exclude_annotation_names: Optional[Sequence[str]] = None,
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> "pd.DataFrame":
@@ -172,6 +172,9 @@ class Spans:
             ImportError: If pandas is not installed.
             httpx.HTTPStatusError: If the API returns an error response.
         """
+        if exclude_annotation_names is None:
+            exclude_annotation_names = ["note"]
+
         try:
             import pandas as pd
         except ImportError:  # pragma: no cover
@@ -244,7 +247,7 @@ class Spans:
         span_ids: Iterable[str],
         project_identifier: str,
         include_annotation_names: Optional[Sequence[str]] = None,
-        exclude_annotation_names: Optional[Sequence[str]] = ["note"],
+        exclude_annotation_names: Optional[Sequence[str]] = None,
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.SpanAnnotation]:
@@ -268,6 +271,9 @@ class Spans:
         Raises:
             httpx.HTTPStatusError: If the API returns an error response.
         """
+        if exclude_annotation_names is None:
+            exclude_annotation_names = ["note"]
+
         span_ids_list = list({*span_ids})
 
         if not span_ids_list:
@@ -429,7 +435,7 @@ class AsyncSpans:
         span_ids: Optional[Iterable[str]] = None,
         project_identifier: str,
         include_annotation_names: Optional[Sequence[str]] = None,
-        exclude_annotation_names: Optional[Sequence[str]] = ["note"],
+        exclude_annotation_names: Optional[Sequence[str]] = None,
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> "pd.DataFrame":
@@ -460,6 +466,9 @@ class AsyncSpans:
             ImportError: If pandas is not installed.
             httpx.HTTPStatusError: If the API returns an error response.
         """
+        if exclude_annotation_names is None:
+            exclude_annotation_names = ["note"]
+
         try:
             import pandas as pd
         except ImportError:  # pragma: no cover
@@ -531,7 +540,7 @@ class AsyncSpans:
         span_ids: Iterable[str],
         project_identifier: str,
         include_annotation_names: Optional[Sequence[str]] = None,
-        exclude_annotation_names: Optional[Sequence[str]] = ["note"],
+        exclude_annotation_names: Optional[Sequence[str]] = None,
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.SpanAnnotation]:
@@ -555,6 +564,9 @@ class AsyncSpans:
         Raises:
             httpx.HTTPStatusError: If the API returns an error response.
         """
+        if exclude_annotation_names is None:
+            exclude_annotation_names = ["note"]
+
         span_ids_list = list({*span_ids})
 
         if not span_ids_list:
