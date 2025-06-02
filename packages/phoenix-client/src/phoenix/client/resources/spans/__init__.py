@@ -385,7 +385,7 @@ class Spans:
         while len(all_spans) < limit:
             remaining = limit - len(all_spans)
             current_page_size = min(page_size, remaining)
-            
+
             params: dict[str, Union[int, str, Sequence[str]]] = {
                 "limit": current_page_size,
                 "sort_direction": sort_direction,
@@ -784,7 +784,7 @@ class AsyncSpans:
         while len(all_spans) < limit:
             remaining = limit - len(all_spans)
             current_page_size = min(page_size, remaining)
-            
+
             params: dict[str, Union[int, str, Sequence[str]]] = {
                 "limit": current_page_size,
                 "sort_direction": sort_direction,
