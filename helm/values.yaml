@@ -30,9 +30,6 @@ ingress:
     enabled: false
 
 postgres:
-  # -- Deploy PostgreSQL as part of the Helm release
-  enabled: true
-
   # -- Docker image for PostgreSQL
   image: "postgres:14.5"
 
