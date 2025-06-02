@@ -1874,7 +1874,6 @@ export interface components {
             /** Description */
             description?: string | null;
         };
-<<<<<<< HEAD
         /** PromptXAIInvocationParameters */
         PromptXAIInvocationParameters: {
             /**
@@ -1905,7 +1904,7 @@ export interface components {
              * @enum {string}
              */
             reasoning_effort?: "low" | "medium" | "high";
-=======
+        };
         /** Span */
         Span: {
             /**
@@ -1965,7 +1964,6 @@ export interface components {
              * @description Span events
              */
             events?: components["schemas"]["SpanEvent"][];
->>>>>>> 722701296 (Update OpenAPI schema)
         };
         /** SpanAnnotation */
         SpanAnnotation: {
