@@ -335,6 +335,48 @@
             "description": "One or more span id to fetch annotations for"
           },
           {
+            "name": "include_annotation_names",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of annotation names to include. If provided, only annotations with these names will be returned. 'note' annotations are excluded by default unless explicitly included in this list.",
+              "title": "Include Annotation Names"
+            },
+            "description": "Optional list of annotation names to include. If provided, only annotations with these names will be returned. 'note' annotations are excluded by default unless explicitly included in this list."
+          },
+          {
+            "name": "exclude_annotation_names",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of annotation names to exclude from results.",
+              "title": "Exclude Annotation Names"
+            },
+            "description": "Optional list of annotation names to exclude from results."
+          },
+          {
             "name": "cursor",
             "in": "query",
             "required": false,

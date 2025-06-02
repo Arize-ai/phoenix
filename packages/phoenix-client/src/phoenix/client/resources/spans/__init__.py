@@ -140,6 +140,8 @@ class Spans:
         spans_dataframe: Optional["pd.DataFrame"] = None,
         span_ids: Optional[Iterable[str]] = None,
         project_identifier: str = "default",
+        include_annotation_names: Optional[Sequence[str]] = None,
+        exclude_annotation_names: Optional[Sequence[str]] = None,
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> "pd.DataFrame":
@@ -153,6 +155,11 @@ class Spans:
                 `context.span_id` or `span_id` column.
             span_ids: An iterable of span IDs.
             project_identifier: The project identifier (name or ID) used in the API path.
+            include_annotation_names: Optional list of annotation names to include. If provided,
+                only annotations with these names will be returned.
+            exclude_annotation_names: Optional list of annotation names to exclude from results.
+                Defaults to ["note"] to exclude note annotations, which are reserved for notes
+                added via the UI.
             limit: Maximum number of annotations returned per request page.
             timeout: Optional request timeout in seconds.
 
@@ -165,6 +172,9 @@ class Spans:
             ImportError: If pandas is not installed.
             httpx.HTTPStatusError: If the API returns an error response.
         """
+        if exclude_annotation_names is None:
+            exclude_annotation_names = ["note"]
+
         try:
             import pandas as pd
         except ImportError:  # pragma: no cover
@@ -202,6 +212,10 @@ class Spans:
                     "span_ids": batch_ids,
                     "limit": limit,
                 }
+                if include_annotation_names is not None:
+                    params["include_annotation_names"] = include_annotation_names
+                if exclude_annotation_names:
+                    params["exclude_annotation_names"] = exclude_annotation_names
                 if cursor:
                     params["cursor"] = cursor
 
@@ -223,7 +237,8 @@ class Spans:
         df = pd.DataFrame(annotations)
         df = _flatten_nested_column(df, "result")
         df.rename(columns={"name": "annotation_name"}, inplace=True)
-        df.set_index("span_id", inplace=True)  # type: ignore[unused-ignore]
+        if not df.empty:
+            df.set_index("span_id", inplace=True)  # type: ignore[unused-ignore]
         return df
 
     def get_span_annotations(
@@ -231,6 +246,8 @@ class Spans:
         *,
         span_ids: Iterable[str],
         project_identifier: str,
+        include_annotation_names: Optional[Sequence[str]] = None,
+        exclude_annotation_names: Optional[Sequence[str]] = None,
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.SpanAnnotation]:
@@ -240,6 +257,11 @@ class Spans:
         Args:
             span_ids: An iterable of span IDs.
             project_identifier: The project identifier (name or ID) used in the API path.
+            include_annotation_names: Optional list of annotation names to include. If provided,
+                only annotations with these names will be returned.
+            exclude_annotation_names: Optional list of annotation names to exclude from results.
+                Defaults to ["note"] to exclude note annotations, which are reserved for notes
+                added via the UI.
             limit: Maximum number of annotations returned per request page.
             timeout: Optional request timeout in seconds.
 
@@ -249,6 +271,9 @@ class Spans:
         Raises:
             httpx.HTTPStatusError: If the API returns an error response.
         """
+        if exclude_annotation_names is None:
+            exclude_annotation_names = ["note"]
+
         span_ids_list = list({*span_ids})
 
         if not span_ids_list:
@@ -265,8 +290,13 @@ class Spans:
                     "span_ids": batch_ids,
                     "limit": limit,
                 }
+                if include_annotation_names is not None:
+                    params["include_annotation_names"] = include_annotation_names
+                if exclude_annotation_names:
+                    params["exclude_annotation_names"] = exclude_annotation_names
                 if cursor:
                     params["cursor"] = cursor
+
                 response = self._client.get(
                     url=path,
                     params=params,
@@ -404,6 +434,8 @@ class AsyncSpans:
         spans_dataframe: Optional["pd.DataFrame"] = None,
         span_ids: Optional[Iterable[str]] = None,
         project_identifier: str,
+        include_annotation_names: Optional[Sequence[str]] = None,
+        exclude_annotation_names: Optional[Sequence[str]] = None,
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> "pd.DataFrame":
@@ -417,6 +449,11 @@ class AsyncSpans:
                 `context.span_id` or `span_id` column.
             span_ids: An iterable of span IDs.
             project_identifier: The project identifier (name or ID) used in the API path.
+            include_annotation_names: Optional list of annotation names to include. If provided,
+                only annotations with these names will be returned.
+            exclude_annotation_names: Optional list of annotation names to exclude from results.
+                Defaults to ["note"] to exclude note annotations, which are reserved for notes
+                added via the UI.
             limit: Maximum number of annotations returned per request page.
             timeout: Optional request timeout in seconds.
 
@@ -429,6 +466,9 @@ class AsyncSpans:
             ImportError: If pandas is not installed.
             httpx.HTTPStatusError: If the API returns an error response.
         """
+        if exclude_annotation_names is None:
+            exclude_annotation_names = ["note"]
+
         try:
             import pandas as pd
         except ImportError:  # pragma: no cover
@@ -465,8 +505,13 @@ class AsyncSpans:
                     "span_ids": batch_ids,
                     "limit": limit,
                 }
+                if include_annotation_names is not None:
+                    params["include_annotation_names"] = include_annotation_names
+                if exclude_annotation_names:
+                    params["exclude_annotation_names"] = exclude_annotation_names
                 if cursor:
                     params["cursor"] = cursor
+
                 response = await self._client.get(
                     url=path,
                     params=params,
@@ -485,7 +530,8 @@ class AsyncSpans:
         df = pd.DataFrame(annotations)
         df = _flatten_nested_column(df, "result")
         df.rename(columns={"name": "annotation_name"}, inplace=True)
-        df.set_index("span_id", inplace=True)  # type: ignore[unused-ignore]
+        if not df.empty:
+            df.set_index("span_id", inplace=True)  # type: ignore[unused-ignore]
         return df
 
     async def get_span_annotations(
@@ -493,6 +539,8 @@ class AsyncSpans:
         *,
         span_ids: Iterable[str],
         project_identifier: str,
+        include_annotation_names: Optional[Sequence[str]] = None,
+        exclude_annotation_names: Optional[Sequence[str]] = None,
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.SpanAnnotation]:
@@ -502,6 +550,11 @@ class AsyncSpans:
         Args:
             span_ids: An iterable of span IDs.
             project_identifier: The project identifier (name or ID) used in the API path.
+            include_annotation_names: Optional list of annotation names to include. If provided,
+                only annotations with these names will be returned.
+            exclude_annotation_names: Optional list of annotation names to exclude from results.
+                Defaults to ["note"] to exclude note annotations, which are reserved for notes
+                added via the UI.
             limit: Maximum number of annotations returned per request page.
             timeout: Optional request timeout in seconds.
 
@@ -511,7 +564,10 @@ class AsyncSpans:
         Raises:
             httpx.HTTPStatusError: If the API returns an error response.
         """
-        span_ids_list = list({*span_ids})  # remove duplicates while preserving type
+        if exclude_annotation_names is None:
+            exclude_annotation_names = ["note"]
+
+        span_ids_list = list({*span_ids})
 
         if not span_ids_list:
             return []
@@ -527,8 +583,13 @@ class AsyncSpans:
                     "span_ids": batch_ids,
                     "limit": limit,
                 }
+                if include_annotation_names is not None:
+                    params["include_annotation_names"] = include_annotation_names
+                if exclude_annotation_names:
+                    params["exclude_annotation_names"] = exclude_annotation_names
                 if cursor:
                     params["cursor"] = cursor
+
                 response = await self._client.get(
                     url=path,
                     params=params,

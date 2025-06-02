@@ -2367,6 +2367,10 @@ export interface operations {
             query: {
                 /** @description One or more span id to fetch annotations for */
                 span_ids: string[];
+                /** @description Optional list of annotation names to include. If provided, only annotations with these names will be returned. 'note' annotations are excluded by default unless explicitly included in this list. */
+                include_annotation_names?: string[] | null;
+                /** @description Optional list of annotation names to exclude from results. */
+                exclude_annotation_names?: string[] | null;
                 /** @description A cursor for pagination */
                 cursor?: string | null;
                 /** @description The maximum number of annotations to return in a single request */
