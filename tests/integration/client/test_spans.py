@@ -87,7 +87,7 @@ class TestClientForSpanAnnotationsRetrieval:
         assert {
             span_id1,
             span_id2,
-        }.issubset(set(df.index.astype(str))), "Expected span IDs missing from dataframe"  # type: ignore[unused-ignore]
+        }.issubset(set(df.index.astype(str))), "Expected span IDs missing from dataframe"  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
 
         annotations = await _await_or_return(
             Client().spans.get_span_annotations(
@@ -132,13 +132,13 @@ class TestClientForSpanAnnotationsRetrieval:
             (span_id1, annotation_name_1, label1, score1, explanation1),
             (span_id2, annotation_name_2, label2, score2, explanation2),
         ):
-            subset = df_from_df[df_from_df.index.astype(str) == sid]  # type: ignore[unused-ignore]
-            subset = subset[subset["annotation_name"] == aname]  # type: ignore[unused-ignore]
-            assert not subset.empty  # type: ignore[unused-ignore]
-            row = subset.iloc[0]  # type: ignore[unused-ignore]
+            subset = df_from_df[df_from_df.index.astype(str) == sid]  # pyright: ignore[reportUnknownMemberType,reportUnknownVariableType]
+            subset = subset[subset["annotation_name"] == aname]  # pyright: ignore[reportUnknownVariableType]
+            assert not subset.empty  # pyright: ignore[reportUnknownMemberType]
+            row = subset.iloc[0]  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
             assert "result.label" in row
             assert row["result.label"] == label
-            assert abs(float(row["result.score"]) - scr) < 1e-6  # type: ignore[unused-ignore]
+            assert abs(float(row["result.score"]) - scr) < 1e-6  # pyright: ignore[reportUnknownArgumentType]
             assert row["result.explanation"] == expl
 
     @pytest.mark.parametrize("is_async", [True, False])
@@ -151,7 +151,7 @@ class TestClientForSpanAnnotationsRetrieval:
         _get_user: _GetUser,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        (span_id1, span_gid1), (span_id2, span_gid2) = _span_ids
+        (span_id1, _), (span_id2, _) = _span_ids
 
         user = _get_user(role_or_user).log_in()
         monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
@@ -188,7 +188,7 @@ class TestClientForSpanAnnotationsRetrieval:
 
         assert isinstance(df_default, pd.DataFrame)
         if not df_default.empty:
-            annotation_names_default = set(df_default["annotation_name"].tolist())
+            annotation_names_default = set(df_default["annotation_name"].tolist())  # pyright: ignore[reportUnknownVariableType,reportUnknownArgumentType]
             assert regular_annotation_name in annotation_names_default
 
         df_with_notes = await _await_or_return(
@@ -201,7 +201,7 @@ class TestClientForSpanAnnotationsRetrieval:
 
         assert isinstance(df_with_notes, pd.DataFrame)
         if not df_with_notes.empty:
-            annotation_names_with_notes = set(df_with_notes["annotation_name"].tolist())
+            annotation_names_with_notes = set(df_with_notes["annotation_name"].tolist())  # pyright: ignore[reportUnknownVariableType,reportUnknownArgumentType]
             assert regular_annotation_name in annotation_names_with_notes
 
         df_excluded = await _await_or_return(
@@ -214,7 +214,7 @@ class TestClientForSpanAnnotationsRetrieval:
 
         assert isinstance(df_excluded, pd.DataFrame)
         if not df_excluded.empty:
-            annotation_names_excluded = set(df_excluded["annotation_name"].tolist())
+            annotation_names_excluded = set(df_excluded["annotation_name"].tolist())  # pyright: ignore[reportUnknownVariableType,reportUnknownArgumentType]
             assert regular_annotation_name not in annotation_names_excluded
 
         annotations_default = await _await_or_return(

@@ -140,8 +140,8 @@ class Spans:
         spans_dataframe: Optional["pd.DataFrame"] = None,
         span_ids: Optional[Iterable[str]] = None,
         project_identifier: str = "default",
-        annotation_names: Optional[Iterable[str]] = None,
-        exclude_annotation_names: Optional[Iterable[str]] = ["note"],
+        annotation_names: Optional[Sequence[str]] = None,
+        exclude_annotation_names: Optional[Sequence[str]] = ["note"],
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> "pd.DataFrame":
@@ -243,8 +243,8 @@ class Spans:
         *,
         span_ids: Iterable[str],
         project_identifier: str,
-        annotation_names: Optional[Iterable[str]] = None,
-        exclude_annotation_names: Optional[Iterable[str]] = ["note"],
+        annotation_names: Optional[Sequence[str]] = None,
+        exclude_annotation_names: Optional[Sequence[str]] = ["note"],
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.SpanAnnotation]:
@@ -428,8 +428,8 @@ class AsyncSpans:
         spans_dataframe: Optional["pd.DataFrame"] = None,
         span_ids: Optional[Iterable[str]] = None,
         project_identifier: str,
-        annotation_names: Optional[Iterable[str]] = None,
-        exclude_annotation_names: Optional[Iterable[str]] = ["note"],
+        annotation_names: Optional[Sequence[str]] = None,
+        exclude_annotation_names: Optional[Sequence[str]] = ["note"],
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> "pd.DataFrame":
@@ -530,8 +530,8 @@ class AsyncSpans:
         *,
         span_ids: Iterable[str],
         project_identifier: str,
-        annotation_names: Optional[Iterable[str]] = None,
-        exclude_annotation_names: Optional[Iterable[str]] = ["note"],
+        annotation_names: Optional[Sequence[str]] = None,
+        exclude_annotation_names: Optional[Sequence[str]] = ["note"],
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.SpanAnnotation]:
