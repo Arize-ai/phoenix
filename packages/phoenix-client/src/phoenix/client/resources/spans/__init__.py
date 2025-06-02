@@ -2,7 +2,7 @@ import base64
 import logging
 from datetime import datetime, timezone, tzinfo
 from io import StringIO
-from typing import TYPE_CHECKING, Iterable, Literal, Optional, Sequence, Union, cast
+from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union, cast
 
 import httpx
 
@@ -357,7 +357,6 @@ class Spans:
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
         limit: int = 100,
-        sort_direction: Literal["asc", "desc"] = "desc",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.Span]:
         """
@@ -368,8 +367,6 @@ class Spans:
             start_time: Optional start time for filtering (inclusive lower bound).
             end_time: Optional end time for filtering (exclusive upper bound).
             limit: Maximum number of spans to return (default: 100).
-            sort_direction: Sort direction for spans ordered by insertion order. Use "desc" for
-                newest first or "asc" for oldest first (default: "desc").
             timeout: Optional request timeout in seconds.
 
         Returns:
@@ -388,7 +385,6 @@ class Spans:
 
             params: dict[str, Union[int, str, Sequence[str]]] = {
                 "limit": current_page_size,
-                "sort_direction": sort_direction,
             }
 
             if start_time:
@@ -756,7 +752,6 @@ class AsyncSpans:
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
         limit: int = 100,
-        sort_direction: Literal["asc", "desc"] = "desc",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.Span]:
         """
@@ -767,8 +762,6 @@ class AsyncSpans:
             start_time: Optional start time for filtering (inclusive lower bound).
             end_time: Optional end time for filtering (exclusive upper bound).
             limit: Maximum number of spans to return (default: 100).
-            sort_direction: Sort direction for spans ordered by insertion order. Use "desc" for
-                newest first or "asc" for oldest first (default: "desc").
             timeout: Optional request timeout in seconds.
 
         Returns:
@@ -787,7 +780,6 @@ class AsyncSpans:
 
             params: dict[str, Union[int, str, Sequence[str]]] = {
                 "limit": current_page_size,
-                "sort_direction": sort_direction,
             }
 
             if start_time:

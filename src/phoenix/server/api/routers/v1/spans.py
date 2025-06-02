@@ -370,7 +370,7 @@ class OtlpSpan(BaseModel):
     )
 
 
-class OtlpSpanSearchResponseBody(PaginatedResponseBody[OtlpSpan]):
+class OtlpSpansResponseBody(PaginatedResponseBody[OtlpSpan]):
     """Paginated response where each span follows OTLP JSON structure."""
 
     pass
@@ -408,7 +408,7 @@ class Span(V1RoutesBaseModel):
     events: list[SpanEvent] = Field(default_factory=list, description="Span events")
 
 
-class SpanSearchResponseBody(PaginatedResponseBody[Span]):
+class SpansResponseBody(PaginatedResponseBody[Span]):
     pass
 
 
@@ -549,8 +549,8 @@ def _to_any_value(value: Any) -> OtlpAnyValue:
     "/projects/{project_identifier}/spans/otlpv1",
     operation_id="spanSearch",
     summary="Search spans with simple filters (no DSL)",
-    description="Return spans within a project filtered by time range "
-    "and ordered by start_time. Supports cursor-based pagination.",
+    description="Return spans within a project filtered by time range. "
+    "Supports cursor-based pagination.",
     responses=add_errors_to_responses([HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY]),
 )
 async def span_search_otlpv1(
@@ -563,20 +563,16 @@ async def span_search_otlpv1(
     ),
     cursor: Optional[str] = Query(default=None, description="Pagination cursor (Span Global ID)"),
     limit: int = Query(default=100, gt=0, le=1000, description="Maximum number of spans to return"),
-    sort_direction: Literal["asc", "desc"] = Query(
-        default="desc",
-        description="Sort direction for the sort field",
-    ),
     start_time: Optional[datetime] = Query(default=None, description="Inclusive lower bound time"),
     end_time: Optional[datetime] = Query(default=None, description="Exclusive upper bound time"),
-) -> OtlpSpanSearchResponseBody:
+) -> OtlpSpansResponseBody:
     """Search spans with minimal filters instead of the old SpanQuery DSL."""
 
     async with request.app.state.db() as session:
         project = await _get_project_by_identifier(session, project_identifier)
 
     project_id: int = project.id
-    order_by = [models.Span.id.asc() if sort_direction == "asc" else models.Span.id.desc()]
+    order_by = [models.Span.id.desc()]
 
     stmt = (
         select(
@@ -596,10 +592,7 @@ async def span_search_otlpv1(
     if cursor:
         try:
             cursor_rowid = int(GlobalID.from_id(cursor).node_id)
-            if sort_direction == "asc":
-                stmt = stmt.where(models.Span.id >= cursor_rowid)
-            else:
-                stmt = stmt.where(models.Span.id <= cursor_rowid)
+            stmt = stmt.where(models.Span.id <= cursor_rowid)
         except Exception:
             raise HTTPException(status_code=HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid cursor")
 
@@ -609,7 +602,7 @@ async def span_search_otlpv1(
         rows: list[tuple[models.Span, str]] = [r async for r in await session.stream(stmt)]
 
     if not rows:
-        return OtlpSpanSearchResponseBody(next_cursor=None, data=[])
+        return OtlpSpansResponseBody(next_cursor=None, data=[])
 
     next_cursor: Optional[str] = None
     if len(rows) == limit + 1:
@@ -686,15 +679,15 @@ async def span_search_otlpv1(
             )
         )
 
-    return OtlpSpanSearchResponseBody(next_cursor=next_cursor, data=result_spans)
+    return OtlpSpansResponseBody(next_cursor=next_cursor, data=result_spans)
 
 
 @router.get(
     "/projects/{project_identifier}/spans",
-    operation_id="spanSearchPhoenix",
-    summary="Search spans with simple filters (no DSL)",
-    description="Return spans within a project filtered by time range "
-    "and ordered by start_time. Supports cursor-based pagination.",
+    operation_id="getSpans",
+    summary="List spans with simple filters (no DSL)",
+    description="Return spans within a project filtered by time range. "
+    "Supports cursor-based pagination.",
     responses=add_errors_to_responses([HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY]),
 )
 async def span_search(
@@ -707,18 +700,14 @@ async def span_search(
     ),
     cursor: Optional[str] = Query(default=None, description="Pagination cursor (Span Global ID)"),
     limit: int = Query(default=100, gt=0, le=1000, description="Maximum number of spans to return"),
-    sort_direction: Literal["asc", "desc"] = Query(
-        default="desc",
-        description="Sort direction for the sort field",
-    ),
     start_time: Optional[datetime] = Query(default=None, description="Inclusive lower bound time"),
     end_time: Optional[datetime] = Query(default=None, description="Exclusive upper bound time"),
-) -> SpanSearchResponseBody:
+) -> SpansResponseBody:
     async with request.app.state.db() as session:
         project = await _get_project_by_identifier(session, project_identifier)
 
     project_id: int = project.id
-    order_by = [models.Span.id.asc() if sort_direction == "asc" else models.Span.id.desc()]
+    order_by = [models.Span.id.desc()]
 
     stmt = (
         select(
@@ -740,10 +729,7 @@ async def span_search(
             cursor_rowid = int(GlobalID.from_id(cursor).node_id)
         except Exception:
             raise HTTPException(status_code=HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid cursor")
-        if sort_direction == "asc":
-            stmt = stmt.where(models.Span.id >= cursor_rowid)
-        else:
-            stmt = stmt.where(models.Span.id <= cursor_rowid)
+        stmt = stmt.where(models.Span.id <= cursor_rowid)
 
     stmt = stmt.limit(limit + 1)
 
@@ -751,7 +737,7 @@ async def span_search(
         rows: list[tuple[models.Span, str]] = [r async for r in await session.stream(stmt)]
 
     if not rows:
-        return SpanSearchResponseBody(next_cursor=None, data=[])
+        return SpansResponseBody(next_cursor=None, data=[])
 
     next_cursor: Optional[str] = None
     if len(rows) == limit + 1:
@@ -827,7 +813,7 @@ async def span_search(
             )
         )
 
-    return SpanSearchResponseBody(next_cursor=next_cursor, data=result_spans)
+    return SpansResponseBody(next_cursor=next_cursor, data=result_spans)
 
 
 @router.get("/spans", include_in_schema=False, deprecated=True)

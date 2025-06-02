@@ -311,29 +311,12 @@ async def test_otlp_span_search_time_slice(
             assert span.status.code in (0, 1, 2)  # Valid OTLP status codes
 
 
-async def test_otlp_span_search_sort_direction(
-    httpx_client: httpx.AsyncClient, span_search_test_data: None
-) -> None:
-    resp_desc = await httpx_client.get(
-        "v1/projects/search-test/spans/otlpv1", params={"sort_direction": "desc"}
-    )
-    resp_asc = await httpx_client.get(
-        "v1/projects/search-test/spans/otlpv1", params={"sort_direction": "asc"}
-    )
-    assert resp_desc.is_success and resp_asc.is_success
-    spans_desc = [OtlpSpan.model_validate(s) for s in resp_desc.json()["data"]]
-    spans_asc = [OtlpSpan.model_validate(s) for s in resp_asc.json()["data"]]
-    ids_desc = [s.span_id for s in spans_desc]
-    ids_asc = [s.span_id for s in spans_asc]
-    assert ids_desc == list(reversed(ids_asc))
-
-
 async def test_otlp_span_search_pagination(
     httpx_client: httpx.AsyncClient, span_search_test_data: None
 ) -> None:
     resp1 = await httpx_client.get(
         "v1/projects/search-test/spans/otlpv1",
-        params={"limit": 2, "sort_direction": "asc"},
+        params={"limit": 2},
     )
     assert resp1.is_success
     body1 = resp1.json()
@@ -344,7 +327,7 @@ async def test_otlp_span_search_pagination(
     # Second page
     resp2 = await httpx_client.get(
         "v1/projects/search-test/spans/otlpv1",
-        params={"cursor": cursor, "sort_direction": "asc"},
+        params={"cursor": cursor},
     )
     assert resp2.is_success
     body2 = resp2.json()
@@ -530,18 +513,11 @@ async def test_span_search_time_slice(
 async def test_span_search_sort_direction(
     httpx_client: httpx.AsyncClient, span_search_test_data: None
 ) -> None:
-    resp_desc = await httpx_client.get(
-        "v1/projects/search-test/spans", params={"sort_direction": "desc"}
-    )
-    resp_asc = await httpx_client.get(
-        "v1/projects/search-test/spans", params={"sort_direction": "asc"}
-    )
-    assert resp_desc.is_success and resp_asc.is_success
+    resp_desc = await httpx_client.get("v1/projects/search-test/spans")
+
+    assert resp_desc.is_success
     spans_desc = [Span.model_validate(s) for s in resp_desc.json()["data"]]
-    spans_asc = [Span.model_validate(s) for s in resp_asc.json()["data"]]
-    ids_desc = [s.context.span_id for s in spans_desc]
-    ids_asc = [s.context.span_id for s in spans_asc]
-    assert ids_desc == list(reversed(ids_asc))
+    assert len(spans_desc) == 3
 
 
 async def test_span_search_pagination(
@@ -549,7 +525,7 @@ async def test_span_search_pagination(
 ) -> None:
     resp1 = await httpx_client.get(
         "v1/projects/search-test/spans",
-        params={"limit": 2, "sort_direction": "asc"},
+        params={"limit": 2},
     )
     assert resp1.is_success
     body1 = resp1.json()
@@ -559,7 +535,7 @@ async def test_span_search_pagination(
     cursor = body1["next_cursor"]
     resp2 = await httpx_client.get(
         "v1/projects/search-test/spans",
-        params={"cursor": cursor, "sort_direction": "asc"},
+        params={"cursor": cursor},
     )
     assert resp2.is_success
     body2 = resp2.json()

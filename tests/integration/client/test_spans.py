@@ -585,57 +585,6 @@ class TestClientForSpansRetrieval:
                 continue
 
     @pytest.mark.parametrize("is_async", [True, False])
-    async def test_sort_direction(
-        self,
-        is_async: bool,
-        _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        """Test that sort direction affects the order of returned spans."""
-        user = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
-        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
-
-        spans_asc = await _await_or_return(
-            Client().spans.get_spans(
-                project_identifier="default",
-                sort_direction="asc",
-                limit=10,
-            )
-        )
-
-        spans_desc = await _await_or_return(
-            Client().spans.get_spans(
-                project_identifier="default",
-                sort_direction="desc",
-                limit=10,
-            )
-        )
-
-        assert len(spans_asc) > 0
-        assert len(spans_desc) > 0
-
-        for span in spans_asc + spans_desc:
-            assert isinstance(span, dict)
-            assert "id" in span
-            assert "context" in span
-            assert "name" in span
-
-        assert len(spans_asc) >= 2
-        assert len(spans_desc) >= 2
-        asc_span_ids = [s["context"]["span_id"] for s in spans_asc]
-        desc_span_ids = [s["context"]["span_id"] for s in spans_desc]
-
-        assert asc_span_ids[0] != desc_span_ids[0], (
-            f"ASC and DESC should return different orderings. "
-            f"ASC first: {asc_span_ids[0]}, DESC first: {desc_span_ids[0]}"
-        )
-
-    @pytest.mark.parametrize("is_async", [True, False])
     async def test_automatic_pagination(
         self,
         is_async: bool,
