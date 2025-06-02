@@ -70,14 +70,6 @@ async def list_span_annotations(
             "explicitly included in this list."
         ),
     ),
-    annotation_names: Optional[list[str]] = Query(
-        default=None,
-        description=(
-            "[DEPRECATED] Use include_annotation_names instead. Optional list of annotation names "
-            "to include."
-        ),
-        deprecated=True,
-    ),
     exclude_annotation_names: Optional[list[str]] = Query(
         default=None, description="Optional list of annotation names to exclude from results."
     ),
@@ -89,10 +81,6 @@ async def list_span_annotations(
         description="The maximum number of annotations to return in a single request",
     ),
 ) -> SpanAnnotationsResponseBody:
-    # Handle backwards compatibility: use include_annotation_names if provided
-    # otherwise fall back to annotation_names
-    include_annotation_names = include_annotation_names or annotation_names
-
     span_ids = list({*span_ids})
     if len(span_ids) > MAX_SPAN_IDS:
         raise HTTPException(

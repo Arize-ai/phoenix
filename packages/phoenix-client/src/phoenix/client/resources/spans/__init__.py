@@ -140,7 +140,7 @@ class Spans:
         spans_dataframe: Optional["pd.DataFrame"] = None,
         span_ids: Optional[Iterable[str]] = None,
         project_identifier: str = "default",
-        annotation_names: Optional[Sequence[str]] = None,
+        include_annotation_names: Optional[Sequence[str]] = None,
         exclude_annotation_names: Optional[Sequence[str]] = ["note"],
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -209,8 +209,8 @@ class Spans:
                     "span_ids": batch_ids,
                     "limit": limit,
                 }
-                if annotation_names is not None:
-                    params["include_annotation_names"] = annotation_names
+                if include_annotation_names is not None:
+                    params["include_annotation_names"] = include_annotation_names
                 if exclude_annotation_names:
                     params["exclude_annotation_names"] = exclude_annotation_names
                 if cursor:
@@ -243,7 +243,7 @@ class Spans:
         *,
         span_ids: Iterable[str],
         project_identifier: str,
-        annotation_names: Optional[Sequence[str]] = None,
+        include_annotation_names: Optional[Sequence[str]] = None,
         exclude_annotation_names: Optional[Sequence[str]] = ["note"],
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -284,8 +284,8 @@ class Spans:
                     "span_ids": batch_ids,
                     "limit": limit,
                 }
-                if annotation_names is not None:
-                    params["include_annotation_names"] = annotation_names
+                if include_annotation_names is not None:
+                    params["include_annotation_names"] = include_annotation_names
                 if exclude_annotation_names:
                     params["exclude_annotation_names"] = exclude_annotation_names
                 if cursor:
@@ -428,7 +428,7 @@ class AsyncSpans:
         spans_dataframe: Optional["pd.DataFrame"] = None,
         span_ids: Optional[Iterable[str]] = None,
         project_identifier: str,
-        annotation_names: Optional[Sequence[str]] = None,
+        include_annotation_names: Optional[Sequence[str]] = None,
         exclude_annotation_names: Optional[Sequence[str]] = ["note"],
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -496,8 +496,8 @@ class AsyncSpans:
                     "span_ids": batch_ids,
                     "limit": limit,
                 }
-                if annotation_names is not None:
-                    params["include_annotation_names"] = annotation_names
+                if include_annotation_names is not None:
+                    params["include_annotation_names"] = include_annotation_names
                 if exclude_annotation_names:
                     params["exclude_annotation_names"] = exclude_annotation_names
                 if cursor:
@@ -530,7 +530,7 @@ class AsyncSpans:
         *,
         span_ids: Iterable[str],
         project_identifier: str,
-        annotation_names: Optional[Sequence[str]] = None,
+        include_annotation_names: Optional[Sequence[str]] = None,
         exclude_annotation_names: Optional[Sequence[str]] = ["note"],
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -571,8 +571,8 @@ class AsyncSpans:
                     "span_ids": batch_ids,
                     "limit": limit,
                 }
-                if annotation_names is not None:
-                    params["include_annotation_names"] = annotation_names
+                if include_annotation_names is not None:
+                    params["include_annotation_names"] = include_annotation_names
                 if exclude_annotation_names:
                     params["exclude_annotation_names"] = exclude_annotation_names
                 if cursor:
