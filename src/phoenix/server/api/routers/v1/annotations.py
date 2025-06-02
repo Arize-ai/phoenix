@@ -69,6 +69,7 @@ async def list_span_annotations(
             "these names will be returned. 'note' annotations are excluded by default unless "
             "explicitly included in this list."
         ),
+        alias="annotation_names",  # For backwards compatibility
     ),
     exclude_annotation_names: Optional[list[str]] = Query(
         default=None, description="Optional list of annotation names to exclude from results."
