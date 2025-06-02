@@ -19,9 +19,9 @@
 * [Management](management.md)
 * [Data Retention](https://arize.com/docs/phoenix/settings/data-retention)
 
-## Upgrate
+## Upgrade
 
-* [Migrations](migrations.md)
+* [Migrations](upgrade/migrations.md)
 
 ## Security
 
