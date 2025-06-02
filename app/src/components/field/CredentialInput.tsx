@@ -13,6 +13,14 @@ import { useCredentialContext } from "./CredentialContext";
 
 export interface CredentialInputProps extends Omit<AriaInputProps, "type"> {}
 
+/**
+ * A specialized text field for entering sensitive information like passwords, API keys, and tokens.
+ * Features a toggle button to show/hide the credential value.
+ *
+ * @param props - The props for the CredentialInput component.
+ * @param ref - The ref for the CredentialInput component.
+ * @returns The CredentialInput component.
+ */
 function CredentialInput(
   props: CredentialInputProps,
   ref: Ref<HTMLInputElement>
@@ -30,32 +38,38 @@ function CredentialInput(
         display: flex;
         align-items: center;
         width: 100%;
+        // The 2px (e.g. 50) is to account making the toggle button to be slightly bigger
+        --credential-visibility-toggle-size: calc(
+          var(--textfield-input-height) - 2 * var(--textfield-vertical-padding) +
+            var(--ac-global-dimension-size-50)
+        );
 
-        input {
-          // Make the toggle button be nestled evenly
-          padding-right: var(--textfield-vertical-padding);
+        & > input {
+          padding-right: calc(
+            var(--textfield-vertical-padding) +
+              var(--credential-visibility-toggle-size) +
+              var(--textfield-vertical-padding)
+          ) !important; // Don't want to fight specificity here
         }
 
         .ac-credential-input__toggle {
           position: absolute;
-          right: var(--textfield-horizontal-padding);
+          right: var(
+            --textfield-vertical-padding
+          ); // We want it to be nestled evenly
           background: transparent;
           border: none;
           cursor: pointer;
           padding: 0;
-          width: calc(
-            var(--textfield-input-height) - var(--textfield-vertical-padding)
-          );
-          height: calc(
-            var(--textfield-input-height) - var(--textfield-vertical-padding)
-          );
+          width: var(--credential-visibility-toggle-size);
+          height: var(--credential-visibility-toggle-size);
           color: var(--ac-global-text-color-700);
           display: flex;
           align-items: center;
           justify-content: center;
           border-radius: var(--ac-global-rounding-small);
           transition: background-color 0.2s;
-
+          background-color: var(--ac-global-color-grey-200);
           &:hover {
             background-color: var(--ac-global-color-grey-300);
           }

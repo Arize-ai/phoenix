@@ -8,14 +8,14 @@ import {
 } from "@arizeai/components";
 
 import {
+  CredentialField,
+  CredentialInput,
   ExternalLink,
   Flex,
   Form,
   Heading,
-  Input,
   Label,
   Text,
-  TextField,
   View,
 } from "@phoenix/components";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
@@ -80,11 +80,9 @@ export function PlaygroundCredentialsDropdown() {
                 {currentProviders.map((provider) => {
                   const credentialName = ProviderToCredentialNameMap[provider];
                   return (
-                    <TextField
+                    <CredentialField
                       size="S"
                       key={provider}
-                      type="password"
-                      autoComplete="off"
                       isRequired
                       onChange={(value) => {
                         setCredential({ provider, value });
@@ -92,11 +90,11 @@ export function PlaygroundCredentialsDropdown() {
                       value={credentials[provider]}
                     >
                       <Label>{credentialName}</Label>
-                      <Input />
+                      <CredentialInput />
                       <Text slot="description">
                         {`Alternatively, you can set the "${credentialName}" environment variable on the phoenix server.`}
                       </Text>
-                    </TextField>
+                    </CredentialField>
                   );
                 })}
               </Flex>
