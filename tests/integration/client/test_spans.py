@@ -856,13 +856,21 @@ class TestClientForSpansRetrieval:
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
-        # Test fetching all spans
+        # Extract the span IDs from the fixture
+        (span_id1, _), (span_id2, _) = _span_ids
+
         all_spans = await _await_or_return(
             Client().spans.get_spans(project_identifier="default", limit=50)
         )
 
-        # Should have 2 spans from the fixture
-        assert len(all_spans) == 2
+        span_ids_found = {span["context"]["span_id"] for span in all_spans}
+        assert span_id1 in span_ids_found, f"Expected span {span_id1} not found in {span_ids_found}"
+        assert span_id2 in span_ids_found, f"Expected span {span_id2} not found in {span_ids_found}"
+
+        limited_spans = await _await_or_return(
+            Client().spans.get_spans(project_identifier="default", limit=1)
+        )
+        assert len(limited_spans) <= 1, "Limit parameter should be respected"
 
         # Each span should have required fields
         for span in all_spans:
