@@ -1,3 +1,4 @@
+{{- if .Values.postgres.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -37,3 +38,4 @@ spec:
       - name: postgres-data
         persistentVolumeClaim:
           claimName: {{ template "phoenix.postgres-pvc" . }}
+{{- end }}

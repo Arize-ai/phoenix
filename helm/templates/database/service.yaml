@@ -1,3 +1,4 @@
+{{- if .Values.postgres.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -8,7 +9,8 @@ metadata:
 spec:
   type: NodePort
   ports:
-    - name: postgres 
+    - name: postgres
       port: 5432
   selector:
     app: postgres
+{{- end }}

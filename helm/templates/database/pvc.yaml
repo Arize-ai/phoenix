@@ -1,4 +1,4 @@
-{{- if .Values.postgres.persistence.enabled }}
+{{- if and .Values.postgres.enabled .Values.postgres.persistence.enabled }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
