@@ -30,6 +30,7 @@ spec:
         - name: POSTGRES_PASSWORD
           value: "{{ .Values.database.postgres.password }}"
         resources: {{ toYaml .Values.postgres.resources | nindent 10 }}
+    {{- if .Values.postgres.persistence.enabled }}
         volumeMounts:
         - name: postgres-data
           mountPath: /var/lib/postgresql/data
@@ -38,4 +39,5 @@ spec:
       - name: postgres-data
         persistentVolumeClaim:
           claimName: {{ template "phoenix.postgres-pvc" . }}
+    {{- end }}
 {{- end }}
