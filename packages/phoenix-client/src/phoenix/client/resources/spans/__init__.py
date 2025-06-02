@@ -155,8 +155,8 @@ class Spans:
                 `context.span_id` or `span_id` column.
             span_ids: An iterable of span IDs.
             project_identifier: The project identifier (name or ID) used in the API path.
-            annotation_names: Optional list of annotation names to include. If provided, only
-                annotations with these names will be returned.
+            include_annotation_names: Optional list of annotation names to include. If provided,
+                only annotations with these names will be returned.
             exclude_annotation_names: Optional list of annotation names to exclude from results.
                 Defaults to ["note"] to exclude note annotations, which are reserved for notes
                 added via the UI.
@@ -257,8 +257,8 @@ class Spans:
         Args:
             span_ids: An iterable of span IDs.
             project_identifier: The project identifier (name or ID) used in the API path.
-            annotation_names: Optional list of annotation names to include. If provided, only
-                annotations with these names will be returned.
+            include_annotation_names: Optional list of annotation names to include. If provided,
+                only annotations with these names will be returned.
             exclude_annotation_names: Optional list of annotation names to exclude from results.
                 Defaults to ["note"] to exclude note annotations, which are reserved for notes
                 added via the UI.
@@ -449,8 +449,8 @@ class AsyncSpans:
                 `context.span_id` or `span_id` column.
             span_ids: An iterable of span IDs.
             project_identifier: The project identifier (name or ID) used in the API path.
-            annotation_names: Optional list of annotation names to include. If provided, only
-                annotations with these names will be returned.
+            include_annotation_names: Optional list of annotation names to include. If provided,
+                only annotations with these names will be returned.
             exclude_annotation_names: Optional list of annotation names to exclude from results.
                 Defaults to ["note"] to exclude note annotations, which are reserved for notes
                 added via the UI.
@@ -550,8 +550,8 @@ class AsyncSpans:
         Args:
             span_ids: An iterable of span IDs.
             project_identifier: The project identifier (name or ID) used in the API path.
-            annotation_names: Optional list of annotation names to include. If provided, only
-                annotations with these names will be returned.
+            include_annotation_names: Optional list of annotation names to include. If provided,
+                only annotations with these names will be returned.
             exclude_annotation_names: Optional list of annotation names to exclude from results.
                 Defaults to ["note"] to exclude note annotations, which are reserved for notes
                 added via the UI.
