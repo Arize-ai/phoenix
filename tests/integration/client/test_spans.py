@@ -585,89 +585,6 @@ class TestClientForSpansRetrieval:
                 continue
 
     @pytest.mark.parametrize("is_async", [True, False])
-    async def test_annotation_name_filtering(
-        self,
-        is_async: bool,
-        _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
-        _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        """Test filtering spans by annotation names."""
-        (span_id1, _), (span_id2, _) = _span_ids
-
-        user = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
-        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
-
-        # Create unique annotation names
-        annotation_name_1 = f"filter_test_{token_hex(4)}"
-        annotation_name_2 = f"filter_test_{token_hex(4)}"
-
-        # Add annotations to specific spans
-        await _await_or_return(
-            Client().annotations.add_span_annotation(
-                annotation_name=annotation_name_1,
-                span_id=span_id1,
-                annotator_kind="CODE",
-                score=0.5,
-                sync=True,
-            )
-        )
-
-        await _await_or_return(
-            Client().annotations.add_span_annotation(
-                annotation_name=annotation_name_2,
-                span_id=span_id2,
-                annotator_kind="CODE",
-                score=0.7,
-                sync=True,
-            )
-        )
-
-        # Get spans with first annotation name
-        spans_with_anno1 = await _await_or_return(
-            Client().spans.get_spans(
-                project_identifier="default",
-                annotation_names=[annotation_name_1],
-                limit=50,
-            )
-        )
-
-        # Should include span_id1
-        span_ids = [s["context"]["span_id"] for s in spans_with_anno1]
-        assert span_id1 in span_ids
-
-        # Get spans with both annotation names
-        spans_with_both = await _await_or_return(
-            Client().spans.get_spans(
-                project_identifier="default",
-                annotation_names=[annotation_name_1, annotation_name_2],
-                limit=50,
-            )
-        )
-
-        # Should include both spans
-        span_ids_both = [s["context"]["span_id"] for s in spans_with_both]
-        assert span_id1 in span_ids_both
-        assert span_id2 in span_ids_both
-
-        # Get spans with non-existent annotation
-        spans_no_match = await _await_or_return(
-            Client().spans.get_spans(
-                project_identifier="default",
-                annotation_names=["non_existent_annotation_xyz"],
-                limit=50,
-            )
-        )
-
-        # Should be empty
-        assert len(spans_no_match) == 0
-
-    @pytest.mark.parametrize("is_async", [True, False])
     async def test_sort_direction(
         self,
         is_async: bool,
@@ -921,3 +838,36 @@ class TestClientForSpansRetrieval:
                     limit=10,
                 )
             )
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_client_get_spans(
+        self,
+        is_async: bool,
+        _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test the get_spans method returns spans correctly."""
+        user = _get_user(_MEMBER).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        # Test fetching all spans
+        all_spans = await _await_or_return(
+            Client().spans.get_spans(project_identifier="default", limit=50)
+        )
+
+        # Should have 2 spans from the fixture
+        assert len(all_spans) == 2
+
+        # Each span should have required fields
+        for span in all_spans:
+            assert "id" in span
+            assert "name" in span
+            assert "context" in span
+            assert "span_id" in span["context"]
+            assert "trace_id" in span["context"]

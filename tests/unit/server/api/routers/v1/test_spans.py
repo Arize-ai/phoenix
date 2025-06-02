@@ -176,7 +176,7 @@ async def project_with_a_single_trace_and_span_with_events(
 
 @pytest.fixture
 async def span_search_test_data(db: DbSessionFactory) -> None:
-    """Insert three spans with different times and annotations for filter tests."""
+    """Insert three spans with different times for filter tests."""
 
     async with db() as session:
         project = models.Project(name="search-test")
@@ -215,23 +215,6 @@ async def span_search_test_data(db: DbSessionFactory) -> None:
             session.add(span)
             spans.append(span)
         await session.flush()
-
-        # Add annotations to first two spans
-        for span in spans[:2]:
-            session.add(
-                models.SpanAnnotation(
-                    span_rowid=span.id,
-                    name="TestA",
-                    annotator_kind="HUMAN",
-                    label="L",
-                    score=1.0,
-                    explanation="",
-                    metadata_={},
-                    identifier="",  # noqa
-                    source="API",
-                    user_id=None,
-                )
-            )
 
 
 @pytest.fixture
@@ -286,31 +269,6 @@ async def test_otlp_span_search_basic(
     data = resp.json()
     spans = [OtlpSpan.model_validate(s) for s in data["data"]]
     assert len(spans) == 3
-    # Verify the spans have the expected structure
-    for span in spans:
-        assert isinstance(span.span_id, str)
-        assert isinstance(span.trace_id, str)
-        assert isinstance(span.name, str)
-        assert isinstance(span.start_time_unix_nano, (int, str))
-        assert isinstance(span.end_time_unix_nano, (int, str))
-        assert isinstance(span.attributes, (list, type(None)))
-        assert isinstance(span.status, (OtlpStatus, type(None)))
-        if span.status is not None:
-            assert isinstance(span.status.code, int)
-            assert span.status.code in (0, 1, 2)  # Valid OTLP status codes
-
-
-async def test_otlp_span_search_annotation_filter(
-    httpx_client: httpx.AsyncClient, span_search_test_data: None
-) -> None:
-    resp = await httpx_client.get(
-        "v1/projects/search-test/spans/otlpv1",
-        params={"annotation_names": ["TestA"]},
-    )
-    assert resp.is_success
-    data = resp.json()
-    spans = [OtlpSpan.model_validate(s) for s in data["data"]]
-    assert len(spans) == 2
     # Verify the spans have the expected structure
     for span in spans:
         assert isinstance(span.span_id, str)
@@ -534,28 +492,6 @@ async def test_span_search_basic(
     data = resp.json()
     spans = [Span.model_validate(s) for s in data["data"]]
     assert len(spans) == 3
-    for span in spans:
-        assert isinstance(span.id, str)
-        assert isinstance(span.context.span_id, str)
-        assert isinstance(span.context.trace_id, str)
-        assert isinstance(span.name, str)
-        assert isinstance(span.start_time, datetime)
-        assert isinstance(span.end_time, datetime)
-        assert isinstance(span.attributes, dict)
-        assert isinstance(span.status_code, str)
-
-
-async def test_span_search_annotation_filter(
-    httpx_client: httpx.AsyncClient, span_search_test_data: None
-) -> None:
-    resp = await httpx_client.get(
-        "v1/projects/search-test/spans",
-        params={"annotation_names": ["TestA"]},
-    )
-    assert resp.is_success
-    data = resp.json()
-    spans = [Span.model_validate(s) for s in data["data"]]
-    assert len(spans) == 2
     for span in spans:
         assert isinstance(span.id, str)
         assert isinstance(span.context.span_id, str)

@@ -356,7 +356,6 @@ class Spans:
         project_identifier: str,
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
-        annotation_names: Optional[Sequence[str]] = None,
         limit: int = 100,
         sort_direction: Literal["asc", "desc"] = "desc",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -368,8 +367,6 @@ class Spans:
             project_identifier: The project identifier (name or ID) used in the API path.
             start_time: Optional start time for filtering (inclusive lower bound).
             end_time: Optional end time for filtering (exclusive upper bound).
-            annotation_names: Optional list of annotation names to filter by. If provided, only
-                spans that have at least one annotation with one of these names will be returned.
             limit: Maximum number of spans to return (default: 100).
             sort_direction: Sort direction for spans ordered by insertion order. Use "desc" for
                 newest first or "asc" for oldest first (default: "desc").
@@ -395,8 +392,6 @@ class Spans:
                 params["start_time"] = start_time.isoformat()
             if end_time:
                 params["end_time"] = end_time.isoformat()
-            if annotation_names:
-                params["annotation_names"] = annotation_names
             if cursor:
                 params["cursor"] = cursor
 
@@ -602,7 +597,7 @@ class AsyncSpans:
             span_ids_list = list({*span_ids_raw})
         elif span_ids is not None:
             span_ids_list = list({*span_ids})
-        else:  # spans is not None
+        else:
             assert spans is not None
             _span_ids = [
                 span["context"]["span_id"]
@@ -645,7 +640,7 @@ class AsyncSpans:
                 annotations.extend(batch)
                 cursor = payload.get("next_cursor")
                 if not cursor:
-                    break
+                    break  # finished paginating this batch
 
         df = pd.DataFrame(annotations)
         df = _flatten_nested_column(df, "result")
@@ -757,7 +752,6 @@ class AsyncSpans:
         project_identifier: str,
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
-        annotation_names: Optional[Sequence[str]] = None,
         limit: int = 100,
         sort_direction: Literal["asc", "desc"] = "desc",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -769,8 +763,6 @@ class AsyncSpans:
             project_identifier: The project identifier (name or ID) used in the API path.
             start_time: Optional start time for filtering (inclusive lower bound).
             end_time: Optional end time for filtering (exclusive upper bound).
-            annotation_names: Optional list of annotation names to filter by. If provided, only
-                spans that have at least one annotation with one of these names will be returned.
             limit: Maximum number of spans to return (default: 100).
             sort_direction: Sort direction for spans ordered by insertion order. Use "desc" for
                 newest first or "asc" for oldest first (default: "desc").
@@ -796,8 +788,6 @@ class AsyncSpans:
                 params["start_time"] = start_time.isoformat()
             if end_time:
                 params["end_time"] = end_time.isoformat()
-            if annotation_names:
-                params["annotation_names"] = annotation_names
             if cursor:
                 params["cursor"] = cursor
 

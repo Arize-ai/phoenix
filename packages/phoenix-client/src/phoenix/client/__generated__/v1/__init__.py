@@ -323,6 +323,17 @@ class SpanAnnotationResult(TypedDict):
     explanation: NotRequired[str]
 
 
+class SpanContext(TypedDict):
+    trace_id: str
+    span_id: str
+
+
+class SpanEvent(TypedDict):
+    name: str
+    timestamp: str
+    attributes: NotRequired[Mapping[str, Any]]
+
+
 class TextContentPart(TypedDict):
     type: Literal["text"]
     text: str
@@ -546,6 +557,20 @@ class PromptXAIInvocationParameters(TypedDict):
     xai: PromptXAIInvocationParametersContent
 
 
+class Span(TypedDict):
+    id: str
+    name: str
+    context: SpanContext
+    span_kind: str
+    start_time: str
+    end_time: str
+    status_code: str
+    parent_id: NotRequired[str]
+    status_message: NotRequired[str]
+    attributes: NotRequired[Mapping[str, Any]]
+    events: NotRequired[Sequence[SpanEvent]]
+
+
 class SpanAnnotationData(TypedDict):
     span_id: str
     name: str
@@ -565,6 +590,11 @@ class SpanAnnotation(SpanAnnotationData):
 
 class SpanAnnotationsResponseBody(TypedDict):
     data: Sequence[SpanAnnotation]
+    next_cursor: Optional[str]
+
+
+class SpanSearchResponseBody(TypedDict):
+    data: Sequence[Span]
     next_cursor: Optional[str]
 
 
@@ -701,6 +731,6 @@ class OtlpSpan(TypedDict):
     trace_state: NotRequired[str]
 
 
-class SpanSearchResponseBody(TypedDict):
+class OtlpSpanSearchResponseBody(TypedDict):
     data: Sequence[OtlpSpan]
     next_cursor: Optional[str]

@@ -393,7 +393,7 @@ class SpanEvent(V1RoutesBaseModel):
 
 
 class Span(V1RoutesBaseModel):
-    id: str = Field(description="Phoenix span ID")
+    id: str = Field(description="Span Global ID, distinct from the OpenTelemetry span ID")
     name: str = Field(description="Name of the span operation")
     context: SpanContext = Field(description="Span context containing trace_id and span_id")
     span_kind: str = Field(description="Type of work that the span encapsulates")
@@ -549,11 +549,11 @@ def _to_any_value(value: Any) -> OtlpAnyValue:
     "/projects/{project_identifier}/spans/otlpv1",
     operation_id="spanSearch",
     summary="Search spans with simple filters (no DSL)",
-    description="Return spans within a project filtered by time range, annotation names, "
+    description="Return spans within a project filtered by time range "
     "and ordered by start_time. Supports cursor-based pagination.",
     responses=add_errors_to_responses([HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY]),
 )
-async def span_search(
+async def span_search_otlpv1(
     request: Request,
     project_identifier: str = Path(
         description=(
@@ -561,7 +561,7 @@ async def span_search(
             "it cannot contain slash (/), question mark (?), or pound sign (#) characters."
         )
     ),
-    cursor: Optional[str] = Query(default=None, description="Pagination cursor (Phoenix Span ID)"),
+    cursor: Optional[str] = Query(default=None, description="Pagination cursor (Span Global ID)"),
     limit: int = Query(default=100, gt=0, le=1000, description="Maximum number of spans to return"),
     sort_direction: Literal["asc", "desc"] = Query(
         default="desc",
@@ -569,13 +569,6 @@ async def span_search(
     ),
     start_time: Optional[datetime] = Query(default=None, description="Inclusive lower bound time"),
     end_time: Optional[datetime] = Query(default=None, description="Exclusive upper bound time"),
-    annotation_names: Optional[list[str]] = Query(
-        default=None,
-        description=(
-            "If provided, only include spans that have at least one annotation with one "
-            "of these names."
-        ),
-    ),
 ) -> OtlpSpanSearchResponseBody:
     """Search spans with minimal filters instead of the old SpanQuery DSL."""
 
@@ -599,16 +592,6 @@ async def span_search(
         stmt = stmt.where(models.Span.start_time >= normalize_datetime(start_time, timezone.utc))
     if end_time:
         stmt = stmt.where(models.Span.start_time < normalize_datetime(end_time, timezone.utc))
-
-    if annotation_names:
-        stmt = (
-            stmt.join(
-                models.SpanAnnotation,
-                onclause=models.SpanAnnotation.span_rowid == models.Span.id,
-            )
-            .where(models.SpanAnnotation.name.in_(annotation_names))
-            .group_by(models.Span.id, models.Trace.trace_id)
-        )
 
     if cursor:
         try:
@@ -710,11 +693,11 @@ async def span_search(
     "/projects/{project_identifier}/spans",
     operation_id="spanSearchPhoenix",
     summary="Search spans with simple filters (no DSL)",
-    description="Return spans within a project filtered by time range, annotation names, "
+    description="Return spans within a project filtered by time range "
     "and ordered by start_time. Supports cursor-based pagination.",
     responses=add_errors_to_responses([HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY]),
 )
-async def span_search_phoenix(
+async def span_search(
     request: Request,
     project_identifier: str = Path(
         description=(
@@ -722,7 +705,7 @@ async def span_search_phoenix(
             "it cannot contain slash (/), question mark (?), or pound sign (#) characters."
         )
     ),
-    cursor: Optional[str] = Query(default=None, description="Pagination cursor (Phoenix Span ID)"),
+    cursor: Optional[str] = Query(default=None, description="Pagination cursor (Span Global ID)"),
     limit: int = Query(default=100, gt=0, le=1000, description="Maximum number of spans to return"),
     sort_direction: Literal["asc", "desc"] = Query(
         default="desc",
@@ -730,13 +713,6 @@ async def span_search_phoenix(
     ),
     start_time: Optional[datetime] = Query(default=None, description="Inclusive lower bound time"),
     end_time: Optional[datetime] = Query(default=None, description="Exclusive upper bound time"),
-    annotation_names: Optional[list[str]] = Query(
-        default=None,
-        description=(
-            "If provided, only include spans that have at least one annotation with one "
-            "of these names."
-        ),
-    ),
 ) -> SpanSearchResponseBody:
     async with request.app.state.db() as session:
         project = await _get_project_by_identifier(session, project_identifier)
@@ -758,16 +734,6 @@ async def span_search_phoenix(
         stmt = stmt.where(models.Span.start_time >= normalize_datetime(start_time, timezone.utc))
     if end_time:
         stmt = stmt.where(models.Span.start_time < normalize_datetime(end_time, timezone.utc))
-
-    if annotation_names:
-        stmt = (
-            stmt.join(
-                models.SpanAnnotation,
-                onclause=models.SpanAnnotation.span_rowid == models.Span.id,
-            )
-            .where(models.SpanAnnotation.name.in_(annotation_names))
-            .group_by(models.Span.id, models.Trace.trace_id)
-        )
 
     if cursor:
         try:

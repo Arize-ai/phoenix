@@ -1729,7 +1729,7 @@
           "spans"
         ],
         "summary": "Search spans with simple filters (no DSL)",
-        "description": "Return spans within a project filtered by time range, annotation names, and ordered by start_time. Supports cursor-based pagination.",
+        "description": "Return spans within a project filtered by time range and ordered by start_time. Supports cursor-based pagination.",
         "operationId": "spanSearch",
         "parameters": [
           {
@@ -1756,10 +1756,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Pagination cursor (Phoenix Span ID)",
+              "description": "Pagination cursor (Span Global ID)",
               "title": "Cursor"
             },
-            "description": "Pagination cursor (Phoenix Span ID)"
+            "description": "Pagination cursor (Span Global ID)"
           },
           {
             "name": "limit",
@@ -1828,27 +1828,6 @@
               "title": "End Time"
             },
             "description": "Exclusive upper bound time"
-          },
-          {
-            "name": "annotation_names",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "If provided, only include spans that have at least one annotation with one of these names.",
-              "title": "Annotation Names"
-            },
-            "description": "If provided, only include spans that have at least one annotation with one of these names."
           }
         ],
         "responses": {
@@ -1901,7 +1880,7 @@
           "spans"
         ],
         "summary": "Search spans with simple filters (no DSL)",
-        "description": "Return spans within a project filtered by time range, annotation names, and ordered by start_time. Supports cursor-based pagination.",
+        "description": "Return spans within a project filtered by time range and ordered by start_time. Supports cursor-based pagination.",
         "operationId": "spanSearchPhoenix",
         "parameters": [
           {
@@ -1928,10 +1907,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Pagination cursor (Phoenix Span ID)",
+              "description": "Pagination cursor (Span Global ID)",
               "title": "Cursor"
             },
-            "description": "Pagination cursor (Phoenix Span ID)"
+            "description": "Pagination cursor (Span Global ID)"
           },
           {
             "name": "limit",
@@ -2000,27 +1979,6 @@
               "title": "End Time"
             },
             "description": "Exclusive upper bound time"
-          },
-          {
-            "name": "annotation_names",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "If provided, only include spans that have at least one annotation with one of these names.",
-              "title": "Annotation Names"
-            },
-            "description": "If provided, only include spans that have at least one annotation with one of these names."
           }
         ],
         "responses": {
@@ -6808,7 +6766,7 @@
           "id": {
             "type": "string",
             "title": "Id",
-            "description": "Phoenix span ID"
+            "description": "Span Global ID, distinct from the OpenTelemetry span ID"
           },
           "name": {
             "type": "string",

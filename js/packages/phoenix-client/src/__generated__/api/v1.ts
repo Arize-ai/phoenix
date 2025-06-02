@@ -327,7 +327,7 @@ export interface paths {
         };
         /**
          * Search spans with simple filters (no DSL)
-         * @description Return spans within a project filtered by time range, annotation names, and ordered by start_time. Supports cursor-based pagination.
+         * @description Return spans within a project filtered by time range and ordered by start_time. Supports cursor-based pagination.
          */
         get: operations["spanSearch"];
         put?: never;
@@ -347,7 +347,7 @@ export interface paths {
         };
         /**
          * Search spans with simple filters (no DSL)
-         * @description Return spans within a project filtered by time range, annotation names, and ordered by start_time. Supports cursor-based pagination.
+         * @description Return spans within a project filtered by time range and ordered by start_time. Supports cursor-based pagination.
          */
         get: operations["spanSearchPhoenix"];
         put?: never;
@@ -1909,7 +1909,7 @@ export interface components {
         Span: {
             /**
              * Id
-             * @description Phoenix span ID
+             * @description Span Global ID, distinct from the OpenTelemetry span ID
              */
             id: string;
             /**
@@ -3388,7 +3388,7 @@ export interface operations {
     spanSearch: {
         parameters: {
             query?: {
-                /** @description Pagination cursor (Phoenix Span ID) */
+                /** @description Pagination cursor (Span Global ID) */
                 cursor?: string | null;
                 /** @description Maximum number of spans to return */
                 limit?: number;
@@ -3398,8 +3398,6 @@ export interface operations {
                 start_time?: string | null;
                 /** @description Exclusive upper bound time */
                 end_time?: string | null;
-                /** @description If provided, only include spans that have at least one annotation with one of these names. */
-                annotation_names?: string[] | null;
             };
             header?: never;
             path: {
@@ -3451,7 +3449,7 @@ export interface operations {
     spanSearchPhoenix: {
         parameters: {
             query?: {
-                /** @description Pagination cursor (Phoenix Span ID) */
+                /** @description Pagination cursor (Span Global ID) */
                 cursor?: string | null;
                 /** @description Maximum number of spans to return */
                 limit?: number;
@@ -3461,8 +3459,6 @@ export interface operations {
                 start_time?: string | null;
                 /** @description Exclusive upper bound time */
                 end_time?: string | null;
-                /** @description If provided, only include spans that have at least one annotation with one of these names. */
-                annotation_names?: string[] | null;
             };
             header?: never;
             path: {
