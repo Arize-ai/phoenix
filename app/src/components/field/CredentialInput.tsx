@@ -98,7 +98,6 @@ function CredentialInput(
         onPress={() => setIsVisible(!isVisible)}
         isDisabled={disabled || readOnly}
         aria-label={isVisible ? "Hide credential" : "Show credential"}
-        excludeFromTabOrder
       >
         <Icon
           svg={isVisible ? <Icons.EyeOutline /> : <Icons.EyeOffOutline />}
