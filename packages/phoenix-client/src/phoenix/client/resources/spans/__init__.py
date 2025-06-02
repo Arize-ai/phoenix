@@ -211,8 +211,8 @@ class Spans:
                 }
                 if annotation_names is not None:
                     params["include_annotation_names"] = annotation_names
-                if effective_exclude_names:
-                    params["exclude_annotation_names"] = effective_exclude_names
+                if exclude_annotation_names:
+                    params["exclude_annotation_names"] = exclude_annotation_names
                 if cursor:
                     params["cursor"] = cursor
 
@@ -286,10 +286,11 @@ class Spans:
                 }
                 if annotation_names is not None:
                     params["include_annotation_names"] = annotation_names
-                if effective_exclude_names:
-                    params["exclude_annotation_names"] = effective_exclude_names
+                if exclude_annotation_names:
+                    params["exclude_annotation_names"] = exclude_annotation_names
                 if cursor:
                     params["cursor"] = cursor
+
                 response = self._client.get(
                     url=path,
                     params=params,
@@ -497,8 +498,8 @@ class AsyncSpans:
                 }
                 if annotation_names is not None:
                     params["include_annotation_names"] = annotation_names
-                if effective_exclude_names:
-                    params["exclude_annotation_names"] = effective_exclude_names
+                if exclude_annotation_names:
+                    params["exclude_annotation_names"] = exclude_annotation_names
                 if cursor:
                     params["cursor"] = cursor
 
