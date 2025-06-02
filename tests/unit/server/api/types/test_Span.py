@@ -33,7 +33,7 @@ async def test_project_resolver_returns_correct_project(
     project_with_a_single_trace_and_span: None,
 ) -> None:
     query = """
-      query ($spanId: GlobalID!) {
+      query ($spanId: ID!) {
         span: node(id: $spanId) {
           ... on Span {
             project {
@@ -66,7 +66,7 @@ async def test_querying_spans_contained_in_datasets(
     simple_dataset: None,
 ) -> None:
     query = """
-      query ($spanId: GlobalID!) {
+      query ($spanId: ID!) {
         span: node(id: $spanId) {
           ... on Span {
             containedInDataset
@@ -91,7 +91,7 @@ async def test_querying_spans_not_contained_in_datasets(
     gql_client: AsyncGraphQLClient, project_with_a_single_trace_and_span: None
 ) -> None:
     query = """
-      query ($spanId: GlobalID!) {
+      query ($spanId: ID!) {
         span: node(id: $spanId) {
           ... on Span {
             containedInDataset
@@ -117,14 +117,14 @@ async def test_span_fields(
     _span_data: tuple[models.Project, Mapping[int, models.Trace], Mapping[int, models.Span]],
 ) -> None:
     query = """
-      query SpanBySpanNodeId($id: GlobalID!) {
+      query SpanBySpanNodeId($id: ID!) {
         node(id: $id) {
           ... on Span {
             ...SpanFragment
           }
         }
       }
-      query SpansByTraceNodeId($traceId: GlobalID!) {
+      query SpansByTraceNodeId($traceId: ID!) {
         node(id: $traceId) {
           ... on Trace {
             spans(first: 1000) {
@@ -137,7 +137,7 @@ async def test_span_fields(
           }
         }
       }
-      query SpansByProjectNodeId($projectId: GlobalID!) {
+      query SpansByProjectNodeId($projectId: ID!) {
         node(id: $projectId) {
           ... on Project {
             spans(first: 1000) {
@@ -652,7 +652,7 @@ async def test_span_annotation_summaries(
             filter_arg = f'(filter: {{ {", ".join(filter_parts)} }})'
 
     query = f"""
-      query ($spanId: GlobalID!) {{
+      query ($spanId: ID!) {{
         span: node(id: $spanId) {{
           ... on Span {{
             spanAnnotationSummaries{filter_arg} {{

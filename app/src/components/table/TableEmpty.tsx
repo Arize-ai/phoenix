@@ -1,5 +1,3 @@
-import React from "react";
-
 import { Text } from "@phoenix/components";
 
 import { TableEmptyWrap } from "./TableEmptyWrap";

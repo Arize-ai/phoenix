@@ -1,10 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { JSONSchema7 } from "json-schema";
 
 import { Card } from "@arizeai/components";
@@ -125,6 +119,8 @@ export function PlaygroundTool({
     switch (instance.model.provider) {
       case "OPENAI":
       case "AZURE_OPENAI":
+      case "DEEPSEEK":
+      case "XAI":
         return openAIToolDefinitionJSONSchema as JSONSchema7;
       case "ANTHROPIC":
         return anthropicToolDefinitionJSONSchema as JSONSchema7;

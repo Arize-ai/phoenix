@@ -20,6 +20,20 @@ class CreateExperimentRequestBody(TypedDict):
     repetitions: NotRequired[int]
 
 
+class CreateExperimentRunRequestBody(TypedDict):
+    dataset_example_id: str
+    output: Any
+    repetition_number: int
+    start_time: str
+    end_time: str
+    trace_id: NotRequired[str]
+    error: NotRequired[str]
+
+
+class CreateExperimentRunResponseBodyData(TypedDict):
+    id: str
+
+
 class CreateProjectRequestBody(TypedDict):
     name: str
     description: NotRequired[str]
@@ -70,6 +84,24 @@ class Experiment(TypedDict):
     updated_at: str
 
 
+class ExperimentEvaluationResult(TypedDict):
+    label: NotRequired[str]
+    score: NotRequired[float]
+    explanation: NotRequired[str]
+
+
+class ExperimentRunResponse(TypedDict):
+    dataset_example_id: str
+    output: Any
+    repetition_number: int
+    start_time: str
+    end_time: str
+    id: str
+    experiment_id: str
+    trace_id: NotRequired[str]
+    error: NotRequired[str]
+
+
 class FreeformAnnotationConfig(TypedDict):
     type: Literal["FREEFORM"]
     name: str
@@ -115,8 +147,48 @@ class ListDatasetsResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
+class ListExperimentRunsResponseBody(TypedDict):
+    data: Sequence[ExperimentRunResponse]
+
+
 class ListExperimentsResponseBody(TypedDict):
     data: Sequence[Experiment]
+
+
+class LocalUserData(TypedDict):
+    email: str
+    username: str
+    role: Literal["SYSTEM", "ADMIN", "MEMBER"]
+    auth_method: Literal["LOCAL"]
+    password: NotRequired[str]
+
+
+class LocalUser(LocalUserData):
+    id: str
+    created_at: str
+    updated_at: str
+    password_needs_reset: bool
+
+
+class OAuth2UserData(TypedDict):
+    email: str
+    username: str
+    role: Literal["SYSTEM", "ADMIN", "MEMBER"]
+    auth_method: Literal["OAUTH2"]
+    oauth2_client_id: NotRequired[str]
+    oauth2_user_id: NotRequired[str]
+
+
+class OAuth2User(OAuth2UserData):
+    id: str
+    created_at: str
+    updated_at: str
+    profile_picture_url: NotRequired[str]
+
+
+class OtlpStatus(TypedDict):
+    code: NotRequired[int]
+    message: NotRequired[str]
 
 
 class Project(TypedDict):
@@ -145,6 +217,17 @@ class PromptAnthropicThinkingConfigEnabled(TypedDict):
 
 
 class PromptAzureOpenAIInvocationParametersContent(TypedDict):
+    temperature: NotRequired[float]
+    max_tokens: NotRequired[int]
+    max_completion_tokens: NotRequired[int]
+    frequency_penalty: NotRequired[float]
+    presence_penalty: NotRequired[float]
+    top_p: NotRequired[float]
+    seed: NotRequired[int]
+    reasoning_effort: NotRequired[Literal["low", "medium", "high"]]
+
+
+class PromptDeepSeekInvocationParametersContent(TypedDict):
     temperature: NotRequired[float]
     max_tokens: NotRequired[int]
     max_completion_tokens: NotRequired[int]
@@ -223,6 +306,17 @@ class PromptVersionTagData(TypedDict):
     description: NotRequired[str]
 
 
+class PromptXAIInvocationParametersContent(TypedDict):
+    temperature: NotRequired[float]
+    max_tokens: NotRequired[int]
+    max_completion_tokens: NotRequired[int]
+    frequency_penalty: NotRequired[float]
+    presence_penalty: NotRequired[float]
+    top_p: NotRequired[float]
+    seed: NotRequired[int]
+    reasoning_effort: NotRequired[Literal["low", "medium", "high"]]
+
+
 class SpanAnnotationResult(TypedDict):
     label: NotRequired[str]
     score: NotRequired[float]
@@ -256,10 +350,27 @@ class UpdateProjectResponseBody(TypedDict):
 
 class UploadDatasetData(TypedDict):
     dataset_id: str
+    version_id: str
 
 
 class UploadDatasetResponseBody(TypedDict):
     data: UploadDatasetData
+
+
+class UpsertExperimentEvaluationRequestBody(TypedDict):
+    experiment_run_id: str
+    name: str
+    annotator_kind: Literal["LLM", "CODE", "HUMAN"]
+    start_time: str
+    end_time: str
+    result: ExperimentEvaluationResult
+    error: NotRequired[str]
+    metadata: NotRequired[Mapping[str, Any]]
+    trace_id: NotRequired[str]
+
+
+class UpsertExperimentEvaluationResponseBodyData(TypedDict):
+    id: str
 
 
 class ValidationError(TypedDict):
@@ -316,8 +427,21 @@ class CreateExperimentResponseBody(TypedDict):
     data: Experiment
 
 
+class CreateExperimentRunResponseBody(TypedDict):
+    data: CreateExperimentRunResponseBodyData
+
+
 class CreateProjectResponseBody(TypedDict):
     data: Project
+
+
+class CreateUserRequestBody(TypedDict):
+    user: Union[LocalUserData, OAuth2UserData]
+    send_welcome_email: NotRequired[bool]
+
+
+class CreateUserResponseBody(TypedDict):
+    data: Union[LocalUser, OAuth2User]
 
 
 class DeleteAnnotationConfigResponseBody(TypedDict):
@@ -354,6 +478,11 @@ class GetPromptsResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
+class GetUsersResponseBody(TypedDict):
+    data: Sequence[Union[LocalUser, OAuth2User]]
+    next_cursor: Optional[str]
+
+
 class HTTPValidationError(TypedDict):
     detail: NotRequired[Sequence[ValidationError]]
 
@@ -371,6 +500,11 @@ class PromptAnthropicInvocationParametersContent(TypedDict):
 class PromptAzureOpenAIInvocationParameters(TypedDict):
     type: Literal["azure_openai"]
     azure_openai: PromptAzureOpenAIInvocationParametersContent
+
+
+class PromptDeepSeekInvocationParameters(TypedDict):
+    type: Literal["deepseek"]
+    deepseek: PromptDeepSeekInvocationParametersContent
 
 
 class PromptGoogleInvocationParameters(TypedDict):
@@ -407,6 +541,11 @@ class PromptTools(TypedDict):
     disable_parallel_tool_calls: NotRequired[bool]
 
 
+class PromptXAIInvocationParameters(TypedDict):
+    type: Literal["xai"]
+    xai: PromptXAIInvocationParametersContent
+
+
 class SpanAnnotationData(TypedDict):
     span_id: str
     name: str
@@ -439,6 +578,10 @@ class UpdateAnnotationConfigResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
 
+class UpsertExperimentEvaluationResponseBody(TypedDict):
+    data: UpsertExperimentEvaluationResponseBodyData
+
+
 class AnnotateSpansRequestBody(TypedDict):
     data: Sequence[SpanAnnotationData]
 
@@ -461,7 +604,7 @@ class PromptChatTemplate(TypedDict):
 
 
 class PromptVersionData(TypedDict):
-    model_provider: Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE"]
+    model_provider: Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE", "DEEPSEEK", "XAI"]
     model_name: str
     template: Union[PromptChatTemplate, PromptStringTemplate]
     template_type: Literal["STR", "CHAT"]
@@ -471,6 +614,8 @@ class PromptVersionData(TypedDict):
         PromptAzureOpenAIInvocationParameters,
         PromptAnthropicInvocationParameters,
         PromptGoogleInvocationParameters,
+        PromptDeepSeekInvocationParameters,
+        PromptXAIInvocationParameters,
     ]
     description: NotRequired[str]
     tools: NotRequired[PromptTools]
@@ -496,4 +641,66 @@ class GetPromptResponseBody(TypedDict):
 
 class GetPromptVersionsResponseBody(TypedDict):
     data: Sequence[PromptVersion]
+    next_cursor: Optional[str]
+
+
+class OtlpAnyValue(TypedDict):
+    array_value: NotRequired[OtlpArrayValue]
+    bool_value: NotRequired[bool]
+    bytes_value: NotRequired[str]
+    double_value: NotRequired[Union[float, str, Literal["Infinity", "-Infinity", "NaN"]]]
+    int_value: NotRequired[Union[int, str]]
+    kvlist_value: NotRequired[None]
+    string_value: NotRequired[str]
+
+
+class OtlpArrayValue(TypedDict):
+    values: NotRequired[Sequence[OtlpAnyValue]]
+
+
+class OtlpEvent(TypedDict):
+    attributes: NotRequired[Sequence[OtlpKeyValue]]
+    dropped_attributes_count: NotRequired[int]
+    name: NotRequired[str]
+    time_unix_nano: NotRequired[Union[int, str]]
+
+
+class OtlpKeyValue(TypedDict):
+    key: NotRequired[str]
+    value: NotRequired[OtlpAnyValue]
+
+
+class OtlpSpan(TypedDict):
+    attributes: NotRequired[Sequence[OtlpKeyValue]]
+    dropped_attributes_count: NotRequired[int]
+    dropped_events_count: NotRequired[int]
+    dropped_links_count: NotRequired[int]
+    end_time_unix_nano: NotRequired[Union[int, str]]
+    events: NotRequired[Sequence[OtlpEvent]]
+    flags: NotRequired[int]
+    kind: NotRequired[
+        Union[
+            int,
+            Literal[
+                "SPAN_KIND_UNSPECIFIED",
+                "SPAN_KIND_INTERNAL",
+                "SPAN_KIND_SERVER",
+                "SPAN_KIND_CLIENT",
+                "SPAN_KIND_PRODUCER",
+                "SPAN_KIND_CONSUMER",
+            ],
+        ]
+    ]
+    links: NotRequired[None]
+    name: NotRequired[str]
+    parent_span_id: NotRequired[str]
+    span_id: NotRequired[str]
+    start_time_unix_nano: NotRequired[Union[int, str]]
+    status: NotRequired[OtlpStatus]
+    trace_id: NotRequired[str]
+    trace_state: NotRequired[str]
+
+
+class SpanSearchResponseBody(TypedDict):
+    data: Sequence[OtlpSpan]
     next_cursor: Optional[str]

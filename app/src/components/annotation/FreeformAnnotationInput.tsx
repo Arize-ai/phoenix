@@ -1,4 +1,4 @@
-import React, { forwardRef } from "react";
+import { forwardRef } from "react";
 import { TextArea } from "react-aria-components";
 
 import { Flex, Text, TextField, TextFieldProps } from "@phoenix/components";

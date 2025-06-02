@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.10.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.10.0...arize-phoenix-otel-v0.10.1) (2025-05-28)
+
+
+### Bug Fixes
+
+* `register` crashes when printing details under certain conditions ([#7754](https://github.com/Arize-ai/phoenix/issues/7754)) ([754d713](https://github.com/Arize-ai/phoenix/commit/754d713fb5d85e0fdc2925aca514da128c9d5586))
+
+## [0.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.9.2...arize-phoenix-otel-v0.10.0) (2025-05-28)
+
+
+### Features
+
+* Add option to not replace default span processor ([#7736](https://github.com/Arize-ai/phoenix/issues/7736)) ([95a9ac2](https://github.com/Arize-ai/phoenix/commit/95a9ac2098c7efc134b340b3a21b26bf267e1831))
+
 ## [0.9.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.9.1...arize-phoenix-otel-v0.9.2) (2025-04-14)
 
 

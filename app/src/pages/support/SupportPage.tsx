@@ -1,4 +1,4 @@
-import React, { ReactNode } from "react";
+import { ReactNode } from "react";
 import { css } from "@emotion/react";
 
 import { Flex, Heading, Icon, Icons, Text, View } from "@phoenix/components";
@@ -29,7 +29,7 @@ export function SupportPage() {
         <div css={supportItemsCSS}>
           <SupportItem
             leadingVisual={<Icon svg={<Icons.BookFilled />} />}
-            href="https://docs.arize.com/phoenix"
+            href="https://arize.com/docs/phoenix"
             title="Documentation"
             description="Visit our documentation for tutorials and AI support."
           />

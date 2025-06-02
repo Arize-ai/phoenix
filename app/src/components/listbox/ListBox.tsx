@@ -1,4 +1,4 @@
-import React, { forwardRef, Ref } from "react";
+import { forwardRef, Ref } from "react";
 import {
   ListBox as AriaListBox,
   ListBoxProps as AriaListBoxProps,
@@ -14,8 +14,6 @@ const listBoxCSS = css`
   overflow: auto;
   forced-color-adjust: none;
   outline: none;
-  max-height: 300px;
-  min-height: 100px;
   box-sizing: border-box;
 
   &[data-focus-visible] {

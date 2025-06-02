@@ -807,8 +807,6 @@ def _get_spans_dataframe(
         stmt = stmt.where(start_time <= models.Span.start_time)
     if end_time:
         stmt = stmt.where(models.Span.start_time < end_time)
-    if limit is not None:
-        stmt = stmt.limit(limit)
     if root_spans_only:
         # A root span is either a span with no parent_id or an orphan span
         # (a span whose parent_id references a span that doesn't exist in the database)
@@ -827,6 +825,8 @@ def _get_spans_dataframe(
         else:
             # Only include explicit root spans (spans with parent_id = NULL)
             stmt = stmt.where(models.Span.parent_id.is_(None))
+    if limit is not None:
+        stmt = stmt.limit(limit)
     conn = session.connection()
     # set `drop=False` for backward-compatibility
     df = pd.read_sql_query(stmt, conn).set_index(span_id_label, drop=False)

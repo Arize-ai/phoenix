@@ -300,7 +300,7 @@ class TestResponseFormat:
 
 
 class TestUserId:
-    QUERY = "query($versionId:GlobalID!){node(id:$versionId){... on PromptVersion{user{id}}}}"
+    QUERY = "query($versionId:ID!){node(id:$versionId){... on PromptVersion{user{id}}}}"
 
     def test_client(self, _get_user: _GetUser, monkeypatch: pytest.MonkeyPatch) -> None:
         u = _get_user(_MEMBER).log_in()
@@ -337,7 +337,9 @@ def _create_chat_prompt(
     /,
     *,
     messages: Sequence[PromptMessageInput] = (),
-    model_provider: Literal["ANTHROPIC", "AZURE_OPENAI", "GOOGLE", "OPENAI"] = "OPENAI",
+    model_provider: Literal[
+        "ANTHROPIC", "AZURE_OPENAI", "GOOGLE", "OPENAI", "DEEPSEEK", "XAI"
+    ] = "OPENAI",
     model_name: str | None = None,
     response_format: ResponseFormatInput | None = None,
     tools: Sequence[ToolDefinitionInput] = (),
@@ -388,7 +390,7 @@ class TestClient:
         "model_providers,convert,expected",
         [
             pytest.param(
-                "OPENAI,AZURE_OPENAI",
+                "OPENAI,AZURE_OPENAI,DEEPSEEK,XAI",
                 PromptVersion.from_openai,
                 CompletionCreateParamsBase(
                     model=token_hex(8),
@@ -406,7 +408,7 @@ class TestClient:
                 id="openai-system-message-string",
             ),
             pytest.param(
-                "OPENAI,AZURE_OPENAI",
+                "OPENAI,AZURE_OPENAI,DEEPSEEK,XAI",
                 PromptVersion.from_openai,
                 CompletionCreateParamsBase(
                     model=token_hex(8),
@@ -472,7 +474,7 @@ class TestClient:
                 id="openai-developer-message-list",
             ),
             pytest.param(
-                "OPENAI",
+                "OPENAI,AZURE_OPENAI,DEEPSEEK,XAI",
                 PromptVersion.from_openai,
                 CompletionCreateParamsBase(
                     model=token_hex(8),
@@ -493,7 +495,7 @@ class TestClient:
                 id="openai-tools",
             ),
             pytest.param(
-                "OPENAI,AZURE_OPENAI",
+                "OPENAI,AZURE_OPENAI,DEEPSEEK,XAI",
                 PromptVersion.from_openai,
                 CompletionCreateParamsBase(
                     model=token_hex(8),
@@ -511,7 +513,7 @@ class TestClient:
                 id="openai-response-format",
             ),
             pytest.param(
-                "OPENAI",
+                "OPENAI,AZURE_OPENAI,DEEPSEEK,XAI",
                 PromptVersion.from_openai,
                 CompletionCreateParamsBase(
                     model=token_hex(8),
@@ -554,7 +556,7 @@ class TestClient:
                 id="openai-function-calling",
             ),
             pytest.param(
-                "OPENAI,AZURE_OPENAI",
+                "OPENAI,AZURE_OPENAI,DEEPSEEK,XAI",
                 PromptVersion.from_openai,
                 CompletionCreateParamsBase(
                     model=token_hex(8),
@@ -602,7 +604,7 @@ class TestClient:
                 id="openai-tool-message-string",
             ),
             pytest.param(
-                "OPENAI,AZURE_OPENAI",
+                "OPENAI,AZURE_OPENAI,DEEPSEEK,XAI",
                 PromptVersion.from_openai,
                 CompletionCreateParamsBase(
                     model=token_hex(8),
@@ -1003,7 +1005,7 @@ class TestClient:
         u1 = _get_user(_MEMBER).log_in()
         if use_phoenix_admin_secret:
             assert (admin_secret := get_env_phoenix_admin_secret())
-            monkeypatch.setenv("PHOENIX_API_KEY", admin_secret)
+            monkeypatch.setenv("PHOENIX_API_KEY", str(admin_secret))
         else:
             monkeypatch.setenv("PHOENIX_API_KEY", u1.create_api_key())
 
@@ -1060,7 +1062,7 @@ class TestClient:
         assert tags[0]["description"] == tag_description1
 
         # Verify tag is associated with the correct user
-        query = "query($id:GlobalID!){node(id:$id){... on PromptVersionTag{user{id username}}}}"
+        query = "query($id:ID!){node(id:$id){... on PromptVersionTag{user{id username}}}}"
         res, _ = _gql(u1, query=query, variables={"id": tags[0]["id"]})
         if use_phoenix_admin_secret:
             assert res["data"]["node"]["user"]["username"] == "system"
@@ -1112,7 +1114,7 @@ class TestClient:
         assert tags[0]["description"] == tag_description2
 
         # Verify tag is associated with the correct user
-        query = "query($id:GlobalID!){node(id:$id){... on PromptVersionTag{user{id}}}}"
+        query = "query($id:ID!){node(id:$id){... on PromptVersionTag{user{id}}}}"
         res, _ = _gql(u2, query=query, variables={"id": tags[0]["id"]})
         assert res["data"]["node"]["user"]["id"] == u2.gid
 

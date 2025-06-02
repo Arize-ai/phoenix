@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 import { css } from "@emotion/react";
 
@@ -18,13 +18,12 @@ export function SpanHeader(props: SpanHeaderProps) {
   const span = useFragment(
     graphql`
       fragment SpanHeader_span on Span {
+        id
         name
         spanKind
         code: statusCode
         latencyMs
         startTime
-        tokenCountPrompt
-        tokenCountCompletion
         tokenCountTotal
       }
     `,
@@ -64,8 +63,7 @@ export function SpanHeader(props: SpanHeaderProps) {
           {span.tokenCountTotal ? (
             <TokenCount
               tokenCountTotal={span.tokenCountTotal}
-              tokenCountPrompt={span.tokenCountPrompt ?? 0}
-              tokenCountCompletion={span.tokenCountCompletion ?? 0}
+              nodeId={span.id}
               size="S"
             />
           ) : null}

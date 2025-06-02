@@ -1,4 +1,3 @@
-import React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   Bar,
@@ -75,7 +74,7 @@ export function DimensionCountTimeSeries({
   const data = useLazyLoadQuery<DimensionCountTimeSeriesQuery>(
     graphql`
       query DimensionCountTimeSeriesQuery(
-        $dimensionId: GlobalID!
+        $dimensionId: ID!
         $timeRange: TimeRange!
         $countGranularity: Granularity!
       ) {

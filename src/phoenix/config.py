@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import os
 import re
@@ -7,16 +9,18 @@ from datetime import timedelta
 from enum import Enum
 from importlib.metadata import version
 from pathlib import Path
-from typing import Any, Optional, Union, cast, overload
+from typing import TYPE_CHECKING, Any, NamedTuple, Optional, Union, cast, overload
 from urllib.parse import quote_plus, urljoin, urlparse
 
 import wrapt
 from email_validator import EmailNotValidError, validate_email
-from starlette.datastructures import URL
+from starlette.datastructures import URL, Secret
 
 from phoenix.utilities.logging import log_a_list
+from phoenix.utilities.re import parse_env_headers
 
-from .utilities.re import parse_env_headers
+if TYPE_CHECKING:
+    from phoenix.server.oauth2 import OAuth2Clients
 
 logger = logging.getLogger(__name__)
 
@@ -138,6 +142,11 @@ ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT = (
 
 # Authentication settings
 ENV_PHOENIX_ENABLE_AUTH = "PHOENIX_ENABLE_AUTH"
+ENV_PHOENIX_DISABLE_BASIC_AUTH = "PHOENIX_DISABLE_BASIC_AUTH"
+"""
+Forbid login via password and disable the creation of local users, which log in via passwords.
+This can be helpful in setups where authentication is handled entirely through OAUTH2.
+"""
 ENV_PHOENIX_DISABLE_RATE_LIMIT = "PHOENIX_DISABLE_RATE_LIMIT"
 ENV_PHOENIX_SECRET = "PHOENIX_SECRET"
 """
@@ -160,6 +169,7 @@ be updated manually in the application.
 """
 ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY"
 ENV_PHOENIX_USE_SECURE_COOKIES = "PHOENIX_USE_SECURE_COOKIES"
+ENV_PHOENIX_COOKIES_PATH = "PHOENIX_COOKIES_PATH"
 ENV_PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES = "PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES"
 """
 The duration, in minutes, before access tokens expire.
@@ -555,7 +565,7 @@ def _bool_val(env_var: str, default: Optional[bool] = None) -> Optional[bool]:
     assert (lower := value.lower()) in (
         "true",
         "false",
-    ), f"{env_var} must be set to TRUE or FALSE (case-insensitive)"
+    ), f"{env_var} must be set to TRUE or FALSE (case-insensitive). Got: {value}"
     return lower == "true"
 
 
@@ -573,8 +583,7 @@ def _float_val(env_var: str, default: Optional[float] = None) -> Optional[float]
         return float(value)
     except ValueError:
         raise ValueError(
-            f"Invalid value for environment variable {env_var}: {value}. "
-            f"Value must be a number."
+            f"Invalid value for environment variable {env_var}: {value}. Value must be a number."
         )
 
 
@@ -592,8 +601,7 @@ def _int_val(env_var: str, default: Optional[int] = None) -> Optional[int]:
         return int(value)
     except ValueError:
         raise ValueError(
-            f"Invalid value for environment variable {env_var}: {value}. "
-            f"Value must be an integer."
+            f"Invalid value for environment variable {env_var}: {value}. Value must be an integer."
         )
 
 
@@ -631,6 +639,13 @@ def get_env_enable_auth() -> bool:
     return _bool_val(ENV_PHOENIX_ENABLE_AUTH, False)
 
 
+def get_env_disable_basic_auth() -> bool:
+    """
+    Gets the value of the ENV_PHOENIX_DISABLE_BASIC_AUTH environment variable.
+    """
+    return _bool_val(ENV_PHOENIX_DISABLE_BASIC_AUTH, False)
+
+
 def get_env_disable_rate_limit() -> bool:
     """
     Gets the value of the PHOENIX_DISABLE_RATE_LIMIT environment variable.
@@ -638,29 +653,29 @@ def get_env_disable_rate_limit() -> bool:
     return _bool_val(ENV_PHOENIX_DISABLE_RATE_LIMIT, False)
 
 
-def get_env_phoenix_secret() -> Optional[str]:
+def get_env_phoenix_secret() -> Secret:
     """
     Gets the value of the PHOENIX_SECRET environment variable
     and performs validation.
     """
     phoenix_secret = getenv(ENV_PHOENIX_SECRET)
     if phoenix_secret is None:
-        return None
+        return Secret("")
     from phoenix.auth import REQUIREMENTS_FOR_PHOENIX_SECRET
 
     REQUIREMENTS_FOR_PHOENIX_SECRET.validate(phoenix_secret, "Phoenix secret")
-    return phoenix_secret
+    return Secret(phoenix_secret)
 
 
-def get_env_phoenix_admin_secret() -> Optional[str]:
+def get_env_phoenix_admin_secret() -> Secret:
     """
     Gets the value of the PHOENIX_ADMIN_SECRET environment variable
     and performs validation.
     """
     phoenix_admin_secret = getenv(ENV_PHOENIX_ADMIN_SECRET)
     if phoenix_admin_secret is None:
-        return None
-    if (phoenix_secret := get_env_phoenix_secret()) is None:
+        return Secret("")
+    if not (phoenix_secret := get_env_phoenix_secret()):
         raise ValueError(
             f"`{ENV_PHOENIX_ADMIN_SECRET}` must be not be set without "
             f"setting `{ENV_PHOENIX_SECRET}`."
@@ -668,17 +683,24 @@ def get_env_phoenix_admin_secret() -> Optional[str]:
     from phoenix.auth import REQUIREMENTS_FOR_PHOENIX_SECRET
 
     REQUIREMENTS_FOR_PHOENIX_SECRET.validate(phoenix_admin_secret, "Phoenix secret")
-    if phoenix_admin_secret == phoenix_secret:
+    if phoenix_admin_secret == str(phoenix_secret):
         raise ValueError(
             f"`{ENV_PHOENIX_ADMIN_SECRET}` must be different from `{ENV_PHOENIX_SECRET}`"
         )
-    return phoenix_admin_secret
+    return Secret(phoenix_admin_secret)
 
 
-def get_env_default_admin_initial_password() -> str:
+def get_env_default_admin_initial_password() -> Secret:
     from phoenix.auth import DEFAULT_ADMIN_PASSWORD
 
-    return getenv(ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD) or DEFAULT_ADMIN_PASSWORD
+    return Secret(getenv(ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD) or DEFAULT_ADMIN_PASSWORD)
+
+
+def get_env_cookies_path() -> str:
+    """
+    Gets the value of the PHOENIX_COOKIE_PATH environment variable.
+    """
+    return getenv(ENV_PHOENIX_COOKIES_PATH, "/")
 
 
 def get_env_phoenix_use_secure_cookies() -> bool:
@@ -689,7 +711,15 @@ def get_env_phoenix_api_key() -> Optional[str]:
     return getenv(ENV_PHOENIX_API_KEY)
 
 
-def get_env_auth_settings() -> tuple[bool, Optional[str]]:
+class AuthSettings(NamedTuple):
+    enable_auth: bool
+    disable_basic_auth: bool
+    phoenix_secret: Secret
+    phoenix_admin_secret: Secret
+    oauth2_clients: OAuth2Clients
+
+
+def get_env_auth_settings() -> AuthSettings:
     """
     Gets auth settings and performs validation.
     """
@@ -700,7 +730,22 @@ def get_env_auth_settings() -> tuple[bool, Optional[str]]:
             f"`{ENV_PHOENIX_SECRET}` must be set when "
             f"auth is enabled with `{ENV_PHOENIX_ENABLE_AUTH}`"
         )
-    return enable_auth, phoenix_secret
+    phoenix_admin_secret = get_env_phoenix_admin_secret()
+    disable_basic_auth = get_env_disable_basic_auth()
+    from phoenix.server.oauth2 import OAuth2Clients
+
+    oauth2_clients = OAuth2Clients.from_configs(get_env_oauth2_settings())
+    if enable_auth and disable_basic_auth and not oauth2_clients:
+        raise ValueError(
+            "OAuth2 is the only supported auth method but no OAuth2 client configs are provided."
+        )
+    return AuthSettings(
+        enable_auth=enable_auth,
+        disable_basic_auth=disable_basic_auth,
+        phoenix_secret=phoenix_secret,
+        phoenix_admin_secret=phoenix_admin_secret,
+        oauth2_clients=oauth2_clients,
+    )
 
 
 def get_env_password_reset_token_expiry() -> timedelta:
@@ -839,6 +884,8 @@ class OAuth2ClientConfig:
     client_id: str
     client_secret: str
     oidc_config_url: str
+    allow_sign_up: bool
+    auto_login: bool
 
     @classmethod
     def from_env(cls, idp_name: str) -> "OAuth2ClientConfig":
@@ -870,6 +917,8 @@ class OAuth2ClientConfig:
                 f"An OpenID Connect configuration URL must be set for the {idp_name} OAuth2 IDP "
                 f"via the {oidc_config_url_env_var} environment variable"
             )
+        allow_sign_up = get_env_oauth2_allow_sign_up(idp_name)
+        auto_login = get_env_oauth2_auto_login(idp_name)
         parsed_oidc_config_url = urlparse(oidc_config_url)
         is_local_oidc_config_url = parsed_oidc_config_url.hostname in ("localhost", "127.0.0.1")
         if parsed_oidc_config_url.scheme != "https" and not is_local_oidc_config_url:
@@ -886,22 +935,98 @@ class OAuth2ClientConfig:
             client_id=client_id,
             client_secret=client_secret,
             oidc_config_url=oidc_config_url,
+            allow_sign_up=allow_sign_up,
+            auto_login=auto_login,
         )
 
 
 def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
     """
-    Get OAuth2 settings from environment variables.
-    """
+    Retrieves and validates OAuth2/OpenID Connect (OIDC) identity provider configurations from environment variables.
 
+    This function scans the environment for OAuth2 configuration variables and returns a list of
+    configured identity providers. It supports multiple identity providers simultaneously.
+
+    Environment Variable Pattern:
+        PHOENIX_OAUTH2_{IDP_NAME}_{CONFIG_TYPE}
+
+    Required Environment Variables for each IDP:
+        - PHOENIX_OAUTH2_{IDP_NAME}_CLIENT_ID: The OAuth2 client ID issued by the identity provider
+        - PHOENIX_OAUTH2_{IDP_NAME}_CLIENT_SECRET: The OAuth2 client secret issued by the identity provider
+        - PHOENIX_OAUTH2_{IDP_NAME}_OIDC_CONFIG_URL: The OpenID Connect configuration URL (must be HTTPS)
+
+    Optional Environment Variables:
+        - PHOENIX_OAUTH2_{IDP_NAME}_DISPLAY_NAME: A user-friendly name for the identity provider
+        - PHOENIX_OAUTH2_{IDP_NAME}_ALLOW_SIGN_UP: Whether to allow new user registration (defaults to True)
+        When set to False, the system will check if the user exists in the database by their email address.
+        If the user does not exist or has a password set, they will be redirected to the login page with
+        an error message.
+
+    Returns:
+        list[OAuth2ClientConfig]: A list of configured OAuth2 identity providers, sorted alphabetically by IDP name.
+            Each OAuth2ClientConfig contains the validated configuration for one identity provider.
+
+    Raises:
+        ValueError: If required environment variables are missing or invalid.
+            Specifically, if the OIDC configuration URL is not HTTPS (except for localhost).
+
+    Example:
+        To configure Google as an identity provider, set these environment variables:
+        PHOENIX_OAUTH2_GOOGLE_CLIENT_ID=your_client_id
+        PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET=your_client_secret
+        PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL=https://accounts.google.com/.well-known/openid-configuration
+        PHOENIX_OAUTH2_GOOGLE_DISPLAY_NAME=Google (optional)
+        PHOENIX_OAUTH2_GOOGLE_ALLOW_SIGN_UP=true (optional, defaults to true)
+    """  # noqa: E501
     idp_names = set()
     pattern = re.compile(
-        r"^PHOENIX_OAUTH2_(\w+)_(DISPLAY_NAME|CLIENT_ID|CLIENT_SECRET|OIDC_CONFIG_URL)$"
+        r"^PHOENIX_OAUTH2_(\w+)_(DISPLAY_NAME|CLIENT_ID|CLIENT_SECRET|OIDC_CONFIG_URL|ALLOW_SIGN_UP|AUTO_LOGIN)$"  # noqa: E501
     )
     for env_var in os.environ:
         if (match := pattern.match(env_var)) is not None and (idp_name := match.group(1).lower()):
             idp_names.add(idp_name)
     return [OAuth2ClientConfig.from_env(idp_name) for idp_name in sorted(idp_names)]
+
+
+def get_env_oauth2_allow_sign_up(idp_name: str) -> bool:
+    """Retrieves the allow_sign_up setting for a specific OAuth2 identity provider.
+
+    This function determines whether new user registration is allowed for the specified identity provider.
+    When set to False, the system will check if the user exists in the database by their email address.
+    If the user does not exist or has a password set, they will be redirected to the login page with
+    an error message.
+
+    Parameters:
+        idp_name (str): The name of the identity provider (e.g., 'google', 'aws_cognito', 'microsoft_entra_id')
+
+    Returns:
+        bool: True if new user registration is allowed (default), False otherwise
+
+    Environment Variable:
+        PHOENIX_OAUTH2_{IDP_NAME}_ALLOW_SIGN_UP: Controls whether new user registration is allowed (defaults to True if not set)
+    """  # noqa: E501
+    env_var = f"PHOENIX_OAUTH2_{idp_name}_ALLOW_SIGN_UP".upper()
+    return _bool_val(env_var, True)
+
+
+def get_env_oauth2_auto_login(idp_name: str) -> bool:
+    """Retrieves the auto_login setting for a specific OAuth2 identity provider.
+
+    This function determines whether users should be automatically logged in when accessing the OAuth2
+    identity provider's login page. When set to True, users will be redirected to the identity provider's
+    login page without first seeing the application's login page.
+
+    Parameters:
+        idp_name (str): The name of the identity provider (e.g., 'google', 'aws_cognito', 'microsoft_entra_id')
+
+    Returns:
+        bool: True if auto-login is enabled, False otherwise (defaults to False if not set)
+
+    Environment Variable:
+        PHOENIX_OAUTH2_{IDP_NAME}_AUTO_LOGIN: Controls whether auto-login is enabled (defaults to False if not set)
+    """  # noqa: E501
+    env_var = f"PHOENIX_OAUTH2_{idp_name}_AUTO_LOGIN".upper()
+    return _bool_val(env_var, False)
 
 
 PHOENIX_DIR = Path(__file__).resolve().parent
@@ -1052,7 +1177,7 @@ def ensure_working_dir_if_needed() -> None:
     This is bypassed if a postgres database is configured and a working directory is not set.
     """
     if _no_local_storage():
-        pass
+        return
 
     logger.info(f"📋 Ensuring phoenix working directory: {WORKING_DIR}")
     try:
@@ -1258,7 +1383,7 @@ def get_env_logging_mode() -> LoggingMode:
     except ValueError:
         raise ValueError(
             f"Invalid value `{logging_mode}` for env var `{ENV_LOGGING_MODE}`. "
-            f"Valid values are: {log_a_list([mode.value for mode in LoggingMode],'and')} "
+            f"Valid values are: {log_a_list([mode.value for mode in LoggingMode], 'and')} "
             "(case-insensitive)."
         )
 
@@ -1337,7 +1462,7 @@ def _get_logging_level(env_var: str, default_level: int) -> int:
     if logging_level.upper() not in valid_values:
         raise ValueError(
             f"Invalid value `{logging_level}` for env var `{env_var}`. "
-            f"Valid values are: {log_a_list(valid_values,'and')} (case-insensitive)."
+            f"Valid values are: {log_a_list(valid_values, 'and')} (case-insensitive)."
         )
     return levelNamesMapping[logging_level.upper()]
 

@@ -22,7 +22,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
 ]
-version = "0.9.2"
+version = "0.10.1"
 dependencies = [
   "opentelemetry-semantic-conventions",
   "opentelemetry-exporter-otlp",
@@ -38,7 +38,7 @@ test = [
 ]
 
 [project.urls]
-Documentation = "https://docs.arize.com/phoenix/"
+Documentation = "https://arize.com/docs/phoenix/"
 Issues = "https://github.com/Arize-ai/phoenix/issues"
 Source = "https://github.com/Arize-ai/phoenix"
 

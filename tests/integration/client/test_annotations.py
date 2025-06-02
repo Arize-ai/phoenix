@@ -55,7 +55,7 @@ class TestClientForSpanAnnotations:
 
     # GraphQL query to retrieve span annotations for a given span ID
     query = """
-    query GetSpanAnnotations($id: GlobalID!) {
+    query GetSpanAnnotations($id: ID!) {
         node (id: $id) {
             ... on Span {
                 spanAnnotations {
@@ -787,7 +787,7 @@ class TestSendingAnnotationsBeforeSpan:
 
     # GraphQL queries for retrieving annotations and evaluations
     query = """
-        query GetSpanAnnotations($id: GlobalID!) {
+        query GetSpanAnnotations($id: ID!) {
             node (id: $id) {
                 ... on Span {
                     spanAnnotations {
@@ -805,7 +805,7 @@ class TestSendingAnnotationsBeforeSpan:
             }
         }
 
-        query GetTraceAnnotations($id: GlobalID!) {
+        query GetTraceAnnotations($id: ID!) {
             node (id: $id) {
                 ... on Trace {
                     traceAnnotations {
@@ -823,7 +823,7 @@ class TestSendingAnnotationsBeforeSpan:
             }
         }
 
-        query GetDocumentEvaluations($id: GlobalID!) {
+        query GetDocumentEvaluations($id: ID!) {
             node (id: $id) {
                 ... on Span {
                     documentEvaluations {
@@ -1023,7 +1023,8 @@ class TestSendingAnnotationsBeforeSpan:
             await sleep(0.01)
 
         # Send the span and wait
-        assert _grpc_span_exporter().export([_span]) is SpanExportResult.SUCCESS
+        headers = {"authorization": f"Bearer {_admin_secret}"}
+        assert _grpc_span_exporter(headers=headers).export([_span]) is SpanExportResult.SUCCESS
 
         # Get the global IDs
         span_gid, trace_gid = await _get(

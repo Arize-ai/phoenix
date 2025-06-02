@@ -625,24 +625,35 @@ def _validate_dataframe(
             raise ValueError(f"{name_column} values must be strings")
 
     # Check for span_id in either columns or index
-    if "span_id" not in dataframe.columns and not all(isinstance(x, str) for x in dataframe.index):  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
-        raise ValueError("DataFrame must have either a 'span_id' column or a string-based index")
+    has_span_id = "span_id" in dataframe.columns
+    has_context_span_id = "context.span_id" in dataframe.columns
+    if has_span_id and has_context_span_id:
+        raise ValueError("DataFrame cannot have both 'span_id' and 'context.span_id' columns")
+    if (
+        not has_span_id
+        and not has_context_span_id
+        and not all(isinstance(x, str) for x in dataframe.index)  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
+    ):
+        raise ValueError(
+            "DataFrame must have either a 'span_id' or 'context.span_id' column, or a string-based index"  # noqa: E501
+        )
 
     # Validate span_id values if using column
-    if "span_id" in dataframe.columns:
+    span_id_column = "context.span_id" if has_context_span_id else "span_id"
+    if span_id_column in dataframe.columns:
         # Check for None values
-        if dataframe["span_id"].isna().any():  # pyright: ignore[reportUnknownMemberType]
-            raise ValueError("span_id values cannot be None")
+        if dataframe[span_id_column].isna().any():  # pyright: ignore[reportUnknownMemberType]
+            raise ValueError(f"{span_id_column} values cannot be None")
         # Check for empty or whitespace-only strings
-        if (dataframe["span_id"].str.strip() == "").any():  # pyright: ignore[reportUnknownMemberType]
-            raise ValueError("span_id values must be non-empty strings")
+        if (dataframe[span_id_column].str.strip() == "").any():  # pyright: ignore[reportUnknownMemberType]
+            raise ValueError(f"{span_id_column} values must be non-empty strings")
         # Check for non-string values
-        if not all(isinstance(x, str) for x in dataframe["span_id"]):  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
-            raise ValueError("span_id values must be strings")
+        if not all(isinstance(x, str) for x in dataframe[span_id_column]):  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
+            raise ValueError(f"{span_id_column} values must be strings")
     # Validate index values if using index as span_id
     else:
         # Check for empty or whitespace-only strings
-        if (pd.Series(dataframe.index).str.strip() == "").any():  # pyright: ignore[reportUnknownMemberType]
+        if (pd.Series(dataframe.index).str.strip() == "").any():  # pyright: ignore[reportUnknownMemberType,reportUnknownArgumentType]
             raise ValueError("Index values must be non-empty strings when used as span_id")
         # Check for non-string values
         if not all(isinstance(x, str) for x in dataframe.index):  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
@@ -723,6 +734,8 @@ def _chunk_dataframe(
             span_id = (
                 str(row["span_id"])  # pyright: ignore[reportUnknownArgumentType]
                 if "span_id" in dataframe.columns and bool(row["span_id"])  # pyright: ignore[reportUnknownArgumentType]
+                else str(row["context.span_id"])  # pyright: ignore[reportUnknownArgumentType]
+                if "context.span_id" in dataframe.columns and bool(row["context.span_id"])  # pyright: ignore[reportUnknownArgumentType]
                 else str(idx)
             )
 

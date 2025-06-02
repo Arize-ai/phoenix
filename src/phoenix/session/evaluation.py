@@ -23,13 +23,18 @@ from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
 import phoenix.trace.v1 as pb
 from phoenix.config import get_env_collector_endpoint, get_env_host, get_env_port
 from phoenix.session.client import Client
-from phoenix.trace.dsl.helpers import get_qa_with_reference, get_retrieved_documents
+from phoenix.trace.dsl.helpers import (
+    get_called_tools,
+    get_qa_with_reference,
+    get_retrieved_documents,
+)
 from phoenix.trace.exporter import HttpExporter
 from phoenix.trace.span_evaluations import Evaluations
 
 __all__ = [
     "get_retrieved_documents",
     "get_qa_with_reference",
+    "get_called_tools",
     "add_evaluations",
 ]
 

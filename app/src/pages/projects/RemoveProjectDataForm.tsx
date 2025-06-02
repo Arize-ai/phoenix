@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from "react";
+import { useCallback, useRef } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 import {
@@ -55,13 +55,13 @@ export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
     handleSubmit,
     setError,
     formState: { isValid },
-  } = useForm({
+  } = useForm<RemoveProjectDataFormParams>({
     defaultValues: {
       // Need to remove the offset to be able to set the defaultValue
       endDate: parseAbsoluteToLocal(
         new Date(Date.now() - ONE_MONTH_MS).toISOString()
       ),
-    } as RemoveProjectDataFormParams,
+    },
   });
 
   const onSubmit = useCallback(

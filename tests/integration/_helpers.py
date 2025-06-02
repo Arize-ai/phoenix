@@ -167,8 +167,15 @@ class _User:
         *,
         profile: _Profile,
         send_welcome_email: bool = False,
+        local: bool = True,
     ) -> _User:
-        return _create_user(self, role=role, profile=profile, send_welcome_email=send_welcome_email)
+        return _create_user(
+            self,
+            role=role,
+            profile=profile,
+            send_welcome_email=send_welcome_email,
+            local=local,
+        )
 
     def delete_users(self, *users: Union[_GqlId, _User]) -> None:
         return _delete_users(self, users=users)
@@ -821,6 +828,7 @@ def _create_user(
     role: UserRoleInput,
     profile: _Profile,
     send_welcome_email: bool = False,
+    local: bool = True,
 ) -> _User:
     email = profile.email
     password = profile.password
@@ -828,6 +836,8 @@ def _create_user(
     args = [f'email:"{email}"', f'password:"{password}"', f"role:{role.value}"]
     if username:
         args.append(f'username:"{username}"')
+    if not local:
+        args.append("authMethod:OAUTH2")
     args.append(f"sendWelcomeEmail:{str(send_welcome_email).lower()}")
     out = "user{id email role{name}}"
     query = "mutation{createUser(input:{" + ",".join(args) + "}){" + out + "}}"
@@ -846,7 +856,7 @@ def _delete_users(
     users: Iterable[Union[_GqlId, _User]],
 ) -> None:
     user_ids = [u.gid if isinstance(u, _User) else u for u in users]
-    query = "mutation($userIds:[GlobalID!]!){deleteUsers(input:{userIds:$userIds})}"
+    query = "mutation($userIds:[ID!]!){deleteUsers(input:{userIds:$userIds})}"
     _, headers = _gql(auth, query=query, variables=dict(userIds=user_ids))
     assert not headers.get("set-cookie")
 
@@ -975,7 +985,7 @@ def _delete_api_key(
 def _will_be_asked_to_reset_password(
     user: _User,
 ) -> bool:
-    query = "query($gid:GlobalID!){node(id:$gid){... on User{passwordNeedsReset}}}"
+    query = "query($gid:ID!){node(id:$gid){... on User{passwordNeedsReset}}}"
     variables = dict(gid=user.gid)
     resp_dict, _ = user.log_in().gql(query, variables)
     return cast(bool, resp_dict["data"]["node"]["passwordNeedsReset"])

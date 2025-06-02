@@ -99,7 +99,7 @@ phoenix_df = px_client.query_spans(start_time=start, end_time=end)
 
 ### How to Specify a Project
 
-By default all queries are executed against the default project or the project set via the `PHOENIX_PROJECT_NAME` environment variable. If you choose to pull from a different project, all methods on the [Client](https://docs.arize.com/phoenix/references/api/client) have an optional parameter named `project_name`
+By default all queries are executed against the default project or the project set via the `PHOENIX_PROJECT_NAME` environment variable. If you choose to pull from a different project, all methods on the [Client](https://arize.com/docs/phoenix/references/api/client) have an optional parameter named `project_name`
 
 ```python
 import phoenix as px

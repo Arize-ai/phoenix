@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "phoenix.postgres" . }}
+  namespace: {{ .Release.Namespace | quote }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "1"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: {{ .Values.postgres.image }}
+        ports:
+        - containerPort: {{ .Values.database.postgres.port }}
+        env:
+        - name: POSTGRES_DB
+          value: "{{ .Values.database.postgres.db }}"
+        - name: POSTGRES_USER
+          value: "{{ .Values.database.postgres.user }}"
+        - name: POSTGRES_PASSWORD
+          value: "{{ .Values.database.postgres.password }}"
+        resources: {{ toYaml .Values.postgres.resources | nindent 10 }}
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+          subPath: postgres
+      volumes:
+      - name: postgres-data
+        persistentVolumeClaim:
+          claimName: {{ template "phoenix.postgres-pvc" . }}

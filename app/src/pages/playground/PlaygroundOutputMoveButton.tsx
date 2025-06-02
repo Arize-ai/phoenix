@@ -1,5 +1,3 @@
-import React from "react";
-
 import { Tooltip, TooltipTrigger } from "@arizeai/components";
 
 import { Button, Icon, Icons } from "@phoenix/components";

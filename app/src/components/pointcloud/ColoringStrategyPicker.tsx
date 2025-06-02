@@ -1,8 +1,14 @@
-import React from "react";
-
-import { Content, ContextualHelp, Item, Picker } from "@arizeai/components";
-
-import { Heading, Text } from "@phoenix/components";
+import {
+  Button,
+  Label,
+  ListBox,
+  Popover,
+  Select,
+  SelectChevronUpDownIcon,
+  SelectItem,
+  SelectValue,
+  Text,
+} from "@phoenix/components";
 import { ColoringStrategy } from "@phoenix/constants/pointCloudConstants";
 
 function isColoringStrategy(strategy: unknown): strategy is ColoringStrategy {
@@ -16,27 +22,10 @@ type ColoringStrategyPickerProps = {
   onChange: (strategy: ColoringStrategy) => void;
 };
 
-const contextualHelp = (
-  <ContextualHelp>
-    <Heading weight="heavy" level={4}>
-      Coloring Strategy
-    </Heading>
-    <Content>
-      <Text>
-        The way in which inference point is colored. Each point in the
-        point-cloud represents a model inference. These inferences can be
-        colored by a particular attribute (such as inferences and dimension) or
-        by a performance value such as correctness (predicted value equals the
-        actual value)
-      </Text>
-    </Content>
-  </ContextualHelp>
-);
-
 export function ColoringStrategyPicker(props: ColoringStrategyPickerProps) {
   const { strategy, onChange } = props;
   return (
-    <Picker
+    <Select
       defaultSelectedKey={strategy}
       aria-label="Coloring strategy"
       onSelectionChange={(key) => {
@@ -44,12 +33,22 @@ export function ColoringStrategyPicker(props: ColoringStrategyPickerProps) {
           onChange(key);
         }
       }}
-      label="Color By"
-      labelExtra={contextualHelp}
     >
-      {ColoringStrategies.map((item) => (
-        <Item key={item}>{item}</Item>
-      ))}
-    </Picker>
+      <Label>Color By</Label>
+      <Button>
+        <SelectValue />
+        <SelectChevronUpDownIcon />
+      </Button>
+      <Text slot="description">{""}</Text>
+      <Popover>
+        <ListBox>
+          {ColoringStrategies.map((item) => (
+            <SelectItem key={item} id={item}>
+              {item}
+            </SelectItem>
+          ))}
+        </ListBox>
+      </Popover>
+    </Select>
   );
 }

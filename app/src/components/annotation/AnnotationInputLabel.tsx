@@ -1,4 +1,3 @@
-import React from "react";
 import { LabelProps } from "react-aria-components";
 import { css } from "@emotion/react";
 
@@ -13,6 +12,9 @@ export const AnnotationInputLabel = (props: LabelProps) => {
       className={classNames("react-aria-Label", props.className)}
       css={css`
         max-width: ${ANNOTATION_INPUT_LABEL_WIDTH};
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       `}
       {...props}
     />

@@ -1,4 +1,3 @@
-import React from "react";
 import { graphql, useMutation } from "react-relay";
 
 import { EditDatasetFormMutation } from "./__generated__/EditDatasetFormMutation.graphql";
@@ -21,7 +20,7 @@ export function EditDatasetForm({
 }) {
   const [commit, isCommitting] = useMutation<EditDatasetFormMutation>(graphql`
     mutation EditDatasetFormMutation(
-      $datasetId: GlobalID!
+      $datasetId: ID!
       $name: String!
       $description: String = null
       $metadata: JSON = null

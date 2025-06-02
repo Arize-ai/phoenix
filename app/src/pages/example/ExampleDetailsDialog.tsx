@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { css } from "@emotion/react";
@@ -34,7 +34,7 @@ export function ExampleDetailsDialog({
   const [fetchKey, setFetchKey] = useState(0);
   const data = useLazyLoadQuery<ExampleDetailsDialogQuery>(
     graphql`
-      query ExampleDetailsDialogQuery($exampleId: GlobalID!) {
+      query ExampleDetailsDialogQuery($exampleId: ID!) {
         example: node(id: $exampleId) {
           ... on DatasetExample {
             id

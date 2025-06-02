@@ -1,12 +1,5 @@
-import React, {
-  PropsWithChildren,
-  ReactNode,
-  Suspense,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { PropsWithChildren, ReactNode, Suspense, useMemo, useRef } from "react";
+import { Popover as NonAnimatedPopover } from "react-aria-components";
 import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
@@ -29,7 +22,6 @@ import {
   CardProps,
   Content,
   ContextualHelp,
-  DialogContainer,
   EmptyGraphic,
   List,
   ListItem,
@@ -51,6 +43,7 @@ import {
   Button,
   CopyToClipboardButton,
   Counter,
+  DialogTrigger,
   Disclosure,
   DisclosureGroup,
   DisclosurePanel,
@@ -64,6 +57,8 @@ import {
   Keyboard,
   LazyTabPanel,
   LinkButton,
+  Loading,
+  Modal,
   Tab,
   TabList,
   Tabs,
@@ -77,7 +72,7 @@ import {
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import {
   ConnectedMarkdownBlock,
-  ConnectedMarkdownModeRadioGroup,
+  ConnectedMarkdownModeSelect,
   MarkdownDisplayProvider,
 } from "@phoenix/components/markdown";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
@@ -87,7 +82,6 @@ import {
   usePreferencesContext,
   useTheme,
 } from "@phoenix/contexts";
-import { useViewer } from "@phoenix/contexts/ViewerContext";
 import { useDimensions } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
@@ -189,10 +183,9 @@ export function SpanDetails({
     ? spanDetailsContainerDimensions.width <
       CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD
     : true;
-  const { viewer } = useViewer();
   const { span } = useLazyLoadQuery<SpanDetailsQuery>(
     graphql`
-      query SpanDetailsQuery($id: GlobalID!, $filterUserIds: [GlobalID]) {
+      query SpanDetailsQuery($id: ID!) {
         span: node(id: $id) {
           __typename
           ... on Span {
@@ -210,8 +203,6 @@ export function SpanDetails({
             parentId
             latencyMs
             tokenCountTotal
-            tokenCountPrompt
-            tokenCountCompletion
             startTime
             endTime
             id
@@ -248,14 +239,13 @@ export function SpanDetails({
             }
             ...SpanHeader_span
             ...SpanFeedback_annotations
-            ...SpanAside_span @arguments(filterUserIds: $filterUserIds)
+            ...SpanAside_span
           }
         }
       }
     `,
     {
       id: spanNodeId,
-      filterUserIds: viewer ? [viewer.id] : [null],
     }
   );
 
@@ -335,7 +325,7 @@ export function SpanDetails({
                       }
                     }
                   }}
-                  leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+                  leadingVisual={<Icon svg={<Icons.Edit2Outline />} />}
                   trailingVisual={
                     !isCondensedView &&
                     !isAnnotatingSpans && (
@@ -450,49 +440,39 @@ function AddSpanToDatasetButton({
   span: Span;
   buttonText: string | null;
 }) {
-  const [dialog, setDialog] = useState<ReactNode>(null);
   const notifySuccess = useNotifySuccess();
   const navigate = useNavigate();
-  const onAddSpanToDataset = useCallback(() => {
-    setDialog(
-      <SpanToDatasetExampleDialog
-        spanId={span.id}
-        onCompleted={(datasetId) => {
-          setDialog(null);
-          notifySuccess({
-            title: "Span Added to Dataset",
-            message: "Successfully added span to dataset",
-            action: {
-              text: "View Dataset",
-              onClick: () => {
-                navigate(`/datasets/${datasetId}/examples`);
-              },
-            },
-          });
-        }}
-      />
-    );
-  }, [span.id, notifySuccess, navigate]);
   return (
-    <>
+    <DialogTrigger>
       <Button
         variant="default"
         size="S"
         leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
-        onPress={onAddSpanToDataset}
       >
         {buttonText}
       </Button>
-      <Suspense>
-        <DialogContainer
-          type="slideOver"
-          isDismissable
-          onDismiss={() => setDialog(null)}
-        >
-          {dialog}
-        </DialogContainer>
-      </Suspense>
-    </>
+      <NonAnimatedPopover>
+        <Modal variant="slideover" size="L">
+          <Suspense fallback={<Loading />}>
+            <SpanToDatasetExampleDialog
+              spanId={span.id}
+              onCompleted={(datasetId) => {
+                notifySuccess({
+                  title: "Span Added to Dataset",
+                  message: "Successfully added span to dataset",
+                  action: {
+                    text: "View Dataset",
+                    onClick: () => {
+                      navigate(`/datasets/${datasetId}/examples`);
+                    },
+                  },
+                });
+              }}
+            />
+          </Suspense>
+        </Modal>
+      </NonAnimatedPopover>
+    </DialogTrigger>
   );
 }
 
@@ -762,7 +742,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                     title="LLM Input"
                     extra={
                       <Flex direction="row" gap="size-100">
-                        <ConnectedMarkdownModeRadioGroup />
+                        <ConnectedMarkdownModeSelect />
                         <CopyToClipboardButton text={input.value} />
                       </Flex>
                     }
@@ -857,7 +837,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                       title="LLM Output"
                       extra={
                         <Flex direction="row" gap="size-100">
-                          <ConnectedMarkdownModeRadioGroup />
+                          <ConnectedMarkdownModeSelect />
                           <CopyToClipboardButton text={output.value} />
                         </Flex>
                       }
@@ -926,7 +906,7 @@ function RetrieverSpanInfo(props: {
             extra={
               <Flex direction="row" gap="size-100" alignItems="center">
                 {isText ? (
-                  <ConnectedMarkdownModeRadioGroup />
+                  <ConnectedMarkdownModeSelect />
                 ) : (
                   <CopyToClipboardButton text={input.value} />
                 )}
@@ -972,7 +952,7 @@ function RetrieverSpanInfo(props: {
                 </Flex>
               )
             }
-            extra={<ConnectedMarkdownModeRadioGroup />}
+            extra={<ConnectedMarkdownModeSelect />}
           >
             <ul
               css={css`
@@ -1163,11 +1143,9 @@ function EmbeddingSpanInfo(props: {
                         borderColor="purple-700"
                         title="Embedded Text"
                       >
-                        <View padding="size-200">
-                          <ConnectedMarkdownBlock>
-                            {embedding[EmbeddingAttributePostfixes.text] || ""}
-                          </ConnectedMarkdownBlock>
-                        </View>
+                        <ConnectedMarkdownBlock>
+                          {embedding[EmbeddingAttributePostfixes.text] || ""}
+                        </ConnectedMarkdownBlock>
                       </Card>
                     </MarkdownDisplayProvider>
                   </li>
@@ -1210,7 +1188,7 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
             {...defaultCardProps}
             extra={
               <Flex direction="row" gap="size-100" alignItems="center">
-                {inputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
+                {inputIsText ? <ConnectedMarkdownModeSelect /> : null}
                 <CopyToClipboardButton text={input.value} />
               </Flex>
             }
@@ -1228,7 +1206,7 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
             borderColor="green-700"
             extra={
               <Flex direction="row" gap="size-100" alignItems="center">
-                {outputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
+                {outputIsText ? <ConnectedMarkdownModeSelect /> : null}
                 <CopyToClipboardButton text={output.value} />
               </Flex>
             }
@@ -1274,9 +1252,19 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                   <Text color="text-700" fontStyle="italic">
                     Parameters
                   </Text>
-                  <JSONBlock>
-                    {JSON.stringify(toolParameters) as string}
-                  </JSONBlock>
+                  <div
+                    css={css`
+                      .cm-editor {
+                        background-color: transparent !important;
+                      }
+                    `}
+                  >
+                    <JSONBlock
+                      basicSetup={{ lineNumbers: false, foldGutter: false }}
+                    >
+                      {JSON.stringify(toolParameters) as string}
+                    </JSONBlock>
+                  </div>
                 </Flex>
               </View>
             ) : null}
@@ -1333,9 +1321,7 @@ function DocumentItem({
     >
       <Flex direction="column">
         {documentContent && (
-          <View padding="size-200">
-            <ConnectedMarkdownBlock>{documentContent}</ConnectedMarkdownBlock>
-          </View>
+          <ConnectedMarkdownBlock>{documentContent}</ConnectedMarkdownBlock>
         )}
         {metadata && (
           <>
@@ -1465,7 +1451,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
         }
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
-            <ConnectedMarkdownModeRadioGroup />
+            <ConnectedMarkdownModeSelect />
             <CopyToClipboardButton
               text={messageContent || JSON.stringify(message)}
             />
@@ -1474,9 +1460,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
       >
         <ErrorBoundary>
           {messagesContents ? (
-            <View padding="size-200">
-              <MessageContentsList messageContents={messagesContents} />
-            </View>
+            <MessageContentsList messageContents={messagesContents} />
           ) : null}
         </ErrorBoundary>
         <Flex direction="column" alignItems="start">
@@ -1519,7 +1503,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                   ) : null}
                 </DisclosureTrigger>
                 <DisclosurePanel>
-                  <View padding="size-200" width="100%">
+                  <View width="100%">
                     <ConnectedMarkdownBlock>
                       {messageContent}
                     </ConnectedMarkdownBlock>
@@ -1528,7 +1512,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
               </Disclosure>
             ) : // when the message is any other kind, just show the content without a disclosure
             messageContent ? (
-              <View padding="size-200" width="100%">
+              <View width="100%">
                 <ConnectedMarkdownBlock>
                   {messageContent}
                 </ConnectedMarkdownBlock>
@@ -1761,6 +1745,7 @@ function MessageContentsList({
  */
 const messageContentTextListItemCSS = css`
   flex: 1 1 100%;
+  padding: var(--ac-global-dimension-static-size-200);
 `;
 /**
  * Displays multi-modal message content. Typically an image or text.
@@ -1810,7 +1795,7 @@ function SpanIO({ span }: { span: Span }) {
             {...defaultCardProps}
             extra={
               <Flex direction="row" gap="size-100" alignItems="center">
-                {inputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
+                {inputIsText ? <ConnectedMarkdownModeSelect /> : null}
                 <CopyToClipboardButton text={input.value} />
               </Flex>
             }
@@ -1828,7 +1813,7 @@ function SpanIO({ span }: { span: Span }) {
             borderColor="green-700"
             extra={
               <Flex direction="row" gap="size-100" alignItems="center">
-                {outputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
+                {outputIsText ? <ConnectedMarkdownModeSelect /> : null}
                 <CopyToClipboardButton text={output.value} />
               </Flex>
             }
@@ -1960,11 +1945,7 @@ function CodeBlock({ value, mimeType }: { value: string; mimeType: MimeType }) {
       content = <JSONBlock>{value}</JSONBlock>;
       break;
     case "text":
-      content = (
-        <View margin="size-200">
-          <ConnectedMarkdownBlock>{value}</ConnectedMarkdownBlock>
-        </View>
-      );
+      content = <ConnectedMarkdownBlock>{value}</ConnectedMarkdownBlock>;
       break;
     default:
       assertUnreachable(mimeType);

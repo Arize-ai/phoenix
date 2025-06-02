@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { graphql, useFragment, useMutation } from "react-relay";
 
 import { Card } from "@arizeai/components";
@@ -69,8 +69,8 @@ export const ProjectRetentionPolicyCard = ({
     useMutation<ProjectRetentionPolicyCardSetProjectRetentionPolicyMutation>(
       graphql`
         mutation ProjectRetentionPolicyCardSetProjectRetentionPolicyMutation(
-          $projectId: GlobalID!
-          $policyId: GlobalID!
+          $projectId: ID!
+          $policyId: ID!
         ) {
           patchProjectTraceRetentionPolicy(
             input: { id: $policyId, addProjects: [$projectId] }

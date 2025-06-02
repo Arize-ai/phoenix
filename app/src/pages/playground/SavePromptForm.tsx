@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
@@ -40,7 +40,7 @@ export function SavePromptForm({
   const prompts = useLazyLoadQuery<SavePromptFormQuery>(
     graphql`
       query SavePromptFormQuery {
-        prompts {
+        prompts(first: 200) {
           edges {
             prompt: node {
               id

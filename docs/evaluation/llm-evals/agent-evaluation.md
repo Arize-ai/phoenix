@@ -1,6 +1,6 @@
 # Agent Evaluation
 
-Evaluating any AI application is a challenge. Evaluating an agent is even more difficult. Agents present a unique set of evaluation pitfalls to navigate. For one, agents can take inefficient paths and still get to the right solution. How do you know if they took an optimal path? For another, dad responses upstream can lead to strange responses downstream. How do you pinpoint where a problem originated?&#x20;
+Evaluating any AI application is a challenge. Evaluating an agent is even more difficult. Agents present a unique set of evaluation pitfalls to navigate. For one, agents can take inefficient paths and still get to the right solution. How do you know if they took an optimal path? For another, bad responses upstream can lead to strange responses downstream. How do you pinpoint where a problem originated?&#x20;
 
 This page will walk you through a framework for navigating these pitfalls.
 
@@ -17,7 +17,7 @@ We've built evaluation templates for every step:
 
 You can evaluate the individual skills and response using normal LLM evaluation strategies, such as [Retrieval Evaluation](../how-to-evals/running-pre-tested-evals/retrieval-rag-relevance.md), [Classification with LLM Judges](../concepts-evals/llm-as-a-judge.md), [Hallucination](../how-to-evals/running-pre-tested-evals/hallucinations.md), or [Q\&A Correctness](../how-to-evals/running-pre-tested-evals/q-and-a-on-retrieved-data.md).
 
-Read more to see the breakdown of each component.
+Read more to see the breakdown of each component. &#x20;
 
 ## How to Evaluate an Agent Router
 
@@ -115,4 +115,6 @@ See our [Agent Reflection evaluation template](../how-to-evals/running-pre-teste
 
 Through a combination of the evaluations above, you can get a far more accurate picture of how your agent is performing.
 
-For an example of using these evals in combination, see [Evaluating an Agent](https://docs.arize.com/phoenix/cookbook/evaluation/evaluate-an-agent)
+For an example of using these evals in combination, see [Evaluating an Agent](https://arize.com/docs/phoenix/cookbook/evaluation/evaluate-an-agent).\
+\
+You can also review our [agent evaluation guide](https://arize.com/ai-agents/).

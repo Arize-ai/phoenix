@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { css } from "@emotion/react";
 
 import {
@@ -25,6 +25,8 @@ export const ProviderToCredentialNameMap: Record<ModelProvider, string> = {
   ANTHROPIC: "ANTHROPIC_API_KEY",
   AZURE_OPENAI: "AZURE_OPENAI_API_KEY",
   GOOGLE: "GEMINI_API_KEY",
+  DEEPSEEK: "DEEPSEEK_API_KEY",
+  XAI: "XAI_API_KEY",
 };
 
 export function PlaygroundCredentialsDropdown() {
@@ -82,6 +84,7 @@ export function PlaygroundCredentialsDropdown() {
                       size="S"
                       key={provider}
                       type="password"
+                      autoComplete="off"
                       isRequired
                       onChange={(value) => {
                         setCredential({ provider, value });

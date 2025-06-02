@@ -26,10 +26,13 @@
   * [LangGraph](tracing/integrations-tracing/langgraph.md)
   * [LiteLLM](tracing/integrations-tracing/litellm.md)
   * [Anthropic](tracing/integrations-tracing/anthropic.md)
-  * [Bedrock](tracing/integrations-tracing/bedrock.md)
-  * [Bedrock Agents](tracing/integrations-tracing/bedrock-1.md)
+  * [Amazon Bedrock](tracing/integrations-tracing/bedrock.md)
+  * [Amazon Bedrock Agents](tracing/integrations-tracing/bedrock-1.md)
   * [VertexAI](tracing/integrations-tracing/vertexai.md)
+  * [Agno](tracing/integrations-tracing/agno.md)
+  * [Model Context Protocol (MCP)](tracing/integrations-tracing/model-context-protocol-mcp.md)
   * [MistralAI](tracing/integrations-tracing/mistralai.md)
+  * [Google GenAI](tracing/integrations-tracing/google-genai.md)
   * [Groq](tracing/integrations-tracing/groq.md)
   * [Hugging Face smolagents](tracing/integrations-tracing/hfsmolagents.md)
   * [CrewAI](tracing/integrations-tracing/crewai.md)
@@ -56,24 +59,25 @@
   * [Add Metadata](tracing/how-to-tracing/add-metadata/README.md)
     * [Add Attributes, Metadata, Users](tracing/how-to-tracing/add-metadata/customize-spans.md)
     * [Instrument Prompt Templates and Prompt Variables](tracing/how-to-tracing/add-metadata/instrumenting-prompt-templates-and-prompt-variables.md)
-  * [Feedback & Annotations](tracing/how-to-tracing/feedback-and-annotations/README.md)
-    * [Capture Feedback on Traces](tracing/how-to-tracing/feedback-and-annotations/capture-feedback.md)
-    * [Evaluating Phoenix Traces](tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces.md)
+  * [Annotate Traces](tracing/how-to-tracing/feedback-and-annotations/README.md)
+    * [Annotating in the UI](tracing/how-to-tracing/feedback-and-annotations/annotating-in-the-ui.md)
+    * [Annotating via the Client](tracing/how-to-tracing/feedback-and-annotations/capture-feedback.md)
+    * [Running Evals on Traces](tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces.md)
     * [Log Evaluation Results](tracing/how-to-tracing/feedback-and-annotations/llm-evaluations.md)
   * [Importing & Exporting Traces](tracing/how-to-tracing/importing-and-exporting-traces/README.md)
     * [Import Existing Traces](tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces.md)
     * [Export Data & Query Spans](tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans.md)
+    * [Exporting Annotated Spans](tracing/how-to-tracing/importing-and-exporting-traces/exporting-annotated-spans.md)
   * [Advanced](tracing/how-to-tracing/advanced/README.md)
     * [Mask Span Attributes](tracing/how-to-tracing/advanced/masking-span-attributes.md)
     * [Suppress Tracing](tracing/how-to-tracing/advanced/suppress-tracing.md)
-    * [Filter Spans](tracing/how-to-tracing/advanced/modifying-spans.md)
+    * [Filter Spans to Export](tracing/how-to-tracing/advanced/modifying-spans.md)
     * [Capture Multimodal Traces](tracing/how-to-tracing/advanced/multimodal-tracing.md)
 * [Concepts: Tracing](tracing/concepts-tracing/README.md)
   * [How Tracing Works](tracing/concepts-tracing/how-does-tracing-work.md)
-  * [FAQs: Tracing](tracing/concepts-tracing/faqs-tracing.md)
   * [What are Traces](tracing/concepts-tracing/what-are-traces.md)
-* [Use Cases: Tracing](tracing/use-cases-tracing/README.md)
-  * [Structured Data Extraction](tracing/use-cases-tracing/structured-extraction.md)
+  * [Concepts: Annotations](tracing/concepts-tracing/concepts-annotations.md)
+  * [FAQs: Tracing](tracing/concepts-tracing/faqs-tracing.md)
 
 ## 📃 Prompt Engineering
 
@@ -94,16 +98,11 @@
   * [Tag a prompt](prompt-engineering/how-to-prompts/tag-a-prompt.md)
   * [Using a prompt](prompt-engineering/how-to-prompts/using-a-prompt.md)
 * [Concepts: Prompts](prompt-engineering/concepts-prompts.md)
-* [Use Cases: Prompts](prompt-engineering/use-cases-prompts.md)
-  * [Prompt Optimization](prompt-engineering/use-cases-prompts/prompt-optimization.md)
-  * [ReAct Prompting](prompt-engineering/use-cases-prompts/react-prompting.md)
-  * [Chain-of-Thought Prompting](prompt-engineering/use-cases-prompts/chain-of-thought-prompting.md)
-  * [Few Shot Prompting](prompt-engineering/use-cases-prompts/few-shot-prompting.md)
 
 ## 🗄️ Datasets & Experiments
 
-* [Overview: Datasets](datasets-and-experiments/overview-datasets.md)
-* [Quickstart: Datasets](datasets-and-experiments/quickstart-datasets.md)
+* [Overview: Datasets & Experiments](datasets-and-experiments/overview-datasets.md)
+* [Quickstart: Datasets & Experiments](datasets-and-experiments/quickstart-datasets.md)
 * [How-to: Datasets](datasets-and-experiments/how-to-datasets/README.md)
   * [Creating Datasets](datasets-and-experiments/how-to-datasets/creating-datasets.md)
   * [Exporting Datasets](datasets-and-experiments/how-to-datasets/exporting-datasets.md)
@@ -111,11 +110,6 @@
 * [How-to: Experiments](datasets-and-experiments/how-to-experiments/README.md)
   * [Run Experiments](datasets-and-experiments/how-to-experiments/run-experiments.md)
   * [Using Evaluators](datasets-and-experiments/how-to-experiments/using-evaluators.md)
-* [Use Cases: Experiments](datasets-and-experiments/use-cases-datasets/README.md)
-  * [Prompt Optimization](datasets-and-experiments/use-cases-datasets/prompt-optimization.md)
-  * [Text2SQL](datasets-and-experiments/use-cases-datasets/text2sql.md)
-  * [Summarization](datasets-and-experiments/use-cases-datasets/summarization.md)
-  * [Email Extraction](datasets-and-experiments/use-cases-datasets/email-extraction.md)
 
 ## 🧠 Evaluation
 
@@ -151,13 +145,7 @@
   * [Evaluators](evaluation/concepts-evals/evaluation.md)
   * [Custom Task Evaluation](evaluation/concepts-evals/building-your-own-evals.md)
 
-***
-
-* [Use Cases: Evals](use-cases-evals/README.md)
-  * [Evaluate RAG](use-cases-evals/rag-evaluation.md)
-  * [Evaluating a Data Agent](use-cases-evals/evaluating-a-data-agent.md)
-
-## 🔎 Retrieval
+## 🔍 Retrieval
 
 * [Overview: Retrieval](retrieval/overview-retrieval.md)
 * [Quickstart: Retrieval](retrieval/quickstart-retrieval.md)

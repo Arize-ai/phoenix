@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import { css } from "@emotion/react";
 
 import { Field } from "@arizeai/components";

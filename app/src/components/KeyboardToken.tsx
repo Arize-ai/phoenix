@@ -1,4 +1,4 @@
-import React, { forwardRef, Ref } from "react";
+import { forwardRef, Ref } from "react";
 import { css } from "@emotion/react";
 
 import { Keyboard, KeyboardProps } from "./content/Keyboard";

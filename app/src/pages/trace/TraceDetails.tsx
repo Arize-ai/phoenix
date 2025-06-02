@@ -1,4 +1,4 @@
-import React, { PropsWithChildren, Suspense, useMemo } from "react";
+import { PropsWithChildren, Suspense, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useParams, useSearchParams } from "react-router";
@@ -54,7 +54,7 @@ export function TraceDetails(props: TraceDetailsProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const data = useLazyLoadQuery<TraceDetailsQuery>(
     graphql`
-      query TraceDetailsQuery($traceId: ID!, $id: GlobalID!) {
+      query TraceDetailsQuery($traceId: ID!, $id: ID!) {
         project: node(id: $id) {
           ... on Project {
             trace(traceId: $traceId) {
@@ -71,8 +71,6 @@ export function TraceDetails(props: TraceDetailsProps) {
                     parentId
                     latencyMs
                     tokenCountTotal
-                    tokenCountPrompt
-                    tokenCountCompletion
                     spanAnnotationSummaries {
                       labels
                       count

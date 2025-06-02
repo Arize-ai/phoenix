@@ -1,4 +1,4 @@
-import React, { Suspense } from "react";
+import { Suspense } from "react";
 import { PreloadedQuery, usePreloadedQuery } from "react-relay";
 import { Outlet } from "react-router";
 

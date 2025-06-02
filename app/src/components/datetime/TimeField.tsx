@@ -1,4 +1,4 @@
-import React, { forwardRef, Ref } from "react";
+import { forwardRef, Ref } from "react";
 import {
   TimeField as AriaTimeField,
   TimeFieldProps as AriaTimeFieldProps,

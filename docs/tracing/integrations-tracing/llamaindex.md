@@ -1,5 +1,6 @@
 ---
 description: How to use the python LlamaIndexInstrumentor to trace LlamaIndex
+hidden: true
 ---
 
 # LlamaIndex
@@ -54,7 +55,7 @@ pip install arize-phoenix
 phoenix serve
 ```
 
-For details on customizing a local terminal deployment, see [Terminal Setup](https://docs.arize.com/phoenix/setup/environments#terminal).
+For details on customizing a local terminal deployment, see [Terminal Setup](https://arize.com/docs/phoenix/setup/environments#terminal).
 
 **Install packages:**
 
@@ -102,7 +103,7 @@ import os
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
 ```
 
-For more info on using Phoenix with Docker, see [Docker](https://docs.arize.com/phoenix/self-hosting/deployment-options/docker).
+For more info on using Phoenix with Docker, see [Docker](https://arize.com/docs/phoenix/self-hosting/deployment-options/docker).
 {% endtab %}
 
 {% tab title="Notebook" %}

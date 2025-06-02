@@ -1,6 +1,6 @@
-import React from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { css } from "@emotion/react";
 
 import { PrettyText } from "../utility";
 
@@ -17,10 +17,23 @@ export function MarkdownBlock({
 }) {
   return mode === "markdown" ? (
     <div css={markdownCSS}>
-      <Markdown remarkPlugins={[remarkGfm]}>{children}</Markdown>
+      <Markdown
+        remarkPlugins={[remarkGfm]}
+        css={css`
+          margin: var(--ac-global-dimension-static-size-200);
+        `}
+      >
+        {children}
+      </Markdown>
     </div>
   ) : (
-    <PrettyText>{children}</PrettyText>
+    <PrettyText
+      preCSS={css`
+        margin: var(--ac-global-dimension-static-size-200);
+      `}
+    >
+      {children}
+    </PrettyText>
   );
 }
 

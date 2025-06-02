@@ -15,7 +15,7 @@ from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
-from starlette.datastructures import URL, URLPath
+from starlette.datastructures import URL, Secret, URLPath
 from starlette.responses import RedirectResponse
 from starlette.routing import Router
 from starlette.status import HTTP_302_FOUND
@@ -32,9 +32,11 @@ from phoenix.auth import (
     set_oauth2_state_cookie,
     set_refresh_token_cookie,
 )
-from phoenix.config import get_env_disable_rate_limit
+from phoenix.config import (
+    get_env_disable_basic_auth,
+    get_env_disable_rate_limit,
+)
 from phoenix.db import models
-from phoenix.db.enums import UserRole
 from phoenix.server.bearer_auth import create_access_and_refresh_tokens
 from phoenix.server.oauth2 import OAuth2Client
 from phoenix.server.rate_limiters import (
@@ -77,6 +79,7 @@ else:
     create_tokens_dependencies = []
 
 
+@router.get("/{idp_name}/login", dependencies=login_dependencies)
 @router.post("/{idp_name}/login", dependencies=login_dependencies)
 async def login(
     request: Request,
@@ -169,12 +172,13 @@ async def create_tokens(
     user_info = _parse_user_info(user_info)
     try:
         async with request.app.state.db() as session:
-            user = await _ensure_user_exists_and_is_up_to_date(
+            user = await _process_oauth2_user(
                 session,
                 oauth2_client_id=str(oauth2_client.client_id),
                 user_info=user_info,
+                allow_sign_up=oauth2_client.allow_sign_up,
             )
-    except EmailAlreadyInUse as error:
+    except (EmailAlreadyInUse, SignInNotAllowed) as error:
         return _redirect_to_login(request=request, error=str(error))
     access_token, refresh_token = await create_access_and_refresh_tokens(
         user=user,
@@ -198,12 +202,24 @@ async def create_tokens(
     return response
 
 
-@dataclass
+@dataclass(frozen=True)
 class UserInfo:
     idp_user_id: str
     email: str
-    username: Optional[str]
-    profile_picture_url: Optional[str]
+    username: Optional[str] = None
+    profile_picture_url: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        if not (idp_user_id := (self.idp_user_id or "").strip()):
+            raise ValueError("idp_user_id cannot be empty")
+        object.__setattr__(self, "idp_user_id", idp_user_id)
+        if not (email := (self.email or "").strip()):
+            raise ValueError("email cannot be empty")
+        object.__setattr__(self, "email", email)
+        if username := (self.username or "").strip():
+            object.__setattr__(self, "username", username)
+        if profile_picture_url := (self.profile_picture_url or "").strip():
+            object.__setattr__(self, "profile_picture_url", profile_picture_url)
 
 
 def _validate_token_data(token_data: dict[str, Any]) -> None:
@@ -235,9 +251,157 @@ def _parse_user_info(user_info: dict[str, Any]) -> UserInfo:
     )
 
 
-async def _ensure_user_exists_and_is_up_to_date(
-    session: AsyncSession, /, *, oauth2_client_id: str, user_info: UserInfo
+async def _process_oauth2_user(
+    session: AsyncSession,
+    /,
+    *,
+    oauth2_client_id: str,
+    user_info: UserInfo,
+    allow_sign_up: bool,
 ) -> models.User:
+    """
+    Processes an OAuth2 user, either signing in an existing user or creating/updating one.
+
+    This function handles two main scenarios based on the allow_sign_up parameter:
+    1. When sign-up is not allowed (allow_sign_up=False):
+       - Checks if the user exists and can sign in with the given OAuth2 credentials
+       - Updates placeholder OAuth2 credentials if needed (e.g., temporary IDs)
+       - If the user doesn't exist or has a password set, raises SignInNotAllowed
+    2. When sign-up is allowed (allow_sign_up=True):
+       - Finds the user by OAuth2 credentials (client_id and user_id)
+       - Creates a new user if one doesn't exist, with default member role
+       - Updates the user's email if it has changed
+       - Handles username conflicts by adding a random suffix if needed
+
+    The allow_sign_up parameter is typically controlled by the PHOENIX_OAUTH2_{IDP_NAME}_ALLOW_SIGN_UP
+    environment variable for the specific identity provider.
+
+    Args:
+        session: The database session
+        oauth2_client_id: The ID of the OAuth2 client
+        user_info: User information from the OAuth2 provider
+        allow_sign_up: Whether to allow creating new users
+
+    Returns:
+        The user object
+
+    Raises:
+        SignInNotAllowed: When sign-in is not allowed for the user (user doesn't exist or has a password)
+        EmailAlreadyInUse: When the email is already in use by another account
+    """  # noqa: E501
+    if not allow_sign_up:
+        return await _get_existing_oauth2_user(
+            session,
+            oauth2_client_id=oauth2_client_id,
+            user_info=user_info,
+        )
+    return await _create_or_update_user(
+        session,
+        oauth2_client_id=oauth2_client_id,
+        user_info=user_info,
+    )
+
+
+async def _get_existing_oauth2_user(
+    session: AsyncSession,
+    /,
+    *,
+    oauth2_client_id: str,
+    user_info: UserInfo,
+) -> models.User:
+    """Signs in an existing user with OAuth2 credentials.
+
+    This function handles OAuth2 authentication for existing users. It follows a two-step process:
+
+    1. First Attempt: Find user by OAuth2 credentials
+       - Searches for a user with matching oauth2_client_id and oauth2_user_id
+       - If found, updates email if it has changed from IDP info
+       - If not found, proceeds to step 2
+
+    2. Second Attempt: Find user by email
+       - Searches for a user with matching email
+       - Verifies the user is an OAuth2 user (no password set)
+       - Handles OAuth2 credential updates in three cases:
+         a) Different OAuth2 client: Updates both client and user IDs
+         b) Same client but missing user ID: Sets the user ID
+         c) Same client but different user ID: Rejects sign-in
+
+    Profile Updates:
+    - Email: Updated if different from IDP info
+    - Profile Picture: Updated if provided in user_info
+    - Username: Never updated (remains unchanged)
+    - OAuth2 Credentials: Updated based on the three cases above
+
+    Args:
+        session: The database session
+        oauth2_client_id: The ID of the OAuth2 client
+        user_info: User information from the OAuth2 provider
+
+    Returns:
+        The signed-in user
+
+    Raises:
+        ValueError: If required fields (email, oauth2_user_id, oauth2_client_id) are empty
+        SignInNotAllowed: When sign-in is not allowed because:
+            - User doesn't exist
+            - User has a password set
+            - User has mismatched OAuth2 credentials
+    """  # noqa: E501
+    if not (email := (user_info.email or "").strip()):
+        raise ValueError("Email is required.")
+    if not (oauth2_user_id := (user_info.idp_user_id or "").strip()):
+        raise ValueError("OAuth2 user ID is required.")
+    if not (oauth2_client_id := (oauth2_client_id or "").strip()):
+        raise ValueError("OAuth2 client ID is required.")
+    profile_picture_url = (user_info.profile_picture_url or "").strip()
+    stmt = select(models.User).options(joinedload(models.User.role))
+    if user := await session.scalar(
+        stmt.filter_by(oauth2_client_id=oauth2_client_id, oauth2_user_id=oauth2_user_id)
+    ):
+        if email and email != user.email:
+            user.email = email
+    else:
+        user = await session.scalar(stmt.filter_by(email=email))
+        if user is None or not isinstance(user, models.OAuth2User):
+            raise SignInNotAllowed("Sign in is not allowed.")
+        # Case 1: Different OAuth2 client - update both client and user IDs
+        if oauth2_client_id != user.oauth2_client_id:
+            user.oauth2_client_id = oauth2_client_id
+            user.oauth2_user_id = oauth2_user_id
+        # Case 2: Same client but missing user ID - set the user ID
+        elif not user.oauth2_user_id:
+            user.oauth2_user_id = oauth2_user_id
+        # Case 3: Same client but different user ID - reject sign-in
+        elif oauth2_user_id != user.oauth2_user_id:
+            raise SignInNotAllowed("Sign in is not allowed.")
+    if profile_picture_url != user.profile_picture_url:
+        user.profile_picture_url = profile_picture_url
+    if user in session.dirty:
+        await session.flush()
+    return user
+
+
+async def _create_or_update_user(
+    session: AsyncSession,
+    /,
+    *,
+    oauth2_client_id: str,
+    user_info: UserInfo,
+) -> models.User:
+    """
+    Creates a new user or updates an existing one with OAuth2 credentials.
+
+    Args:
+        session: The database session
+        oauth2_client_id: The ID of the OAuth2 client
+        user_info: User information from the OAuth2 provider
+
+    Returns:
+        The created or updated user
+
+    Raises:
+        EmailAlreadyInUse: When the email is already in use by another account
+    """
     user = await _get_user(
         session,
         oauth2_client_id=oauth2_client_id,
@@ -251,7 +415,11 @@ async def _ensure_user_exists_and_is_up_to_date(
 
 
 async def _get_user(
-    session: AsyncSession, /, *, oauth2_client_id: str, idp_user_id: str
+    session: AsyncSession,
+    /,
+    *,
+    oauth2_client_id: str,
+    idp_user_id: str,
 ) -> Optional[models.User]:
     """
     Retrieves the user uniquely identified by the given OAuth2 client ID and IDP
@@ -288,9 +456,7 @@ async def _create_user(
     if email_exists:
         raise EmailAlreadyInUse(f"An account for {email} is already in use.")
     member_role_id = (
-        select(models.UserRole.id)
-        .where(models.UserRole.name == UserRole.MEMBER.value)
-        .scalar_subquery()
+        select(models.UserRole.id).where(models.UserRole.name == "MEMBER").scalar_subquery()
     )
     user_id = await session.scalar(
         insert(models.User)
@@ -303,6 +469,7 @@ async def _create_user(
             email=email,
             profile_picture_url=user_info.profile_picture_url,
             reset_password=False,
+            auth_method="OAUTH2",
         )
     )
     assert isinstance(user_id, int)
@@ -366,11 +533,22 @@ class EmailAlreadyInUse(Exception):
     pass
 
 
+class SignInNotAllowed(Exception):
+    pass
+
+
+class NotInvited(Exception):
+    pass
+
+
 def _redirect_to_login(*, request: Request, error: str) -> RedirectResponse:
     """
     Creates a RedirectResponse to the login page to display an error message.
     """
-    login_path = _prepend_root_path_if_exists(request=request, path="/login")
+    # TODO: this needs some cleanup
+    login_path = _prepend_root_path_if_exists(
+        request=request, path="/login" if not get_env_disable_basic_auth() else "/logout"
+    )
     url = URL(login_path).include_query_params(error=error)
     response = RedirectResponse(url=url)
     response = delete_oauth2_state_cookie(response)
@@ -416,7 +594,7 @@ def _get_create_tokens_endpoint(*, request: Request, origin_url: str, idp_name: 
 
 
 def _generate_state_for_oauth2_authorization_code_flow(
-    *, secret: str, origin_url: str, return_url: Optional[str]
+    *, secret: Secret, origin_url: str, return_url: Optional[str]
 ) -> str:
     """
     Generates a JWT whose payload contains both an OAuth2 state (generated using
@@ -432,7 +610,7 @@ def _generate_state_for_oauth2_authorization_code_flow(
     )
     if return_url is not None:
         payload["return_url"] = return_url
-    jwt_bytes: bytes = jwt.encode(header=header, payload=payload, key=secret)
+    jwt_bytes: bytes = jwt.encode(header=header, payload=payload, key=str(secret))
     return jwt_bytes.decode()
 
 
@@ -446,11 +624,11 @@ class _OAuth2StatePayload(TypedDict):
     return_url: NotRequired[str]
 
 
-def _parse_state_payload(*, secret: str, state: str) -> _OAuth2StatePayload:
+def _parse_state_payload(*, secret: Secret, state: str) -> _OAuth2StatePayload:
     """
     Validates the JWT signature and parses the return URL from the OAuth2 state.
     """
-    payload = jwt.decode(s=state, key=secret)
+    payload = jwt.decode(s=state, key=str(secret))
     if _is_oauth2_state_payload(payload):
         return payload
     raise ValueError("Invalid OAuth2 state payload.")

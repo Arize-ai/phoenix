@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useSearchParams } from "react-router";
 import { css } from "@emotion/react";
 
@@ -25,6 +25,7 @@ const oAuthLoginButtonListCSS = css`
 `;
 
 export function LoginPage() {
+  const showLoginForm = !window.Config.basicAuthDisabled;
   const oAuth2Idps = window.Config.oAuth2Idps;
   const hasOAuth2Idps = oAuth2Idps.length > 0;
   const [searchParams, setSearchParams] = useSearchParams();
@@ -60,21 +61,23 @@ export function LoginPage() {
           <Alert variant="success">{message}</Alert>
         </View>
       )}
-      <LoginForm
-        initialError={searchParams.get("error")}
-        onSubmit={() => {
-          setSearchParams((prevSearchParams) => {
-            // Clear message and error
-            const newSearchParams = new URLSearchParams(prevSearchParams);
-            newSearchParams.delete("message");
-            newSearchParams.delete("error");
-            return newSearchParams;
-          });
-        }}
-      />
+      {showLoginForm && (
+        <LoginForm
+          initialError={searchParams.get("error")}
+          onSubmit={() => {
+            setSearchParams((prevSearchParams) => {
+              // Clear message and error
+              const newSearchParams = new URLSearchParams(prevSearchParams);
+              newSearchParams.delete("message");
+              newSearchParams.delete("error");
+              return newSearchParams;
+            });
+          }}
+        />
+      )}
+      {showLoginForm && hasOAuth2Idps ? <div css={separatorCSS}>or</div> : null}
       {hasOAuth2Idps && (
         <>
-          <div css={separatorCSS}>or</div>
           <ul css={oAuthLoginButtonListCSS}>
             {oAuth2Idps.map((idp) => (
               <li key={idp.name}>

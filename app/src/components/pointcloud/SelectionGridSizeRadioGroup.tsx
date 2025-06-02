@@ -1,5 +1,3 @@
-import React from "react";
-
 import { ToggleButton, ToggleButtonGroup } from "@phoenix/components";
 import { SelectionGridSize } from "@phoenix/constants/pointCloudConstants";
 
@@ -24,7 +22,7 @@ export function SelectionGridSizeRadioGroup(
   return (
     <ToggleButtonGroup
       selectedKeys={[props.size]}
-      size="L"
+      size="S"
       aria-label="Selection Grid Size"
       onSelectionChange={(v) => {
         if (v.size === 0) {

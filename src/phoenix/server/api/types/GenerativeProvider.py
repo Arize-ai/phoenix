@@ -14,6 +14,8 @@ class GenerativeProviderKey(Enum):
     ANTHROPIC = "Anthropic"
     AZURE_OPENAI = "Azure OpenAI"
     GOOGLE = "Google AI Studio"
+    DEEPSEEK = "DeepSeek"
+    XAI = "xAI"
 
 
 @strawberry.type
@@ -26,6 +28,8 @@ class GenerativeProvider:
         GenerativeProviderKey.ANTHROPIC: ["claude"],
         GenerativeProviderKey.OPENAI: ["gpt", "o1"],
         GenerativeProviderKey.GOOGLE: ["gemini"],
+        GenerativeProviderKey.DEEPSEEK: ["deepseek"],
+        GenerativeProviderKey.XAI: ["grok"],
     }
 
     attribute_provider_to_generative_provider_map: ClassVar[dict[str, GenerativeProviderKey]] = {
@@ -33,6 +37,10 @@ class GenerativeProvider:
         OpenInferenceLLMProviderValues.ANTHROPIC.value: GenerativeProviderKey.ANTHROPIC,
         OpenInferenceLLMProviderValues.AZURE.value: GenerativeProviderKey.AZURE_OPENAI,
         OpenInferenceLLMProviderValues.GOOGLE.value: GenerativeProviderKey.GOOGLE,
+        # Note: DeepSeek uses OpenAI compatibility but we can't duplicate the key in the dict
+        # The provider will be determined through model name prefix matching instead
+        # Note: xAI uses OpenAI compatibility but we can't duplicate the key in the dict
+        # The provider will be determined through model name prefix matching instead
     }
 
     model_provider_to_api_key_env_var_map: ClassVar[dict[GenerativeProviderKey, str]] = {
@@ -40,6 +48,8 @@ class GenerativeProvider:
         GenerativeProviderKey.ANTHROPIC: "ANTHROPIC_API_KEY",
         GenerativeProviderKey.OPENAI: "OPENAI_API_KEY",
         GenerativeProviderKey.GOOGLE: "GEMINI_API_KEY",
+        GenerativeProviderKey.DEEPSEEK: "DEEPSEEK_API_KEY",
+        GenerativeProviderKey.XAI: "XAI_API_KEY",
     }
 
     @strawberry.field

@@ -7,6 +7,7 @@ module.exports = {
   extends: [
     "eslint:recommended",
     "plugin:react/recommended",
+    "plugin:react/jsx-runtime",
     "plugin:@typescript-eslint/recommended",
     "plugin:storybook/recommended",
   ],
@@ -142,6 +143,16 @@ module.exports = {
         name: "Alert",
         module: "@arizeai/components",
         use: "@phoenix/components",
+      },
+      {
+        name: "Picker",
+        module: "@arizeai/components",
+        use: "import { Select, SelectValue, SelectItem } from '@phoenix/components'",
+      },
+      {
+        name: "CompactSearchField",
+        module: "@arizeai/components",
+        use: "import { SearchField, Input } from '@phoenix/components'",
       },
     ],
     "no-duplicate-imports": "error",

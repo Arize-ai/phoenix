@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bf81c5ad095f7ca310565378e6f09a16>>
+ * @generated SignedSource<<612000d0f1e28d2569626ca394d9c217>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -129,10 +129,6 @@ return {
         "plural": false,
         "selections": [
           (v3/*: any*/),
-          {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
           (v4/*: any*/),
           {
             "kind": "InlineFragment",
@@ -205,7 +201,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v3/*: any*/)
+                          (v3/*: any*/),
+                          (v4/*: any*/)
                         ],
                         "storageKey": null
                       }
@@ -261,16 +258,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "fc176d05790f6c690eead96a6ece1c50",
+    "cacheID": "cad3c5e20cfff93d4f7f192d908ad5dc",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableRefetchQuery",
     "operationKind": "query",
-    "text": "query PlaygroundDatasetExamplesTableRefetchQuery(\n  $after: String = null\n  $datasetVersionId: GlobalID\n  $first: Int = 20\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...PlaygroundDatasetExamplesTableFragment_4a6F8Z\n    __isNode: __typename\n    id\n  }\n}\n\nfragment PlaygroundDatasetExamplesTableFragment_4a6F8Z on Dataset {\n  examples(datasetVersionId: $datasetVersionId, first: $first, after: $after) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query PlaygroundDatasetExamplesTableRefetchQuery(\n  $after: String = null\n  $datasetVersionId: ID\n  $first: Int = 20\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...PlaygroundDatasetExamplesTableFragment_4a6F8Z\n    id\n  }\n}\n\nfragment PlaygroundDatasetExamplesTableFragment_4a6F8Z on Dataset {\n  examples(datasetVersionId: $datasetVersionId, first: $first, after: $after) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ae68770500a29b14f7108d56c146fb99";
+(node as any).hash = "0d0e6fa0e812e73491de28f6e9743f74";
 
 export default node;

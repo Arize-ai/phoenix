@@ -1,9 +1,4 @@
-import React, {
-  startTransition,
-  useDeferredValue,
-  useEffect,
-  useState,
-} from "react";
+import { startTransition, useDeferredValue, useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import {
   autocompletion,
@@ -183,7 +178,7 @@ async function isConditionValid(condition: string, experimentIds: string[]) {
       graphql`
         query ExperimentRunFilterConditionFieldValidationQuery(
           $condition: String!
-          $experimentIds: [GlobalID!]!
+          $experimentIds: [ID!]!
         ) {
           validateExperimentRunFilterCondition(
             condition: $condition

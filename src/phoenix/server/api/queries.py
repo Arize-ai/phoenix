@@ -18,7 +18,7 @@ from phoenix.config import (
     get_env_database_allocated_storage_capacity_gibibytes,
     getenv,
 )
-from phoenix.db import enums, models
+from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.helpers import SupportedSQLDialect, exclude_experiment_projects
 from phoenix.db.models import DatasetExample as OrmExample
@@ -43,6 +43,8 @@ from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.input_types.Coordinates import InputCoordinate2D, InputCoordinate3D
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
+from phoenix.server.api.input_types.ProjectFilter import ProjectFilter
+from phoenix.server.api.input_types.ProjectSort import ProjectColumn, ProjectSort
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
@@ -163,7 +165,7 @@ class Query:
         stmt = (
             select(models.User)
             .join(models.UserRole)
-            .where(models.UserRole.name != enums.UserRole.SYSTEM.value)
+            .where(models.UserRole.name != "SYSTEM")
             .order_by(models.User.email)
             .options(joinedload(models.User.role))
         )
@@ -179,7 +181,7 @@ class Query:
     ) -> list[UserRole]:
         async with info.context.db() as session:
             roles = await session.scalars(
-                select(models.UserRole).where(models.UserRole.name != enums.UserRole.SYSTEM.value)
+                select(models.UserRole).where(models.UserRole.name != "SYSTEM")
             )
         return [
             UserRole(
@@ -195,7 +197,7 @@ class Query:
             select(models.ApiKey)
             .join(models.User)
             .join(models.UserRole)
-            .where(models.UserRole.name != enums.UserRole.SYSTEM.value)
+            .where(models.UserRole.name != "SYSTEM")
         )
         async with info.context.db() as session:
             api_keys = await session.scalars(stmt)
@@ -207,7 +209,7 @@ class Query:
             select(models.ApiKey)
             .join(models.User)
             .join(models.UserRole)
-            .where(models.UserRole.name == enums.UserRole.SYSTEM.value)
+            .where(models.UserRole.name == "SYSTEM")
         )
         async with info.context.db() as session:
             api_keys = await session.scalars(stmt)
@@ -230,6 +232,8 @@ class Query:
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        sort: Optional[ProjectSort] = UNSET,
+        filter: Optional[ProjectFilter] = UNSET,
     ) -> Connection[Project]:
         args = ConnectionArgs(
             first=first,
@@ -237,7 +241,25 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        stmt = select(models.Project).order_by(models.Project.id)
+        stmt = select(models.Project)
+
+        if sort and sort.col is ProjectColumn.endTime:
+            # For end time sorting, we need to use a correlated subquery
+            # The end_time comes from the Trace model, and we need to get the max end_time for
+            # each project
+            end_time_subq = (
+                select(func.max(models.Trace.end_time))
+                .where(models.Trace.project_rowid == models.Project.id)
+                .scalar_subquery()
+            )
+            stmt = stmt.order_by(
+                end_time_subq.desc() if sort.dir is SortDir.desc else end_time_subq.asc()
+            )
+        elif sort:
+            sort_col = getattr(models.Project, sort.col.value)
+            stmt = stmt.order_by(sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc())
+        if filter:
+            stmt = stmt.where(getattr(models.Project, filter.col.value).ilike(f"%{filter.value}%"))
         stmt = exclude_experiment_projects(stmt)
         async with info.context.db() as session:
             projects = await session.stream_scalars(stmt)

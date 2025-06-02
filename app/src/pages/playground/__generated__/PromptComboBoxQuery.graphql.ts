@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9dfcf51db4742a17a496feed7e3a8247>>
+ * @generated SignedSource<<3c330f0c00d01a6bbc8139e223557436>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -30,7 +30,13 @@ const node: ConcreteRequest = (function(){
 var v0 = [
   {
     "alias": null,
-    "args": null,
+    "args": [
+      {
+        "kind": "Literal",
+        "name": "first",
+        "value": 200
+      }
+    ],
     "concreteType": "PromptConnection",
     "kind": "LinkedField",
     "name": "prompts",
@@ -80,7 +86,7 @@ var v0 = [
         "storageKey": null
       }
     ],
-    "storageKey": null
+    "storageKey": "prompts(first:200)"
   }
 ];
 return {
@@ -101,16 +107,16 @@ return {
     "selections": (v0/*: any*/)
   },
   "params": {
-    "cacheID": "72f4804265380881fdc62b5d8e66bb8b",
+    "cacheID": "8dddcd4c6c884248b53dbaf0a625c335",
     "id": null,
     "metadata": {},
     "name": "PromptComboBoxQuery",
     "operationKind": "query",
-    "text": "query PromptComboBoxQuery {\n  prompts {\n    edges {\n      prompt: node {\n        __typename\n        id\n        name\n      }\n    }\n  }\n}\n"
+    "text": "query PromptComboBoxQuery {\n  prompts(first: 200) {\n    edges {\n      prompt: node {\n        __typename\n        id\n        name\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1acc413e40da1ea527fb431f10b46cf2";
+(node as any).hash = "42af63a75d1f1b2184518e94395121cd";
 
 export default node;

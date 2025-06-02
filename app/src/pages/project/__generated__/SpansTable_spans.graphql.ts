@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ab4f3d6d8fbfb9e93e0ff9468eefabb7>>
+ * @generated SignedSource<<398110e543679b851c2128cc3181857c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,8 +19,6 @@ export type SpansTable_spans$data = {
   readonly spans: {
     readonly edges: ReadonlyArray<{
       readonly span: {
-        readonly cumulativeTokenCountCompletion: number | null;
-        readonly cumulativeTokenCountPrompt: number | null;
         readonly cumulativeTokenCountTotal: number | null;
         readonly documentRetrievalMetrics: ReadonlyArray<{
           readonly evaluationName: string;
@@ -58,8 +56,6 @@ export type SpansTable_spans$data = {
         readonly spanKind: SpanKind;
         readonly startTime: string;
         readonly statusCode: SpanStatusCode;
-        readonly tokenCountCompletion: number | null;
-        readonly tokenCountPrompt: number | null;
         readonly tokenCountTotal: number | null;
         readonly trace: {
           readonly id: string;
@@ -287,35 +283,7 @@ return {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
-                  "name": "tokenCountPrompt",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "tokenCountCompletion",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
                   "name": "cumulativeTokenCountTotal",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "cumulativeTokenCountPrompt",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "cumulativeTokenCountCompletion",
                   "storageKey": null
                 },
                 {
@@ -547,6 +515,6 @@ return {
 };
 })();
 
-(node as any).hash = "1128552e9dfc766aa37c1acec4a9807f";
+(node as any).hash = "50778371684f1bd53a53c5bbeb7a6715";
 
 export default node;

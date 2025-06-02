@@ -1,4 +1,3 @@
-import React from "react";
 import { graphql, useFragment } from "react-relay";
 
 import {
@@ -62,7 +61,11 @@ export function ProjectTraceRetentionPolicySelect({
     <Select
       size="S"
       defaultSelectedKey={defaultValue}
-      onSelectionChange={(key) => onChange?.(key.toString())}
+      onSelectionChange={(key) => {
+        if (key) {
+          onChange?.(key.toString());
+        }
+      }}
       isDisabled={isDisabled}
     >
       <Label>Retention Policy</Label>

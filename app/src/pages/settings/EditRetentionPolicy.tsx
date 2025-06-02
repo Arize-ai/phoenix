@@ -1,4 +1,3 @@
-import React from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 
 import {
@@ -28,7 +27,7 @@ export function EditRetentionPolicy(props: EditRetentionPolicyProps) {
   const notifyError = useNotifyError();
   const data = useLazyLoadQuery<EditRetentionPolicyQuery>(
     graphql`
-      query EditRetentionPolicyQuery($id: GlobalID!) {
+      query EditRetentionPolicyQuery($id: ID!) {
         retentionPolicy: node(id: $id) {
           ... on ProjectTraceRetentionPolicy {
             id

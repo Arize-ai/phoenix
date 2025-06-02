@@ -1,5 +1,3 @@
-import React from "react";
-
 import {
   Icon,
   Icons,
@@ -29,7 +27,7 @@ export function SelectionDisplayRadioGroup(
   return (
     <ToggleButtonGroup
       selectedKeys={[props.mode]}
-      size="L"
+      size="S"
       onSelectionChange={(v) => {
         if (v.size === 0) {
           return;

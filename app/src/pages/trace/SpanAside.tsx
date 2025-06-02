@@ -1,17 +1,18 @@
-import React, { Suspense, useMemo } from "react";
+import { Suspense, useRef } from "react";
+import { FocusScope } from "react-aria";
+import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useFragment } from "react-relay";
-import { PanelGroup } from "react-resizable-panels";
-import { css } from "@emotion/react";
+import { ImperativePanelHandle, PanelGroup } from "react-resizable-panels";
 
 import { Flex, KeyboardToken, View } from "@phoenix/components";
-import { AnnotationLabel } from "@phoenix/components/annotation";
+import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
+import { FocusHotkey } from "@phoenix/components/FocusHotkey";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
 import {
   EDIT_ANNOTATION_HOTKEY,
   SpanAnnotationsEditor,
 } from "@phoenix/components/trace/SpanAnnotationsEditor";
 import { SpanAsideAnnotationList_span$key } from "@phoenix/pages/trace/__generated__/SpanAsideAnnotationList_span.graphql";
-import { deduplicateAnnotationsByName } from "@phoenix/pages/trace/utils";
 
 import { SpanAside_span$key } from "./__generated__/SpanAside_span.graphql";
 import {
@@ -20,14 +21,7 @@ import {
   SpanNotesEditorSkeleton,
 } from "./SpanNotesEditor";
 
-const annotationListCSS = css`
-  display: flex;
-  width: 100%;
-  flex-direction: row;
-  gap: var(--ac-global-dimension-size-100);
-  flex-wrap: wrap;
-  align-items: flex-start;
-`;
+const SPAN_ANNOTATION_LIST_HOTKEY = "s";
 
 type SpanAsideProps = {
   span: SpanAside_span$key;
@@ -39,8 +33,7 @@ type SpanAsideProps = {
 export function SpanAside(props: SpanAsideProps) {
   const data = useFragment<SpanAside_span$key>(
     graphql`
-      fragment SpanAside_span on Span
-      @argumentDefinitions(filterUserIds: { type: "[GlobalID]" }) {
+      fragment SpanAside_span on Span {
         id
         project {
           id
@@ -78,15 +71,31 @@ export function SpanAside(props: SpanAsideProps) {
         startTime
         endTime
         tokenCountTotal
-        tokenCountPrompt
-        tokenCountCompletion
         ...TraceHeaderRootSpanAnnotationsFragment
         ...SpanAsideAnnotationList_span
-          @arguments(filterUserIds: $filterUserIds)
+        ...AnnotationSummaryGroup
       }
     `,
     props.span
   );
+
+  const editAnnotationsPanelRef = useRef<ImperativePanelHandle>(null);
+  const notesPanelRef = useRef<ImperativePanelHandle>(null);
+  useHotkeys(EDIT_ANNOTATION_HOTKEY, () => {
+    // open the span annotations editor if it is closed
+    if (
+      editAnnotationsPanelRef.current &&
+      editAnnotationsPanelRef.current.isCollapsed()
+    ) {
+      editAnnotationsPanelRef.current.expand(50);
+    }
+  });
+  useHotkeys(NOTE_HOTKEY, () => {
+    // open the span notes editor if it is closed
+    if (notesPanelRef.current && notesPanelRef.current.isCollapsed()) {
+      notesPanelRef.current.expand(50);
+    }
+  });
 
   return (
     <PanelGroup direction="vertical" autoSaveId="span-aside-layout">
@@ -94,6 +103,7 @@ export function SpanAside(props: SpanAsideProps) {
         <SpanAsideAnnotationList span={data} />
       </Suspense>
       <TitledPanel
+        ref={editAnnotationsPanelRef}
         resizable
         title={
           <Flex direction={"row"} gap="size-100" alignItems={"center"}>
@@ -105,12 +115,16 @@ export function SpanAside(props: SpanAsideProps) {
       >
         <View height="100%" maxHeight="100%">
           <SpanAnnotationsEditor
+            // remount the editor when the span id changes
+            // some components are uncontrolled and will not update by themselves when the span id changes
+            key={data.id}
             projectId={data.project.id}
             spanNodeId={data.id}
           />
         </View>
       </TitledPanel>
       <TitledPanel
+        ref={notesPanelRef}
         resizable
         title={
           <Flex direction={"row"} gap="size-100" alignItems={"center"}>
@@ -120,7 +134,7 @@ export function SpanAside(props: SpanAsideProps) {
         }
         panelProps={{ order: 3, minSize: 10 }}
       >
-        <View height="100%" maxHeight="100%">
+        <View height="100%" maxHeight="100%" padding="size-100">
           <Suspense fallback={<SpanNotesEditorSkeleton />}>
             <SpanNotesEditor spanNodeId={data.id} />
           </Suspense>
@@ -135,8 +149,7 @@ function SpanAsideAnnotationList(props: {
 }) {
   const data = useFragment<SpanAsideAnnotationList_span$key>(
     graphql`
-      fragment SpanAsideAnnotationList_span on Span
-      @argumentDefinitions(filterUserIds: { type: "[GlobalID]" }) {
+      fragment SpanAsideAnnotationList_span on Span {
         project {
           id
           annotationConfigs {
@@ -152,46 +165,33 @@ function SpanAsideAnnotationList(props: {
             }
           }
         }
-        filteredSpanAnnotations: spanAnnotations(
-          filter: {
-            exclude: { names: ["note"] }
-            include: { userIds: $filterUserIds }
-          }
-        ) {
+        spanAnnotations {
           id
-          name
-          annotatorKind
-          score
-          label
-          explanation
-          createdAt
         }
+        ...AnnotationSummaryGroup
       }
     `,
     props.span
   );
-  const hasAnnotationConfigByName =
-    data.project.annotationConfigs.configs.reduce(
-      (acc, config) => {
-        acc[config.config.name!] = true;
-        return acc;
-      },
-      {} as Record<string, boolean>
-    );
-  const filteredSpanAnnotations = data.filteredSpanAnnotations;
-  const annotations = useMemo(
-    () =>
-      deduplicateAnnotationsByName(
-        filteredSpanAnnotations.filter(
-          (annotation) => hasAnnotationConfigByName[annotation.name]
-        )
-      ),
-    [filteredSpanAnnotations, hasAnnotationConfigByName]
-  );
-  const hasAnnotations = annotations.length > 0;
+  const annotationListPanelRef = useRef<ImperativePanelHandle>(null);
+  useHotkeys(SPAN_ANNOTATION_LIST_HOTKEY, () => {
+    if (
+      annotationListPanelRef.current &&
+      annotationListPanelRef.current.isCollapsed()
+    ) {
+      annotationListPanelRef.current.expand(50);
+    }
+  });
+  const hasAnnotations = data.spanAnnotations.length > 0;
   return (
     <TitledPanel
-      title="My Annotations"
+      ref={annotationListPanelRef}
+      title={
+        <Flex direction={"row"} gap="size-100" alignItems={"center"}>
+          <span>Annotation Summary</span>
+          <KeyboardToken>{SPAN_ANNOTATION_LIST_HOTKEY}</KeyboardToken>
+        </Flex>
+      }
       disabled={!hasAnnotations}
       panelProps={{
         order: 1,
@@ -199,18 +199,17 @@ function SpanAsideAnnotationList(props: {
         minSize: hasAnnotations ? 20 : 0,
       }}
     >
-      <View paddingY="size-100" paddingX="size-100">
-        <ul css={annotationListCSS}>
-          {annotations.map((annotation) => (
-            <li key={annotation.id}>
-              <AnnotationLabel
-                annotation={annotation}
-                annotationDisplayPreference="label"
-              />
-            </li>
-          ))}
-        </ul>
-      </View>
+      <FocusScope>
+        <FocusHotkey hotkey={SPAN_ANNOTATION_LIST_HOTKEY} />
+        <View
+          paddingY="size-200"
+          paddingX="size-200"
+          overflow="auto"
+          maxHeight="100%"
+        >
+          <AnnotationSummaryGroupTokens span={data} />
+        </View>
+      </FocusScope>
     </TitledPanel>
   );
 }

@@ -1,4 +1,4 @@
-import React, { ReactNode, useCallback, useState } from "react";
+import { ReactNode, useCallback, useState } from "react";
 
 import { ActionMenu, DialogContainer, Item } from "@arizeai/components";
 

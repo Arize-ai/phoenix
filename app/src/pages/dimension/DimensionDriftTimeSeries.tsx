@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import { useCallback } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   Area,
@@ -95,7 +95,7 @@ export function DimensionDriftTimeSeries({
   const data = useLazyLoadQuery<DimensionDriftTimeSeriesQuery>(
     graphql`
       query DimensionDriftTimeSeriesQuery(
-        $dimensionId: GlobalID!
+        $dimensionId: ID!
         $timeRange: TimeRange!
         $driftGranularity: Granularity!
         $countGranularity: Granularity!

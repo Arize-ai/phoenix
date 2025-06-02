@@ -18,7 +18,7 @@ An exporter takes the spans created via **instrumentation** and exports them to 
 
 ## Collector
 
-The Phoenix server is a collector and a UI that helps you troubleshoot your application in real time. When you run or run phoenix (e.x. **px.launch\_app()**, container), Phoenix starts receiving spans from any application(s) that is exporting spans to it.
+The Phoenix server is a collector and a UI that helps you troubleshoot your application in real time. When you run or run phoenix, Phoenix starts receiving spans from any application(s) that is exporting spans to it.
 
 ## OpenTelememetry Protocol
 

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { ComboBox, ComboBoxItem, ComboBoxProps } from "@phoenix/components";
@@ -25,7 +25,7 @@ export function PromptComboBox({
   const data = useLazyLoadQuery<PromptComboBoxQuery>(
     graphql`
       query PromptComboBoxQuery {
-        prompts {
+        prompts(first: 200) {
           edges {
             prompt: node {
               __typename

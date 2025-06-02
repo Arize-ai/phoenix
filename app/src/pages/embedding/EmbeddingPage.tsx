@@ -1,4 +1,5 @@
-import React, {
+import {
+  memo,
   ReactNode,
   Suspense,
   useCallback,
@@ -77,7 +78,6 @@ import {
   EmbeddingPageUMAPQuery$data,
 } from "./__generated__/EmbeddingPageUMAPQuery.graphql";
 import { ClusterSortPicker } from "./ClusterSortPicker";
-import { EmbeddingActionMenu } from "./EmbeddingActionMenu";
 import { MetricSelector } from "./MetricSelector";
 import { MetricTimeSeries } from "./MetricTimeSeries";
 import { PointSelectionPanelContent } from "./PointSelectionPanelContent";
@@ -88,7 +88,7 @@ type UMAPPointsEntry = NonNullable<
 
 const EmbeddingPageUMAPQuery = graphql`
   query EmbeddingPageUMAPQuery(
-    $id: GlobalID!
+    $id: ID!
     $timeRange: TimeRange!
     $minDist: Float!
     $nNeighbors: Int!
@@ -342,23 +342,15 @@ function EmbeddingMain() {
       <PointCloudNotifications />
       <Toolbar
         extra={
-          <Flex
-            direction="row"
-            justifyContent="center"
-            alignItems="center"
-            gap="size-100"
+          <Switch
+            onChange={(isSelected) => {
+              setShowChart(isSelected);
+            }}
+            isSelected={showChart}
+            labelPlacement="start"
           >
-            <Switch
-              onChange={(isSelected) => {
-                setShowChart(isSelected);
-              }}
-              defaultSelected={true}
-              labelPlacement="start"
-            >
-              Show Timeseries
-            </Switch>
-            <EmbeddingActionMenu />
-          </Flex>
+            Show Timeseries
+          </Switch>
         }
       >
         <PrimaryInferencesTimeRange />
@@ -635,7 +627,7 @@ function PointSelectionPanelContentWrap(props: { children: ReactNode }) {
   );
 }
 
-const ClustersPanelContents = React.memo(function ClustersPanelContents() {
+const ClustersPanelContents = memo(function ClustersPanelContents() {
   const { referenceInferences } = useInferences();
   const clusters = usePointCloudContext((state) => state.clusters);
   const selectedClusterId = usePointCloudContext(

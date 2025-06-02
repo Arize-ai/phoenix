@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { graphql, useFragment } from "react-relay";
 import {
   ColumnDef,
@@ -147,8 +147,6 @@ function SpanAnnotationsTable({
         cell: ({ row }) => {
           return (
             <SpanAnnotationActionMenu
-              buttonVariant="default"
-              buttonSize="compact"
               annotationId={row.original.id}
               spanNodeId={row.original.spanNodeId}
               annotationName={row.original.name}

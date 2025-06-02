@@ -1,4 +1,4 @@
-import React, { Fragment, Suspense, useCallback, useEffect } from "react";
+import { Fragment, Suspense, useCallback, useEffect } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { BlockerFunction, useBlocker, useSearchParams } from "react-router";
@@ -33,8 +33,8 @@ import { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
 import { NoInstalledProvider } from "./NoInstalledProvider";
 import { PlaygroundCredentialsDropdown } from "./PlaygroundCredentialsDropdown";
-import { PlaygroundDatasetPicker } from "./PlaygroundDatasetPicker";
 import { PlaygroundDatasetSection } from "./PlaygroundDatasetSection";
+import { PlaygroundDatasetSelect } from "./PlaygroundDatasetSelect";
 import { PlaygroundInput } from "./PlaygroundInput";
 import { PlaygroundOutput } from "./PlaygroundOutput";
 import { PlaygroundRunButton } from "./PlaygroundRunButton";
@@ -97,7 +97,7 @@ export function Playground(props: Partial<PlaygroundProps>) {
             <Heading level={1}>Playground</Heading>
             <Flex direction="row" gap="size-100" alignItems="center">
               <PlaygroundStreamToggle />
-              <PlaygroundDatasetPicker />
+              <PlaygroundDatasetSelect />
               <PlaygroundCredentialsDropdown />
               <PlaygroundRunButton />
             </Flex>

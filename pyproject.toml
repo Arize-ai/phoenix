@@ -26,10 +26,10 @@ dependencies = [
   "numpy!=2.0.0",  # https://github.com/lmcinnes/umap/issues/1138
   "pandas>=1.0",
   "jinja2",
-  "starlette>=0.46.0",
+  "starlette",
   "uvicorn",
   "psutil",
-  "strawberry-graphql>=0.262.0",  # resolve security vulnerability https://github.com/Arize-ai/phoenix/security/dependabot/45
+  "strawberry-graphql==0.270.1",
   "pyarrow",
   "typing-extensions>=4.6",
   "scipy",
@@ -52,8 +52,8 @@ dependencies = [
   "sqlean.py>=3.45.1",
   "cachetools",
   "python-multipart",  # see https://www.starlette.io/#dependencies
-  "arize-phoenix-evals>=0.13.1",
-  "arize-phoenix-otel>=0.5.1",
+  "arize-phoenix-evals>=0.20.6",
+  "arize-phoenix-otel>=0.10.1",
   "fastapi",
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
   "authlib",
@@ -88,7 +88,7 @@ dev = [
   "pytest-postgresql",
   "asyncpg",
   "psycopg[binary,pool]",
-  "strawberry-graphql[debug-server,opentelemetry]==0.262.5",  # need to pin version because we're monkey-patching
+  "strawberry-graphql[debug-server,opentelemetry]==0.270.1",
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
   "llama-index>=0.10.3",
@@ -137,7 +137,7 @@ container = [
   "opentelemetry-instrumentation-sqlalchemy",
   "opentelemetry-instrumentation-grpc",
   "py-grpc-prometheus",
-  "strawberry-graphql[opentelemetry]==0.262.5",  # need to pin version because we're monkey-patching
+  "strawberry-graphql[opentelemetry]==0.270.1",
   "uvloop; platform_system != 'Windows'",
   "fast-hdbscan>=0.2.0",
   "numba>=0.60.0",  # https://github.com/astral-sh/uv/issues/6281
@@ -147,7 +147,7 @@ test = [
 ]
 
 [project.urls]
-Documentation = "https://docs.arize.com/phoenix/"
+Documentation = "https://arize.com/docs/phoenix/"
 Issues = "https://github.com/Arize-ai/phoenix/issues"
 Source = "https://github.com/Arize-ai/phoenix"
 
@@ -168,6 +168,7 @@ exclude = [
 artifacts = [
   "src/phoenix/server/static",
   "src/phoenix/db/migrations",
+  "src/phoenix/server/cost_tracking/model_cost_manifest.json",
 ]
 
 [tool.hatch.build]
@@ -187,6 +188,7 @@ exclude = [
 artifacts = [
   "src/phoenix/server/static",
   "src/phoenix/db/migrations",
+  "src/phoenix/server/cost_tracking/model_cost_manifest.json",
 ]
 
 [tool.pytest.ini_options]

@@ -102,11 +102,23 @@ interface GooglePromptVersionInput extends PromptVersionInputBase {
   invocationParameters?: GoogleInvocationParameters;
 }
 
+interface DeepSeekPromptVersionInput extends PromptVersionInputBase {
+  modelProvider: "DEEPSEEK";
+  invocationParameters?: OpenAIInvocationParameters;
+}
+
+interface XAIPromptVersionInput extends PromptVersionInputBase {
+  modelProvider: "XAI";
+  invocationParameters?: OpenAIInvocationParameters;
+}
+
 type PromptVersionInput =
   | OpenAIPromptVersionInput
   | AzureOpenAIPromptVersionInput
   | AnthropicPromptVersionInput
-  | GooglePromptVersionInput;
+  | GooglePromptVersionInput
+  | DeepSeekPromptVersionInput
+  | XAIPromptVersionInput;
 
 /**
  * A helper function to construct a prompt version declaratively.
@@ -188,6 +200,38 @@ export function promptVersion(params: PromptVersionInput): PromptVersionData {
         invocation_parameters: {
           type: "google",
           google: invocation_parameters ?? {},
+        },
+      };
+    case "DEEPSEEK":
+      return {
+        description,
+        model_provider,
+        model_name,
+        template_type: "CHAT",
+        template_format,
+        template: {
+          type: "chat",
+          messages: templateMessages,
+        },
+        invocation_parameters: {
+          type: "deepseek",
+          deepseek: invocation_parameters ?? {},
+        },
+      };
+    case "XAI":
+      return {
+        description,
+        model_provider,
+        model_name,
+        template_type: "CHAT",
+        template_format,
+        template: {
+          type: "chat",
+          messages: templateMessages,
+        },
+        invocation_parameters: {
+          type: "xai",
+          xai: invocation_parameters ?? {},
         },
       };
     default:

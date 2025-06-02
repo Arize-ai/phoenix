@@ -1,4 +1,3 @@
-import React, { useState } from "react";
 import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -7,8 +6,12 @@ import { Card } from "@arizeai/components";
 import {
   Button,
   Dialog,
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
   DialogTrigger,
-  Heading,
   Icon,
   Icons,
   Modal,
@@ -20,10 +23,9 @@ import { RetentionPoliciesTable } from "./RetentionPoliciesTable";
 import { settingsDataPageLoader } from "./settingsDataPageLoader";
 
 export function SettingsDataPage() {
-  const [fetchKey, setFetchKey] = useState(0);
   const loaderData = useLoaderData<typeof settingsDataPageLoader>();
   invariant(loaderData, "loaderData is required");
-
+  const queryId = loaderData.__id;
   return (
     <Card
       title="Retention Policies"
@@ -41,15 +43,20 @@ export function SettingsDataPage() {
             <Modal>
               <Dialog>
                 {({ close }) => (
-                  <>
-                    <Heading slot="title">New Retention Policy</Heading>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>New Retention Policy</DialogTitle>
+                      <DialogTitleExtra>
+                        <DialogCloseButton slot="close" />
+                      </DialogTitleExtra>
+                    </DialogHeader>
                     <CreateRetentionPolicy
+                      queryId={queryId}
                       onCreate={() => {
-                        setFetchKey(fetchKey + 1);
                         close();
                       }}
                     />
-                  </>
+                  </DialogContent>
                 )}
               </Dialog>
             </Modal>
@@ -57,7 +64,7 @@ export function SettingsDataPage() {
         </CanManageRetentionPolicy>
       }
     >
-      <RetentionPoliciesTable query={loaderData} fetchKey={fetchKey} />
+      <RetentionPoliciesTable query={loaderData} />
     </Card>
   );
 }

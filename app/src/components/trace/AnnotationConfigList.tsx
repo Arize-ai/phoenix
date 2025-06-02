@@ -1,4 +1,4 @@
-import React, { startTransition, useCallback, useMemo, useState } from "react";
+import { startTransition, useCallback, useMemo, useState } from "react";
 import { FocusScope } from "react-aria";
 import {
   graphql,
@@ -80,7 +80,7 @@ export function AnnotationConfigList(props: {
   const viewerId = viewer?.id;
   const data = useLazyLoadQuery<AnnotationConfigListQuery>(
     graphql`
-      query AnnotationConfigListQuery($projectId: GlobalID!) {
+      query AnnotationConfigListQuery($projectId: ID!) {
         project: node(id: $projectId) {
           ... on Project {
             ...AnnotationConfigListProjectAnnotationConfigFragment
@@ -156,10 +156,10 @@ export function AnnotationConfigList(props: {
     useMutation<AnnotationConfigListAssociateAnnotationConfigWithProjectMutation>(
       graphql`
         mutation AnnotationConfigListAssociateAnnotationConfigWithProjectMutation(
-          $projectId: GlobalID!
-          $annotationConfigId: GlobalID!
-          $spanId: GlobalID!
-          $filterUserIds: [GlobalID!]
+          $projectId: ID!
+          $annotationConfigId: ID!
+          $spanId: ID!
+          $filterUserIds: [ID!]
         ) {
           addAnnotationConfigToProject(
             input: {
@@ -191,10 +191,10 @@ export function AnnotationConfigList(props: {
     useMutation<AnnotationConfigListRemoveAnnotationConfigFromProjectMutation>(
       graphql`
         mutation AnnotationConfigListRemoveAnnotationConfigFromProjectMutation(
-          $projectId: GlobalID!
-          $annotationConfigId: GlobalID!
-          $spanId: GlobalID!
-          $filterUserIds: [GlobalID!]
+          $projectId: ID!
+          $annotationConfigId: ID!
+          $spanId: ID!
+          $filterUserIds: [ID!]
         ) {
           removeAnnotationConfigFromProject(
             input: {

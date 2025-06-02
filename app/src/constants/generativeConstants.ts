@@ -6,6 +6,8 @@ export const ModelProviders: Record<ModelProvider, string> = {
   AZURE_OPENAI: "Azure OpenAI",
   ANTHROPIC: "Anthropic",
   GOOGLE: "Google",
+  DEEPSEEK: "DeepSeek",
+  XAI: "xAI",
 };
 
 /**

@@ -1,4 +1,4 @@
-import React, { Ref } from "react";
+import { forwardRef, Ref } from "react";
 import {
   Modal as AriaModal,
   ModalOverlayProps as AriaModalOverlayProps,
@@ -7,6 +7,14 @@ import { css, keyframes } from "@emotion/react";
 
 import { SizingProps } from "../types";
 
+const modalSlideover = keyframes`
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+    `;
 const modalFade = keyframes`
   from {
     opacity: 0;
@@ -24,24 +32,21 @@ const modalZoom = keyframes`
   }
   `;
 const modalCSS = css`
+  --visual-viewport-height: 100vh;
   --modal-width: var(--ac-global-modal-width-M);
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: var(--visual-viewport-height);
+  // TODO(apowell): refactor into ModalOverlay with default styles
+  // The modal itself should not render a background/overlay unless you compose
+  // it with ModalOverlay
   background: rgba(0 0 0 / 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 100;
-  &[data-entering] {
-    animation: ${modalFade} 200ms;
-  }
-
-  &[data-exiting] {
-    animation: ${modalFade} 150ms reverse ease-in;
-  }
 
   &[data-size="S"] {
     --modal-width: var(--ac-global-modal-width-S);
@@ -49,6 +54,52 @@ const modalCSS = css`
 
   &[data-size="M"] {
     --modal-width: var(--ac-global-modal-width-M);
+  }
+
+  &[data-size="L"] {
+    --modal-width: var(--ac-global-modal-width-L);
+  }
+
+  &[data-size="fullscreen"] {
+    --modal-width: var(--ac-global-modal-width-FULLSCREEN);
+  }
+
+  &[data-variant="slideover"] {
+    width: var(--modal-width);
+    height: var(--visual-viewport-height);
+    top: 0;
+    right: 0;
+    left: auto;
+    align-items: flex-start;
+    justify-content: flex-end;
+    background: transparent;
+
+    &[data-entering] {
+      animation: ${modalSlideover} 300ms;
+    }
+
+    &[data-exiting] {
+      animation: ${modalSlideover} 300ms reverse ease-in;
+    }
+
+    .react-aria-Dialog {
+      height: 100%;
+      border-radius: 0;
+      border-left-color: var(--ac-global-border-color-dark);
+      border-top: none;
+      border-bottom: none;
+      border-right: none;
+    }
+  }
+
+  &[data-variant="default"] {
+    &[data-entering] {
+      animation: ${modalFade} 200ms;
+    }
+
+    &[data-exiting] {
+      animation: ${modalFade} 150ms reverse ease-in;
+    }
   }
 
   .react-aria-Dialog {
@@ -72,14 +123,23 @@ const modalCSS = css`
   }
 `;
 
-export interface ModalProps extends AriaModalOverlayProps, SizingProps {}
+export interface ModalProps extends AriaModalOverlayProps {
+  variant?: "default" | "slideover";
+  size?: SizingProps["size"] | "fullscreen";
+}
 
 function Modal(props: ModalProps, ref: Ref<HTMLDivElement>) {
-  const { size = "M", ...otherProps } = props;
+  const { size = "M", variant = "default", ...otherProps } = props;
   return (
-    <AriaModal {...otherProps} data-size={size} ref={ref} css={modalCSS} />
+    <AriaModal
+      {...otherProps}
+      data-size={size}
+      data-variant={variant}
+      ref={ref}
+      css={modalCSS}
+    />
   );
 }
 
-const _Modal = React.forwardRef(Modal);
+const _Modal = forwardRef(Modal);
 export { _Modal as Modal };

@@ -1,4 +1,3 @@
-import React from "react";
 import { css, Global } from "@emotion/react";
 
 import { useProvider } from "@arizeai/components";
@@ -611,7 +610,7 @@ export const darkThemeCSS = css`
       var(--ac-global-color-magenta-1400-rgb)
     );
 
-    // Semantic colors
+    // Semantic colors for dark mode
     --ac-global-color-info-rgb: 114, 217, 255;
     --ac-global-color-info: rgb(var(--ac-global-color-info-rgb));
     --ac-global-color-info-900: rgba(var(--ac-global-color-info-rgb), 0.9);
@@ -650,6 +649,11 @@ export const darkThemeCSS = css`
       var(--ac-global-color-warning-rgb),
       0.5
     );
+    --ac-global-color-severe-rgb: 188, 76, 0;
+    --ac-global-color-severe: rgb(var(--ac-global-color-severe-rgb));
+    --ac-global-color-severe-900: rgba(var(--ac-global-color-severe-rgb), 0.9);
+    --ac-global-color-severe-700: rgba(var(--ac-global-color-severe-rgb), 0.7);
+    --ac-global-color-severe-500: rgba(var(--ac-global-color-severe-rgb), 0.5);
 
     // Designation colors
     --ac-global-color-designation-purple: #bb9ff9;
@@ -878,7 +882,7 @@ export const lightThemeCSS = css`
     --ac-global-color-magenta-1300: #54032a;
     --ac-global-color-magenta-1400: #3c061d;
 
-    // Semantic colors
+    // Semantic colors for light mode
     --ac-global-color-info: rgb(2, 173, 221);
     --ac-global-color-info-900: rgba(2, 173, 221, 0.9);
     --ac-global-color-info-700: rgba(2, 173, 221, 0.7);
@@ -887,14 +891,17 @@ export const lightThemeCSS = css`
     --ac-global-color-danger-900: rgba(218, 11, 0, 0.9);
     --ac-global-color-danger-700: rgba(218, 11, 0, 0.7);
     --ac-global-color-danger-500: rgba(218, 11, 0, 0.5);
-    --ac-global-color-success: rgb(17, 191, 69);
-    --ac-global-color-success-900: rgba(17, 191, 69, 0.9);
-    --ac-global-color-success-700: rgba(17, 191, 69, 0.7);
-    --ac-global-color-success-500: rgba(17, 191, 69, 0.5);
+    --ac-global-color-success: rgb(26, 127, 55);
+    --ac-global-color-success-700: rgba(26, 127, 55, 0.7);
+    --ac-global-color-success-500: rgba(26, 127, 55, 0.5);
     --ac-global-color-warning: rgb(224, 102, 2);
     --ac-global-color-warning-900: rgba(224, 102, 2, 0.9);
     --ac-global-color-warning-700: rgba(224, 102, 2, 0.7);
     --ac-global-color-warning-500: rgba(224, 102, 2, 0.5);
+    --ac-global-color-severe: rgb(188, 76, 0);
+    --ac-global-color-severe-900: rgba(188, 76, 0, 0.9);
+    --ac-global-color-severe-700: rgba(188, 76, 0, 0.7);
+    --ac-global-color-severe-500: rgba(188, 76, 0, 0.5);
 
     // Designation colors
     --ac-global-color-designation-purple: #4500d9;
@@ -1015,6 +1022,12 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
       --ac-global-color-success-900
     );
     --ac-global-button-success-border-color: var(--ac-global-color-success);
+
+    // Styles for disclosure
+    --ac-global-disclosure-background-color-active: rgba(
+      var(--ac-global-color-grey-900-rgb),
+      0.05
+    );
 
     // Style for tooltips
     --ac-global-tooltip-background-color: var(--ac-global-color-grey-100);
@@ -1161,6 +1174,10 @@ const appGlobalStylesCSS = css`
     /* Modal */
     --ac-global-modal-width-S: 500px;
     --ac-global-modal-width-M: 700px;
+    --ac-global-modal-width-L: 900px;
+    --ac-global-modal-width-FULLSCREEN: calc(
+      100vw - var(--ac-global-dimension-static-size-1700)
+    );
   }
 
   .ac-theme--dark {
@@ -1200,6 +1217,17 @@ const codeMirrorOverridesCSS = css`
   }
 `;
 
+const ReactGridLayoutCSS = css`
+  .react-grid-item.react-grid-placeholder {
+    // the placeholder doesn't look good
+    background: var(--ac-global-color-blue-500);
+    opacity: 0.1;
+  }
+  .ac-theme--dark .react-resizable-handle {
+    filter: invert(1);
+  }
+`;
+
 export function GlobalStyles() {
   const { theme = "dark" } = useProvider();
   const themeCSS = theme === "dark" ? darkThemeCSS : lightThemeCSS;
@@ -1213,7 +1241,8 @@ export function GlobalStyles() {
         mediumRootCSS,
         opacitiesCSS,
         appGlobalStylesCSS,
-        codeMirrorOverridesCSS
+        codeMirrorOverridesCSS,
+        ReactGridLayoutCSS
       )}
     />
   );

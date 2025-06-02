@@ -1,5 +1,6 @@
 ---
 description: How to leverage Evals to validate and monitor your application
+hidden: true
 ---
 
 # Concepts: Evals

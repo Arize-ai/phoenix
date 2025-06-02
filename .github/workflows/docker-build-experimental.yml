@@ -4,7 +4,8 @@ permissions:
 on:
   push:
     branches:
-      - feat/annotations
+      - feat/version-10
+      - feat/openid-only
 
 jobs:
   push_to_registry:

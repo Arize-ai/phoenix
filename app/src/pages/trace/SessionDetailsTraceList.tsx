@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { isNumber, isString } from "lodash";
 
 import {
@@ -129,10 +129,7 @@ function RootSpanDetails({
           <Flex direction={"row"} gap={"size-100"}>
             <TokenCount
               tokenCountTotal={rootSpan.cumulativeTokenCountTotal ?? 0}
-              tokenCountCompletion={
-                rootSpan.cumulativeTokenCountCompletion ?? 0
-              }
-              tokenCountPrompt={rootSpan.cumulativeTokenCountPrompt ?? 0}
+              nodeId={rootSpan.id}
             />
             {rootSpan.latencyMs != null ? (
               <LatencyText latencyMs={rootSpan.latencyMs} />

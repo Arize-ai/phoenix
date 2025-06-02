@@ -1,4 +1,4 @@
-import React, { createContext, PropsWithChildren, useState } from "react";
+import { createContext, PropsWithChildren, useContext, useState } from "react";
 import { useZustand } from "use-zustand";
 
 import {
@@ -27,7 +27,7 @@ export function useProjectContext<T>(
   selector: (state: ProjectState) => T,
   equalityFn?: (left: T, right: T) => boolean
 ): T {
-  const store = React.useContext(ProjectContext);
+  const store = useContext(ProjectContext);
   if (!store) throw new Error("Missing ProjectContext.Provider in the tree");
   return useZustand(store.state, selector, equalityFn);
 }

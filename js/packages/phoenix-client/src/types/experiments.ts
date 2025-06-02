@@ -5,19 +5,33 @@ import { Example } from "./datasets";
 /**
  * An experiment is a set of task runs on a dataset version
  */
-export interface Experiment extends Node {
+export interface ExperimentInfo extends Node {
   datasetId: string;
   datasetVersionId: string;
-  repetitions: number;
   /**
    * The project under which the experiment task traces are recorded
    */
   projectName: string;
+  /**
+   * Metadata about the experiment as an object of key values
+   * e.x. model name
+   */
+  metadata: Record<string, unknown>;
 }
 
-export interface RanExperiment extends Experiment {
-  params: ExperimentParameters;
-  runs: Record<string, ExperimentRun>;
+export type ExperimentRunID = string;
+
+/**
+ * A map of an experiment runId to the run
+ */
+export interface ExperimentRunsMap {
+  runs: Record<ExperimentRunID, ExperimentRun>;
+}
+
+/**
+ * An experiment that has been run and been recorded on the server
+ */
+export interface RanExperiment extends ExperimentInfo, ExperimentRunsMap {
   evaluationRuns?: ExperimentEvaluationRun[];
 }
 
@@ -32,7 +46,6 @@ export interface ExperimentRun extends Node {
    */
   experimentId: string;
   datasetExampleId: string;
-  repetitionNumber: number;
   output?: string | Record<string, unknown> | null;
   error: string | null;
   traceId: string | null;
@@ -59,6 +72,7 @@ export type EvaluatorParams = {
 
 export type Evaluator = {
   name: string;
+  kind: AnnotatorKind;
   evaluate: (
     args: EvaluatorParams
   ) => Promise<EvaluationResult> | EvaluationResult;
@@ -100,9 +114,4 @@ export interface ExperimentParameters {
    * The number of examples to run the experiment on
    */
   nExamples: number;
-  /**
-   * The number of repetitions to run the experiment
-   * e.g. the number of times to run the task
-   */
-  nRepetitions: number;
 }

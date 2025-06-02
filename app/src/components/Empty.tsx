@@ -1,4 +1,3 @@
-import React from "react";
 import { css } from "@emotion/react";
 
 import { EmptyGraphic, EmptyGraphicProps } from "@arizeai/components";

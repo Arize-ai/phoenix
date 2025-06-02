@@ -23,6 +23,8 @@ export const convertInstanceToolsToProvider = ({
   return instanceTools.map((tool) => {
     switch (provider) {
       case "OPENAI":
+      case "DEEPSEEK":
+      case "XAI":
       case "AZURE_OPENAI": {
         const maybeOpenAIToolDefinition = toOpenAIToolDefinition(
           tool.definition
@@ -74,6 +76,8 @@ export const convertMessageToolCallsToProvider = ({
   return toolCalls.map((toolCall) => {
     switch (provider) {
       case "OPENAI":
+      case "DEEPSEEK":
+      case "XAI":
       case "AZURE_OPENAI": {
         return toOpenAIToolCall(toolCall) ?? toolCall;
       }

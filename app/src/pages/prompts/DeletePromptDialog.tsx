@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import { useCallback } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import { Dialog } from "@arizeai/components";
@@ -19,7 +19,7 @@ export function DeletePromptDialog({
 }) {
   const [commit, isCommitting] = useMutation<DeletePromptDialogMutation>(
     graphql`
-      mutation DeletePromptDialogMutation($promptId: GlobalID!) {
+      mutation DeletePromptDialogMutation($promptId: ID!) {
         deletePrompt(input: { promptId: $promptId }) {
           query {
             ...PromptsTable_prompts

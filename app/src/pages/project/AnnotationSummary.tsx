@@ -33,7 +33,7 @@ export function AnnotationSummary({ annotationName }: AnnotationSummaryProps) {
   const data = useLazyLoadQuery<AnnotationSummaryQuery>(
     graphql`
       query AnnotationSummaryQuery(
-        $id: GlobalID!
+        $id: ID!
         $annotationName: String!
         $timeRange: TimeRange!
       ) {

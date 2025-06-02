@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import { useCallback } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   Area,
@@ -182,14 +182,14 @@ export function MetricTimeSeries({
   const data = useLazyLoadQuery<MetricTimeSeriesQuery>(
     graphql`
       query MetricTimeSeriesQuery(
-        $embeddingDimensionId: GlobalID!
+        $embeddingDimensionId: ID!
         $timeRange: TimeRange!
         $metricGranularity: Granularity!
         $countGranularity: Granularity!
         $fetchDrift: Boolean!
         $fetchQueryDistance: Boolean!
         $fetchDataQuality: Boolean!
-        $dimensionId: GlobalID!
+        $dimensionId: ID!
         $fetchPerformance: Boolean!
         $performanceMetric: PerformanceMetric!
       ) {

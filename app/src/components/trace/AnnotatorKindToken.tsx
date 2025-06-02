@@ -1,5 +1,3 @@
-import React from "react";
-
 import { Token } from "@phoenix/components";
 
 type AnnotatorKind = "HUMAN" | "LLM" | "CODE";

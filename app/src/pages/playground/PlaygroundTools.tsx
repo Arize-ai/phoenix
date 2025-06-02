@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 
 import { Form } from "@arizeai/components";
 
@@ -60,7 +60,7 @@ export function PlaygroundTools(props: PlaygroundToolsProps) {
       </DisclosureTrigger>
       <DisclosurePanel>
         <View padding="size-200">
-          <Flex direction="column">
+          <Flex direction="column" gap="size-200">
             <Form>
               <ToolChoiceSelector
                 provider={provider}

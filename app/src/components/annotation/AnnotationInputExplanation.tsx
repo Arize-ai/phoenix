@@ -1,4 +1,3 @@
-import React from "react";
 import { FocusScope } from "react-aria";
 import { css } from "@emotion/react";
 
@@ -21,11 +20,9 @@ import { EXPLANATION_LABEL_WIDTH } from "@phoenix/components/annotation/constant
 export const AnnotationInputExplanation = ({
   annotation,
   onSubmit,
-  containerRef,
 }: {
   annotation?: Annotation;
   onSubmit?: (explanation: string) => void;
-  containerRef?: HTMLDivElement;
 }) => {
   const fieldName = annotation?.name
     ? `${annotation.name}.explanation`
@@ -63,7 +60,7 @@ export const AnnotationInputExplanation = ({
       >
         explain
       </Button>
-      <Popover placement="bottom end" UNSTABLE_portalContainer={containerRef}>
+      <Popover placement="bottom end">
         <PopoverArrow />
         <Dialog>
           {({ close }) => (

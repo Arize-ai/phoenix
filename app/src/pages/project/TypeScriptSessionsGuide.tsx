@@ -1,5 +1,3 @@
-import React from "react";
-
 import { ExternalLink, Heading, Text, View } from "@phoenix/components";
 import { CodeWrap, PythonBlockWithCopy } from "@phoenix/components/code";
 import { TypeScriptBlockWithCopy } from "@phoenix/components/code/TypeScriptBlockWithCopy";
@@ -103,7 +101,7 @@ export function TypeScriptSessionsGuide() {
       <View paddingBottom="size-100">
         <Text>
           For more information on how to use sessions, consult the{" "}
-          <ExternalLink href="https://docs.arize.com/phoenix/tracing/how-to-tracing/setup-sessions">
+          <ExternalLink href="https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-sessions">
             documentation
           </ExternalLink>
         </Text>

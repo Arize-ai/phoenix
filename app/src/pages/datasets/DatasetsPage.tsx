@@ -1,4 +1,4 @@
-import React, { ReactNode, Suspense, useCallback, useState } from "react";
+import { ReactNode, Suspense, useCallback, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate } from "react-router";
 

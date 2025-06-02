@@ -37,10 +37,12 @@ import { DialogContainer, Tooltip, TooltipTrigger } from "@arizeai/components";
 
 import {
   Button,
+  DialogTrigger,
   Flex,
   Icon,
   Icons,
   Loading,
+  Modal,
   Text,
   View,
 } from "@phoenix/components";
@@ -292,25 +294,20 @@ function ExampleOutputContent({
           )}
           {hasSpan && (
             <>
-              <TooltipTrigger>
+              <DialogTrigger>
                 <Button
                   size="S"
                   aria-label="View run trace"
                   leadingVisual={<Icon svg={<Icons.Trace />} />}
-                  onPress={() => {
-                    startTransition(() => {
-                      setDialog(
-                        <PlaygroundRunTraceDetailsDialog
-                          traceId={span.context.traceId}
-                          projectId={span.project.id}
-                          title={`Experiment Run Trace`}
-                        />
-                      );
-                    });
-                  }}
                 />
-                <Tooltip>View Trace</Tooltip>
-              </TooltipTrigger>
+                <Modal size="fullscreen" variant="slideover">
+                  <PlaygroundRunTraceDetailsDialog
+                    traceId={span.context.traceId}
+                    projectId={span.project.id}
+                    title={`Experiment Run Trace`}
+                  />
+                </Modal>
+              </DialogTrigger>
             </>
           )}
         </>
@@ -375,8 +372,7 @@ function SpanMetadata({ span }: { span: Span }) {
     <Flex direction="row" gap="size-100" alignItems="center">
       <TokenCount
         tokenCountTotal={span.tokenCountTotal || 0}
-        tokenCountPrompt={span.tokenCountPrompt || 0}
-        tokenCountCompletion={span.tokenCountCompletion || 0}
+        nodeId={span.id}
       />
       <LatencyText latencyMs={span.latencyMs || 0} />
     </Flex>
@@ -705,7 +701,7 @@ export function PlaygroundDatasetExamplesTable({
 
   const { dataset } = useLazyLoadQuery<PlaygroundDatasetExamplesTableQuery>(
     graphql`
-      query PlaygroundDatasetExamplesTableQuery($datasetId: GlobalID!) {
+      query PlaygroundDatasetExamplesTableQuery($datasetId: ID!) {
         dataset: node(id: $datasetId) {
           ...PlaygroundDatasetExamplesTableFragment
         }
@@ -723,7 +719,7 @@ export function PlaygroundDatasetExamplesTable({
       fragment PlaygroundDatasetExamplesTableFragment on Dataset
       @refetchable(queryName: "PlaygroundDatasetExamplesTableRefetchQuery")
       @argumentDefinitions(
-        datasetVersionId: { type: "GlobalID" }
+        datasetVersionId: { type: "ID" }
         after: { type: "String", defaultValue: null }
         first: { type: "Int", defaultValue: 20 }
       ) {
@@ -997,8 +993,6 @@ graphql`
         datasetExampleId
         span {
           id
-          tokenCountCompletion
-          tokenCountPrompt
           tokenCountTotal
           latencyMs
           project {
@@ -1040,8 +1034,6 @@ graphql`
             errorMessage
             span {
               id
-              tokenCountCompletion
-              tokenCountPrompt
               tokenCountTotal
               latencyMs
               project {

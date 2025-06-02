@@ -1,10 +1,11 @@
 ---
 description: Use Phoenix and OpenAI Agents SDK for powerful multi-agent tracing
+hidden: true
 ---
 
 # OpenAI Agents SDK
 
-## 1. Launch Phoenix
+## Launch Phoenix
 
 We have several code samples below on different ways to integrate with OpenAI, based on how you want to use Phoenix.
 
@@ -42,7 +43,7 @@ pip install arize-phoenix
 phoenix serve
 ```
 
-For details on customizing a local terminal deployment, see [Terminal Setup](https://docs.arize.com/phoenix/setup/environments#terminal).
+For details on customizing a local terminal deployment, see [Terminal Setup](https://arize.com/docs/phoenix/setup/environments#terminal).
 
 **Install packages:**
 
@@ -90,7 +91,7 @@ import os
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
 ```
 
-For more info on using Phoenix with Docker, see [Docker](https://docs.arize.com/phoenix/self-hosting/deployment-options/docker).
+For more info on using Phoenix with Docker, see [Docker](https://arize.com/docs/phoenix/self-hosting/deployment-options/docker).
 {% endtab %}
 
 {% tab title="Notebook" %}
@@ -108,18 +109,18 @@ px.launch_app()
 ```
 
 {% hint style="info" %}
-By default, notebook instances do not have persistent storage, so your traces will disappear after the notebook is closed. See [self-hosting](https://docs.arize.com/phoenix/self-hosting) or use one of the other deployment options to retain traces.
+By default, notebook instances do not have persistent storage, so your traces will disappear after the notebook is closed. See [self-hosting](https://arize.com/docs/phoenix/self-hosting) or use one of the other deployment options to retain traces.
 {% endhint %}
 {% endtab %}
 {% endtabs %}
 
-## 2. Install
+## Install
 
 ```bash
 pip install openinference-instrumentation-openai-agents openai-agents
 ```
 
-## 3. Set up Tracing
+## Set up Tracing
 
 Add your OpenAI API key as an environment variable:
 

@@ -1,6 +1,9 @@
-import React from "react";
-
-import { Dialog } from "@arizeai/components";
+import { Dialog } from "@phoenix/components";
+import {
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@phoenix/components/dialog";
 
 import {
   SpanAnnotationsEditor,
@@ -12,8 +15,13 @@ export function EditSpanAnnotationsDialog(
   props: EditSpanAnnotationsDialogProps
 ) {
   return (
-    <Dialog title="Annotate" size="M" isDismissable>
-      <SpanAnnotationsEditor {...props} />
+    <Dialog>
+      <DialogHeader>
+        <DialogTitle>Annotate</DialogTitle>
+      </DialogHeader>
+      <DialogContent>
+        <SpanAnnotationsEditor {...props} />
+      </DialogContent>
     </Dialog>
   );
 }

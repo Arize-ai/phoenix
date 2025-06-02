@@ -1,4 +1,4 @@
-import React, { startTransition, useEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 import { FocusScope } from "react-aria";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { css } from "@emotion/react";
@@ -40,7 +40,7 @@ export function SpanNotesEditor(props: SpanNotesEditorProps) {
   const notesEndRef = useRef<HTMLDivElement>(null);
   const data = useLazyLoadQuery<SpanNotesEditorQuery>(
     graphql`
-      query SpanNotesEditorQuery($spanNodeId: GlobalID!) {
+      query SpanNotesEditorQuery($spanNodeId: ID!) {
         viewer {
           id
           username

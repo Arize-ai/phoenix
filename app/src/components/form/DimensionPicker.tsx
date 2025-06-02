@@ -1,26 +1,30 @@
-import React, { startTransition, useEffect, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import { fetchQuery, graphql } from "react-relay";
-import { css } from "@emotion/react";
+
+import { Content, ContextualHelp } from "@arizeai/components";
 
 import {
-  Content,
-  ContextualHelp,
-  Item,
-  Picker,
-  PickerProps,
-} from "@arizeai/components";
-
-import { Heading, Text, Token, TokenProps } from "@phoenix/components";
+  Button,
+  Flex,
+  Heading,
+  Label,
+  ListBox,
+  Popover,
+  Select,
+  SelectChevronUpDownIcon,
+  SelectItem,
+  SelectValue,
+  Text,
+  Token,
+  TokenProps,
+} from "@phoenix/components";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import { Dimension } from "@phoenix/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { DimensionPickerQuery } from "./__generated__/DimensionPickerQuery.graphql";
 
-type DimensionPickerProps<T> = Omit<
-  PickerProps<T>,
-  "onSelectionChange" | "children"
-> & {
+type DimensionPickerProps = {
   selectedDimension: Dimension | null;
   onChange: (dimension: Dimension) => void;
   dimensions: Dimension[];
@@ -78,57 +82,56 @@ const contextualHelp = (
   </ContextualHelp>
 );
 
-export function DimensionPicker<T>(props: DimensionPickerProps<T>) {
-  const { selectedDimension, dimensions, onChange, isLoading, ...restProps } =
-    props;
+export function DimensionPicker(props: DimensionPickerProps) {
+  const { selectedDimension, dimensions, onChange, isLoading } = props;
   return (
-    <Picker
-      {...restProps}
-      defaultSelectedKey={
-        selectedDimension ? selectedDimension.name : undefined
-      }
-      aria-Token="Select a dimension"
-      onSelectionChange={(key) => {
-        // Find the dimension in the list
-        const dimension = dimensions.find((d) => d.name === key);
-        if (dimension) {
-          startTransition(() => onChange(dimension));
+    <div>
+      <Flex direction="row" alignItems="center" gap="size-25">
+        <Label>Dimension</Label>
+        {contextualHelp}
+      </Flex>
+      <Select
+        defaultSelectedKey={
+          selectedDimension ? selectedDimension.name : undefined
         }
-      }}
-      label="Dimension"
-      labelExtra={contextualHelp}
-      isDisabled={isLoading}
-      placeholder={isLoading ? "Loading..." : "Select a dimension..."}
-    >
-      {dimensions.map((dimension) => (
-        <Item key={dimension.name} textValue={dimension.name}>
-          <div
-            css={css`
-              .ac-Token {
-                margin-right: var(--ac-global-dimension-static-size-100);
-              }
-            `}
-          >
-            <DimensionTypeToken type={dimension.type} />
-            {dimension.name}
-          </div>
-        </Item>
-      ))}
-    </Picker>
+        aria-label="Select a dimension"
+        onSelectionChange={(key) => {
+          // Find the dimension in the list
+          const dimension = dimensions.find((d) => d.name === key);
+          if (dimension) {
+            startTransition(() => onChange(dimension));
+          }
+        }}
+        isDisabled={isLoading}
+        data-testid="dimension-picker"
+      >
+        <Button>
+          <SelectValue />
+          <SelectChevronUpDownIcon />
+        </Button>
+        <Popover>
+          <ListBox>
+            {dimensions.map((dimension) => (
+              <SelectItem key={dimension.name} id={dimension.name}>
+                <Flex direction="row" alignItems="center" gap="size-100">
+                  <DimensionTypeToken type={dimension.type} />
+                  {dimension.name}
+                </Flex>
+              </SelectItem>
+            ))}
+          </ListBox>
+        </Popover>
+      </Select>
+    </div>
   );
 }
 
-type ConnectedDimensionPickerProps<T> = Omit<
-  DimensionPickerProps<T>,
-  "dimensions"
->;
+type ConnectedDimensionPickerProps = Omit<DimensionPickerProps, "dimensions">;
 
-export function ConnectedDimensionPicker<T>(
-  props: ConnectedDimensionPickerProps<T>
-) {
+export function ConnectedDimensionPicker(props: ConnectedDimensionPickerProps) {
   const [dimensions, setDimensions] = useState<Dimension[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const { selectedDimension, onChange, ...restProps } = props;
+  const { selectedDimension, onChange } = props;
 
   // Async load the dimensions
   useEffect(() => {
@@ -166,10 +169,8 @@ export function ConnectedDimensionPicker<T>(
 
   return (
     <DimensionPicker
-      {...restProps}
       onChange={onChange}
       dimensions={dimensions}
-      label="Dimension"
       selectedDimension={selectedDimension}
       isLoading={isLoading}
     />

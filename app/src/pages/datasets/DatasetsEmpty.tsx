@@ -1,5 +1,3 @@
-import React from "react";
-
 import {
   ExternalLinkButton,
   Flex,
@@ -19,7 +17,7 @@ export function DatasetsEmpty() {
         alignItems="center"
         justifyContent="center"
       >
-        <View width="780px">
+        <View width="100%" maxWidth="780px">
           <Flex direction="column" gap="size-400" alignItems="center">
             <Text size="XL">
               Create datasets for testing prompts, experimentation, and
@@ -33,7 +31,7 @@ export function DatasetsEmpty() {
             />
             <Flex direction="row" gap="size-200">
               <ExternalLinkButton
-                href="https://docs.arize.com/phoenix/datasets-and-experiments/overview-datasets"
+                href="https://arize.com/docs/phoenix/datasets-and-experiments/overview-datasets"
                 target="_blank"
                 leadingVisual={<Icon svg={<Icons.BookOutline />} />}
               >
@@ -44,7 +42,7 @@ export function DatasetsEmpty() {
                 target="_blank"
                 leadingVisual={<Icon svg={<Icons.Rocket />} />}
               >
-                Quckstart
+                Quickstart
               </ExternalLinkButton>
             </Flex>
           </Flex>

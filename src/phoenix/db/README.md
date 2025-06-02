@@ -37,7 +37,7 @@ alembic upgrade head
 
 If the above command fails, it may be necessary to undo partially applied changes from a failed migration by first running down-migrations. This can be accomplished by identifying the ID of the migration revision you wish to return to. Revisions are defined [here](./migrations/versions/).
 
-⚠️ Running down-migrations can result in lost data. Only run down-migrations if you know what you are doing and consider backing up your database first. If you have any questions or doubts, contact the Phoenix team in the `#phoenix-support` channel of the [Arize AI Slack community](https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q) or via GitHub.
+⚠️ Running down-migrations can result in lost data. Only run down-migrations if you know what you are doing and consider backing up your database first. If you have any questions or doubts, contact the Phoenix team in the `#phoenix-support` channel of the [Arize AI Slack community](https://arize-ai.slack.com/join/shared_invite/zt-2w57bhem8-hq24MB6u7yE_ZF_ilOYSBw#/shared-invite/email) or via GitHub.
 
 ```bash
 alembic downgrade <revision-id>
@@ -53,13 +53,23 @@ alembic revision -m "your_revision_name"
 
 Then fill the migration file with the necessary changes.
 
-## Entity Relationship Diagram
+## Entity Relationship Diagram (ERD)
 
 Below is a Mermaid diagram showing the current relationships between the main entities in the database:
 
 ```mermaid
 erDiagram
+    ProjectTraceRetentionPolicy ||--o{ Project : applied_to
+    ProjectTraceRetentionPolicy {
+        int id PK
+        string name
+        string cron_expression
+        json rule
+    }
+
     Project ||--o{ Trace : has
+    Project ||--o| ProjectTraceRetentionPolicy : has
+    Project ||--o{ ProjectAnnotationConfig : has
     Project {
         int id PK
         string name
@@ -68,6 +78,7 @@ erDiagram
         string gradient_end_color
         datetime created_at
         datetime updated_at
+        int trace_retention_policy_id FK
     }
 
     ProjectSession ||--o{ Trace : has
@@ -127,6 +138,9 @@ erDiagram
         string annotator_kind
         datetime created_at
         datetime updated_at
+        string identifier
+        string source
+        int user_id FK
     }
 
     SpanAnnotation {
@@ -140,6 +154,9 @@ erDiagram
         string annotator_kind
         datetime created_at
         datetime updated_at
+        string identifier
+        string source
+        int user_id FK
     }
 
     TraceAnnotation {
@@ -153,6 +170,9 @@ erDiagram
         string annotator_kind
         datetime created_at
         datetime updated_at
+        string identifier
+        string source
+        int user_id FK
     }
 
     Dataset ||--o{ DatasetVersion : has
@@ -244,6 +264,9 @@ erDiagram
     User ||--o{ PasswordResetToken : has
     User ||--o{ PromptVersion : has
     User ||--o{ PromptVersionTag : has
+    User ||--o{ SpanAnnotation : has
+    User ||--o{ DocumentAnnotation : has
+    User ||--o{ TraceAnnotation : has
     User {
         int id PK
         int user_role_id FK
@@ -255,6 +278,7 @@ erDiagram
         boolean reset_password
         string oauth2_client_id
         string oauth2_user_id
+        string auth_method
         datetime created_at
         datetime updated_at
     }
@@ -349,5 +373,18 @@ erDiagram
         int prompt_id FK
         int prompt_version_id FK
         int user_id FK
+    }
+
+    AnnotationConfig ||--o{ ProjectAnnotationConfig : used_in
+    AnnotationConfig {
+        int id PK
+        string name
+        json config
+    }
+
+    ProjectAnnotationConfig {
+        int id PK
+        int project_id FK
+        int annotation_config_id FK
     }
 ```

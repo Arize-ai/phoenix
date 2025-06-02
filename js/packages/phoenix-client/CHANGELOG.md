@@ -1,5 +1,43 @@
 # @arizeai/phoenix-client
 
+## 2.1.1
+
+### Patch Changes
+
+- 5dd53be: add in xai to playground as provider
+
+## 2.1.0
+
+### Minor Changes
+
+- b162720: add support for deepseek
+
+## 2.0.1
+
+### Patch Changes
+
+- da7800a: feat(phoenix-client): Log the experiement/dataset link when calling runExperiment
+
+## 2.0.0
+
+### Major Changes
+
+- 118e881: feat: add support for dataset creation and the ability to re-run experiments
+
+## 1.3.0
+
+### Minor Changes
+
+- 536258e: feat(phoenix-client): Export traces from experiments to Phoenix
+
+## 1.2.0
+
+### Minor Changes
+
+- f7fae3b: feat(phoenix-client): Record experiment results to Phoenix server
+- 9273417: feat: Enqueue experiment runs
+- 4dd23c8: support for annotation logging on spans
+
 ## 1.1.0
 
 ### Minor Changes
