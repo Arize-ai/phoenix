@@ -22,6 +22,12 @@ Phoenix is an open-source AI observability platform designed for experimentation
 
 * <https://github.com/Arize-ai/phoenix>
 
+## Requirements
+
+| Repository | Name | Version |
+|------------|------|---------|
+| oci://registry-1.docker.io/bitnamicharts | postgresql | 16.7.8 |
+
 ## Values
 
 | Key | Type | Default | Description |
@@ -30,7 +36,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | auth.allowedOrigins | list | `[]` | List of allowed CORS origins for cross-origin requests to the Phoenix API (PHOENIX_ALLOWED_ORIGINS) |
 | auth.csrfTrustedOrigins | list | `[]` | List of trusted origins for CSRF protection to prevent cross-site request forgery attacks (PHOENIX_CSRF_TRUSTED_ORIGINS) |
 | auth.defaultAdminPassword | string | `"admin"` | Default password for the admin user on initial setup (PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD) |
-| auth.enable_auth | bool | `true` | Enable authentication and authorization for Phoenix (PHOENIX_ENABLE_AUTH) |
+| auth.enableAuth | bool | `true` | Enable authentication and authorization for Phoenix (PHOENIX_ENABLE_AUTH) |
 | auth.name | string | `"phoenix-secret"` | Name of the Kubernetes secret containing authentication credentials |
 | auth.passwordResetTokenExpiryMinutes | int | `60` | Duration in minutes before password reset tokens expire (PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES) |
 | auth.refreshTokenExpiryMinutes | int | `43200` | Duration in minutes before refresh tokens expire (PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES) |
@@ -45,7 +51,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | auth.useSecureCookies | bool | `false` | Enable secure cookies (should be true when using HTTPS) |
 | database.allocatedStorageGiB | int | `10` | Storage allocation in GiB for the database persistent volume |
 | database.postgres.db | string | `"phoenix"` | Name of the PostgreSQL database (PHOENIX_POSTGRES_DB) |
-| database.postgres.host | string | `"postgres-phoenix-svc"` | Postgres Host (currently points to provided postgres deployment, PHOENIX_POSTGRES_HOST) |
+| database.postgres.host | string | `"phoenix-postgresql"` | Postgres Host (currently points to provided postgres deployment, PHOENIX_POSTGRES_HOST) |
 | database.postgres.password | string | `"postgres"` | PostgreSQL password (should match auth.secret."PHOENIX_POSTGRES_PASSWORD", PHOENIX_POSTGRES_PASSWORD) |
 | database.postgres.port | int | `5432` | Port number for PostgreSQL connections (PHOENIX_POSTGRES_PORT) |
 | database.postgres.schema | string | `""` | PostgreSQL schema to use (PHOENIX_SQL_DATABASE_SCHEMA) |
@@ -55,11 +61,11 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | image.repository | string | `"arizephoenix/phoenix"` | Docker image repository for Phoenix |
 | image.tag | string | `"version-10.5.0-nonroot"` | Docker image tag/version to deploy |
 | ingress.annotations | object | `{}` | Annotations to add to the ingress resource |
-| ingress.api_path | string | `"/"` | Path prefix for the Phoenix API |
+| ingress.apiPath | string | `"/"` | Path prefix for the Phoenix API |
 | ingress.enabled | bool | `true` | Enable ingress controller for external access |
 | ingress.host | string | `""` | Hostname for ingress |
 | ingress.labels | object | `{}` | Labels to add to the ingress resource |
-| ingress.path_type | string | `"Prefix"` | Ingress path type (Prefix, Exact, or ImplementationSpecific) |
+| ingress.pathType | string | `"Prefix"` | Ingress path type (Prefix, Exact, or ImplementationSpecific) |
 | ingress.tls.enabled | bool | `false` | Enable TLS/HTTPS for ingress |
 | instrumentation.otlpTraceCollectorGrpcEndpoint | string | `""` | OpenTelemetry collector gRPC endpoint for sending traces (PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT) |
 | instrumentation.otlpTraceCollectorHttpEndpoint | string | `""` | OpenTelemetry collector HTTP endpoint for sending traces (PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT) |
@@ -67,14 +73,30 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | logging.level | string | `"info"` | Application logging level (debug, info, warning, error) PHOENIX_LOGGING_LEVEL |
 | logging.logMigrations | bool | `true` | Enable logging of database migration operations (PHOENIX_LOG_MIGRATIONS) |
 | logging.mode | string | `"default"` | Logging mode configuration - PHOENIX_LOGGING_MODE (default|structured) |
-| postgres.image | string | `"postgres:14.5"` | Docker image for PostgreSQL |
-| postgres.persistence.enabled | bool | `true` | Enable persistent storage for PostgreSQL data |
-| postgres.persistence.size | string | `"10Gi"` | Size of the persistent volume for PostgreSQL |
-| postgres.persistence.storageClass | string | `"standard"` | Kubernetes storage class for PostgreSQL volume |
-| postgres.resources.limits.cpu | string | `"500m"` | CPU limit for PostgreSQL container |
-| postgres.resources.limits.memory | string | `"512Mi"` | Memory limit for PostgreSQL container |
-| postgres.resources.requests.cpu | string | `"100m"` | CPU request for PostgreSQL container |
-| postgres.resources.requests.memory | string | `"256Mi"` | Memory request for PostgreSQL container |
+| postgres.image | string | `"postgres:14.5"` | Docker image for PostgreSQL (DEPRECATED for new postgresql.image) |
+| postgres.persistence.enabled | bool | `true` | Enable persistent storage for PostgreSQL data (DEPRECATED for new postgresql.primary.persistence) |
+| postgres.persistence.size | string | `"10Gi"` | Size of the persistent volume for PostgreSQL  (DEPRECATED for new postgresql.primary.persistence) |
+| postgres.persistence.storageClass | string | `"standard"` | Kubernetes storage class for PostgreSQL volume (DEPRECATED for new postgresql.primary.persistence) |
+| postgres.resources.limits.cpu | string | `"500m"` | CPU limit for PostgreSQL container (DEPRECATED for new postgresql) |
+| postgres.resources.limits.memory | string | `"512Mi"` | Memory limit for PostgreSQL container (DEPRECATED for new postgresql) |
+| postgres.resources.requests.cpu | string | `"100m"` | CPU request for PostgreSQL container (DEPRECATED for new postgresql) |
+| postgres.resources.requests.memory | string | `"256Mi"` | Memory request for PostgreSQL container (DEPRECATED for new postgresql) |
+| postgresql.auth.database | string | `"phoenix"` | Name for a custom database to create |
+| postgresql.auth.existingSecret | string | `""` | Name of existing secret to use for PostgreSQL credentials. `postgresql.auth.postgresPassword`, `postgresql.auth.password`, and `postgresql.auth.replicationPassword` will be ignored and picked up from this secret. |
+| postgresql.auth.password | string | `""` | Password for the custom user to create. Ignored if `postgresql.auth.existingSecret` is provided |
+| postgresql.auth.postgresPassword | string | `"postgres"` | Password for the "postgres" admin user. Ignored if `postgresql.auth.existingSecret` is provided |
+| postgresql.auth.secretKeys.adminPasswordKey | string | `""` | Name of key in existing secret to use for PostgreSQL credentials. Only used when `postgresql.auth.existingSecret` is set. |
+| postgresql.auth.secretKeys.replicationPasswordKey | string | `""` | Name of key in existing secret to use for PostgreSQL credentials. Only used when `postgresql.auth.existingSecret` is set. |
+| postgresql.auth.secretKeys.userPasswordKey | string | `""` | Name of key in existing secret to use for PostgreSQL credentials. Only used when `postgresql.auth.existingSecret` is set. |
+| postgresql.auth.username | string | `""` | Name for a custom user to create |
+| postgresql.enabled | bool | `true` | Enable postgres deployment, if you have your own postgres instance set this to false |
+| postgresql.primary.persistence.enabled | bool | `true` | Enable persistent storage for PostgreSQL data |
+| postgresql.primary.persistence.size | string | `"10Gi"` | Size of the persistent volume for PostgreSQL |
+| postgresql.primary.persistence.storageClass | string | `""` | Kubernetes storage class for PostgreSQL volume |
+| postgresql.primary.persistentVolumeClaimRetentionPolicy.enabled | bool | `false` | Set to true if you want the volume to persist helm uninstalls |
+| postgresql.primary.persistentVolumeClaimRetentionPolicy.whenDeleted | string | `"Retain"` | Volume retention behavior that applies when the StatefulSet is deleted |
+| postgresql.primary.persistentVolumeClaimRetentionPolicy.whenScaled | string | `"Retain"` | Volume retention behavior when the replica count of the StatefulSet is reduced |
+| postgresql.primary.service.ports.postgresql | string | `"5432"` | Port to run postgres service on |
 | server.annotations | object | `{}` | Annotations to add to the Phoenix service |
 | server.enablePrometheus | bool | `false` | Enable Prometheus metrics endpoint on port 9090 |
 | server.grpcPort | int | `4317` | Port for OpenTelemetry gRPC collector (PHOENIX_GRPC_PORT) |

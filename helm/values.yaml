@@ -11,7 +11,7 @@ ingress:
   annotations: {}
 
   # -- Path prefix for the Phoenix API
-  api_path: "/"
+  apiPath: "/"
 
   # -- Enable ingress controller for external access
   enabled: true
@@ -23,39 +23,84 @@ ingress:
   labels: {}
 
   # -- Ingress path type (Prefix, Exact, or ImplementationSpecific)
-  path_type: "Prefix"
+  pathType: "Prefix"
 
   tls:
     # -- Enable TLS/HTTPS for ingress
     enabled: false
 
+
+postgresql:
+  # -- Enable postgres deployment, if you have your own postgres instance set this to false
+  enabled: true
+
+  auth:
+      # -- Password for the "postgres" admin user. Ignored if `postgresql.auth.existingSecret` is provided
+      postgresPassword: "postgres"
+      # -- Name for a custom user to create
+      username: ""
+      # -- Password for the custom user to create. Ignored if `postgresql.auth.existingSecret` is provided
+      password: ""
+      # -- Name for a custom database to create
+      database: "phoenix"
+      # -- Name of existing secret to use for PostgreSQL credentials. `postgresql.auth.postgresPassword`, `postgresql.auth.password`, and `postgresql.auth.replicationPassword` will be ignored and picked up from this secret.
+      existingSecret: ""
+      secretKeys:
+        # --  Name of key in existing secret to use for PostgreSQL credentials. Only used when `postgresql.auth.existingSecret` is set.
+        adminPasswordKey: ""
+        # -- Name of key in existing secret to use for PostgreSQL credentials. Only used when `postgresql.auth.existingSecret` is set.
+        userPasswordKey: ""
+        # -- Name of key in existing secret to use for PostgreSQL credentials. Only used when `postgresql.auth.existingSecret` is set.
+        replicationPasswordKey: ""
+  primary:
+    persistence:
+      # -- Enable persistent storage for PostgreSQL data
+      enabled: true
+      # -- Size of the persistent volume for PostgreSQL
+      size: 10Gi
+      # -- Kubernetes storage class for PostgreSQL volume
+      storageClass: ""
+    persistentVolumeClaimRetentionPolicy:
+      # -- Set to true if you want the volume to persist helm uninstalls
+      enabled: false
+      # -- Volume retention behavior when the replica count of the StatefulSet is reduced
+      whenScaled: Retain
+      # -- Volume retention behavior that applies when the StatefulSet is deleted
+      whenDeleted: Retain
+    service:
+      ports:
+        # -- Port to run postgres service on
+        postgresql: "5432"
+
+
+## DEPRECATED
 postgres:
-  # -- Docker image for PostgreSQL
+  # -- Docker image for PostgreSQL (DEPRECATED for new postgresql.image)
   image: "postgres:14.5"
 
   persistence:
-    # -- Enable persistent storage for PostgreSQL data
+    # -- Enable persistent storage for PostgreSQL data (DEPRECATED for new postgresql.primary.persistence)
     enabled: true
 
-    # -- Size of the persistent volume for PostgreSQL
+    # -- Size of the persistent volume for PostgreSQL  (DEPRECATED for new postgresql.primary.persistence)
     size: "10Gi"
 
-    # -- Kubernetes storage class for PostgreSQL volume
+    # -- Kubernetes storage class for PostgreSQL volume (DEPRECATED for new postgresql.primary.persistence)
     storageClass: "standard"
 
   resources:
     limits:
-      # -- CPU limit for PostgreSQL container
+      # -- CPU limit for PostgreSQL container (DEPRECATED for new postgresql)
       cpu: "500m"
 
-      # -- Memory limit for PostgreSQL container
+      # -- Memory limit for PostgreSQL container (DEPRECATED for new postgresql)
       memory: "512Mi"
 
     requests:
-      # -- CPU request for PostgreSQL container
+      # -- CPU request for PostgreSQL container (DEPRECATED for new postgresql)
       cpu: "100m"
 
-      # -- Memory request for PostgreSQL container
+      # -- Memory request for PostgreSQL container (DEPRECATED for new postgresql)
       memory: "256Mi"
 
 server:
@@ -99,7 +144,7 @@ database:
     db: "phoenix"
 
     # -- Postgres Host (currently points to provided postgres deployment, PHOENIX_POSTGRES_HOST)
-    host: "postgres-phoenix-svc"
+    host: "phoenix-postgresql"
 
     # -- PostgreSQL password (should match auth.secret."PHOENIX_POSTGRES_PASSWORD", PHOENIX_POSTGRES_PASSWORD)
     password: "postgres"
@@ -131,7 +176,7 @@ auth:
   defaultAdminPassword: "admin"
 
   # -- Enable authentication and authorization for Phoenix (PHOENIX_ENABLE_AUTH)
-  enable_auth: true
+  enableAuth: true
 
   # -- Name of the Kubernetes secret containing authentication credentials
   name: "phoenix-secret"
