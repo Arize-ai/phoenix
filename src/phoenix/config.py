@@ -1505,6 +1505,7 @@ def _get_default_idp_display_name(idp_name: str) -> str:
         return "Microsoft Entra ID"
     return idp_name.replace("_", " ").title()
 
+
 def get_env_access_log() -> bool:
     """
     Gets whether Uvicorn's access logging is enabled.
