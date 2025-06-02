@@ -577,6 +577,7 @@ class AsyncSpans:
                     params["exclude_annotation_names"] = exclude_annotation_names
                 if cursor:
                     params["cursor"] = cursor
+
                 response = await self._client.get(
                     url=path,
                     params=params,
