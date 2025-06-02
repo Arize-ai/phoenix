@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 
-import { Flex, Token } from "@phoenix/components";
+import { Button, Flex, Icon, Icons, Token } from "@phoenix/components";
+import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 
 // LLM pricing data
@@ -14,6 +15,7 @@ const modelPricingData = [
     cachedInput: "$0.0000005000",
     cacheWrite: "-",
     cacheRead: "-",
+    maintainedBy: "local",
     regex: "^gpt-4\\.1-2025-04-14$",
   },
   {
@@ -25,6 +27,19 @@ const modelPricingData = [
     cachedInput: "$0.0000001000",
     cacheWrite: "-",
     cacheRead: "-",
+    maintainedBy: "override",
+    regex: "^gpt-4\\.1-mini-2025-04-14$",
+  },
+  {
+    id: "2a",
+    model: "gpt-4.1-mini-2025-04-14",
+    provider: "openai",
+    input: "$0.0000004000",
+    output: "$0.0000016000",
+    cachedInput: "$0.0000001000",
+    cacheWrite: "-",
+    cacheRead: "-",
+    maintainedBy: "local",
     regex: "^gpt-4\\.1-mini-2025-04-14$",
   },
   {
@@ -36,6 +51,7 @@ const modelPricingData = [
     cachedInput: "$0.0000000750",
     cacheWrite: "-",
     cacheRead: "-",
+    maintainedBy: "local",
     regex: "^gpt-4o-mini-2024-07-18$",
   },
   {
@@ -47,6 +63,19 @@ const modelPricingData = [
     cachedInput: "-",
     cacheWrite: "0.00000375",
     cacheRead: "0.0000003",
+    maintainedBy: "override",
+    regex: "^claude-3-7-sonnet-latest$",
+  },
+  {
+    id: "4a",
+    model: "claude-3-7-sonnet-latest",
+    provider: "anthropic",
+    input: "0.000003",
+    output: "0.000015",
+    cachedInput: "-",
+    cacheWrite: "0.00000375",
+    cacheRead: "0.0000003",
+    maintainedBy: "local",
     regex: "^claude-3-7-sonnet-latest$",
   },
   {
@@ -58,6 +87,7 @@ const modelPricingData = [
     cachedInput: "-",
     cacheWrite: "0.000001",
     cacheRead: "0.00000008",
+    maintainedBy: "local",
     regex: "^claude-3-5-haiku-latest$",
   },
   {
@@ -69,6 +99,19 @@ const modelPricingData = [
     cachedInput: "-",
     cacheWrite: "-",
     cacheRead: "-",
+    maintainedBy: "override",
+    regex: "^claude-3-opus-\\d{8}-v1:0$",
+  },
+  {
+    id: "6a",
+    model: "anthropic.claude-3-opus-20240229-v1:0",
+    provider: "bedrock",
+    input: "0.000015",
+    output: "0.000075",
+    cachedInput: "-",
+    cacheWrite: "-",
+    cacheRead: "-",
+    maintainedBy: "local",
     regex: "^claude-3-opus-\\d{8}-v1:0$",
   },
   {
@@ -80,6 +123,7 @@ const modelPricingData = [
     cachedInput: "-",
     cacheWrite: "-",
     cacheRead: "-",
+    maintainedBy: "local",
     regex: "^Llama 3\\.3 Instruct \\(70B\\)$",
   },
   {
@@ -91,6 +135,19 @@ const modelPricingData = [
     cachedInput: "$0.0000075000",
     cacheWrite: "-",
     cacheRead: "-",
+    maintainedBy: "override",
+    regex: "^o1-2024-12-17$",
+  },
+  {
+    id: "8a",
+    model: "o1-2024-12-17",
+    provider: "openai",
+    input: "$0.0000150000",
+    output: "$0.0000600000",
+    cachedInput: "$0.0000075000",
+    cacheWrite: "-",
+    cacheRead: "-",
+    maintainedBy: "local",
     regex: "^o1-2024-12-17$",
   },
 ];
@@ -107,6 +164,38 @@ const formatPrice = (price: string) => {
   }
 };
 
+const getProviderIcon = (provider: string) => {
+  const providerMap: Record<
+    string,
+    "OPENAI" | "ANTHROPIC" | "AZURE_OPENAI" | "GOOGLE" | "DEEPSEEK" | "XAI"
+  > = {
+    openai: "OPENAI",
+    anthropic: "ANTHROPIC",
+    azure: "AZURE_OPENAI",
+    google: "GOOGLE",
+    deepseek: "DEEPSEEK",
+    xai: "XAI",
+  };
+
+  return providerMap[provider.toLowerCase()];
+};
+
+const getMaintainedByColor = (maintainedBy: string) => {
+  switch (maintainedBy) {
+    case "local":
+      return "emerald";
+    case "override":
+      return "orange";
+    default:
+      return "gray";
+  }
+};
+
+const handleEditModelConfig = (_modelId: string, _modelName: string) => {
+  // TODO: Implement edit model config functionality
+  // This could open a modal, navigate to an edit page, etc.
+};
+
 export function ModelsTable() {
   return (
     <div
@@ -120,11 +209,13 @@ export function ModelsTable() {
           <tr>
             <th>Model</th>
             <th>Provider</th>
+            <th>Maintained By</th>
             <th>Input Cost</th>
             <th>Output Cost</th>
             <th>Cached Input</th>
             <th>Cache Write</th>
             <th>Cache Read</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -142,8 +233,32 @@ export function ModelsTable() {
                 </span>
               </td>
               <td>
+                <Flex justifyContent="start" alignItems="center" gap="size-100">
+                  {getProviderIcon(model.provider) ? (
+                    <>
+                      <GenerativeProviderIcon
+                        provider={getProviderIcon(model.provider)!}
+                        height={16}
+                      />
+                      <span
+                        css={css`
+                          font-size: 14px;
+                          color: var(--phoenix-color-text-primary);
+                        `}
+                      >
+                        {model.provider}
+                      </span>
+                    </>
+                  ) : (
+                    <Token color="blue">{model.provider}</Token>
+                  )}
+                </Flex>
+              </td>
+              <td>
                 <Flex justifyContent="start">
-                  <Token color="blue">{model.provider}</Token>
+                  <Token color={getMaintainedByColor(model.maintainedBy)}>
+                    {model.maintainedBy}
+                  </Token>
                 </Flex>
               </td>
               <td>
@@ -200,6 +315,18 @@ export function ModelsTable() {
                 >
                   {formatPrice(model.cacheRead)}
                 </span>
+              </td>
+              <td>
+                <Flex justifyContent="end" width="100%">
+                  <Button
+                    size="S"
+                    variant="default"
+                    leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+                    onPress={() => handleEditModelConfig(model.id, model.model)}
+                  >
+                    Edit
+                  </Button>
+                </Flex>
               </td>
             </tr>
           ))}

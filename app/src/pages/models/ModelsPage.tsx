@@ -1,8 +1,12 @@
-import { Flex, Heading, View } from "@phoenix/components";
+import { Button, Flex, Heading, Icon, Icons, View } from "@phoenix/components";
 
 import { ModelsTable } from "./ModelsTable";
 
 export function ModelsPage() {
+  const handleAddModel = () => {
+    // TODO: Implement add model functionality
+  };
+
   return (
     <Flex direction="column" height="100%">
       <View
@@ -17,6 +21,14 @@ export function ModelsPage() {
           alignItems="center"
         >
           <Heading level={1}>Models</Heading>
+          <Button
+            size="M"
+            variant="primary"
+            leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+            onPress={handleAddModel}
+          >
+            Add Model
+          </Button>
         </Flex>
       </View>
       <ModelsTable />
