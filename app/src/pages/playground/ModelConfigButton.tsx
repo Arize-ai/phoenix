@@ -134,6 +134,7 @@ function OpenAiModelConfigFormField({
         container={container ?? undefined}
       />
       <TextField
+        key={`${instance.id}-baseUrl-${instance.model.baseUrl}`}
         defaultValue={instance.model.baseUrl ?? ""}
         onChange={(value) => {
           debouncedUpdateBaseUrl(value);
