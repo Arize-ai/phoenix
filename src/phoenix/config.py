@@ -1277,7 +1277,7 @@ def get_env_db_logging_level() -> int:
     )
 
 
-def get_env_uv_logging_level() -> str:
+def get_env_uv_logging_level() -> int:
     return _get_uv_logging_level(
         env_var=ENV_LOGGING_LEVEL,
         default_level=logging.INFO,
@@ -1339,7 +1339,7 @@ def _get_logging_level(env_var: str, default_level: int) -> int:
     # this once we drop support for older python versions
     # Normalize the input to uppercase
     logging_level = logging_level.upper().strip()
-    
+
     # Special case for "TRACE" - return 0 for Phoenix
     if logging_level == "TRACE":
         return 0
@@ -1357,6 +1357,7 @@ def _get_logging_level(env_var: str, default_level: int) -> int:
         )
     return levelNamesMapping[logging_level]
 
+
 def _get_uv_logging_level(env_var: str, default_level: int) -> int:
     """
     Gets and validates a logging level for Uvicorn from an environment variable.
@@ -1368,7 +1369,7 @@ def _get_uv_logging_level(env_var: str, default_level: int) -> int:
 
     # Normalize the input to uppercase
     logging_level = logging_level.upper().strip()
-    
+
     # Use Python's built-in level mapping for validation
     levelNamesMapping = logging._nameToLevel.copy()
     # Add TRACE level for Phoenix (0) and Uvicorn (5)
@@ -1381,6 +1382,7 @@ def _get_uv_logging_level(env_var: str, default_level: int) -> int:
             f"Valid values are: {log_a_list(valid_values,'and')} (case-insensitive)."
         )
     return levelNamesMapping[logging_level]
+
 
 def get_env_log_migrations() -> bool:
     log_migrations = getenv(ENV_LOG_MIGRATIONS)

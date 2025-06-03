@@ -30,7 +30,6 @@ from phoenix.config import (
     get_env_host_root_path,
     get_env_log_migrations,
     get_env_logging_level,
-    get_env_uv_logging_level,
     get_env_logging_mode,
     get_env_oauth2_settings,
     get_env_password_reset_token_expiry,
@@ -45,6 +44,7 @@ from phoenix.config import (
     get_env_tls_config,
     get_env_tls_enabled_for_grpc,
     get_env_tls_enabled_for_http,
+    get_env_uv_logging_level,
     get_pids_path,
 )
 from phoenix.core.model_schema_adapter import create_model_from_inferences
