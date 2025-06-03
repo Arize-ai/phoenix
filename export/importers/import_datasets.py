@@ -7,7 +7,6 @@ It reads dataset metadata and examples from the Phoenix export format,
 converts them to the format expected by Arize, and imports them.
 """
 
-import os
 import json
 import time
 from pathlib import Path
@@ -15,42 +14,17 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional, Union
 
 import pandas as pd
-from dotenv import load_dotenv
 from tqdm import tqdm
 from arize.experimental.datasets import ArizeDatasetsClient
 from arize.experimental.datasets.utils.constants import GENERATIVE
 
-# Load environment variables
-load_dotenv()
-
-# Config from environment variables
-PHOENIX_EXPORT_DIR = os.environ.get("PHOENIX_EXPORT_DIR", "phoenix_export")
-ARIZE_API_KEY = os.environ.get("ARIZE_API_KEY")
-ARIZE_SPACE_ID = os.environ.get("ARIZE_SPACE_ID")
-
-# Script and parent directories for relative paths
-SCRIPT_DIR = Path(__file__).parent.absolute()
-PARENT_DIR = SCRIPT_DIR.parent
-RESULTS_DIR = PARENT_DIR / "results"
-# Create results directory if it doesn't exist
-os.makedirs(RESULTS_DIR, exist_ok=True)
-
-def load_json_file(file_path: Union[str, Path]) -> Optional[Any]:
-    """
-    Load and parse a JSON file.
-    
-    Args:
-        file_path: Path to the JSON file
-        
-    Returns:
-        Parsed JSON data or None if the file cannot be loaded
-    """
-    try:
-        with open(file_path, 'r') as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"Error loading {file_path}: {e}")
-        return None
+from .utils import (
+    load_json_file,
+    RESULTS_DIR,
+    save_results_to_file,
+    setup_logging,
+    parse_common_args
+)
 
 def get_datasets(export_dir: Union[str, Path]) -> List[Dict]:
     """
@@ -190,6 +164,9 @@ def import_datasets(
         List of imported dataset information
     """
     
+    # Setup logging
+    setup_logging(verbose)
+    
     # Initialize Arize client
     try:
         client = ArizeDatasetsClient(api_key=arize_api_key)
@@ -222,7 +199,6 @@ def import_datasets(
     print(f"Found {len(datasets)} datasets to import")
     
     if len(datasets) == 0:
-        print(f"No datasets found in {export_path / 'datasets' / 'datasets.json'}")
         return []
     
     # Load previously imported datasets to avoid duplicates
@@ -248,75 +224,43 @@ def import_datasets(
     for dataset in tqdm(datasets, desc="Importing datasets"):
         dataset_id = dataset.get("id")
         if not dataset_id:
-            print("Dataset missing ID, skipping")
             continue
         
         dataset_name = dataset.get("name", f"Phoenix Dataset {dataset_id}")
         
-        # Skip if already imported by ID or name
-        if dataset_id in previously_imported:
-            print(f"Dataset {dataset_id} already imported as {previously_imported[dataset_id]['name']}, skipping")
-            # Create a copy and update status if needed
-            dataset_info = previously_imported[dataset_id].copy()
-            # If status was error but error message suggests dataset already exists, correct it
-            if dataset_info.get('status') == 'error' and dataset_info.get('error') and 'Failed to create dataset' in dataset_info.get('error'):
+        # Skip if already imported
+        if dataset_id in previously_imported or dataset_name in previously_imported:
+            dataset_info = previously_imported.get(dataset_id) or previously_imported.get(dataset_name)
+            if dataset_info.get('status') == 'error' and 'Failed to create dataset' in dataset_info.get('error', ''):
                 dataset_info['status'] = 'already_exists'
                 dataset_info['arize_id'] = 'already_exists'
-            imported_datasets.append(dataset_info)
-            continue
-        elif dataset_name in previously_imported:
-            print(f"Dataset {dataset_name} already imported, skipping")
-            # Create a copy and update status if needed
-            dataset_info = previously_imported[dataset_name].copy()
-            # If status was error but error message suggests dataset already exists, correct it
-            if dataset_info.get('status') == 'error' and dataset_info.get('error') and 'Failed to create dataset' in dataset_info.get('error'):
-                dataset_info['status'] = 'already_exists'
-                dataset_info['arize_id'] = 'already_exists'
-            imported_datasets.append(dataset_info)
+            imported_datasets.append(dataset_info.copy())
             continue
         
-        # Extract timestamp from dataset created_at or updated_at fields
+        # Extract timestamp
         timestamp = None
         if "created_at" in dataset:
             try:
-                # Parse the timestamp from created_at field
                 dt = datetime.fromisoformat(dataset["created_at"].replace("Z", "+00:00"))
                 timestamp = int(dt.timestamp())
-            except (ValueError, TypeError) as e:
-                print(f"Warning: Could not parse created_at timestamp: {e}")
+            except (ValueError, TypeError):
+                pass
         
-        # If no timestamp could be extracted, use current time as fallback
         if not timestamp:
             timestamp = int(time.time())
-            print(f"Using current timestamp {timestamp} for dataset {dataset_name}")
         
-        # Use the original dataset name without any modifications
         unique_dataset_name = dataset_name
         
         # Get examples for this dataset
         examples = get_dataset_examples(export_dir, dataset_id)
-        print(f"Found {len(examples)} examples for dataset {dataset_name}")
         
-        if verbose and len(examples) > 0:
-            print(f"First example: {json.dumps(examples[0], indent=2)}")
-        
-        # Skip if no examples
         if not examples:
-            print(f"No examples found for dataset {dataset_name}, skipping")
             continue
         
         # Convert examples to DataFrame
         df = convert_examples_to_dataframe(examples)
         if df.empty:
-            print(f"Failed to convert examples for dataset {dataset_name}, skipping")
             continue
-            
-        if verbose:
-            print(f"DataFrame columns: {df.columns.tolist()}")
-            print(f"DataFrame sample:\n{df.head(1).to_string()}")
-        
-        # Create dataset in Arize
-        print(f"Creating dataset {unique_dataset_name} in Arize space {space_id}...")
         
         dataset_info = {
             "phoenix_id": dataset_id,
@@ -345,13 +289,10 @@ def import_datasets(
             if ("already exists" in error_message.lower() or 
                 "Failed to create dataset" in error_message):
                 print(f"Dataset '{unique_dataset_name}' already exists in Arize")
-                print("Tip: If you need to import multiple versions of this dataset, modify the script")
-                print("     to add a unique suffix like a timestamp to the dataset name.")
                 dataset_info["arize_id"] = "already_exists"
                 dataset_info["status"] = "already_exists"
                 # Count this as a success since the dataset exists in Arize
             else:
-                print(f"Error importing dataset '{unique_dataset_name}': {e}")
                 dataset_info["arize_id"] = "error"
                 dataset_info["status"] = "error"
                 dataset_info["error"] = error_message
@@ -359,61 +300,55 @@ def import_datasets(
         # Add the dataset info to the list, regardless of success/failure
         imported_datasets.append(dataset_info)
     
-    # Count successful imports (both new imports and existing datasets)
+    # Count successful imports
     new_count = sum(1 for d in imported_datasets if d.get("status") == "imported")
     existing_count = sum(1 for d in imported_datasets if d.get("status") == "already_exists")
     error_count = sum(1 for d in imported_datasets if d.get("status") == "error")
     
-    print(f"Processed {len(imported_datasets)} datasets:")
-    print(f"  - {new_count} newly imported to Arize")
-    print(f"  - {existing_count} already existed in Arize (no import needed)")
-    if error_count > 0:
-        print(f"  - {error_count} failed to import due to errors")
+    print(f"Processed {len(imported_datasets)} datasets: {new_count} imported, {existing_count} existing, {error_count} errors")
     
     return imported_datasets
 
 def main() -> None:
-    """Main entry point to import datasets from Phoenix to Arize."""
-    # Check for required environment variables
-    if not ARIZE_API_KEY:
-        print("ARIZE_API_KEY environment variable is required")
-        return
-    
-    if not ARIZE_SPACE_ID:
-        print("ARIZE_SPACE_ID environment variable is required")
-        return
-    
-    print(f"Using export directory: {PHOENIX_EXPORT_DIR}")
-    print(f"Using Arize space ID: {ARIZE_SPACE_ID}")
-    
-    # Import datasets
-    imported = import_datasets(
-        export_dir=PHOENIX_EXPORT_DIR,
-        space_id=ARIZE_SPACE_ID,
-        arize_api_key=ARIZE_API_KEY,
-        verbose=False
+    """Main entry point for the script."""
+    parser = parse_common_args('Import Phoenix datasets to Arize')
+    parser.add_argument(
+        '--limit',
+        type=int,
+        help='Limit the number of datasets to import'
+    )
+    parser.add_argument(
+        '--results-file',
+        type=str,
+        default=str(RESULTS_DIR / 'dataset_import_results.json'),
+        help='File to store import results (default: results/dataset_import_results.json)'
     )
     
-    # Count datasets by status
-    success_count = sum(1 for d in imported if d.get("status") == "imported")
-    existing_count = sum(1 for d in imported if d.get("status") == "already_exists")
-    error_count = sum(1 for d in imported if d.get("status") == "error")
+    args = parser.parse_args()
     
-    print(f"Processed {len(imported)} datasets:")
-    print(f"  - {success_count} newly imported to Arize")
-    print(f"  - {existing_count} already existed in Arize (no import needed)")
-    if error_count > 0:
-        print(f"  - {error_count} failed to import due to errors")
+    # Validate required arguments
+    from .utils import validate_required_args
+    if not validate_required_args(args.api_key, args.space_id):
+        return
     
-    # Save import results
-    results_path = RESULTS_DIR / "dataset_import_results.json"
+    # Setup logging
+    setup_logging(args.verbose)
     
-    # Ensure parent directory exists
-    results_path.parent.mkdir(exist_ok=True)
+    # Import datasets
+    result = import_datasets(
+        export_dir=args.export_dir,
+        space_id=args.space_id,
+        arize_api_key=args.api_key,
+        limit=args.limit,
+        verbose=args.verbose,
+        results_file=args.results_file
+    )
     
-    with open(results_path, "w") as f:
-        json.dump(imported, f, indent=2)
-    print(f"Import results saved to {results_path}")
+    if result:
+        save_results_to_file(result, args.results_file, "Dataset import results")
+        print(f"Successfully imported {len(result)} datasets")
+    else:
+        print("No datasets were imported")
 
 if __name__ == "__main__":
     main() 

@@ -357,7 +357,6 @@ def main() -> None:
         print("1. Navigate to your projects in the Arize dashboard")
         print("2. Verify that all traces are visible and loaded")
         print("3. This may take a few minutes for large datasets")
-        print("4. Evaluations need to attach to existing traces")
         print("=======================================================")
         
         confirmation = input("\nAre all traces fully visible in the Arize dashboard? (yes/no): ").lower()

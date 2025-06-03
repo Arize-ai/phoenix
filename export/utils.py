@@ -413,7 +413,7 @@ def parse_import_args() -> argparse.Namespace:
     parser.add_argument(
         '--all',
         action='store_true',
-        help='Import all data types in order: datasets, prompts, traces, and annotations (with confirmation)'
+        help='Import all data types in order: datasets, prompts, traces, evaluations, and annotations (with confirmations for trace ingestion and annotation setup)'
     )
     
     parser.add_argument(
@@ -432,6 +432,12 @@ def parse_import_args() -> argparse.Namespace:
         '--annotations',
         action='store_true',
         help='Import annotations'
+    )
+    
+    parser.add_argument(
+        '--evaluations',
+        action='store_true',
+        help='Import evaluations (requires traces to be fully ingested in Arize first)'
     )
     
     parser.add_argument(

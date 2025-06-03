@@ -7,7 +7,6 @@ It reads trace data from the Phoenix export format, converts it to the
 format expected by Arize, and imports them into the specified project.
 """
 
-import os
 import json
 import time
 from pathlib import Path
@@ -15,41 +14,19 @@ from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional, Union
 
 import pandas as pd
-from dotenv import load_dotenv
 from tqdm import tqdm
 from arize.pandas.logger import Client
 
-# Load environment variables
-load_dotenv()
-
-# Config from environment variables
-PHOENIX_EXPORT_DIR = os.environ.get("PHOENIX_EXPORT_DIR", "phoenix_export")
-ARIZE_API_KEY = os.environ.get("ARIZE_API_KEY")
-ARIZE_SPACE_ID = os.environ.get("ARIZE_SPACE_ID")
-
-# Script and parent directories for relative paths
-SCRIPT_DIR = Path(__file__).parent.absolute()
-PARENT_DIR = SCRIPT_DIR.parent
-RESULTS_DIR = PARENT_DIR / "results"
-# Create results directory if it doesn't exist
-os.makedirs(RESULTS_DIR, exist_ok=True)
-
-def load_json_file(file_path: Union[str, Path]) -> Optional[Any]:
-    """
-    Load and parse a JSON file.
-    
-    Args:
-        file_path: Path to the JSON file
-        
-    Returns:
-        Parsed JSON data or None if the file cannot be loaded
-    """
-    try:
-        with open(file_path, 'r') as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"Error loading {file_path}: {e}")
-        return None
+from .utils import (
+    load_json_file,
+    get_projects,
+    get_project_metadata,
+    phoenix_timestamp_to_nanos_utc,
+    RESULTS_DIR,
+    save_results_to_file,
+    setup_logging,
+    parse_common_args
+)
 
 def get_project_traces(export_dir: Union[str, Path], project_name: str) -> List[Dict]:
     """
@@ -69,63 +46,6 @@ def get_project_traces(export_dir: Union[str, Path], project_name: str) -> List[
     
     return load_json_file(traces_path) or []
 
-def get_project_metadata(export_dir, project_name):
-    """Get metadata for a specific project."""
-    metadata_path = Path(export_dir) / "projects" / project_name / "project_metadata.json"
-    if not metadata_path.exists():
-        print(f"Project metadata file not found: {metadata_path}")
-        return None
-    
-    return load_json_file(metadata_path)
-
-def get_projects(export_dir: Union[str, Path]) -> List[str]:
-    """
-    Get all project names from the Phoenix export directory.
-    
-    Args:
-        export_dir: Path to the Phoenix export directory
-        
-    Returns:
-        List of project names
-    """
-    projects_dir = Path(export_dir) / "projects"
-    if not projects_dir.exists():
-        print(f"Projects directory not found: {projects_dir}")
-        return []
-    
-    # Return list of project directories
-    return [d.name for d in projects_dir.iterdir() if d.is_dir()]
-
-def phoenix_timestamp_to_nanos_utc(timestamp_str: Optional[str]) -> Optional[int]:
-    """
-    Convert Phoenix timestamp string (e.g., "2025-05-13T05:12:32.418894000Z")
-    to nanoseconds since Unix epoch, UTC.
-    """
-    if not timestamp_str:
-        return None
-    try:
-        # Remove 'Z' and handle potential extra precision if any beyond microseconds for parsing
-        if timestamp_str.endswith('Z'):
-            ts_to_parse = timestamp_str[:-1] # Remove Z
-            # datetime.fromisoformat doesn't like more than 6 decimal places for seconds by default
-            parts = ts_to_parse.split('.')
-            if len(parts) == 2 and len(parts[1]) > 6:
-                ts_to_parse = parts[0] + '.' + parts[1][:6]
-            else: # handles cases with no fractional seconds or <= 6 fractional seconds
-                 ts_to_parse = ts_to_parse 
-        else: # Should not happen if Phoenix always uses Z, but as a fallback
-            ts_to_parse = timestamp_str
-
-
-        dt_object_naive = datetime.fromisoformat(ts_to_parse)
-        # Assume the naive datetime object is already UTC as per 'Z' suffix
-        dt_object_utc = dt_object_naive.replace(tzinfo=timezone.utc)
-        
-        return int(dt_object_utc.timestamp() * 1_000_000_000)
-    except ValueError as e:
-        # print(f"Error converting timestamp '{timestamp_str}': {e}") # Optional: for debugging
-        return None
-
 def convert_traces_to_dataframe(traces: List[Dict], verbose: bool = False) -> pd.DataFrame:
     """
     Convert trace data to a pandas DataFrame suitable for Arize.
@@ -139,9 +59,6 @@ def convert_traces_to_dataframe(traces: List[Dict], verbose: bool = False) -> pd
     """
     if not traces:
         return pd.DataFrame()
-    
-    if verbose:
-        print(f"Sample trace structure: {json.dumps(traces[0], indent=2)[:500]}...")
     
     rows = []
     for i, trace in enumerate(traces):
@@ -242,9 +159,6 @@ def convert_traces_to_dataframe(traces: List[Dict], verbose: bool = False) -> pd
     
     if verbose:
         print(f"Successfully converted {len(df)} traces to dataframe")
-        print(f"DataFrame columns: {df.columns.tolist()}")
-        if not df.empty:
-            print(f"First row name value: '{df['name'].iloc[0]}'")
         
     return df
 
@@ -256,18 +170,22 @@ def import_traces(
     results_file: Optional[str] = None
 ) -> Dict[str, Dict[str, Any]]:
     """
-    Import traces from Phoenix export into Arize.
+    Import traces from Phoenix export to Arize.
     
     Args:
-        export_dir: Path to Phoenix export directory
-        space_id: Arize space ID
-        arize_api_key: Arize API key
-        verbose: Whether to print verbose debug information
+        export_dir: Path to the Phoenix export directory
+        space_id: Arize Space ID to import into
+        arize_api_key: Arize API key for authentication
+        verbose: Enable verbose output
         results_file: Path to save import results (optional)
-    
+        
     Returns:
-        Dictionary with import status for each project
+        Dictionary of import results by project
     """
+    
+    # Setup logging
+    setup_logging(verbose)
+
     # Initialize Arize client
     try:
         client = Client(
@@ -302,7 +220,6 @@ def import_traces(
         try:
             with open(results_path, "r") as f:
                 previous_results = json.load(f)
-                print(f"Loaded previous import results for {len(previous_results)} projects")
         except Exception as e:
             print(f"Error loading previous results: {str(e)}")
     
@@ -352,13 +269,6 @@ def import_traces(
             arize_project_name = project_name
             
             try:
-                # Log traces to Arize using the client
-                if verbose:
-                    print(f"Calling client.log_spans with dataframe shape: {df.shape}")
-                    print(f"Required columns present: context.span_id={('context.span_id' in df.columns)}, context.trace_id={('context.trace_id' in df.columns)}")
-                    if not df.empty:
-                        print(f"Sample row: {df.iloc[0].to_dict()}")
-                
                 response = client.log_spans(
                     dataframe=df, 
                     project_name=arize_project_name
@@ -391,38 +301,44 @@ def import_traces(
     # Count successfully imported projects
     imported_count = sum(1 for info in results.values() if info.get("status") == "imported")
     print(f"Successfully imported traces from {imported_count} projects")
-    print(f"Import results saved to {results_path}")
     
     return results
 
 def main() -> None:
-    """Main entry point to import traces from Phoenix to Arize."""
-    # Check for required environment variables
-    if not ARIZE_API_KEY:
-        print("ARIZE_API_KEY environment variable is required")
-        return
-    
-    if not ARIZE_SPACE_ID:
-        print("ARIZE_SPACE_ID environment variable is required")
-        return
-    
-    print(f"Using export directory: {PHOENIX_EXPORT_DIR}")
-    print(f"Using Arize space ID: {ARIZE_SPACE_ID}")
-    
-    # Enable verbose mode for debugging
-    verbose = True
-    print(f"Verbose mode: {verbose}")
-    
-    # Import traces
-    imported = import_traces(
-        export_dir=PHOENIX_EXPORT_DIR,
-        space_id=ARIZE_SPACE_ID,
-        arize_api_key=ARIZE_API_KEY,
-        verbose=verbose
+    """Main entry point for the script."""
+    parser = parse_common_args('Import Phoenix traces to Arize')
+    parser.add_argument(
+        '--results-file',
+        type=str,
+        default=str(RESULTS_DIR / 'trace_import_results.json'),
+        help='File to store import results (default: results/trace_import_results.json)'
     )
     
-    # Results are already saved in the import_traces function
-    print("Import complete")
+    args = parser.parse_args()
+    
+    # Validate required arguments
+    from .utils import validate_required_args
+    if not validate_required_args(args.api_key, args.space_id):
+        return
+    
+    # Setup logging
+    setup_logging(args.verbose)
+    
+    # Import traces
+    result = import_traces(
+        export_dir=args.export_dir,
+        space_id=args.space_id,
+        arize_api_key=args.api_key,
+        verbose=args.verbose,
+        results_file=args.results_file
+    )
+    
+    if result:
+        save_results_to_file(result, args.results_file, "Trace import results")
+        success_count = sum(1 for r in result.values() if isinstance(r, dict) and r.get('status') == 'imported')
+        print(f"Successfully imported traces from {success_count} projects")
+    else:
+        print("No traces were imported")
 
 if __name__ == "__main__":
     main() 

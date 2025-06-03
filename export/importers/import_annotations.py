@@ -17,77 +17,19 @@ from pathlib import Path
 from typing import Dict, List, Any
 
 import pandas as pd
-from dotenv import load_dotenv
 from tqdm import tqdm
 
-# Load environment variables
-load_dotenv()
-
-# Script and parent directories for relative paths
-SCRIPT_DIR = Path(__file__).parent.absolute()
-PARENT_DIR = SCRIPT_DIR.parent
-RESULTS_DIR = PARENT_DIR / "results"
-# Create results directory if it doesn't exist
-os.makedirs(RESULTS_DIR, exist_ok=True)
+from .utils import (
+    get_projects,
+    RESULTS_DIR,
+    save_results_to_file,
+    setup_logging,
+    parse_common_args,
+    validate_required_args
+)
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, 
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
 logger = logging.getLogger(__name__)
-
-def parse_args() -> argparse.Namespace:
-    """
-    Parse command line arguments.
-    
-    Returns:
-        Parsed command line arguments
-    """
-    parser = argparse.ArgumentParser(description='Import Phoenix annotations to Arize')
-    parser.add_argument(
-        '--api-key', 
-        type=str, 
-        default=os.getenv('ARIZE_API_KEY'),
-        help='Arize API key (default: from ARIZE_API_KEY env var)'
-    )
-    parser.add_argument(
-        '--space-id', 
-        type=str, 
-        default=os.getenv('ARIZE_SPACE_ID'),
-        help='Arize Space ID (default: from ARIZE_SPACE_ID env var)'
-    )
-    parser.add_argument(
-        '--export-dir', 
-        type=str, 
-        default=os.getenv('PHOENIX_EXPORT_DIR', 'phoenix_export'),
-        help='Phoenix export directory (default: from PHOENIX_EXPORT_DIR env var or "phoenix_export")'
-    )
-    parser.add_argument(
-        '--results-file',
-        type=str,
-        default=str(RESULTS_DIR / 'annotation_import_results.json'),
-        help='File to store import results (default: results/annotation_import_results.json)'
-    )
-    return parser.parse_args()
-
-def get_projects(export_dir: str) -> List[str]:
-    """
-    Get all project names from the Phoenix export directory.
-    
-    Args:
-        export_dir: Path to the Phoenix export directory
-        
-    Returns:
-        List of project names
-    """
-    projects_dir = Path(export_dir) / "projects"
-    if not projects_dir.exists():
-        logger.error(f"Projects directory not found: {projects_dir}")
-        return []
-    
-    # Return list of project directories
-    return [d.name for d in projects_dir.iterdir() if d.is_dir()]
 
 def load_annotations(project_dir: Path) -> List[Dict[str, Any]]:
     """
@@ -112,12 +54,10 @@ def load_annotations(project_dir: Path) -> List[Dict[str, Any]]:
     for annotation in annotations:
         # Skip annotations without required fields
         if not annotation.get('span_id'):
-            logger.warning(f"Skipping annotation without span_id: {annotation}")
             continue
             
         # Make sure it has a name
         if not annotation.get('name'):
-            logger.warning(f"Skipping annotation without name: {annotation}")
             continue
             
         # Make sure it has a result with either label or score
@@ -215,12 +155,6 @@ def convert_annotations_to_dataframe(
         if col.endswith('.label') or col.endswith('.updated_by'):
             df[col] = df[col].fillna('Unknown')
     
-    # Log information
-    if not df.empty:
-        logger.info(f"Formatted {len(df)} annotations rows from {len(annotations)} annotations")
-        logger.info(f"Sample of converted annotations dataframe:\n{df.head(1).to_string()}")
-        logger.info(f"DataFrame columns: {df.columns.tolist()}")
-    
     return df
 
 def check_traces(api_key: str, space_id: str, project_name: str) -> bool:
@@ -241,7 +175,6 @@ def check_traces(api_key: str, space_id: str, project_name: str) -> bool:
         logger.info(f"Arize version: {arize.__version__}")
     except ImportError as e:
         logger.error(f"Arize Python client import error: {e}")
-        logger.error("Please install with 'pip install arize'")
         return False
 
     # Initialize Arize client
@@ -266,7 +199,6 @@ def check_traces(api_key: str, space_id: str, project_name: str) -> bool:
                 dataframe=test_df,
                 project_name=project_name,
             )
-            logger.info(f"Test annotation sent to project {project_name}")
             return True
         except Exception as e:
             error_str = str(e)
@@ -292,25 +224,36 @@ def import_annotations(
     results_file: str
 ) -> Dict[str, Any]:
     """
-    Import Phoenix annotations to Arize.
+    Import annotations from Phoenix export to Arize.
     
     Args:
         api_key: Arize API key
         space_id: Arize Space ID
         export_dir: Path to Phoenix export directory
-        results_file: Path to store import results
+        results_file: Path to save results
         
     Returns:
         Dictionary with import results
     """
+    logger.info("Starting annotation import process...")
+    
+    results = {
+        'projects': {},
+        'summary': {
+            'total_projects': 0,
+            'successful_projects': 0,
+            'total_annotations': 0,
+            'failed_projects': []
+        }
+    }
+
     try:
         from arize.pandas.logger import Client
         import arize
         logger.info(f"Arize version: {arize.__version__}")
     except ImportError as e:
         logger.error(f"Arize Python client import error: {e}")
-        logger.error("Please install with 'pip install arize'")
-        return {}
+        return results
 
     # Define the results directory in the parent directory
     if not results_file.startswith('/'):  # If not an absolute path
@@ -338,20 +281,13 @@ def import_annotations(
             previous_results = json.load(f)
     
     # Get all projects
-    logger.info(f"Loading projects from {export_dir}")
     projects = get_projects(export_dir)
     
     if not projects:
         logger.error("No projects found in the export directory")
-        return {}
+        return results
     
     logger.info(f"Found {len(projects)} projects")
-    
-    # Initialize results
-    results = {
-        'timestamp': datetime.now().isoformat(),
-        'projects': {}
-    }
     
     # Process each project
     for project_name in tqdm(projects, desc="Importing annotations"):
@@ -397,8 +333,6 @@ def import_annotations(
                         for key, value in trace.items():
                             if isinstance(value, str) and ('span_id' in key or 'context.span_id' in key):
                                 trace_span_ids.add(value)
-                
-                logger.info(f"Found {len(trace_span_ids)} span IDs in traces file")
             except Exception as e:
                 logger.warning(f"Could not read traces file: {e}")
         
@@ -429,11 +363,6 @@ def import_annotations(
         
         # Log annotations to Arize
         try:
-            logger.info(f"Importing {len(df)} annotations for project {project_name}")
-            # Print detailed dataframe info before sending
-            logger.debug(f"DataFrame dtypes: {df.dtypes}")
-            logger.debug(f"DataFrame shape: {df.shape}")
-            
             # Check column requirements
             required_columns = ['context.span_id']
             missing_columns = [col for col in required_columns if col not in df.columns]
@@ -493,23 +422,38 @@ def import_annotations(
 
 def main() -> None:
     """Main entry point for the script."""
-    args = parse_args()
+    parser = parse_common_args('Import Phoenix annotations to Arize')
+    parser.add_argument(
+        '--results-file',
+        type=str,
+        default=str(RESULTS_DIR / 'annotation_import_results.json'),
+        help='File to store import results (default: results/annotation_import_results.json)'
+    )
     
-    if not args.api_key:
-        logger.error("No Arize API key provided. Set the ARIZE_API_KEY environment variable or use --api-key")
+    args = parser.parse_args()
+    
+    # Validate required arguments
+    if not validate_required_args(args.api_key, args.space_id):
         return
     
-    if not args.space_id:
-        logger.error("No Arize Space ID provided. Set the ARIZE_SPACE_ID environment variable or use --space-id")
-        return
+    # Setup logging
+    setup_logging(args.verbose)
     
-    logger.info(f"Starting import from {args.export_dir} to Arize")
-    import_annotations(
+    # Import annotations
+    result = import_annotations(
         api_key=args.api_key,
         space_id=args.space_id,
         export_dir=args.export_dir,
         results_file=args.results_file
     )
+    
+    if result and result.get('projects'):
+        save_results_to_file(result, args.results_file, "Annotation import results")
+        successful = result['summary']['successful_projects']
+        total = result['summary']['total_projects']
+        print(f"Successfully imported annotations from {successful}/{total} projects")
+    else:
+        print("No annotations were imported")
 
 if __name__ == "__main__":
     main() 
