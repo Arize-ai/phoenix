@@ -45,7 +45,7 @@ function migrateV0CredentialsProps(
 }
 
 type CredentialEnvVarName = string;
-type CredentialValue = string;
+type CredentialValue = string | null;
 /**
  * A simple string to string map of environment variables to values
  */
@@ -64,7 +64,7 @@ export interface CredentialsState extends CredentialsProps {
   setCredential: (params: {
     provider: ModelProvider;
     envVarName: string;
-    value: string;
+    value: string | null;
   }) => void;
 }
 

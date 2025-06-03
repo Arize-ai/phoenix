@@ -9,6 +9,7 @@ import {
   ChatRoleMap,
   DEFAULT_CHAT_ROLE,
   DEFAULT_MODEL_PROVIDER,
+  ProviderToCredentialsConfigMap,
 } from "@phoenix/constants/generativeConstants";
 import {
   createAnthropicToolDefinition,
@@ -1066,7 +1067,7 @@ const getBaseChatCompletionInput = ({
     tools: instance.tools.length
       ? instance.tools.map((tool) => tool.definition)
       : undefined,
-    apiKey: credentials[instance.model.provider] || null,
+    apiKey: getApiKey(credentials, instance.model.provider),
     promptName: instance.prompt?.name,
   } satisfies Partial<ChatCompletionInput>;
 };
@@ -1097,6 +1098,35 @@ export const denormalizePlaygroundInstance = (
   // it cannot be a normalized instance if it is not a chat template
   return instance as PlaygroundInstance;
 };
+
+/**
+ * A function that takes a provider and returns a single api key for the provider
+ * Note this is a step gap solution until multiple credentials are supported
+ */
+function getApiKey(
+  credentials: CredentialsState,
+  provider: ModelProvider
+): string | null {
+  const providerCredentials = credentials[provider];
+  const providerCredentialsConfig = ProviderToCredentialsConfigMap[provider];
+  if (!providerCredentials) {
+    return null;
+  }
+  if (providerCredentialsConfig.length === 0) {
+    // This means that the provider doesn't require any credentials
+    return null;
+  }
+  if (providerCredentialsConfig.length > 1) {
+    throw new Error(
+      `Multiple credentials are configured for ${provider} but not currently supported`
+    );
+  }
+
+  // We know the length is 1, so we can safely access the first element
+  const credentialConfig = providerCredentialsConfig[0];
+  const apiKey = providerCredentials[credentialConfig.envVarName];
+  return apiKey ?? null;
+}
 
 /**
  * Gets chat completion input for running over variables
