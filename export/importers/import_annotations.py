@@ -104,7 +104,7 @@ def convert_annotations_to_dataframe(
         
         # Create separate rows for each annotation
         for annotation in anno_list:
-            name = annotation['name'].lower().replace(' ', '_')
+            name = annotation['name'].replace(' ', '_')
             result = annotation.get('result', {})
             
             # Get timestamp from annotation
