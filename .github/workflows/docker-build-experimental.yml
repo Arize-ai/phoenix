@@ -82,11 +82,6 @@ jobs:
 
   check-and-push-helm:
     name: Check PR and Push Helm
-    # Only run if the PR was merged and matches our pattern
-    if: |
-      github.event.pull_request.merged == true && 
-      startsWith(github.event.pull_request.head.ref, 'update-phoenix-version-')
-
     runs-on: ubuntu-latest
     env:
       REGISTRY: mikeldking
