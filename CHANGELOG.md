@@ -1,5 +1,12 @@
 # Changelog
 
+## [10.6.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.6.1...arize-phoenix-v10.6.2) (2025-06-03)
+
+
+### Bug Fixes
+
+* **helm:** update Chart.lock and ensure chart dependencies are installed before packaging ([#7907](https://github.com/Arize-ai/phoenix/issues/7907)) ([b279fed](https://github.com/Arize-ai/phoenix/commit/b279fed0a6802c3a82be51d31d8ac6f0483eb052))
+
 ## [10.6.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.6.0...arize-phoenix-v10.6.1) (2025-06-03)
 
 
