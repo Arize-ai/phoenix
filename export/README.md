@@ -17,10 +17,12 @@ Comprehensive tools to export data from Phoenix server and import it into Arize,
 ### Not Currently Supported
 - **Experiments** - Direct experiment results migration
 - **Users** - User account data
+- **Evaluations/Annotations older than 14 days** - Current Druid lookback window limitation for Import (will be extended to 45 days)
 
 ## Installation
 
 ```bash
+cd export
 pip install -r requirements.txt
 ```
 

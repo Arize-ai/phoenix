@@ -160,6 +160,13 @@ def setup_logging(verbose: bool = False) -> None:
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         force=True  # Override existing configuration
     )
+    # Suppress noisy logs from third-party libraries (e.g., gql GraphQL client)
+    for noisy_logger in (
+        'gql.transport.requests',
+        'gql.transport.aiohttp',
+        'gql.client',
+    ):
+        logging.getLogger(noisy_logger).setLevel(logging.WARNING)
 
 def validate_required_args(api_key: Optional[str], space_id: Optional[str]) -> bool:
     """
