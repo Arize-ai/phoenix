@@ -47,7 +47,11 @@ describe("generativeConstants", () => {
         const hasRequiredCredential = credentials.some(
           (credential) => credential.isRequired
         );
-        expect(hasRequiredCredential).toBe(true);
+        if (provider === "OLLAMA") {
+          expect(hasRequiredCredential).toBe(false);
+        } else {
+          expect(hasRequiredCredential).toBe(true);
+        }
       });
     });
 
