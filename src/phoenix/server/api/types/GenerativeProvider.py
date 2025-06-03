@@ -54,7 +54,6 @@ class GenerativeProvider:
         GenerativeProviderKey.GOOGLE: "GEMINI_API_KEY",
         GenerativeProviderKey.DEEPSEEK: "DEEPSEEK_API_KEY",
         GenerativeProviderKey.XAI: "XAI_API_KEY",
-        GenerativeProviderKey.OLLAMA: "OLLAMA_API_KEY",
     }
 
     @strawberry.field
