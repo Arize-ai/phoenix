@@ -24,11 +24,11 @@ Usage:
 
 import os
 import json
-import re
 import logging
 from typing import Dict, List, Union, Optional, Set
 import httpx
 from tqdm import tqdm
+import re
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -83,14 +83,13 @@ def get_traces(client: httpx.Client, project_name: str, limit: int = 1000) -> Li
     }
     
     try:
-        # Pass project_name both in query params and JSON body
+        # Pass project_name 
         response = client.post(
             '/v1/spans',
             json=request_body,
             headers=headers,
             params={
                 'project_name': project_name,
-                'project-name': project_name  # for backward-compatibility
             }
         )
         response.raise_for_status()
@@ -199,41 +198,10 @@ def get_annotations(client: httpx.Client, project_name: str, span_ids: List[str]
             headers=headers
         )
         response.raise_for_status()
-        response_data = response.text
-        # Process the response based on type
-        content_type = response.headers.get('content-type', '')
         
-        if 'multipart/mixed' in content_type:
-            # This is a streaming multipart response
-            match = re.search(r'--([a-zA-Z0-9_\-]+)', response_data)
-            if match:
-                boundary = f"--{match.group(1)}"
-                # Split by boundary
-                parts = response_data.split(boundary)
-                for part in parts:
-                    if not part.strip():
-                        continue
-                    # Extract JSON content
-                    match = re.search(r'Content-Type:\s*application/json\r\n\r\n([\s\S]+?)(?:\r\n--|\r\n$|$)', part)
-                    if match:
-                        json_content = match.group(1).strip()
-                        try:
-                            data = json.loads(json_content)
-                            if isinstance(data, list):
-                                all_annotations.extend(data)
-                            elif isinstance(data, dict) and 'data' in data:
-                                all_annotations.extend(data['data'])
-                            elif isinstance(data, dict):
-                                all_annotations.append(data)
-                        except json.JSONDecodeError as e:
-                            logger.error(f"Error parsing JSON content for annotations: {e}")
-        else:
-            # This is a regular JSON response
-            data = response.json()
-            if isinstance(data, list):
-                all_annotations.extend(data)
-            elif isinstance(data, dict) and 'data' in data:
-                all_annotations.extend(data['data'])
+        # JSON response
+        data = response.json()
+        all_annotations = data.get('data', [])
         
         return all_annotations
             
@@ -435,8 +403,8 @@ if __name__ == "__main__":
     parser.add_argument(
         '--output-dir',
         type=str,
-        default='./phoenix_export/annotations',
-        help='Directory to save exported data (default: ./phoenix_export/annotations)'
+        default='./phoenix_export/projects',
+        help='Directory to save exported data (default: ./phoenix_export/projects)'
     )
     
     parser.add_argument(
