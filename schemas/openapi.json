@@ -1729,7 +1729,7 @@
           "spans"
         ],
         "summary": "Search spans with simple filters (no DSL)",
-        "description": "Return spans within a project filtered by time range and ordered by start_time. Supports cursor-based pagination.",
+        "description": "Return spans within a project filtered by time range. Supports cursor-based pagination.",
         "operationId": "spanSearch",
         "parameters": [
           {
@@ -1776,22 +1776,6 @@
             "description": "Maximum number of spans to return"
           },
           {
-            "name": "sort_direction",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "enum": [
-                "asc",
-                "desc"
-              ],
-              "type": "string",
-              "description": "Sort direction for the sort field",
-              "default": "desc",
-              "title": "Sort Direction"
-            },
-            "description": "Sort direction for the sort field"
-          },
-          {
             "name": "start_time",
             "in": "query",
             "required": false,
@@ -1836,7 +1820,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OtlpSpanSearchResponseBody"
+                  "$ref": "#/components/schemas/OtlpSpansResponseBody"
                 }
               }
             }
@@ -1879,9 +1863,9 @@
         "tags": [
           "spans"
         ],
-        "summary": "Search spans with simple filters (no DSL)",
-        "description": "Return spans within a project filtered by time range and ordered by start_time. Supports cursor-based pagination.",
-        "operationId": "spanSearchPhoenix",
+        "summary": "List spans with simple filters (no DSL)",
+        "description": "Return spans within a project filtered by time range. Supports cursor-based pagination.",
+        "operationId": "getSpans",
         "parameters": [
           {
             "name": "project_identifier",
@@ -1927,22 +1911,6 @@
             "description": "Maximum number of spans to return"
           },
           {
-            "name": "sort_direction",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "enum": [
-                "asc",
-                "desc"
-              ],
-              "type": "string",
-              "description": "Sort direction for the sort field",
-              "default": "desc",
-              "title": "Sort Direction"
-            },
-            "description": "Sort direction for the sort field"
-          },
-          {
             "name": "start_time",
             "in": "query",
             "required": false,
@@ -1987,7 +1955,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SpanSearchResponseBody"
+                  "$ref": "#/components/schemas/SpansResponseBody"
                 }
               }
             }
@@ -5549,7 +5517,7 @@
         "type": "object",
         "title": "OtlpSpan"
       },
-      "OtlpSpanSearchResponseBody": {
+      "OtlpSpansResponseBody": {
         "properties": {
           "data": {
             "items": {
@@ -5575,7 +5543,7 @@
           "data",
           "next_cursor"
         ],
-        "title": "OtlpSpanSearchResponseBody",
+        "title": "OtlpSpansResponseBody",
         "description": "Paginated response where each span follows OTLP JSON structure."
       },
       "OtlpStatus": {
@@ -7121,7 +7089,7 @@
         ],
         "title": "SpanEvent"
       },
-      "SpanSearchResponseBody": {
+      "SpansResponseBody": {
         "properties": {
           "data": {
             "items": {
@@ -7147,7 +7115,7 @@
           "data",
           "next_cursor"
         ],
-        "title": "SpanSearchResponseBody"
+        "title": "SpansResponseBody"
       },
       "TextContentPart": {
         "properties": {

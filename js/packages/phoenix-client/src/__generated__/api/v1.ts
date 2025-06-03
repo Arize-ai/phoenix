@@ -327,7 +327,7 @@ export interface paths {
         };
         /**
          * Search spans with simple filters (no DSL)
-         * @description Return spans within a project filtered by time range and ordered by start_time. Supports cursor-based pagination.
+         * @description Return spans within a project filtered by time range. Supports cursor-based pagination.
          */
         get: operations["spanSearch"];
         put?: never;
@@ -346,10 +346,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Search spans with simple filters (no DSL)
-         * @description Return spans within a project filtered by time range and ordered by start_time. Supports cursor-based pagination.
+         * List spans with simple filters (no DSL)
+         * @description Return spans within a project filtered by time range. Supports cursor-based pagination.
          */
-        get: operations["spanSearchPhoenix"];
+        get: operations["getSpans"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1484,10 +1484,10 @@ export interface components {
             trace_state?: string | null;
         };
         /**
-         * OtlpSpanSearchResponseBody
+         * OtlpSpansResponseBody
          * @description Paginated response where each span follows OTLP JSON structure.
          */
-        OtlpSpanSearchResponseBody: {
+        OtlpSpansResponseBody: {
             /** Data */
             data: components["schemas"]["OtlpSpan"][];
             /** Next Cursor */
@@ -2111,8 +2111,8 @@ export interface components {
                 [key: string]: unknown;
             };
         };
-        /** SpanSearchResponseBody */
-        SpanSearchResponseBody: {
+        /** SpansResponseBody */
+        SpansResponseBody: {
             /** Data */
             data: components["schemas"]["Span"][];
             /** Next Cursor */
@@ -3392,8 +3392,6 @@ export interface operations {
                 cursor?: string | null;
                 /** @description Maximum number of spans to return */
                 limit?: number;
-                /** @description Sort direction for the sort field */
-                sort_direction?: "asc" | "desc";
                 /** @description Inclusive lower bound time */
                 start_time?: string | null;
                 /** @description Exclusive upper bound time */
@@ -3414,7 +3412,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["OtlpSpanSearchResponseBody"];
+                    "application/json": components["schemas"]["OtlpSpansResponseBody"];
                 };
             };
             /** @description Forbidden */
@@ -3446,15 +3444,13 @@ export interface operations {
             };
         };
     };
-    spanSearchPhoenix: {
+    getSpans: {
         parameters: {
             query?: {
                 /** @description Pagination cursor (Span Global ID) */
                 cursor?: string | null;
                 /** @description Maximum number of spans to return */
                 limit?: number;
-                /** @description Sort direction for the sort field */
-                sort_direction?: "asc" | "desc";
                 /** @description Inclusive lower bound time */
                 start_time?: string | null;
                 /** @description Exclusive upper bound time */
@@ -3475,7 +3471,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SpanSearchResponseBody"];
+                    "application/json": components["schemas"]["SpansResponseBody"];
                 };
             };
             /** @description Forbidden */
