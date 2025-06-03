@@ -1347,7 +1347,7 @@ def _get_logging_level(env_var: str, default_level: int) -> int:
     # Use Python's built-in level mapping for validation
     levelNamesMapping = logging._nameToLevel.copy()
     # Add TRACE level for Phoenix (0) and Uvicorn (5)
-    levelNamesMapping["TRACE"] = 0
+    levelNamesMapping["TRACE"] = 10
     valid_values = [level for level in levelNamesMapping if level != "NOTSET"]
 
     if logging_level not in valid_values:
