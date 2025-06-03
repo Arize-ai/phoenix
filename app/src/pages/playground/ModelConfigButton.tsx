@@ -188,7 +188,8 @@ function AzureOpenAiModelConfigFormField({
   return (
     <>
       <TextField
-        value={instance.model.modelName ?? ""}
+        key={`${instance.id}-modelName-${instance.model.modelName}`}
+        defaultValue={instance.model.modelName ?? ""}
         onChange={(value) => {
           debouncedUpdateModelName(value);
         }}
