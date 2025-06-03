@@ -12,7 +12,6 @@ import json
 import argparse
 import logging
 import traceback
-from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any
 
@@ -41,37 +40,13 @@ def load_evaluations(project_dir: Path) -> List[Dict[str, Any]]:
     Returns:
         List of evaluation dictionaries
     """
-    # Check for dedicated evaluations file first
+    # Check for dedicated evaluations file
     evaluations_file = project_dir / "evaluations.json"
-    if evaluations_file.exists():
-        with open(evaluations_file, 'r') as f:
-            evaluations = json.load(f)
-    else:
-        # Fall back to annotations file and filter for evaluations
-        annotations_file = project_dir / "annotations.json"
-        if not annotations_file.exists():
-            logger.info(f"No evaluations or annotations file found for {project_dir.name}")
-            return []
-        
-        with open(annotations_file, 'r') as f:
-            all_annotations = json.load(f)
-            
-        # Filter for evaluations
-        # TODO: WTF? Evals should be in a separate file, not in annotations.json
-        evaluations = []
-        for item in all_annotations:
-            # Check if this looks like an evaluation (has score, or specific naming patterns)
-            result = item.get('result', {})
-            name = item.get('name', '').lower()
-            
-            # Consider it an evaluation if it has a score, or matches evaluation naming patterns
-            is_evaluation = (
-                result.get('score') is not None or
-                any(eval_term in name for eval_term in ['eval', 'quality', 'relevance', 'accuracy', 'toxicity', 'hallucination', 'safety'])
-            )
-            
-            if is_evaluation:
-                evaluations.append(item)
+    if not evaluations_file.exists():
+        return []
+    
+    with open(evaluations_file, 'r') as f:
+        evaluations = json.load(f)
                 
     # Filter out evaluations that might cause problems (incomplete data)
     valid_evaluations = []
