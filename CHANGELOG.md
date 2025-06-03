@@ -1,5 +1,12 @@
 # Changelog
 
+## [10.6.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.6.0...arize-phoenix-v10.6.1) (2025-06-03)
+
+
+### Bug Fixes
+
+* **helm:** helm cleanup ([#7879](https://github.com/Arize-ai/phoenix/issues/7879)) ([df91c7e](https://github.com/Arize-ai/phoenix/commit/df91c7ee4a1ce84576a11227949b1881aa368c9e))
+
 ## [10.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.5.0...arize-phoenix-v10.6.0) (2025-06-03)
 
 
