@@ -135,8 +135,10 @@ def analyze_annotations(annotations: List[Dict[str, Any]]) -> Tuple[Set[str], Se
             if name not in label_values:
                 label_values[name] = set()
             label_values[name].add(result['label'])
+            # If it has a label, we ignore the score as the Arize UI doesn't support both label and score
+            continue 
             
-        # Check if it has a score
+        # Check if it has a score (only if no label)
         if result and result.get('score') is not None:
             annotation_with_scores.add(name)
     
@@ -173,10 +175,7 @@ def main() -> None:
     logger.info(f"Found {len(projects)} projects")
     
     # Process each project
-    all_annotation_names = set()
-    all_label_annotations = set()
-    all_score_annotations = set()
-    all_label_values = {}
+    project_analysis_results = {}
     
     # Track if we found any annotations at all
     found_annotations = False
@@ -188,7 +187,10 @@ def main() -> None:
         annotations = load_annotations(project_dir)
         
         if not annotations:
-            logger.info(f"No annotations file found for project {project_name}")
+            logger.info(f"No annotations file found or file is empty for project {project_name}")
+            # We'll store an empty result so the project is acknowledged if needed,
+            # but it won't print in the guide if there are no names.
+            project_analysis_results[project_name] = (set(), set(), set(), {})
             continue
         
         found_annotations = True
@@ -196,63 +198,70 @@ def main() -> None:
         # Analyze annotations for this project
         names, with_labels, with_scores, label_values = analyze_annotations(annotations)
         
-        logger.info(f"Project {project_name} has {len(annotations)} annotations:")
-        for name in names:
-            logger.info(f"  - {name}:")
-            if name in with_labels:
-                logger.info(f"      Type: Label, Values: {', '.join(label_values.get(name, []))}")
-            if name in with_scores:
-                logger.info(f"      Type: Score")
+        # Filter out "note" annotations from being reported for manual setup
+        reportable_names = {name for name in names if name.lower() != "note"}
         
-        # Add to overall collections
-        all_annotation_names.update(names)
-        all_label_annotations.update(with_labels)
-        all_score_annotations.update(with_scores)
-        
-        # Merge label values
-        for name, values in label_values.items():
-            if name not in all_label_values:
-                all_label_values[name] = set()
-            all_label_values[name].update(values)
-    
+        project_analysis_results[project_name] = (reportable_names, with_labels, with_scores, label_values)
+
+        if reportable_names:
+            logger.info(f"Project {project_name} has {len(annotations)} raw annotations, yielding {len(reportable_names)} unique annotation types to configure (excluding 'note'):")
+            for name in sorted(reportable_names):
+                log_message_detail = ""
+                if name in with_labels:
+                    log_message_detail += f"Type: Label, Values: {', '.join(sorted(label_values.get(name, [])))}"
+                elif name in with_scores: # Only if not a label
+                    log_message_detail += f"Type: Score"
+                logger.info(f"  - {name}: {log_message_detail}")
+        else:
+            logger.info(f"Project {project_name} has {len(annotations)} raw annotations, but no valid annotation types (excluding 'note') were extracted for the guide.")
+
     # Check if we found any annotations
     if not found_annotations:
-        logger.error("No annotations found in any projects")
+        logger.error("No annotations found in any projects (annotations.json files are missing or empty).")
         print("\n⚠️ ERROR: No annotations found in any projects.")
         print("Please make sure that:")
         print("1. You've exported annotations with export_all_projects.py --annotations")
-        print("2. Your Phoenix server has annotations for at least one project")
+        print("2. Your Phoenix server has annotations for at least one project and these are present in the export.")
         return
     
-    if not all_annotation_names:
-        logger.error("No valid annotations found (all annotations are missing required fields)")
-        print("\n⚠️ ERROR: No valid annotations found.")
-        print("All annotations in the export are missing required fields (name, label, or score).")
+    # Check if any project actually yielded valid annotation names for the guide
+    any_valid_annotations_for_guide = any(
+        data[0] for data in project_analysis_results.values() # data[0] is 'names' set
+    )
+    if not any_valid_annotations_for_guide:
+        logger.error("No valid annotation types found across all projects to generate a configuration guide.")
+        print("\n⚠️ ERROR: No valid annotation types found to configure.")
+        print("This might mean annotations exist but are missing required fields (name, and a result with label/score).")
         return
     
     # Print summary and configuration instructions
     print("\n=== Annotation Configuration Guide ===\n")
-    print("Before importing annotations into Arize, you must configure each annotation type in the Arize UI.")
-    print("Follow these steps for each annotation type listed below:\n")
-    print("1. Navigate to a trace within your project in the Arize platform")
+    print("Before importing annotations into Arize, you must configure each annotation type in the Arize UI for the respective projects.")
+    print("Follow these general steps to add an annotation type in the Arize UI:")
+    print("1. Navigate to a trace within the relevant project in the Arize platform")
     print("2. Click the 'Annotate' button to open the annotation panel")
     print("3. Click 'Add Annotation'")
-    print("4. Create the following annotation configurations:\n")
-    
-    for name in sorted(all_annotation_names):
-        print(f"Annotation Name: {name}")
+    print("4. Create an annotation configuration using the details provided below for each project and annotation name.\n")
+
+    for project_name, (names, with_labels, with_scores, label_values) in project_analysis_results.items():
+        if not names: # Skip projects if they had no valid annotations to configure
+            continue
+
+        print(f"--- Project: {project_name} ---")
         
-        if name in all_label_annotations:
-            print(f"  Type: Label")
-            if name in all_label_values:
-                print(f"  Values: {', '.join(sorted(all_label_values[name]))}")
-                
-        if name in all_score_annotations:
-            print(f"  Type: Score")
+        for name in sorted(names):
+            print(f"  Annotation Name: {name}")
             
-        print()
-    
-    print("After configuring these annotations in the Arize UI, you can run the import_annotations.py script.")
+            if name in with_labels:
+                print(f"    Type: Label")
+                if name in label_values and label_values[name]:
+                    print(f"    Values: {', '.join(sorted(label_values[name]))}")
+            elif name in with_scores: # This implies it wasn't a label, due to analyze_annotations logic
+                print(f"    Type: Score")
+            print() # Blank line for readability
+        print("-" * 30 + "\n")
+
+    print("After configuring these annotations in the Arize UI for the respective projects, you can run the import_annotations.py script.")
 
 if __name__ == "__main__":
     main() 
