@@ -194,7 +194,7 @@ def parse_label_from_chain_of_thought_response(raw_string: str) -> str:
         return raw_string
 
     # Slice everything after the word "label"
-    remainder = raw_string[match.end():].lstrip(" :.-\t")
+    remainder = raw_string[match.end() :].lstrip(" :.-\t")
 
     # Determine where the label value ends by looking for keyword "explanation"
     exp_match = re.search(r"\bexplanation\b", remainder, flags=re.IGNORECASE)
