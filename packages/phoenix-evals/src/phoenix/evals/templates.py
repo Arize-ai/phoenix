@@ -187,17 +187,24 @@ class ClassificationTemplate(PromptTemplate):
 
 
 def parse_label_from_chain_of_thought_response(raw_string: str) -> str:
-    label_delimiter = r"\W*label\W*"
-    parts = re.split(label_delimiter, raw_string, maxsplit=1, flags=re.IGNORECASE)
-    if len(parts) == 2:
-        # Extract just the first word/line after the label delimiter
-        label_part = parts[1].strip()
-        if label_part:
-            # Split by whitespace or newline and take the first non-empty part
-            first_word = label_part.split()[0] if label_part.split() else label_part
-            return first_word
-        return parts[1]  # Return original if no content
-    return raw_string  # Fallback to the whole string if no label delimiter is found
+    # Locate the first occurrence of "label"
+    match = re.search(r"\blabel\b", raw_string, flags=re.IGNORECASE)
+    if not match:
+        # No "label" keyword – return the input unchanged
+        return raw_string
+
+    # Slice everything after the word "label"
+    remainder = raw_string[match.end():].lstrip(" :.-\t")
+
+    # Determine where the label value ends by looking for keyword "explanation"
+    exp_match = re.search(r"\bexplanation\b", remainder, flags=re.IGNORECASE)
+    if exp_match:
+        label_text = remainder[: exp_match.start()]
+    else:
+        # No "explanation" found, take everything before first newline or end of string
+        label_text = remainder.split("\n", 1)[0]
+
+    return label_text.strip() or remainder.strip()
 
 
 def normalize_classification_template(

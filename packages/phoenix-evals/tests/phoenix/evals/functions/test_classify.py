@@ -1574,23 +1574,15 @@ def test_classification_status_is_superset_of_execution_status() -> None:
     )
 
 
-def test_llm_classify_with_response_containing_both_rails(
-    openai_api_key: str,
-):
+def test_llm_classify_with_response_containing_both_rails(openai_api_key: str) -> None:
     """Test that when both rails appear in the response, only the one after 'Label:' is extracted."""
     model = OpenAIModel()
-    
-    # Create test data
     dataframe = pd.DataFrame([
         {"agent_output": "search_bigquery_tables, execute_bigquery", 
          "human_selection": "execute_bigquery"}
     ])
-    
-    # Response that contains both "incorrect" (after Label:) and "correct" (in explanation)
-    response_with_both_rails = """Label: incorrect\nExplanation: The Agent Output does not match the Human Tool Selection. However, the agent appears to be on the correct path to answering the question."""
-    
-    # Mock the _generate method to return our specific response
-    with patch.object(model, '_generate', return_value=response_with_both_rails):
+    return_value = """Label: incorrect\nExplanation: The Agent Output does not match the Human Tool Selection. However, the agent appears to be on the correct path to answering the question."""
+    with patch.object(model, '_generate', return_value=return_value):
         result = llm_classify(
             dataframe=dataframe,
             template="Agent Output: {agent_output}\nHuman Selection: {human_selection}\nDoes the agent output match?",
@@ -1600,8 +1592,71 @@ def test_llm_classify_with_response_containing_both_rails(
             provide_explanation=True,
             run_sync=True,
         )
-        
-        # Should extract "incorrect" (the label after "Label:"), not "correct" which appears later
-        assert result["label"].tolist() == ["incorrect"]
         assert result["label"].iloc[0] == "incorrect"
+        assert NOT_PARSABLE not in result["label"].tolist()
+
+
+def test_llm_classify_with_response_with_space(openai_api_key: str) -> None:
+    """Test that when the rails includes a space, it is extracted in entirety."""
+    model = OpenAIModel()
+    dataframe = pd.DataFrame([
+        {"agent_output": "search_bigquery_tables, execute_bigquery", 
+         "human_selection": "execute_bigquery"}
+    ])
+    return_value = """Label: not correct\nExplanation: The Agent Output does not match the Human Tool Selection. However, the agent appears to be on the correct path to answering the question."""
+    with patch.object(model, '_generate', return_value=return_value):
+        result = llm_classify(
+            dataframe=dataframe,
+            template="Agent Output: {agent_output}\nHuman Selection: {human_selection}\nDoes the agent output match?",
+            model=model,
+            rails=["correct", "not correct"],
+            use_function_calling_if_available=False,
+            provide_explanation=True,
+            run_sync=True,
+        )
+        assert result["label"].iloc[0] == "not correct"
+        assert NOT_PARSABLE not in result["label"].tolist()
+
+
+def test_llm_classify_without_label_prefix(openai_api_key: str) -> None:
+    """Test that the label can be parsed successfully without the label prefix."""
+    model = OpenAIModel()
+    dataframe = pd.DataFrame([
+        {"agent_output": "search_bigquery_tables, execute_bigquery", 
+         "human_selection": "execute_bigquery"}
+    ])
+    return_value = """incorrect EXPLANATION: This is incorrect because the user did not explicitly ask to speak to a live agent."""
+    with patch.object(model, '_generate', return_value=return_value):
+        result = llm_classify(
+            dataframe=dataframe,
+            template="Agent Output: {agent_output}\nHuman Selection: {human_selection}\nDoes the agent output match?",
+            model=model,
+            rails=["correct", "incorrect"],
+            use_function_calling_if_available=False,
+            provide_explanation=True,
+            run_sync=True,
+        )
+        assert result["label"].iloc[0] == "incorrect"
+        assert NOT_PARSABLE not in result["label"].tolist()
+
+
+def test_llm_classify_cot(openai_api_key: str) -> None:
+    """This is the base case, where the explanation precedes the label, per chain of thought thinking."""
+    model = OpenAIModel()
+    dataframe = pd.DataFrame([
+        {"agent_output": "search_bigquery_tables, execute_bigquery", 
+         "human_selection": "execute_bigquery"}
+    ])
+    return_value = """Explanation: The Agent Output does not match the Human Tool Selection. However, the agent appears to be on the correct path to answering the question. Label: not correct"""
+    with patch.object(model, '_generate', return_value=return_value):
+        result = llm_classify(
+            dataframe=dataframe,
+            template="Agent Output: {agent_output}\nHuman Selection: {human_selection}\nDoes the agent output match?",
+            model=model,
+            rails=["correct", "not correct"],
+            use_function_calling_if_available=False,
+            provide_explanation=True,
+            run_sync=True,
+        )
+        assert result["label"].iloc[0] == "not correct"
         assert NOT_PARSABLE not in result["label"].tolist()
