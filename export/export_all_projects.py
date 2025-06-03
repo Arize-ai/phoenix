@@ -7,7 +7,7 @@ evaluations, annotations, datasets, and prompts.
 
 Usage:
   cd export
-  python export_all_projects.py [--all] [--datasets] [--traces] [--prompts] [--annotations] [--projects]
+  python export_all_projects.py [--all] [--datasets] [--traces] [--prompts] [--annotations] [--evaluations] [--projects]
 
 Environment Variables:
   PHOENIX_ENDPOINT: Base URL of the Phoenix server.
@@ -29,6 +29,7 @@ from exporters import export_datasets
 from exporters import export_prompts
 from exporters import export_traces
 from exporters import export_annotations
+from exporters import export_evaluations
 from utils import create_client_with_retry, parse_export_args
 
 # Configure logging
@@ -89,7 +90,7 @@ def main() -> None:
     failed_exports = []
     
     # Check if any export type is selected
-    if not (args.all or args.datasets or args.prompts or args.projects or args.traces or args.annotations):
+    if not (args.all or args.datasets or args.prompts or args.projects or args.traces or args.annotations or args.evaluations):
         logger.error("No export type selected. Use --help to see available options.")
         return
 
@@ -201,6 +202,33 @@ def main() -> None:
             logger.error(f"Error exporting annotations: {e}")
             failed_exports.append("annotations")
     
+    # Export evaluations (step 5)
+    if args.all or args.evaluations:
+        logger.info("Step 5: Exporting evaluations...")
+        results_file = os.path.join(RESULTS_DIR, "evaluation_export_results.json")
+        
+        try:
+            results = export_evaluations.export_evaluations(
+                client=client,
+                output_dir=projects_dir,
+                project_names=args.project,
+                verbose=args.verbose,
+                results_file=results_file
+            )
+            
+            if results:
+                success_count = sum(1 for status in results.values() if status.get('status') == 'exported')
+                total_evaluations = sum(p.get('evaluation_count', 0) for p in results.values())
+                
+                logger.info(f"Successfully exported {total_evaluations} evaluations from {success_count} projects")
+                successful_exports.append("evaluations")
+            else:
+                logger.error("Failed to export evaluations")
+                failed_exports.append("evaluations")
+        except Exception as e:
+            logger.error(f"Error exporting evaluations: {e}")
+            failed_exports.append("evaluations")
+    
     # Print summary
     print("\n=== Export Summary ===")
     if successful_exports:
@@ -211,7 +239,7 @@ def main() -> None:
     
     # Display results file locations
     print("\n=== Export Results Files ===")
-    for result_type in ['dataset', 'trace', 'prompt', 'annotation']:
+    for result_type in ['dataset', 'trace', 'prompt', 'annotation', 'evaluation']:
         result_file = RESULTS_DIR / f"{result_type}_export_results.json"
         if result_file.exists():
             print(f"- {result_type.capitalize()} results: {result_file}")

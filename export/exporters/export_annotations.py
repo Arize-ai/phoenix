@@ -20,6 +20,11 @@ Usage:
       output_dir="./phoenix_export/projects",
       project_names=["project1", "project2"]
   )
+  
+API Reference:
+  - GET /v1/projects/{project_identifier}/span_annotations
+  - Retrieves span annotations for specific span IDs
+  - Returns SpanAnnotation objects with annotator_kind, result (label/score/explanation), etc.
 """
 
 import os
