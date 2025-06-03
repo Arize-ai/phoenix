@@ -19,9 +19,9 @@ describe("generativeConstants", () => {
           true
         );
         if (provider !== "OLLAMA") {
-          expect(ProviderToCredentialsConfigMap[provider].length).toBeGreaterThan(
-            0
-          );
+          expect(
+            ProviderToCredentialsConfigMap[provider].length
+          ).toBeGreaterThan(0);
         }
       });
 
