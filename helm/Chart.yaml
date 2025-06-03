@@ -26,6 +26,7 @@ dependencies:
   - name: postgresql
     version: "16.7.8"  # Check for latest version
     repository: oci://registry-1.docker.io/bitnamicharts 
+    condition: postgresql.enabled
 
 # A chart can be either an 'application' or a 'library' chart.
 #
