@@ -161,18 +161,34 @@ def convert_annotations_to_dataframe(
     # Format rows according to Arize format
     formatted_rows = []
     for span_id, anno_list in annotations_by_span.items():
-        row = {
-            'context.span_id': span_id,
-            'project_name': project_name
-        }
         
-        # Collect notes from all annotations for this span
-        all_notes = []
-        
-        # Process each annotation for this span
+        # Create separate rows for each annotation
         for annotation in anno_list:
             name = annotation['name'].lower().replace(' ', '_')
             result = annotation.get('result', {})
+            
+            # Get timestamp from annotation
+            annotation_timestamp = annotation.get('created_at')
+            # Convert to nanoseconds
+            if isinstance(annotation_timestamp, str):
+                # Parse ISO format and convert to nanoseconds
+                dt = datetime.fromisoformat(annotation_timestamp.replace('Z', '+00:00'))
+                timestamp_ns = int(dt.timestamp() * 1000000000)
+            else:
+                # Use current time in nanoseconds as fallback
+                timestamp_ns = int(datetime.now().timestamp() * 1000000000)
+            
+            # Get updated_by information
+            annotator = annotation.get('annotator_kind')
+            updated_by = f"{annotator}"
+            
+            # Create row for this annotation
+            row = {
+                'context.span_id': span_id,
+                'project_name': project_name,
+                'Updated_by': updated_by,
+                'updated_at': timestamp_ns
+            }
             
             # Add label if present
             if result and result.get('label') is not None:
@@ -182,41 +198,14 @@ def convert_annotations_to_dataframe(
             if result and result.get('score') is not None:
                 row[f'annotation.{name}.score'] = float(result['score'])
                 
-            # Collect explanations as notes
+            # Add note if explanation exists
             if result and result.get('explanation'):
-                explanation = f"{name}: {result['explanation']}"
-                all_notes.append(explanation)
-                
-            # Add metadata about who created the annotation
-            source = annotation.get('source', 'SDK')
-            annotator = annotation.get('annotator_kind', 'Logger')
-            row[f'annotation.{name}.updated_by'] = f"{source}_{annotator}"
-        
-        # Add all collected notes as a single entry
-        if all_notes:
-            row['annotation.notes'] = " | ".join(all_notes)
-        
-        # Make sure we have at least one valid annotation (label or score)
-        has_valid_annotation = False
-        for key in row:
-            if '.label' in key and not pd.isna(row.get(key)):
-                has_valid_annotation = True
-                break
-            elif '.score' in key and not pd.isna(row.get(key)):
-                has_valid_annotation = True
-                break
-        
-        # If no annotation fields, ensure we have at least one
-        if not has_valid_annotation and 'annotation.notes' in row:
-            # If we only have notes, add a dummy annotation with the name "note"
-            # This ensures the notes are properly attached to a labeled annotation
-            note_content = row['annotation.notes']
-            row['annotation.note.label'] = 'Note'
-        elif not has_valid_annotation:
-            # If nothing else, add a generic annotation
-            row['annotation.default.label'] = 'Default'
-        
-        formatted_rows.append(row)
+                row['annotation.notes'] = f"{result['explanation']}"
+            
+            # Only add row if it has some annotation data
+            has_annotation_data = any(key.startswith('annotation.') for key in row.keys())
+            if has_annotation_data:
+                formatted_rows.append(row)
     
     # Create dataframe
     df = pd.DataFrame(formatted_rows)
