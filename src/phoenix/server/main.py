@@ -17,7 +17,6 @@ import phoenix.trace.v1 as pb
 from phoenix.config import (
     EXPORT_DIR,
     TLSConfigVerifyClient,
-    get_env_access_log,
     get_env_access_token_expiry,
     get_env_allowed_origins,
     get_env_auth_settings,
@@ -460,8 +459,9 @@ def main() -> None:
         host=host,  # type: ignore[arg-type]
         port=port,
         root_path=host_root_path,
-        access_log=get_env_access_log(),
+        log_level=Settings.logging_level,
     )
+    print("server config", server_config)
 
     if tls_enabled_for_http:
         assert tls_config

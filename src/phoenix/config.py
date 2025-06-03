@@ -124,11 +124,6 @@ ENV_LOG_MIGRATIONS = "PHOENIX_LOG_MIGRATIONS"
 Whether or not to log migrations. Defaults to true.
 """
 
-ENV_PHOENIX_ACCESS_LOG = "PHOENIX_ACCESS_LOG"
-"""
-Whether to enable Uvicorn's access logging. Defaults to true.
-"""
-
 ENV_PHOENIX_DANGEROUSLY_DISABLE_MIGRATIONS = "PHOENIX_DANGEROUSLY_DISABLE_MIGRATIONS"
 """
 Whether or not to disable migrations. Defaults to None / False.
@@ -1504,17 +1499,6 @@ def _get_default_idp_display_name(idp_name: str) -> str:
     if idp_name == OAuth2Idp.MICROSOFT_ENTRA_ID.value:
         return "Microsoft Entra ID"
     return idp_name.replace("_", " ").title()
-
-
-def get_env_access_log() -> bool:
-    """
-    Gets whether Uvicorn's access logging is enabled.
-
-    Returns:
-        bool: True if access logging is enabled, False otherwise. Defaults to True if the
-        environment variable is not set.
-    """
-    return _bool_val(ENV_PHOENIX_ACCESS_LOG, True)
 
 
 def get_env_disable_migrations() -> bool:
