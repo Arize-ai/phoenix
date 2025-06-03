@@ -70,6 +70,10 @@ const modelConfigFormCSS = css`
   overflow: auto;
 `;
 
+function providerSupportsOpenAIConfig(provider: ModelProvider) {
+  return provider === "OPENAI" || provider === "OLLAMA";
+}
+
 function OpenAiModelConfigFormField({
   instance,
   container,
@@ -108,6 +112,17 @@ function OpenAiModelConfigFormField({
     [updateModelConfig]
   );
 
+  const debouncedUpdateBaseUrl = useMemo(
+    () =>
+      debounce((value: string) => {
+        updateModelConfig({
+          configKey: "baseUrl",
+          value,
+        });
+      }, 250),
+    [updateModelConfig]
+  );
+
   return (
     <>
       <ModelComboBox
@@ -119,12 +134,9 @@ function OpenAiModelConfigFormField({
         container={container ?? undefined}
       />
       <TextField
-        value={instance.model.baseUrl ?? ""}
+        defaultValue={instance.model.baseUrl ?? ""}
         onChange={(value) => {
-          updateModelConfig({
-            configKey: "baseUrl",
-            value,
-          });
+          debouncedUpdateBaseUrl(value);
         }}
       >
         <Label>Base URL</Label>
@@ -435,8 +447,7 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
           });
         }}
       />
-      {instance.model.provider === "OPENAI" ||
-      instance.model.provider === "OLLAMA" ? (
+      {providerSupportsOpenAIConfig(instance.model.provider) ? (
         <OpenAiModelConfigFormField
           instance={instance}
           container={container ?? null}
