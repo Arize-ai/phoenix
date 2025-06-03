@@ -33,6 +33,7 @@ jobs:
         version: 'latest'
     - name: Package Helm chart
       run: |
+        helm dependency update helm/
         helm package ./helm
     - name: Push Helm chart to Docker Hub
       run: |
