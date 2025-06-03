@@ -191,7 +191,7 @@ def parse_label_from_chain_of_thought_response(raw_string: str) -> str:
     if not match:
         return raw_string
 
-    remainder = raw_string[match.end():].lstrip(" :.-\t")
+    remainder = raw_string[match.end() :].lstrip(" :.-\t")
 
     # Remove everything after explanation in case it erroneously comes after the label, violating
     # chain of thought

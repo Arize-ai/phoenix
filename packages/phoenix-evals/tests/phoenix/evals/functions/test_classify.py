@@ -1578,14 +1578,18 @@ def test_llm_classify_with_response_containing_both_rails(openai_api_key: str) -
     """Test that when both rails appear in the response, only the one after
     'Label:' is extracted."""
     model = OpenAIModel()
-    dataframe = pd.DataFrame([
-        {"agent_output": "search_bigquery_tables, execute_bigquery", 
-         "human_selection": "execute_bigquery"}
-    ])
+    dataframe = pd.DataFrame(
+        [
+            {
+                "agent_output": "search_bigquery_tables, execute_bigquery",
+                "human_selection": "execute_bigquery",
+            }
+        ]
+    )
     return_value = """Label: incorrect\nExplanation: The Agent Output does not match the Human Tool
         Selection. However, the agent appears to be on the correct path to answering the
         question."""
-    with patch.object(model, '_generate', return_value=return_value):
+    with patch.object(model, "_generate", return_value=return_value):
         result = llm_classify(
             dataframe=dataframe,
             template="Agent Output: {agent_output}\nHuman Selection: {human_selection}\n",
@@ -1602,14 +1606,18 @@ def test_llm_classify_with_response_containing_both_rails(openai_api_key: str) -
 def test_llm_classify_with_response_with_space(openai_api_key: str) -> None:
     """Test that when the rails includes a space, it is extracted in entirety."""
     model = OpenAIModel()
-    dataframe = pd.DataFrame([
-        {"agent_output": "search_bigquery_tables, execute_bigquery", 
-         "human_selection": "execute_bigquery"}
-    ])
+    dataframe = pd.DataFrame(
+        [
+            {
+                "agent_output": "search_bigquery_tables, execute_bigquery",
+                "human_selection": "execute_bigquery",
+            }
+        ]
+    )
     return_value = """Label: not correct\nExplanation: The Agent Output does not match the Human
         Tool Selection. However, the agent appears to be on the correct path to answering the
         question."""
-    with patch.object(model, '_generate', return_value=return_value):
+    with patch.object(model, "_generate", return_value=return_value):
         result = llm_classify(
             dataframe=dataframe,
             template="Agent Output: {agent_output}\nHuman Selection: {human_selection}\n",
@@ -1626,13 +1634,17 @@ def test_llm_classify_with_response_with_space(openai_api_key: str) -> None:
 def test_llm_classify_without_label_prefix(openai_api_key: str) -> None:
     """Test that the label can be parsed successfully without the label prefix."""
     model = OpenAIModel()
-    dataframe = pd.DataFrame([
-        {"agent_output": "search_bigquery_tables, execute_bigquery", 
-         "human_selection": "execute_bigquery"}
-    ])
+    dataframe = pd.DataFrame(
+        [
+            {
+                "agent_output": "search_bigquery_tables, execute_bigquery",
+                "human_selection": "execute_bigquery",
+            }
+        ]
+    )
     return_value = """incorrect EXPLANATION: This is incorrect because the user did not explicitly
         ask to speak to a live agent."""
-    with patch.object(model, '_generate', return_value=return_value):
+    with patch.object(model, "_generate", return_value=return_value):
         result = llm_classify(
             dataframe=dataframe,
             template="Agent Output: {agent_output}\nHuman Selection: {human_selection}\n",
@@ -1649,14 +1661,18 @@ def test_llm_classify_without_label_prefix(openai_api_key: str) -> None:
 def test_llm_classify_cot(openai_api_key: str) -> None:
     """This is the base case, where the explanation precedes the label, per CoT thinking."""
     model = OpenAIModel()
-    dataframe = pd.DataFrame([
-        {"agent_output": "search_bigquery_tables, execute_bigquery", 
-         "human_selection": "execute_bigquery"}
-    ])
+    dataframe = pd.DataFrame(
+        [
+            {
+                "agent_output": "search_bigquery_tables, execute_bigquery",
+                "human_selection": "execute_bigquery",
+            }
+        ]
+    )
     return_value = """Explanation: The Agent Output does not match the Human Tool Selection.
         However, the agent appears to be on the correct path to answering the question.
         Label: not correct"""
-    with patch.object(model, '_generate', return_value=return_value):
+    with patch.object(model, "_generate", return_value=return_value):
         result = llm_classify(
             dataframe=dataframe,
             template="Agent Output: {agent_output}\nHuman Selection: {human_selection}\n",
