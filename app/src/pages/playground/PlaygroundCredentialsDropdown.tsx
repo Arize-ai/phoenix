@@ -35,7 +35,6 @@ export function PlaygroundCredentialsDropdown() {
   );
   const [isOpen, setIsOpen] = useState(false);
 
-
   return (
     <div
       css={css`
