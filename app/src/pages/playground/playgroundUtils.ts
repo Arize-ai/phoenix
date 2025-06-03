@@ -1113,11 +1113,11 @@ function getApiKey(
   const providerCredentials = credentials[provider];
   const providerCredentialsConfig = ProviderToCredentialsConfigMap[provider];
   if (!providerCredentials) {
-    return "";
+    return null;
   }
   if (providerCredentialsConfig.length === 0) {
     // This means that the provider doesn't require any credentials
-    return "";
+    return null;
   }
   if (providerCredentialsConfig.length > 1) {
     throw new Error(
