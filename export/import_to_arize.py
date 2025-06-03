@@ -3,11 +3,11 @@
 Phoenix to Arize Import Tool
 
 This script provides a unified interface to import data from Phoenix export 
-to Arize. It can import datasets, traces, annotations, and prompts.
+to Arize. It can import datasets, traces, annotations, evaluations, and prompts.
 
 Usage:
   cd export
-  python import_to_arize.py [--all] [--datasets] [--traces] [--annotations] [--prompts]
+  python import_to_arize.py [--all] [--datasets] [--traces] [--annotations] [--evaluations] [--prompts]
 """
 
 import logging
@@ -22,6 +22,7 @@ from importers import (
     import_datasets,
     import_traces,
     import_annotations,
+    import_evaluations,
     import_prompts,
     setup_annotations
 )
@@ -155,6 +156,45 @@ def import_annotations_wrapper(args: argparse.Namespace) -> bool:
         logger.error(f"Error importing annotations: {e}")
         return False
 
+def import_evaluations_wrapper(args: argparse.Namespace) -> bool:
+    """
+    Import evaluations from Phoenix export to Arize.
+    
+    Args:
+        args: Command line arguments
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        logger.info("Importing evaluations...")
+        results_path = RESULTS_DIR / "evaluation_import_results.json"
+        result = import_evaluations.import_evaluations(
+            api_key=args.api_key,
+            space_id=args.space_id,
+            export_dir=args.export_dir,
+            results_file=str(results_path),
+            developer_key=getattr(args, 'developer_key', None)
+        )
+        
+        if result and isinstance(result, dict) and 'projects' in result:
+            total_success = sum(1 for p in result['projects'].values() if p.get('success'))
+            total_evaluations = sum(p.get('evaluations_count', 0) for p in result['projects'].values())
+            logger.info(f"Successfully imported {total_evaluations} evaluations from {total_success} projects")
+            
+            # Save results to file
+            with open(results_path, "w") as f:
+                json.dump(result, f, indent=2)
+                logger.info(f"Evaluation import results saved to {results_path}")
+                
+            return total_success > 0
+        else:
+            logger.error("No evaluations were imported")
+            return False
+    except Exception as e:
+        logger.error(f"Error importing evaluations: {e}")
+        return False
+
 def import_prompts_wrapper(args: argparse.Namespace) -> bool:
     """
     Import prompts from Phoenix export to Arize.
@@ -245,7 +285,7 @@ def main() -> None:
         return
     
     # Check if any import type is selected
-    if not (args.all or args.datasets or args.traces or args.annotations or args.prompts or args.setup_annotations):
+    if not (args.all or args.datasets or args.traces or args.annotations or args.evaluations or args.prompts or args.setup_annotations):
         logger.error("No import type selected. Use --help to see available options.")
         return
     
@@ -255,7 +295,7 @@ def main() -> None:
     
     # Import datasets (step 1)
     if args.all or args.datasets:
-        logger.info("Step 1/6: Importing datasets...")
+        logger.info("Step 1/7: Importing datasets...")
         if import_datasets_wrapper(args):
             successful_imports.append("datasets")
         else:
@@ -263,7 +303,7 @@ def main() -> None:
     
     # Import prompts (step 2)
     if args.all or args.prompts:
-        logger.info("Step 2/6: Importing prompts...")
+        logger.info("Step 2/7: Importing prompts...")
         if import_prompts_wrapper(args):
             successful_imports.append("prompts")
         else:
@@ -271,16 +311,24 @@ def main() -> None:
     
     # Import traces (step 3)
     if args.all or args.traces:
-        logger.info("Step 3/6: Importing traces...")
+        logger.info("Step 3/7: Importing traces...")
         if import_traces_wrapper(args):
             successful_imports.append("traces")
         else:
             failed_imports.append("traces")
     
-    # Handle annotations (steps 4-6)
+    # Import evaluations (step 4)
+    if args.all or args.evaluations:
+        logger.info("Step 4/7: Importing evaluations...")
+        if import_evaluations_wrapper(args):
+            successful_imports.append("evaluations")
+        else:
+            failed_imports.append("evaluations")
+    
+    # Handle annotations (steps 5-7)
     if args.all or args.annotations:
-        # Step 4: Run setup annotations guide
-        logger.info("Step 4/6: Setting up and importing annotations...")
+        # Step 5: Run setup annotations guide
+        logger.info("Step 5/7: Setting up and importing annotations...")
         # Always run setup_annotations when annotations is requested
         logger.info("Running annotation setup guide...")
         setup_success = setup_annotations_wrapper(args)
@@ -290,7 +338,7 @@ def main() -> None:
             logger.error("✗ Annotation setup guide failed.")
             failed_imports.append("annotation setup")
                 
-        # Step 5: Wait for user confirmation
+        # Step 6: Wait for user confirmation
         print("\n=======================================================")
         print("IMPORTANT: Please configure all annotations in Arize UI:")
         print("1. Navigate to a trace in your project in Arize")
@@ -300,9 +348,9 @@ def main() -> None:
         
         confirmation = input("\nHave you added all annotation configurations in Arize UI? (yes/no): ").lower()
         
-        # Step 6: Import annotations if confirmed
+        # Step 7: Import annotations if confirmed
         if confirmation in ["yes", "y"]:
-            logger.info("Step 6/6: Importing annotations...")
+            logger.info("Step 7/7: Importing annotations...")
             if import_annotations_wrapper(args):
                 successful_imports.append("annotations")
             else:
