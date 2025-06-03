@@ -1,4 +1,3 @@
-import sys
 from asyncio import Event, sleep
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
@@ -120,8 +119,7 @@ class TestTraceDataSweeper:
 
             # Execute sweeper
             sweeper_trigger.set()
-            # Use longer wait time on Windows for CI
-            wait_time = 1.0 if sys.platform == "win32" else 0.1
+            wait_time = 1.0
             await sleep(wait_time)  # Allow time for processing
 
             # Verify final state
