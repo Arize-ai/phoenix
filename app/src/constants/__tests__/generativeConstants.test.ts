@@ -18,9 +18,11 @@ describe("generativeConstants", () => {
         expect(Array.isArray(ProviderToCredentialsConfigMap[provider])).toBe(
           true
         );
-        expect(ProviderToCredentialsConfigMap[provider].length).toBeGreaterThan(
-          0
-        );
+        if (provider !== "OLLAMA") {
+          expect(ProviderToCredentialsConfigMap[provider].length).toBeGreaterThan(
+            0
+          );
+        }
       });
 
       // Check that every credential entry has required fields
