@@ -51,12 +51,11 @@ python export_all_projects.py --all --base-url http://localhost:6006 --export-di
 ```
 
 ### Export Process Order
-1. **Datasets** (if selected)
-2. **Prompts** (if selected)
-3. **Traces and Project Metadata** (if selected)
-4. **Annotations** (if selected)
-5. **Evaluations** (if selected)
-
+1. **Datasets** 
+2. **Prompts** 
+3. **Traces and Project Metadata**
+4. **Annotations**
+5. **Evaluations**
 For annotations, you'll need to configure the annotation types in the Arize UI after running the setup guide.
 See https://docs.arize.com/arize/evaluate/human-annotations#create-annotations-via-api 
 
@@ -71,16 +70,16 @@ python import_to_arize.py --all
 # Import specific data types
 python import_to_arize.py --datasets --traces --annotations --evaluations --prompts
 
-# Setup annotation types in Arize before importing annotations
-python import_to_arize.py --setup-annotations
+# Import a specific project
+python import_to_arize.py --all --project "my-project"
 ```
 
 ### Import Process Order
-1. **Datasets** (if selected)
-2. **Prompts** (if selected)
-3. **Traces** (if selected) - *Requires confirmation for trace ingestion*
-4. **Evaluations** (if selected) - *Requires traces to be fully ingested first*
-5. **Annotations** (if selected) - *Requires setup-annotations to be run first*
+1. **Datasets** 
+2. **Prompts**
+3. **Traces**
+4. **Evaluations** - *Requires traces to be fully ingested first*
+5. **Annotations** - *Requires setup-annotations to be run first*
 
 ### Annotation Import Requirements
 For annotations, you must:
@@ -95,13 +94,8 @@ See: https://docs.arize.com/arize/evaluate/human-annotations#create-annotations-
 ### Export Options
 
 #### Data Types
-- `--all`: Export all data types (datasets, prompts, projects, traces, annotations, and evaluations)
-- `--datasets`: Export datasets
-- `--prompts`: Export prompts
-- `--projects`: Export projects (includes metadata)
-- `--traces`: Export traces
-- `--annotations`: Export annotations
-- `--evaluations`: Export evaluations
+- `--all`: Export all supported data types
+- `--datasets`, `--prompts`, `--projects`, `--traces`, `--annotations`, `--evaluations`: Export specific data types
 
 #### Target Selection
 - `--project NAME`: Specify project name to export (can be used multiple times)
@@ -151,7 +145,6 @@ Both export and import include built-in retry capabilities to handle API rate li
 - **Duplicate prevention**: Previously imported data is automatically detected and skipped
 - **Results tracking**: All imported data is logged in the `results/` directory
 - **Validation**: Data integrity checks before import operations
-- **Rollback information**: Detailed logs for troubleshooting and potential rollbacks
 
 ## Output Structure
 
