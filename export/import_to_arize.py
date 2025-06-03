@@ -11,7 +11,6 @@ Usage:
 """
 
 import logging
-import os
 import sys
 import argparse
 from pathlib import Path
@@ -93,17 +92,48 @@ def import_traces_wrapper(args: argparse.Namespace) -> bool:
     try:
         logger.info("Importing traces...")
         results_path = RESULTS_DIR / "trace_import_results.json"
-        result = import_traces.import_traces(
-            export_dir=args.export_dir,
-            space_id=args.space_id,
-            arize_api_key=args.api_key,
-            verbose=args.verbose,
-            results_file=str(results_path)
-        )
+        
+        try:
+            result = import_traces.import_traces(
+                export_dir=args.export_dir,
+                space_id=args.space_id,
+                arize_api_key=args.api_key,
+                verbose=args.verbose,
+                results_file=str(results_path)
+            )
+        except Exception as import_error:
+            logger.error(f"Error in import_traces.import_traces(): {import_error}")
+            # If the import failed but traces were already imported, try to load the results file
+            if results_path.exists():
+                try:
+                    with open(results_path, 'r') as f:
+                        result = json.load(f)
+                        logger.info("Loaded existing trace import results from file")
+                except Exception as load_error:
+                    logger.error(f"Failed to load existing results: {load_error}")
+                    return False
+            else:
+                return False
         
         if result and isinstance(result, dict) and len(result) > 0:
-            success_count = sum(1 for status in result.values() if status.get('status') == 'imported')
-            logger.info(f"Successfully imported traces from {success_count} projects")
+            # Count successful imports by looking for entries with status 'imported' or 'skipped'
+            # The result should be a dict where keys are project names and values are status dicts
+            success_count = 0
+            total_processed = 0
+            for key, value in result.items():
+                # Skip any special keys like 'projects', 'timestamp', etc.
+                if key in ['projects', 'timestamp']:
+                    continue
+                
+                # Ensure the value is a dictionary (project status info)
+                if isinstance(value, dict):
+                    total_processed += 1
+                    status = value.get('status', '')
+                    if status in ['imported', 'skipped']:
+                        success_count += 1
+                # If value is not a dict, skip it
+            
+            logger.info(f"Successfully processed traces from {success_count}/{total_processed} projects")
             
             # Save results to file
             with open(results_path, "w") as f:
@@ -316,6 +346,29 @@ def main() -> None:
             successful_imports.append("traces")
         else:
             failed_imports.append("traces")
+    
+    # Pause for trace ingestion before evaluations (step 3.5)
+    traces_imported = "traces" in successful_imports
+    evaluations_requested = args.all or args.evaluations
+    
+    if traces_imported and evaluations_requested:
+        print("\n=======================================================")
+        print("IMPORTANT: Wait for traces to be fully ingested in Arize:")
+        print("1. Navigate to your projects in the Arize dashboard")
+        print("2. Verify that all traces are visible and loaded")
+        print("3. This may take a few minutes for large datasets")
+        print("4. Evaluations need to attach to existing traces")
+        print("=======================================================")
+        
+        confirmation = input("\nAre all traces fully visible in the Arize dashboard? (yes/no): ").lower()
+        
+        if confirmation not in ["yes", "y"]:
+            logger.warning("Evaluation import skipped. Please wait for traces to be fully ingested.")
+            logger.warning("You can run the import again with --evaluations when ready.")
+            # Remove evaluations from the request to skip it
+            args.evaluations = False
+            if hasattr(args, 'all'):
+                args.all = False
     
     # Import evaluations (step 4)
     if args.all or args.evaluations:
