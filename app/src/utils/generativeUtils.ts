@@ -1,3 +1,5 @@
+import { assertUnreachable } from "@phoenix/typeUtils";
+
 /**
  * A TypeGuard to ensure that a string is a valid ModelProvider
  */
@@ -10,4 +12,23 @@ export function isModelProvider(provider: string): provider is ModelProvider {
     provider === "DEEPSEEK" ||
     provider === "XAI"
   );
+}
+
+export function getProviderName(provider: ModelProvider): string {
+  switch (provider) {
+    case "OPENAI":
+      return "OpenAI";
+    case "AZURE_OPENAI":
+      return "Azure OpenAI";
+    case "ANTHROPIC":
+      return "Anthropic";
+    case "GOOGLE":
+      return "Google";
+    case "DEEPSEEK":
+      return "DeepSeek";
+    case "XAI":
+      return "XAI";
+    default:
+      assertUnreachable(provider);
+  }
 }
