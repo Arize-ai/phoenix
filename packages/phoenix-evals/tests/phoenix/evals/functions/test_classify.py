@@ -62,9 +62,9 @@ def running_event_loop_mock(
         "phoenix.evals.executors._running_event_loop_exists",
         lambda: running_event_loop_exists,
     )
-    assert (
-        phoenix.evals.executors._running_event_loop_exists()
-    ) is running_event_loop_exists, "mocked function should return the expected value"
+    assert (phoenix.evals.executors._running_event_loop_exists()) is running_event_loop_exists, (
+        "mocked function should return the expected value"
+    )
     return running_event_loop_exists
 
 
@@ -1585,11 +1585,14 @@ def test_llm_classify_with_response_containing_both_rails(openai_api_key: str) -
             }
         ]
     )
-    return_value = """Label: incorrect\nExplanation: The Agent Output does not match the Human Tool Selection. However, the agent appears to be on the correct path to answering the question."""
+    return_value = """Label: incorrect\nExplanation: The Agent Output does not
+                   match the Human Tool Selection. However, the agent appears to
+                   be on the correct path to answering the question."""
     with patch.object(model, "_generate", return_value=return_value):
         result = llm_classify(
             dataframe=dataframe,
-            template="Agent Output: {agent_output}\nHuman Selection: {human_selection}\nDoes the agent output match?",
+            template="""Agent Output: {agent_output} Human Selection:
+                     {human_selection} Does the agent output match?""",
             model=model,
             rails=["correct", "incorrect"],
             use_function_calling_if_available=False,
@@ -1611,11 +1614,15 @@ def test_llm_classify_with_response_with_space(openai_api_key: str) -> None:
             }
         ]
     )
-    return_value = """Label: not correct\nExplanation: The Agent Output does not match the Human Tool Selection. However, the agent appears to be on the correct path to answering the question."""
+    return_value = """Label: not correct\nExplanation: The Agent Output does not
+                   match the Human Tool Selection. However, the agent appears to
+                   be on the correct path to answering the question."""
     with patch.object(model, "_generate", return_value=return_value):
         result = llm_classify(
             dataframe=dataframe,
-            template="Agent Output: {agent_output}\nHuman Selection: {human_selection}\nDoes the agent output match?",
+            template="""Agent Output: {agent_output}
+                   Human Selection: {human_selection}
+                   Does the agent output match?""",
             model=model,
             rails=["correct", "not correct"],
             use_function_calling_if_available=False,
@@ -1637,11 +1644,14 @@ def test_llm_classify_without_label_prefix(openai_api_key: str) -> None:
             }
         ]
     )
-    return_value = """incorrect EXPLANATION: This is incorrect because the user did not explicitly ask to speak to a live agent."""
+    return_value = """incorrect EXPLANATION: This is incorrect because the user
+                   did not explicitly ask to speak to a live agent."""
     with patch.object(model, "_generate", return_value=return_value):
         result = llm_classify(
             dataframe=dataframe,
-            template="Agent Output: {agent_output}\nHuman Selection: {human_selection}\nDoes the agent output match?",
+            template="""Agent Output: {agent_output}
+                   Human Selection: {human_selection}
+                   Does the agent output match?""",
             model=model,
             rails=["correct", "incorrect"],
             use_function_calling_if_available=False,
@@ -1653,7 +1663,8 @@ def test_llm_classify_without_label_prefix(openai_api_key: str) -> None:
 
 
 def test_llm_classify_cot(openai_api_key: str) -> None:
-    """This is the base case, where the explanation precedes the label, per chain of thought thinking."""
+    """This is the base case, where the explanation precedes the label, per
+    chain of thought."""
     model = OpenAIModel()
     dataframe = pd.DataFrame(
         [
@@ -1663,11 +1674,15 @@ def test_llm_classify_cot(openai_api_key: str) -> None:
             }
         ]
     )
-    return_value = """Explanation: The Agent Output does not match the Human Tool Selection. However, the agent appears to be on the correct path to answering the question. Label: not correct"""
+    return_value = """Explanation: The Agent Output does not match the Human
+                   Tool Selection. However, the agent appears to be on the
+                   correct path to answering the question. Label: not correct"""
     with patch.object(model, "_generate", return_value=return_value):
         result = llm_classify(
             dataframe=dataframe,
-            template="Agent Output: {agent_output}\nHuman Selection: {human_selection}\nDoes the agent output match?",
+            template="""Agent Output: {agent_output}
+                   Human Selection: {human_selection}
+                   Does the agent output match?""",
             model=model,
             rails=["correct", "not correct"],
             use_function_calling_if_available=False,
