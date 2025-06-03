@@ -22,6 +22,12 @@ description: |
     - [**_Playground_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts)- Optimize prompts, compare models, adjust parameters, and replay traced LLM calls.
     - [**_Prompt Management_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts/prompt-management)- Manage and test prompt changes systematically using version control, tagging, and experimentation.
 
+dependencies:
+  - name: postgresql
+    version: "16.7.8"  # Check for latest version
+    repository: oci://registry-1.docker.io/bitnamicharts 
+    condition: postgresql.enabled
+
 # A chart can be either an 'application' or a 'library' chart.
 #
 # Application charts are a collection of templates that can be packaged into versioned archives
