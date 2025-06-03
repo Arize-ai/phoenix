@@ -6,111 +6,75 @@ on:
     branches:
       - feat/version-10
       - feat/openid-only
-      - xander/helm-fix
 
 jobs:
-  # push_to_registry:
-  #   name: Push experimental Docker image to Docker Hub
-  #   runs-on: ubuntu-latest
-  #   strategy:
-  #     matrix:
-  #       variant: [debug]
-  #   permissions:
-  #     packages: write
-  #     contents: read
-  #   env:
-  #     REGISTRY: arizephoenix
-  #     IMAGE_NAME: phoenix
-  #   steps:
-  #     - name: Check out the repo
-  #       uses: actions/checkout@v4
-
-  #     - name: Set BASE_IMAGE environment variable
-  #       id: set-base-image
-  #       run: |
-  #         if [ "${{ matrix.variant }}" == "root" ]; then
-  #           echo "BASE_IMAGE=gcr.io/distroless/python3-debian12" >> $GITHUB_ENV
-  #         elif [ "${{ matrix.variant }}" == "debug" ]; then
-  #           echo "BASE_IMAGE=gcr.io/distroless/python3-debian12:debug" >> $GITHUB_ENV
-  #         elif [ "${{ matrix.variant }}" == "nonroot" ]; then
-  #           echo "BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot" >> $GITHUB_ENV
-  #         else
-  #           echo "BASE_IMAGE=gcr.io/distroless/python3-debian12" >> $GITHUB_ENV
-  #         fi
-
-  #     - name: Set up Docker Buildx
-  #       uses: docker/setup-buildx-action@v3
-
-  #     - name: Log in to Docker Hub
-  #       uses: docker/login-action@v3
-  #       with:
-  #         username: ${{ secrets.DOCKERHUB_USERNAME }}
-  #         password: ${{ secrets.DOCKERHUB_PASSWORD }}
-
-  #     - name: Extract commit hash
-  #       id: extract_commit
-  #       run: echo "COMMIT_HASH=${GITHUB_SHA::7}" >> $GITHUB_ENV
-
-  #     - name: Extract metadata (tags, labels) for Docker
-  #       id: meta
-  #       uses: docker/metadata-action@v4
-  #       with:
-  #         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-  #         tags: |
-  #           ${{ matrix.variant == 'root' && 'dangerously-experimental' || '' }}
-  #           ${{ matrix.variant == 'nonroot' && 'dangerously-experimental' || '' }}
-  #           ${{ matrix.variant == 'debug' && 'dangerously-experimental' || '' }}
-
-  #     - name: Build and push Docker image
-  #       id: push
-  #       uses: docker/build-push-action@v6
-  #       with:
-  #         platforms: linux/amd64,linux/arm64
-  #         context: .
-  #         file: ./Dockerfile
-  #         push: true
-  #         sbom: true
-  #         provenance: mode=max
-  #         tags: |
-  #           ${{ matrix.variant == 'root' && format('{0}/{1}:dangerously-experimental', env.REGISTRY, env.IMAGE_NAME) || '' }}
-  #           ${{ matrix.variant == 'root' && format('{0}/{1}:dangerously-experimental-commit-{2}', env.REGISTRY, env.IMAGE_NAME, env.COMMIT_HASH) || '' }}
-  #           ${{ matrix.variant == 'nonroot' && format('{0}/{1}:dangerously-experimental-nonroot', env.REGISTRY, env.IMAGE_NAME) || '' }}
-  #           ${{ matrix.variant == 'debug' && format('{0}/{1}:dangerously-experimental-debug', env.REGISTRY, env.IMAGE_NAME) || '' }}
-  #         labels: ${{ steps.meta.outputs.labels }}
-  #         build-args: |
-  #           BASE_IMAGE=${{ env.BASE_IMAGE }}
-
-  check-and-push-helm:
-    name: Check PR and Push Helm
+  push_to_registry:
+    name: Push experimental Docker image to Docker Hub
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        variant: [debug]
+    permissions:
+      packages: write
+      contents: read
     env:
-      REGISTRY: mikeldking
+      REGISTRY: arizephoenix
+      IMAGE_NAME: phoenix
     steps:
-    - name: Check out the repo
-      uses: actions/checkout@v4
+      - name: Check out the repo
+        uses: actions/checkout@v4
 
-    - name: Log in to Docker Hub
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_PASSWORD }}
+      - name: Set BASE_IMAGE environment variable
+        id: set-base-image
+        run: |
+          if [ "${{ matrix.variant }}" == "root" ]; then
+            echo "BASE_IMAGE=gcr.io/distroless/python3-debian12" >> $GITHUB_ENV
+          elif [ "${{ matrix.variant }}" == "debug" ]; then
+            echo "BASE_IMAGE=gcr.io/distroless/python3-debian12:debug" >> $GITHUB_ENV
+          elif [ "${{ matrix.variant }}" == "nonroot" ]; then
+            echo "BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot" >> $GITHUB_ENV
+          else
+            echo "BASE_IMAGE=gcr.io/distroless/python3-debian12" >> $GITHUB_ENV
+          fi
 
-    - name: Install Helm
-      uses: azure/setup-helm@v3
-      with:
-        version: 'latest'
-    - name: Package Helm chart
-      run: |
-        helm dependency build helm/
-        helm package ./helm
-    - name: Push Helm chart to Docker Hub
-      run: |
-        # Push the chart to Docker Hub as an OCI artifact
-        helm push phoenix-helm-*.tgz oci://registry-1.docker.io/${{ env.REGISTRY }}
-    - name: Docker Hub Description
-      uses: peter-evans/dockerhub-description@v4
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_PASSWORD }}
-        repository: ${{ env.REGISTRY }}/phoenix-helm
-        readme-filepath: ./helm/README.md 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Extract commit hash
+        id: extract_commit
+        run: echo "COMMIT_HASH=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            ${{ matrix.variant == 'root' && 'dangerously-experimental' || '' }}
+            ${{ matrix.variant == 'nonroot' && 'dangerously-experimental' || '' }}
+            ${{ matrix.variant == 'debug' && 'dangerously-experimental' || '' }}
+
+      - name: Build and push Docker image
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          platforms: linux/amd64,linux/arm64
+          context: .
+          file: ./Dockerfile
+          push: true
+          sbom: true
+          provenance: mode=max
+          tags: |
+            ${{ matrix.variant == 'root' && format('{0}/{1}:dangerously-experimental', env.REGISTRY, env.IMAGE_NAME) || '' }}
+            ${{ matrix.variant == 'root' && format('{0}/{1}:dangerously-experimental-commit-{2}', env.REGISTRY, env.IMAGE_NAME, env.COMMIT_HASH) || '' }}
+            ${{ matrix.variant == 'nonroot' && format('{0}/{1}:dangerously-experimental-nonroot', env.REGISTRY, env.IMAGE_NAME) || '' }}
+            ${{ matrix.variant == 'debug' && format('{0}/{1}:dangerously-experimental-debug', env.REGISTRY, env.IMAGE_NAME) || '' }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BASE_IMAGE=${{ env.BASE_IMAGE }}
