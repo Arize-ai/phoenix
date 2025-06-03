@@ -24,59 +24,23 @@ Usage:
 
 import os
 import json
-import re
 import logging
 from typing import Dict, List, Union, Optional
 import httpx
 from tqdm import tqdm
 
-# Configure logging
+from .utils import save_json, get_projects, parse_multipart_response
+
 logger = logging.getLogger(__name__)
 
-def get_projects(client: httpx.Client) -> List[Dict]:
-    """
-    Get all projects from the Phoenix server.
-    
-    Args:
-        client: HTTPX client
-    
-    Returns:
-        List of project dictionaries
-    """
-    response = client.get('/v1/projects')
-    response.raise_for_status()
-    return response.json().get('data', [])
-
 def get_project_metadata(client: httpx.Client, project_name: str) -> Dict:
-    """
-    Get metadata for a specific project.
-    
-    Args:
-        client: HTTPX client
-        project_name: Name of the project
-        
-    Returns:
-        Project metadata dictionary
-    """
+    """Get metadata for a specific project."""
     response = client.get(f'/v1/projects/{project_name}')
     response.raise_for_status()
     return response.json()
 
 def get_traces(client: httpx.Client, project_name: str, limit: int = 1000) -> List[Dict]:
-    """
-    Get traces for a specific project.
-    
-    Args:
-        client: HTTPX client
-        project_name: Name of the project
-        limit: Maximum number of traces to retrieve
-        
-    Returns:
-        List of trace dictionaries
-    """
-    traces = []
-    
-    # Create the request body with proper query structure
+    """Get traces for a specific project."""
     request_body = {
         "queries": [{
             "select": None,
@@ -89,71 +53,26 @@ def get_traces(client: httpx.Client, project_name: str, limit: int = 1000) -> Li
         "limit": limit,
         "project_name": project_name,
         "orphan_span_as_root_span": True,
-        "root_spans_only": False  # Get all spans, not just root spans
-    }
-    
-    # Add Accept header for JSON response
-    headers = {
-        'Accept': 'application/json'
+        "root_spans_only": False
     }
     
     try:
-        # Pass project_name both in query params and JSON body
         response = client.post(
             '/v1/spans',
             json=request_body,
-            headers=headers,
-            params={
-                'project_name': project_name,
-                'project-name': project_name  # for backward-compatibility
-            }
+            params={'project_name': project_name}
         )
         response.raise_for_status()
-        response_data = response.text
         
-        # Process the response based on type
         content_type = response.headers.get('content-type', '')
         
         if 'multipart/mixed' in content_type:
-            # This is a streaming multipart response
-            # Find the boundary token from the first line
-            match = re.search(r'--([a-zA-Z0-9_\-]+)', response_data)
-            if match:
-                boundary = f"--{match.group(1)}"
-                # Split by boundary
-                parts = response_data.split(boundary)
-                for part in parts:
-                    if not part.strip():
-                        continue
-                    # Extract JSON content using a more robust regex approach
-                    match = re.search(r'Content-Type:\s*application/json\r\n\r\n([\s\S]+?)(?:\r\n--|\r\n$|$)', part)
-                    if match:
-                        json_content = match.group(1).strip()
-                        try:
-                            data = json.loads(json_content)
-                            if isinstance(data, list):
-                                traces.extend(data)
-                            elif isinstance(data, dict) and 'data' in data:
-                                traces.extend(data['data'])
-                            elif isinstance(data, dict):
-                                traces.append(data)
-                        except json.JSONDecodeError as e:
-                            logger.error(f"Error parsing JSON content: {e}")
+            traces = parse_multipart_response(response)
         else:
-            # This is a regular JSON response
             data = response.json()
-            if isinstance(data, list):
-                traces.extend(data)
-            elif isinstance(data, dict) and 'data' in data:
-                traces.extend(data['data'])
-            elif isinstance(data, dict):
-                traces.append(data)
+            traces = data.get('data', [])
         
-        if traces:
-            logger.info(f"Retrieved {len(traces)} traces for project {project_name}")
-        else:
-            logger.info(f"No traces found for project {project_name}")
-            
+        logger.info(f"Retrieved {len(traces)} traces for project {project_name}")
         return traces
         
     except httpx.HTTPStatusError as e:
@@ -162,64 +81,26 @@ def get_traces(client: httpx.Client, project_name: str, limit: int = 1000) -> Li
             return []
         logger.error(f"Error fetching traces for project {project_name}: {e}")
         raise
+    except json.JSONDecodeError as e:
+        logger.error(f"Error decoding JSON response for project {project_name}: {e}")
+        return []
 
 def get_evaluations(client: httpx.Client, project_name: str) -> List[Dict]:
-    """
-    Get evaluations for a specific project.
-    
-    Args:
-        client: HTTPX client
-        project_name: Name of the project
-        
-    Returns:
-        List of evaluation dictionaries
-    """
+    """Get evaluations for a specific project."""
     try:
-        # Add Accept header for JSON response
-        headers = {
-            'Accept': 'application/json'
-        }
-        
         response = client.get(
             '/v1/evaluations',
-            params={'project_name': project_name},
-            headers=headers
+            params={'project_name': project_name}
         )
         response.raise_for_status()
         
-        evaluations = []
-        response_data = response.text
         content_type = response.headers.get('content-type', '')
         
-        # The response is a streaming response with multiple JSON parts
         if 'multipart/mixed' in content_type:
-            # Split the response by boundary
-            match = re.search(r'--([a-zA-Z0-9_\-]+)', response_data)
-            if match:
-                boundary = f"--{match.group(1)}"
-                parts = response_data.split(boundary)
-                for part in parts:
-                    if not part.strip():
-                        continue
-                    # Extract JSON content
-                    match = re.search(r'Content-Type:\s*application/json\r\n\r\n([\s\S]+?)(?:\r\n--|\r\n$|$)', part)
-                    if match:
-                        json_content = match.group(1).strip()
-                        try:
-                            data = json.loads(json_content)
-                            if isinstance(data, list):
-                                evaluations.extend(data)
-                            elif isinstance(data, dict) and 'data' in data:
-                                evaluations.extend(data['data'])
-                        except json.JSONDecodeError as e:
-                            logger.error(f"Error parsing JSON content for evaluations: {e}")
+            evaluations = parse_multipart_response(response)
         else:
-            # This is a regular JSON response
             data = response.json()
-            if isinstance(data, list):
-                evaluations.extend(data)
-            elif isinstance(data, dict) and 'data' in data:
-                evaluations.extend(data['data'])
+            evaluations = data.get('data', [])
         
         return evaluations
     except httpx.HTTPStatusError as e:
@@ -227,17 +108,9 @@ def get_evaluations(client: httpx.Client, project_name: str) -> List[Dict]:
             logger.info(f"No evaluations found for project {project_name}")
             return []
         raise
-
-def save_json(data: Union[Dict, List], filepath: str) -> None:
-    """
-    Save data to a JSON file.
-    
-    Args:
-        data: Data to save
-        filepath: Path to save the file
-    """
-    with open(filepath, 'w') as f:
-        json.dump(data, f, indent=2)
+    except json.JSONDecodeError as e:
+        logger.error(f"Error decoding evaluations response for project {project_name}: {e}")
+        return []
 
 def export_project_traces(
     client: httpx.Client, 
@@ -245,18 +118,7 @@ def export_project_traces(
     output_dir: str,
     verbose: bool = False
 ) -> Dict[str, Union[str, int]]:
-    """
-    Export traces and evaluations for a specific project.
-    
-    Args:
-        client: HTTPX client
-        project_name: Name of the project
-        output_dir: Directory to save the exported data
-        verbose: Whether to enable verbose output
-        
-    Returns:
-        Dictionary with export results
-    """
+    """Export traces and evaluations for a specific project."""
     project_dir = os.path.join(output_dir, project_name)
     os.makedirs(project_dir, exist_ok=True)
     
@@ -268,7 +130,6 @@ def export_project_traces(
     }
     
     try:
-        # Export project metadata
         logger.info(f"Exporting project metadata for {project_name}...")
         try:
             project_metadata = get_project_metadata(client, project_name)
@@ -276,7 +137,6 @@ def export_project_traces(
         except Exception as e:
             logger.error(f"Error exporting metadata for project {project_name}: {e}")
         
-        # Export traces
         logger.info(f"Exporting traces for {project_name}...")
         try:
             traces = get_traces(client, project_name)
@@ -285,7 +145,6 @@ def export_project_traces(
         except Exception as e:
             logger.error(f"Error exporting traces for project {project_name}: {e}")
         
-        # Export evaluations
         logger.info(f"Exporting evaluations for {project_name}...")
         try:
             evaluations = get_evaluations(client, project_name)
@@ -311,19 +170,7 @@ def export_traces(
     verbose: bool = False,
     results_file: Optional[str] = None
 ) -> Dict[str, Dict]:
-    """
-    Export traces and evaluations for multiple projects.
-    
-    Args:
-        client: HTTPX client
-        output_dir: Directory to save the exported data
-        project_names: List of project names to export (None for all projects)
-        verbose: Whether to enable verbose output
-        results_file: Path to save the results JSON
-        
-    Returns:
-        Dictionary with export results for each project
-    """
+    """Export traces and evaluations for multiple projects."""
     os.makedirs(output_dir, exist_ok=True)
     
     if verbose:
@@ -332,7 +179,6 @@ def export_traces(
     results = {}
     
     try:
-        # Get all projects if project_names is None
         if project_names is None:
             logger.info("Fetching list of projects...")
             projects = get_projects(client)
@@ -344,7 +190,6 @@ def export_traces(
             
         logger.info(f"Found {len(project_names)} projects to export")
         
-        # Export data for each project
         for project_name in tqdm(project_names, desc="Exporting projects"):
             results[project_name] = export_project_traces(
                 client=client,
@@ -355,7 +200,6 @@ def export_traces(
         
         logger.info(f"Trace export completed successfully. Data saved to {output_dir}")
         
-        # Save results to file if requested
         if results_file:
             save_json(results, results_file)
             logger.info(f"Export results saved to {results_file}")
@@ -374,7 +218,6 @@ if __name__ == "__main__":
     
     load_dotenv()
     
-    # Configure logging
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -382,45 +225,16 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description="Export traces from a Phoenix server")
     
-    parser.add_argument(
-        '--base-url',
-        type=str,
-        default=os.environ.get('PHOENIX_BASE_URL'),
-        help='Phoenix server base URL (default: from PHOENIX_BASE_URL env var)'
-    )
-    
-    parser.add_argument(
-        '--api-key',
-        type=str,
-        default=os.environ.get('PHOENIX_API_KEY'),
-        help='Phoenix API key for authentication (default: from PHOENIX_API_KEY env var)'
-    )
-    
-    parser.add_argument(
-        '--output-dir',
-        type=str,
-        default='./phoenix_export/projects',
-        help='Directory to save exported data (default: ./phoenix_export/projects)'
-    )
-    
-    parser.add_argument(
-        '--project',
-        type=str,
-        action='append',
-        help='Project name to export (can be used multiple times, omit to export all projects)'
-    )
-    
-    parser.add_argument(
-        '--verbose',
-        action='store_true',
-        help='Enable verbose output'
-    )
-    
-    parser.add_argument(
-        '--results-file',
-        type=str,
-        help='Path to save export results JSON'
-    )
+    parser.add_argument('--base-url', type=str, default=os.environ.get('PHOENIX_BASE_URL'),
+                       help='Phoenix server base URL (default: from PHOENIX_BASE_URL env var)')
+    parser.add_argument('--api-key', type=str, default=os.environ.get('PHOENIX_API_KEY'),
+                       help='Phoenix API key for authentication (default: from PHOENIX_API_KEY env var)')
+    parser.add_argument('--output-dir', type=str, default='./phoenix_export/projects',
+                       help='Directory to save exported data (default: ./phoenix_export/projects)')
+    parser.add_argument('--project', type=str, action='append',
+                       help='Project name to export (can be used multiple times, omit to export all projects)')
+    parser.add_argument('--verbose', action='store_true', help='Enable verbose output')
+    parser.add_argument('--results-file', type=str, help='Path to save export results JSON')
     
     args = parser.parse_args()
     
@@ -428,7 +242,6 @@ if __name__ == "__main__":
         logger.error("No Phoenix base URL provided. Set the PHOENIX_BASE_URL environment variable or use --base-url")
         exit(1)
     
-    # Create HTTPX client
     headers = {
         'Accept': 'application/json',
         'Content-Type': 'application/json'
@@ -438,16 +251,14 @@ if __name__ == "__main__":
     
     client = httpx.Client(base_url=args.base_url.rstrip('/'), headers=headers)
     
-    # Export traces
     results = export_traces(
         client=client,
         output_dir=args.output_dir,
-        project_names=args.project,  # None if no --project arguments were provided
+        project_names=args.project,
         verbose=args.verbose,
         results_file=args.results_file
     )
     
-    # Print summary
     success_count = sum(1 for p in results.values() if p.get('status') == 'exported')
     error_count = sum(1 for p in results.values() if p.get('status') == 'error')
     total_traces = sum(p.get('trace_count', 0) for p in results.values())

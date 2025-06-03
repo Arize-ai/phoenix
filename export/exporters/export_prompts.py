@@ -15,38 +15,20 @@ Usage:
 """
 
 import os
-import json
 import logging
-from typing import Dict, List, Union, Optional
+from typing import Dict, List, Optional
 import httpx
+
+from .utils import save_json
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 def get_prompts(client: httpx.Client) -> List[Dict]:
-    """
-    Get all prompts from the Phoenix server.
-    
-    Args:
-        client: HTTPX client
-        
-    Returns:
-        List of prompt dictionaries
-    """
+    """Get all prompts from the Phoenix server."""
     response = client.get('/v1/prompts')
     response.raise_for_status()
     return response.json().get('data', [])
-
-def save_json(data: Union[Dict, List], filepath: str) -> None:
-    """
-    Save data to a JSON file.
-    
-    Args:
-        data: Data to save
-        filepath: Path to save the file
-    """
-    with open(filepath, 'w') as f:
-        json.dump(data, f, indent=2)
 
 def export_prompts(
     client: httpx.Client, 
@@ -54,18 +36,7 @@ def export_prompts(
     verbose: bool = False,
     results_file: Optional[str] = None
 ) -> List[Dict]:
-    """
-    Export all prompts.
-    
-    Args:
-        client: HTTPX client
-        output_dir: Directory to save the exported data
-        verbose: Whether to enable verbose output
-        results_file: Path to save the results JSON
-        
-    Returns:
-        List of dictionaries with prompt export results
-    """
+    """Export all prompts."""
     os.makedirs(output_dir, exist_ok=True)
     
     if verbose:
@@ -127,38 +98,14 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description="Export prompts from a Phoenix server")
     
-    parser.add_argument(
-        '--base-url',
-        type=str,
-        default=os.environ.get('PHOENIX_BASE_URL'),
-        help='Phoenix server base URL (default: from PHOENIX_BASE_URL env var)'
-    )
-    
-    parser.add_argument(
-        '--api-key',
-        type=str,
-        default=os.environ.get('PHOENIX_API_KEY'),
-        help='Phoenix API key for authentication (default: from PHOENIX_API_KEY env var)'
-    )
-    
-    parser.add_argument(
-        '--output-dir',
-        type=str,
-        default='./phoenix_export/prompts',
-        help='Directory to save exported data (default: ./phoenix_export/prompts)'
-    )
-    
-    parser.add_argument(
-        '--verbose',
-        action='store_true',
-        help='Enable verbose output'
-    )
-    
-    parser.add_argument(
-        '--results-file',
-        type=str,
-        help='Path to save export results JSON'
-    )
+    parser.add_argument('--base-url', type=str, default=os.environ.get('PHOENIX_BASE_URL'),
+                       help='Phoenix server base URL (default: from PHOENIX_BASE_URL env var)')
+    parser.add_argument('--api-key', type=str, default=os.environ.get('PHOENIX_API_KEY'),
+                       help='Phoenix API key for authentication (default: from PHOENIX_API_KEY env var)')
+    parser.add_argument('--output-dir', type=str, default='./phoenix_export/prompts',
+                       help='Directory to save exported data (default: ./phoenix_export/prompts)')
+    parser.add_argument('--verbose', action='store_true', help='Enable verbose output')
+    parser.add_argument('--results-file', type=str, help='Path to save export results JSON')
     
     args = parser.parse_args()
     

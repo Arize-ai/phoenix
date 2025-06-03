@@ -10,14 +10,14 @@ Usage:
   # Export annotations for all projects
   export_annotations.export_annotations(
       client=client,
-      output_dir="./phoenix_export/annotations",
+      output_dir="./phoenix_export/projects",
       project_names=None  # Export all projects
   )
   
   # Export annotations for specific projects
   export_annotations.export_annotations(
       client=client,
-      output_dir="./phoenix_export/annotations",
+      output_dir="./phoenix_export/projects",
       project_names=["project1", "project2"]
   )
 """
@@ -28,28 +28,15 @@ import logging
 from typing import Dict, List, Union, Optional, Set
 import httpx
 from tqdm import tqdm
-import re
+
+from .utils import save_json, get_projects, parse_multipart_response
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-def get_projects(client: httpx.Client) -> List[Dict]:
-    """
-    Get all projects from the Phoenix server.
-    
-    Args:
-        client: HTTPX client
-    
-    Returns:
-        List of project dictionaries
-    """
-    response = client.get('/v1/projects')
-    response.raise_for_status()
-    return response.json().get('data', [])
-
 def get_traces(client: httpx.Client, project_name: str, limit: int = 1000) -> List[Dict]:
     """
-    Get traces for a specific project.
+    Get traces for a specific project to extract span IDs.
     
     Args:
         client: HTTPX client
@@ -59,9 +46,6 @@ def get_traces(client: httpx.Client, project_name: str, limit: int = 1000) -> Li
     Returns:
         List of trace dictionaries
     """
-    traces = []
-    
-    # Create the request body with proper query structure
     request_body = {
         "queries": [{
             "select": None,
@@ -77,61 +61,25 @@ def get_traces(client: httpx.Client, project_name: str, limit: int = 1000) -> Li
         "root_spans_only": False  # Get all spans, not just root spans
     }
     
-    # Add Accept header for JSON response
-    headers = {
-        'Accept': 'application/json'
-    }
-    
     try:
         # Pass project_name 
         response = client.post(
             '/v1/spans',
             json=request_body,
-            headers=headers,
-            params={
-                'project_name': project_name,
-            }
+            params={'project_name': project_name}
         )
         response.raise_for_status()
-        response_data = response.text
         
-        # Process the response based on type
+        # Check content type and handle accordingly
         content_type = response.headers.get('content-type', '')
         
         if 'multipart/mixed' in content_type:
-            # This is a streaming multipart response
-            # Find the boundary token from the first line
-            match = re.search(r'--([a-zA-Z0-9_\-]+)', response_data)
-            if match:
-                boundary = f"--{match.group(1)}"
-                # Split by boundary
-                parts = response_data.split(boundary)
-                for part in parts:
-                    if not part.strip():
-                        continue
-                    # Extract JSON content using a more robust regex approach
-                    match = re.search(r'Content-Type:\s*application/json\r\n\r\n([\s\S]+?)(?:\r\n--|\r\n$|$)', part)
-                    if match:
-                        json_content = match.group(1).strip()
-                        try:
-                            data = json.loads(json_content)
-                            if isinstance(data, list):
-                                traces.extend(data)
-                            elif isinstance(data, dict) and 'data' in data:
-                                traces.extend(data['data'])
-                            elif isinstance(data, dict):
-                                traces.append(data)
-                        except json.JSONDecodeError as e:
-                            logger.error(f"Error parsing JSON content: {e}")
+            # Parse multipart response
+            traces = parse_multipart_response(response)
         else:
-            # This is a regular JSON response
+            # JSON response  
             data = response.json()
-            if isinstance(data, list):
-                traces.extend(data)
-            elif isinstance(data, dict) and 'data' in data:
-                traces.extend(data['data'])
-            elif isinstance(data, dict):
-                traces.append(data)
+            traces = data.get('data', [])
         
         if traces:
             logger.info(f"Retrieved {len(traces)} traces for project {project_name}")
@@ -146,6 +94,11 @@ def get_traces(client: httpx.Client, project_name: str, limit: int = 1000) -> Li
             return []
         logger.error(f"Error fetching traces for project {project_name}: {e}")
         raise
+    except json.JSONDecodeError as e:
+        logger.error(f"Error decoding JSON response for project {project_name}: {e}")
+        logger.error(f"Response content type: {response.headers.get('content-type', 'unknown')}")
+        logger.error(f"Response content preview: {response.content[:200]}")
+        return []
 
 def extract_span_ids(traces: List[Dict]) -> Set[str]:
     """
@@ -183,25 +136,24 @@ def get_annotations(client: httpx.Client, project_name: str, span_ids: List[str]
     Returns:
         List of annotation dictionaries
     """
-    all_annotations = []
-    
-    # Add Accept header for JSON response
-    headers = {
-        'Accept': 'application/json'
-    }
-    
     try:
         # Query annotations for this batch of span_ids
         response = client.get(
             f'/v1/projects/{project_name}/span_annotations',
-            params={'span_ids': span_ids},
-            headers=headers
+            params={'span_ids': span_ids}
         )
         response.raise_for_status()
         
-        # JSON response
-        data = response.json()
-        all_annotations = data.get('data', [])
+        # Check content type and handle accordingly
+        content_type = response.headers.get('content-type', '')
+        
+        if 'multipart/mixed' in content_type:
+            # Parse multipart response
+            all_annotations = parse_multipart_response(response)
+        else:
+            # JSON response
+            data = response.json()
+            all_annotations = data.get('data', [])
         
         return all_annotations
             
@@ -211,17 +163,10 @@ def get_annotations(client: httpx.Client, project_name: str, span_ids: List[str]
             return []
         logger.error(f"Error fetching annotations: {e}")
         raise
-
-def save_json(data: Union[Dict, List], filepath: str) -> None:
-    """
-    Save data to a JSON file.
-    
-    Args:
-        data: Data to save
-        filepath: Path to save the file
-    """
-    with open(filepath, 'w') as f:
-        json.dump(data, f, indent=2)
+    except json.JSONDecodeError as e:
+        logger.error(f"Error decoding annotations response: {e}")
+        logger.error(f"Response content type: {response.headers.get('content-type', 'unknown')}")
+        return []
 
 def export_project_annotations(
     client: httpx.Client, 
@@ -386,45 +331,16 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description="Export annotations from a Phoenix server")
     
-    parser.add_argument(
-        '--base-url',
-        type=str,
-        default=os.environ.get('PHOENIX_ENDPOINT'),
-        help='Phoenix server base URL (default: from PHOENIX_ENDPOINT env var)'
-    )
-    
-    parser.add_argument(
-        '--api-key',
-        type=str,
-        default=os.environ.get('PHOENIX_API_KEY'),
-        help='Phoenix API key for authentication (default: from PHOENIX_API_KEY env var)'
-    )
-    
-    parser.add_argument(
-        '--output-dir',
-        type=str,
-        default='./phoenix_export/projects',
-        help='Directory to save exported data (default: ./phoenix_export/projects)'
-    )
-    
-    parser.add_argument(
-        '--project',
-        type=str,
-        action='append',
-        help='Project name to export annotations for (can be used multiple times, omit to export all projects)'
-    )
-    
-    parser.add_argument(
-        '--verbose',
-        action='store_true',
-        help='Enable verbose output'
-    )
-    
-    parser.add_argument(
-        '--results-file',
-        type=str,
-        help='Path to save export results JSON'
-    )
+    parser.add_argument('--base-url', type=str, default=os.environ.get('PHOENIX_ENDPOINT'),
+                       help='Phoenix server base URL (default: from PHOENIX_ENDPOINT env var)')
+    parser.add_argument('--api-key', type=str, default=os.environ.get('PHOENIX_API_KEY'),
+                       help='Phoenix API key for authentication (default: from PHOENIX_API_KEY env var)')
+    parser.add_argument('--output-dir', type=str, default='./phoenix_export/projects',
+                       help='Directory to save exported data (default: ./phoenix_export/projects)')
+    parser.add_argument('--project', type=str, action='append',
+                       help='Project name to export annotations for (can be used multiple times, omit to export all projects)')
+    parser.add_argument('--verbose', action='store_true', help='Enable verbose output')
+    parser.add_argument('--results-file', type=str, help='Path to save export results JSON')
     
     args = parser.parse_args()
     
