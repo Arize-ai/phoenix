@@ -1,5 +1,23 @@
 # Changelog
 
+## [10.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.5.0...arize-phoenix-v10.6.0) (2025-06-03)
+
+
+### Features
+
+* Add `get_spans` to phoenix client ([#7688](https://github.com/Arize-ai/phoenix/issues/7688)) ([8b48176](https://github.com/Arize-ai/phoenix/commit/8b481762c188e3191a8e0bb2ffd295a7ee3fdfb8))
+* bump table, add more integrations ([#7863](https://github.com/Arize-ai/phoenix/issues/7863)) ([c71480a](https://github.com/Arize-ai/phoenix/commit/c71480a42eeea485c92061593a6b4480b82b4da3))
+* empty state for prompts and experiments ([#7865](https://github.com/Arize-ai/phoenix/issues/7865)) ([f571c7b](https://github.com/Arize-ai/phoenix/commit/f571c7b05ed85cc0491a4444a807eb6630ffa919))
+* **ui:** credentials field ([#7889](https://github.com/Arize-ai/phoenix/issues/7889)) ([92d9058](https://github.com/Arize-ai/phoenix/commit/92d9058bb676bdadddee3eb2b5ab4aa9b6e4ea8a))
+
+
+### Bug Fixes
+
+* deprecate compact search field ([#7860](https://github.com/Arize-ai/phoenix/issues/7860)) ([2cf49b9](https://github.com/Arize-ai/phoenix/commit/2cf49b94933000a75a87456ac99275f5d6d9f3bd))
+* Do not return notes from GET /span_annotations ([#7830](https://github.com/Arize-ai/phoenix/issues/7830)) ([52c2c06](https://github.com/Arize-ai/phoenix/commit/52c2c06028815d0982172925e2d31705f49e0fe3))
+* properly use semantic colors for latency ([#7853](https://github.com/Arize-ai/phoenix/issues/7853)) ([d8c705e](https://github.com/Arize-ai/phoenix/commit/d8c705e7a7b89d952039f73f0c159418728ad97b))
+* upgrade lower version pin on openinference-instrumentation and openinference-instrumentation-semantic-conventions ([#7900](https://github.com/Arize-ai/phoenix/issues/7900)) ([5d9b3d5](https://github.com/Arize-ai/phoenix/commit/5d9b3d5fd174eceae88ae344391c3c16765dc3ff))
+
 ## [10.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.4.0...arize-phoenix-v10.5.0) (2025-05-30)
 
 
