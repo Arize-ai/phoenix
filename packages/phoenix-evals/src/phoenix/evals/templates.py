@@ -187,21 +187,18 @@ class ClassificationTemplate(PromptTemplate):
 
 
 def parse_label_from_chain_of_thought_response(raw_string: str) -> str:
-    # Locate the first occurrence of "label"
     match = re.search(r"\blabel\b", raw_string, flags=re.IGNORECASE)
     if not match:
-        # No "label" keyword – return the input unchanged
         return raw_string
 
-    # Slice everything after the word "label"
-    remainder = raw_string[match.end() :].lstrip(" :.-\t")
+    remainder = raw_string[match.end():].lstrip(" :.-\t")
 
-    # Determine where the label value ends by looking for keyword "explanation"
+    # Remove everything after explanation in case it erroneously comes after the label, violating
+    # chain of thought
     exp_match = re.search(r"\bexplanation\b", remainder, flags=re.IGNORECASE)
     if exp_match:
         label_text = remainder[: exp_match.start()]
     else:
-        # No "explanation" found, take everything before first newline or end of string
         label_text = remainder.split("\n", 1)[0]
 
     return label_text.strip() or remainder.strip()
