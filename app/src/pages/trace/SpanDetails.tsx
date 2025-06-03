@@ -72,7 +72,7 @@ import {
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import {
   ConnectedMarkdownBlock,
-  ConnectedMarkdownModeRadioGroup,
+  ConnectedMarkdownModeSelect,
   MarkdownDisplayProvider,
 } from "@phoenix/components/markdown";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
@@ -325,7 +325,7 @@ export function SpanDetails({
                       }
                     }
                   }}
-                  leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+                  leadingVisual={<Icon svg={<Icons.Edit2Outline />} />}
                   trailingVisual={
                     !isCondensedView &&
                     !isAnnotatingSpans && (
@@ -742,7 +742,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                     title="LLM Input"
                     extra={
                       <Flex direction="row" gap="size-100">
-                        <ConnectedMarkdownModeRadioGroup />
+                        <ConnectedMarkdownModeSelect />
                         <CopyToClipboardButton text={input.value} />
                       </Flex>
                     }
@@ -837,7 +837,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                       title="LLM Output"
                       extra={
                         <Flex direction="row" gap="size-100">
-                          <ConnectedMarkdownModeRadioGroup />
+                          <ConnectedMarkdownModeSelect />
                           <CopyToClipboardButton text={output.value} />
                         </Flex>
                       }
@@ -906,7 +906,7 @@ function RetrieverSpanInfo(props: {
             extra={
               <Flex direction="row" gap="size-100" alignItems="center">
                 {isText ? (
-                  <ConnectedMarkdownModeRadioGroup />
+                  <ConnectedMarkdownModeSelect />
                 ) : (
                   <CopyToClipboardButton text={input.value} />
                 )}
@@ -952,7 +952,7 @@ function RetrieverSpanInfo(props: {
                 </Flex>
               )
             }
-            extra={<ConnectedMarkdownModeRadioGroup />}
+            extra={<ConnectedMarkdownModeSelect />}
           >
             <ul
               css={css`
@@ -1188,7 +1188,7 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
             {...defaultCardProps}
             extra={
               <Flex direction="row" gap="size-100" alignItems="center">
-                {inputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
+                {inputIsText ? <ConnectedMarkdownModeSelect /> : null}
                 <CopyToClipboardButton text={input.value} />
               </Flex>
             }
@@ -1206,7 +1206,7 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
             borderColor="green-700"
             extra={
               <Flex direction="row" gap="size-100" alignItems="center">
-                {outputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
+                {outputIsText ? <ConnectedMarkdownModeSelect /> : null}
                 <CopyToClipboardButton text={output.value} />
               </Flex>
             }
@@ -1451,7 +1451,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
         }
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
-            <ConnectedMarkdownModeRadioGroup />
+            <ConnectedMarkdownModeSelect />
             <CopyToClipboardButton
               text={messageContent || JSON.stringify(message)}
             />
@@ -1795,7 +1795,7 @@ function SpanIO({ span }: { span: Span }) {
             {...defaultCardProps}
             extra={
               <Flex direction="row" gap="size-100" alignItems="center">
-                {inputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
+                {inputIsText ? <ConnectedMarkdownModeSelect /> : null}
                 <CopyToClipboardButton text={input.value} />
               </Flex>
             }
@@ -1813,7 +1813,7 @@ function SpanIO({ span }: { span: Span }) {
             borderColor="green-700"
             extra={
               <Flex direction="row" gap="size-100" alignItems="center">
-                {outputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
+                {outputIsText ? <ConnectedMarkdownModeSelect /> : null}
                 <CopyToClipboardButton text={output.value} />
               </Flex>
             }

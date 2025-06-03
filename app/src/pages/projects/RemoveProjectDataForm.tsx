@@ -55,13 +55,13 @@ export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
     handleSubmit,
     setError,
     formState: { isValid },
-  } = useForm({
+  } = useForm<RemoveProjectDataFormParams>({
     defaultValues: {
       // Need to remove the offset to be able to set the defaultValue
       endDate: parseAbsoluteToLocal(
         new Date(Date.now() - ONE_MONTH_MS).toISOString()
       ),
-    } as RemoveProjectDataFormParams,
+    },
   });
 
   const onSubmit = useCallback(

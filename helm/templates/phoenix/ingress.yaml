@@ -27,8 +27,8 @@ spec:
   rules:
   - http:
       paths:
-      - path: {{ .Values.ingress.api_path }}
-        pathType: {{ .Values.ingress.path_type }}
+      - path: {{ .Values.ingress.apiPath }}
+        pathType: {{ .Values.ingress.pathType }}
         backend:
           service:
             name: {{ template "phoenix.service" . }}
