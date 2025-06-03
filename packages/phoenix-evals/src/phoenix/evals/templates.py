@@ -175,7 +175,7 @@ class ClassificationTemplate(PromptTemplate):
     def extract_label_from_explanation(self, raw_string: str) -> str:
         if parser := self.explanation_label_parser:
             return parser(raw_string)
-        return parse_label_from_chain_of_thought_response(raw_string, self.rails)
+        return parse_label_from_chain_of_thought_response(raw_string)
 
     def score(self, rail: str) -> float:
         if self._scores is None:
@@ -186,55 +186,18 @@ class ClassificationTemplate(PromptTemplate):
             return 0.0
 
 
-def parse_label_from_chain_of_thought_response(
-    raw_string: str, rails: Optional[List[str]] = None
-) -> str:
-    """
-    Parse label from chain of thought response.
-
-    Handles two cases: 1. Structured response with "LABEL:" keyword (e.g.,
-    "EXPLANATION: ... LABEL: relevant") 2. Simple response with just the label
-    as the first word (e.g., "relevant" or "incorrect some explanation")
-
-    Args:
-        raw_string: The raw response string from the LLM
-        rails: The list of valid labels for the classification (optional)
-
-    Returns:
-        The extracted label or raw_string if extraction fails
-    """
-    if not raw_string or not raw_string.strip():
-        return raw_string  # Fallback to the whole string if no label delimiter is found
-
-    # Sort rails by length (longest first) to avoid substring matching issues
-    sorted_labels = sorted(rails, key=len, reverse=True) if rails else None
-
-    # First, try to find a label after "LABEL:" keyword (case insensitive)
+def parse_label_from_chain_of_thought_response(raw_string: str) -> str:
     label_delimiter = r"\W*label\W*"
     parts = re.split(label_delimiter, raw_string, maxsplit=1, flags=re.IGNORECASE)
-
-    # Determine which text to extract the first word from
-    if len(parts) == 2 and (label_part := parts[1].strip()):
-        # Found "label" keyword with content after it
-        text_to_parse = label_part
-    else:
-        # No "label" keyword found, use the whole string
-        text_to_parse = raw_string.strip()
-
-    # Extract and clean the first word
-    if words := text_to_parse.split():
-        first_word = words[0].strip("\"'")
-    else:
-        first_word = text_to_parse.strip("\"'")
-
-    # Check if the first word matches any rail
-    if sorted_labels and first_word:
-        for rail in sorted_labels:
-            if rail.lower() == first_word.lower():
-                return rail
-
-    # Return the first word if found, otherwise the original string
-    return first_word if first_word and len(parts) == 2 else raw_string
+    if len(parts) == 2:
+        # Extract just the first word/line after the label delimiter
+        label_part = parts[1].strip()
+        if label_part:
+            # Split by whitespace or newline and take the first non-empty part
+            first_word = label_part.split()[0] if label_part.split() else label_part
+            return first_word
+        return parts[1]  # Return original if no content
+    return raw_string  # Fallback to the whole string if no label delimiter is found
 
 
 def normalize_classification_template(

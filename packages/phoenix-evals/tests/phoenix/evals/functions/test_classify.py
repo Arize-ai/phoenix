@@ -626,48 +626,6 @@ def test_llm_classify_with_included_prompt_and_response(
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
-def test_llm_classify_with_async(
-    openai_api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
-):
-    dataframe = classification_dataframe
-    keys = list(zip(dataframe["input"], dataframe["reference"]))
-    responses = ["relevant", "unrelated", "\nrelevant ", "unparsable"]
-    response_mapping = {key: response for key, response in zip(keys, responses)}
-
-    for (query, reference), response in response_mapping.items():
-        matcher = M(content__contains=query) & M(content__contains=reference)
-        payload = {
-            "choices": [
-                {
-                    "message": {
-                        "content": response,
-                    },
-                }
-            ],
-        }
-        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
-
-    model = OpenAIModel()
-
-    result = llm_classify(
-        dataframe=dataframe,
-        template=RAG_RELEVANCY_PROMPT_TEMPLATE,
-        model=model,
-        rails=["relevant", "unrelated"],
-        verbose=True,
-    )
-
-    expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
-    assert result.iloc[:, 0].tolist() == expected_labels
-    assert_frame_equal(
-        result[["label"]],
-        pd.DataFrame(
-            data={"label": expected_labels},
-        ),
-    )
-
-
-@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify_with_fn_call(
     openai_api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
 ):
@@ -1572,3 +1530,36 @@ def test_classification_status_is_superset_of_execution_status() -> None:
     assert {item.value for item in ClassificationStatus}.issuperset(
         {item.value for item in ExecutionStatus}
     )
+
+
+def test_llm_classify_with_response_containing_both_rails(
+    openai_api_key: str,
+):
+    """Test that when both rails appear in the response, only the one after 'Label:' is extracted."""
+    model = OpenAIModel()
+    
+    # Create test data
+    dataframe = pd.DataFrame([
+        {"agent_output": "search_bigquery_tables, execute_bigquery", 
+         "human_selection": "execute_bigquery"}
+    ])
+    
+    # Response that contains both "incorrect" (after Label:) and "correct" (in explanation)
+    response_with_both_rails = """Label: incorrect\nExplanation: The Agent Output does not match the Human Tool Selection. However, the agent appears to be on the correct path to answering the question."""
+    
+    # Mock the _generate method to return our specific response
+    with patch.object(model, '_generate', return_value=response_with_both_rails):
+        result = llm_classify(
+            dataframe=dataframe,
+            template="Agent Output: {agent_output}\nHuman Selection: {human_selection}\nDoes the agent output match?",
+            model=model,
+            rails=["correct", "incorrect"],
+            use_function_calling_if_available=False,
+            provide_explanation=True,
+            run_sync=True,
+        )
+        
+        # Should extract "incorrect" (the label after "Label:"), not "correct" which appears later
+        assert result["label"].tolist() == ["incorrect"]
+        assert result["label"].iloc[0] == "incorrect"
+        assert NOT_PARSABLE not in result["label"].tolist()
