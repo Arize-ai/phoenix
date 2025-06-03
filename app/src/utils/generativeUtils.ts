@@ -29,6 +29,8 @@ export function getProviderName(provider: ModelProvider): string {
       return "DeepSeek";
     case "XAI":
       return "XAI";
+    case "OLLAMA":
+      return "Ollama";
     default:
       assertUnreachable(provider);
   }

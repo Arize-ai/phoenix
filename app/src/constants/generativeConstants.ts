@@ -78,4 +78,5 @@ export const ProviderToCredentialsConfigMap: Record<
   GOOGLE: [{ envVarName: "GEMINI_API_KEY", isRequired: true }],
   DEEPSEEK: [{ envVarName: "DEEPSEEK_API_KEY", isRequired: true }],
   XAI: [{ envVarName: "XAI_API_KEY", isRequired: true }],
+  OLLAMA: [{ envVarName: "OLLAMA_API_KEY", isRequired: false }],
 } as const;
