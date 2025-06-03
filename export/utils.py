@@ -60,7 +60,7 @@ def parse_export_args() -> argparse.Namespace:
     parser.add_argument(
         '--all',
         action='store_true',
-        help='Export all data types: datasets, prompts, projects, traces, and annotations'
+        help='Export all data types: datasets, prompts, projects, traces, annotations, and evaluations'
     )
     
     parser.add_argument(
@@ -91,6 +91,12 @@ def parse_export_args() -> argparse.Namespace:
         '--annotations',
         action='store_true',
         help='Export annotations'
+    )
+    
+    parser.add_argument(
+        '--evaluations',
+        action='store_true',
+        help='Export evaluations'
     )
     
     parser.add_argument(

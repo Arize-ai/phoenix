@@ -241,12 +241,27 @@ def export_project_annotations(
                 # Continue with next batch instead of failing entirely
                 continue
         
-        if all_annotations:
-            result["annotation_count"] = len(all_annotations)
-            logger.info(f"Retrieved {len(all_annotations)} annotations for project {project_name}")
+        # Filter out evaluation annotations (LLM and code annotation_kind)
+        # These represent evaluations and should be exported separately
+        filtered_annotations = []
+        evaluation_annotations_filtered = 0
+        
+        for annotation in all_annotations:
+            annotation_kind = annotation.get('annotator_kind', '').upper()
+            if annotation_kind in ['LLM', 'CODE']:
+                evaluation_annotations_filtered += 1
+                continue
+            filtered_annotations.append(annotation)
+        
+        if evaluation_annotations_filtered > 0:
+            logger.info(f"Filtered out {evaluation_annotations_filtered} evaluation annotations (LLM/code) for project {project_name}")
+        
+        if filtered_annotations:
+            result["annotation_count"] = len(filtered_annotations)
+            logger.info(f"Retrieved {len(filtered_annotations)} annotations for project {project_name}")
             
             # Save annotations to file
-            save_json(all_annotations, os.path.join(project_dir, 'annotations.json'))
+            save_json(filtered_annotations, os.path.join(project_dir, 'annotations.json'))
         else:
             logger.info(f"No annotations found for project {project_name}")
         
