@@ -62,9 +62,9 @@ def running_event_loop_mock(
         "phoenix.evals.executors._running_event_loop_exists",
         lambda: running_event_loop_exists,
     )
-    assert (phoenix.evals.executors._running_event_loop_exists()) is running_event_loop_exists, (
-        "mocked function should return the expected value"
-    )
+    assert (
+        phoenix.evals.executors._running_event_loop_exists()
+    ) is running_event_loop_exists, "mocked function should return the expected value"
     return running_event_loop_exists
 
 
@@ -1575,7 +1575,8 @@ def test_classification_status_is_superset_of_execution_status() -> None:
 
 
 def test_llm_classify_with_response_containing_both_rails(openai_api_key: str) -> None:
-    """Test that when both rails appear in the response, only the one after 'Label:' is extracted."""
+    """Test that when both rails appear in the response, only the one after
+    'Label:' is extracted."""
     model = OpenAIModel()
     dataframe = pd.DataFrame(
         [
