@@ -72,11 +72,7 @@ export function PlaygroundCredentialsDropdown() {
               </View>
               <Flex direction="column" gap="size-100">
                 {currentProviders.map((provider) => {
-                  if (
-                    ProviderToCredentialsConfigMap[provider].every(
-                      (credentialConfig) => !credentialConfig.isRequired
-                    )
-                  ) {
+                  if (ProviderToCredentialsConfigMap[provider].length === 0) {
                     return null;
                   }
                   return (
