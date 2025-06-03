@@ -62,3 +62,19 @@ export const ChatRoleMap: Record<ChatMessageRole, string[]> = {
   system: ["system", "developer"],
   tool: ["tool"],
 };
+
+/**
+ * A mapping of model providers to the credentials configs that are required for secure access.
+ * In most cases, there is only one credential name per provider, but some providers require multiple credentials.
+ */
+export const ProviderToCredentialsConfigMap: Record<
+  ModelProvider,
+  ModelProviderCredentialConfig[]
+> = {
+  OPENAI: [{ envVarName: "OPENAI_API_KEY", isRequired: true }],
+  AZURE_OPENAI: [{ envVarName: "AZURE_OPENAI_API_KEY", isRequired: true }],
+  ANTHROPIC: [{ envVarName: "ANTHROPIC_API_KEY", isRequired: true }],
+  GOOGLE: [{ envVarName: "GEMINI_API_KEY", isRequired: true }],
+  DEEPSEEK: [{ envVarName: "DEEPSEEK_API_KEY", isRequired: true }],
+  XAI: [{ envVarName: "XAI_API_KEY", isRequired: true }],
+} as const;
