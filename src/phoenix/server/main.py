@@ -30,6 +30,7 @@ from phoenix.config import (
     get_env_host_root_path,
     get_env_log_migrations,
     get_env_logging_level,
+    get_env_uv_logging_level,
     get_env_logging_mode,
     get_env_oauth2_settings,
     get_env_password_reset_token_expiry,
@@ -452,7 +453,7 @@ def main() -> None:
         host=host,  # type: ignore[arg-type]
         port=port,
         root_path=host_root_path,
-        log_level=Settings.logging_level,
+        log_level=Settings.uv_logging_level,
     )
 
     if tls_enabled_for_http:
@@ -479,6 +480,7 @@ def main() -> None:
 def initialize_settings() -> None:
     Settings.logging_mode = get_env_logging_mode()
     Settings.logging_level = get_env_logging_level()
+    Settings.uv_logging_level = get_env_uv_logging_level()
     Settings.db_logging_level = get_env_db_logging_level()
     Settings.log_migrations = get_env_log_migrations()
     Settings.disable_migrations = get_env_disable_migrations()

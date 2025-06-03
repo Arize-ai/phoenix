@@ -1277,6 +1277,13 @@ def get_env_db_logging_level() -> int:
     )
 
 
+def get_env_uv_logging_level() -> str:
+    return _get_uv_logging_level(
+        env_var=ENV_LOGGING_LEVEL,
+        default_level=logging.INFO,
+    )
+
+
 def get_env_fastapi_middleware_paths() -> list[tuple[str, str]]:
     env_value = getenv(ENV_PHOENIX_FASTAPI_MIDDLEWARE_PATHS, "")
     paths = []
@@ -1330,17 +1337,50 @@ def _get_logging_level(env_var: str, default_level: int) -> int:
     # levelNamesMapping = logging.getLevelNamesMapping() is not supported in python 3.8
     # but is supported in 3.12. Hence, we define the mapping ourselves and will remove
     # this once we drop support for older python versions
-    levelNamesMapping = logging._nameToLevel.copy()
+    # Normalize the input to uppercase
+    logging_level = logging_level.upper().strip()
+    
+    # Special case for "TRACE" - return 0 for Phoenix
+    if logging_level == "TRACE":
+        return 0
 
+    # Use Python's built-in level mapping for validation
+    levelNamesMapping = logging._nameToLevel.copy()
+    # Add TRACE level for Phoenix (0) and Uvicorn (5)
+    levelNamesMapping["TRACE"] = 0
     valid_values = [level for level in levelNamesMapping if level != "NOTSET"]
 
-    if logging_level.upper() not in valid_values:
+    if logging_level not in valid_values:
         raise ValueError(
             f"Invalid value `{logging_level}` for env var `{env_var}`. "
             f"Valid values are: {log_a_list(valid_values,'and')} (case-insensitive)."
         )
-    return levelNamesMapping[logging_level.upper()]
+    return levelNamesMapping[logging_level]
 
+def _get_uv_logging_level(env_var: str, default_level: int) -> int:
+    """
+    Gets and validates a logging level for Uvicorn from an environment variable.
+    For Uvicorn, if the level is "TRACE", returns 5 (Uvicorn's trace level).
+    """
+    logging_level = getenv(env_var)
+    if not logging_level:
+        return default_level
+
+    # Normalize the input to uppercase
+    logging_level = logging_level.upper().strip()
+    
+    # Use Python's built-in level mapping for validation
+    levelNamesMapping = logging._nameToLevel.copy()
+    # Add TRACE level for Phoenix (0) and Uvicorn (5)
+    levelNamesMapping["TRACE"] = 5
+    valid_values = [level for level in levelNamesMapping if level != "NOTSET"]
+
+    if logging_level not in valid_values:
+        raise ValueError(
+            f"Invalid value `{logging_level}` for env var `{env_var}`. "
+            f"Valid values are: {log_a_list(valid_values,'and')} (case-insensitive)."
+        )
+    return levelNamesMapping[logging_level]
 
 def get_env_log_migrations() -> bool:
     log_migrations = getenv(ENV_LOG_MIGRATIONS)
