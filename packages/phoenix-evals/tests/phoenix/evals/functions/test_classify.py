@@ -1532,6 +1532,48 @@ def test_classification_status_is_superset_of_execution_status() -> None:
     )
 
 
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_llm_classify_with_async(
+    openai_api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
+):
+    dataframe = classification_dataframe
+    keys = list(zip(dataframe["input"], dataframe["reference"]))
+    responses = ["relevant", "unrelated", "\nrelevant ", "unparsable"]
+    response_mapping = {key: response for key, response in zip(keys, responses)}
+
+    for (query, reference), response in response_mapping.items():
+        matcher = M(content__contains=query) & M(content__contains=reference)
+        payload = {
+            "choices": [
+                {
+                    "message": {
+                        "content": response,
+                    },
+                }
+            ],
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
+
+    model = OpenAIModel()
+
+    result = llm_classify(
+        dataframe=dataframe,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE,
+        model=model,
+        rails=["relevant", "unrelated"],
+        verbose=True,
+    )
+
+    expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
+    assert result.iloc[:, 0].tolist() == expected_labels
+    assert_frame_equal(
+        result[["label"]],
+        pd.DataFrame(
+            data={"label": expected_labels},
+        ),
+    )
+
+
 def test_llm_classify_with_response_containing_both_rails(
     openai_api_key: str,
 ):
