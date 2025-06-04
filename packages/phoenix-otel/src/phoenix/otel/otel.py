@@ -16,7 +16,7 @@ from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
     OTLPSpanExporter as _HTTPSpanExporter,
 )
-from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.resources import Resource  # type: ignore
 from opentelemetry.sdk.trace import SpanProcessor
 from opentelemetry.sdk.trace.export import BatchSpanProcessor as _BatchSpanProcessor
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor as _SimpleSpanProcessor

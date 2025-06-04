@@ -18,6 +18,17 @@ from phoenix.otel.otel import (
 )
 
 
+def _get_exporter_from_processor(span_processor):
+    """
+    Helper function to get the exporter from a span processor.
+    Handles both old and new OpenTelemetry versions.
+    OpenTelemetry v1.34.0+ moved exporter from span_exporter to _batch_processor._exporter
+    """
+    return getattr(
+        getattr(span_processor, "_batch_processor", None), "_exporter", None
+    ) or getattr(span_processor, "span_exporter", None)
+
+
 @pytest.fixture(autouse=True)
 def reset_tracer_provider():
     """Reset OpenTelemetry tracer provider for test isolation."""
@@ -70,7 +81,7 @@ class TestRegister:
         assert isinstance(processors[0], _BatchSpanProcessor)
 
         # Verify the exporter is configured
-        exporter = processors[0].span_exporter
+        exporter = _get_exporter_from_processor(processors[0])
         assert isinstance(exporter, GRPCSpanExporter)
 
     def test_register_with_simple_processor(self):
@@ -248,16 +259,18 @@ class TestSpanProcessors:
         processor = BatchSpanProcessor(endpoint=endpoint)
 
         assert isinstance(processor, _BatchSpanProcessor)
-        assert isinstance(processor.span_exporter, HTTPSpanExporter)
-        assert processor.span_exporter._endpoint == endpoint
+        exporter = _get_exporter_from_processor(processor)
+        assert isinstance(exporter, HTTPSpanExporter)
+        assert exporter._endpoint == endpoint
 
     def test_batch_span_processor_grpc(self):
         endpoint = "localhost:4317"
         processor = BatchSpanProcessor(endpoint=endpoint, protocol="grpc")
 
         assert isinstance(processor, _BatchSpanProcessor)
-        assert isinstance(processor.span_exporter, GRPCSpanExporter)
-        assert processor.span_exporter._endpoint == endpoint
+        exporter = _get_exporter_from_processor(processor)
+        assert isinstance(exporter, GRPCSpanExporter)
+        assert exporter._endpoint == endpoint
 
 
 class TestSpanExporters:
