@@ -1,8 +1,19 @@
+import { Suspense, useMemo } from "react";
+import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
 import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
-import { Flex, Icon, Icons, Text, TextProps } from "@phoenix/components";
+import {
+  Flex,
+  Icon,
+  Icons,
+  Loading,
+  Text,
+  TextProps,
+} from "@phoenix/components";
+
+import type { TokenCount_TokenDetailsQuery } from "./__generated__/TokenCount_TokenDetailsQuery.graphql";
 
 type TokenCountProps = {
   /**
@@ -10,15 +21,11 @@ type TokenCountProps = {
    */
   tokenCountTotal: number;
   /**
-   * The number of tokens in the prompt
-   */
-  tokenCountPrompt: number;
-  /**
-   * The number of tokens in the completion
-   */
-  tokenCountCompletion: number;
-  /**
    * The size of the icon and text
+   */
+  nodeId: string;
+  /**
+   * The id of the node (span, trace, session, etc.)
    */
   size?: TextProps["size"];
 };
@@ -28,23 +35,116 @@ type TokenCountProps = {
  */
 export function TokenCount(props: TokenCountProps) {
   return (
-    <TooltipTrigger>
+    <TooltipTrigger delay={500}>
       <TriggerWrap>
         <TokenItem size={props.size}>{props.tokenCountTotal}</TokenItem>
       </TriggerWrap>
       <Tooltip>
-        <Flex direction="column" gap="size-50">
-          <Flex direction="row" gap="size-100" justifyContent="space-between">
-            prompt tokens
-            <TokenItem>{props.tokenCountPrompt}</TokenItem>
-          </Flex>
-          <Flex direction="row" gap="size-100" justifyContent="space-between">
-            completion tokens
-            <TokenItem>{props.tokenCountCompletion}</TokenItem>
-          </Flex>
-        </Flex>
+        <Suspense fallback={<Loading />}>
+          <TokenDetails nodeId={props.nodeId} />
+        </Suspense>
       </Tooltip>
     </TooltipTrigger>
+  );
+}
+
+function TokenDetails(props: { nodeId: string }) {
+  const data = useLazyLoadQuery<TokenCount_TokenDetailsQuery>(
+    graphql`
+      query TokenCount_TokenDetailsQuery($nodeId: ID!) {
+        node(id: $nodeId) {
+          __typename
+          ... on Span {
+            tokenCountPrompt
+            tokenCountCompletion
+            tokenPromptDetails {
+              audio
+              cacheRead
+              cacheWrite
+            }
+          }
+          ... on ProjectSession {
+            tokenUsage {
+              prompt
+              completion
+            }
+          }
+          ... on Trace {
+            rootSpan {
+              cumulativeTokenCountPrompt
+              cumulativeTokenCountCompletion
+            }
+          }
+        }
+      }
+    `,
+    { nodeId: props.nodeId }
+  );
+
+  const {
+    tokenCountPrompt,
+    tokenCountCompletion,
+    tokenCountCacheRead,
+    tokenCountCacheWrite,
+    tokenCountAudio,
+  } = useMemo(() => {
+    switch (data.node.__typename) {
+      case "Span":
+        return {
+          tokenCountPrompt: data.node.tokenCountPrompt ?? 0,
+          tokenCountCompletion: data.node.tokenCountCompletion ?? 0,
+          tokenCountCacheRead: data.node.tokenPromptDetails?.cacheRead,
+          tokenCountCacheWrite: data.node.tokenPromptDetails?.cacheWrite,
+          tokenCountAudio: data.node.tokenPromptDetails?.audio,
+        };
+      case "ProjectSession":
+        return {
+          tokenCountPrompt: data.node.tokenUsage.prompt,
+          tokenCountCompletion: data.node.tokenUsage.completion,
+        };
+      case "Trace":
+        return {
+          tokenCountPrompt: data.node.rootSpan?.cumulativeTokenCountPrompt ?? 0,
+          tokenCountCompletion:
+            data.node.rootSpan?.cumulativeTokenCountCompletion ?? 0,
+        };
+      default:
+        return {
+          tokenCountPrompt: 0,
+          tokenCountCompletion: 0,
+        };
+    }
+  }, [data.node]);
+
+  return (
+    <Flex direction="column" gap="size-50">
+      <Flex direction="row" gap="size-100" justifyContent="space-between">
+        <Text>prompt tokens</Text>
+        <TokenItem>{tokenCountPrompt}</TokenItem>
+      </Flex>
+      <Flex direction="row" gap="size-100" justifyContent="space-between">
+        <Text>completion tokens</Text>
+        <TokenItem>{tokenCountCompletion}</TokenItem>
+      </Flex>
+      {tokenCountAudio != null && tokenCountAudio !== 0 && (
+        <Flex direction="row" gap="size-100" justifyContent="space-between">
+          <Text>audio tokens</Text>
+          <TokenItem>{tokenCountAudio}</TokenItem>
+        </Flex>
+      )}
+      {tokenCountCacheRead != null && tokenCountCacheRead !== 0 && (
+        <Flex direction="row" gap="size-100" justifyContent="space-between">
+          <Text>cache read tokens</Text>
+          <TokenItem>{tokenCountCacheRead}</TokenItem>
+        </Flex>
+      )}
+      {tokenCountCacheWrite != null && tokenCountCacheWrite !== 0 && (
+        <Flex direction="row" gap="size-100" justifyContent="space-between">
+          <Text>cache write tokens</Text>
+          <TokenItem>{tokenCountCacheWrite}</TokenItem>
+        </Flex>
+      )}
+    </Flex>
   );
 }
 

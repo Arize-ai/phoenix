@@ -29,7 +29,7 @@ dependencies = [
   "starlette",
   "uvicorn",
   "psutil",
-  "strawberry-graphql==0.269.0",  # fix relay ids
+  "strawberry-graphql==0.270.1",
   "pyarrow",
   "typing-extensions>=4.6",
   "scipy",
@@ -43,8 +43,8 @@ dependencies = [
   "opentelemetry-proto>=1.12.0",  # needed to avoid this issue: https://github.com/Arize-ai/phoenix/issues/2695
   "opentelemetry-exporter-otlp",
   "opentelemetry-semantic-conventions",
-  "openinference-semantic-conventions>=0.1.12",
-  "openinference-instrumentation>=0.1.12",
+  "openinference-semantic-conventions>=0.1.17",
+  "openinference-instrumentation>=0.1.32",
   "sqlalchemy[asyncio]>=2.0.4, <3",
   "alembic>=1.3.0, <2",
   "aiosqlite",
@@ -52,8 +52,8 @@ dependencies = [
   "sqlean.py>=3.45.1",
   "cachetools",
   "python-multipart",  # see https://www.starlette.io/#dependencies
-  "arize-phoenix-evals>=0.13.1",
-  "arize-phoenix-otel>=0.5.1",
+  "arize-phoenix-evals>=0.20.6",
+  "arize-phoenix-otel>=0.10.1",
   "fastapi",
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
   "authlib",
@@ -88,7 +88,7 @@ dev = [
   "pytest-postgresql",
   "asyncpg",
   "psycopg[binary,pool]",
-  "strawberry-graphql[debug-server,opentelemetry]==0.269.0",  # fix relay ids
+  "strawberry-graphql[debug-server,opentelemetry]==0.270.1",
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
   "llama-index>=0.10.3",
@@ -137,7 +137,7 @@ container = [
   "opentelemetry-instrumentation-sqlalchemy",
   "opentelemetry-instrumentation-grpc",
   "py-grpc-prometheus",
-  "strawberry-graphql[opentelemetry]==0.269.0",  # fix relay ids
+  "strawberry-graphql[opentelemetry]==0.270.1",
   "uvloop; platform_system != 'Windows'",
   "fast-hdbscan>=0.2.0",
   "numba>=0.60.0",  # https://github.com/astral-sh/uv/issues/6281
@@ -147,7 +147,7 @@ test = [
 ]
 
 [project.urls]
-Documentation = "https://docs.arize.com/phoenix/"
+Documentation = "https://arize.com/docs/phoenix/"
 Issues = "https://github.com/Arize-ai/phoenix/issues"
 Source = "https://github.com/Arize-ai/phoenix"
 

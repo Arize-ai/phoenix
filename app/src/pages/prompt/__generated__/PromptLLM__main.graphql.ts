@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4def5c5fe2ae53e7b98d04a110293c8f>>
+ * @generated SignedSource<<906e1bbf750f615d2e0ff6f6eeeb4350>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type ModelProvider = "ANTHROPIC" | "AZURE_OPENAI" | "GOOGLE" | "OPENAI";
+export type ModelProvider = "ANTHROPIC" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OPENAI" | "XAI";
 import { FragmentRefs } from "relay-runtime";
 export type PromptLLM__main$data = {
   readonly model: string;

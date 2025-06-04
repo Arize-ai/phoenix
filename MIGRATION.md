@@ -1,4 +1,10 @@
-# Migrations
+npm# Migrations
+
+## v9.x to v10.0.0
+
+This release updates the `users` table in the database. Migration is expected to be quick.
+
+No other breaking changes are included in this release.
 
 ## v8.x to v9.0.0
 
@@ -85,13 +91,13 @@ export PHOENIX_SECRET=a-sufficiently-long-secret
 
 Once these environment variables are set, Phoenix scaffold and admin login and the entire server will be protected. Log in as the admin user and create a system key to use with your application(s). All API keys should be added as headers to your requests via the `Authorization` header using the `Bearer` scheme.
 
-For more details, please see the [authentication setup guide](https://docs.arize.com/phoenix/setup/authentication).
+For more details, please see the [authentication setup guide](https://arize.com/docs/phoenix/setup/authentication).
 
 ### Migrating to OpenInference
 
 If you are using Phoenix's `phoenix.trace` modules for LlamaIndex, LangChain, or OpenAI, you will need to migrate to OpenInference. OpenInference is a separate set of packages that provides instrumentation for Phoenix. Phoenix 5 no longer supports LlamaIndex or LangChain instrumentation from the `phoenix.trace` module.
 
-Phoenix now includes a `phoenix.otel` module that provides simplified setup for OpenTelemetry. See the [`phoenix.otel` documentation](https://docs.arize.com/phoenix/tracing/how-to-tracing/setup-tracing/setup-tracing-python) for more details.
+Phoenix now includes a `phoenix.otel` module that provides simplified setup for OpenTelemetry. See the [`phoenix.otel` documentation](https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-tracing-python) for more details.
 
 **Before**
 

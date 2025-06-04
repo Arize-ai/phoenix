@@ -62,6 +62,17 @@ async def list_span_annotations(
     span_ids: list[str] = Query(
         ..., min_length=1, description="One or more span id to fetch annotations for"
     ),
+    include_annotation_names: Optional[list[str]] = Query(
+        default=None,
+        description=(
+            "Optional list of annotation names to include. If provided, only annotations with "
+            "these names will be returned. 'note' annotations are excluded by default unless "
+            "explicitly included in this list."
+        ),
+    ),
+    exclude_annotation_names: Optional[list[str]] = Query(
+        default=None, description="Optional list of annotation names to exclude from results."
+    ),
     cursor: Optional[str] = Query(default=None, description="A cursor for pagination"),
     limit: int = Query(
         default=10,
@@ -84,15 +95,26 @@ async def list_span_annotations(
                 status_code=HTTP_404_NOT_FOUND,
                 detail=f"Project with identifier {project_identifier} not found",
             )
+
+        # Build the base query
+        where_conditions = [
+            models.Project.id == project.id,
+            models.Span.span_id.in_(span_ids),
+        ]
+
+        # Add annotation name filtering
+        if include_annotation_names:
+            where_conditions.append(models.SpanAnnotation.name.in_(include_annotation_names))
+
+        if exclude_annotation_names:
+            where_conditions.append(models.SpanAnnotation.name.not_in(exclude_annotation_names))
+
         stmt = (
             select(models.Span.span_id, models.SpanAnnotation)
             .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
             .join(models.Project, models.Trace.project_rowid == models.Project.id)
             .join(models.SpanAnnotation, models.SpanAnnotation.span_rowid == models.Span.id)
-            .where(
-                models.Project.id == project.id,
-                models.Span.span_id.in_(span_ids),
-            )
+            .where(*where_conditions)
             .order_by(models.SpanAnnotation.id.desc())
             .limit(limit + 1)
         )

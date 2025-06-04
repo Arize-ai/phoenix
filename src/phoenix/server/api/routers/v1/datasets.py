@@ -3,6 +3,7 @@ import gzip
 import io
 import json
 import logging
+import urllib
 import zlib
 from asyncio import QueueFull
 from collections import Counter
@@ -311,6 +312,7 @@ async def list_dataset_versions(
 
 class UploadDatasetData(V1RoutesBaseModel):
     dataset_id: str
+    version_id: str
 
 
 class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
@@ -467,10 +469,15 @@ async def upload_dataset(
     )
     if sync:
         async with request.app.state.db() as session:
-            dataset_id = (await operation(session)).dataset_id
+            event = await operation(session)
+            dataset_id = event.dataset_id
+            version_id = event.dataset_version_id
         request.state.event_queue.put(DatasetInsertEvent((dataset_id,)))
         return UploadDatasetResponseBody(
-            data=UploadDatasetData(dataset_id=str(GlobalID(Dataset.__name__, str(dataset_id))))
+            data=UploadDatasetData(
+                dataset_id=str(GlobalID(Dataset.__name__, str(dataset_id))),
+                version_id=str(GlobalID(DatasetVersion.__name__, str(version_id))),
+            )
         )
     try:
         request.state.enqueue_operation(operation)
@@ -817,10 +824,11 @@ async def get_dataset_csv(
     except ValueError as e:
         raise HTTPException(detail=str(e), status_code=HTTP_422_UNPROCESSABLE_ENTITY)
     content = await run_in_threadpool(_get_content_csv, examples)
+    encoded_dataset_name = urllib.parse.quote(dataset_name)
     return Response(
         content=content,
         headers={
-            "content-disposition": f'attachment; filename="{dataset_name}.csv"',
+            "content-disposition": f"attachment; filename*=UTF-8''{encoded_dataset_name}.csv",
             "content-type": "text/csv",
         },
     )
@@ -859,7 +867,10 @@ async def get_dataset_jsonl_openai_ft(
     except ValueError as e:
         raise HTTPException(detail=str(e), status_code=HTTP_422_UNPROCESSABLE_ENTITY)
     content = await run_in_threadpool(_get_content_jsonl_openai_ft, examples)
-    response.headers["content-disposition"] = f'attachment; filename="{dataset_name}.jsonl"'
+    encoded_dataset_name = urllib.parse.quote(dataset_name)
+    response.headers["content-disposition"] = (
+        f"attachment; filename*=UTF-8''{encoded_dataset_name}.jsonl"
+    )
     return content
 
 
@@ -896,7 +907,10 @@ async def get_dataset_jsonl_openai_evals(
     except ValueError as e:
         raise HTTPException(detail=str(e), status_code=HTTP_422_UNPROCESSABLE_ENTITY)
     content = await run_in_threadpool(_get_content_jsonl_openai_evals, examples)
-    response.headers["content-disposition"] = f'attachment; filename="{dataset_name}.jsonl"'
+    encoded_dataset_name = urllib.parse.quote(dataset_name)
+    response.headers["content-disposition"] = (
+        f"attachment; filename*=UTF-8''{encoded_dataset_name}.jsonl"
+    )
     return content
 
 

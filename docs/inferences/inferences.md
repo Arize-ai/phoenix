@@ -1,3 +1,7 @@
+---
+hidden: true
+---
+
 # Concepts: Inferences
 
 This section introduces _inferences_ and _schemas,_ the starting concepts needed to use Phoenix with inferences.

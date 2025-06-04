@@ -4,6 +4,7 @@ from functools import cached_property, partial
 from pathlib import Path
 from typing import Any, Optional, cast
 
+from starlette.datastructures import Secret
 from starlette.requests import Request as StarletteRequest
 from starlette.responses import Response as StarletteResponse
 from strawberry.fastapi import BaseContext
@@ -128,11 +129,11 @@ class Context(BaseContext):
     read_only: bool = False
     locked: bool = False
     auth_enabled: bool = False
-    secret: Optional[str] = None
+    secret: Optional[Secret] = None
     token_store: Optional[TokenStore] = None
     email_sender: Optional[EmailSender] = None
 
-    def get_secret(self) -> str:
+    def get_secret(self) -> Secret:
         """A type-safe way to get the application secret. Throws an error if the secret is not set.
 
         Returns:
@@ -161,7 +162,7 @@ class Context(BaseContext):
             raise ValueError("no response is set")
         return response
 
-    async def is_valid_password(self, password: str, user: models.User) -> bool:
+    async def is_valid_password(self, password: Secret, user: models.User) -> bool:
         return (
             (hash_ := user.password_hash) is not None
             and (salt := user.password_salt) is not None
@@ -169,7 +170,7 @@ class Context(BaseContext):
         )
 
     @staticmethod
-    async def hash_password(password: str, salt: bytes) -> bytes:
+    async def hash_password(password: Secret, salt: bytes) -> bytes:
         compute = partial(compute_password_hash, password=password, salt=salt)
         return await get_running_loop().run_in_executor(None, compute)
 

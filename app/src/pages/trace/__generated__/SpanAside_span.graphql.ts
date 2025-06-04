@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ef22e07329448c6c7b0ca0ed50e3d819>>
+ * @generated SignedSource<<1f838200fb3ec31af35259ee9057113d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -39,10 +39,8 @@ export type SpanAside_span$data = {
     readonly " $fragmentSpreads": FragmentRefs<"AnnotationConfigListProjectAnnotationConfigFragment">;
   };
   readonly startTime: string;
-  readonly tokenCountCompletion: number | null;
-  readonly tokenCountPrompt: number | null;
   readonly tokenCountTotal: number | null;
-  readonly " $fragmentSpreads": FragmentRefs<"SpanAsideAnnotationList_span" | "TraceHeaderRootSpanAnnotationsFragment">;
+  readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup" | "SpanAsideAnnotationList_span" | "TraceHeaderRootSpanAnnotationsFragment">;
   readonly " $fragmentType": "SpanAside_span";
 };
 export type SpanAside_span$key = {
@@ -66,13 +64,7 @@ v1 = {
   "storageKey": null
 };
 return {
-  "argumentDefinitions": [
-    {
-      "defaultValue": null,
-      "kind": "LocalArgument",
-      "name": "filterUserIds"
-    }
-  ],
+  "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
   "name": "SpanAside_span",
@@ -255,34 +247,19 @@ return {
       "storageKey": null
     },
     {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "tokenCountPrompt",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "tokenCountCompletion",
-      "storageKey": null
-    },
-    {
       "args": null,
       "kind": "FragmentSpread",
       "name": "TraceHeaderRootSpanAnnotationsFragment"
     },
     {
-      "args": [
-        {
-          "kind": "Variable",
-          "name": "filterUserIds",
-          "variableName": "filterUserIds"
-        }
-      ],
+      "args": null,
       "kind": "FragmentSpread",
       "name": "SpanAsideAnnotationList_span"
+    },
+    {
+      "args": null,
+      "kind": "FragmentSpread",
+      "name": "AnnotationSummaryGroup"
     }
   ],
   "type": "Span",
@@ -290,6 +267,6 @@ return {
 };
 })();
 
-(node as any).hash = "818a2e04c2202bdbf12746dda6154664";
+(node as any).hash = "eddd0b1c2288899c1d97948a29207944";
 
 export default node;

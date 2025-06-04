@@ -483,6 +483,27 @@ export const BrowserOutline = () => (
   </svg>
 );
 
+export const BulbOutline = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <g data-name="Layer 2">
+      <g data-name="bulb">
+        <rect
+          width="24"
+          height="24"
+          transform="rotate(180 12 12)"
+          opacity="0"
+        />
+        <path d="M12 7a5 5 0 0 0-3 9v4a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-4a5 5 0 0 0-3-9zm1.5 7.59a1 1 0 0 0-.5.87V20h-2v-4.54a1 1 0 0 0-.5-.87A3 3 0 0 1 9 12a3 3 0 0 1 6 0 3 3 0 0 1-1.5 2.59z" />
+        <path d="M12 6a1 1 0 0 0 1-1V3a1 1 0 0 0-2 0v2a1 1 0 0 0 1 1z" />
+        <path d="M21 11h-2a1 1 0 0 0 0 2h2a1 1 0 0 0 0-2z" />
+        <path d="M5 11H3a1 1 0 0 0 0 2h2a1 1 0 0 0 0-2z" />
+        <path d="M7.66 6.42L6.22 5a1 1 0 0 0-1.39 1.47l1.44 1.39a1 1 0 0 0 .73.28 1 1 0 0 0 .72-.31 1 1 0 0 0-.06-1.41z" />
+        <path d="M19.19 5.05a1 1 0 0 0-1.41 0l-1.44 1.37a1 1 0 0 0 0 1.41 1 1 0 0 0 .72.31 1 1 0 0 0 .69-.28l1.44-1.39a1 1 0 0 0 0-1.42z" />
+      </g>
+    </g>
+  </svg>
+);
+
 //C
 export const CalendarOutline = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
@@ -1183,6 +1204,19 @@ export const EyeOutline = () => (
       />
     </mask>
     <g mask="url(#mask0_935_15127)"></g>
+  </svg>
+);
+
+export const EyeOffOutline = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <g data-name="Layer 2">
+      <g data-name="eye-off">
+        <rect width="24" height="24" opacity="0" />
+        <path d="M4.71 3.29a1 1 0 0 0-1.42 1.42l5.63 5.63a3.5 3.5 0 0 0 4.74 4.74l5.63 5.63a1 1 0 0 0 1.42 0 1 1 0 0 0 0-1.42zM12 13.5a1.5 1.5 0 0 1-1.5-1.5v-.07l1.56 1.56z" />
+        <path d="M12.22 17c-4.3.1-7.12-3.59-8-5a13.7 13.7 0 0 1 2.24-2.72L5 7.87a15.89 15.89 0 0 0-2.87 3.63 1 1 0 0 0 0 1c.63 1.09 4 6.5 9.89 6.5h.25a9.48 9.48 0 0 0 3.23-.67l-1.58-1.58a7.74 7.74 0 0 1-1.7.25z" />
+        <path d="M21.87 11.5c-.64-1.11-4.17-6.68-10.14-6.5a9.48 9.48 0 0 0-3.23.67l1.58 1.58a7.74 7.74 0 0 1 1.7-.25c4.29-.11 7.11 3.59 8 5a13.7 13.7 0 0 1-2.29 2.72L19 16.13a15.89 15.89 0 0 0 2.91-3.63 1 1 0 0 0-.04-1z" />
+      </g>
+    </g>
   </svg>
 );
 

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<59d7deefbf27eee8c0790b62d245db5a>>
+ * @generated SignedSource<<d59eaaf15414d1bca5cc21c45712da71>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type ModelProvider = "ANTHROPIC" | "AZURE_OPENAI" | "GOOGLE" | "OPENAI";
+export type ModelProvider = "ANTHROPIC" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OPENAI" | "XAI";
 export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type PromptTemplateType = "CHAT" | "STRING";

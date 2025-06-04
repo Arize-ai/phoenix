@@ -19,7 +19,7 @@ type PythonProjectGuideProps = {
 };
 
 const PHOENIX_OTEL_DOC_LINK =
-  "https://docs.arize.com/phoenix/tracing/how-to-tracing/setup-tracing";
+  "https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing";
 
 const getSetProjectNameCode = (projectName: string) => {
   return `import { Resource } from '@opentelemetry/resources';

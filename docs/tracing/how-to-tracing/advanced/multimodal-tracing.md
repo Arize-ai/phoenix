@@ -20,7 +20,7 @@ pip install -q "arize-phoenix>=4.29.0" openinference-instrumentation-openai open
 # Check if PHOENIX_API_KEY is present in the environment variables.
 # If it is, we'll use the cloud instance of Phoenix. If it's not, we'll start a local instance.
 # A third option is to connect to a docker or locally hosted instance.
-# See https://docs.arize.com/phoenix/setup/environments for more information.
+# See https://arize.com/docs/phoenix/setup/environments for more information.
 
 # Launch Phoenix
 import os

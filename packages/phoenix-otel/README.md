@@ -127,6 +127,27 @@ Wrappers have Phoenix-aware defaults to greatly simplify the OTel configuration 
 `endpoint` keyword argument can be passed to either a `TracerProvider`, `SimpleSpanProcessor` or
 `BatchSpanProcessor` in order to automatically infer which `SpanExporter` to use to simplify setup.
 
+## Adding multiple span processors
+
+The `phoenix.otel` TracerProvider automatically creates a default span processor that sends
+spans to the Phoenix collector endpoint. By default, adding a new span processor will replace
+this auto-created processor.
+
+To keep the default processor alongside new ones, pass `replace_auto=False`:
+
+```python
+from phoenix.otel import TracerProvider, BatchSpanProcessor
+
+# TracerProvider automatically creates a default processor
+tracer_provider = TracerProvider()
+
+# This replaces the default processor (default behavior)
+tracer_provider.add_span_processor(BatchSpanProcessor())
+
+# This keeps the default processor and adds another one
+tracer_provider.add_span_processor(BatchSpanProcessor(), replace_default_processor=False)
+```
+
 ### Using environment variables
 
 ```python

@@ -111,7 +111,11 @@ async def default_project(db: DbSessionFactory) -> None:
                 attributes={
                     "input": {"value": "xyz"},
                     "retrieval": {
-                        "documents": [{}, {}, {"document": {"content": "C", "score": 3}}],
+                        "documents": [
+                            {},
+                            {},
+                            {"document": {"content": "C", "score": 3}},
+                        ],
                     },
                 },
                 events=[],
@@ -140,6 +144,207 @@ async def default_project(db: DbSessionFactory) -> None:
                 cumulative_error_count=0,
                 cumulative_llm_token_count_prompt=0,
                 cumulative_llm_token_count_completion=0,
+            )
+            .returning(models.Span.id)
+        )
+        await session.execute(
+            insert(models.Span)
+            .values(
+                trace_rowid=trace_rowid,
+                span_id="89101",
+                parent_id="2345",
+                name="llm span",
+                span_kind="LLM",
+                start_time=datetime.fromisoformat("2021-01-01T00:00:05.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:00:20.000+00:00"),
+                attributes={
+                    "llm": {
+                        "input_messages": [
+                            {
+                                "message": {
+                                    "role": "user",
+                                    "content": "what is 2 times 3, and what is 2 plus 3",
+                                }
+                            }
+                        ],
+                        "output_messages": [
+                            {
+                                "message": {
+                                    "role": "assistant",
+                                    "tool_calls": [
+                                        {
+                                            "tool_call": {
+                                                "id": "a",
+                                                "function": {
+                                                    "name": "multiply",
+                                                    "arguments": '{\n  "a": 2,\n  "b": 3\n}',
+                                                },
+                                            }
+                                        },
+                                        {
+                                            "tool_call": {
+                                                "id": "b",
+                                                "function": {
+                                                    "name": "add",
+                                                    "arguments": '{\n  "a": 2,\n  "b": 3\n}',
+                                                },
+                                            }
+                                        },
+                                    ],
+                                }
+                            }
+                        ],
+                    },
+                },
+                events=[],
+                status_code="OK",
+                status_message="okay",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=10,
+                cumulative_llm_token_count_completion=5,
+            )
+            .returning(models.Span.id)
+        )
+        await session.execute(
+            insert(models.Span)
+            .values(
+                trace_rowid=trace_rowid,
+                span_id="91011",
+                parent_id="2345",
+                name="llm span",
+                span_kind="LLM",
+                start_time=datetime.fromisoformat("2021-01-01T00:00:05.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:00:20.000+00:00"),
+                attributes={
+                    "llm": {
+                        "input_messages": [{"message": {"role": "user", "content": "call foo"}}],
+                        "output_messages": [
+                            {
+                                "message": {
+                                    "role": "assistant",
+                                    "tool_calls": [
+                                        {
+                                            "tool_call": {
+                                                "id": "c",
+                                                "function": {
+                                                    "name": "foo",
+                                                },
+                                            }
+                                        }
+                                    ],
+                                }
+                            }
+                        ],
+                    },
+                },
+                events=[],
+                status_code="OK",
+                status_message="okay",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=8,
+                cumulative_llm_token_count_completion=4,
+            )
+            .returning(models.Span.id)
+        )
+        await session.execute(
+            insert(models.Span)
+            .values(
+                trace_rowid=trace_rowid,
+                span_id="111213",
+                parent_id="2345",
+                name="llm span",
+                span_kind="LLM",
+                start_time=datetime.fromisoformat("2021-01-01T00:00:25.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:00:35.000+00:00"),
+                attributes={
+                    "llm": {
+                        "input_messages": [{"message": {"role": "user", "content": "abc"}}],
+                        "output_messages": [{"message": {"role": "assistant", "content": "xyz"}}],
+                    }
+                },
+                events=[],
+                status_code="OK",
+                status_message="okay",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=6,
+                cumulative_llm_token_count_completion=15,
+            )
+            .returning(models.Span.id)
+        )
+        await session.execute(
+            insert(models.Span)
+            .values(
+                trace_rowid=trace_rowid,
+                span_id="131415",
+                parent_id="2345",
+                name="llm span",
+                span_kind="LLM",
+                start_time=datetime.fromisoformat("2021-01-01T00:00:40.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:00:50.000+00:00"),
+                attributes={
+                    "llm": {
+                        "input_messages": [
+                            {
+                                "message": {
+                                    "role": "user",
+                                    "content": "test empty output",
+                                }
+                            }
+                        ],
+                        "output_messages": None,
+                    }
+                },
+                events=[],
+                status_code="OK",
+                status_message="okay",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=5,
+                cumulative_llm_token_count_completion=5,
+            )
+            .returning(models.Span.id)
+        )
+        await session.execute(
+            insert(models.Span)
+            .values(
+                trace_rowid=trace_rowid,
+                span_id="171819",
+                parent_id="2345",
+                name="llm span",
+                span_kind="LLM",
+                start_time=datetime.fromisoformat("2021-01-01T00:01:10.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:01:20.000+00:00"),
+                attributes={
+                    "llm": {
+                        "input_messages": [
+                            {
+                                "message": {
+                                    "role": "user",
+                                    "content": "test invalid tool",
+                                }
+                            }
+                        ],
+                        "output_messages": [
+                            {
+                                "message": {
+                                    "role": "assistant",
+                                    "tool_calls": [
+                                        {
+                                            "tool_call": {
+                                                "id": "invalid",
+                                            }
+                                        }
+                                    ],
+                                }
+                            }
+                        ],
+                    }
+                },
+                events=[],
+                status_code="OK",
+                status_message="okay",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=5,
+                cumulative_llm_token_count_completion=5,
             )
             .returning(models.Span.id)
         )

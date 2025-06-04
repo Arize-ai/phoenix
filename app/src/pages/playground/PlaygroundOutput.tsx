@@ -12,7 +12,7 @@ import { Card } from "@arizeai/components";
 import { Loading, View } from "@phoenix/components";
 import {
   ConnectedMarkdownBlock,
-  ConnectedMarkdownModeRadioGroup,
+  ConnectedMarkdownModeSelect,
   MarkdownDisplayProvider,
 } from "@phoenix/components/markdown";
 import { useNotifyError } from "@phoenix/contexts";
@@ -88,7 +88,8 @@ function PlaygroundOutputMessage({
       title={role}
       {...styles}
       variant="compact"
-      extra={<ConnectedMarkdownModeRadioGroup />}
+      extra={<ConnectedMarkdownModeSelect />}
+      bodyStyle={{ padding: 0 }}
     >
       {content != null && !Array.isArray(content) && (
         <ConnectedMarkdownBlock>{content}</ConnectedMarkdownBlock>

@@ -17,7 +17,7 @@ import { TypeScriptProjectGuide } from "@phoenix/components/project/TypeScriptPr
 import { PythonProjectGuide } from "../../components/project/PythonProjectGuide";
 
 const PHOENIX_OTEL_DOC_LINK =
-  "https://docs.arize.com/phoenix/tracing/how-to-tracing/setup-tracing";
+  "https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing";
 
 type NewProjectButtonProps = {
   variant?: ButtonProps["variant"];

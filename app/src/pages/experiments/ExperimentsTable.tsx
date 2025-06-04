@@ -32,41 +32,15 @@ import {
   formatPercent,
 } from "@phoenix/utils/numberFormatUtils";
 
-import { RunExperimentButton } from "../dataset/RunExperimentButton";
-
 import { experimentsLoaderQuery$data } from "./__generated__/experimentsLoaderQuery.graphql";
 import type { ExperimentsTableFragment$key } from "./__generated__/ExperimentsTableFragment.graphql";
 import { ExperimentsTableQuery } from "./__generated__/ExperimentsTableQuery.graphql";
 import { DownloadExperimentActionMenu } from "./DownloadExperimentActionMenu";
 import { ErrorRateCell } from "./ErrorRateCell";
 import { ExperimentSelectionToolbar } from "./ExperimentSelectionToolbar";
+import { ExperimentsEmpty } from "./ExperimentsEmpty";
 
 const PAGE_SIZE = 100;
-
-export function ExperimentsTableEmpty() {
-  return (
-    <tbody className="is-empty">
-      <tr>
-        <td
-          colSpan={100}
-          css={css`
-            text-align: center;
-            padding: var(--ac-global-dimension-size-400) !important;
-            button {
-              margin-top: var(--ac-global-dimension-size-200);
-              margin-left: auto;
-              margin-right: auto;
-            }
-          `}
-        >
-          No experiments for this dataset. To see how to run experiments on a
-          dataset, check out the documentation.
-          <RunExperimentButton />
-        </td>
-      </tr>
-    </tbody>
-  );
-}
 
 export function ExperimentsTable({
   dataset,
@@ -331,6 +305,11 @@ export function ExperimentsTable({
     [hasNext, isLoadingNext, loadNext]
   );
   const navigate = useNavigate();
+
+  if (isEmpty) {
+    return <ExperimentsEmpty />;
+  }
+
   return (
     <div
       css={css`
@@ -361,33 +340,26 @@ export function ExperimentsTable({
             </tr>
           ))}
         </thead>
-        {isEmpty ? (
-          <ExperimentsTableEmpty />
-        ) : (
-          <tbody>
-            {rows.map((row) => (
-              <tr
-                key={row.id}
-                onClick={() => {
-                  navigate(
-                    `/datasets/${dataset.id}/compare?experimentId=${row.original.id}`
-                  );
-                }}
-              >
-                {row.getVisibleCells().map((cell) => {
-                  return (
-                    <td key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        )}
+        <tbody>
+          {rows.map((row) => (
+            <tr
+              key={row.id}
+              onClick={() => {
+                navigate(
+                  `/datasets/${dataset.id}/compare?experimentId=${row.original.id}`
+                );
+              }}
+            >
+              {row.getVisibleCells().map((cell) => {
+                return (
+                  <td key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
       </table>
       {selectedRows.length ? (
         <ExperimentSelectionToolbar

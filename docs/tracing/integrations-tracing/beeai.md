@@ -1,3 +1,7 @@
+---
+hidden: true
+---
+
 # BeeAI
 
 <figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/beeai_architecture.jpeg" alt=""><figcaption><p>BeeAI has native integration with Arize Phoenix</p></figcaption></figure>

@@ -6,6 +6,7 @@ import { Flex, Icon, Icons, Loading } from "@phoenix/components";
 import {
   Brand,
   DocsLink,
+  GitHubLink,
   NavBreadcrumb,
   NavButton,
   NavLink,
@@ -87,7 +88,7 @@ function SideNav() {
       method: "POST",
     });
     if (response.ok) {
-      navigate("/login");
+      navigate(window.Config.basicAuthDisabled ? "/logout" : "/login");
       return;
     }
     notifyError({
@@ -155,6 +156,9 @@ function SideNav() {
           </li>
         </ul>
         <ul css={bottomLinksCSS}>
+          <li key="github">
+            <GitHubLink />
+          </li>
           <li key="settings">
             <NavLink
               to="/settings/general"

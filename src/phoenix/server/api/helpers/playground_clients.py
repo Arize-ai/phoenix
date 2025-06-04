@@ -7,6 +7,7 @@ import json
 import time
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Callable, Iterator
+from dataclasses import dataclass
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Hashable, Mapping, MutableMapping, Optional, Union
 
@@ -64,6 +65,16 @@ if TYPE_CHECKING:
 
 SetSpanAttributesFn: TypeAlias = Callable[[Mapping[str, Any]], None]
 ChatCompletionChunk: TypeAlias = Union[TextChunk, ToolCallChunk]
+
+
+@dataclass
+class PlaygroundClientCredential:
+    """
+    Represents a credential for LLM providers.
+    """
+
+    env_var_name: str
+    value: str
 
 
 class Dependency:
@@ -172,9 +183,10 @@ class PlaygroundStreamingClient(ABC):
     def __init__(
         self,
         model: GenerativeModelInput,
-        api_key: Optional[str] = None,
+        credentials: Optional[list[PlaygroundClientCredential]] = None,
     ) -> None:
         self._attributes: dict[str, AttributeValue] = dict()
+        self._credentials = credentials or []
 
     @classmethod
     @abstractmethod
@@ -243,11 +255,11 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
         *,
         client: Union["AsyncOpenAI", "AsyncAzureOpenAI"],
         model: GenerativeModelInput,
-        api_key: Optional[str] = None,
+        credentials: Optional[list[PlaygroundClientCredential]] = None,
     ) -> None:
         from openai import RateLimitError as OpenAIRateLimitError
 
-        super().__init__(model=model, api_key=api_key)
+        super().__init__(model=model, credentials=credentials)
         self.client = client
         self.model_name = model.name
         self.rate_limiter = PlaygroundRateLimiter(model.provider_key, OpenAIRateLimitError)
@@ -453,6 +465,102 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
         yield LLM_TOKEN_COUNT_TOTAL, usage.total_tokens
 
 
+def _get_credential_value(
+    credentials: Optional[list[PlaygroundClientCredential]], env_var_name: str
+) -> Optional[str]:
+    """Helper function to extract credential value from credentials list."""
+    if not credentials:
+        return None
+    return next(
+        (credential.value for credential in credentials if credential.env_var_name == env_var_name),
+        None,
+    )
+
+
+def _require_credential(
+    credentials: Optional[list[PlaygroundClientCredential]], env_var_name: str, provider_name: str
+) -> str:
+    """Helper function to require a credential value, raising an exception if not found."""
+    value = _get_credential_value(credentials, env_var_name)
+    if value is None:
+        raise BadRequest(f"Missing required credential '{env_var_name}' for {provider_name}")
+    return value
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.DEEPSEEK,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "deepseek-chat",
+        "deepseek-reasoner",
+    ],
+)
+class DeepSeekStreamingClient(OpenAIBaseStreamingClient):
+    def __init__(
+        self,
+        model: GenerativeModelInput,
+        credentials: Optional[list[PlaygroundClientCredential]] = None,
+    ) -> None:
+        from openai import AsyncOpenAI
+
+        base_url = model.base_url or getenv("DEEPSEEK_BASE_URL")
+
+        # Try to get API key from credentials first, then fallback to env
+        api_key = _get_credential_value(credentials, "DEEPSEEK_API_KEY") or getenv(
+            "DEEPSEEK_API_KEY"
+        )
+
+        if not api_key:
+            if not base_url:
+                raise BadRequest("An API key is required for DeepSeek models")
+            api_key = "sk-fake-api-key"
+
+        client = AsyncOpenAI(api_key=api_key, base_url=base_url or "https://api.deepseek.com")
+        super().__init__(client=client, model=model, credentials=credentials)
+        # DeepSeek uses OpenAI-compatible API but we'll track it as a separate provider
+        # Adding a custom "deepseek" provider value to make it distinguishable in traces
+        self._attributes[LLM_PROVIDER] = "deepseek"
+        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.XAI,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "grok-3",
+        "grok-3-fast",
+        "grok-3-mini",
+        "grok-3-mini-fast",
+        "grok-2-1212",
+        "grok-2-vision-1212",
+    ],
+)
+class XAIStreamingClient(OpenAIBaseStreamingClient):
+    def __init__(
+        self,
+        model: GenerativeModelInput,
+        credentials: Optional[list[PlaygroundClientCredential]] = None,
+    ) -> None:
+        from openai import AsyncOpenAI
+
+        base_url = model.base_url or getenv("XAI_BASE_URL")
+
+        # Try to get API key from credentials first, then fallback to env
+        api_key = _get_credential_value(credentials, "XAI_API_KEY") or getenv("XAI_API_KEY")
+
+        if not api_key:
+            if not base_url:
+                raise BadRequest("An API key is required for xAI models")
+            api_key = "sk-fake-api-key"
+
+        client = AsyncOpenAI(api_key=api_key, base_url=base_url or "https://api.x.ai/v1")
+        super().__init__(client=client, model=model, credentials=credentials)
+        # xAI uses OpenAI-compatible API but we'll track it as a separate provider
+        # Adding a custom "xai" provider value to make it distinguishable in traces
+        self._attributes[LLM_PROVIDER] = "xai"
+        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
+
+
 @register_llm_client(
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=[
@@ -488,17 +596,22 @@ class OpenAIStreamingClient(OpenAIBaseStreamingClient):
     def __init__(
         self,
         model: GenerativeModelInput,
-        api_key: Optional[str] = None,
+        credentials: Optional[list[PlaygroundClientCredential]] = None,
     ) -> None:
         from openai import AsyncOpenAI
 
         base_url = model.base_url or getenv("OPENAI_BASE_URL")
-        if not (api_key := api_key or getenv("OPENAI_API_KEY")):
+
+        # Try to get API key from credentials first, then fallback to env
+        api_key = _get_credential_value(credentials, "OPENAI_API_KEY") or getenv("OPENAI_API_KEY")
+
+        if not api_key:
             if not base_url:
                 raise BadRequest("An API key is required for OpenAI models")
             api_key = "sk-fake-api-key"
+
         client = AsyncOpenAI(api_key=api_key, base_url=base_url)
-        super().__init__(client=client, model=model, api_key=api_key)
+        super().__init__(client=client, model=model, credentials=credentials)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.OPENAI.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
 
@@ -661,7 +774,7 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
     def __init__(
         self,
         model: GenerativeModelInput,
-        api_key: Optional[str] = None,
+        credentials: Optional[list[PlaygroundClientCredential]] = None,
     ):
         from openai import AsyncAzureOpenAI
 
@@ -669,7 +782,13 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
             raise BadRequest("An Azure endpoint is required for Azure OpenAI models")
         if not (api_version := model.api_version or getenv("OPENAI_API_VERSION")):
             raise BadRequest("An OpenAI API version is required for Azure OpenAI models")
-        if api_key := api_key or getenv("AZURE_OPENAI_API_KEY"):
+
+        # Try to get API key from credentials first, then fallback to env
+        api_key = _get_credential_value(credentials, "AZURE_OPENAI_API_KEY") or getenv(
+            "AZURE_OPENAI_API_KEY"
+        )
+
+        if api_key:
             client = AsyncAzureOpenAI(
                 api_key=api_key,
                 azure_endpoint=endpoint,
@@ -692,7 +811,7 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
                 azure_endpoint=endpoint,
                 api_version=api_version,
             )
-        super().__init__(client=client, model=model, api_key=api_key)
+        super().__init__(client=client, model=model, credentials=credentials)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.AZURE.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
 
@@ -701,7 +820,11 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
     provider_key=GenerativeProviderKey.ANTHROPIC,
     model_names=[
         PROVIDER_DEFAULT,
-        "claude-3-7-latest",
+        "claude-sonnet-4-0",
+        "claude-sonnet-4-20250514",
+        "claude-opus-4-0",
+        "claude-opus-4-20250514",
+        "claude-3-7-sonnet-latest",
         "claude-3-7-sonnet-20250219",
         "claude-3-5-sonnet-latest",
         "claude-3-5-haiku-latest",
@@ -717,15 +840,22 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
     def __init__(
         self,
         model: GenerativeModelInput,
-        api_key: Optional[str] = None,
+        credentials: Optional[list[PlaygroundClientCredential]] = None,
     ) -> None:
         import anthropic
 
-        super().__init__(model=model, api_key=api_key)
+        super().__init__(model=model, credentials=credentials)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.ANTHROPIC.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.ANTHROPIC.value
-        if not (api_key := api_key or getenv("ANTHROPIC_API_KEY")):
+
+        # Try to get API key from credentials first, then fallback to env
+        api_key = _get_credential_value(credentials, "ANTHROPIC_API_KEY") or getenv(
+            "ANTHROPIC_API_KEY"
+        )
+
+        if not api_key:
             raise BadRequest("An API key is required for Anthropic models")
+
         self.client = anthropic.AsyncAnthropic(api_key=api_key)
         self.model_name = model.name
         self.rate_limiter = PlaygroundRateLimiter(model.provider_key, anthropic.RateLimitError)
@@ -925,15 +1055,25 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
     def __init__(
         self,
         model: GenerativeModelInput,
-        api_key: Optional[str] = None,
+        credentials: Optional[list[PlaygroundClientCredential]] = None,
     ) -> None:
         import google.generativeai as google_genai
 
-        super().__init__(model=model, api_key=api_key)
+        super().__init__(model=model, credentials=credentials)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.GOOGLE.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.VERTEXAI.value
-        if not (api_key := api_key or getenv("GEMINI_API_KEY") or getenv("GOOGLE_API_KEY")):
+
+        # Try to get API key from credentials first, then fallback to env
+        api_key = (
+            _get_credential_value(credentials, "GEMINI_API_KEY")
+            or _get_credential_value(credentials, "GOOGLE_API_KEY")
+            or getenv("GEMINI_API_KEY")
+            or getenv("GOOGLE_API_KEY")
+        )
+
+        if not api_key:
             raise BadRequest("An API key is required for Gemini models")
+
         google_genai.configure(api_key=api_key)
         self.model_name = model.name
 

@@ -7,12 +7,7 @@ from asyncio import gather
 from functools import partial
 from typing import Optional
 
-from sqlalchemy import (
-    distinct,
-    exists,
-    insert,
-    select,
-)
+import sqlalchemy as sa
 
 from phoenix import config
 from phoenix.auth import (
@@ -26,10 +21,12 @@ from phoenix.auth import (
 from phoenix.config import (
     get_env_admins,
     get_env_default_admin_initial_password,
+    get_env_disable_basic_auth,
 )
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
-from phoenix.db.enums import COLUMN_ENUMS, UserRole
+from phoenix.db.enums import ENUM_COLUMNS
+from phoenix.db.models import UserRoleName
 from phoenix.db.types.trace_retention import (
     MaxDaysRule,
     TraceRetentionCronExpression,
@@ -75,18 +72,17 @@ async def _ensure_enums(db: DbSessionFactory) -> None:
     they will be added. If any values are present in the database but not in the enum, an error will
     be raised. This function is idempotent: it will not add duplicate values to the database.
     """
-    for column, enum in COLUMN_ENUMS.items():
+    for column in ENUM_COLUMNS:
         table = column.class_
+        assert isinstance(column.type, sa.Enum)
         async with db() as session:
-            existing = set(
-                [_ async for _ in await session.stream_scalars(select(distinct(column)))]
-            )
-            expected = set(e.value for e in enum)
+            existing = set(await session.scalars(sa.select(column)))
+            expected = set(column.type.enums)
             if unexpected := existing - expected:
                 raise ValueError(f"Unexpected values in {table.name}.{column.key}: {unexpected}")
             if not (missing := expected - existing):
                 continue
-            await session.execute(insert(table), [{column.key: v} for v in missing])
+            await session.execute(sa.insert(table), [{column.key: v} for v in missing])
 
 
 async def _ensure_user_roles(db: DbSessionFactory) -> None:
@@ -96,22 +92,23 @@ async def _ensure_user_roles(db: DbSessionFactory) -> None:
     the email "admin@localhost".
     """
     async with db() as session:
-        role_ids = {
+        role_ids: dict[UserRoleName, int] = {
             name: id_
             async for name, id_ in await session.stream(
-                select(models.UserRole.name, models.UserRole.id)
+                sa.select(models.UserRole.name, models.UserRole.id)
             )
         }
-        existing_roles = [
+        existing_roles: list[UserRoleName] = [
             name
             async for name in await session.stream_scalars(
-                select(distinct(models.UserRole.name)).join_from(models.User, models.UserRole)
+                sa.select(sa.distinct(models.UserRole.name)).join_from(models.User, models.UserRole)
             )
         ]
-        if (system_role := UserRole.SYSTEM.value) not in existing_roles and (
-            system_role_id := role_ids.get(system_role)
-        ) is not None:
-            system_user = models.User(
+        if (
+            "SYSTEM" not in existing_roles
+            and (system_role_id := role_ids.get("SYSTEM")) is not None
+        ):
+            system_user = models.LocalUser(
                 user_role_id=system_role_id,
                 username=DEFAULT_SYSTEM_USERNAME,
                 email=DEFAULT_SYSTEM_EMAIL,
@@ -120,15 +117,13 @@ async def _ensure_user_roles(db: DbSessionFactory) -> None:
                 password_hash=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
             )
             session.add(system_user)
-        if (admin_role := UserRole.ADMIN.value) not in existing_roles and (
-            admin_role_id := role_ids.get(admin_role)
-        ) is not None:
+        if "ADMIN" not in existing_roles and (admin_role_id := role_ids.get("ADMIN")) is not None:
             salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
             password = get_env_default_admin_initial_password()
             compute = partial(compute_password_hash, password=password, salt=salt)
             loop = asyncio.get_running_loop()
             hash_ = await loop.run_in_executor(None, compute)
-            admin_user = models.User(
+            admin_user = models.LocalUser(
                 user_role_id=admin_role_id,
                 username=DEFAULT_ADMIN_USERNAME,
                 email=DEFAULT_ADMIN_EMAIL,
@@ -146,9 +141,9 @@ async def _get_system_user_id(db: DbSessionFactory) -> None:
     """
     async with db() as session:
         system_user_id = await session.scalar(
-            select(models.User.id)
+            sa.select(models.User.id)
             .join(models.UserRole)
-            .where(models.UserRole.name == UserRole.SYSTEM.value)
+            .where(models.UserRole.name == "SYSTEM")
             .order_by(models.User.id)
             .limit(1)
         )
@@ -168,10 +163,11 @@ async def _ensure_admins(
     """
     if not (admins := get_env_admins()):
         return
+    disable_basic_auth = get_env_disable_basic_auth()
     async with db() as session:
         existing_emails = set(
             await session.scalars(
-                select(models.User.email).where(models.User.email.in_(admins.keys()))
+                sa.select(models.User.email).where(models.User.email.in_(admins.keys()))
             )
         )
         admins = {
@@ -181,7 +177,7 @@ async def _ensure_admins(
             return
         existing_usernames = set(
             await session.scalars(
-                select(models.User.username).where(models.User.username.in_(admins.values()))
+                sa.select(models.User.username).where(models.User.username.in_(admins.values()))
             )
         )
         admins = {
@@ -191,20 +187,25 @@ async def _ensure_admins(
         }
         if not admins:
             return
-        admin_role_id = await session.scalar(
-            select(models.UserRole.id).filter_by(name=UserRole.ADMIN.value)
-        )
+        admin_role_id = await session.scalar(sa.select(models.UserRole.id).filter_by(name="ADMIN"))
         assert admin_role_id is not None, "Admin role not found in database"
+        user: models.User
         for email, username in admins.items():
-            values = dict(
-                user_role_id=admin_role_id,
-                username=username,
-                email=email,
-                password_salt=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
-                password_hash=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
-                reset_password=True,
-            )
-            await session.execute(insert(models.User).values(values))
+            if not disable_basic_auth:
+                user = models.LocalUser(
+                    email=email,
+                    username=username,
+                    password_salt=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
+                    password_hash=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
+                )
+            else:
+                user = models.OAuth2User(
+                    email=email,
+                    username=username,
+                )
+            user.user_role_id = admin_role_id
+            session.add(user)
+        await session.flush()
     if email_sender is None:
         return
     for exc in await gather(
@@ -239,8 +240,8 @@ async def _ensure_default_project_trace_retention_policy(db: DbSessionFactory) -
     assert DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID == 0
     async with db() as session:
         if await session.scalar(
-            select(
-                exists().where(
+            sa.select(
+                sa.exists().where(
                     models.ProjectTraceRetentionPolicy.id
                     == DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
                 )
@@ -250,7 +251,7 @@ async def _ensure_default_project_trace_retention_policy(db: DbSessionFactory) -
         cron_expression = TraceRetentionCronExpression(root="0 0 * * 0")
         rule = TraceRetentionRule(root=MaxDaysRule(max_days=0))
         await session.execute(
-            insert(models.ProjectTraceRetentionPolicy),
+            sa.insert(models.ProjectTraceRetentionPolicy),
             [
                 {
                     "id": DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID,

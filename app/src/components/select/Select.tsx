@@ -5,12 +5,15 @@ import {
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import { SizingProps } from "@phoenix/components/types";
+import { SizingProps, StylableProps } from "@phoenix/components/types";
 import { SizeProvider } from "@phoenix/contexts";
 
 import { fieldBaseCSS } from "../field/styles";
 
-export interface SelectProps extends AriaSelectProps, SizingProps {}
+export interface SelectProps
+  extends AriaSelectProps,
+    SizingProps,
+    StylableProps {}
 
 const selectCSS = css`
   button {

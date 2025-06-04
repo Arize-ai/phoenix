@@ -114,4 +114,4 @@ resp = OpenAI().chat.completions.create(**prompt.format(variables=variables))
 print(resp.choices[0].message.content)
 ```
 
-To learn more about prompt engineering using Phenix, see the [Phoenix documentation](https://docs.arize.com/phoenix/prompt-engineering/how-to-prompts).
+To learn more about prompt engineering using Phenix, see the [Phoenix documentation](https://arize.com/docs/phoenix/prompt-engineering/how-to-prompts).

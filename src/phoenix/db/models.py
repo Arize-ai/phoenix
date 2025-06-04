@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from enum import Enum
 from typing import Any, Iterable, Literal, Optional, Sequence, TypedDict, cast
 
 import sqlalchemy.sql as sql
@@ -23,7 +22,6 @@ from sqlalchemy import (
     case,
     func,
     insert,
-    not_,
     select,
     text,
 )
@@ -42,6 +40,7 @@ from sqlalchemy.orm import (
 from sqlalchemy.sql import Values, column, compiler, expression, literal, roles, union_all
 from sqlalchemy.sql.compiler import SQLCompiler
 from sqlalchemy.sql.functions import coalesce
+from typing_extensions import TypeAlias
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
@@ -147,9 +146,8 @@ def render_values_w_union(
     return compiler.process(subquery, from_linter=from_linter, **kw)
 
 
-class AuthMethod(Enum):
-    LOCAL = "LOCAL"
-    OAUTH2 = "OAUTH2"
+UserRoleName: TypeAlias = Literal["SYSTEM", "ADMIN", "MEMBER"]
+AuthMethod: TypeAlias = Literal["LOCAL", "OAUTH2"]
 
 
 class JSONB(JSON):
@@ -1135,7 +1133,7 @@ class ExperimentRunAnnotation(Base):
 
 class UserRole(Base):
     __tablename__ = "user_roles"
-    name: Mapped[str] = mapped_column(unique=True, index=True)
+    name: Mapped[UserRoleName] = mapped_column(unique=True, index=True)
     users: Mapped[list["User"]] = relationship("User", back_populates="role")
 
 
@@ -1152,8 +1150,11 @@ class User(Base):
     password_hash: Mapped[Optional[bytes]]
     password_salt: Mapped[Optional[bytes]]
     reset_password: Mapped[bool]
-    oauth2_client_id: Mapped[Optional[str]] = mapped_column(index=True, nullable=True)
-    oauth2_user_id: Mapped[Optional[str]] = mapped_column(index=True, nullable=True)
+    oauth2_client_id: Mapped[Optional[str]]
+    oauth2_user_id: Mapped[Optional[str]]
+    auth_method: Mapped[AuthMethod] = mapped_column(
+        CheckConstraint("auth_method IN ('LOCAL', 'OAUTH2')", name="valid_auth_method")
+    )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -1169,41 +1170,21 @@ class User(Base):
     )
     api_keys: Mapped[list["ApiKey"]] = relationship("ApiKey", back_populates="user")
 
-    @hybrid_property
-    def auth_method(self) -> Optional[str]:
-        if self.password_hash is not None:
-            return AuthMethod.LOCAL.value
-        elif self.oauth2_client_id is not None:
-            return AuthMethod.OAUTH2.value
-        return None
-
-    @auth_method.inplace.expression
-    @classmethod
-    def _auth_method_expression(cls) -> ColumnElement[Optional[str]]:
-        return case(
-            (
-                not_(cls.password_hash.is_(None)),
-                AuthMethod.LOCAL.value,
-            ),
-            (
-                not_(cls.oauth2_client_id.is_(None)),
-                AuthMethod.OAUTH2.value,
-            ),
-            else_=None,
-        )
+    __mapper_args__ = {
+        "polymorphic_on": "auth_method",
+        "polymorphic_identity": None,  # Base class is abstract
+    }
 
     __table_args__ = (
         CheckConstraint(
-            "(password_hash IS NULL) = (password_salt IS NULL)",
-            name="password_hash_and_salt",
+            "auth_method != 'LOCAL' "
+            "OR (password_hash IS NOT NULL AND password_salt IS NOT NULL "
+            "AND oauth2_client_id IS NULL AND oauth2_user_id IS NULL)",
+            name="local_auth_has_password_no_oauth",
         ),
         CheckConstraint(
-            "(oauth2_client_id IS NULL) = (oauth2_user_id IS NULL)",
-            name="oauth2_client_id_and_user_id",
-        ),
-        CheckConstraint(
-            "(password_hash IS NULL) != (oauth2_client_id IS NULL)",
-            name="exactly_one_auth_method",
+            "auth_method = 'LOCAL' OR (password_hash IS NULL AND password_salt IS NULL)",
+            name="non_local_auth_has_no_password",
         ),
         UniqueConstraint(
             "oauth2_client_id",
@@ -1211,6 +1192,59 @@ class User(Base):
         ),
         dict(sqlite_autoincrement=True),
     )
+
+
+class LocalUser(User):
+    __mapper_args__ = {
+        "polymorphic_identity": "LOCAL",
+    }
+
+    def __init__(
+        self,
+        *,
+        email: str,
+        username: str,
+        password_hash: bytes,
+        password_salt: bytes,
+        reset_password: bool = True,
+        user_role_id: Optional[int] = None,
+    ) -> None:
+        if not password_hash or not password_salt:
+            raise ValueError("password_hash and password_salt are required for LocalUser")
+        super().__init__(
+            email=email.strip(),
+            username=username.strip(),
+            user_role_id=user_role_id,
+            password_hash=password_hash,
+            password_salt=password_salt,
+            reset_password=reset_password,
+            auth_method="LOCAL",
+        )
+
+
+class OAuth2User(User):
+    __mapper_args__ = {
+        "polymorphic_identity": "OAUTH2",
+    }
+
+    def __init__(
+        self,
+        *,
+        email: str,
+        username: str,
+        oauth2_client_id: Optional[str] = None,
+        oauth2_user_id: Optional[str] = None,
+        user_role_id: Optional[int] = None,
+    ) -> None:
+        super().__init__(
+            email=email.strip(),
+            username=username.strip(),
+            user_role_id=user_role_id,
+            reset_password=False,
+            auth_method="OAUTH2",
+            oauth2_client_id=oauth2_client_id,
+            oauth2_user_id=oauth2_user_id,
+        )
 
 
 class PasswordResetToken(Base):

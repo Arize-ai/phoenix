@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.8.0...arize-phoenix-client-v1.9.0) (2025-05-31)
+
+
+### Features
+
+* **admin:** users REST api ([#7314](https://github.com/Arize-ai/phoenix/issues/7314)) ([c7bcc36](https://github.com/Arize-ai/phoenix/commit/c7bcc36b8469e76db3038f53859e24c7bb5da000))
+* xai to playground ([#7808](https://github.com/Arize-ai/phoenix/issues/7808)) ([5dd53be](https://github.com/Arize-ai/phoenix/commit/5dd53be2ee697dd1b2c482df58d718d00ae892eb))
+
+## [1.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.7.0...arize-phoenix-client-v1.8.0) (2025-05-29)
+
+
+### Features
+
+* Playground add deepseek ([#7675](https://github.com/Arize-ai/phoenix/issues/7675)) ([b162720](https://github.com/Arize-ai/phoenix/commit/b162720325c7fe7c20cda75feb161b4646127cf8))
+
+## [1.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.6.0...arize-phoenix-client-v1.7.0) (2025-05-21)
+
+
+### Features
+
+* graphql query for hourly span count timeseries ([#6997](https://github.com/Arize-ai/phoenix/issues/6997)) ([fe6a80a](https://github.com/Arize-ai/phoenix/commit/fe6a80aaa939ebe445af04c17e46b2c29080bc60))
+
 ## [1.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.5.0...arize-phoenix-client-v1.6.0) (2025-05-14)
 
 

@@ -1,6 +1,15 @@
-import { Item, Picker } from "@arizeai/components";
-
-import { Flex, Token } from "@phoenix/components";
+import {
+  Button,
+  Flex,
+  Label,
+  ListBox,
+  Popover,
+  Select,
+  SelectChevronUpDownIcon,
+  SelectItem,
+  SelectValue,
+  Token,
+} from "@phoenix/components";
 import {
   AnthropicToolChoice,
   findToolChoiceName,
@@ -20,6 +29,8 @@ import { assertUnreachable, isObject } from "@phoenix/typeUtils";
 export const DEFAULT_TOOL_CHOICES_BY_PROVIDER = {
   OPENAI: ["required", "auto", "none"] as const,
   AZURE_OPENAI: ["required", "auto", "none"] as const,
+  DEEPSEEK: ["required", "auto", "none"] as const,
+  XAI: ["required", "auto", "none"] as const,
   ANTHROPIC: ["any", "auto", "none"] as const,
 } satisfies Partial<
   Record<ModelProvider, (string | Record<string, unknown>)[]>
@@ -40,6 +51,8 @@ export const findToolChoiceType = (
 ) => {
   switch (provider) {
     case "AZURE_OPENAI":
+    case "DEEPSEEK":
+    case "XAI":
     case "OPENAI":
       if (
         isObject(choice) &&
@@ -139,8 +152,13 @@ export const ChoiceLabel = ({
     case "any":
     case "required":
       return (
-        <Flex gap={"size-100"} width={"100%"}>
-          Use at least one tool{" "}
+        <Flex
+          gap="size-100"
+          alignItems="center"
+          justifyContent="space-between"
+          width="100%"
+        >
+          <span>Use at least one tool</span>
           <Token color="var(--ac-global-color-grey-900)" size="S">
             {choiceType}
           </Token>
@@ -148,8 +166,13 @@ export const ChoiceLabel = ({
       );
     case "none":
       return (
-        <Flex gap={"size-100"} width={"100%"}>
-          Don&apos;t use any tools{" "}
+        <Flex
+          gap="size-100"
+          alignItems="center"
+          justifyContent="space-between"
+          width="100%"
+        >
+          <span>Don&apos;t use any tools</span>
           <Token color="var(--ac-global-color-grey-900)" size="S">
             {choiceType}
           </Token>
@@ -158,8 +181,13 @@ export const ChoiceLabel = ({
     case "auto":
     default:
       return (
-        <Flex gap={"size-100"} width={"100%"}>
-          Tools auto-selected by LLM{" "}
+        <Flex
+          gap="size-100"
+          alignItems="center"
+          justifyContent="space-between"
+          width="100%"
+        >
+          <span>Tools auto-selected by LLM</span>
           <Token color="var(--ac-global-color-grey-900)" size="S">
             {choiceType}
           </Token>
@@ -195,9 +223,8 @@ export function ToolChoiceSelector<
     ? currentChoiceType
     : addToolNamePrefix(findToolChoiceName(choice) ?? "");
   return (
-    <Picker
+    <Select
       selectedKey={currentKey}
-      label="Tool Choice"
       aria-label="Tool Choice for an LLM"
       onSelectionChange={(choice) => {
         if (typeof choice !== "string") {
@@ -206,6 +233,8 @@ export function ToolChoiceSelector<
         if (choice.startsWith(TOOL_NAME_PREFIX)) {
           switch (provider) {
             case "AZURE_OPENAI":
+            case "DEEPSEEK":
+            case "XAI":
             case "OPENAI":
               onChange(
                 makeOpenAIToolChoice({
@@ -230,6 +259,8 @@ export function ToolChoiceSelector<
         } else if (isDefaultToolChoice(provider, choice)) {
           switch (provider) {
             case "AZURE_OPENAI":
+            case "DEEPSEEK":
+            case "XAI":
             case "OPENAI":
               onChange(
                 makeOpenAIToolChoice(
@@ -250,21 +281,34 @@ export function ToolChoiceSelector<
         }
       }}
     >
-      {[
-        ...(DEFAULT_TOOL_CHOICES_BY_PROVIDER[provider]
-          ? DEFAULT_TOOL_CHOICES_BY_PROVIDER[provider].map((choice) => (
-              <Item key={choice} textValue={choice}>
-                <ChoiceLabel choiceType={choice} />
-              </Item>
-            ))
-          : []),
-        // Add "TOOL_NAME_PREFIX" prefix to user defined tool names to avoid conflicts with default keys
-        ...toolNames.map((toolName) => (
-          <Item key={addToolNamePrefix(toolName)} textValue={toolName}>
-            {toolName}
-          </Item>
-        )),
-      ]}
-    </Picker>
+      <Label>Tool Choice</Label>
+      <Button>
+        <SelectValue />
+        <SelectChevronUpDownIcon />
+      </Button>
+      <Popover>
+        <ListBox>
+          {[
+            ...(DEFAULT_TOOL_CHOICES_BY_PROVIDER[provider]
+              ? DEFAULT_TOOL_CHOICES_BY_PROVIDER[provider].map((choice) => (
+                  <SelectItem key={choice} id={choice} textValue={choice}>
+                    <ChoiceLabel choiceType={choice} />
+                  </SelectItem>
+                ))
+              : []),
+            // Add "TOOL_NAME_PREFIX" prefix to user defined tool names to avoid conflicts with default keys
+            ...toolNames.map((toolName) => (
+              <SelectItem
+                key={addToolNamePrefix(toolName)}
+                id={addToolNamePrefix(toolName)}
+                textValue={toolName}
+              >
+                {toolName}
+              </SelectItem>
+            )),
+          ]}
+        </ListBox>
+      </Popover>
+    </Select>
   );
 }

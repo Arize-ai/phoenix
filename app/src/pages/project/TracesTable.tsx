@@ -224,8 +224,6 @@ export function TracesTable(props: TracesTableProps) {
                 startTime
                 latencyMs
                 cumulativeTokenCountTotal
-                cumulativeTokenCountPrompt
-                cumulativeTokenCountCompletion
                 parentId
                 input {
                   value: truncatedValue
@@ -273,8 +271,6 @@ export function TracesTable(props: TracesTableProps) {
                       latencyMs
                       parentId
                       cumulativeTokenCountTotal: tokenCountTotal
-                      cumulativeTokenCountPrompt: tokenCountPrompt
-                      cumulativeTokenCountCompletion: tokenCountCompletion
                       input {
                         value: truncatedValue
                       }
@@ -651,10 +647,7 @@ export function TracesTable(props: TracesTableProps) {
           return (
             <TokenCount
               tokenCountTotal={value as number}
-              tokenCountPrompt={row.original.cumulativeTokenCountPrompt || 0}
-              tokenCountCompletion={
-                row.original.cumulativeTokenCountCompletion || 0
-              }
+              nodeId={row.original.trace.id}
             />
           );
         },

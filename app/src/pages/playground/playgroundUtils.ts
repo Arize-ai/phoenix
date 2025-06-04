@@ -9,6 +9,7 @@ import {
   ChatRoleMap,
   DEFAULT_CHAT_ROLE,
   DEFAULT_MODEL_PROVIDER,
+  ProviderToCredentialsConfigMap,
 } from "@phoenix/constants/generativeConstants";
 import {
   createAnthropicToolDefinition,
@@ -49,6 +50,7 @@ import {
   ChatCompletionInput,
   ChatCompletionMessageInput,
   ChatCompletionMessageRole,
+  GenerativeCredentialInput,
   InvocationParameterInput,
 } from "./__generated__/PlaygroundOutputSubscription.graphql";
 import {
@@ -152,6 +154,8 @@ export function processAttributeToolCalls({
       switch (provider) {
         case "OPENAI":
         case "AZURE_OPENAI":
+        case "DEEPSEEK":
+        case "XAI":
           return {
             id: tool_call.id ?? "",
             type: "function" as const,
@@ -890,6 +894,8 @@ export const createToolForProvider = ({
 }): Tool => {
   switch (provider) {
     case "OPENAI":
+    case "DEEPSEEK":
+    case "XAI":
     case "AZURE_OPENAI":
       return {
         id: generateToolId(),
@@ -922,6 +928,8 @@ export const createToolCallForProvider = (
   switch (provider) {
     case "OPENAI":
     case "AZURE_OPENAI":
+    case "DEEPSEEK":
+    case "XAI":
       return createOpenAIToolCall();
     case "ANTHROPIC":
       return createAnthropicToolCall();
@@ -1060,7 +1068,7 @@ const getBaseChatCompletionInput = ({
     tools: instance.tools.length
       ? instance.tools.map((tool) => tool.definition)
       : undefined,
-    apiKey: credentials[instance.model.provider] || null,
+    credentials: getCredentials(credentials, instance.model.provider),
     promptName: instance.prompt?.name,
   } satisfies Partial<ChatCompletionInput>;
 };
@@ -1091,6 +1099,29 @@ export const denormalizePlaygroundInstance = (
   // it cannot be a normalized instance if it is not a chat template
   return instance as PlaygroundInstance;
 };
+
+/**
+ * A function that gets the credentials for a provider
+ */
+function getCredentials(
+  credentials: CredentialsState,
+  provider: ModelProvider
+): GenerativeCredentialInput[] {
+  const providerCredentials = credentials[provider];
+  const providerCredentialsConfig = ProviderToCredentialsConfigMap[provider];
+  if (!providerCredentials) {
+    // This means the credentials are missing, however we don't want to throw here so we return an empty array
+    return [];
+  }
+  if (providerCredentialsConfig.length === 0) {
+    // This means that the provider doesn't require any credentials
+    return [];
+  }
+  return providerCredentialsConfig.map((credential) => ({
+    envVarName: credential.envVarName,
+    value: providerCredentials[credential.envVarName] ?? "",
+  }));
+}
 
 /**
  * Gets chat completion input for running over variables
@@ -1354,6 +1385,29 @@ const applyAnthropicInvocationParameterConstraints = (
   });
 };
 
+const ZERO_VALUE_INVOCATION_NAMES = ["frequency_penalty", "presence_penalty"];
+
+/**
+ * A function that filters out invocation parameters where 0 and null have the same effect
+ * For these parameters, we can omit the 0 value because it's the same as null
+ * @param invocationParameters
+ * @returns
+ */
+const filterZeroValueInvocationParameters = (
+  invocationParameters: InvocationParameterInput[]
+): InvocationParameterInput[] => {
+  const filtered = invocationParameters.filter((param) => {
+    if (
+      param.invocationName &&
+      ZERO_VALUE_INVOCATION_NAMES.includes(param.invocationName)
+    ) {
+      return !(param.valueFloat == 0 || param.valueInt == 0);
+    }
+    return true;
+  });
+  return filtered;
+};
+
 /**
  * Applies provider-specific constraints to the invocation parameters.
  *
@@ -1367,11 +1421,14 @@ export const applyProviderInvocationParameterConstraints = (
   provider: ModelProvider,
   model: string | null
 ): InvocationParameterInput[] => {
+  // We want to remove 0 values for parameters where 0 and null have the same effect
+  const filteredInvocationParameters =
+    filterZeroValueInvocationParameters(invocationParameters);
   if (provider === "ANTHROPIC") {
     return applyAnthropicInvocationParameterConstraints(
-      invocationParameters,
+      filteredInvocationParameters,
       model
     );
   }
-  return invocationParameters;
+  return filteredInvocationParameters;
 };
