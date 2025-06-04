@@ -242,7 +242,7 @@ input ChatCompletionOverDatasetInput {
   model: GenerativeModelInput!
   invocationParameters: [InvocationParameterInput!]! = []
   tools: [JSON!]
-  apiKey: String = null
+  credentials: [GenerativeCredentialInput!]
   templateFormat: PromptTemplateFormat! = MUSTACHE
   datasetId: ID!
   datasetVersionId: ID = null

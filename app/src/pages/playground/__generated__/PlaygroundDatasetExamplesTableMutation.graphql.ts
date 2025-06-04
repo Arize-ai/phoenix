@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8697c065b8c8c2089352084dfcb92352>>
+ * @generated SignedSource<<05e9fa98eec391918dc355624b41abd9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,7 +14,7 @@ export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OPENAI" | "XAI";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionOverDatasetInput = {
-  apiKey?: string | null;
+  credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
   datasetId: string;
   datasetVersionId?: string | null;
   experimentDescription?: string | null;
@@ -50,6 +50,10 @@ export type InvocationParameterInput = {
   valueJson?: any | null;
   valueString?: string | null;
   valueStringList?: ReadonlyArray<string> | null;
+};
+export type GenerativeCredentialInput = {
+  envVarName: string;
+  value: string;
 };
 export type PlaygroundDatasetExamplesTableMutation$variables = {
   input: ChatCompletionOverDatasetInput;
