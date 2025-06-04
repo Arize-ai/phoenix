@@ -31,10 +31,8 @@ def _is_valid_dataset_example(obj: Any) -> bool:
     if not isinstance(obj, dict):
         return False
 
-    # Get the required fields from the TypedDict annotations
     required_fields = set(v1.DatasetExample.__annotations__.keys())
 
-    # Check all required fields are present
     if not required_fields.issubset(obj.keys()):
         return False
     return True
@@ -111,10 +109,8 @@ class Dataset:
     @property
     def example_count(self) -> int:
         """Number of examples in this version."""
-        # Try to get from DatasetWithExampleCount first
         if "example_count" in self._dataset_info:
             return self._dataset_info["example_count"]
-        # Fall back to counting examples
         return len(self.examples)
 
     def __repr__(self) -> str:
@@ -168,12 +164,10 @@ class Dataset:
         from copy import deepcopy
 
         if not self.examples:
-            # Return empty DataFrame with expected structure
             return pd.DataFrame(columns=["input", "output", "metadata"]).set_index(
                 pd.Index([], name="example_id")
             )
 
-        # Convert examples to records for DataFrame
         records = [
             {
                 "example_id": example["id"],
@@ -207,7 +201,6 @@ class DatasetKeys:
         self.output = output_keys
         self.metadata = metadata_keys
 
-        # Check for overlapping keys
         if self.input & self.output:
             raise ValueError(f"Input and output keys overlap: {self.input & self.output}")
         if self.input & self.metadata:
@@ -293,16 +286,13 @@ class Datasets:
             Tuple of (dataset_id, dataset_name), where either or both may be None
         """
         if isinstance(dataset, Dataset):
-            # Dataset object
             return dataset.id, dataset.name
         elif isinstance(dataset, str):
-            # Could be ID or name - check if it's a valid node ID
             if is_node_id(dataset, "Dataset"):
                 return dataset, None
             else:
                 return None, dataset
         elif isinstance(dataset, dict):
-            # Dictionary with id/name fields
             return dataset.get("id"), dataset.get("name")
         else:
             raise ValueError(
@@ -333,10 +323,8 @@ class Datasets:
             ValueError: If dataset format is invalid.
             httpx.HTTPStatusError: If the API returns an error response.
         """
-        # Resolve dataset identification
         resolved_id, resolved_name = self._resolve_dataset_id_and_name(dataset, timeout=timeout)
 
-        # Get dataset ID - prefer ID over name if both present
         if resolved_id:
             dataset_id = resolved_id
         elif resolved_name:
@@ -345,7 +333,6 @@ class Datasets:
             # This shouldn't happen with current resolution logic, but just in case
             raise ValueError("Could not determine dataset ID or name from input")
 
-        # Get dataset info
         dataset_response = self._client.get(
             url=f"v1/datasets/{quote(dataset_id)}",
             headers={"accept": "application/json"},
@@ -354,7 +341,6 @@ class Datasets:
         dataset_response.raise_for_status()
         dataset_info = dataset_response.json()["data"]
 
-        # Get examples
         params = {"version_id": version_id} if version_id else None
         examples_response = self._client.get(
             url=f"v1/datasets/{quote(dataset_id)}/examples",
@@ -394,7 +380,6 @@ class Datasets:
             ValueError: If dataset format is invalid.
             httpx.HTTPStatusError: If the API returns an error response.
         """
-        # Resolve dataset identification
         resolved_id, resolved_name = self._resolve_dataset_id_and_name(dataset, timeout=timeout)
 
         if resolved_id:
@@ -416,7 +401,6 @@ class Datasets:
         if not records:
             return []
 
-        # Parse datetime strings to datetime objects
         for record in records:
             if "created_at" in record:
                 record["created_at"] = _parse_datetime(record["created_at"])
@@ -465,7 +449,6 @@ class Datasets:
             ImportError: If pandas is required but not installed.
             httpx.HTTPStatusError: If the API returns an error response.
         """
-        # Validate parameter combinations first
         has_examples = examples is not None
         has_tabular = dataframe is not None or csv_file_path is not None
         has_json = any(inputs) or any(outputs) or any(metadata)
@@ -479,17 +462,12 @@ class Datasets:
         if dataframe is not None and csv_file_path is not None:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
-        # Handle examples parameter by extracting inputs/outputs/metadata
         if examples is not None:
-            # Check if examples is a single DatasetExample or iterable
             if _is_valid_dataset_example(examples):
-                # Single DatasetExample
                 examples_list = [examples]
             else:
-                # Iterable of DatasetExample objects
                 examples_list = list(examples)
 
-            # Extract inputs, outputs, metadata from examples
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
             metadata = [dict(example["metadata"]) for example in examples_list]
@@ -559,13 +537,10 @@ class Datasets:
             ImportError: If pandas is required but not installed.
             httpx.HTTPStatusError: If the API returns an error response.
         """
-        # Resolve dataset name - get both ID and name in one call
         resolved_id, resolved_name = self._resolve_dataset_id_and_name(dataset, timeout=timeout)
 
         if not resolved_name:
-            # If we only have an ID, we need to get the name
             if resolved_id:
-                # Fetch dataset info to get the name
                 response = self._client.get(
                     url=f"v1/datasets/{quote(resolved_id)}",
                     headers={"accept": "application/json"},
@@ -576,7 +551,6 @@ class Datasets:
             else:
                 raise ValueError("Could not determine dataset name from input")
 
-        # Validate parameter combinations first
         has_examples = examples is not None
         has_tabular = dataframe is not None or csv_file_path is not None
         has_json = any(inputs) or any(outputs) or any(metadata)
@@ -590,17 +564,12 @@ class Datasets:
         if dataframe is not None and csv_file_path is not None:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
-        # Handle examples parameter by extracting inputs/outputs/metadata
         if examples is not None:
-            # Check if examples is a single DatasetExample or iterable
             if _is_valid_dataset_example(examples):
-                # Single DatasetExample
                 examples_list = [examples]
             else:
-                # Iterable of DatasetExample objects
                 examples_list = list(examples)
 
-            # Extract inputs, outputs, metadata from examples
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
             metadata = [dict(example["metadata"]) for example in examples_list]
@@ -680,7 +649,6 @@ class Datasets:
         """
         Upload tabular data (CSV or DataFrame) as dataset.
         """
-        # Convert keys to frozensets and validate
         input_keys_set = frozenset(input_keys)
         output_keys_set = frozenset(output_keys)
         metadata_keys_set = frozenset(metadata_keys)
@@ -695,10 +663,8 @@ class Datasets:
         keys = DatasetKeys(input_keys_set, output_keys_set, metadata_keys_set)
 
         if isinstance(table, Path) or isinstance(table, str):
-            # Handle CSV file
             file = _prepare_csv(Path(table), keys)
         else:
-            # Handle DataFrame - requires pandas
             try:
                 import pandas as pd
 
@@ -711,7 +677,6 @@ class Datasets:
                 )
             file = _prepare_dataframe_as_json(table, keys)
 
-        # Upload file
         logger.info("Uploading dataset...")
         response = self._client.post(
             url="v1/datasets/upload",
@@ -755,7 +720,6 @@ class Datasets:
         if not _is_all_dict(inputs_list):
             raise ValueError("inputs must contain only dictionaries")
 
-        # Validate outputs and metadata if provided
         for name, data in [("outputs", outputs_list), ("metadata", metadata_list)]:
             if data:
                 if len(data) != len(inputs_list):
@@ -766,7 +730,6 @@ class Datasets:
                 if not _is_all_dict(data):
                     raise ValueError(f"{name} must contain only dictionaries")
 
-        # Prepare request payload
         payload = {
             "action": action,
             "name": dataset_name,
@@ -801,26 +764,22 @@ class Datasets:
         try:
             response.raise_for_status()
         except httpx.HTTPStatusError as e:
-            # Extract error message from response if available
             try:
                 error_detail = response.json().get("detail", str(e))
             except:
                 error_detail = response.text or str(e)
             raise DatasetUploadError(f"Dataset upload failed: {error_detail}") from e
 
-        # Get dataset and version IDs from upload response
         upload_data = response.json()["data"]
         dataset_id = upload_data["dataset_id"]
         version_id = upload_data["version_id"]
 
-        # Get full dataset info and examples
         dataset = self.get_dataset(
             dataset=dataset_id,
             version_id=version_id,
             timeout=timeout,
         )
 
-        # Log success info
         logger.info(f"Dataset uploaded successfully. ID: {dataset_id}, Version: {version_id}")
 
         return dataset
@@ -888,16 +847,13 @@ class AsyncDatasets:
             Tuple of (dataset_id, dataset_name), where either or both may be None
         """
         if isinstance(dataset, Dataset):
-            # Dataset object
             return dataset.id, dataset.name
         elif isinstance(dataset, str):
-            # Could be ID or name - check if it's a valid node ID
             if is_node_id(dataset, "Dataset"):
                 return dataset, None
             else:
                 return None, dataset
         elif isinstance(dataset, dict):
-            # Dictionary with id/name fields
             return dataset.get("id"), dataset.get("name")
         else:
             raise ValueError(
@@ -928,12 +884,10 @@ class AsyncDatasets:
             ValueError: If dataset format is invalid.
             httpx.HTTPStatusError: If the API returns an error response.
         """
-        # Resolve dataset identification
         resolved_id, resolved_name = await self._resolve_dataset_id_and_name(
             dataset, timeout=timeout
         )
 
-        # Get dataset ID - prefer ID over name if both present
         if resolved_id:
             dataset_id = resolved_id
         elif resolved_name:
@@ -944,7 +898,6 @@ class AsyncDatasets:
             # This shouldn't happen with current resolution logic, but just in case
             raise ValueError("Could not determine dataset ID or name from input")
 
-        # Get dataset info
         dataset_response = await self._client.get(
             url=f"v1/datasets/{quote(dataset_id)}",
             headers={"accept": "application/json"},
@@ -953,7 +906,6 @@ class AsyncDatasets:
         dataset_response.raise_for_status()
         dataset_info = dataset_response.json()["data"]
 
-        # Get examples
         params = {"version_id": version_id} if version_id else None
         examples_response = await self._client.get(
             url=f"v1/datasets/{quote(dataset_id)}/examples",
@@ -993,7 +945,6 @@ class AsyncDatasets:
             ValueError: If dataset format is invalid.
             httpx.HTTPStatusError: If the API returns an error response.
         """
-        # Resolve dataset identification
         resolved_id, resolved_name = await self._resolve_dataset_id_and_name(
             dataset, timeout=timeout
         )
@@ -1019,7 +970,6 @@ class AsyncDatasets:
         if not records:
             return []
 
-        # Parse datetime strings to datetime objects
         for record in records:
             if "created_at" in record:
                 record["created_at"] = _parse_datetime(record["created_at"])
@@ -1068,7 +1018,6 @@ class AsyncDatasets:
             ImportError: If pandas is required but not installed.
             httpx.HTTPStatusError: If the API returns an error response.
         """
-        # Validate parameter combinations first
         has_examples = examples is not None
         has_tabular = dataframe is not None or csv_file_path is not None
         has_json = any(inputs) or any(outputs) or any(metadata)
@@ -1082,17 +1031,12 @@ class AsyncDatasets:
         if dataframe is not None and csv_file_path is not None:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
-        # Handle examples parameter by extracting inputs/outputs/metadata
         if examples is not None:
-            # Check if examples is a single DatasetExample or iterable
             if _is_valid_dataset_example(examples):
-                # Single DatasetExample
                 examples_list = [examples]
             else:
-                # Iterable of DatasetExample objects
                 examples_list = list(examples)
 
-            # Extract inputs, outputs, metadata from examples
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
             metadata = [dict(example["metadata"]) for example in examples_list]
@@ -1162,15 +1106,12 @@ class AsyncDatasets:
             ImportError: If pandas is required but not installed.
             httpx.HTTPStatusError: If the API returns an error response.
         """
-        # Resolve dataset name - get both ID and name in one call
         resolved_id, resolved_name = await self._resolve_dataset_id_and_name(
             dataset, timeout=timeout
         )
 
         if not resolved_name:
-            # If we only have an ID, we need to get the name
             if resolved_id:
-                # Fetch dataset info to get the name
                 response = await self._client.get(
                     url=f"v1/datasets/{quote(resolved_id)}",
                     headers={"accept": "application/json"},
@@ -1181,7 +1122,6 @@ class AsyncDatasets:
             else:
                 raise ValueError("Could not determine dataset name from input")
 
-        # Validate parameter combinations first
         has_examples = examples is not None
         has_tabular = dataframe is not None or csv_file_path is not None
         has_json = any(inputs) or any(outputs) or any(metadata)
@@ -1195,17 +1135,12 @@ class AsyncDatasets:
         if dataframe is not None and csv_file_path is not None:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
-        # Handle examples parameter by extracting inputs/outputs/metadata
         if examples is not None:
-            # Check if examples is a single DatasetExample or iterable
             if _is_valid_dataset_example(examples):
-                # Single DatasetExample
                 examples_list = [examples]
             else:
-                # Iterable of DatasetExample objects
                 examples_list = list(examples)
 
-            # Extract inputs, outputs, metadata from examples
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
             metadata = [dict(example["metadata"]) for example in examples_list]
@@ -1270,7 +1205,6 @@ class AsyncDatasets:
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
         """Async version of _upload_tabular_dataset."""
-        # Convert keys to frozensets and validate
         input_keys_set = frozenset(input_keys)
         output_keys_set = frozenset(output_keys)
         metadata_keys_set = frozenset(metadata_keys)
@@ -1285,10 +1219,8 @@ class AsyncDatasets:
         keys = DatasetKeys(input_keys_set, output_keys_set, metadata_keys_set)
 
         if isinstance(table, Path) or isinstance(table, str):
-            # Handle CSV file
             file = _prepare_csv(Path(table), keys)
         else:
-            # Handle DataFrame - requires pandas
             try:
                 import pandas as pd
 
@@ -1301,7 +1233,6 @@ class AsyncDatasets:
                 )
             file = _prepare_dataframe_as_json(table, keys)
 
-        # Upload file
         logger.info("Uploading dataset...")
         response = await self._client.post(
             url="v1/datasets/upload",
@@ -1343,7 +1274,6 @@ class AsyncDatasets:
         if not _is_all_dict(inputs_list):
             raise ValueError("inputs must contain only dictionaries")
 
-        # Validate outputs and metadata if provided
         for name, data in [("outputs", outputs_list), ("metadata", metadata_list)]:
             if data:
                 if len(data) != len(inputs_list):
@@ -1354,7 +1284,6 @@ class AsyncDatasets:
                 if not _is_all_dict(data):
                     raise ValueError(f"{name} must contain only dictionaries")
 
-        # Prepare request payload
         payload = {
             "action": action,
             "name": dataset_name,
@@ -1387,26 +1316,22 @@ class AsyncDatasets:
         try:
             response.raise_for_status()
         except httpx.HTTPStatusError as e:
-            # Extract error message from response if available
             try:
                 error_detail = response.json().get("detail", str(e))
             except Exception:
                 error_detail = response.text or str(e)
             raise DatasetUploadError(f"Dataset upload failed: {error_detail}") from e
 
-        # Get dataset and version IDs from upload response
         upload_data = response.json()["data"]
         dataset_id = upload_data["dataset_id"]
         version_id = upload_data["version_id"]
 
-        # Get full dataset info and examples
         dataset = await self.get_dataset(
             dataset=dataset_id,
             version_id=version_id,
             timeout=timeout,
         )
 
-        # Log success info
         logger.info(f"Dataset uploaded successfully. ID: {dataset_id}, Version: {version_id}")
 
         return dataset
@@ -1436,17 +1361,14 @@ def _prepare_csv(path: Path, keys: DatasetKeys) -> tuple[str, BinaryIO, str, dic
     """
     Prepare CSV file for upload with validation and compression.
     """
-    # Get and validate headers
     column_headers = _get_csv_column_headers(path)
     header_counts = Counter(column_headers)
     duplicates = [h for h, count in header_counts.items() if count > 1]
     if duplicates:
         raise ValueError(f"Duplicate column headers in CSV: {duplicates}")
 
-    # Check that all keys exist in headers
     keys.check_differences(frozenset(column_headers))
 
-    # Read and compress file
     with open(path, "rb") as f:
         content = f.read()
 
@@ -1468,24 +1390,20 @@ def _prepare_dataframe_as_json(
     if df.empty:
         raise ValueError("DataFrame has no data")
 
-    # Check for duplicate columns
     column_counts = Counter(df.columns)
     duplicates = [col for col, count in column_counts.items() if count > 1]
     if duplicates:
         raise ValueError(f"Duplicate column names in DataFrame: {duplicates}")
 
-    # Validate keys exist
     keys.check_differences(frozenset(df.columns))
 
     # Ensure consistent column ordering: input, output, metadata
     selected_columns = sorted(keys.input) + sorted(keys.output) + sorted(keys.metadata)
 
-    # Convert DataFrame to CSV format
     csv_buffer = BytesIO()
     df[selected_columns].to_csv(csv_buffer, index=False)
     csv_buffer.seek(0)
 
-    # Compress the CSV data
     compressed = BytesIO()
     compressed.write(gzip.compress(csv_buffer.read()))
     compressed.seek(0)
@@ -1509,7 +1427,6 @@ def _infer_keys(
         else:
             column_headers = _get_csv_column_headers(Path(table))
     except ImportError:
-        # If pandas not available, must be CSV
         if not isinstance(table, (str, Path)):
             raise ValueError("Pandas not available, table must be a CSV file path")
         column_headers = _get_csv_column_headers(Path(table))
@@ -1517,7 +1434,6 @@ def _infer_keys(
     # Pattern to match output/response columns
     output_pattern = re.compile(r"(?i)(response|answer|output)s?$")
 
-    # Find first column that matches output pattern
     output_idx = None
     for i, header in enumerate(column_headers):
         if output_pattern.search(header):
