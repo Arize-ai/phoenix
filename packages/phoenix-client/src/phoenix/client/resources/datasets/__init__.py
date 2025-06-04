@@ -239,65 +239,42 @@ class Datasets:
         Basic usage:
             >>> from phoenix.client import Client
             >>> client = Client()
-            >>> dataset = client.datasets.get_dataset("my-dataset")
+            >>> dataset = client.datasets.get_dataset(dataset="my-dataset")
             >>> print(f"Dataset {dataset.name} has {len(dataset)} examples")
-            >>> versions = client.datasets.get_dataset_versions(dataset)
 
-        Method chaining:
-            >>> # Create dataset and get its versions
+        Creating and updating datasets:
+            >>> # Create a new dataset
             >>> dataset = client.datasets.create_dataset(
-            ...     dataset_name="my-dataset",
-            ...     inputs=[{"text": "hello"}],
-            ...     outputs=[{"response": "hi"}]
+            ...     dataset_name="qa-dataset",
+            ...     inputs=[{"question": "What is 2+2?"}, {"question": "What is the capital of France?"}],
+            ...     outputs=[{"answer": "4"}, {"answer": "Paris"}]
             ... )
-            >>> versions = client.datasets.get_dataset_versions(dataset)
             >>>
-            >>> # Add individual examples from one dataset to another
-            >>> source_dataset = client.datasets.get_dataset("source")
+            >>> # Add more examples later
             >>> updated = client.datasets.add_examples_to_dataset(
-            ...     dataset="target",
-            ...     examples=source_dataset[0]  # Pass a single example!
-            ... )
-            >>> print(f"Dataset now has {len(updated)} examples")
-            >>>
-            >>> # Or add multiple specific examples
-            >>> client.datasets.add_examples_to_dataset(
-            ...     dataset="target",
-            ...     examples=source_dataset.examples[:5]  # First 5 examples
+            ...     dataset="qa-dataset",
+            ...     inputs=[{"question": "Who wrote Hamlet?"}],
+            ...     outputs=[{"answer": "Shakespeare"}]
             ... )
 
-        Working with examples:
-            >>> # Iterate over examples
-            >>> for example in dataset:
-            ...     print(example["input"], "->", example["output"])
-            >>>
-            >>> # Access examples by index
-            >>> first_example = dataset[0]
-            >>>
-            >>> # Get all examples as a list
-            >>> all_examples = dataset.examples
-            >>>
-            >>> # Convert to pandas DataFrame (requires pandas)
+        Working with DataFrames:
+            >>> # Convert dataset to DataFrame
             >>> df = dataset.to_dataframe()
-            >>> print(df.head())
-            >>> # DataFrame has 'input', 'output', 'metadata' columns containing dictionaries
-
-        Using DataFrame with add_examples_to_dataset:
-            >>> # Get dataset and convert to DataFrame
-            >>> source = client.datasets.get_dataset("source")
-            >>> df = source.to_dataframe()
+            >>> print(df.columns)  # Index(['input', 'output', 'metadata'], dtype='object')
             >>>
-            >>> # Extract dictionaries from DataFrame columns
-            >>> inputs = df['input'].tolist()
-            >>> outputs = df['output'].tolist()
-            >>> metadata = df['metadata'].tolist()
-            >>>
-            >>> # Use extracted data to create/update datasets
-            >>> client.datasets.add_examples_to_dataset(
-            ...     dataset="target",
-            ...     inputs=inputs,
-            ...     outputs=outputs,
-            ...     metadata=metadata
+            >>> # Create dataset from DataFrame
+            >>> import pandas as pd
+            >>> df = pd.DataFrame({
+            ...     "prompt": ["Hello", "Hi there"],
+            ...     "response": ["Hi!", "Hello!"],
+            ...     "score": [0.9, 0.95]
+            ... })
+            >>> dataset = client.datasets.create_dataset(
+            ...     dataset_name="greetings",
+            ...     dataframe=df,
+            ...     input_keys=["prompt"],
+            ...     output_keys=["response"],
+            ...     metadata_keys=["score"]
             ... )
     """
 
@@ -334,8 +311,8 @@ class Datasets:
 
     def get_dataset(
         self,
-        dataset: DatasetIdentifier,
         *,
+        dataset: DatasetIdentifier,
         version_id: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
@@ -392,8 +369,8 @@ class Datasets:
 
     def get_dataset_versions(
         self,
-        dataset: DatasetIdentifier,
         *,
+        dataset: DatasetIdentifier,
         limit: Optional[int] = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.DatasetVersion]:
@@ -543,8 +520,8 @@ class Datasets:
 
     def add_examples_to_dataset(
         self,
-        dataset: DatasetIdentifier,
         *,
+        dataset: DatasetIdentifier,
         examples: Optional[Union[v1.DatasetExample, Iterable[v1.DatasetExample]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
@@ -857,42 +834,42 @@ class AsyncDatasets:
         Basic usage:
             >>> from phoenix.client import AsyncClient
             >>> client = AsyncClient()
-            >>> dataset = await client.datasets.get_dataset("my-dataset")
+            >>> dataset = await client.datasets.get_dataset(dataset="my-dataset")
             >>> print(f"Dataset {dataset.name} has {len(dataset)} examples")
-            >>> df = dataset.to_dataframe()  # Convert to pandas DataFrame
 
-        Method chaining:
-            >>> # Create dataset and chain operations
+        Creating and updating datasets:
+            >>> # Create a new dataset
             >>> dataset = await client.datasets.create_dataset(
-            ...     dataset_name="my-dataset",
-            ...     inputs=[{"text": "hello"}],
-            ...     outputs=[{"response": "hi"}]
+            ...     dataset_name="qa-dataset",
+            ...     inputs=[{"question": "What is 2+2?"}, {"question": "What is the capital of France?"}],
+            ...     outputs=[{"answer": "4"}, {"answer": "Paris"}]
             ... )
-            >>> versions = await client.datasets.get_dataset_versions(dataset)
             >>>
-            >>> # Add individual examples from one dataset to another
-            >>> source_dataset = await client.datasets.get_dataset("source")
-            >>> await client.datasets.add_examples_to_dataset(
-            ...     dataset="target",
-            ...     examples=source_dataset[0]  # Pass a single example!
+            >>> # Add more examples later
+            >>> updated = await client.datasets.add_examples_to_dataset(
+            ...     dataset="qa-dataset",
+            ...     inputs=[{"question": "Who wrote Hamlet?"}],
+            ...     outputs=[{"answer": "Shakespeare"}]
             ... )
 
-        Using DataFrame with add_examples_to_dataset:
-            >>> # Get dataset and convert to DataFrame
-            >>> source = await client.datasets.get_dataset("source")
-            >>> df = source.to_dataframe()
+        Working with DataFrames:
+            >>> # Convert dataset to DataFrame (sync operation)
+            >>> df = dataset.to_dataframe()
+            >>> print(df.columns)  # Index(['input', 'output', 'metadata'], dtype='object')
             >>>
-            >>> # Extract dictionaries from DataFrame columns
-            >>> inputs = df['input'].tolist()
-            >>> outputs = df['output'].tolist()
-            >>> metadata = df['metadata'].tolist()
-            >>>
-            >>> # Use extracted data to create/update datasets
-            >>> await client.datasets.add_examples_to_dataset(
-            ...     dataset="target",
-            ...     inputs=inputs,
-            ...     outputs=outputs,
-            ...     metadata=metadata
+            >>> # Create dataset from DataFrame
+            >>> import pandas as pd
+            >>> df = pd.DataFrame({
+            ...     "prompt": ["Hello", "Hi there"],
+            ...     "response": ["Hi!", "Hello!"],
+            ...     "score": [0.9, 0.95]
+            ... })
+            >>> dataset = await client.datasets.create_dataset(
+            ...     dataset_name="greetings",
+            ...     dataframe=df,
+            ...     input_keys=["prompt"],
+            ...     output_keys=["response"],
+            ...     metadata_keys=["score"]
             ... )
     """
 
@@ -929,8 +906,8 @@ class AsyncDatasets:
 
     async def get_dataset(
         self,
-        dataset: DatasetIdentifier,
         *,
+        dataset: DatasetIdentifier,
         version_id: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
@@ -991,8 +968,8 @@ class AsyncDatasets:
 
     async def get_dataset_versions(
         self,
-        dataset: DatasetIdentifier,
         *,
+        dataset: DatasetIdentifier,
         limit: Optional[int] = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.DatasetVersion]:
@@ -1146,8 +1123,8 @@ class AsyncDatasets:
 
     async def add_examples_to_dataset(
         self,
-        dataset: DatasetIdentifier,
         *,
+        dataset: DatasetIdentifier,
         examples: Optional[Union[v1.DatasetExample, Iterable[v1.DatasetExample]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
@@ -1205,11 +1182,11 @@ class AsyncDatasets:
                 raise ValueError("Could not determine dataset name from input")
 
         # Validate parameter combinations first
-        examples_dataset_input = examples is not None
-        tabular_dataset_input = dataframe is not None or csv_file_path is not None
-        kwarg_dataset_input = any(inputs) or any(outputs) or any(metadata)
+        has_examples = examples is not None
+        has_tabular = dataframe is not None or csv_file_path is not None
+        has_json = any(inputs) or any(outputs) or any(metadata)
 
-        if sum([examples_dataset_input, tabular_dataset_input, kwarg_dataset_input]) > 1:
+        if sum([has_examples, has_tabular, has_json]) > 1:
             raise ValueError(
                 "Please provide only one of: examples, tabular data (dataframe/csv_file_path), "
                 "or JSON data (inputs/outputs/metadata)"
@@ -1233,7 +1210,7 @@ class AsyncDatasets:
             outputs = [dict(example["output"]) for example in examples_list]
             metadata = [dict(example["metadata"]) for example in examples_list]
 
-        if tabular_dataset_input:
+        if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
             assert table is not None  # Type narrowing for mypy
             return await self._upload_tabular_dataset(
