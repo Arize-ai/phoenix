@@ -1519,3 +1519,14 @@ class ProjectAnnotationConfig(Base):
     )
 
     __table_args__ = (UniqueConstraint("project_id", "annotation_config_id"),)
+
+
+class SpanCost(Base):
+    __tablename__ = "span_costs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    span_id: Mapped[int] = mapped_column(
+        ForeignKey("spans.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    cost: Mapped[float] = mapped_column(Float, nullable=False)

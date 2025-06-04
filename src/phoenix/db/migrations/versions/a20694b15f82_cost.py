@@ -95,8 +95,28 @@ def upgrade() -> None:
             "cost_type",
         ),
     )
+    op.create_table(
+        "span_costs",
+        sa.Column(
+            "id",
+            sa.Integer,
+            primary_key=True,
+        ),
+        sa.Column(
+            "span_id",
+            sa.Integer,
+            sa.ForeignKey("spans.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "cost",
+            sa.Float,
+            nullable=False,
+        ),
+    )
 
 
 def downgrade() -> None:
+    op.drop_table("span_costs")
     op.drop_table("model_costs")
     op.drop_table("models")
