@@ -25,10 +25,10 @@ from openinference.semconv.trace import (
 )
 from opentelemetry.context import Context
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import Span
+from opentelemetry.sdk.resources import Resource  # type: ignore[attr-defined]
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.trace import Status, StatusCode, Tracer
+from opentelemetry.trace.span import Span
 from typing_extensions import TypeAlias
 
 from phoenix.config import get_base_url, get_env_client_headers
