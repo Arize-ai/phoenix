@@ -44,6 +44,7 @@ from phoenix.config import (
     get_env_tls_config,
     get_env_tls_enabled_for_grpc,
     get_env_tls_enabled_for_http,
+    get_env_uv_logging_level,
     get_pids_path,
 )
 from phoenix.core.model_schema_adapter import create_model_from_inferences
@@ -459,6 +460,7 @@ def main() -> None:
         host=host,  # type: ignore[arg-type]
         port=port,
         root_path=host_root_path,
+        log_level=Settings.uv_logging_level,
     )
 
     if tls_enabled_for_http:
@@ -485,6 +487,7 @@ def main() -> None:
 def initialize_settings() -> None:
     Settings.logging_mode = get_env_logging_mode()
     Settings.logging_level = get_env_logging_level()
+    Settings.uv_logging_level = get_env_uv_logging_level()
     Settings.db_logging_level = get_env_db_logging_level()
     Settings.log_migrations = get_env_log_migrations()
     Settings.disable_migrations = get_env_disable_migrations()

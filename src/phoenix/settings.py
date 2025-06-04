@@ -14,6 +14,8 @@ class _Settings:
     logging_mode: LoggingMode = field(default=LoggingMode.DEFAULT)
     # By default, log level is INFO
     logging_level: int = field(default=logging.INFO)
+    # By default, Uvicorn log level is INFO
+    uv_logging_level: int = field(default=logging.INFO)
     # By default, log level is WARNING
     db_logging_level: int = field(default=logging.WARNING)
     # By default, migrations are enabled
