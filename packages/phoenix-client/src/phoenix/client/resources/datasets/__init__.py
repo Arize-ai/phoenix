@@ -1,6 +1,5 @@
 import csv
 import gzip
-import json
 import logging
 import re
 from collections import Counter
@@ -239,7 +238,10 @@ class Datasets:
             >>> # Create a new dataset
             >>> dataset = client.datasets.create_dataset(
             ...     dataset_name="qa-dataset",
-            ...     inputs=[{"question": "What is 2+2?"}, {"question": "What is the capital of France?"}],
+            ...     inputs=[
+            ...         {"question": "What is 2+2?"},
+            ...         {"question": "What's the capital of France?"},
+            ...     ],
             ...     outputs=[{"answer": "4"}, {"answer": "Paris"}]
             ... )
             >>>
@@ -768,7 +770,7 @@ class Datasets:
         except httpx.HTTPStatusError as e:
             try:
                 error_detail = response.json().get("detail", str(e))
-            except:
+            except Exception:
                 error_detail = response.text or str(e)
             raise DatasetUploadError(f"Dataset upload failed: {error_detail}") from e
 
@@ -802,7 +804,10 @@ class AsyncDatasets:
             >>> # Create a new dataset
             >>> dataset = await client.datasets.create_dataset(
             ...     dataset_name="qa-dataset",
-            ...     inputs=[{"question": "What is 2+2?"}, {"question": "What is the capital of France?"}],
+            ...     inputs=[
+            ...         {"question": "What is 2+2?"},
+            ...         {"question": "What's the capital of France?"},
+            ...     ],
             ...     outputs=[{"answer": "4"}, {"answer": "Paris"}]
             ... )
             >>>
@@ -1389,8 +1394,6 @@ def _prepare_dataframe_as_json(
     """
     Prepare pandas DataFrame for upload as compressed CSV.
     """
-    import pandas as pd
-
     if df.empty:
         raise ValueError("DataFrame has no data")
 
