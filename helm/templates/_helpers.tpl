@@ -21,7 +21,7 @@ Truncate at 63 chars, kuberneteres DNS name limitation.
 
 
 {{- define "phoenix.postgres" -}}
-  {{- printf "%s-postgres" (include "phoenix.fullname" .) -}}
+  {{- printf "%s-postgresql" (include "phoenix.fullname" .) -}}
 {{- end -}}
 {{- define "phoenix.postgres-pvc" -}}
   {{- printf "%s-pvc" (include "phoenix.postgres" .) -}}

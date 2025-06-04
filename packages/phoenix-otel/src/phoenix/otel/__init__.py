@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 from opentelemetry.sdk.resources import Resource  # type: ignore[attr-defined]
+=======
+from opentelemetry.sdk.resources import Resource  # type: ignore
+>>>>>>> d212a7d75651b5ea213c1fcd24d39244abbc490e
 
 from .otel import (
     PROJECT_NAME,

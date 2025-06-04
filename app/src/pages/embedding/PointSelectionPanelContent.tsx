@@ -2,16 +2,13 @@ import { useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
-import {
-  CloseOutline,
-  CompactSearchField,
-  Dialog,
-  DialogContainer,
-} from "@arizeai/components";
+import { CloseOutline, Dialog, DialogContainer } from "@arizeai/components";
 
 import {
   Button,
   Icon,
+  Input,
+  SearchField,
   Tab,
   TabList,
   TabPanel,
@@ -415,12 +412,14 @@ function SelectionToolbar({
             gap: var(--ac-global-dimension-static-size-100);
           `}
         >
-          <CompactSearchField
-            placeholder="Search by text or ID"
+          <SearchField
+            size="S"
             onChange={(searchText) => {
               setSelectionSearchText(searchText);
             }}
-          />
+          >
+            <Input placeholder="Search by text or ID" />
+          </SearchField>
           {selectionDisplay === SelectionDisplay.gallery && (
             <SelectionGridSizeRadioGroup
               size={selectionGridSize}

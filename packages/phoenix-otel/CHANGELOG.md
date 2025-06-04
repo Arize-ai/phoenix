@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.10.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.10.2...arize-phoenix-otel-v0.10.3) (2025-06-04)
+
+
+### Bug Fixes
+
+* Otel moved the location of span exporters on batch processors ([#7919](https://github.com/Arize-ai/phoenix/issues/7919)) ([6c5a0cf](https://github.com/Arize-ai/phoenix/commit/6c5a0cfa990ca1775062e47ad9c52c3b61f986a4))
+
+## [0.10.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.10.1...arize-phoenix-otel-v0.10.2) (2025-06-03)
+
+
+### Bug Fixes
+
+* upgrade lower version pin on openinference-instrumentation and openinference-instrumentation-semantic-conventions ([#7901](https://github.com/Arize-ai/phoenix/issues/7901)) ([868c4f2](https://github.com/Arize-ai/phoenix/commit/868c4f2fb173af1e9a2b3891d1aecf40c1398aa6))
+
 ## [0.10.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.10.0...arize-phoenix-otel-v0.10.1) (2025-05-28)
 
 

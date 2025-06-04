@@ -112,6 +112,7 @@ export function ProjectsPage() {
     `,
     {
       first: PAGE_SIZE,
+      filter: { value: "", col: "name" },
       ...queryParams,
     }
   );

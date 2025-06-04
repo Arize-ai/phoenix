@@ -32,6 +32,8 @@ pyrightconfig.json
 !/packages/phoenix-client/tests/canary/sdk/pyrightconfig.json
 !/tests/integration/pyrightconfig.json
 
+.cursorrules
+
 # Demo data
 tutorials/internal/demo_llama_index/*.json
 examples/agent_framework_comparison/utils/saved_traces/*.parquet

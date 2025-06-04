@@ -5,7 +5,8 @@ declare type ModelProvider =
   | "ANTHROPIC"
   | "GOOGLE"
   | "DEEPSEEK"
-  | "XAI";
+  | "XAI"
+  | "OLLAMA";
 
 /**
  * The role of a chat message
@@ -22,3 +23,12 @@ declare type ToolChoice =
   | "required"
   | "none"
   | { type: "function"; function: { name: string } };
+
+/**
+ * A credential for a model provider
+ * E.x. { envVarName: "OPENAI_API_KEY", isRequired: true }
+ */
+type ModelProviderCredentialConfig = {
+  envVarName: string;
+  isRequired: boolean;
+};

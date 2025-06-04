@@ -17,7 +17,7 @@ export function DatasetsEmpty() {
         alignItems="center"
         justifyContent="center"
       >
-        <View width="780px">
+        <View width="100%" maxWidth="780px">
           <Flex direction="column" gap="size-400" alignItems="center">
             <Text size="XL">
               Create datasets for testing prompts, experimentation, and
@@ -42,7 +42,7 @@ export function DatasetsEmpty() {
                 target="_blank"
                 leadingVisual={<Icon svg={<Icons.Rocket />} />}
               >
-                Quckstart
+                Quickstart
               </ExternalLinkButton>
             </Flex>
           </Flex>

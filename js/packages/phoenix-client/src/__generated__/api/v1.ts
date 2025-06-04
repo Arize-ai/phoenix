@@ -327,9 +327,29 @@ export interface paths {
         };
         /**
          * Search spans with simple filters (no DSL)
-         * @description Return spans within a project filtered by time range, annotation names, and ordered by start_time. Supports cursor-based pagination.
+         * @description Return spans within a project filtered by time range. Supports cursor-based pagination.
          */
         get: operations["spanSearch"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{project_identifier}/spans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List spans with simple filters (no DSL)
+         * @description Return spans within a project filtered by time range. Supports cursor-based pagination.
+         */
+        get: operations["getSpans"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1221,7 +1241,7 @@ export interface components {
          * ModelProvider
          * @enum {string}
          */
-        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK" | "XAI";
+        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK" | "XAI" | "OLLAMA";
         /** OAuth2User */
         OAuth2User: {
             /** Id */
@@ -1463,6 +1483,16 @@ export interface components {
              */
             trace_state?: string | null;
         };
+        /**
+         * OtlpSpansResponseBody
+         * @description Paginated response where each span follows OTLP JSON structure.
+         */
+        OtlpSpansResponseBody: {
+            /** Data */
+            data: components["schemas"]["OtlpSpan"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
         /** OtlpStatus */
         OtlpStatus: {
             /**
@@ -1651,6 +1681,37 @@ export interface components {
             /** Content */
             content: string | (components["schemas"]["TextContentPart"] | components["schemas"]["ToolCallContentPart"] | components["schemas"]["ToolResultContentPart"])[];
         };
+        /** PromptOllamaInvocationParameters */
+        PromptOllamaInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "ollama";
+            ollama: components["schemas"]["PromptOllamaInvocationParametersContent"];
+        };
+        /** PromptOllamaInvocationParametersContent */
+        PromptOllamaInvocationParametersContent: {
+            /** Temperature */
+            temperature?: number;
+            /** Max Tokens */
+            max_tokens?: number;
+            /** Max Completion Tokens */
+            max_completion_tokens?: number;
+            /** Frequency Penalty */
+            frequency_penalty?: number;
+            /** Presence Penalty */
+            presence_penalty?: number;
+            /** Top P */
+            top_p?: number;
+            /** Seed */
+            seed?: number;
+            /**
+             * Reasoning Effort
+             * @enum {string}
+             */
+            reasoning_effort?: "low" | "medium" | "high";
+        };
         /** PromptOpenAIInvocationParameters */
         PromptOpenAIInvocationParameters: {
             /**
@@ -1806,7 +1867,7 @@ export interface components {
             template_type: components["schemas"]["PromptTemplateType"];
             template_format: components["schemas"]["PromptTemplateFormat"];
             /** Invocation Parameters */
-            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"];
+            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"];
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
@@ -1825,7 +1886,7 @@ export interface components {
             template_type: components["schemas"]["PromptTemplateType"];
             template_format: components["schemas"]["PromptTemplateFormat"];
             /** Invocation Parameters */
-            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"];
+            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"];
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
@@ -1874,6 +1935,66 @@ export interface components {
              * @enum {string}
              */
             reasoning_effort?: "low" | "medium" | "high";
+        };
+        /** Span */
+        Span: {
+            /**
+             * Id
+             * @description Span Global ID, distinct from the OpenTelemetry span ID
+             */
+            id: string;
+            /**
+             * Name
+             * @description Name of the span operation
+             */
+            name: string;
+            /** @description Span context containing trace_id and span_id */
+            context: components["schemas"]["SpanContext"];
+            /**
+             * Span Kind
+             * @description Type of work that the span encapsulates
+             */
+            span_kind: string;
+            /**
+             * Parent Id
+             * @description OpenTelemetry span ID of the parent span
+             */
+            parent_id?: string | null;
+            /**
+             * Start Time
+             * Format: date-time
+             * @description Start time of the span
+             */
+            start_time: string;
+            /**
+             * End Time
+             * Format: date-time
+             * @description End time of the span
+             */
+            end_time: string;
+            /**
+             * Status Code
+             * @description Status code of the span
+             */
+            status_code: string;
+            /**
+             * Status Message
+             * @description Status message
+             * @default
+             */
+            status_message?: string;
+            /**
+             * Attributes
+             * @description Span attributes
+             */
+            attributes?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Events
+             * @description Span events
+             */
+            events?: components["schemas"]["SpanEvent"][];
         };
         /** SpanAnnotation */
         SpanAnnotation: {
@@ -1987,13 +2108,44 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
-        /**
-         * SpanSearchResponseBody
-         * @description Paginated response where each span follows OTLP JSON structure.
-         */
-        SpanSearchResponseBody: {
+        /** SpanContext */
+        SpanContext: {
+            /**
+             * Trace Id
+             * @description OpenTelemetry trace ID
+             */
+            trace_id: string;
+            /**
+             * Span Id
+             * @description OpenTelemetry span ID
+             */
+            span_id: string;
+        };
+        /** SpanEvent */
+        SpanEvent: {
+            /**
+             * Name
+             * @description Name of the event
+             */
+            name: string;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description When the event occurred
+             */
+            timestamp: string;
+            /**
+             * Attributes
+             * @description Event attributes
+             */
+            attributes?: {
+                [key: string]: unknown;
+            };
+        };
+        /** SpansResponseBody */
+        SpansResponseBody: {
             /** Data */
-            data: components["schemas"]["OtlpSpan"][];
+            data: components["schemas"]["Span"][];
             /** Next Cursor */
             next_cursor: string | null;
         };
@@ -2367,6 +2519,10 @@ export interface operations {
             query: {
                 /** @description One or more span id to fetch annotations for */
                 span_ids: string[];
+                /** @description Optional list of annotation names to include. If provided, only annotations with these names will be returned. 'note' annotations are excluded by default unless explicitly included in this list. */
+                include_annotation_names?: string[] | null;
+                /** @description Optional list of annotation names to exclude from results. */
+                exclude_annotation_names?: string[] | null;
                 /** @description A cursor for pagination */
                 cursor?: string | null;
                 /** @description The maximum number of annotations to return in a single request */
@@ -3263,18 +3419,14 @@ export interface operations {
     spanSearch: {
         parameters: {
             query?: {
-                /** @description Pagination cursor (GlobalID of Span) */
+                /** @description Pagination cursor (Span Global ID) */
                 cursor?: string | null;
                 /** @description Maximum number of spans to return */
                 limit?: number;
-                /** @description Sort direction for the sort field */
-                sort_direction?: "asc" | "desc";
                 /** @description Inclusive lower bound time */
                 start_time?: string | null;
                 /** @description Exclusive upper bound time */
                 end_time?: string | null;
-                /** @description If provided, only include spans that have at least one annotation with one of these names. */
-                annotationNames?: string[] | null;
             };
             header?: never;
             path: {
@@ -3291,7 +3443,66 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SpanSearchResponseBody"];
+                    "application/json": components["schemas"]["OtlpSpansResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getSpans: {
+        parameters: {
+            query?: {
+                /** @description Pagination cursor (Span Global ID) */
+                cursor?: string | null;
+                /** @description Maximum number of spans to return */
+                limit?: number;
+                /** @description Inclusive lower bound time */
+                start_time?: string | null;
+                /** @description Exclusive upper bound time */
+                end_time?: string | null;
+            };
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpansResponseBody"];
                 };
             };
             /** @description Forbidden */
