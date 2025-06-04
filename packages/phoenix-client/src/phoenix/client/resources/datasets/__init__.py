@@ -6,10 +6,10 @@ import re
 from collections import Counter
 from collections.abc import Iterable, Mapping
 from datetime import datetime
-from io import BytesIO, StringIO
+from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO, Iterator, Literal, Optional, Union
-from urllib.parse import quote, urljoin
+from urllib.parse import quote
 
 import httpx
 
@@ -26,13 +26,13 @@ DEFAULT_TIMEOUT_IN_SECONDS = 5
 class Dataset:
     """
     A dataset with its examples and version information.
-    
+
     This class combines dataset metadata with examples data for a more ergonomic API.
     It provides easy access to common fields and can be passed directly to other dataset methods.
-    
+
     Attributes:
         id: The dataset ID
-        name: The dataset name  
+        name: The dataset name
         description: The dataset description
         version_id: The current version ID
         examples: List of examples in this version
@@ -40,7 +40,7 @@ class Dataset:
         created_at: When the dataset was created
         updated_at: When the dataset was last updated
     """
-    
+
     def __init__(
         self,
         dataset_info: Union[v1.Dataset, v1.DatasetWithExampleCount],
@@ -48,51 +48,51 @@ class Dataset:
     ):
         self._dataset_info = dataset_info
         self._examples_data = examples_data
-    
+
     @property
     def id(self) -> str:
         """The dataset ID."""
         return self._dataset_info["id"]
-    
+
     @property
     def name(self) -> str:
         """The dataset name."""
         return self._dataset_info["name"]
-    
+
     @property
     def description(self) -> Optional[str]:
         """The dataset description."""
         return self._dataset_info.get("description")
-    
+
     @property
     def version_id(self) -> str:
         """The current version ID."""
         return self._examples_data["version_id"]
-    
+
     @property
     def examples(self) -> list[v1.DatasetExample]:
         """List of examples in this version."""
         return list(self._examples_data["examples"])
-    
+
     @property
     def metadata(self) -> dict[str, Any]:
         """Additional dataset metadata."""
         return dict(self._dataset_info.get("metadata", {}))
-    
+
     @property
     def created_at(self) -> Optional[datetime]:
         """When the dataset was created."""
         if created_at := self._dataset_info.get("created_at"):
             return _parse_datetime(created_at)
         return None
-    
+
     @property
     def updated_at(self) -> Optional[datetime]:
-        """When the dataset was last updated."""  
+        """When the dataset was last updated."""
         if updated_at := self._dataset_info.get("updated_at"):
             return _parse_datetime(updated_at)
         return None
-    
+
     @property
     def example_count(self) -> int:
         """Number of examples in this version."""
@@ -101,21 +101,21 @@ class Dataset:
             return self._dataset_info["example_count"]
         # Fall back to counting examples
         return len(self.examples)
-    
+
     def __repr__(self) -> str:
         return (
             f"Dataset(id={self.id!r}, name={self.name!r}, "
             f"version_id={self.version_id!r}, examples={self.example_count})"
         )
-    
+
     def __len__(self) -> int:
         """Number of examples in this dataset version."""
         return len(self.examples)
-    
+
     def __iter__(self) -> Iterator[v1.DatasetExample]:
         """Iterate over examples."""
         return iter(self.examples)
-    
+
     def __getitem__(self, index: int) -> v1.DatasetExample:
         """Get example by index."""
         return self.examples[index]
@@ -176,7 +176,7 @@ class Datasets:
             >>> dataset = client.datasets.get_dataset(dataset_name="my-dataset")
             >>> print(f"Dataset {dataset.name} has {len(dataset)} examples")
             >>> versions_df = client.datasets.get_dataset_versions_dataframe(dataset=dataset)
-            
+
         Method chaining:
             >>> # Create dataset and get its versions
             >>> dataset = client.datasets.create_dataset(
@@ -185,7 +185,7 @@ class Datasets:
             ...     outputs=[{"response": "hi"}]
             ... )
             >>> versions = client.datasets.get_dataset_versions_dataframe(dataset=dataset)
-            >>> 
+            >>>
             >>> # Add examples using the returned dataset object
             >>> updated = client.datasets.add_examples_to_dataset(
             ...     dataset=dataset,
@@ -193,15 +193,15 @@ class Datasets:
             ...     outputs=[{"response": "bye"}]
             ... )
             >>> print(f"Dataset now has {len(updated)} examples")
-            
+
         Working with examples:
             >>> # Iterate over examples
             >>> for example in dataset:
             ...     print(example["input"], "->", example["output"])
-            >>> 
+            >>>
             >>> # Access examples by index
             >>> first_example = dataset[0]
-            >>> 
+            >>>
             >>> # Get all examples as a list
             >>> all_examples = dataset.examples
     """
@@ -219,7 +219,7 @@ class Datasets:
     ) -> tuple[Optional[str], Optional[str]]:
         """
         Resolve dataset ID and name from various input forms.
-        
+
         Returns:
             Tuple of (dataset_id, dataset_name), where either or both may be None
         """
@@ -238,7 +238,7 @@ class Datasets:
             elif isinstance(dataset, dict):
                 # Dictionary with id/name fields
                 return dataset.get("id"), dataset.get("name")
-        
+
         # Use explicit parameters if provided
         return dataset_id, dataset_name
 
@@ -275,7 +275,7 @@ class Datasets:
         resolved_id, resolved_name = self._resolve_dataset_id_and_name(
             dataset=dataset, dataset_id=dataset_id, dataset_name=dataset_name, timeout=timeout
         )
-        
+
         # Use explicit dataset_name parameter if provided, otherwise prefer resolved_id over resolved_name
         if dataset_name:
             resolved_id = self._get_dataset_id_by_name(dataset_name=dataset_name, timeout=timeout)
@@ -349,10 +349,10 @@ class Datasets:
         resolved_id, resolved_name = self._resolve_dataset_id_and_name(
             dataset=dataset, dataset_id=dataset_id, dataset_name=dataset_name, timeout=timeout
         )
-        
+
         if resolved_name and not resolved_id:
             resolved_id = self._get_dataset_id_by_name(dataset_name=resolved_name, timeout=timeout)
-        
+
         if not resolved_id:
             raise ValueError("Dataset id, name, or dataset object must be provided.")
 
@@ -491,7 +491,7 @@ class Datasets:
         _, resolved_name = self._resolve_dataset_id_and_name(
             dataset=dataset, dataset_name=dataset_name, timeout=timeout
         )
-        
+
         if not resolved_name:
             raise ValueError("Dataset name or dataset object must be provided.")
 
@@ -739,7 +739,7 @@ class AsyncDatasets:
             >>> client = AsyncClient()
             >>> dataset = await client.datasets.get_dataset(dataset_name="my-dataset")
             >>> print(f"Dataset {dataset.name} has {len(dataset)} examples")
-            
+
         Method chaining:
             >>> # Create dataset and chain operations
             >>> dataset = await client.datasets.create_dataset(
@@ -763,7 +763,7 @@ class AsyncDatasets:
     ) -> tuple[Optional[str], Optional[str]]:
         """
         Resolve dataset ID and name from various input forms.
-        
+
         Returns:
             Tuple of (dataset_id, dataset_name), where either or both may be None
         """
@@ -782,7 +782,7 @@ class AsyncDatasets:
             elif isinstance(dataset, dict):
                 # Dictionary with id/name fields
                 return dataset.get("id"), dataset.get("name")
-        
+
         # Use explicit parameters if provided
         return dataset_id, dataset_name
 
@@ -797,7 +797,7 @@ class AsyncDatasets:
     ) -> Dataset:
         """
         Async version of get_dataset.
-        
+
         Args:
             dataset: A dataset identifier - can be a dataset ID string, name string,
                 dataset object, or tuple returned from other dataset methods.
@@ -815,7 +815,7 @@ class AsyncDatasets:
         resolved_id, resolved_name = await self._resolve_dataset_id_and_name(
             dataset=dataset, dataset_id=dataset_id, dataset_name=dataset_name, timeout=timeout
         )
-        
+
         # Use explicit dataset_name parameter if provided, otherwise prefer resolved_id over resolved_name
         if dataset_name:
             resolved_id = await self._get_dataset_id_by_name(
@@ -864,7 +864,7 @@ class AsyncDatasets:
     ) -> "pd.DataFrame":
         """
         Async version of get_dataset_versions_dataframe.
-        
+
         Args:
             dataset: A dataset identifier - can be a dataset ID string, name string,
                 dataset object, or tuple returned from other dataset methods.
@@ -888,12 +888,12 @@ class AsyncDatasets:
         resolved_id, resolved_name = await self._resolve_dataset_id_and_name(
             dataset=dataset, dataset_id=dataset_id, dataset_name=dataset_name, timeout=timeout
         )
-        
+
         if resolved_name and not resolved_id:
             resolved_id = await self._get_dataset_id_by_name(
                 dataset_name=resolved_name, timeout=timeout
             )
-        
+
         if not resolved_id:
             raise ValueError("Dataset id, name, or dataset object must be provided.")
 
@@ -985,7 +985,7 @@ class AsyncDatasets:
     ) -> Dataset:
         """
         Async version of add_examples_to_dataset.
-        
+
         Args:
             dataset: A dataset identifier - can be a dataset ID string, name string,
                 Dataset object, or dict.
@@ -1007,7 +1007,7 @@ class AsyncDatasets:
         _, resolved_name = await self._resolve_dataset_id_and_name(
             dataset=dataset, dataset_name=dataset_name, timeout=timeout
         )
-        
+
         if not resolved_name:
             raise ValueError("Dataset name or dataset object must be provided.")
 
