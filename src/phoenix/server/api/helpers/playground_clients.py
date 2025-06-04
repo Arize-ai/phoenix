@@ -582,18 +582,16 @@ class OllamaStreamingClient(OpenAIBaseStreamingClient):
     def __init__(
         self,
         model: GenerativeModelInput,
-        api_key: Optional[str] = None,
+        credentials: Optional[list[PlaygroundClientCredential]] = None,
     ) -> None:
         from openai import AsyncOpenAI
 
         base_url = model.base_url or getenv("OLLAMA_BASE_URL")
         if not base_url:
             raise BadRequest("An Ollama base URL is required for Ollama models")
-        api_key = (
-            api_key or "ollama"
-        )  # Ollama doesn't require an API key, but we need to pass something for the OpenAI client
+        api_key = "ollama"
         client = AsyncOpenAI(api_key=api_key, base_url=base_url)
-        super().__init__(client=client, model=model, api_key=api_key)
+        super().__init__(client=client, model=model, credentials=credentials)
         # Ollama uses OpenAI-compatible API but we'll track it as a separate provider
         # Adding a custom "ollama" provider value to make it distinguishable in traces
         self._attributes[LLM_PROVIDER] = "ollama"
