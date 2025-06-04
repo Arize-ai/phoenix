@@ -898,6 +898,7 @@ export const createToolForProvider = ({
     case "DEEPSEEK":
     case "XAI":
     case "OLLAMA":
+    case "BEDROCK":
     case "AZURE_OPENAI":
       return {
         id: generateToolId(),
@@ -933,6 +934,7 @@ export const createToolCallForProvider = (
     case "DEEPSEEK":
     case "XAI":
     case "OLLAMA":
+    case "BEDROCK":
       return createOpenAIToolCall();
     case "ANTHROPIC":
       return createAnthropicToolCall();
