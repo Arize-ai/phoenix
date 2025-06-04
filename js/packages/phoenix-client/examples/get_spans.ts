@@ -36,31 +36,25 @@ async function main() {
       console.log("\n📋 Span Details:");
       recentSpans.data.forEach((span, index) => {
         console.log(
-          `  ${index + 1}. ${span.name || "unnamed"} (${span.span_id})`
+          `  ${index + 1}. ${span.name || "unnamed"} (${span.context.span_id})`
         );
-        console.log(`     Trace: ${span.trace_id}`);
+        console.log(`     Trace: ${span.context.trace_id}`);
         console.log(
-          `     Status: ${span.status?.code} (${span.status?.message || "no message"})`
+          `     Status: ${span.status_code} (${span.status_message || "no message"})`
         );
         console.log(
-          `     Duration: ${span.start_time_unix_nano} - ${span.end_time_unix_nano}`
+          `     Duration: ${span.start_time} - ${span.end_time}`
         );
 
         // Show some key attributes
-        if (span.attributes && span.attributes.length > 0) {
+        if (span.attributes && Object.keys(span.attributes).length > 0) {
           console.log(`     Key Attributes:`);
-          span.attributes.slice(0, 3).forEach((attr) => {
-            const value =
-              attr.value?.string_value ||
-              attr.value?.int_value ||
-              attr.value?.double_value ||
-              attr.value?.bool_value ||
-              "complex_value";
-            console.log(`       - ${attr.key}: ${value}`);
+          Object.entries(span.attributes).slice(0, 3).forEach(([key, value]) => {
+            console.log(`       - ${key}: ${value}`);
           });
-          if (span.attributes.length > 3) {
+          if (Object.keys(span.attributes).length > 3) {
             console.log(
-              `       ... and ${span.attributes.length - 3} more attributes`
+              `       ... and ${Object.keys(span.attributes).length - 3} more attributes`
             );
           }
         }
@@ -91,17 +85,17 @@ async function main() {
       `Found ${timeRangeSpans.data.length} spans from the last 24 hours`
     );
 
-    console.log("\n🏷️ Getting spans with specific annotations...");
+    console.log("\n📊 Getting additional spans for comparison...");
 
-    // Get spans that have specific annotations
-    const annotatedSpans = await getSpans({
+    // Get a smaller batch of spans for comparison
+    const additionalSpans = await getSpans({
       client,
       projectIdentifier: "default",
       limit: 3,
     });
 
     console.log(
-      `Found ${annotatedSpans.data.length} spans with quality annotations`
+      `Found ${additionalSpans.data.length} additional spans`
     );
 
     console.log("\n📄 Demonstrating pagination...");
@@ -129,7 +123,7 @@ async function main() {
 
         page.data.forEach((span, index) => {
           console.log(
-            `  ${index + 1}. ${span.name || "unnamed"} (${span.span_id})`
+            `  ${index + 1}. ${span.name || "unnamed"} (${span.context.span_id})`
           );
         });
 
@@ -146,18 +140,18 @@ async function main() {
     console.log("\n🎯 Response Structure Analysis:");
     console.log("===============================");
     console.log("The getSpans function returns an object with:");
-    console.log("- data: Array of OTLP-compliant span objects");
+    console.log("- data: Array of Phoenix span objects");
     console.log(
       "- next_cursor: Base64-encoded cursor for pagination (if more data available)"
     );
     console.log("\nEach span contains:");
-    console.log("- Core fields: trace_id, span_id, name, start/end times");
+    console.log("- Core fields: id, name, context (trace_id, span_id), start/end times");
     console.log(
-      "- Attributes: Key-value pairs with typed values (string, int, double, bool, etc.)"
+      "- Attributes: Key-value pairs with simple values"
     );
-    console.log("- Status: Code (1=OK, 2=ERROR) and optional message");
-    console.log("- Events: Array of timestamped events (e.g., exceptions)");
-    console.log("- Links: References to other spans (typically null)");
+    console.log("- Status: status_code and status_message");
+    console.log("- Events: Array of timestamped events");
+    console.log("- Span kind and parent information");
 
     console.log("\n📄 Example Response Object Snippet:");
     console.log("===================================");
@@ -167,23 +161,19 @@ async function main() {
       const exampleResponse = {
         data: [
           {
-            trace_id: firstSpan.trace_id,
-            span_id: firstSpan.span_id,
+            id: firstSpan.id,
             name: firstSpan.name,
-            kind: firstSpan.kind,
-            start_time_unix_nano: firstSpan.start_time_unix_nano,
-            end_time_unix_nano: firstSpan.end_time_unix_nano,
-            status: firstSpan.status,
-            attributes:
-              firstSpan.attributes?.slice(0, 2).map((attr) => ({
-                key: attr.key,
-                value: attr.value,
-              })) || [],
-            "...": `${(firstSpan.attributes?.length || 0) - 2} more attributes`,
-            events: firstSpan.events?.slice(0, 1) || null,
-            parent_span_id: firstSpan.parent_span_id,
-            flags: firstSpan.flags,
-            trace_state: firstSpan.trace_state,
+            context: firstSpan.context,
+            span_kind: firstSpan.span_kind,
+            start_time: firstSpan.start_time,
+            end_time: firstSpan.end_time,
+            status_code: firstSpan.status_code,
+            status_message: firstSpan.status_message,
+            attributes: firstSpan.attributes ? 
+              Object.fromEntries(Object.entries(firstSpan.attributes).slice(0, 2)) : {},
+            "...": `${Object.keys(firstSpan.attributes || {}).length - 2} more attributes`,
+            events: firstSpan.events?.slice(0, 1) || [],
+            parent_id: firstSpan.parent_id,
           },
           "... more spans",
         ],
@@ -201,8 +191,8 @@ async function main() {
     console.log("\n💡 Next steps:");
     console.log("- Try different projectIdentifier values");
     console.log("- Experiment with time range filtering");
-    console.log("- Use annotation filtering for spans with specific metadata");
     console.log("- Implement pagination for large datasets");
+    console.log("- Explore span attributes to understand your trace data");
   } catch (error) {
     console.error("❌ Error getting spans:", error);
 

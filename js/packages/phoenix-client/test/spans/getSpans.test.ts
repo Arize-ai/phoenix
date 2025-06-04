@@ -9,21 +9,23 @@ vi.mock("openapi-fetch", () => ({
         next_cursor: "next-cursor-123",
         data: [
           {
-            trace_id: "trace-123",
-            span_id: "span-456",
+            id: "span-global-id-123",
             name: "test-span",
-            start_time_unix_nano: "1640995200000000000",
-            end_time_unix_nano: "1640995201000000000",
-            attributes: [
-              {
-                key: "test.attribute",
-                value: { string_value: "test-value" },
-              },
-            ],
-            status: {
-              code: 1,
-              message: "OK",
+            context: {
+              trace_id: "trace-123",
+              span_id: "span-456",
             },
+            span_kind: "INTERNAL",
+            parent_id: null,
+            start_time: "2022-01-01T00:00:00Z",
+            end_time: "2022-01-01T00:00:01Z",
+            status_code: "OK",
+            status_message: "",
+            attributes: {
+              "test.attribute": "test-value",
+              "http.method": "GET",
+            },
+            events: [],
           },
         ],
       },
@@ -44,7 +46,7 @@ describe("getSpans", () => {
     });
 
     expect(result.data).toHaveLength(1);
-    expect(result.data[0]?.span_id).toBe("span-456");
+    expect(result.data[0]?.context.span_id).toBe("span-456");
     expect(result.data[0]?.name).toBe("test-span");
     expect(result.next_cursor).toBe("next-cursor-123");
   });

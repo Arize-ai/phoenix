@@ -8,11 +8,11 @@ import { components, operations } from "../__generated__/api/v1";
 interface GetSpansParams
   extends ClientFn,
     Omit<
-      NonNullable<operations["spanSearch"]["parameters"]["query"]>,
+      NonNullable<operations["getSpans"]["parameters"]["query"]>,
       "start_time" | "end_time"
     > {
   /** The project identifier: either project ID or project name (maps to path parameter) */
-  projectIdentifier: operations["spanSearch"]["parameters"]["path"]["project_identifier"];
+  projectIdentifier: operations["getSpans"]["parameters"]["path"]["project_identifier"];
   /** Inclusive lower bound time (convenience field with camelCase naming) */
   startTime?: Date | string | null;
   /** Exclusive upper bound time (convenience field with camelCase naming) */
@@ -22,17 +22,18 @@ interface GetSpansParams
 /**
  * Response type for span search using auto-generated types
  */
-type SpanSearchResponse = components["schemas"]["OtlpSpansResponseBody"];
+type SpanSearchResponse = components["schemas"]["SpansResponseBody"];
 
 /**
  * Get spans from a project with filtering criteria.
  *
  * This method allows you to search for spans within a project using various filters
  * such as time range and supports cursor-based pagination.
- * The spans are returned in OTLP (OpenTelemetry Protocol) format.
+ * The spans are returned in Phoenix's standard format with human-readable timestamps
+ * and simplified attribute structures.
  *
  * @param params - The parameters to search for spans
- * @returns A paginated response containing OTLP spans and optional next cursor
+ * @returns A paginated response containing spans and optional next cursor
  *
  * @example
  * ```ts
@@ -64,7 +65,7 @@ type SpanSearchResponse = components["schemas"]["OtlpSpansResponseBody"];
  *
  *   // Process spans
  *   result.data.forEach(span => {
- *     console.log(`Span: ${span.name}, Trace: ${span.trace_id}`);
+ *     console.log(`Span: ${span.name}, Trace: ${span.context.trace_id}`);
  *   });
  *
  *   cursor = result.next_cursor || undefined;
@@ -82,7 +83,7 @@ export async function getSpans({
   const client = _client ?? createClient();
 
   // Build query parameters using auto-generated types
-  const params: NonNullable<operations["spanSearch"]["parameters"]["query"]> = {
+  const params: NonNullable<operations["getSpans"]["parameters"]["query"]> = {
     limit,
   };
 
@@ -100,7 +101,7 @@ export async function getSpans({
   }
 
   const { data, error } = await client.GET(
-    "/v1/projects/{project_identifier}/spans/otlpv1",
+    "/v1/projects/{project_identifier}/spans",
     {
       params: {
         path: {
