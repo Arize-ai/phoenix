@@ -155,6 +155,7 @@ export function processAttributeToolCalls({
         case "OPENAI":
         case "AZURE_OPENAI":
         case "DEEPSEEK":
+        case "BEDROCK":
         case "XAI":
         case "OLLAMA":
           return {
