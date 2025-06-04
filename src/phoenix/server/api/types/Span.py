@@ -790,6 +790,11 @@ class Span(Node):
             )
         ]
 
+    @strawberry.field(description="The cost of the span")  # type: ignore
+    async def cost(self, info: Info[Context, None]) -> Optional[float]:
+        span_cost = await info.context.data_loaders.span_costs.load(self.span_rowid)
+        return span_cost
+
 
 def _hide_embedding_vectors(attributes: Mapping[str, Any]) -> Mapping[str, Any]:
     if not (

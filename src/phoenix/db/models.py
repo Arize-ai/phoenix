@@ -685,6 +685,7 @@ class Span(Base):
     span_annotations: Mapped[list["SpanAnnotation"]] = relationship(back_populates="span")
     document_annotations: Mapped[list["DocumentAnnotation"]] = relationship(back_populates="span")
     dataset_examples: Mapped[list["DatasetExample"]] = relationship(back_populates="span")
+    span_cost: Mapped[Optional["SpanCost"]] = relationship(back_populates="span")
 
     __table_args__ = (
         UniqueConstraint(
@@ -1530,3 +1531,5 @@ class SpanCost(Base):
         nullable=False,
     )
     cost: Mapped[float] = mapped_column(Float, nullable=False)
+
+    span: Mapped["Span"] = relationship("Span", back_populates="span_cost")

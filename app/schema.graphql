@@ -2134,6 +2134,9 @@ type Span implements Node {
 
   """Invocation parameters for the span"""
   invocationParameters: [InvocationParameter!]!
+
+  """The cost of the span"""
+  cost: Float
 }
 
 type SpanAnnotation implements Node & Annotation {

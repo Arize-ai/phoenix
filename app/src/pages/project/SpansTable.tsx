@@ -231,6 +231,7 @@ export function SpansTable(props: SpansTableProps) {
                   precision
                   hit
                 }
+                cost
                 ...AnnotationSummaryGroup
               }
             }
@@ -484,6 +485,17 @@ export function SpansTable(props: SpansTableProps) {
         return (
           <TokenCount tokenCountTotal={tokenCountTotal || 0} nodeId={span.id} />
         );
+      },
+    },
+    {
+      header: "cost",
+      accessorKey: "cost",
+      cell: ({ getValue }) => {
+        const value = getValue();
+        if (value === null || typeof value !== "number") {
+          return "--";
+        }
+        return `$${value.toFixed(7)}`;
       },
     },
   ];
