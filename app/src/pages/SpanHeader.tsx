@@ -10,6 +10,7 @@ import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import { SpanHeader_span$key } from "./__generated__/SpanHeader_span.graphql";
+import { Cost } from "@phoenix/components/trace/Cost";
 
 type SpanHeaderProps = {
   span: SpanHeader_span$key;
@@ -71,9 +72,7 @@ export function SpanHeader(props: SpanHeaderProps) {
             />
           ) : null}
           {span.cost?.totalTokenCost ? (
-            <Text color="text-500" size="S">
-              {`$${span.cost.totalTokenCost.toFixed(7)}`}
-            </Text>
+            <Cost totalCost={span.cost.totalTokenCost} nodeId={span.id} />
           ) : null}
         </Flex>
       </Flex>
