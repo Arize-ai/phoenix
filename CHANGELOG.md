@@ -1,5 +1,21 @@
 # Changelog
 
+## [10.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.6.2...arize-phoenix-v10.7.0) (2025-06-04)
+
+
+### Features
+
+* ollama ([#7846](https://github.com/Arize-ai/phoenix/issues/7846)) ([4c52db4](https://github.com/Arize-ai/phoenix/commit/4c52db40da6b7772487cc6d288cf69d5944812a1))
+* **playground:** add support for multiple credential kv pairs - frontend only ([#7894](https://github.com/Arize-ai/phoenix/issues/7894)) ([2e657eb](https://github.com/Arize-ai/phoenix/commit/2e657ebc9f0088282e7de4af421a52006bdc72f3))
+* server side playground credentials ([#7913](https://github.com/Arize-ai/phoenix/issues/7913)) ([9855d4b](https://github.com/Arize-ai/phoenix/commit/9855d4b656e921f558d1b4c36065bc1b7d6824c7))
+
+
+### Bug Fixes
+
+* Ensure "load next" button works on projects page ([#7915](https://github.com/Arize-ai/phoenix/issues/7915)) ([20f9e3f](https://github.com/Arize-ai/phoenix/commit/20f9e3f5b0f426e3f1b607eaede3a74f66c3be83))
+* set Uvicorn logger level with PHOENIX_LOGGING_LEVEL ([#7927](https://github.com/Arize-ai/phoenix/issues/7927)) ([9cb5294](https://github.com/Arize-ai/phoenix/commit/9cb5294fbdcd13f720150f629013a16521ce577d))
+* Sets a lower pin on phoenix-otel to support latest Otel ([#7924](https://github.com/Arize-ai/phoenix/issues/7924)) ([0b59bc7](https://github.com/Arize-ai/phoenix/commit/0b59bc795955e5097e912b22cad8d947ae4ff8ed))
+
 ## [10.6.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.6.1...arize-phoenix-v10.6.2) (2025-06-03)
 
 
