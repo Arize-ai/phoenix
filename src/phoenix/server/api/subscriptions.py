@@ -30,8 +30,8 @@ from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
 from phoenix.server.api.helpers.playground_clients import (
-    PlaygroundStreamingClient,
     PlaygroundClientCredential,
+    PlaygroundStreamingClient,
     initialize_playground_clients,
 )
 from phoenix.server.api.helpers.playground_registry import (

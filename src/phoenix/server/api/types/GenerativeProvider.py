@@ -1,5 +1,4 @@
 from enum import Enum
-from turtle import st
 from typing import Any, ClassVar, Optional, Union
 
 import strawberry
