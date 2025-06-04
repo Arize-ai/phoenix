@@ -43,7 +43,7 @@ templates_path = ["_templates"]
 
 # List of patterns, relative to source directory, that match files
 # and directories to ignore when looking for source files.
-exclude_patterns = []
+exclude_patterns: list[str] = []
 
 add_module_names = False
 
