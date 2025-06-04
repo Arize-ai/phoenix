@@ -343,6 +343,9 @@ class PromptXAIInvocationParametersContent(PromptOpenAIInvocationParametersConte
 class PromptOllamaInvocationParametersContent(PromptOpenAIInvocationParametersContent):
     pass
 
+class PromptBedrockInvocationParametersContent(PromptOpenAIInvocationParametersContent):
+    pass
+
 
 class PromptAzureOpenAIInvocationParameters(DBBaseModel):
     type: Literal["azure_openai"]
@@ -412,6 +415,11 @@ class PromptGoogleInvocationParameters(DBBaseModel):
     google: PromptGoogleInvocationParametersContent
 
 
+class PromptBedrockInvocationParameters(DBBaseModel):
+    type: Literal["bedrock"]
+    bedrock: PromptBedrockInvocationParametersContent
+
+
 PromptInvocationParameters: TypeAlias = Annotated[
     Union[
         PromptOpenAIInvocationParameters,
@@ -421,6 +429,7 @@ PromptInvocationParameters: TypeAlias = Annotated[
         PromptDeepSeekInvocationParameters,
         PromptXAIInvocationParameters,
         PromptOllamaInvocationParameters,
+        PromptBedrockInvocationParameters,
     ],
     Field(..., discriminator="type"),
 ]
@@ -443,6 +452,8 @@ def get_raw_invocation_parameters(
         return invocation_parameters.xai.model_dump()
     if isinstance(invocation_parameters, PromptOllamaInvocationParameters):
         return invocation_parameters.ollama.model_dump()
+    if isinstance(invocation_parameters, PromptBedrockInvocationParameters):
+        return invocation_parameters.bedrock.model_dump()
     assert_never(invocation_parameters)
 
 
@@ -459,6 +470,7 @@ def is_prompt_invocation_parameters(
             PromptDeepSeekInvocationParameters,
             PromptXAIInvocationParameters,
             PromptOllamaInvocationParameters,
+            PromptBedrockInvocationParameters,
         ),
     )
 
@@ -511,6 +523,11 @@ def validate_invocation_parameters(
         return PromptOllamaInvocationParameters(
             type="ollama",
             ollama=PromptOllamaInvocationParametersContent.model_validate(invocation_parameters),
+        )
+    elif model_provider is ModelProvider.BEDROCK:
+        return PromptBedrockInvocationParameters(
+            type="bedrock",
+            bedrock=PromptBedrockInvocationParametersContent.model_validate(invocation_parameters),
         )
     assert_never(model_provider)
 
