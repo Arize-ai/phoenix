@@ -8,6 +8,7 @@ from itertools import islice
 from time import perf_counter
 from typing import Any, Optional, cast
 
+from openinference.semconv.trace import SpanAttributes
 from typing_extensions import TypeAlias
 
 import phoenix.trace.v1 as pb
@@ -22,9 +23,12 @@ from phoenix.db.insertion.span import SpanInsertionEvent, insert_span
 from phoenix.db.insertion.span_annotation import SpanAnnotationQueueInserter
 from phoenix.db.insertion.trace_annotation import TraceAnnotationQueueInserter
 from phoenix.db.insertion.types import Insertables, Precursors
+from phoenix.db.models import SpanCost
+from phoenix.server.cost_tracking.cost_lookup import COST_TABLE
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.types import CanPutItem, DbSessionFactory
-from phoenix.trace.schemas import Span
+from phoenix.trace.attributes import get_attribute_value
+from phoenix.trace.schemas import Span, SpanKind
 
 logger = logging.getLogger(__name__)
 
@@ -198,6 +202,103 @@ class BulkInserter:
                             )
                         if result is not None:
                             project_ids.add(result.project_rowid)
+
+                            if span.span_kind == SpanKind.LLM:
+                                llm_audio_tokens = get_attribute_value(
+                                    span.attributes,
+                                    LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO,
+                                )
+                                llm_cache_read_tokens = get_attribute_value(
+                                    span.attributes,
+                                    LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ,
+                                )
+                                llm_cache_write_tokens = get_attribute_value(
+                                    span.attributes,
+                                    LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE,
+                                )
+                                llm_output_tokens = get_attribute_value(
+                                    span.attributes,
+                                    LLM_TOKEN_COUNT_COMPLETION,
+                                )
+                                llm_prompt_tokens = get_attribute_value(
+                                    span.attributes,
+                                    LLM_TOKEN_COUNT_PROMPT,
+                                )
+                                llm_input_tokens: Optional[int] = None
+                                if llm_prompt_tokens is not None:
+                                    llm_input_tokens = (
+                                        llm_prompt_tokens
+                                        - (llm_cache_read_tokens or 0)
+                                        - (llm_cache_write_tokens or 0)
+                                    )
+                                llm_reasoning_tokens = get_attribute_value(
+                                    span.attributes,
+                                    LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING,
+                                )
+                                llm_model_name = get_attribute_value(
+                                    span.attributes, LLM_MODEL_NAME
+                                )
+                                if llm_model_name:
+                                    llm_provider = get_attribute_value(
+                                        span.attributes, LLM_PROVIDER
+                                    )
+                                    cost_table_result = COST_TABLE.get_cost(
+                                        provider=llm_provider, model_name=llm_model_name
+                                    )
+                                    if cost_table_result:
+                                        _, token_costs = cost_table_result[0]
+                                        cost_per_audio_token = token_costs.audio
+                                        cost_per_cache_read_token = token_costs.cache_read
+                                        cost_per_cache_write_token = token_costs.cache_write
+                                        cost_per_input_token = token_costs.input
+                                        cost_per_output_token = token_costs.output
+                                        cost_per_reasoning_token = token_costs.reasoning
+
+                                        total_cost = 0.0
+                                        if (
+                                            llm_input_tokens is not None
+                                            and cost_per_input_token is not None
+                                        ):
+                                            total_cost += llm_input_tokens * cost_per_input_token
+                                        if (
+                                            llm_output_tokens is not None
+                                            and cost_per_output_token is not None
+                                        ):
+                                            total_cost += llm_output_tokens * cost_per_output_token
+                                        if (
+                                            llm_audio_tokens is not None
+                                            and cost_per_audio_token is not None
+                                        ):
+                                            total_cost += llm_audio_tokens * cost_per_audio_token
+                                        if (
+                                            llm_reasoning_tokens is not None
+                                            and cost_per_reasoning_token is not None
+                                        ):
+                                            total_cost += (
+                                                llm_reasoning_tokens * cost_per_reasoning_token
+                                            )
+                                        if (
+                                            llm_cache_read_tokens is not None
+                                            and cost_per_cache_read_token is not None
+                                        ):
+                                            total_cost += (
+                                                llm_cache_read_tokens * cost_per_cache_read_token
+                                            )
+                                        if (
+                                            llm_cache_write_tokens is not None
+                                            and cost_per_cache_write_token is not None
+                                        ):
+                                            total_cost += (
+                                                llm_cache_write_tokens * cost_per_cache_write_token
+                                            )
+                                        if total_cost:
+                                            span_cost = SpanCost(
+                                                span_id=result.span_rowid,
+                                                cost=total_cost,
+                                            )
+                                            session.add(span_cost)
+                                            await session.flush()
+
                 if self._enable_prometheus:
                     from phoenix.server.prometheus import BULK_LOADER_INSERTION_TIME
 
@@ -292,3 +393,18 @@ class _QueueInserters:
     @_enqueue.register(Insertables.DocumentAnnotation)
     async def _(self, item: Precursors.DocumentAnnotation) -> None:
         await self._document_annotations.enqueue(item)
+
+
+LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
+LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
+LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
+LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO
+LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING = (
+    SpanAttributes.LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING
+)
+LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
+LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ = SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ
+LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ = SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ
+LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE = (
+    SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE
+)

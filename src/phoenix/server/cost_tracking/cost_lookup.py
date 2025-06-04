@@ -15,6 +15,7 @@ class ModelTokenCost:
     cache_write: Optional[float] = None
     cache_read: Optional[float] = None
     audio: Optional[float] = None
+    reasoning: Optional[float] = None
 
 
 class RegexDict:
