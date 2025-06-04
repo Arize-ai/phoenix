@@ -305,6 +305,24 @@ class _QueueInserters:
 
 
 def _calculate_span_cost(span: Span, span_id: int) -> Optional[SpanCost]:
+    llm_model_name = get_attribute_value(span.attributes, LLM_MODEL_NAME)
+    if not llm_model_name:
+        return None
+
+    llm_provider = get_attribute_value(span.attributes, LLM_PROVIDER)
+    cost_table_result = COST_TABLE.get_cost(provider=llm_provider, model_name=llm_model_name)
+    if not cost_table_result:
+        return None
+
+    _, token_costs = cost_table_result[0]
+    cost_per_prompt_audio_token = token_costs.prompt_audio
+    cost_per_completion_audio_token = token_costs.completion_audio
+    cost_per_cache_read_token = token_costs.cache_read
+    cost_per_cache_write_token = token_costs.cache_write
+    cost_per_input_token = token_costs.input
+    cost_per_output_token = token_costs.output
+    cost_per_reasoning_token = token_costs.reasoning
+
     llm_prompt_audio_tokens = get_attribute_value(
         span.attributes,
         LLM_TOKEN_COUNT_PROMPT_DETAILS_AUDIO,
@@ -333,22 +351,6 @@ def _calculate_span_cost(span: Span, span_id: int) -> Optional[SpanCost]:
         span.attributes,
         LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING,
     )
-    llm_model_name = get_attribute_value(span.attributes, LLM_MODEL_NAME)
-    if not llm_model_name:
-        return None
-
-    llm_provider = get_attribute_value(span.attributes, LLM_PROVIDER)
-    cost_table_result = COST_TABLE.get_cost(provider=llm_provider, model_name=llm_model_name)
-    if not cost_table_result:
-        return None
-
-    _, token_costs = cost_table_result[0]
-    cost_per_audio_token = token_costs.audio
-    cost_per_cache_read_token = token_costs.cache_read
-    cost_per_cache_write_token = token_costs.cache_write
-    cost_per_input_token = token_costs.input
-    cost_per_output_token = token_costs.output
-    cost_per_reasoning_token = token_costs.reasoning
 
     input_tokens = None
     if llm_prompt_tokens is not None:
@@ -385,8 +387,8 @@ def _calculate_span_cost(span: Span, span_id: int) -> Optional[SpanCost]:
         else None
     )
     prompt_audio_token_cost = (
-        llm_prompt_audio_tokens * cost_per_audio_token
-        if llm_prompt_audio_tokens is not None and cost_per_audio_token is not None
+        llm_prompt_audio_tokens * cost_per_prompt_audio_token
+        if llm_prompt_audio_tokens is not None and cost_per_prompt_audio_token is not None
         else None
     )
     output_token_cost = (
@@ -400,8 +402,8 @@ def _calculate_span_cost(span: Span, span_id: int) -> Optional[SpanCost]:
         else None
     )
     completion_audio_token_cost = (
-        llm_completion_audio_tokens * cost_per_audio_token
-        if llm_completion_audio_tokens is not None and cost_per_audio_token is not None
+        llm_completion_audio_tokens * cost_per_completion_audio_token
+        if llm_completion_audio_tokens is not None and cost_per_completion_audio_token is not None
         else None
     )
     costs = [
