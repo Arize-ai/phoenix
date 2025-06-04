@@ -72,11 +72,11 @@ class TestDataset:
 
     def test_sequence_operations(self, dataset_info, examples_data):
         dataset = Dataset(dataset_info, examples_data)
-        
+
         assert len(dataset) == 2
         assert dataset[0]["id"] == "ex1"
         assert dataset[1]["id"] == "ex2"
-        
+
         examples = list(dataset)
         assert len(examples) == 2
         assert all(isinstance(ex, dict) for ex in examples)
@@ -132,9 +132,9 @@ class TestDatasetKeys:
             output_keys=frozenset(["b"]),
             metadata_keys=frozenset(["c"]),
         )
-        
+
         keys.check_differences(frozenset(["a", "b", "c", "d"]))
-        
+
         with pytest.raises(ValueError, match="Keys not found"):
             keys.check_differences(frozenset(["a", "b"]))
 
@@ -168,39 +168,36 @@ class TestHelperFunctions:
     def test_get_csv_column_headers(self, tmp_path):
         csv_file = tmp_path / "test.csv"
         csv_file.write_text("col1,col2,col3\nval1,val2,val3\n")
-        
+
         headers = _get_csv_column_headers(csv_file)
         assert headers == ("col1", "col2", "col3")
 
     def test_get_csv_column_headers_errors(self, tmp_path):
         empty_file = tmp_path / "empty.csv"
         empty_file.write_text("")
-        
+
         with pytest.raises(ValueError, match="CSV file has no data rows"):
             _get_csv_column_headers(empty_file)
-        
+
         with pytest.raises(FileNotFoundError):
             _get_csv_column_headers(Path("/non/existent/file.csv"))
 
     def test_infer_keys(self, tmp_path):
-        df = pd.DataFrame({
-            "input1": [1, 2],
-            "input2": [3, 4],
-            "response": [5, 6],
-            "metadata1": [7, 8]
-        })
-        
+        df = pd.DataFrame(
+            {"input1": [1, 2], "input2": [3, 4], "response": [5, 6], "metadata1": [7, 8]}
+        )
+
         input_keys, output_keys, metadata_keys = _infer_keys(df)
-        
+
         assert input_keys == ("input1", "input2")
         assert output_keys == ("response",)
         assert metadata_keys == ("metadata1",)
 
         csv_file = tmp_path / "test.csv"
         csv_file.write_text("feature1,feature2,output,extra\nval1,val2,val3,val4\n")
-        
+
         input_keys, output_keys, metadata_keys = _infer_keys(csv_file)
-        
+
         assert input_keys == ("feature1", "feature2")
         assert output_keys == ("output",)
         assert metadata_keys == ("extra",)
@@ -209,19 +206,19 @@ class TestHelperFunctions:
         csv_file = tmp_path / "test.csv"
         csv_content = "input1,input2,output\nval1,val2,val3\n"
         csv_file.write_text(csv_content)
-        
+
         keys = DatasetKeys(
             input_keys=frozenset(["input1", "input2"]),
             output_keys=frozenset(["output"]),
             metadata_keys=frozenset(),
         )
-        
+
         name, file_obj, content_type, headers = _prepare_csv(csv_file, keys)
-        
+
         assert name == "test.csv"
         assert content_type == "text/csv"
         assert headers == {"Content-Encoding": "gzip"}
-        
+
         file_obj.seek(0)
         decompressed = gzip.decompress(file_obj.read()).decode()
         assert decompressed == csv_content
@@ -229,35 +226,31 @@ class TestHelperFunctions:
     def test_prepare_csv_validation(self, tmp_path):
         csv_file = tmp_path / "test.csv"
         csv_file.write_text("col1,col1,col2\nval1,val2,val3\n")
-        
+
         keys = DatasetKeys(
             input_keys=frozenset(["col1"]),
             output_keys=frozenset(),
             metadata_keys=frozenset(),
         )
-        
+
         with pytest.raises(ValueError, match="Duplicate column headers"):
             _prepare_csv(csv_file, keys)
 
     def test_prepare_dataframe_as_json(self):
-        df = pd.DataFrame({
-            "input": ["a", "b"],
-            "output": ["x", "y"],
-            "metadata": ["m1", "m2"]
-        })
-        
+        df = pd.DataFrame({"input": ["a", "b"], "output": ["x", "y"], "metadata": ["m1", "m2"]})
+
         keys = DatasetKeys(
             input_keys=frozenset(["input"]),
             output_keys=frozenset(["output"]),
             metadata_keys=frozenset(["metadata"]),
         )
-        
+
         name, file_obj, content_type, headers = _prepare_dataframe_as_json(df, keys)
-        
+
         assert name == "dataframe.csv"
         assert content_type == "text/csv"
         assert headers == {"Content-Encoding": "gzip"}
-        
+
         file_obj.seek(0)
         decompressed = gzip.decompress(file_obj.read()).decode()
         assert "input,output,metadata" in decompressed  # CSV header
@@ -271,7 +264,7 @@ class TestHelperFunctions:
             output_keys=frozenset(),
             metadata_keys=frozenset(),
         )
-        
+
         with pytest.raises(ValueError, match="DataFrame has no data"):
             _prepare_dataframe_as_json(df, keys)
 

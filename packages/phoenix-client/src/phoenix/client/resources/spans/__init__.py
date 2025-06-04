@@ -485,7 +485,7 @@ class AsyncSpans:
             if project_identifier and project_name:
                 raise ValueError("Provide only one of 'project_identifier' or 'project_name'.")
             elif project_identifier and not project_name:
-                if _is_node_id(project_identifier, node_type="Project"):
+                if is_node_id(project_identifier, node_type="Project"):
                     project_response = await self._client.get(
                         url=f"v1/projects/{project_identifier}",
                         headers={"accept": "application/json"},

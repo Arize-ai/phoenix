@@ -463,10 +463,11 @@ class Datasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         if examples is not None:
+            examples_list: list[v1.DatasetExample]
             if _is_valid_dataset_example(examples):
-                examples_list = [examples]
+                examples_list = [examples]  # type: ignore[list-item]
             else:
-                examples_list = list(examples)
+                examples_list = list(examples)  # type: ignore[arg-type]
 
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
@@ -565,10 +566,11 @@ class Datasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         if examples is not None:
+            examples_list: list[v1.DatasetExample]
             if _is_valid_dataset_example(examples):
-                examples_list = [examples]
+                examples_list = [examples]  # type: ignore[list-item]
             else:
-                examples_list = list(examples)
+                examples_list = list(examples)  # type: ignore[arg-type]
 
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
@@ -1032,10 +1034,11 @@ class AsyncDatasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         if examples is not None:
+            examples_list: list[v1.DatasetExample]
             if _is_valid_dataset_example(examples):
-                examples_list = [examples]
+                examples_list = [examples]  # type: ignore[list-item]
             else:
-                examples_list = list(examples)
+                examples_list = list(examples)  # type: ignore[arg-type]
 
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
@@ -1136,10 +1139,11 @@ class AsyncDatasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         if examples is not None:
+            examples_list: list[v1.DatasetExample]
             if _is_valid_dataset_example(examples):
-                examples_list = [examples]
+                examples_list = [examples]  # type: ignore[list-item]
             else:
-                examples_list = list(examples)
+                examples_list = list(examples)  # type: ignore[arg-type]
 
             inputs = [dict(example["input"]) for example in examples_list]
             outputs = [dict(example["output"]) for example in examples_list]
