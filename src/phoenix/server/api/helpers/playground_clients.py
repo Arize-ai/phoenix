@@ -471,10 +471,14 @@ def _get_credential_value(
     """Helper function to extract credential value from credentials list."""
     if not credentials:
         return None
-    for credential in credentials:
-        if credential.env_var_name == env_var_name:
-            return credential.value
-    return None
+    return next(
+        (
+            credential.value
+            for credential in credentials
+            if credential.env_var_name == env_var_name
+        ),
+        None,
+    )
 
 
 def _require_credential(
