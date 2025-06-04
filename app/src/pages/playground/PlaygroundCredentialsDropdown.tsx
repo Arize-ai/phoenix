@@ -72,7 +72,9 @@ export function PlaygroundCredentialsDropdown() {
               </View>
               <Flex direction="column" gap="size-100">
                 {currentProviders.map((provider) => {
-                  if (ProviderToCredentialsConfigMap[provider].length === 0) {
+                  const providerHasNoCredentials = !ProviderToCredentialsConfigMap[provider].length;
+                  if (providerHasNoCredentials) {
+                    // Do not show the credential field
                     return null;
                   }
                   return (
