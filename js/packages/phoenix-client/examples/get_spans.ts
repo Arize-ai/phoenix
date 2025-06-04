@@ -42,16 +42,16 @@ async function main() {
         console.log(
           `     Status: ${span.status_code} (${span.status_message || "no message"})`
         );
-        console.log(
-          `     Duration: ${span.start_time} - ${span.end_time}`
-        );
+        console.log(`     Duration: ${span.start_time} - ${span.end_time}`);
 
         // Show some key attributes
         if (span.attributes && Object.keys(span.attributes).length > 0) {
           console.log(`     Key Attributes:`);
-          Object.entries(span.attributes).slice(0, 3).forEach(([key, value]) => {
-            console.log(`       - ${key}: ${value}`);
-          });
+          Object.entries(span.attributes)
+            .slice(0, 3)
+            .forEach(([key, value]) => {
+              console.log(`       - ${key}: ${value}`);
+            });
           if (Object.keys(span.attributes).length > 3) {
             console.log(
               `       ... and ${Object.keys(span.attributes).length - 3} more attributes`
@@ -94,9 +94,7 @@ async function main() {
       limit: 3,
     });
 
-    console.log(
-      `Found ${additionalSpans.data.length} additional spans`
-    );
+    console.log(`Found ${additionalSpans.data.length} additional spans`);
 
     console.log("\n📄 Demonstrating pagination...");
 
@@ -145,10 +143,10 @@ async function main() {
       "- next_cursor: Base64-encoded cursor for pagination (if more data available)"
     );
     console.log("\nEach span contains:");
-    console.log("- Core fields: id, name, context (trace_id, span_id), start/end times");
     console.log(
-      "- Attributes: Key-value pairs with simple values"
+      "- Core fields: id, name, context (trace_id, span_id), start/end times"
     );
+    console.log("- Attributes: Key-value pairs with simple values");
     console.log("- Status: status_code and status_message");
     console.log("- Events: Array of timestamped events");
     console.log("- Span kind and parent information");
@@ -169,8 +167,11 @@ async function main() {
             end_time: firstSpan.end_time,
             status_code: firstSpan.status_code,
             status_message: firstSpan.status_message,
-            attributes: firstSpan.attributes ? 
-              Object.fromEntries(Object.entries(firstSpan.attributes).slice(0, 2)) : {},
+            attributes: firstSpan.attributes
+              ? Object.fromEntries(
+                  Object.entries(firstSpan.attributes).slice(0, 2)
+                )
+              : {},
             "...": `${Object.keys(firstSpan.attributes || {}).length - 2} more attributes`,
             events: firstSpan.events?.slice(0, 1) || [],
             parent_id: firstSpan.parent_id,
