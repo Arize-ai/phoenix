@@ -2236,7 +2236,8 @@ type SpanCost {
   outputTokenCost: Float
   cacheReadTokenCost: Float
   cacheWriteTokenCost: Float
-  audioTokenCost: Float
+  promptAudioTokenCost: Float
+  completionAudioTokenCost: Float
   reasoningTokenCost: Float
   totalTokenCost: Float!
 }
