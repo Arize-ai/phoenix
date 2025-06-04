@@ -26,9 +26,9 @@ from openinference.semconv.trace import (
 from opentelemetry.context import Context
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource  # type: ignore[attr-defined]
+from opentelemetry.sdk.trace import Span
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.trace import Status, StatusCode, Tracer
-from opentelemetry.trace.span import Span
 from typing_extensions import TypeAlias
 
 from phoenix.config import get_base_url, get_env_client_headers
@@ -274,8 +274,11 @@ def run_experiment(
         error: Optional[BaseException] = None
         status = Status(StatusCode.OK)
         with ExitStack() as stack:
-            span: Span = stack.enter_context(
-                tracer.start_as_current_span(root_span_name, context=Context())
+            span = cast(
+                Span,
+                stack.enter_context(
+                    tracer.start_as_current_span(root_span_name, context=Context())
+                ),
             )
             stack.enter_context(capture_spans(resource))
             try:
@@ -391,8 +394,11 @@ def run_experiment(
         error: Optional[BaseException] = None
         status = Status(StatusCode.OK)
         with ExitStack() as stack:
-            span: Span = stack.enter_context(
-                tracer.start_as_current_span(root_span_name, context=Context())
+            span = cast(
+                Span,
+                stack.enter_context(
+                    tracer.start_as_current_span(root_span_name, context=Context())
+                ),
             )
             stack.enter_context(capture_spans(resource))
             try:
@@ -622,8 +628,11 @@ def evaluate_experiment(
         status = Status(StatusCode.OK)
         root_span_name = f"Evaluation: {evaluator.name}"
         with ExitStack() as stack:
-            span: Span = stack.enter_context(
-                tracer.start_as_current_span(root_span_name, context=Context())
+            span = cast(
+                Span,
+                stack.enter_context(
+                    tracer.start_as_current_span(root_span_name, context=Context())
+                ),
             )
             stack.enter_context(capture_spans(resource))
             try:
@@ -674,8 +683,11 @@ def evaluate_experiment(
         status = Status(StatusCode.OK)
         root_span_name = f"Evaluation: {evaluator.name}"
         with ExitStack() as stack:
-            span: Span = stack.enter_context(
-                tracer.start_as_current_span(root_span_name, context=Context())
+            span = cast(
+                Span,
+                stack.enter_context(
+                    tracer.start_as_current_span(root_span_name, context=Context())
+                ),
             )
             stack.enter_context(capture_spans(resource))
             try:
