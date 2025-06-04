@@ -20,6 +20,7 @@ author = "Arize AI"
 # The version info for the project you're documenting
 try:
     from phoenix.otel import __version__ as version
+
     release = version
 except ImportError:
     version = "latest"
@@ -144,4 +145,4 @@ if theme_switcher:
 html_sidebars = {
     "**": ["custom_sidebar.html"],
     "index": [],
-} 
+}
