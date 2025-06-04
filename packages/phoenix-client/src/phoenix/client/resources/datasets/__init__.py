@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     import pandas as pd
 
 from phoenix.client.__generated__ import v1
+from phoenix.client.utils.id_handling import is_node_id
 
 logger = logging.getLogger(__name__)
 
@@ -240,9 +241,9 @@ class Datasets:
         Basic usage:
             >>> from phoenix.client import Client
             >>> client = Client()
-            >>> dataset = client.datasets.get_dataset(dataset_name="my-dataset")
+            >>> dataset = client.datasets.get_dataset("my-dataset")
             >>> print(f"Dataset {dataset.name} has {len(dataset)} examples")
-            >>> versions = client.datasets.get_dataset_versions(dataset=dataset)
+            >>> versions = client.datasets.get_dataset_versions(dataset)
 
         Method chaining:
             >>> # Create dataset and get its versions
@@ -251,19 +252,19 @@ class Datasets:
             ...     inputs=[{"text": "hello"}],
             ...     outputs=[{"response": "hi"}]
             ... )
-            >>> versions = client.datasets.get_dataset_versions(dataset=dataset)
+            >>> versions = client.datasets.get_dataset_versions(dataset)
             >>>
             >>> # Add individual examples from one dataset to another
-            >>> source_dataset = client.datasets.get_dataset(dataset_name="source")
+            >>> source_dataset = client.datasets.get_dataset("source")
             >>> updated = client.datasets.add_examples_to_dataset(
-            ...     dataset_name="target",
+            ...     dataset="target",
             ...     examples=source_dataset[0]  # Pass a single example!
             ... )
             >>> print(f"Dataset now has {len(updated)} examples")
             >>>
             >>> # Or add multiple specific examples
             >>> client.datasets.add_examples_to_dataset(
-            ...     dataset_name="target",
+            ...     dataset="target",
             ...     examples=source_dataset.examples[:5]  # First 5 examples
             ... )
 
@@ -285,7 +286,7 @@ class Datasets:
 
         Using DataFrame with add_examples_to_dataset:
             >>> # Get dataset and convert to DataFrame
-            >>> source = client.datasets.get_dataset(dataset_name="source")
+            >>> source = client.datasets.get_dataset("source")
             >>> df = source.to_dataframe()
             >>>
             >>> # Extract dictionaries from DataFrame columns
@@ -295,7 +296,7 @@ class Datasets:
             >>>
             >>> # Use extracted data to create/update datasets
             >>> client.datasets.add_examples_to_dataset(
-            ...     dataset_name="target",
+            ...     dataset="target",
             ...     inputs=inputs,
             ...     outputs=outputs,
             ...     metadata=metadata
@@ -307,10 +308,7 @@ class Datasets:
 
     def _resolve_dataset_id_and_name(
         self,
-        *,
-        dataset: Optional[DatasetIdentifier] = None,
-        dataset_id: Optional[str] = None,
-        dataset_name: Optional[str] = None,
+        dataset: DatasetIdentifier,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> tuple[Optional[str], Optional[str]]:
         """
@@ -319,31 +317,27 @@ class Datasets:
         Returns:
             Tuple of (dataset_id, dataset_name), where either or both may be None
         """
-        # If dataset identifier provided, extract ID/name from it
-        if dataset is not None:
-            if isinstance(dataset, Dataset):
-                # Dataset object
-                return dataset.id, dataset.name
-            elif isinstance(dataset, str):
-                # Could be ID or name - try to determine which
-                # If it looks like a base64 ID, treat as ID, otherwise as name
-                if len(dataset) > 20 and not any(c.isspace() for c in dataset):
-                    return dataset, None
-                else:
-                    return None, dataset
-            elif isinstance(dataset, dict):
-                # Dictionary with id/name fields
-                return dataset.get("id"), dataset.get("name")
-
-        # Use explicit parameters if provided
-        return dataset_id, dataset_name
+        if isinstance(dataset, Dataset):
+            # Dataset object
+            return dataset.id, dataset.name
+        elif isinstance(dataset, str):
+            # Could be ID or name - check if it's a valid node ID
+            if is_node_id(dataset):
+                return dataset, None
+            else:
+                return None, dataset
+        elif isinstance(dataset, dict):
+            # Dictionary with id/name fields
+            return dataset.get("id"), dataset.get("name")
+        else:
+            raise ValueError(
+                "Dataset must be a dataset ID string, name string, Dataset object, or dict"
+            )
 
     def get_dataset(
         self,
+        dataset: DatasetIdentifier,
         *,
-        dataset: Optional[DatasetIdentifier] = None,
-        dataset_id: Optional[str] = None,
-        dataset_name: Optional[str] = None,
         version_id: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
@@ -353,10 +347,7 @@ class Datasets:
 
         Args:
             dataset: A dataset identifier - can be a dataset ID string, name string,
-                Dataset object, or dict.
-            dataset_id: An ID for the dataset.
-            dataset_name: The name for the dataset. If provided, the ID
-                is ignored and the dataset is retrieved by name.
+                Dataset object, or dict with 'id'/'name' fields.
             version_id: An ID for the version of the dataset, or None.
             timeout: Optional request timeout in seconds.
 
@@ -364,28 +355,24 @@ class Datasets:
             A Dataset object containing the dataset metadata and examples.
 
         Raises:
-            ValueError: If no dataset identifier is provided.
+            ValueError: If dataset format is invalid.
             httpx.HTTPStatusError: If the API returns an error response.
         """
         # Resolve dataset identification
-        resolved_id, resolved_name = self._resolve_dataset_id_and_name(
-            dataset=dataset, dataset_id=dataset_id, dataset_name=dataset_name, timeout=timeout
-        )
+        resolved_id, resolved_name = self._resolve_dataset_id_and_name(dataset, timeout=timeout)
 
-        # Use explicit dataset_name parameter if provided, otherwise prefer resolved_id over resolved_name
-        if dataset_name:
-            resolved_id = self._get_dataset_id_by_name(dataset_name=dataset_name, timeout=timeout)
-        elif resolved_id:
-            # Use the resolved ID directly
-            pass
+        # Get dataset ID - prefer ID over name if both present
+        if resolved_id:
+            dataset_id = resolved_id
         elif resolved_name:
-            resolved_id = self._get_dataset_id_by_name(dataset_name=resolved_name, timeout=timeout)
+            dataset_id = self._get_dataset_id_by_name(dataset_name=resolved_name, timeout=timeout)
         else:
-            raise ValueError("Dataset id, name, or dataset object must be provided.")
+            # This shouldn't happen with current resolution logic, but just in case
+            raise ValueError("Could not determine dataset ID or name from input")
 
         # Get dataset info
         dataset_response = self._client.get(
-            url=f"v1/datasets/{quote(resolved_id)}",
+            url=f"v1/datasets/{quote(dataset_id)}",
             headers={"accept": "application/json"},
             timeout=timeout,
         )
@@ -395,7 +382,7 @@ class Datasets:
         # Get examples
         params = {"version_id": version_id} if version_id else None
         examples_response = self._client.get(
-            url=f"v1/datasets/{quote(resolved_id)}/examples",
+            url=f"v1/datasets/{quote(dataset_id)}/examples",
             params=params,
             headers={"accept": "application/json"},
             timeout=timeout,
@@ -407,10 +394,8 @@ class Datasets:
 
     def get_dataset_versions(
         self,
+        dataset: DatasetIdentifier,
         *,
-        dataset: Optional[DatasetIdentifier] = None,
-        dataset_id: Optional[str] = None,
-        dataset_name: Optional[str] = None,
         limit: Optional[int] = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[dict[str, Any]]:
@@ -419,9 +404,7 @@ class Datasets:
 
         Args:
             dataset: A dataset identifier - can be a dataset ID string, name string,
-                Dataset object, or dict.
-            dataset_id: Dataset ID
-            dataset_name: Dataset name (will be resolved to ID)
+                Dataset object, or dict with 'id'/'name' fields.
             limit: Maximum number of versions to return, starting from the most recent version
             timeout: Optional request timeout in seconds.
 
@@ -433,22 +416,21 @@ class Datasets:
                 - metadata: Version metadata (if any)
 
         Raises:
-            ValueError: If no dataset identifier is provided.
+            ValueError: If dataset format is invalid.
             httpx.HTTPStatusError: If the API returns an error response.
         """
         # Resolve dataset identification
-        resolved_id, resolved_name = self._resolve_dataset_id_and_name(
-            dataset=dataset, dataset_id=dataset_id, dataset_name=dataset_name, timeout=timeout
-        )
+        resolved_id, resolved_name = self._resolve_dataset_id_and_name(dataset, timeout=timeout)
 
-        if resolved_name and not resolved_id:
-            resolved_id = self._get_dataset_id_by_name(dataset_name=resolved_name, timeout=timeout)
-
-        if not resolved_id:
-            raise ValueError("Dataset id, name, or dataset object must be provided.")
+        if resolved_id:
+            dataset_id = resolved_id
+        elif resolved_name:
+            dataset_id = self._get_dataset_id_by_name(dataset_name=resolved_name, timeout=timeout)
+        else:
+            raise ValueError("Could not determine dataset ID or name from input")
 
         response = self._client.get(
-            url=f"v1/datasets/{resolved_id}/versions",
+            url=f"v1/datasets/{dataset_id}/versions",
             params={"limit": limit},
             headers={"accept": "application/json"},
             timeout=timeout,
@@ -563,9 +545,8 @@ class Datasets:
 
     def add_examples_to_dataset(
         self,
+        dataset: DatasetIdentifier,
         *,
-        dataset: Optional[DatasetIdentifier] = None,
-        dataset_name: Optional[str] = None,
         examples: Optional[Union[v1.DatasetExample, Iterable[v1.DatasetExample]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
@@ -582,8 +563,7 @@ class Datasets:
 
         Args:
             dataset: A dataset identifier - can be a dataset ID string, name string,
-                Dataset object, or dict.
-            dataset_name: Name of the dataset. If dataset is provided, this is ignored.
+                Dataset object, or dict with 'id'/'name' fields.
             examples: Either a single DatasetExample or list of DatasetExample objects to add.
                 When provided, inputs/outputs/metadata are extracted automatically.
             dataframe: pandas DataFrame (requires pandas to be installed).
@@ -604,13 +584,22 @@ class Datasets:
             ImportError: If pandas is required but not installed.
             httpx.HTTPStatusError: If the API returns an error response.
         """
-        # Resolve dataset name
-        _, resolved_name = self._resolve_dataset_id_and_name(
-            dataset=dataset, dataset_name=dataset_name, timeout=timeout
-        )
+        # Resolve dataset name - get both ID and name in one call
+        resolved_id, resolved_name = self._resolve_dataset_id_and_name(dataset, timeout=timeout)
 
         if not resolved_name:
-            raise ValueError("Dataset name or dataset object must be provided.")
+            # If we only have an ID, we need to get the name
+            if resolved_id:
+                # Fetch dataset info to get the name
+                response = self._client.get(
+                    url=f"v1/datasets/{quote(resolved_id)}",
+                    headers={"accept": "application/json"},
+                    timeout=timeout,
+                )
+                response.raise_for_status()
+                resolved_name = response.json()["data"]["name"]
+            else:
+                raise ValueError("Could not determine dataset name from input")
 
         # Handle examples parameter by extracting inputs/outputs/metadata
         if examples is not None:
@@ -851,7 +840,7 @@ class Datasets:
 
         # Get full dataset info and examples
         dataset = self.get_dataset(
-            dataset_id=dataset_id,
+            dataset=dataset_id,
             version_id=version_id,
             timeout=timeout,
         )
@@ -870,7 +859,7 @@ class AsyncDatasets:
         Basic usage:
             >>> from phoenix.client import AsyncClient
             >>> client = AsyncClient()
-            >>> dataset = await client.datasets.get_dataset(dataset_name="my-dataset")
+            >>> dataset = await client.datasets.get_dataset("my-dataset")
             >>> print(f"Dataset {dataset.name} has {len(dataset)} examples")
             >>> df = dataset.to_dataframe()  # Convert to pandas DataFrame
 
@@ -881,18 +870,18 @@ class AsyncDatasets:
             ...     inputs=[{"text": "hello"}],
             ...     outputs=[{"response": "hi"}]
             ... )
-            >>> versions = await client.datasets.get_dataset_versions(dataset=dataset)
+            >>> versions = await client.datasets.get_dataset_versions(dataset)
             >>>
             >>> # Add individual examples from one dataset to another
-            >>> source_dataset = await client.datasets.get_dataset(dataset_name="source")
+            >>> source_dataset = await client.datasets.get_dataset("source")
             >>> await client.datasets.add_examples_to_dataset(
-            ...     dataset_name="target",
+            ...     dataset="target",
             ...     examples=source_dataset[0]  # Pass a single example!
             ... )
 
         Using DataFrame with add_examples_to_dataset:
             >>> # Get dataset and convert to DataFrame
-            >>> source = await client.datasets.get_dataset(dataset_name="source")
+            >>> source = await client.datasets.get_dataset("source")
             >>> df = source.to_dataframe()
             >>>
             >>> # Extract dictionaries from DataFrame columns
@@ -902,7 +891,7 @@ class AsyncDatasets:
             >>>
             >>> # Use extracted data to create/update datasets
             >>> await client.datasets.add_examples_to_dataset(
-            ...     dataset_name="target",
+            ...     dataset="target",
             ...     inputs=inputs,
             ...     outputs=outputs,
             ...     metadata=metadata
@@ -914,10 +903,7 @@ class AsyncDatasets:
 
     async def _resolve_dataset_id_and_name(
         self,
-        *,
-        dataset: Optional[DatasetIdentifier] = None,
-        dataset_id: Optional[str] = None,
-        dataset_name: Optional[str] = None,
+        dataset: DatasetIdentifier,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> tuple[Optional[str], Optional[str]]:
         """
@@ -926,73 +912,62 @@ class AsyncDatasets:
         Returns:
             Tuple of (dataset_id, dataset_name), where either or both may be None
         """
-        # If dataset identifier provided, extract ID/name from it
-        if dataset is not None:
-            if isinstance(dataset, Dataset):
-                # Dataset object
-                return dataset.id, dataset.name
-            elif isinstance(dataset, str):
-                # Could be ID or name - try to determine which
-                # If it looks like a base64 ID, treat as ID, otherwise as name
-                if len(dataset) > 20 and not any(c.isspace() for c in dataset):
-                    return dataset, None
-                else:
-                    return None, dataset
-            elif isinstance(dataset, dict):
-                # Dictionary with id/name fields
-                return dataset.get("id"), dataset.get("name")
-
-        # Use explicit parameters if provided
-        return dataset_id, dataset_name
+        if isinstance(dataset, Dataset):
+            # Dataset object
+            return dataset.id, dataset.name
+        elif isinstance(dataset, str):
+            # Could be ID or name - check if it's a valid node ID
+            if is_node_id(dataset):
+                return dataset, None
+            else:
+                return None, dataset
+        elif isinstance(dataset, dict):
+            # Dictionary with id/name fields
+            return dataset.get("id"), dataset.get("name")
+        else:
+            raise ValueError(
+                "Dataset must be a dataset ID string, name string, Dataset object, or dict"
+            )
 
     async def get_dataset(
         self,
+        dataset: DatasetIdentifier,
         *,
-        dataset: Optional[DatasetIdentifier] = None,
-        dataset_id: Optional[str] = None,
-        dataset_name: Optional[str] = None,
         version_id: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
         """
-        Async version of get_dataset.
+        Gets the dataset for a specific version, or gets the latest version of
+        the dataset if no version is specified.
 
         Args:
             dataset: A dataset identifier - can be a dataset ID string, name string,
-                dataset object, or tuple returned from other dataset methods.
-            dataset_id: An ID for the dataset.
-            dataset_name: The name for the dataset. If provided, the ID
-                is ignored and the dataset is retrieved by name.
+                Dataset object, or dict with 'id'/'name' fields.
             version_id: An ID for the version of the dataset, or None.
             timeout: Optional request timeout in seconds.
 
         Returns:
-            A tuple of (dataset_info, examples_data) containing the dataset metadata
-            and examples with version information.
+            A Dataset object containing the dataset metadata and examples.
+
+        Raises:
+            ValueError: If dataset format is invalid.
+            httpx.HTTPStatusError: If the API returns an error response.
         """
         # Resolve dataset identification
-        resolved_id, resolved_name = await self._resolve_dataset_id_and_name(
-            dataset=dataset, dataset_id=dataset_id, dataset_name=dataset_name, timeout=timeout
-        )
+        resolved_id, resolved_name = await self._resolve_dataset_id_and_name(dataset, timeout=timeout)
 
-        # Use explicit dataset_name parameter if provided, otherwise prefer resolved_id over resolved_name
-        if dataset_name:
-            resolved_id = await self._get_dataset_id_by_name(
-                dataset_name=dataset_name, timeout=timeout
-            )
-        elif resolved_id:
-            # Use the resolved ID directly
-            pass
+        # Get dataset ID - prefer ID over name if both present
+        if resolved_id:
+            dataset_id = resolved_id
         elif resolved_name:
-            resolved_id = await self._get_dataset_id_by_name(
-                dataset_name=resolved_name, timeout=timeout
-            )
+            dataset_id = await self._get_dataset_id_by_name(dataset_name=resolved_name, timeout=timeout)
         else:
-            raise ValueError("Dataset id, name, or dataset object must be provided.")
+            # This shouldn't happen with current resolution logic, but just in case
+            raise ValueError("Could not determine dataset ID or name from input")
 
         # Get dataset info
         dataset_response = await self._client.get(
-            url=f"v1/datasets/{quote(resolved_id)}",
+            url=f"v1/datasets/{quote(dataset_id)}",
             headers={"accept": "application/json"},
             timeout=timeout,
         )
@@ -1002,7 +977,7 @@ class AsyncDatasets:
         # Get examples
         params = {"version_id": version_id} if version_id else None
         examples_response = await self._client.get(
-            url=f"v1/datasets/{quote(resolved_id)}/examples",
+            url=f"v1/datasets/{quote(dataset_id)}/examples",
             params=params,
             headers={"accept": "application/json"},
             timeout=timeout,
@@ -1014,10 +989,8 @@ class AsyncDatasets:
 
     async def get_dataset_versions(
         self,
+        dataset: DatasetIdentifier,
         *,
-        dataset: Optional[DatasetIdentifier] = None,
-        dataset_id: Optional[str] = None,
-        dataset_name: Optional[str] = None,
         limit: Optional[int] = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[dict[str, Any]]:
@@ -1026,9 +999,7 @@ class AsyncDatasets:
 
         Args:
             dataset: A dataset identifier - can be a dataset ID string, name string,
-                Dataset object, or dict.
-            dataset_id: Dataset ID
-            dataset_name: Dataset name (will be resolved to ID)
+                Dataset object, or dict with 'id'/'name' fields.
             limit: Maximum number of versions to return, starting from the most recent version
             timeout: Optional request timeout in seconds.
 
@@ -1040,24 +1011,21 @@ class AsyncDatasets:
                 - metadata: Version metadata (if any)
 
         Raises:
-            ValueError: If no dataset identifier is provided.
+            ValueError: If dataset format is invalid.
             httpx.HTTPStatusError: If the API returns an error response.
         """
         # Resolve dataset identification
-        resolved_id, resolved_name = await self._resolve_dataset_id_and_name(
-            dataset=dataset, dataset_id=dataset_id, dataset_name=dataset_name, timeout=timeout
-        )
+        resolved_id, resolved_name = await self._resolve_dataset_id_and_name(dataset, timeout=timeout)
 
-        if resolved_name and not resolved_id:
-            resolved_id = await self._get_dataset_id_by_name(
-                dataset_name=resolved_name, timeout=timeout
-            )
-
-        if not resolved_id:
-            raise ValueError("Dataset id, name, or dataset object must be provided.")
+        if resolved_id:
+            dataset_id = resolved_id
+        elif resolved_name:
+            dataset_id = await self._get_dataset_id_by_name(dataset_name=resolved_name, timeout=timeout)
+        else:
+            raise ValueError("Could not determine dataset ID or name from input")
 
         response = await self._client.get(
-            url=f"v1/datasets/{resolved_id}/versions",
+            url=f"v1/datasets/{dataset_id}/versions",
             params={"limit": limit},
             headers={"accept": "application/json"},
             timeout=timeout,
@@ -1172,9 +1140,8 @@ class AsyncDatasets:
 
     async def add_examples_to_dataset(
         self,
+        dataset: DatasetIdentifier,
         *,
-        dataset: Optional[DatasetIdentifier] = None,
-        dataset_name: Optional[str] = None,
         examples: Optional[Union[v1.DatasetExample, Iterable[v1.DatasetExample]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
@@ -1187,12 +1154,11 @@ class AsyncDatasets:
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
         """
-        Async version of add_examples_to_dataset.
+        Append examples to an existing dataset on the Phoenix server.
 
         Args:
             dataset: A dataset identifier - can be a dataset ID string, name string,
-                Dataset object, or dict.
-            dataset_name: Name of the dataset. If dataset is provided, this is ignored.
+                Dataset object, or dict with 'id'/'name' fields.
             examples: Either a single DatasetExample or list of DatasetExample objects to add.
                 When provided, inputs/outputs/metadata are extracted automatically.
             dataframe: pandas DataFrame (requires pandas to be installed).
@@ -1213,13 +1179,22 @@ class AsyncDatasets:
             ImportError: If pandas is required but not installed.
             httpx.HTTPStatusError: If the API returns an error response.
         """
-        # Resolve dataset name
-        _, resolved_name = await self._resolve_dataset_id_and_name(
-            dataset=dataset, dataset_name=dataset_name, timeout=timeout
-        )
+        # Resolve dataset name - get both ID and name in one call
+        resolved_id, resolved_name = await self._resolve_dataset_id_and_name(dataset, timeout=timeout)
 
         if not resolved_name:
-            raise ValueError("Dataset name or dataset object must be provided.")
+            # If we only have an ID, we need to get the name
+            if resolved_id:
+                # Fetch dataset info to get the name
+                response = await self._client.get(
+                    url=f"v1/datasets/{quote(resolved_id)}",
+                    headers={"accept": "application/json"},
+                    timeout=timeout,
+                )
+                response.raise_for_status()
+                resolved_name = response.json()["data"]["name"]
+            else:
+                raise ValueError("Could not determine dataset name from input")
 
         # Handle examples parameter by extracting inputs/outputs/metadata
         if examples is not None:
@@ -1441,7 +1416,7 @@ class AsyncDatasets:
 
         # Get full dataset info and examples
         dataset = await self.get_dataset(
-            dataset_id=dataset_id,
+            dataset=dataset_id,
             version_id=version_id,
             timeout=timeout,
         )
