@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.9.0...arize-phoenix-client-v1.10.0) (2025-06-04)
+
+
+### Features
+
+* Add `get_spans` to phoenix client ([#7688](https://github.com/Arize-ai/phoenix/issues/7688)) ([8b48176](https://github.com/Arize-ai/phoenix/commit/8b481762c188e3191a8e0bb2ffd295a7ee3fdfb8))
+* ollama ([#7846](https://github.com/Arize-ai/phoenix/issues/7846)) ([4c52db4](https://github.com/Arize-ai/phoenix/commit/4c52db40da6b7772487cc6d288cf69d5944812a1))
+
+
+### Bug Fixes
+
+* Do not return notes from GET /span_annotations ([#7830](https://github.com/Arize-ai/phoenix/issues/7830)) ([52c2c06](https://github.com/Arize-ai/phoenix/commit/52c2c06028815d0982172925e2d31705f49e0fe3))
+
 ## [1.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.8.0...arize-phoenix-client-v1.9.0) (2025-05-31)
 
 
