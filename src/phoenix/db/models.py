@@ -1537,6 +1537,6 @@ class SpanCost(Base):
     prompt_audio_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     completion_audio_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     reasoning_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    total_token_cost: Mapped[float] = mapped_column(Float, nullable=False)
+    total_token_cost: Mapped[float] = mapped_column(Float, nullable=False, index=True)
 
     span: Mapped["Span"] = relationship("Span", back_populates="span_cost")

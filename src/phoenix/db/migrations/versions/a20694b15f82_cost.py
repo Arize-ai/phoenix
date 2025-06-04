@@ -147,6 +147,7 @@ def upgrade() -> None:
             "total_token_cost",
             sa.Float,
             nullable=False,
+            index=True,
         ),
     )
 
