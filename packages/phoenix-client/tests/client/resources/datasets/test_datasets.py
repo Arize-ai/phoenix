@@ -23,7 +23,6 @@ from phoenix.client.resources.datasets import (
 
 
 class TestDataset:
-
     @pytest.fixture
     def dataset_info(self):
         return v1.DatasetWithExampleCount(
@@ -104,7 +103,6 @@ class TestDataset:
         assert dataset.metadata == {}
 
     def test_example_count_fallback(self, dataset_info, examples_data):
-        # Create a Dataset without example_count
         dataset_info_no_count = v1.Dataset(
             id=dataset_info["id"],
             name=dataset_info["name"],
@@ -142,9 +140,95 @@ class TestDataset:
         assert "version_id='version456'" in repr_str
         assert "examples=2" in repr_str
 
+    def test_to_dataframe(self, dataset_info, examples_data):
+        dataset = Dataset(dataset_info, examples_data)
+
+        import pandas as pd
+
+        df = dataset.to_dataframe()
+
+        assert isinstance(df, pd.DataFrame)
+        assert len(df) == 2
+
+        assert list(df.columns) == ["input", "output", "metadata"]
+
+        assert df.index.name == "example_id"
+        assert list(df.index) == ["ex1", "ex2"]
+
+        assert df.loc["ex1", "input"] == {"text": "hello"}
+        assert df.loc["ex1", "output"] == {"response": "hi"}
+        assert df.loc["ex1", "metadata"] == {"source": "test"}
+
+        assert df.loc["ex2", "input"] == {"text": "world"}
+        assert df.loc["ex2", "output"] == {"response": "earth"}
+        assert df.loc["ex2", "metadata"] == {"source": "test"}
+
+    def test_to_dataframe_empty(self, dataset_info):
+        empty_examples_data = v1.ListDatasetExamplesData(
+            dataset_id="dataset123", version_id="version456", examples=[]
+        )
+        dataset = Dataset(dataset_info, empty_examples_data)
+
+        import pandas as pd
+
+        df = dataset.to_dataframe()
+
+        assert isinstance(df, pd.DataFrame)
+        assert len(df) == 0
+        assert list(df.columns) == ["input", "output", "metadata"]
+        assert df.index.name == "example_id"
+
+    def test_to_dataframe_no_pandas(self, dataset_info, examples_data):
+        dataset = Dataset(dataset_info, examples_data)
+
+        def mock_import(name, *args, **kwargs):
+            if name == "pandas":
+                raise ImportError("No module named 'pandas'")
+            return __import__(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=mock_import):
+            with pytest.raises(ImportError, match="pandas is required to use to_dataframe"):
+                dataset.to_dataframe()
+
+    def test_to_dataframe_varied_keys(self, dataset_info):
+        varied_examples_data = v1.ListDatasetExamplesData(
+            dataset_id="dataset123",
+            version_id="version456",
+            examples=[
+                v1.DatasetExample(
+                    id="ex1",
+                    input={"question": "What is 2+2?", "context": "math"},
+                    output={"answer": "4", "confidence": 0.9},
+                    metadata={"category": "arithmetic"},
+                    updated_at="2024-01-15T10:00:00",
+                ),
+                v1.DatasetExample(
+                    id="ex2",
+                    input={"question": "What is the capital of France?"},
+                    output={"answer": "Paris"},
+                    metadata={"category": "geography", "difficulty": "easy"},
+                    updated_at="2024-01-15T11:00:00",
+                ),
+            ],
+        )
+        dataset = Dataset(dataset_info, varied_examples_data)
+
+
+        df = dataset.to_dataframe()
+
+        assert list(df.columns) == ["input", "output", "metadata"]
+        assert df.index.name == "example_id"
+
+        assert df.loc["ex1", "input"] == {"question": "What is 2+2?", "context": "math"}
+        assert df.loc["ex1", "output"] == {"answer": "4", "confidence": 0.9}
+        assert df.loc["ex1", "metadata"] == {"category": "arithmetic"}
+
+        assert df.loc["ex2", "input"] == {"question": "What is the capital of France?"}
+        assert df.loc["ex2", "output"] == {"answer": "Paris"}
+        assert df.loc["ex2", "metadata"] == {"category": "geography", "difficulty": "easy"}
+
 
 class TestDatasetKeys:
-
     def test_init_valid_keys(self):
         keys = DatasetKeys(
             input_keys=frozenset(["a", "b"]),
@@ -206,7 +290,6 @@ class TestDatasetKeys:
 
 
 class TestHelperFunctions:
-
     def test_parse_datetime(self):
         dt_str = "2024-01-15T10:30:00"
         dt = _parse_datetime(dt_str)
@@ -346,7 +429,6 @@ class TestHelperFunctions:
 
 
 class TestDatasets:
-
     @pytest.fixture
     def mock_client(self):
         return Mock(spec=httpx.Client)
@@ -457,7 +539,7 @@ class TestDatasets:
         ):
             datasets.get_dataset()
 
-    def test_get_dataset_versions_dataframe_with_dataset_object(self, datasets, mock_client):
+    def test_get_dataset_versions_with_dataset_object(self, datasets, mock_client):
         dataset_obj = Mock(spec=Dataset)
         dataset_obj.id = "dataset123"
         dataset_obj.name = "Test Dataset"
@@ -476,7 +558,7 @@ class TestDatasets:
         mock_response.raise_for_status.return_value = None
         mock_client.get.return_value = mock_response
 
-        datasets.get_dataset_versions_dataframe(dataset=dataset_obj)
+        result = datasets.get_dataset_versions(dataset=dataset_obj)
 
         mock_client.get.assert_called_once_with(
             url="v1/datasets/dataset123/versions",
@@ -485,7 +567,12 @@ class TestDatasets:
             timeout=5,
         )
 
-    def test_get_dataset_versions_dataframe_with_name(self, datasets, mock_client):
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["version_id"] == "v1"
+        assert isinstance(result[0]["created_at"], datetime)
+
+    def test_get_dataset_versions_with_name(self, datasets, mock_client):
         name_lookup_response = Mock()
         name_lookup_response.json.return_value = {
             "data": [{"id": "dataset123", "name": "Test Dataset"}]
@@ -499,7 +586,7 @@ class TestDatasets:
 
         mock_client.get.side_effect = [name_lookup_response, versions_response]
 
-        datasets.get_dataset_versions_dataframe(dataset_name="Test Dataset")
+        result = datasets.get_dataset_versions(dataset_name="Test Dataset")
 
         assert mock_client.get.call_count == 2
         mock_client.get.assert_any_call(
@@ -509,7 +596,10 @@ class TestDatasets:
             timeout=5,
         )
 
-    def test_get_dataset_versions_dataframe(self, datasets, mock_client):
+        assert isinstance(result, list)
+        assert len(result) == 1
+
+    def test_get_dataset_versions(self, datasets, mock_client):
         versions_data = [
             {
                 "version_id": "v1",
@@ -530,7 +620,7 @@ class TestDatasets:
         mock_response.raise_for_status.return_value = None
         mock_client.get.return_value = mock_response
 
-        result = datasets.get_dataset_versions_dataframe(dataset_id="dataset123")
+        result = datasets.get_dataset_versions(dataset_id="dataset123")
 
         mock_client.get.assert_called_once_with(
             url="v1/datasets/dataset123/versions",
@@ -539,18 +629,21 @@ class TestDatasets:
             timeout=5,
         )
 
-        assert hasattr(result, "index")
+        assert isinstance(result, list)
         assert len(result) == 2
+        assert result[0]["version_id"] == "v1"
+        assert result[1]["version_id"] == "v2"
+        assert all(isinstance(v["created_at"], datetime) for v in result)
 
-    def test_get_dataset_versions_dataframe_no_pandas(self, datasets, mock_client):
-        def mock_import(name, *args, **kwargs):
-            if name == "pandas":
-                raise ImportError("No module named 'pandas'")
-            return __import__(name, *args, **kwargs)
+    def test_get_dataset_versions_empty(self, datasets, mock_client):
+        mock_response = Mock()
+        mock_response.json.return_value = {"data": []}
+        mock_response.raise_for_status.return_value = None
+        mock_client.get.return_value = mock_response
 
-        with patch("builtins.__import__", side_effect=mock_import):
-            with pytest.raises(ImportError, match="pandas is required"):
-                datasets.get_dataset_versions_dataframe(dataset_id="dataset123")
+        result = datasets.get_dataset_versions(dataset_id="dataset123")
+
+        assert result == []
 
     def test_create_dataset_json(self, datasets, mock_client):
         upload_response = Mock()
@@ -638,7 +731,7 @@ class TestDatasets:
         with pytest.raises(ValueError, match="Please provide either dataframe or csv_file_path"):
             datasets.create_dataset(dataset_name="Test", dataframe=Mock(), csv_file_path="test.csv")
 
-        with pytest.raises(ValueError, match="Please provide either tabular data"):
+        with pytest.raises(ValueError, match="Please provide only one of"):
             datasets.create_dataset(
                 dataset_name="Test", csv_file_path="test.csv", inputs=[{"a": 1}]
             )
@@ -738,14 +831,15 @@ class TestDatasets:
             dataset_name="Test Dataset", inputs=[{"text": "hello"}], outputs=[{"response": "hi"}]
         )
 
-        versions = datasets.get_dataset_versions_dataframe(dataset=dataset)
+        versions = datasets.get_dataset_versions(dataset=dataset)
 
         updated_dataset = datasets.add_examples_to_dataset(
             dataset=dataset, inputs=[{"text": "world"}], outputs=[{"response": "earth"}]
         )
 
         assert isinstance(dataset, Dataset)
-        assert hasattr(versions, "index")
+        assert isinstance(versions, list)
+        assert len(versions) == 1
         assert isinstance(updated_dataset, Dataset)
 
         assert mock_client.get.call_count == 5
@@ -994,7 +1088,9 @@ class TestDatasets:
         )
 
         with pytest.raises(ValueError, match="Please provide only one of: examples, tabular data"):
-            datasets.create_dataset(dataset_name="Test", examples=example, inputs=[{"text": "hello"}])
+            datasets.create_dataset(
+                dataset_name="Test", examples=example, inputs=[{"text": "hello"}]
+            )
 
         with pytest.raises(ValueError, match="Please provide only one of: examples, tabular data"):
             datasets.create_dataset(dataset_name="Test", examples=example, csv_file_path="test.csv")
@@ -1038,25 +1134,30 @@ class TestDatasets:
         upload_response.raise_for_status.return_value = None
 
         target_dataset_info = {"id": "target456", "name": "Target Dataset"}
-        target_examples_data = {"dataset_id": "target456", "version_id": "target_v1", "examples": []}
+        target_examples_data = {
+            "dataset_id": "target456",
+            "version_id": "target_v1",
+            "examples": [],
+        }
 
         mock_client.get.side_effect = [
             Mock(json=lambda: {"data": source_dataset_info}, raise_for_status=lambda: None),
             Mock(json=lambda: {"data": source_examples_data}, raise_for_status=lambda: None),
         ]
         mock_client.post.return_value = upload_response
-        mock_client.get.side_effect.extend([
-            Mock(json=lambda: {"data": target_dataset_info}, raise_for_status=lambda: None),
-            Mock(json=lambda: {"data": target_examples_data}, raise_for_status=lambda: None),
-        ])
+        mock_client.get.side_effect.extend(
+            [
+                Mock(json=lambda: {"data": target_dataset_info}, raise_for_status=lambda: None),
+                Mock(json=lambda: {"data": target_examples_data}, raise_for_status=lambda: None),
+            ]
+        )
 
         source_dataset = datasets.get_dataset(dataset_name="Source Dataset")
-        
+
         first_example = source_dataset[0]
-        
+
         target_dataset = datasets.add_examples_to_dataset(
-            dataset_name="Target Dataset", 
-            examples=first_example
+            dataset_name="Target Dataset", examples=first_example
         )
 
         call_kwargs = mock_client.post.call_args.kwargs
@@ -1065,7 +1166,7 @@ class TestDatasets:
         assert call_kwargs["json"]["inputs"] == [{"text": "hello world"}]
         assert call_kwargs["json"]["outputs"] == [{"response": "greetings"}]
         assert call_kwargs["json"]["metadata"] == [{"category": "greeting"}]
-        
+
         assert isinstance(source_dataset, Dataset)
         assert isinstance(target_dataset, Dataset)
         assert len(source_dataset) == 2
@@ -1074,7 +1175,7 @@ class TestDatasets:
     def test_chaining_multiple_examples_from_dataset_to_dataset(self, datasets, mock_client):
         source_dataset_info = {
             "id": "source123",
-            "name": "Source Dataset", 
+            "name": "Source Dataset",
             "description": "Source dataset",
             "metadata": {},
             "created_at": "2024-01-15T10:00:00",
@@ -1094,7 +1195,7 @@ class TestDatasets:
                     "updated_at": "2024-01-15T10:00:00",
                 },
                 {
-                    "id": "ex2", 
+                    "id": "ex2",
                     "input": {"text": "second"},
                     "output": {"response": "2nd"},
                     "metadata": {"order": 2},
@@ -1103,7 +1204,7 @@ class TestDatasets:
                 {
                     "id": "ex3",
                     "input": {"text": "third"},
-                    "output": {"response": "3rd"}, 
+                    "output": {"response": "3rd"},
                     "metadata": {"order": 3},
                     "updated_at": "2024-01-15T10:00:00",
                 },
@@ -1117,25 +1218,30 @@ class TestDatasets:
         upload_response.raise_for_status.return_value = None
 
         target_dataset_info = {"id": "target456", "name": "Target Dataset"}
-        target_examples_data = {"dataset_id": "target456", "version_id": "target_v1", "examples": []}
+        target_examples_data = {
+            "dataset_id": "target456",
+            "version_id": "target_v1",
+            "examples": [],
+        }
 
         mock_client.get.side_effect = [
             Mock(json=lambda: {"data": source_dataset_info}, raise_for_status=lambda: None),
             Mock(json=lambda: {"data": source_examples_data}, raise_for_status=lambda: None),
         ]
         mock_client.post.return_value = upload_response
-        mock_client.get.side_effect.extend([
-            Mock(json=lambda: {"data": target_dataset_info}, raise_for_status=lambda: None),
-            Mock(json=lambda: {"data": target_examples_data}, raise_for_status=lambda: None),
-        ])
+        mock_client.get.side_effect.extend(
+            [
+                Mock(json=lambda: {"data": target_dataset_info}, raise_for_status=lambda: None),
+                Mock(json=lambda: {"data": target_examples_data}, raise_for_status=lambda: None),
+            ]
+        )
 
         source_dataset = datasets.get_dataset(dataset_name="Source Dataset")
-        
+
         first_two_examples = source_dataset.examples[:2]
-        
+
         target_dataset = datasets.add_examples_to_dataset(
-            dataset_name="Target Dataset",
-            examples=first_two_examples
+            dataset_name="Target Dataset", examples=first_two_examples
         )
 
         call_kwargs = mock_client.post.call_args.kwargs
@@ -1143,14 +1249,94 @@ class TestDatasets:
         assert call_kwargs["json"]["inputs"] == [{"text": "first"}, {"text": "second"}]
         assert call_kwargs["json"]["outputs"] == [{"response": "1st"}, {"response": "2nd"}]
         assert call_kwargs["json"]["metadata"] == [{"order": 1}, {"order": 2}]
-        
+
         assert isinstance(source_dataset, Dataset)
         assert isinstance(target_dataset, Dataset)
         assert len(source_dataset) == 3
 
+    def test_add_examples_from_dataframe_dictionaries(self, datasets, mock_client):
+        source_dataset_info = {
+            "id": "source123",
+            "name": "Source Dataset",
+            "example_count": 2,
+        }
+
+        source_examples_data = {
+            "dataset_id": "source123",
+            "version_id": "source_v1",
+            "examples": [
+                {
+                    "id": "ex1",
+                    "input": {"question": "What is 2+2?", "context": "math"},
+                    "output": {"answer": "4", "confidence": 0.9},
+                    "metadata": {"category": "arithmetic"},
+                    "updated_at": "2024-01-15T10:00:00",
+                },
+                {
+                    "id": "ex2",
+                    "input": {"question": "Capital of France?"},
+                    "output": {"answer": "Paris"},
+                    "metadata": {"category": "geography"},
+                    "updated_at": "2024-01-15T10:30:00",
+                },
+            ],
+        }
+
+        name_lookup_response = Mock()
+        name_lookup_response.json.return_value = {
+            "data": [{"id": "source123", "name": "Source Dataset"}]
+        }
+        name_lookup_response.raise_for_status.return_value = None
+
+        mock_client.get.side_effect = [
+            name_lookup_response,
+            Mock(json=lambda: {"data": source_dataset_info}, raise_for_status=lambda: None),
+            Mock(json=lambda: {"data": source_examples_data}, raise_for_status=lambda: None),
+        ]
+
+        source_dataset = datasets.get_dataset(dataset_name="Source Dataset")
+
+        df = source_dataset.to_dataframe()
+
+        inputs = df["input"].tolist()
+        outputs = df["output"].tolist()
+        metadata = df["metadata"].tolist()
+
+        upload_response = Mock()
+        upload_response.json.return_value = {
+            "data": {"dataset_id": "target456", "version_id": "target_v1"}
+        }
+        upload_response.raise_for_status.return_value = None
+
+        target_dataset_info = {"id": "target456", "name": "Target Dataset"}
+        target_examples_data = {
+            "dataset_id": "target456",
+            "version_id": "target_v1",
+            "examples": [],
+        }
+
+        mock_client.post.return_value = upload_response
+        mock_client.get.side_effect = [
+            Mock(json=lambda: {"data": target_dataset_info}, raise_for_status=lambda: None),
+            Mock(json=lambda: {"data": target_examples_data}, raise_for_status=lambda: None),
+        ]
+
+        target_dataset = datasets.add_examples_to_dataset(
+            dataset_name="Target Dataset", inputs=inputs, outputs=outputs, metadata=metadata
+        )
+
+        call_kwargs = mock_client.post.call_args.kwargs
+        assert call_kwargs["url"] == "v1/datasets/upload"
+        assert call_kwargs["json"]["action"] == "append"
+        assert call_kwargs["json"]["name"] == "Target Dataset"
+        assert call_kwargs["json"]["inputs"] == inputs
+        assert call_kwargs["json"]["outputs"] == outputs
+        assert call_kwargs["json"]["metadata"] == metadata
+
+        assert isinstance(target_dataset, Dataset)
+
 
 class TestAsyncDatasets:
-
     @pytest.fixture
     def mock_async_client(self):
         return Mock(spec=httpx.AsyncClient)
@@ -1261,7 +1447,9 @@ class TestAsyncDatasets:
         assert dataset.id == "dataset123"
 
     @pytest.mark.asyncio
-    async def test_add_examples_with_examples_parameter_async(self, async_datasets, mock_async_client):
+    async def test_add_examples_with_examples_parameter_async(
+        self, async_datasets, mock_async_client
+    ):
         upload_response = Mock()
         upload_response.json.return_value = {
             "data": {"dataset_id": "dataset123", "version_id": "version789"}
@@ -1305,7 +1493,6 @@ class TestAsyncDatasets:
 
 
 class TestDatasetUploadError:
-
     def test_exception_message(self):
         error = DatasetUploadError("Upload failed")
         assert str(error) == "Upload failed"

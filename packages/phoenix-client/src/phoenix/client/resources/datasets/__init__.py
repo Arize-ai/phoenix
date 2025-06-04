@@ -136,6 +136,58 @@ class Dataset:
         """Get example by index."""
         return self.examples[index]
 
+    def to_dataframe(self) -> "pd.DataFrame":
+        """
+        Convert the dataset examples to a pandas DataFrame.
+        
+        Returns:
+            A pandas DataFrame with the following columns:
+            - input: Dictionary containing the input data
+            - output: Dictionary containing the output data  
+            - metadata: Dictionary containing the metadata
+            
+            The DataFrame is indexed by example_id.
+            
+        Raises:
+            ImportError: If pandas is not installed.
+            
+        Example:
+            >>> dataset = client.datasets.get_dataset(dataset_name="my-dataset")
+            >>> df = dataset.to_dataframe()
+            >>> print(df.columns)
+            Index(['input', 'output', 'metadata'], dtype='object')
+            >>> print(df.index.name)
+            example_id
+        """
+        try:
+            import pandas as pd
+        except ImportError:
+            raise ImportError(
+                "pandas is required to use to_dataframe(). "
+                "Install it with 'pip install pandas'"
+            )
+        
+        from copy import deepcopy
+        
+        if not self.examples:
+            # Return empty DataFrame with expected structure
+            return pd.DataFrame(columns=['input', 'output', 'metadata']).set_index(
+                pd.Index([], name='example_id')
+            )
+        
+        # Convert examples to records for DataFrame
+        records = [
+            {
+                "example_id": example['id'],
+                "input": deepcopy(example['input']),
+                "output": deepcopy(example['output']),
+                "metadata": deepcopy(example['metadata']),
+            }
+            for example in self.examples
+        ]
+        
+        return pd.DataFrame.from_records(records).set_index("example_id")
+
 
 # Type alias for flexible dataset identification
 DatasetIdentifier = Union[
@@ -191,7 +243,7 @@ class Datasets:
             >>> client = Client()
             >>> dataset = client.datasets.get_dataset(dataset_name="my-dataset")
             >>> print(f"Dataset {dataset.name} has {len(dataset)} examples")
-            >>> versions_df = client.datasets.get_dataset_versions_dataframe(dataset=dataset)
+            >>> versions = client.datasets.get_dataset_versions(dataset=dataset)
 
         Method chaining:
             >>> # Create dataset and get its versions
@@ -200,7 +252,7 @@ class Datasets:
             ...     inputs=[{"text": "hello"}],
             ...     outputs=[{"response": "hi"}]
             ... )
-            >>> versions = client.datasets.get_dataset_versions_dataframe(dataset=dataset)
+            >>> versions = client.datasets.get_dataset_versions(dataset=dataset)
             >>>
             >>> # Add individual examples from one dataset to another
             >>> source_dataset = client.datasets.get_dataset(dataset_name="source")
@@ -226,6 +278,29 @@ class Datasets:
             >>>
             >>> # Get all examples as a list
             >>> all_examples = dataset.examples
+            >>>
+            >>> # Convert to pandas DataFrame (requires pandas)
+            >>> df = dataset.to_dataframe()
+            >>> print(df.head())
+            >>> # DataFrame has 'input', 'output', 'metadata' columns containing dictionaries
+            
+        Using DataFrame with add_examples_to_dataset:
+            >>> # Get dataset and convert to DataFrame
+            >>> source = client.datasets.get_dataset(dataset_name="source")
+            >>> df = source.to_dataframe()
+            >>>
+            >>> # Extract dictionaries from DataFrame columns
+            >>> inputs = df['input'].tolist()
+            >>> outputs = df['output'].tolist()
+            >>> metadata = df['metadata'].tolist()
+            >>>
+            >>> # Use extracted data to create/update datasets
+            >>> client.datasets.add_examples_to_dataset(
+            ...     dataset_name="target",
+            ...     inputs=inputs,
+            ...     outputs=outputs,
+            ...     metadata=metadata
+            ... )
     """
 
     def __init__(self, client: httpx.Client) -> None:
@@ -331,7 +406,7 @@ class Datasets:
 
         return Dataset(dataset_info, examples_data)
 
-    def get_dataset_versions_dataframe(
+    def get_dataset_versions(
         self,
         *,
         dataset: Optional[DatasetIdentifier] = None,
@@ -339,9 +414,9 @@ class Datasets:
         dataset_name: Optional[str] = None,
         limit: Optional[int] = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> "pd.DataFrame":
+    ) -> list[dict[str, Any]]:
         """
-        Get dataset versions as pandas DataFrame.
+        Get dataset versions as a list of dictionaries.
 
         Args:
             dataset: A dataset identifier - can be a dataset ID string, name string,
@@ -352,21 +427,16 @@ class Datasets:
             timeout: Optional request timeout in seconds.
 
         Returns:
-            pandas DataFrame with version information
+            List of dictionaries containing version information, including:
+                - version_id: The version ID
+                - created_at: When the version was created (as datetime object)
+                - description: Version description (if any)
+                - metadata: Version metadata (if any)
 
         Raises:
-            ImportError: If pandas is not installed
             ValueError: If no dataset identifier is provided.
             httpx.HTTPStatusError: If the API returns an error response.
         """
-        try:
-            import pandas as pd
-        except ImportError:
-            raise ImportError(
-                "pandas is required to use get_dataset_versions_dataframe. "
-                "Install it with 'pip install pandas'"
-            )
-
         # Resolve dataset identification
         resolved_id, resolved_name = self._resolve_dataset_id_and_name(
             dataset=dataset, dataset_id=dataset_id, dataset_name=dataset_name, timeout=timeout
@@ -386,12 +456,16 @@ class Datasets:
         )
         response.raise_for_status()
 
-        if not (records := response.json()["data"]):
-            return pd.DataFrame()
+        records = response.json()["data"]
+        if not records:
+            return []
 
-        df = pd.DataFrame.from_records(records, index="version_id")
-        df["created_at"] = pd.to_datetime(df["created_at"])
-        return df
+        # Parse datetime strings to datetime objects
+        for record in records:
+            if "created_at" in record:
+                record["created_at"] = _parse_datetime(record["created_at"])
+
+        return records
 
     def create_dataset(
         self,
@@ -799,6 +873,7 @@ class AsyncDatasets:
             >>> client = AsyncClient()
             >>> dataset = await client.datasets.get_dataset(dataset_name="my-dataset")
             >>> print(f"Dataset {dataset.name} has {len(dataset)} examples")
+            >>> df = dataset.to_dataframe()  # Convert to pandas DataFrame
 
         Method chaining:
             >>> # Create dataset and chain operations
@@ -807,13 +882,31 @@ class AsyncDatasets:
             ...     inputs=[{"text": "hello"}],
             ...     outputs=[{"response": "hi"}]
             ... )
-            >>> versions = await client.datasets.get_dataset_versions_dataframe(dataset=dataset)
+            >>> versions = await client.datasets.get_dataset_versions(dataset=dataset)
             >>>
             >>> # Add individual examples from one dataset to another
             >>> source_dataset = await client.datasets.get_dataset(dataset_name="source")
             >>> await client.datasets.add_examples_to_dataset(
             ...     dataset_name="target",
             ...     examples=source_dataset[0]  # Pass a single example!
+            ... )
+            
+        Using DataFrame with add_examples_to_dataset:
+            >>> # Get dataset and convert to DataFrame
+            >>> source = await client.datasets.get_dataset(dataset_name="source")
+            >>> df = source.to_dataframe()
+            >>>
+            >>> # Extract dictionaries from DataFrame columns
+            >>> inputs = df['input'].tolist()
+            >>> outputs = df['output'].tolist()
+            >>> metadata = df['metadata'].tolist()
+            >>>
+            >>> # Use extracted data to create/update datasets
+            >>> await client.datasets.add_examples_to_dataset(
+            ...     dataset_name="target",
+            ...     inputs=inputs,
+            ...     outputs=outputs,
+            ...     metadata=metadata
             ... )
     """
 
@@ -920,7 +1013,7 @@ class AsyncDatasets:
 
         return Dataset(dataset_info, examples_data)
 
-    async def get_dataset_versions_dataframe(
+    async def get_dataset_versions(
         self,
         *,
         dataset: Optional[DatasetIdentifier] = None,
@@ -928,29 +1021,29 @@ class AsyncDatasets:
         dataset_name: Optional[str] = None,
         limit: Optional[int] = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> "pd.DataFrame":
+    ) -> list[dict[str, Any]]:
         """
-        Async version of get_dataset_versions_dataframe.
+        Get dataset versions as a list of dictionaries.
 
         Args:
             dataset: A dataset identifier - can be a dataset ID string, name string,
-                dataset object, or tuple returned from other dataset methods.
+                Dataset object, or dict.
             dataset_id: Dataset ID
             dataset_name: Dataset name (will be resolved to ID)
             limit: Maximum number of versions to return, starting from the most recent version
             timeout: Optional request timeout in seconds.
 
         Returns:
-            pandas DataFrame with version information
-        """
-        try:
-            import pandas as pd
-        except ImportError:
-            raise ImportError(
-                "pandas is required to use get_dataset_versions_dataframe. "
-                "Install it with 'pip install pandas'"
-            )
+            List of dictionaries containing version information, including:
+                - version_id: The version ID
+                - created_at: When the version was created (as datetime object)
+                - description: Version description (if any)
+                - metadata: Version metadata (if any)
 
+        Raises:
+            ValueError: If no dataset identifier is provided.
+            httpx.HTTPStatusError: If the API returns an error response.
+        """
         # Resolve dataset identification
         resolved_id, resolved_name = await self._resolve_dataset_id_and_name(
             dataset=dataset, dataset_id=dataset_id, dataset_name=dataset_name, timeout=timeout
@@ -972,12 +1065,16 @@ class AsyncDatasets:
         )
         response.raise_for_status()
 
-        if not (records := response.json()["data"]):
-            return pd.DataFrame()
+        records = response.json()["data"]
+        if not records:
+            return []
 
-        df = pd.DataFrame.from_records(records, index="version_id")
-        df["created_at"] = pd.to_datetime(df["created_at"])
-        return df
+        # Parse datetime strings to datetime objects
+        for record in records:
+            if "created_at" in record:
+                record["created_at"] = _parse_datetime(record["created_at"])
+
+        return records
 
     async def create_dataset(
         self,
