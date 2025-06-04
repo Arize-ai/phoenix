@@ -49,8 +49,11 @@ export function GenerativeProvidersCard({
           key
           dependenciesInstalled
           dependencies
-          apiKeyEnvVar
-          apiKeySet
+          credentialRequirements {
+            envVarName
+            isRequired
+          }
+          credentialsSet
         }
       }
     `,
@@ -81,28 +84,35 @@ export function GenerativeProvidersCard({
             ProviderToCredentialsConfigMap[row.original.key];
           const envVars =
             credentialsConfig?.map((config) => config.envVarName).join(", ") ||
-            row.original.apiKeyEnvVar;
+            row.original.credentialRequirements
+              .map((config) => config.envVarName)
+              .join(", ") ||
+            "--";
           return <Text>{envVars}</Text>;
         },
       },
       {
         header: "configuration",
-        accessorKey: "apiKeySet",
+        accessorKey: "credentialsSet",
         cell: ({ row }) => {
           if (!row.original.dependenciesInstalled) {
             return <Text color="warning">missing dependencies</Text>;
           }
 
           // Check if any credentials are set locally
+          const credentialRequirements = row.original.credentialRequirements;
           const providerCredentials = credentials[row.original.key];
-          const hasLocalCredentials =
-            providerCredentials &&
-            Object.values(providerCredentials).some((value) => value);
+          const hasLocalCredentials = credentialRequirements.every(
+            ({ envVarName, isRequired }) => {
+              const envVarSet = providerCredentials?.[envVarName] !== undefined;
+              return envVarSet || !isRequired;
+            }
+          );
 
           if (hasLocalCredentials) {
             return <Text color="success">local</Text>;
           }
-          if (row.original.apiKeySet) {
+          if (row.original.credentialsSet) {
             return <Text color="success">configured on the server</Text>;
           }
           return <Text color="text-700">not configured</Text>;
