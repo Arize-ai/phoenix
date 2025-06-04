@@ -131,6 +131,7 @@ type ProviderToToolChoiceMap = {
   GOOGLE: OpenaiToolChoice;
   DEEPSEEK: OpenaiToolChoice;
   XAI: OpenaiToolChoice;
+  OLLAMA: OpenaiToolChoice;
 };
 
 /**
@@ -173,6 +174,7 @@ export const fromOpenAIToolChoice = <T extends ModelProvider>({
     case "OPENAI":
     case "DEEPSEEK":
     case "XAI":
+    case "OLLAMA":
       return toolChoice as ProviderToToolChoiceMap[T];
     case "ANTHROPIC":
       return openAIToolChoiceToAnthropicToolChoice.parse(

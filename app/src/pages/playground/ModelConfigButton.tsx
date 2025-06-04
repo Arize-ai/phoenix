@@ -70,6 +70,10 @@ const modelConfigFormCSS = css`
   overflow: auto;
 `;
 
+function providerSupportsOpenAIConfig(provider: ModelProvider) {
+  return provider === "OPENAI" || provider === "OLLAMA";
+}
+
 function OpenAiModelConfigFormField({
   instance,
   container,
@@ -108,6 +112,17 @@ function OpenAiModelConfigFormField({
     [updateModelConfig]
   );
 
+  const debouncedUpdateBaseUrl = useMemo(
+    () =>
+      debounce((value: string) => {
+        updateModelConfig({
+          configKey: "baseUrl",
+          value,
+        });
+      }, 250),
+    [updateModelConfig]
+  );
+
   return (
     <>
       <ModelComboBox
@@ -119,12 +134,10 @@ function OpenAiModelConfigFormField({
         container={container ?? undefined}
       />
       <TextField
+        key={`${instance.id}-baseUrl-${instance.model.baseUrl}`}
         defaultValue={instance.model.baseUrl ?? ""}
         onChange={(value) => {
-          updateModelConfig({
-            configKey: "baseUrl",
-            value,
-          });
+          debouncedUpdateBaseUrl(value);
         }}
       >
         <Label>Base URL</Label>
@@ -175,6 +188,7 @@ function AzureOpenAiModelConfigFormField({
   return (
     <>
       <TextField
+        key={`${instance.id}-modelName-${instance.model.modelName}`}
         defaultValue={instance.model.modelName ?? ""}
         onChange={(value) => {
           debouncedUpdateModelName(value);
@@ -184,7 +198,7 @@ function AzureOpenAiModelConfigFormField({
         <Input placeholder="e.x. azure-openai-deployment-name" />
       </TextField>
       <TextField
-        defaultValue={instance.model.endpoint ?? ""}
+        value={instance.model.endpoint ?? ""}
         onChange={(value) => {
           updateModelConfig({
             configKey: "endpoint",
@@ -435,7 +449,7 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
           });
         }}
       />
-      {instance.model.provider === "OPENAI" ? (
+      {providerSupportsOpenAIConfig(instance.model.provider) ? (
         <OpenAiModelConfigFormField
           instance={instance}
           container={container ?? null}

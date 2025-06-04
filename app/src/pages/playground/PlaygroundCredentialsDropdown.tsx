@@ -34,6 +34,7 @@ export function PlaygroundCredentialsDropdown() {
     state.instances.some((instance) => instance.activeRunId != null)
   );
   const [isOpen, setIsOpen] = useState(false);
+
   return (
     <div
       css={css`
@@ -71,6 +72,12 @@ export function PlaygroundCredentialsDropdown() {
               </View>
               <Flex direction="column" gap="size-100">
                 {currentProviders.map((provider) => {
+                  const providerHasNoCredentials =
+                    !ProviderToCredentialsConfigMap[provider].length;
+                  if (providerHasNoCredentials) {
+                    // Do not show the credential field
+                    return null;
+                  }
                   return (
                     <View key={provider} paddingY="size-50">
                       <Flex direction="row" gap="size-100" alignItems="center">

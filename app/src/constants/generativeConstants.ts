@@ -8,6 +8,7 @@ export const ModelProviders: Record<ModelProvider, string> = {
   GOOGLE: "Google",
   DEEPSEEK: "DeepSeek",
   XAI: "xAI",
+  OLLAMA: "Ollama",
 };
 
 /**
@@ -77,4 +78,5 @@ export const ProviderToCredentialsConfigMap: Record<
   GOOGLE: [{ envVarName: "GEMINI_API_KEY", isRequired: true }],
   DEEPSEEK: [{ envVarName: "DEEPSEEK_API_KEY", isRequired: true }],
   XAI: [{ envVarName: "XAI_API_KEY", isRequired: true }],
+  OLLAMA: [],
 } as const;
