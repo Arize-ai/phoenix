@@ -139,18 +139,18 @@ class Dataset:
     def to_dataframe(self) -> "pd.DataFrame":
         """
         Convert the dataset examples to a pandas DataFrame.
-        
+
         Returns:
             A pandas DataFrame with the following columns:
             - input: Dictionary containing the input data
-            - output: Dictionary containing the output data  
+            - output: Dictionary containing the output data
             - metadata: Dictionary containing the metadata
-            
+
             The DataFrame is indexed by example_id.
-            
+
         Raises:
             ImportError: If pandas is not installed.
-            
+
         Example:
             >>> dataset = client.datasets.get_dataset(dataset_name="my-dataset")
             >>> df = dataset.to_dataframe()
@@ -163,29 +163,28 @@ class Dataset:
             import pandas as pd
         except ImportError:
             raise ImportError(
-                "pandas is required to use to_dataframe(). "
-                "Install it with 'pip install pandas'"
+                "pandas is required to use to_dataframe(). " "Install it with 'pip install pandas'"
             )
-        
+
         from copy import deepcopy
-        
+
         if not self.examples:
             # Return empty DataFrame with expected structure
-            return pd.DataFrame(columns=['input', 'output', 'metadata']).set_index(
-                pd.Index([], name='example_id')
+            return pd.DataFrame(columns=["input", "output", "metadata"]).set_index(
+                pd.Index([], name="example_id")
             )
-        
+
         # Convert examples to records for DataFrame
         records = [
             {
-                "example_id": example['id'],
-                "input": deepcopy(example['input']),
-                "output": deepcopy(example['output']),
-                "metadata": deepcopy(example['metadata']),
+                "example_id": example["id"],
+                "input": deepcopy(example["input"]),
+                "output": deepcopy(example["output"]),
+                "metadata": deepcopy(example["metadata"]),
             }
             for example in self.examples
         ]
-        
+
         return pd.DataFrame.from_records(records).set_index("example_id")
 
 
@@ -283,7 +282,7 @@ class Datasets:
             >>> df = dataset.to_dataframe()
             >>> print(df.head())
             >>> # DataFrame has 'input', 'output', 'metadata' columns containing dictionaries
-            
+
         Using DataFrame with add_examples_to_dataset:
             >>> # Get dataset and convert to DataFrame
             >>> source = client.datasets.get_dataset(dataset_name="source")
@@ -890,7 +889,7 @@ class AsyncDatasets:
             ...     dataset_name="target",
             ...     examples=source_dataset[0]  # Pass a single example!
             ... )
-            
+
         Using DataFrame with add_examples_to_dataset:
             >>> # Get dataset and convert to DataFrame
             >>> source = await client.datasets.get_dataset(dataset_name="source")
