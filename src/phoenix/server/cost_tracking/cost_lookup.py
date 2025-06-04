@@ -14,7 +14,8 @@ class ModelTokenCost:
     output: Optional[float] = None
     cache_write: Optional[float] = None
     cache_read: Optional[float] = None
-    audio: Optional[float] = None
+    prompt_audio: Optional[float] = None
+    completion_audio: Optional[float] = None
     reasoning: Optional[float] = None
 
 

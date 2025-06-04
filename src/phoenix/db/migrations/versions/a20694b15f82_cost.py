@@ -129,7 +129,12 @@ def upgrade() -> None:
             nullable=True,
         ),
         sa.Column(
-            "audio_token_cost",
+            "prompt_audio_token_cost",
+            sa.Float,
+            nullable=True,
+        ),
+        sa.Column(
+            "completion_audio_token_cost",
             sa.Float,
             nullable=True,
         ),

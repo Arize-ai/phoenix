@@ -1534,7 +1534,8 @@ class SpanCost(Base):
     output_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     cache_read_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     cache_write_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    audio_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    prompt_audio_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    completion_audio_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     reasoning_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     total_token_cost: Mapped[float] = mapped_column(Float, nullable=False)
 
