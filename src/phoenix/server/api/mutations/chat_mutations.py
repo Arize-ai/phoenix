@@ -30,6 +30,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
 from phoenix.server.api.helpers.dataset_helpers import get_dataset_example_output
 from phoenix.server.api.helpers.playground_clients import (
+    PlaygroundClientCredential,
     PlaygroundStreamingClient,
     initialize_playground_clients,
 )
@@ -132,9 +133,17 @@ class ChatCompletionMutationMixin:
         if llm_client_class is None:
             raise BadRequest(f"Unknown LLM provider: '{provider_key.value}'")
         try:
+            # Convert GraphQL credentials to PlaygroundCredential objects
+            playground_credentials = None
+            if hasattr(input, "credentials") and input.credentials:
+                playground_credentials = [
+                    PlaygroundClientCredential(env_var_name=cred.env_var_name, value=cred.value)
+                    for cred in input.credentials
+                ]
+
             llm_client = llm_client_class(
                 model=input.model,
-                api_key=input.api_key,
+                credentials=playground_credentials,
             )
         except CustomGraphQLError:
             raise
@@ -200,7 +209,7 @@ class ChatCompletionMutationMixin:
                         llm_client,
                         ChatCompletionInput(
                             model=input.model,
-                            api_key=input.api_key,
+                            credentials=input.credentials,
                             messages=input.messages,
                             tools=input.tools,
                             invocation_parameters=input.invocation_parameters,
@@ -281,9 +290,17 @@ class ChatCompletionMutationMixin:
         if llm_client_class is None:
             raise BadRequest(f"Unknown LLM provider: '{provider_key.value}'")
         try:
+            # Convert GraphQL credentials to PlaygroundCredential objects
+            credentials = None
+            if input.credentials:
+                credentials = [
+                    PlaygroundClientCredential(env_var_name=cred.env_var_name, value=cred.value)
+                    for cred in input.credentials
+                ]
+
             llm_client = llm_client_class(
                 model=input.model,
-                api_key=input.api_key,
+                credentials=credentials,
             )
         except CustomGraphQLError:
             raise

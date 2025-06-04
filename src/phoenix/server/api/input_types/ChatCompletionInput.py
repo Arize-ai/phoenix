@@ -34,7 +34,7 @@ class ChatCompletionOverDatasetInput:
     model: GenerativeModelInput
     invocation_parameters: list[InvocationParameterInput] = strawberry.field(default_factory=list)
     tools: Optional[list[JSON]] = UNSET
-    api_key: Optional[str] = strawberry.field(default=None)
+    credentials: Optional[list[GenerativeCredentialInput]] = UNSET
     template_format: PromptTemplateFormat = PromptTemplateFormat.MUSTACHE
     dataset_id: GlobalID
     dataset_version_id: Optional[GlobalID] = None
