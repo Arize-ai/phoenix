@@ -49,8 +49,11 @@ export function GenerativeProvidersCard({
           key
           dependenciesInstalled
           dependencies
-          apiKeyEnvVar
-          apiKeySet
+          credentialRequirements {
+            envVarName
+            isRequired
+          }
+          credentialsSet
         }
       }
     `,
@@ -81,7 +84,10 @@ export function GenerativeProvidersCard({
             ProviderToCredentialsConfigMap[row.original.key];
           const envVars =
             credentialsConfig?.map((config) => config.envVarName).join(", ") ||
-            row.original.apiKeyEnvVar;
+            row.original.credentialRequirements
+              .map((config) => config.envVarName)
+              .join(", ") ||
+            "--";
           return <Text>{envVars}</Text>;
         },
       },
@@ -102,7 +108,7 @@ export function GenerativeProvidersCard({
           if (hasLocalCredentials) {
             return <Text color="success">local</Text>;
           }
-          if (row.original.apiKeySet) {
+          if (row.original.credentialsSet) {
             return <Text color="success">configured on the server</Text>;
           }
           return <Text color="text-700">not configured</Text>;

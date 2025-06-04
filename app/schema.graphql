@@ -1209,11 +1209,16 @@ type GenerativeProvider {
   dependencies: [String!]!
   dependenciesInstalled: Boolean!
 
-  """The API key for the provider"""
-  apiKeyEnvVar: String!
+  """The credential requirements for the provider"""
+  credentialRequirements: [GenerativeProviderCredentialConfig!]!
 
   """Whether the credentials are set on the server for the provider"""
-  apiKeySet: Boolean!
+  credentialsSet: Boolean!
+}
+
+type GenerativeProviderCredentialConfig {
+  envVarName: String!
+  isRequired: Boolean!
 }
 
 enum GenerativeProviderKey {

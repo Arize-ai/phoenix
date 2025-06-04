@@ -1,4 +1,5 @@
 from enum import Enum
+from turtle import st
 from typing import Any, ClassVar, Optional, Union
 
 import strawberry
@@ -16,6 +17,12 @@ class GenerativeProviderKey(Enum):
     GOOGLE = "Google AI Studio"
     DEEPSEEK = "DeepSeek"
     XAI = "xAI"
+
+
+@strawberry.type
+class GenerativeProviderCredentialConfig:
+    env_var_name: str
+    is_required: bool
 
 
 @strawberry.type
@@ -43,13 +50,31 @@ class GenerativeProvider:
         # The provider will be determined through model name prefix matching instead
     }
 
-    model_provider_to_api_key_env_var_map: ClassVar[dict[GenerativeProviderKey, str]] = {
-        GenerativeProviderKey.AZURE_OPENAI: "AZURE_OPENAI_API_KEY",
-        GenerativeProviderKey.ANTHROPIC: "ANTHROPIC_API_KEY",
-        GenerativeProviderKey.OPENAI: "OPENAI_API_KEY",
-        GenerativeProviderKey.GOOGLE: "GEMINI_API_KEY",
-        GenerativeProviderKey.DEEPSEEK: "DEEPSEEK_API_KEY",
-        GenerativeProviderKey.XAI: "XAI_API_KEY",
+    """
+    A map of model provider keys to their credential requirements.
+    E.x. OpenAI requires a single API key
+    """
+    model_provider_to_credential_requirements_map: ClassVar[
+        dict[GenerativeProviderKey, GenerativeProviderCredentialConfig]
+    ] = {
+        GenerativeProviderKey.AZURE_OPENAI: GenerativeProviderCredentialConfig(
+            env_var_name="AZURE_OPENAI_API_KEY", is_required=True
+        ),
+        GenerativeProviderKey.ANTHROPIC: GenerativeProviderCredentialConfig(
+            env_var_name="ANTHROPIC_API_KEY", is_required=True
+        ),
+        GenerativeProviderKey.OPENAI: GenerativeProviderCredentialConfig(
+            env_var_name="OPENAI_API_KEY", is_required=True
+        ),
+        GenerativeProviderKey.GOOGLE: GenerativeProviderCredentialConfig(
+            env_var_name="GEMINI_API_KEY", is_required=True
+        ),
+        GenerativeProviderKey.DEEPSEEK: GenerativeProviderCredentialConfig(
+            env_var_name="DEEPSEEK_API_KEY", is_required=True
+        ),
+        GenerativeProviderKey.XAI: GenerativeProviderCredentialConfig(
+            env_var_name="XAI_API_KEY", is_required=True
+        ),
     }
 
     @strawberry.field
@@ -76,13 +101,20 @@ class GenerativeProvider:
             return default_client.dependencies_are_installed()
         return False
 
-    @strawberry.field(description="The API key for the provider")  # type: ignore
-    async def api_key_env_var(self) -> str:
-        return self.model_provider_to_api_key_env_var_map[self.key]
+    @strawberry.field(description="The credential requirements for the provider")  # type: ignore
+    async def credential_requirements(self) -> list[GenerativeProviderCredentialConfig]:
+        return [
+            credential_config
+            for credential_config in self.model_provider_to_credential_requirements_map.values()
+        ]
 
     @strawberry.field(description="Whether the credentials are set on the server for the provider")  # type: ignore
-    async def api_key_set(self) -> bool:
-        return getenv(self.model_provider_to_api_key_env_var_map[self.key]) is not None
+    async def credentials_set(self) -> bool:
+        # Check if every required credential is set
+        return all(
+            getenv(credential_config.env_var_name) is not None or not credential_config.is_required
+            for credential_config in self.model_provider_to_credential_requirements_map.values()
+        )
 
     @classmethod
     def _infer_model_provider_from_model_name(

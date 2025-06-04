@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4ba84fcb231e8cb4b0a84ee06a2b3b0a>>
+ * @generated SignedSource<<0643d31a743bcd2315989d9b2946f7cc>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,8 +13,11 @@ export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "DEEPSEEK" | 
 import { FragmentRefs } from "relay-runtime";
 export type GenerativeProvidersCard_data$data = {
   readonly modelProviders: ReadonlyArray<{
-    readonly apiKeyEnvVar: string;
-    readonly apiKeySet: boolean;
+    readonly credentialRequirements: ReadonlyArray<{
+      readonly envVarName: string;
+      readonly isRequired: boolean;
+    }>;
+    readonly credentialsSet: boolean;
     readonly dependencies: ReadonlyArray<string>;
     readonly dependenciesInstalled: boolean;
     readonly key: GenerativeProviderKey;
@@ -72,15 +75,33 @@ const node: ReaderFragment = {
         {
           "alias": null,
           "args": null,
-          "kind": "ScalarField",
-          "name": "apiKeyEnvVar",
+          "concreteType": "GenerativeProviderCredentialConfig",
+          "kind": "LinkedField",
+          "name": "credentialRequirements",
+          "plural": true,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "envVarName",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "isRequired",
+              "storageKey": null
+            }
+          ],
           "storageKey": null
         },
         {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
-          "name": "apiKeySet",
+          "name": "credentialsSet",
           "storageKey": null
         }
       ],
@@ -91,6 +112,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "0168d590171b96e7a2e41449a41754be";
+(node as any).hash = "4062531cfa3f77e541172a44101f5331";
 
 export default node;
