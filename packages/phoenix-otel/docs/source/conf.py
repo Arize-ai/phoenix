@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.join(BASE_DIR, "src", "phoenix"))
 # -- Project information -----------------------------------------------------
 
 project = "Phoenix OTEL API Reference"
-copyright = "2024, Arize AI"
+copyright = "2025, Arize AI"
 author = "Arize AI"
 
 # The version info for the project you're documenting
