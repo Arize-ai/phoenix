@@ -93,17 +93,21 @@ export function GenerativeProvidersCard({
       },
       {
         header: "configuration",
-        accessorKey: "apiKeySet",
+        accessorKey: "credentialsSet",
         cell: ({ row }) => {
           if (!row.original.dependenciesInstalled) {
             return <Text color="warning">missing dependencies</Text>;
           }
 
           // Check if any credentials are set locally
+          const credentialRequirements = row.original.credentialRequirements;
           const providerCredentials = credentials[row.original.key];
-          const hasLocalCredentials =
-            providerCredentials &&
-            Object.values(providerCredentials).some((value) => value);
+          const hasLocalCredentials = credentialRequirements.every(
+            ({ envVarName, isRequired }) => {
+              const envVarSet = providerCredentials?.[envVarName] !== undefined;
+              return envVarSet || !isRequired;
+            }
+          );
 
           if (hasLocalCredentials) {
             return <Text color="success">local</Text>;

@@ -134,16 +134,16 @@ class ChatCompletionMutationMixin:
             raise BadRequest(f"Unknown LLM provider: '{provider_key.value}'")
         try:
             # Convert GraphQL credentials to PlaygroundCredential objects
-            playground_credentials = None
-            if hasattr(input, "credentials") and input.credentials:
-                playground_credentials = [
+            credentials = None
+            if input.credentials:
+                credentials = [
                     PlaygroundClientCredential(env_var_name=cred.env_var_name, value=cred.value)
                     for cred in input.credentials
                 ]
 
             llm_client = llm_client_class(
                 model=input.model,
-                credentials=playground_credentials,
+                credentials=credentials,
             )
         except CustomGraphQLError:
             raise
