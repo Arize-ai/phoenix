@@ -48,5 +48,5 @@ Module Contents
 
 .. automodule:: phoenix.otel
    :members:
-   :exclude-members: register, TracerProvider, SimpleSpanProcessor, BatchSpanProcessor, HTTPSpanExporter, GRPCSpanExporter
+   :exclude-members: register, TracerProvider, SimpleSpanProcessor, BatchSpanProcessor, HTTPSpanExporter, GRPCSpanExporter, Resource
    :no-undoc-members: 
