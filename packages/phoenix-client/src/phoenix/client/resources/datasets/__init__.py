@@ -23,6 +23,22 @@ logger = logging.getLogger(__name__)
 DEFAULT_TIMEOUT_IN_SECONDS = 5
 
 
+def _is_valid_dataset_example(obj: Any) -> bool:
+    """
+    Check if an object is a valid DatasetExample using the TypedDict's annotations.
+    """
+    if not isinstance(obj, dict):
+        return False
+
+    # Get the required fields from the TypedDict annotations
+    required_fields = set(v1.DatasetExample.__annotations__.keys())
+
+    # Check all required fields are present
+    if not required_fields.issubset(obj.keys()):
+        return False
+    return True
+
+
 class Dataset:
     """
     A dataset with its examples and version information.
@@ -186,13 +202,19 @@ class Datasets:
             ... )
             >>> versions = client.datasets.get_dataset_versions_dataframe(dataset=dataset)
             >>>
-            >>> # Add examples using the returned dataset object
+            >>> # Add individual examples from one dataset to another
+            >>> source_dataset = client.datasets.get_dataset(dataset_name="source")
             >>> updated = client.datasets.add_examples_to_dataset(
-            ...     dataset=dataset,
-            ...     inputs=[{"text": "goodbye"}],
-            ...     outputs=[{"response": "bye"}]
+            ...     dataset_name="target",
+            ...     examples=source_dataset[0]  # Pass a single example!
             ... )
             >>> print(f"Dataset now has {len(updated)} examples")
+            >>>
+            >>> # Or add multiple specific examples
+            >>> client.datasets.add_examples_to_dataset(
+            ...     dataset_name="target",
+            ...     examples=source_dataset.examples[:5]  # First 5 examples
+            ... )
 
         Working with examples:
             >>> # Iterate over examples
@@ -375,6 +397,7 @@ class Datasets:
         self,
         *,
         dataset_name: str,
+        examples: Optional[Union[v1.DatasetExample, Iterable[v1.DatasetExample]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
         input_keys: Iterable[str] = (),
@@ -391,6 +414,8 @@ class Datasets:
 
         Args:
             dataset_name: Name of the dataset.
+            examples: Either a single DatasetExample or list of DatasetExample objects to add.
+                When provided, inputs/outputs/metadata are extracted automatically.
             dataframe: pandas DataFrame (requires pandas to be installed).
             csv_file_path: Location of a CSV text file
             input_keys: List of column names used as input keys.
@@ -410,14 +435,30 @@ class Datasets:
             ImportError: If pandas is required but not installed.
             httpx.HTTPStatusError: If the API returns an error response.
         """
+        # Handle examples parameter by extracting inputs/outputs/metadata
+        if examples is not None:
+            # Check if examples is a single DatasetExample or iterable
+            if _is_valid_dataset_example(examples):
+                # Single DatasetExample
+                examples_list = [examples]
+            else:
+                # Iterable of DatasetExample objects
+                examples_list = list(examples)
+
+            # Extract inputs, outputs, metadata from examples
+            inputs = [dict(example["input"]) for example in examples_list]
+            outputs = [dict(example["output"]) for example in examples_list]
+            metadata = [dict(example["metadata"]) for example in examples_list]
+
         # Validate parameter combinations
+        has_examples = examples is not None
         has_tabular = dataframe is not None or csv_file_path is not None
         has_json = any(inputs) or any(outputs) or any(metadata)
 
-        if has_tabular and has_json:
+        if sum([has_examples, has_tabular, has_json]) > 1:
             raise ValueError(
-                "Please provide either tabular data (dataframe/csv_file_path) "
-                "or JSON data (inputs/outputs/metadata), but not both"
+                "Please provide only one of: examples, tabular data (dataframe/csv_file_path), "
+                "or JSON data (inputs/outputs/metadata)"
             )
 
         if dataframe is not None and csv_file_path is not None:
@@ -452,6 +493,7 @@ class Datasets:
         *,
         dataset: Optional[DatasetIdentifier] = None,
         dataset_name: Optional[str] = None,
+        examples: Optional[Union[v1.DatasetExample, Iterable[v1.DatasetExample]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
         input_keys: Iterable[str] = (),
@@ -469,6 +511,8 @@ class Datasets:
             dataset: A dataset identifier - can be a dataset ID string, name string,
                 Dataset object, or dict.
             dataset_name: Name of the dataset. If dataset is provided, this is ignored.
+            examples: Either a single DatasetExample or list of DatasetExample objects to add.
+                When provided, inputs/outputs/metadata are extracted automatically.
             dataframe: pandas DataFrame (requires pandas to be installed).
             csv_file_path: Location of a CSV text file
             input_keys: List of column names used as input keys.
@@ -495,14 +539,30 @@ class Datasets:
         if not resolved_name:
             raise ValueError("Dataset name or dataset object must be provided.")
 
+        # Handle examples parameter by extracting inputs/outputs/metadata
+        if examples is not None:
+            # Check if examples is a single DatasetExample or iterable
+            if _is_valid_dataset_example(examples):
+                # Single DatasetExample
+                examples_list = [examples]
+            else:
+                # Iterable of DatasetExample objects
+                examples_list = list(examples)
+
+            # Extract inputs, outputs, metadata from examples
+            inputs = [dict(example["input"]) for example in examples_list]
+            outputs = [dict(example["output"]) for example in examples_list]
+            metadata = [dict(example["metadata"]) for example in examples_list]
+
         # Validate parameter combinations
+        has_examples = examples is not None
         has_tabular = dataframe is not None or csv_file_path is not None
         has_json = any(inputs) or any(outputs) or any(metadata)
 
-        if has_tabular and has_json:
+        if sum([has_examples, has_tabular, has_json]) > 1:
             raise ValueError(
-                "Please provide either tabular data (dataframe/csv_file_path) "
-                "or JSON data (inputs/outputs/metadata), but not both"
+                "Please provide only one of: examples, tabular data (dataframe/csv_file_path), "
+                "or JSON data (inputs/outputs/metadata)"
             )
 
         if dataframe is not None and csv_file_path is not None:
@@ -748,6 +808,13 @@ class AsyncDatasets:
             ...     outputs=[{"response": "hi"}]
             ... )
             >>> versions = await client.datasets.get_dataset_versions_dataframe(dataset=dataset)
+            >>>
+            >>> # Add individual examples from one dataset to another
+            >>> source_dataset = await client.datasets.get_dataset(dataset_name="source")
+            >>> await client.datasets.add_examples_to_dataset(
+            ...     dataset_name="target",
+            ...     examples=source_dataset[0]  # Pass a single example!
+            ... )
     """
 
     def __init__(self, client: httpx.AsyncClient) -> None:
@@ -916,6 +983,7 @@ class AsyncDatasets:
         self,
         *,
         dataset_name: str,
+        examples: Optional[Union[v1.DatasetExample, Iterable[v1.DatasetExample]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
         input_keys: Iterable[str] = (),
@@ -927,18 +995,56 @@ class AsyncDatasets:
         dataset_description: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
-        """Async version of create_dataset."""
-        # Use sync dataset instance for implementation logic
-        sync_datasets = Datasets(None)  # type: ignore
+        """
+        Create a new dataset by uploading examples to the Phoenix server.
 
-        # Validate parameter combinations (reuse sync logic)
+        Args:
+            dataset_name: Name of the dataset.
+            examples: Either a single DatasetExample or list of DatasetExample objects to add.
+                When provided, inputs/outputs/metadata are extracted automatically.
+            dataframe: pandas DataFrame (requires pandas to be installed).
+            csv_file_path: Location of a CSV text file
+            input_keys: List of column names used as input keys.
+            output_keys: List of column names used as output keys.
+            metadata_keys: List of column names used as metadata keys.
+            inputs: List of dictionaries each corresponding to an example.
+            outputs: List of dictionaries each corresponding to an example.
+            metadata: List of dictionaries each corresponding to an example.
+            dataset_description: Description of the dataset.
+            timeout: Optional request timeout in seconds.
+
+        Returns:
+            A Dataset object containing the uploaded dataset and examples.
+
+        Raises:
+            ValueError: If invalid parameter combinations are provided.
+            ImportError: If pandas is required but not installed.
+            httpx.HTTPStatusError: If the API returns an error response.
+        """
+        # Handle examples parameter by extracting inputs/outputs/metadata
+        if examples is not None:
+            # Check if examples is a single DatasetExample or iterable
+            if _is_valid_dataset_example(examples):
+                # Single DatasetExample
+                examples_list = [examples]
+            else:
+                # Iterable of DatasetExample objects
+                examples_list = list(examples)
+
+            # Extract inputs, outputs, metadata from examples
+            inputs = [dict(example["input"]) for example in examples_list]
+            outputs = [dict(example["output"]) for example in examples_list]
+            metadata = [dict(example["metadata"]) for example in examples_list]
+
+        # Validate parameter combinations
+        has_examples = examples is not None
         has_tabular = dataframe is not None or csv_file_path is not None
         has_json = any(inputs) or any(outputs) or any(metadata)
 
-        if has_tabular and has_json:
+        if sum([has_examples, has_tabular, has_json]) > 1:
             raise ValueError(
-                "Please provide either tabular data (dataframe/csv_file_path) "
-                "or JSON data (inputs/outputs/metadata), but not both"
+                "Please provide only one of: examples, tabular data (dataframe/csv_file_path), "
+                "or JSON data (inputs/outputs/metadata)"
             )
 
         if dataframe is not None and csv_file_path is not None:
@@ -973,6 +1079,7 @@ class AsyncDatasets:
         *,
         dataset: Optional[DatasetIdentifier] = None,
         dataset_name: Optional[str] = None,
+        examples: Optional[Union[v1.DatasetExample, Iterable[v1.DatasetExample]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
         input_keys: Iterable[str] = (),
@@ -990,6 +1097,8 @@ class AsyncDatasets:
             dataset: A dataset identifier - can be a dataset ID string, name string,
                 Dataset object, or dict.
             dataset_name: Name of the dataset. If dataset is provided, this is ignored.
+            examples: Either a single DatasetExample or list of DatasetExample objects to add.
+                When provided, inputs/outputs/metadata are extracted automatically.
             dataframe: pandas DataFrame (requires pandas to be installed).
             csv_file_path: Location of a CSV text file
             input_keys: List of column names used as input keys.
@@ -1002,6 +1111,11 @@ class AsyncDatasets:
 
         Returns:
             A Dataset object containing the updated dataset and examples.
+
+        Raises:
+            ValueError: If invalid parameter combinations are provided.
+            ImportError: If pandas is required but not installed.
+            httpx.HTTPStatusError: If the API returns an error response.
         """
         # Resolve dataset name
         _, resolved_name = await self._resolve_dataset_id_and_name(
@@ -1011,14 +1125,30 @@ class AsyncDatasets:
         if not resolved_name:
             raise ValueError("Dataset name or dataset object must be provided.")
 
-        # Validate parameter combinations (reuse sync logic)
+        # Handle examples parameter by extracting inputs/outputs/metadata
+        if examples is not None:
+            # Check if examples is a single DatasetExample or iterable
+            if _is_valid_dataset_example(examples):
+                # Single DatasetExample
+                examples_list = [examples]
+            else:
+                # Iterable of DatasetExample objects
+                examples_list = list(examples)
+
+            # Extract inputs, outputs, metadata from examples
+            inputs = [dict(example["input"]) for example in examples_list]
+            outputs = [dict(example["output"]) for example in examples_list]
+            metadata = [dict(example["metadata"]) for example in examples_list]
+
+        # Validate parameter combinations
+        has_examples = examples is not None
         has_tabular = dataframe is not None or csv_file_path is not None
         has_json = any(inputs) or any(outputs) or any(metadata)
 
-        if has_tabular and has_json:
+        if sum([has_examples, has_tabular, has_json]) > 1:
             raise ValueError(
-                "Please provide either tabular data (dataframe/csv_file_path) "
-                "or JSON data (inputs/outputs/metadata), but not both"
+                "Please provide only one of: examples, tabular data (dataframe/csv_file_path), "
+                "or JSON data (inputs/outputs/metadata)"
             )
 
         if dataframe is not None and csv_file_path is not None:
