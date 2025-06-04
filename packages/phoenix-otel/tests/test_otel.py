@@ -24,9 +24,9 @@ def _get_exporter_from_processor(span_processor):
     Handles both old and new OpenTelemetry versions.
     OpenTelemetry v1.34.0+ moved exporter from span_exporter to _batch_processor._exporter
     """
-    return getattr(
-        getattr(span_processor, "_batch_processor", None), "_exporter", None
-    ) or getattr(span_processor, "span_exporter", None)
+    return getattr(getattr(span_processor, "_batch_processor", None), "_exporter", None) or getattr(
+        span_processor, "span_exporter", None
+    )
 
 
 @pytest.fixture(autouse=True)
