@@ -94,41 +94,57 @@ function CostDetails(props: { nodeId: string }) {
 
   return (
     <Flex direction="column" gap="size-50">
-      {tokenCostInput != null && tokenCostInput !== 0 && (
-        <Flex direction="row" gap="size-100" justifyContent="space-between">
-          <Text>input tokens</Text>
-          <CostItem>{tokenCostInput}</CostItem>
-        </Flex>
-      )}
-      {tokenCostOutput != null && tokenCostOutput !== 0 && (
-        <Flex direction="row" gap="size-100" justifyContent="space-between">
-          <Text>output tokens</Text>
-          <CostItem>{tokenCostOutput}</CostItem>
-        </Flex>
-      )}
-      {tokenCostPromptAudio != null && tokenCostPromptAudio !== 0 && (
-        <Flex direction="row" gap="size-100" justifyContent="space-between">
-          <Text>prompt audio tokens</Text>
-          <CostItem>{tokenCostPromptAudio}</CostItem>
-        </Flex>
-      )}
-      {tokenCostCompletionAudio != null && tokenCostCompletionAudio !== 0 && (
-        <Flex direction="row" gap="size-100" justifyContent="space-between">
-          <Text>completion audio tokens</Text>
-          <CostItem>{tokenCostCompletionAudio}</CostItem>
-        </Flex>
-      )}
-      {tokenCostCacheRead != null && tokenCostCacheRead !== 0 && (
-        <Flex direction="row" gap="size-100" justifyContent="space-between">
-          <Text>cache read tokens</Text>
-          <CostItem>{tokenCostCacheRead}</CostItem>
-        </Flex>
-      )}
-      {tokenCostCacheWrite != null && tokenCostCacheWrite !== 0 && (
-        <Flex direction="row" gap="size-100" justifyContent="space-between">
-          <Text>cache write tokens</Text>
-          <CostItem>{tokenCostCacheWrite}</CostItem>
-        </Flex>
+      {!tokenCostInput &&
+      !tokenCostOutput &&
+      !tokenCostCacheRead &&
+      !tokenCostCacheWrite &&
+      !tokenCostPromptAudio &&
+      !tokenCostCompletionAudio ? (
+        <Text>No cost details</Text>
+      ) : (
+        <>
+          {tokenCostInput != null && tokenCostInput !== 0 && (
+            <Flex direction="row" gap="size-100" justifyContent="space-between">
+              <Text>input tokens</Text>
+              <CostItem>{tokenCostInput}</CostItem>
+            </Flex>
+          )}
+          {tokenCostOutput != null && tokenCostOutput !== 0 && (
+            <Flex direction="row" gap="size-100" justifyContent="space-between">
+              <Text>output tokens</Text>
+              <CostItem>{tokenCostOutput}</CostItem>
+            </Flex>
+          )}
+          {tokenCostPromptAudio != null && tokenCostPromptAudio !== 0 && (
+            <Flex direction="row" gap="size-100" justifyContent="space-between">
+              <Text>prompt audio tokens</Text>
+              <CostItem>{tokenCostPromptAudio}</CostItem>
+            </Flex>
+          )}
+          {tokenCostCompletionAudio != null &&
+            tokenCostCompletionAudio !== 0 && (
+              <Flex
+                direction="row"
+                gap="size-100"
+                justifyContent="space-between"
+              >
+                <Text>completion audio tokens</Text>
+                <CostItem>{tokenCostCompletionAudio}</CostItem>
+              </Flex>
+            )}
+          {tokenCostCacheRead != null && tokenCostCacheRead !== 0 && (
+            <Flex direction="row" gap="size-100" justifyContent="space-between">
+              <Text>cache read tokens</Text>
+              <CostItem>{tokenCostCacheRead}</CostItem>
+            </Flex>
+          )}
+          {tokenCostCacheWrite != null && tokenCostCacheWrite !== 0 && (
+            <Flex direction="row" gap="size-100" justifyContent="space-between">
+              <Text>cache write tokens</Text>
+              <CostItem>{tokenCostCacheWrite}</CostItem>
+            </Flex>
+          )}
+        </>
       )}
     </Flex>
   );
