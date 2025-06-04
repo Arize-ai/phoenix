@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-from phoenix.client.__generated__ import v1
 
 from .._helpers import _ADMIN, _MEMBER, _await_or_return, _GetUser, _RoleOrUser
 
@@ -388,7 +387,6 @@ Who wrote Hamlet?,Shakespeare,literature
         user = _get_user(_MEMBER).log_in()
         monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
 
-        import httpx
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
