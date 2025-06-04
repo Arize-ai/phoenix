@@ -472,11 +472,7 @@ def _get_credential_value(
     if not credentials:
         return None
     return next(
-        (
-            credential.value
-            for credential in credentials
-            if credential.env_var_name == env_var_name
-        ),
+        (credential.value for credential in credentials if credential.env_var_name == env_var_name),
         None,
     )
 
