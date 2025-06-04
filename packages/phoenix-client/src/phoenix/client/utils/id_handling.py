@@ -1,5 +1,6 @@
 import base64
 
+
 def is_node_id(s: str, node_type: str) -> bool:
     """
     Check if a string is a valid node ID.
