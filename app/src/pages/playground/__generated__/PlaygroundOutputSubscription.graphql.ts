@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fa63bc1806e273a9beb9ee2a31f18644>>
+ * @generated SignedSource<<a0f72b5356ed7716698dbb3a5218d6f6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,7 +14,7 @@ export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OPENAI" | "XAI";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionInput = {
-  apiKey?: string | null;
+  credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
   invocationParameters?: ReadonlyArray<InvocationParameterInput>;
   messages: ReadonlyArray<ChatCompletionMessageInput>;
   model: GenerativeModelInput;
@@ -45,6 +45,10 @@ export type InvocationParameterInput = {
   valueJson?: any | null;
   valueString?: string | null;
   valueStringList?: ReadonlyArray<string> | null;
+};
+export type GenerativeCredentialInput = {
+  envVarName: string;
+  value: string;
 };
 export type PromptTemplateOptions = {
   format: PromptTemplateFormat;

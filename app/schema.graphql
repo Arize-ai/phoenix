@@ -197,7 +197,7 @@ input ChatCompletionInput {
   model: GenerativeModelInput!
   invocationParameters: [InvocationParameterInput!]! = []
   tools: [JSON!]
-  apiKey: String = null
+  credentials: [GenerativeCredentialInput!]
   template: PromptTemplateOptions
   promptName: Identifier = null
 }
@@ -1183,6 +1183,11 @@ type FunctionCallChunk implements ChatCompletionSubscriptionPayload {
 type Functionality {
   """Model inferences are available for analysis"""
   modelInferences: Boolean!
+}
+
+input GenerativeCredentialInput {
+  envVarName: String!
+  value: String!
 }
 
 type GenerativeModel {

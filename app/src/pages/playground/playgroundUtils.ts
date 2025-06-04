@@ -50,6 +50,7 @@ import {
   ChatCompletionInput,
   ChatCompletionMessageInput,
   ChatCompletionMessageRole,
+  GenerativeCredentialInput,
   InvocationParameterInput,
 } from "./__generated__/PlaygroundOutputSubscription.graphql";
 import {
@@ -1067,7 +1068,7 @@ const getBaseChatCompletionInput = ({
     tools: instance.tools.length
       ? instance.tools.map((tool) => tool.definition)
       : undefined,
-    apiKey: getApiKey(credentials, instance.model.provider),
+    credentials: getCredentials(credentials, instance.model.provider),
     promptName: instance.prompt?.name,
   } satisfies Partial<ChatCompletionInput>;
 };
@@ -1100,32 +1101,26 @@ export const denormalizePlaygroundInstance = (
 };
 
 /**
- * A function that takes a provider and returns a single api key for the provider
- * Note this is a step gap solution until multiple credentials are supported
+ * A function that gets the credentials for a provider
  */
-function getApiKey(
+function getCredentials(
   credentials: CredentialsState,
   provider: ModelProvider
-): string | null {
+): GenerativeCredentialInput[] {
   const providerCredentials = credentials[provider];
   const providerCredentialsConfig = ProviderToCredentialsConfigMap[provider];
   if (!providerCredentials) {
-    return null;
+    // This means the credentials are missing, however we don't want to throw here so we return an empty array
+    return [];
   }
   if (providerCredentialsConfig.length === 0) {
     // This means that the provider doesn't require any credentials
-    return null;
+    return [];
   }
-  if (providerCredentialsConfig.length > 1) {
-    throw new Error(
-      `Multiple credentials are configured for ${provider} but not currently supported`
-    );
-  }
-
-  // We know the length is 1, so we can safely access the first element
-  const credentialConfig = providerCredentialsConfig[0];
-  const apiKey = providerCredentials[credentialConfig.envVarName];
-  return apiKey ?? null;
+  return providerCredentialsConfig.map((credential) => ({
+    envVarName: credential.envVarName,
+    value: providerCredentials[credential.envVarName] ?? "",
+  }));
 }
 
 /**
