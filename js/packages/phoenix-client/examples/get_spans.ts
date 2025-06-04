@@ -28,7 +28,6 @@ async function main() {
       client,
       projectIdentifier: "default", // or use a specific project name/ID
       limit: 5,
-      sortDirection: "desc",
     });
 
     console.log(`Found ${recentSpans.data.length} recent spans`);
@@ -98,7 +97,6 @@ async function main() {
     const annotatedSpans = await getSpans({
       client,
       projectIdentifier: "default",
-      annotationNames: ["quality_score", "relevance", "helpfulness"],
       limit: 3,
     });
 

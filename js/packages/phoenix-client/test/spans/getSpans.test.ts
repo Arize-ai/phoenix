@@ -49,7 +49,7 @@ describe("getSpans", () => {
     expect(result.next_cursor).toBe("next-cursor-123");
   });
 
-  it("should get spans with all filter parameters", async () => {
+  it("should get spans with all supported filter parameters", async () => {
     const startTime = new Date("2022-01-01T00:00:00Z");
     const endTime = new Date("2022-01-02T00:00:00Z");
 
@@ -57,10 +57,8 @@ describe("getSpans", () => {
       projectIdentifier: "test-project",
       cursor: "cursor-123",
       limit: 50,
-      sortDirection: "asc",
       startTime: startTime,
       endTime: endTime,
-      annotationNames: ["quality"],
     });
 
     expect(result.data).toHaveLength(1);
@@ -77,10 +75,11 @@ describe("getSpans", () => {
     expect(result.data).toHaveLength(1);
   });
 
-  it("should handle empty annotation names array", async () => {
+  it("should handle pagination with cursor", async () => {
     const result = await getSpans({
       projectIdentifier: "test-project",
-      annotationNames: [],
+      cursor: "some-cursor-value",
+      limit: 25,
     });
 
     expect(result.data).toHaveLength(1);

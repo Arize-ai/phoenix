@@ -9,7 +9,7 @@ interface GetSpansParams
   extends ClientFn,
     Omit<
       NonNullable<operations["spanSearch"]["parameters"]["query"]>,
-      "start_time" | "end_time" | "sort_direction"
+      "start_time" | "end_time"
     > {
   /** The project identifier: either project ID or project name (maps to path parameter) */
   projectIdentifier: operations["spanSearch"]["parameters"]["path"]["project_identifier"];
@@ -17,20 +17,18 @@ interface GetSpansParams
   startTime?: Date | string | null;
   /** Exclusive upper bound time (convenience field with camelCase naming) */
   endTime?: Date | string | null;
-  /** Sort direction for the sort field (convenience field with camelCase naming) */
-  sortDirection?: "asc" | "desc";
 }
 
 /**
  * Response type for span search using auto-generated types
  */
-type SpanSearchResponse = components["schemas"]["SpanSearchResponseBody"];
+type SpanSearchResponse = components["schemas"]["OtlpSpansResponseBody"];
 
 /**
  * Get spans from a project with filtering criteria.
  *
  * This method allows you to search for spans within a project using various filters
- * such as time range, annotation names, and supports cursor-based pagination.
+ * such as time range and supports cursor-based pagination.
  * The spans are returned in OTLP (OpenTelemetry Protocol) format.
  *
  * @param params - The parameters to search for spans
@@ -42,17 +40,15 @@ type SpanSearchResponse = components["schemas"]["SpanSearchResponseBody"];
  * const result = await getSpans({
  *   client,
  *   projectIdentifier: "my-project",
- *   limit: 50,
- *   sortDirection: "desc"
+ *   limit: 50
  * });
  *
- * // Get spans with specific annotations in a time range
+ * // Get spans in a time range
  * const result = await getSpans({
  *   client,
  *   projectIdentifier: "my-project",
  *   startTime: new Date("2024-01-01"),
  *   endTime: new Date("2024-01-02"),
- *   annotationNames: ["quality_score", "relevance"],
  *   limit: 100
  * });
  *
@@ -80,17 +76,14 @@ export async function getSpans({
   projectIdentifier,
   cursor,
   limit = 100,
-  sortDirection = "desc",
   startTime,
   endTime,
-  annotationNames,
 }: GetSpansParams): Promise<SpanSearchResponse> {
   const client = _client ?? createClient();
 
   // Build query parameters using auto-generated types
   const params: NonNullable<operations["spanSearch"]["parameters"]["query"]> = {
     limit,
-    sort_direction: sortDirection,
   };
 
   if (cursor) {
@@ -104,10 +97,6 @@ export async function getSpans({
 
   if (endTime) {
     params.end_time = endTime instanceof Date ? endTime.toISOString() : endTime;
-  }
-
-  if (annotationNames && annotationNames.length > 0) {
-    params.annotationNames = annotationNames;
   }
 
   const { data, error } = await client.GET(
