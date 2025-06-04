@@ -141,5 +141,5 @@ function CostItem({
   children: number;
   size?: TextProps["size"];
 }) {
-  return <Text {...textProps}>{`$${children.toFixed(7)}`}</Text>;
+  return <Text {...textProps}>{`$${Number(children.toPrecision(3))}`}</Text>;
 }
