@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.8](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.20.7...arize-phoenix-evals-v0.20.8) (2025-06-04)
+
+
+### Bug Fixes
+
+* **evals:** add support for out of order evals ([#7849](https://github.com/Arize-ai/phoenix/issues/7849)) ([63c012d](https://github.com/Arize-ai/phoenix/commit/63c012d49bf318190cd3170e664d50dbb8179e8a))
+
 ## [0.20.7](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.20.6...arize-phoenix-evals-v0.20.7) (2025-05-28)
 
 
