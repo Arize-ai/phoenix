@@ -110,7 +110,7 @@ def create_prompt_version_from_openai(
     *,
     description: Optional[str] = None,
     template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
-    model_provider: Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "OLLAMA"] = "OPENAI",
+    model_provider: Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "OLLAMA", "BEDROCK"] = "OPENAI",
 ) -> v1.PromptVersionData:
     messages: list[ChatCompletionMessageParam] = list(obj["messages"])
     template = v1.PromptChatTemplate(
@@ -196,6 +196,7 @@ class _InvocationParametersConversion:
             v1.PromptDeepSeekInvocationParameters,
             v1.PromptXAIInvocationParameters,
             v1.PromptOllamaInvocationParameters,
+            v1.PromptBedrockInvocationParameters,
         ],
     ) -> _InvocationParameters:
         ans: _InvocationParameters = {}
@@ -322,6 +323,13 @@ class _InvocationParametersConversion:
                 ans["frequency_penalty"] = google_params["frequency_penalty"]
             if "stop_sequences" in google_params:
                 ans["stop"] = list(google_params["stop_sequences"])
+        elif obj["type"] == "bedrock":
+            bedrock_params: v1.PromptBedrockInvocationParametersContent
+            bedrock_params = obj["bedrock"]
+            if "max_completion_tokens" in bedrock_params:
+                ans["max_completion_tokens"] = bedrock_params["max_completion_tokens"]
+            if "max_tokens" in bedrock_params:
+                ans["max_tokens"] = bedrock_params["max_tokens"]
         elif TYPE_CHECKING:
             assert_never(obj["type"])
         return ans
@@ -371,18 +379,28 @@ class _InvocationParametersConversion:
         model_provider: Literal["OLLAMA"],
     ) -> v1.PromptOllamaInvocationParameters: ...
 
+    @overload
     @staticmethod
     def from_openai(
         obj: CompletionCreateParamsBase,
         /,
         *,
-        model_provider: Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "OLLAMA"] = "OPENAI",
+        model_provider: Literal["BEDROCK"],
+    ) -> v1.PromptBedrockInvocationParameters: ...
+
+    @staticmethod
+    def from_openai(
+        obj: CompletionCreateParamsBase,
+        /,
+        *,
+        model_provider: Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "OLLAMA", "BEDROCK"] = "OPENAI",
     ) -> Union[
         v1.PromptOpenAIInvocationParameters,
         v1.PromptAzureOpenAIInvocationParameters,
         v1.PromptDeepSeekInvocationParameters,
         v1.PromptXAIInvocationParameters,
         v1.PromptOllamaInvocationParameters,
+        v1.PromptBedrockInvocationParameters,
     ]:
         content: Union[
             v1.PromptOpenAIInvocationParametersContent,
@@ -390,6 +408,7 @@ class _InvocationParametersConversion:
             v1.PromptDeepSeekInvocationParametersContent,
             v1.PromptXAIInvocationParametersContent,
             v1.PromptOllamaInvocationParametersContent,
+            v1.PromptBedrockInvocationParametersContent,
         ]
         if model_provider == "OPENAI":
             content = v1.PromptOpenAIInvocationParametersContent()
@@ -401,6 +420,8 @@ class _InvocationParametersConversion:
             content = v1.PromptXAIInvocationParametersContent()
         elif model_provider == "OLLAMA":
             content = v1.PromptOllamaInvocationParametersContent()
+        elif model_provider == "BEDROCK":
+            content = v1.PromptBedrockInvocationParametersContent()
         else:
             assert_never(model_provider)
         if "max_completion_tokens" in obj and obj["max_completion_tokens"] is not None:
@@ -440,6 +461,11 @@ class _InvocationParametersConversion:
             return v1.PromptXAIInvocationParameters(
                 type="xai",
                 xai=content,
+            )   
+        elif model_provider == "BEDROCK":
+            return v1.PromptBedrockInvocationParameters(
+                type="bedrock",
+                bedrock=content,
             )
         elif model_provider == "OLLAMA":
             return v1.PromptOllamaInvocationParameters(
