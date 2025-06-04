@@ -28,7 +28,7 @@ from phoenix.server.cost_tracking.cost_lookup import COST_TABLE
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.types import CanPutItem, DbSessionFactory
 from phoenix.trace.attributes import get_attribute_value
-from phoenix.trace.schemas import Span, SpanKind
+from phoenix.trace.schemas import Span
 
 logger = logging.getLogger(__name__)
 
@@ -203,15 +203,10 @@ class BulkInserter:
                         if result is not None:
                             project_ids.add(result.project_rowid)
 
-                            if span.span_kind == SpanKind.LLM:
-                                total_cost = _calculate_span_cost(span)
-                                if total_cost is not None:
-                                    span_cost = SpanCost(
-                                        span_id=result.span_rowid,
-                                        cost=total_cost,
-                                    )
-                                    session.add(span_cost)
-                                    await session.flush()
+                            span_cost = _calculate_span_cost(span, result.span_rowid)
+                            if span_cost is not None:
+                                session.add(span_cost)
+                                await session.flush()
 
                 if self._enable_prometheus:
                     from phoenix.server.prometheus import BULK_LOADER_INSERTION_TIME
@@ -309,27 +304,7 @@ class _QueueInserters:
         await self._document_annotations.enqueue(item)
 
 
-LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
-LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
-LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
-LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO
-LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING = (
-    SpanAttributes.LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING
-)
-LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
-LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ = SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ
-LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE = (
-    SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE
-)
-
-
-def _calculate_span_cost(span: Span) -> Optional[float]:
-    """
-    Calculate the cost for a span based on its token usage and model information.
-    Returns None if no cost can be calculated.
-    """
-    assert span.span_kind == SpanKind.LLM
-
+def _calculate_span_cost(span: Span, span_id: int) -> Optional[SpanCost]:
     llm_audio_tokens = get_attribute_value(
         span.attributes,
         LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO,
@@ -376,21 +351,74 @@ def _calculate_span_cost(span: Span) -> Optional[float]:
     cost_per_output_token = token_costs.output
     cost_per_reasoning_token = token_costs.reasoning
 
-    total_cost = 0.0
-    if llm_input_tokens is not None and cost_per_input_token is not None:
-        total_cost += llm_input_tokens * cost_per_input_token
-    if llm_output_tokens is not None and cost_per_output_token is not None:
-        total_cost += llm_output_tokens * cost_per_output_token
-    if llm_audio_tokens is not None and cost_per_audio_token is not None:
-        total_cost += llm_audio_tokens * cost_per_audio_token
-    if llm_reasoning_tokens is not None and cost_per_reasoning_token is not None:
-        total_cost += llm_reasoning_tokens * cost_per_reasoning_token
-    if llm_cache_read_tokens is not None and cost_per_cache_read_token is not None:
-        total_cost += llm_cache_read_tokens * cost_per_cache_read_token
-    if llm_cache_write_tokens is not None and cost_per_cache_write_token is not None:
-        total_cost += llm_cache_write_tokens * cost_per_cache_write_token
-
-    if not total_cost:
+    input_token_cost = (
+        llm_input_tokens * cost_per_input_token
+        if llm_input_tokens is not None and cost_per_input_token is not None
+        else None
+    )
+    output_token_cost = (
+        llm_output_tokens * cost_per_output_token
+        if llm_output_tokens is not None and cost_per_output_token is not None
+        else None
+    )
+    audio_token_cost = (
+        llm_audio_tokens * cost_per_audio_token
+        if llm_audio_tokens is not None and cost_per_audio_token is not None
+        else None
+    )
+    reasoning_token_cost = (
+        llm_reasoning_tokens * cost_per_reasoning_token
+        if llm_reasoning_tokens is not None and cost_per_reasoning_token is not None
+        else None
+    )
+    cache_read_token_cost = (
+        llm_cache_read_tokens * cost_per_cache_read_token
+        if llm_cache_read_tokens is not None and cost_per_cache_read_token is not None
+        else None
+    )
+    cache_write_token_cost = (
+        llm_cache_write_tokens * cost_per_cache_write_token
+        if llm_cache_write_tokens is not None and cost_per_cache_write_token is not None
+        else None
+    )
+    costs = [
+        cost
+        for cost in [
+            input_token_cost,
+            output_token_cost,
+            audio_token_cost,
+            reasoning_token_cost,
+            cache_read_token_cost,
+            cache_write_token_cost,
+        ]
+        if cost is not None
+    ]
+    if not costs:
         return None
 
-    return total_cost
+    total_token_cost = sum(costs)
+
+    return SpanCost(
+        span_id=span_id,
+        input_token_cost=input_token_cost,
+        output_token_cost=output_token_cost,
+        cache_read_token_cost=cache_read_token_cost,
+        cache_write_token_cost=cache_write_token_cost,
+        audio_token_cost=audio_token_cost,
+        reasoning_token_cost=reasoning_token_cost,
+        total_token_cost=total_token_cost,
+    )
+
+
+LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
+LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
+LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
+LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO
+LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING = (
+    SpanAttributes.LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING
+)
+LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
+LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ = SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ
+LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE = (
+    SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE
+)

@@ -1530,6 +1530,12 @@ class SpanCost(Base):
         ForeignKey("spans.id", ondelete="CASCADE"),
         nullable=False,
     )
-    cost: Mapped[float] = mapped_column(Float, nullable=False)
+    input_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    output_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    cache_read_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    cache_write_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    audio_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    reasoning_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    total_token_cost: Mapped[float] = mapped_column(Float, nullable=False)
 
     span: Mapped["Span"] = relationship("Span", back_populates="span_cost")

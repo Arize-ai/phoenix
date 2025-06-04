@@ -109,7 +109,37 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column(
-            "cost",
+            "input_token_cost",
+            sa.Float,
+            nullable=True,
+        ),
+        sa.Column(
+            "output_token_cost",
+            sa.Float,
+            nullable=True,
+        ),
+        sa.Column(
+            "cache_read_token_cost",
+            sa.Float,
+            nullable=True,
+        ),
+        sa.Column(
+            "cache_write_token_cost",
+            sa.Float,
+            nullable=True,
+        ),
+        sa.Column(
+            "audio_token_cost",
+            sa.Float,
+            nullable=True,
+        ),
+        sa.Column(
+            "reasoning_token_cost",
+            sa.Float,
+            nullable=True,
+        ),
+        sa.Column(
+            "total_token_cost",
             sa.Float,
             nullable=False,
         ),

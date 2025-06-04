@@ -10,7 +10,7 @@ from phoenix.server.types import DbSessionFactory
 
 SpanID: TypeAlias = int
 Key: TypeAlias = SpanID
-Result: TypeAlias = Optional[float]
+Result: TypeAlias = Optional[models.SpanCost]
 
 
 class SpanCostsDataLoader(DataLoader[Key, Result]):
@@ -22,7 +22,7 @@ class SpanCostsDataLoader(DataLoader[Key, Result]):
         span_ids = list(set(keys))
         async with self._db() as session:
             costs = {
-                span.id: span.span_cost.cost if span.span_cost else None
+                span.id: span.span_cost
                 async for span in await session.stream_scalars(
                     select(models.Span)
                     .where(models.Span.id.in_(span_ids))

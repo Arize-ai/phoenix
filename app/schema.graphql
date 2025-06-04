@@ -2136,7 +2136,7 @@ type Span implements Node {
   invocationParameters: [InvocationParameter!]!
 
   """The cost of the span"""
-  cost: Float
+  cost: SpanCost
 }
 
 type SpanAnnotation implements Node & Annotation {
@@ -2229,6 +2229,16 @@ type SpanConnection {
 type SpanContext {
   traceId: ID!
   spanId: ID!
+}
+
+type SpanCost {
+  inputTokenCost: Float
+  outputTokenCost: Float
+  cacheReadTokenCost: Float
+  cacheWriteTokenCost: Float
+  audioTokenCost: Float
+  reasoningTokenCost: Float
+  totalTokenCost: Float!
 }
 
 type SpanCountTimeSeries implements TimeSeries {

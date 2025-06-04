@@ -25,7 +25,9 @@ export function SpanHeader(props: SpanHeaderProps) {
         latencyMs
         startTime
         tokenCountTotal
-        cost
+        cost {
+          totalTokenCost
+        }
       }
     `,
     props.span
@@ -68,9 +70,9 @@ export function SpanHeader(props: SpanHeaderProps) {
               size="S"
             />
           ) : null}
-          {span.cost ? (
+          {span.cost?.totalTokenCost ? (
             <Text color="text-500" size="S">
-              {`$${span.cost.toFixed(7)}`}
+              {`$${span.cost.totalTokenCost.toFixed(7)}`}
             </Text>
           ) : null}
         </Flex>

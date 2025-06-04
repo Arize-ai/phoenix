@@ -231,7 +231,9 @@ export function SpansTable(props: SpansTableProps) {
                   precision
                   hit
                 }
-                cost
+                cost {
+                  totalTokenCost
+                }
                 ...AnnotationSummaryGroup
               }
             }
@@ -489,7 +491,7 @@ export function SpansTable(props: SpansTableProps) {
     },
     {
       header: "cost",
-      accessorKey: "cost",
+      accessorKey: "cost.totalTokenCost",
       cell: ({ getValue }) => {
         const value = getValue();
         if (value === null || typeof value !== "number") {

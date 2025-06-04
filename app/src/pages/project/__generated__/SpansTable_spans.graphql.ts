@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<18140819bcb9d732590b8d025ba1f057>>
+ * @generated SignedSource<<7837ec063335cad6c713c19c69a43e23>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,7 +19,9 @@ export type SpansTable_spans$data = {
   readonly spans: {
     readonly edges: ReadonlyArray<{
       readonly span: {
-        readonly cost: number | null;
+        readonly cost: {
+          readonly totalTokenCost: number;
+        } | null;
         readonly cumulativeTokenCountTotal: number | null;
         readonly documentRetrievalMetrics: ReadonlyArray<{
           readonly evaluationName: string;
@@ -448,8 +450,19 @@ return {
                 {
                   "alias": null,
                   "args": null,
-                  "kind": "ScalarField",
+                  "concreteType": "SpanCost",
+                  "kind": "LinkedField",
                   "name": "cost",
+                  "plural": false,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "totalTokenCost",
+                      "storageKey": null
+                    }
+                  ],
                   "storageKey": null
                 },
                 {
@@ -523,6 +536,6 @@ return {
 };
 })();
 
-(node as any).hash = "89b4b4b1757e0e62789a7c67ef890910";
+(node as any).hash = "3f47bd4438c5a2fd924158bd56b1ff31";
 
 export default node;
