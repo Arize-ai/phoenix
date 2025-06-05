@@ -21,11 +21,12 @@ type TokenCountProps = {
    */
   tokenCountTotal: number;
   /**
-   * The size of the icon and text
+   * The id of the node (span, trace, session, etc.)
    */
+
   nodeId: string;
   /**
-   * The id of the node (span, trace, session, etc.)
+   * The size of the icon and text
    */
   size?: TextProps["size"];
 };
