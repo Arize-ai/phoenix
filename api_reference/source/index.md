@@ -45,7 +45,7 @@ Welcome to Arize Phoenix's API reference. This reference details Phoenix's API a
 The `arize-phoenix` package includes the entire Phoenix platform. However if you have deployed the Phoenix platform, there are light-weight Python sub-packages that can be used in conjunction with the platform.
 
 - **[arize-phoenix-otel](https://phoenix-otel.readthedocs.io/)** - Provides a lightweight wrapper around OpenTelemetry primitives with Phoenix-aware defaults
-- **[arize-phoenix-client](https://phoenix-client.readthedocs.io/)** -Lightweight client for interacting with the Phoenix server via its OpenAPI REST interface
+- **[arize-phoenix-client](https://phoenix-client.readthedocs.io/)** - Lightweight client for interacting with the Phoenix server via its OpenAPI REST interface
 
 - **[arize-phoenix-evals](https://phoenix-evals.readthedocs.io/)** - Tooling to evaluate LLM applications including RAG relevance, answer relevance, and more
 
