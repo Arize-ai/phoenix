@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6d6487f8ee0a58230a13114105193894>>
+ * @generated SignedSource<<0a86c91658273c202ec62854a1f3c443>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,6 +14,9 @@ export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
 export type SpanHeader_span$data = {
   readonly code: SpanStatusCode;
+  readonly cost: {
+    readonly total: number;
+  } | null;
   readonly id: string;
   readonly latencyMs: number | null;
   readonly name: string;
@@ -81,12 +84,30 @@ const node: ReaderFragment = {
       "kind": "ScalarField",
       "name": "tokenCountTotal",
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "TokenCost",
+      "kind": "LinkedField",
+      "name": "cost",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "total",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
     }
   ],
   "type": "Span",
   "abstractKey": null
 };
 
-(node as any).hash = "521c85902b5ffee719617ed60be1a3b4";
+(node as any).hash = "995444b027b2760a39ea2e4492e77ed6";
 
 export default node;

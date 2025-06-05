@@ -685,6 +685,7 @@ class Span(Base):
     span_annotations: Mapped[list["SpanAnnotation"]] = relationship(back_populates="span")
     document_annotations: Mapped[list["DocumentAnnotation"]] = relationship(back_populates="span")
     dataset_examples: Mapped[list["DatasetExample"]] = relationship(back_populates="span")
+    span_cost: Mapped[Optional["SpanCost"]] = relationship(back_populates="span")
 
     __table_args__ = (
         UniqueConstraint(
@@ -1519,3 +1520,23 @@ class ProjectAnnotationConfig(Base):
     )
 
     __table_args__ = (UniqueConstraint("project_id", "annotation_config_id"),)
+
+
+class SpanCost(Base):
+    __tablename__ = "span_costs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    span_id: Mapped[int] = mapped_column(
+        ForeignKey("spans.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    input_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    output_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    cache_read_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    cache_write_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    prompt_audio_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    completion_audio_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    reasoning_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    total_token_cost: Mapped[float] = mapped_column(Float, nullable=False, index=True)
+
+    span: Mapped["Span"] = relationship("Span", back_populates="span_cost")
