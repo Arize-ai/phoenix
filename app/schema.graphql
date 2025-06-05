@@ -1190,11 +1190,6 @@ input GenerativeCredentialInput {
   value: String!
 }
 
-type GenerativeModel {
-  name: String!
-  providerKey: GenerativeProviderKey!
-}
-
 input GenerativeModelInput {
   providerKey: GenerativeProviderKey!
   name: String!
@@ -1381,17 +1376,15 @@ type MissingValueBin {
   name: String
 }
 
-type Model implements Node {
+type Model implements Node & ModelInterface {
   """The Globally Unique ID of this object"""
   id: ID!
   name: String!
+  providerKey: GenerativeProviderKey
   provider: String
   namePattern: String!
   createdAt: DateTime!
   updatedAt: DateTime!
-
-  """The generative provider if the model provider matches a known provider"""
-  generativeProvider: GenerativeProvider
 }
 
 """A connection to a list of items."""
@@ -1410,6 +1403,11 @@ type ModelEdge {
 
   """The item at the end of the edge"""
   node: Model!
+}
+
+interface ModelInterface {
+  name: String!
+  providerKey: GenerativeProviderKey
 }
 
 enum ModelProvider {
@@ -1592,6 +1590,11 @@ input PerformanceMetricInput {
 
 type PerformanceTimeSeries implements TimeSeries {
   data: [TimeSeriesDataPoint!]!
+}
+
+type PlaygroundModel implements ModelInterface {
+  name: String!
+  providerKey: GenerativeProviderKey!
 }
 
 type Point2D {
@@ -1966,7 +1969,7 @@ type PromptVersionTagMutationPayload {
 type Query {
   modelProviders: [GenerativeProvider!]!
   models(first: Int = 50, last: Int, after: String, before: String): ModelConnection!
-  generativeModels(input: ModelsInput = null): [GenerativeModel!]!
+  playgroundModels(input: ModelsInput = null): [PlaygroundModel!]!
   modelInvocationParameters(input: ModelsInput = null): [InvocationParameter!]!
   users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
   userRoles: [UserRole!]!

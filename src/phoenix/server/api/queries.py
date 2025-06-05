@@ -61,13 +61,13 @@ from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.ExperimentComparison import ExperimentComparison, RunComparisonItem
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.Functionality import Functionality
-from phoenix.server.api.types.GenerativeModel import GenerativeModel
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
-from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
 from phoenix.server.api.types.InferenceModel import InferenceModel
+from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
 from phoenix.server.api.types.Model import Model
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
+from phoenix.server.api.types.PlaygroundModel import PlaygroundModel
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
 from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
@@ -143,6 +143,7 @@ class Query:
                 name_pattern="gpt-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.OPENAI,
             ),
             Model(
                 id_attr=2,
@@ -151,6 +152,7 @@ class Query:
                 name_pattern="gpt-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.OPENAI,
             ),
             Model(
                 id_attr=3,
@@ -159,6 +161,7 @@ class Query:
                 name_pattern="gpt-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.OPENAI,
             ),
             Model(
                 id_attr=4,
@@ -167,6 +170,7 @@ class Query:
                 name_pattern="gpt-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.OPENAI,
             ),
             Model(
                 id_attr=5,
@@ -175,6 +179,7 @@ class Query:
                 name_pattern="gpt-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.OPENAI,
             ),
             Model(
                 id_attr=6,
@@ -183,6 +188,7 @@ class Query:
                 name_pattern="gpt-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.OPENAI,
             ),
             Model(
                 id_attr=7,
@@ -191,6 +197,7 @@ class Query:
                 name_pattern="gpt-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.OPENAI,
             ),
             Model(
                 id_attr=8,
@@ -199,6 +206,7 @@ class Query:
                 name_pattern="o1-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.OPENAI,
             ),
             Model(
                 id_attr=9,
@@ -207,6 +215,7 @@ class Query:
                 name_pattern="o1-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.OPENAI,
             ),
             # Anthropic Models
             Model(
@@ -216,6 +225,7 @@ class Query:
                 name_pattern="claude-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.ANTHROPIC,
             ),
             Model(
                 id_attr=11,
@@ -224,6 +234,7 @@ class Query:
                 name_pattern="claude-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.ANTHROPIC,
             ),
             Model(
                 id_attr=12,
@@ -232,6 +243,7 @@ class Query:
                 name_pattern="claude-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.ANTHROPIC,
             ),
             Model(
                 id_attr=13,
@@ -240,6 +252,7 @@ class Query:
                 name_pattern="claude-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.ANTHROPIC,
             ),
             # Google Models
             Model(
@@ -249,6 +262,7 @@ class Query:
                 name_pattern="gemini-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.GOOGLE,
             ),
             Model(
                 id_attr=15,
@@ -257,6 +271,7 @@ class Query:
                 name_pattern="gemini-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.GOOGLE,
             ),
             Model(
                 id_attr=16,
@@ -265,6 +280,7 @@ class Query:
                 name_pattern="gemini-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.GOOGLE,
             ),
             # DeepSeek Models
             Model(
@@ -274,6 +290,7 @@ class Query:
                 name_pattern="deepseek-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.DEEPSEEK,
             ),
             Model(
                 id_attr=18,
@@ -282,6 +299,7 @@ class Query:
                 name_pattern="deepseek-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.DEEPSEEK,
             ),
             # xAI Models
             Model(
@@ -291,6 +309,7 @@ class Query:
                 name_pattern="grok-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.XAI,
             ),
             Model(
                 id_attr=20,
@@ -299,6 +318,7 @@ class Query:
                 name_pattern="grok-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.XAI,
             ),
             # Ollama Models
             Model(
@@ -308,6 +328,7 @@ class Query:
                 name_pattern="llama-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.OLLAMA,
             ),
             Model(
                 id_attr=22,
@@ -316,6 +337,7 @@ class Query:
                 name_pattern="llama-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.OLLAMA,
             ),
             Model(
                 id_attr=23,
@@ -324,6 +346,7 @@ class Query:
                 name_pattern="mistral-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.OLLAMA,
             ),
             Model(
                 id_attr=24,
@@ -332,6 +355,7 @@ class Query:
                 name_pattern="codellama-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.OLLAMA,
             ),
             Model(
                 id_attr=25,
@@ -340,6 +364,7 @@ class Query:
                 name_pattern="phi-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.OLLAMA,
             ),
             Model(
                 id_attr=26,
@@ -348,6 +373,7 @@ class Query:
                 name_pattern="qwen-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.OLLAMA,
             ),
             Model(
                 id_attr=27,
@@ -356,6 +382,7 @@ class Query:
                 name_pattern="gemma-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.OLLAMA,
             ),
             # Azure OpenAI Models (uses OpenAI models but deployed on Azure)
             Model(
@@ -365,6 +392,7 @@ class Query:
                 name_pattern="gpt-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.AZURE_OPENAI,
             ),
             Model(
                 id_attr=29,
@@ -373,26 +401,27 @@ class Query:
                 name_pattern="gpt-*",
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
+                provider_key=GenerativeProviderKey.AZURE_OPENAI,
             ),
         ]
 
         return connection_from_list(data=synthetic_models, args=args)
 
     @strawberry.field
-    async def generative_models(self, input: Optional[ModelsInput] = None) -> list[GenerativeModel]:
+    async def playground_models(self, input: Optional[ModelsInput] = None) -> list[PlaygroundModel]:
         if input is not None and input.provider_key is not None:
             supported_model_names = PLAYGROUND_CLIENT_REGISTRY.list_models(input.provider_key)
             supported_models = [
-                GenerativeModel(name=model_name, provider_key=input.provider_key)
+                PlaygroundModel(name=model_name, provider_key=input.provider_key)
                 for model_name in supported_model_names
             ]
             return supported_models
 
         registered_models = PLAYGROUND_CLIENT_REGISTRY.list_all_models()
-        all_models: list[GenerativeModel] = []
+        all_models: list[PlaygroundModel] = []
         for provider_key, model_name in registered_models:
             if model_name is not None and provider_key is not None:
-                all_models.append(GenerativeModel(name=model_name, provider_key=provider_key))
+                all_models.append(PlaygroundModel(name=model_name, provider_key=provider_key))
         return all_models
 
     @strawberry.field
