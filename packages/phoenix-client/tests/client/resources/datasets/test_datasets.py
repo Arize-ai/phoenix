@@ -24,7 +24,7 @@ from phoenix.client.resources.datasets import (
 
 class TestDataset:
     @pytest.fixture
-    def dataset_info(self):
+    def dataset_info(self) -> v1.DatasetWithExampleCount:
         return v1.DatasetWithExampleCount(
             id="dataset123",
             name="Test Dataset",
@@ -36,7 +36,7 @@ class TestDataset:
         )
 
     @pytest.fixture
-    def examples_data(self):
+    def examples_data(self) -> v1.ListDatasetExamplesData:
         return v1.ListDatasetExamplesData(
             dataset_id="dataset123",
             version_id="version456",
@@ -90,7 +90,7 @@ class TestDataset:
         assert len(df) == 2
         assert list(df.columns) == ["input", "output", "metadata"]
         assert df.index.name == "example_id"  # pyright: ignore[reportUnknownMemberType]
-        assert list(df.index) == ["ex1", "ex2"]  # pyright: ignore[reportUnknownArgumentType]
+        assert list(df.index) == ["ex1", "ex2"]  # pyright: ignore[reportUnknownMemberType,reportUnknownArgumentType]
 
     def test_to_dataframe_no_pandas(self, dataset_info: Any, examples_data: Any) -> None:
         dataset = Dataset(dataset_info, examples_data)
@@ -168,17 +168,17 @@ class TestHelperFunctions:
 
     def test_get_csv_column_headers(self, tmp_path: Path) -> None:
         csv_file = tmp_path / "test.csv"
-        csv_file.write_text("col1,col2,col3\nval1,val2,val3\n")  # type: ignore[reportUnknownMemberType]
+        csv_file.write_text("col1,col2,col3\nval1,val2,val3\n")
 
         headers = _get_csv_column_headers(csv_file)
         assert headers == ("col1", "col2", "col3")
 
     def test_get_csv_column_headers_errors(self, tmp_path: Path) -> None:
         empty_file = tmp_path / "empty.csv"
-        empty_file.write_text("")  # type: ignore[reportUnknownMemberType]
+        empty_file.write_text("")
 
         with pytest.raises(ValueError, match="CSV file has no data rows"):
-            _get_csv_column_headers(empty_file)  # type: ignore[reportUnknownArgumentType]
+            _get_csv_column_headers(empty_file)
 
         with pytest.raises(FileNotFoundError):
             _get_csv_column_headers(Path("/non/existent/file.csv"))
@@ -188,16 +188,16 @@ class TestHelperFunctions:
             {"input1": [1, 2], "input2": [3, 4], "response": [5, 6], "metadata1": [7, 8]}
         )
 
-        input_keys, output_keys, metadata_keys = _infer_keys(df)  # type: ignore[reportUnknownArgumentType]
+        input_keys, output_keys, metadata_keys = _infer_keys(df)
 
         assert input_keys == ("input1", "input2")
         assert output_keys == ("response",)
         assert metadata_keys == ("metadata1",)
 
         csv_file = tmp_path / "test.csv"
-        csv_file.write_text("feature1,feature2,output,extra\nval1,val2,val3,val4\n")  # type: ignore[reportUnknownMemberType]
+        csv_file.write_text("feature1,feature2,output,extra\nval1,val2,val3,val4\n")
 
-        input_keys, output_keys, metadata_keys = _infer_keys(csv_file)  # type: ignore[reportUnknownArgumentType]
+        input_keys, output_keys, metadata_keys = _infer_keys(csv_file)
 
         assert input_keys == ("feature1", "feature2")
         assert output_keys == ("output",)
@@ -206,7 +206,7 @@ class TestHelperFunctions:
     def test_prepare_csv(self, tmp_path: Path) -> None:
         csv_file = tmp_path / "test.csv"
         csv_content = "input1,input2,output\nval1,val2,val3\n"
-        csv_file.write_text(csv_content)  # type: ignore[reportUnknownMemberType]
+        csv_file.write_text(csv_content)
 
         keys = DatasetKeys(
             input_keys=frozenset(["input1", "input2"]),
@@ -214,7 +214,7 @@ class TestHelperFunctions:
             metadata_keys=frozenset(),
         )
 
-        name, file_obj, content_type, headers = _prepare_csv(csv_file, keys)  # type: ignore[reportUnknownArgumentType]
+        name, file_obj, content_type, headers = _prepare_csv(csv_file, keys)
 
         assert name == "test.csv"
         assert content_type == "text/csv"
@@ -226,7 +226,7 @@ class TestHelperFunctions:
 
     def test_prepare_csv_validation(self, tmp_path: Path) -> None:
         csv_file = tmp_path / "test.csv"
-        csv_file.write_text("col1,col1,col2\nval1,val2,val3\n")  # type: ignore[reportUnknownMemberType]
+        csv_file.write_text("col1,col1,col2\nval1,val2,val3\n")
 
         keys = DatasetKeys(
             input_keys=frozenset(["col1"]),
