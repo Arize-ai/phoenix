@@ -64,7 +64,7 @@ import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
 import { spansTableCSS } from "./styles";
 import { DEFAULT_SORT, getGqlSort, makeAnnotationColumnId } from "./tableUtils";
-import { Cost } from "@phoenix/components/trace/Cost";
+import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 
 type SpansTableProps = {
   project: SpansTable_spans$key;
@@ -233,7 +233,7 @@ export function SpansTable(props: SpansTableProps) {
                   hit
                 }
                 cost {
-                  totalTokenCost
+                  total
                 }
                 ...AnnotationSummaryGroup
               }
@@ -492,14 +492,14 @@ export function SpansTable(props: SpansTableProps) {
     },
     {
       header: "cost",
-      accessorKey: "cost.totalTokenCost",
+      accessorKey: "cost.total",
       cell: ({ row, getValue }) => {
         const value = getValue();
         if (value === null || typeof value !== "number") {
           return "--";
         }
         const span = row.original;
-        return <Cost totalCost={value} nodeId={span.id} />;
+        return <TokenCosts totalCost={value} nodeId={span.id} />;
       },
     },
   ];

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6b0c70af09def1966cfa9f9f39a67e90>>
+ * @generated SignedSource<<994927408c74457134dab4563b73d9b5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,19 +9,19 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type Cost_CostDetailsQuery$variables = {
+export type TokenCosts_TokenCostsDetailsQuery$variables = {
   nodeId: string;
 };
-export type Cost_CostDetailsQuery$data = {
+export type TokenCosts_TokenCostsDetailsQuery$data = {
   readonly node: {
     readonly __typename: "Span";
     readonly cost: {
-      readonly cacheReadTokenCost: number | null;
-      readonly cacheWriteTokenCost: number | null;
-      readonly completionAudioTokenCost: number | null;
-      readonly inputTokenCost: number | null;
-      readonly outputTokenCost: number | null;
-      readonly promptAudioTokenCost: number | null;
+      readonly cacheRead: number | null;
+      readonly cacheWrite: number | null;
+      readonly completionAudio: number | null;
+      readonly input: number | null;
+      readonly output: number | null;
+      readonly promptAudio: number | null;
     } | null;
   } | {
     // This will never be '%other', but we need some
@@ -29,9 +29,9 @@ export type Cost_CostDetailsQuery$data = {
     readonly __typename: "%other";
   };
 };
-export type Cost_CostDetailsQuery = {
-  response: Cost_CostDetailsQuery$data;
-  variables: Cost_CostDetailsQuery$variables;
+export type TokenCosts_TokenCostsDetailsQuery = {
+  response: TokenCosts_TokenCostsDetailsQuery$data;
+  variables: TokenCosts_TokenCostsDetailsQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -62,7 +62,7 @@ v3 = {
     {
       "alias": null,
       "args": null,
-      "concreteType": "SpanCost",
+      "concreteType": "TokenCost",
       "kind": "LinkedField",
       "name": "cost",
       "plural": false,
@@ -71,42 +71,42 @@ v3 = {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
-          "name": "inputTokenCost",
+          "name": "input",
           "storageKey": null
         },
         {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
-          "name": "outputTokenCost",
+          "name": "output",
           "storageKey": null
         },
         {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
-          "name": "cacheReadTokenCost",
+          "name": "cacheRead",
           "storageKey": null
         },
         {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
-          "name": "cacheWriteTokenCost",
+          "name": "cacheWrite",
           "storageKey": null
         },
         {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
-          "name": "promptAudioTokenCost",
+          "name": "promptAudio",
           "storageKey": null
         },
         {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
-          "name": "completionAudioTokenCost",
+          "name": "completionAudio",
           "storageKey": null
         }
       ],
@@ -121,7 +121,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "Cost_CostDetailsQuery",
+    "name": "TokenCosts_TokenCostsDetailsQuery",
     "selections": [
       {
         "alias": null,
@@ -144,7 +144,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "Cost_CostDetailsQuery",
+    "name": "TokenCosts_TokenCostsDetailsQuery",
     "selections": [
       {
         "alias": null,
@@ -169,16 +169,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9f7d1987ba6f4732419e364d3a12b2ef",
+    "cacheID": "daf679d7300fa9dfd3360f7d35afb925",
     "id": null,
     "metadata": {},
-    "name": "Cost_CostDetailsQuery",
+    "name": "TokenCosts_TokenCostsDetailsQuery",
     "operationKind": "query",
-    "text": "query Cost_CostDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      cost {\n        inputTokenCost\n        outputTokenCost\n        cacheReadTokenCost\n        cacheWriteTokenCost\n        promptAudioTokenCost\n        completionAudioTokenCost\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query TokenCosts_TokenCostsDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      cost {\n        input\n        output\n        cacheRead\n        cacheWrite\n        promptAudio\n        completionAudio\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3f0843f26d0129a921ef72bd09488340";
+(node as any).hash = "f1634b707a0929cc336634a18137ea00";
 
 export default node;

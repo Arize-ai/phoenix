@@ -5,19 +5,19 @@ import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
 import { Flex, Loading, Text, TextProps } from "@phoenix/components";
 
-import type { Cost_CostDetailsQuery } from "./__generated__/Cost_CostDetailsQuery.graphql";
+import type { TokenCosts_TokenCostsDetailsQuery } from "./__generated__/TokenCosts_TokenCostsDetailsQuery.graphql";
 
-type CostProps = {
+type TokenCostsProps = {
   /**
    * The total cost of the node (span, trace, session, etc.)
    */
   totalCost: number;
   /**
-   * The size of the icon and text
+   * The id of the node (span, trace, session, etc.)
    */
   nodeId: string;
   /**
-   * The id of the node (span, trace, session, etc.)
+   * The size of the icon and text
    */
   size?: TextProps["size"];
 };
@@ -25,35 +25,35 @@ type CostProps = {
 /**
  * Displays the cost of the node (span, trace, session, etc.)
  */
-export function Cost(props: CostProps) {
+export function TokenCosts(props: TokenCostsProps) {
   return (
     <TooltipTrigger delay={500}>
       <TriggerWrap>
-        <CostItem size={props.size}>{props.totalCost}</CostItem>
+        <TokenCostsItem size={props.size}>{props.totalCost}</TokenCostsItem>
       </TriggerWrap>
       <Tooltip>
         <Suspense fallback={<Loading />}>
-          <CostDetails nodeId={props.nodeId} />
+          <TokenCostsDetails nodeId={props.nodeId} />
         </Suspense>
       </Tooltip>
     </TooltipTrigger>
   );
 }
 
-function CostDetails(props: { nodeId: string }) {
-  const data = useLazyLoadQuery<Cost_CostDetailsQuery>(
+function TokenCostsDetails(props: { nodeId: string }) {
+  const data = useLazyLoadQuery<TokenCosts_TokenCostsDetailsQuery>(
     graphql`
-      query Cost_CostDetailsQuery($nodeId: ID!) {
+      query TokenCosts_TokenCostsDetailsQuery($nodeId: ID!) {
         node(id: $nodeId) {
           __typename
           ... on Span {
             cost {
-              inputTokenCost
-              outputTokenCost
-              cacheReadTokenCost
-              cacheWriteTokenCost
-              promptAudioTokenCost
-              completionAudioTokenCost
+              input
+              output
+              cacheRead
+              cacheWrite
+              promptAudio
+              completionAudio
             }
           }
         }
@@ -73,12 +73,12 @@ function CostDetails(props: { nodeId: string }) {
     switch (data.node.__typename) {
       case "Span":
         return {
-          tokenCostInput: data.node.cost?.inputTokenCost,
-          tokenCostOutput: data.node.cost?.outputTokenCost,
-          tokenCostCacheRead: data.node.cost?.cacheReadTokenCost,
-          tokenCostCacheWrite: data.node.cost?.cacheWriteTokenCost,
-          tokenCostPromptAudio: data.node.cost?.promptAudioTokenCost,
-          tokenCostCompletionAudio: data.node.cost?.completionAudioTokenCost,
+          tokenCostInput: data.node.cost?.input,
+          tokenCostOutput: data.node.cost?.output,
+          tokenCostCacheRead: data.node.cost?.cacheRead,
+          tokenCostCacheWrite: data.node.cost?.cacheWrite,
+          tokenCostPromptAudio: data.node.cost?.promptAudio,
+          tokenCostCompletionAudio: data.node.cost?.completionAudio,
         };
       default:
         return {
@@ -106,19 +106,19 @@ function CostDetails(props: { nodeId: string }) {
           {tokenCostInput != null && tokenCostInput !== 0 && (
             <Flex direction="row" gap="size-100" justifyContent="space-between">
               <Text>input tokens</Text>
-              <CostItem>{tokenCostInput}</CostItem>
+              <TokenCostsItem>{tokenCostInput}</TokenCostsItem>
             </Flex>
           )}
           {tokenCostOutput != null && tokenCostOutput !== 0 && (
             <Flex direction="row" gap="size-100" justifyContent="space-between">
               <Text>output tokens</Text>
-              <CostItem>{tokenCostOutput}</CostItem>
+              <TokenCostsItem>{tokenCostOutput}</TokenCostsItem>
             </Flex>
           )}
           {tokenCostPromptAudio != null && tokenCostPromptAudio !== 0 && (
             <Flex direction="row" gap="size-100" justifyContent="space-between">
               <Text>prompt audio tokens</Text>
-              <CostItem>{tokenCostPromptAudio}</CostItem>
+              <TokenCostsItem>{tokenCostPromptAudio}</TokenCostsItem>
             </Flex>
           )}
           {tokenCostCompletionAudio != null &&
@@ -129,19 +129,19 @@ function CostDetails(props: { nodeId: string }) {
                 justifyContent="space-between"
               >
                 <Text>completion audio tokens</Text>
-                <CostItem>{tokenCostCompletionAudio}</CostItem>
+                <TokenCostsItem>{tokenCostCompletionAudio}</TokenCostsItem>
               </Flex>
             )}
           {tokenCostCacheRead != null && tokenCostCacheRead !== 0 && (
             <Flex direction="row" gap="size-100" justifyContent="space-between">
               <Text>cache read tokens</Text>
-              <CostItem>{tokenCostCacheRead}</CostItem>
+              <TokenCostsItem>{tokenCostCacheRead}</TokenCostsItem>
             </Flex>
           )}
           {tokenCostCacheWrite != null && tokenCostCacheWrite !== 0 && (
             <Flex direction="row" gap="size-100" justifyContent="space-between">
               <Text>cache write tokens</Text>
-              <CostItem>{tokenCostCacheWrite}</CostItem>
+              <TokenCostsItem>{tokenCostCacheWrite}</TokenCostsItem>
             </Flex>
           )}
         </>
@@ -150,7 +150,7 @@ function CostDetails(props: { nodeId: string }) {
   );
 }
 
-function CostItem({
+function TokenCostsItem({
   children,
   ...textProps
 }: {
