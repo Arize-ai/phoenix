@@ -4,12 +4,6 @@
     max-width: none;
 }
 
-/* Logo styling */
-.navbar-brand img {
-    height: 32px;
-    width: auto;
-}
-
 /* Code block styling */
 .highlight {
     background-color: #f8f9fa;
