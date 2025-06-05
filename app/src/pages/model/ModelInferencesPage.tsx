@@ -25,16 +25,19 @@ import {
 } from "@phoenix/components/model";
 import { useInferences, useTimeRange } from "@phoenix/contexts";
 
-import { ModelPageQuery } from "./__generated__/ModelPageQuery.graphql";
+import { ModelInferencesPageQuery } from "./__generated__/ModelInferencesPageQuery.graphql";
 
-type ModelPageProps = Readonly<object>;
+type ModelInferencesPageProps = Readonly<object>;
 
-export function ModelPage(_props: ModelPageProps) {
+export function ModelInferencesPage(_props: ModelInferencesPageProps) {
   const { referenceInferences } = useInferences();
   const { timeRange } = useTimeRange();
-  const data = useLazyLoadQuery<ModelPageQuery>(
+  const data = useLazyLoadQuery<ModelInferencesPageQuery>(
     graphql`
-      query ModelPageQuery($startTime: DateTime!, $endTime: DateTime!) {
+      query ModelInferencesPageQuery(
+        $startTime: DateTime!
+        $endTime: DateTime!
+      ) {
         ...ModelSchemaTable_dimensions
           @arguments(startTime: $startTime, endTime: $endTime)
         ...ModelEmbeddingsTable_embeddingDimensions
