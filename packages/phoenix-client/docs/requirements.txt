@@ -1,0 +1,6 @@
+sphinx>=7.0.0
+pydata-sphinx-theme>=0.15.0
+myst-parser>=2.0.0
+sphinx-design>=0.5.0
+sphinx-autosummary-accessors>=2023.4.0
+linkify-it-py 
