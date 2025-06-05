@@ -337,7 +337,9 @@ def _create_chat_prompt(
     /,
     *,
     messages: Sequence[PromptMessageInput] = (),
-    model_provider: Literal["ANTHROPIC", "AZURE_OPENAI", "GOOGLE", "OPENAI"] = "OPENAI",
+    model_provider: Literal[
+        "ANTHROPIC", "AZURE_OPENAI", "GOOGLE", "OPENAI", "DEEPSEEK", "XAI", "OLLAMA"
+    ] = "OPENAI",
     model_name: str | None = None,
     response_format: ResponseFormatInput | None = None,
     tools: Sequence[ToolDefinitionInput] = (),
@@ -388,7 +390,7 @@ class TestClient:
         "model_providers,convert,expected",
         [
             pytest.param(
-                "OPENAI,AZURE_OPENAI",
+                "OPENAI,AZURE_OPENAI,DEEPSEEK,XAI,OLLAMA",
                 PromptVersion.from_openai,
                 CompletionCreateParamsBase(
                     model=token_hex(8),
@@ -406,7 +408,7 @@ class TestClient:
                 id="openai-system-message-string",
             ),
             pytest.param(
-                "OPENAI,AZURE_OPENAI",
+                "OPENAI,AZURE_OPENAI,DEEPSEEK,XAI,OLLAMA",
                 PromptVersion.from_openai,
                 CompletionCreateParamsBase(
                     model=token_hex(8),
@@ -436,7 +438,7 @@ class TestClient:
                 id="openai-system-message-list",
             ),
             pytest.param(
-                "OPENAI,AZURE_OPENAI",
+                "OPENAI,AZURE_OPENAI,DEEPSEEK,XAI,OLLAMA",
                 PromptVersion.from_openai,
                 CompletionCreateParamsBase(
                     model=token_hex(8),
@@ -450,7 +452,7 @@ class TestClient:
                 id="openai-developer-message-string",
             ),
             pytest.param(
-                "OPENAI",
+                "OPENAI,AZURE_OPENAI,DEEPSEEK,XAI,OLLAMA",
                 PromptVersion.from_openai,
                 CompletionCreateParamsBase(
                     model=token_hex(8),
@@ -472,7 +474,7 @@ class TestClient:
                 id="openai-developer-message-list",
             ),
             pytest.param(
-                "OPENAI",
+                "OPENAI,AZURE_OPENAI,DEEPSEEK,XAI,OLLAMA",
                 PromptVersion.from_openai,
                 CompletionCreateParamsBase(
                     model=token_hex(8),
@@ -493,7 +495,7 @@ class TestClient:
                 id="openai-tools",
             ),
             pytest.param(
-                "OPENAI,AZURE_OPENAI",
+                "OPENAI,AZURE_OPENAI,DEEPSEEK,XAI,OLLAMA",
                 PromptVersion.from_openai,
                 CompletionCreateParamsBase(
                     model=token_hex(8),
@@ -511,7 +513,7 @@ class TestClient:
                 id="openai-response-format",
             ),
             pytest.param(
-                "OPENAI",
+                "OPENAI,AZURE_OPENAI,DEEPSEEK,XAI,OLLAMA",
                 PromptVersion.from_openai,
                 CompletionCreateParamsBase(
                     model=token_hex(8),
@@ -554,7 +556,7 @@ class TestClient:
                 id="openai-function-calling",
             ),
             pytest.param(
-                "OPENAI,AZURE_OPENAI",
+                "OPENAI,AZURE_OPENAI,DEEPSEEK,XAI,OLLAMA",
                 PromptVersion.from_openai,
                 CompletionCreateParamsBase(
                     model=token_hex(8),
@@ -602,7 +604,7 @@ class TestClient:
                 id="openai-tool-message-string",
             ),
             pytest.param(
-                "OPENAI,AZURE_OPENAI",
+                "OPENAI,AZURE_OPENAI,DEEPSEEK,XAI,OLLAMA",
                 PromptVersion.from_openai,
                 CompletionCreateParamsBase(
                     model=token_hex(8),

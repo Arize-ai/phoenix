@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<34cc5a7aa3d0ab3ebce75285255c6419>>
+ * @generated SignedSource<<1f838200fb3ec31af35259ee9057113d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -40,7 +40,7 @@ export type SpanAside_span$data = {
   };
   readonly startTime: string;
   readonly tokenCountTotal: number | null;
-  readonly " $fragmentSpreads": FragmentRefs<"SpanAsideAnnotationList_span" | "TraceHeaderRootSpanAnnotationsFragment">;
+  readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup" | "SpanAsideAnnotationList_span" | "TraceHeaderRootSpanAnnotationsFragment">;
   readonly " $fragmentType": "SpanAside_span";
 };
 export type SpanAside_span$key = {
@@ -64,13 +64,7 @@ v1 = {
   "storageKey": null
 };
 return {
-  "argumentDefinitions": [
-    {
-      "defaultValue": null,
-      "kind": "LocalArgument",
-      "name": "filterUserIds"
-    }
-  ],
+  "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
   "name": "SpanAside_span",
@@ -258,15 +252,14 @@ return {
       "name": "TraceHeaderRootSpanAnnotationsFragment"
     },
     {
-      "args": [
-        {
-          "kind": "Variable",
-          "name": "filterUserIds",
-          "variableName": "filterUserIds"
-        }
-      ],
+      "args": null,
       "kind": "FragmentSpread",
       "name": "SpanAsideAnnotationList_span"
+    },
+    {
+      "args": null,
+      "kind": "FragmentSpread",
+      "name": "AnnotationSummaryGroup"
     }
   ],
   "type": "Span",
@@ -274,6 +267,6 @@ return {
 };
 })();
 
-(node as any).hash = "8521ecb5e6a68c9e50ce18b6c786da89";
+(node as any).hash = "eddd0b1c2288899c1d97948a29207944";
 
 export default node;

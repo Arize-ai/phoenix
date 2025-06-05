@@ -1023,7 +1023,8 @@ class TestSendingAnnotationsBeforeSpan:
             await sleep(0.01)
 
         # Send the span and wait
-        assert _grpc_span_exporter().export([_span]) is SpanExportResult.SUCCESS
+        headers = {"authorization": f"Bearer {_admin_secret}"}
+        assert _grpc_span_exporter(headers=headers).export([_span]) is SpanExportResult.SUCCESS
 
         # Get the global IDs
         span_gid, trace_gid = await _get(

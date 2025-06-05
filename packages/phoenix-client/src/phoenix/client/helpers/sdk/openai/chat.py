@@ -110,7 +110,7 @@ def create_prompt_version_from_openai(
     *,
     description: Optional[str] = None,
     template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
-    model_provider: Literal["OPENAI", "AZURE_OPENAI"] = "OPENAI",
+    model_provider: Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "OLLAMA"] = "OPENAI",
 ) -> v1.PromptVersionData:
     messages: list[ChatCompletionMessageParam] = list(obj["messages"])
     template = v1.PromptChatTemplate(
@@ -193,6 +193,9 @@ class _InvocationParametersConversion:
             v1.PromptAzureOpenAIInvocationParameters,
             v1.PromptAnthropicInvocationParameters,
             v1.PromptGoogleInvocationParameters,
+            v1.PromptDeepSeekInvocationParameters,
+            v1.PromptXAIInvocationParameters,
+            v1.PromptOllamaInvocationParameters,
         ],
     ) -> _InvocationParameters:
         ans: _InvocationParameters = {}
@@ -234,6 +237,63 @@ class _InvocationParametersConversion:
                 ans["seed"] = azure_params["seed"]
             if "reasoning_effort" in azure_params:
                 ans["reasoning_effort"] = azure_params["reasoning_effort"]
+        elif obj["type"] == "deepseek":
+            deepseek_params: v1.PromptDeepSeekInvocationParametersContent
+            deepseek_params = obj["deepseek"]
+            if "max_completion_tokens" in deepseek_params:
+                ans["max_completion_tokens"] = deepseek_params["max_completion_tokens"]
+            if "max_tokens" in deepseek_params:
+                ans["max_tokens"] = deepseek_params["max_tokens"]
+            if "temperature" in deepseek_params:
+                ans["temperature"] = deepseek_params["temperature"]
+            if "top_p" in deepseek_params:
+                ans["top_p"] = deepseek_params["top_p"]
+            if "presence_penalty" in deepseek_params:
+                ans["presence_penalty"] = deepseek_params["presence_penalty"]
+            if "frequency_penalty" in deepseek_params:
+                ans["frequency_penalty"] = deepseek_params["frequency_penalty"]
+            if "seed" in deepseek_params:
+                ans["seed"] = deepseek_params["seed"]
+            if "reasoning_effort" in deepseek_params:
+                ans["reasoning_effort"] = deepseek_params["reasoning_effort"]
+        elif obj["type"] == "xai":
+            xai_params: v1.PromptXAIInvocationParametersContent
+            xai_params = obj["xai"]
+            if "max_completion_tokens" in xai_params:
+                ans["max_completion_tokens"] = xai_params["max_completion_tokens"]
+            if "max_tokens" in xai_params:
+                ans["max_tokens"] = xai_params["max_tokens"]
+            if "temperature" in xai_params:
+                ans["temperature"] = xai_params["temperature"]
+            if "top_p" in xai_params:
+                ans["top_p"] = xai_params["top_p"]
+            if "presence_penalty" in xai_params:
+                ans["presence_penalty"] = xai_params["presence_penalty"]
+            if "frequency_penalty" in xai_params:
+                ans["frequency_penalty"] = xai_params["frequency_penalty"]
+            if "seed" in xai_params:
+                ans["seed"] = xai_params["seed"]
+            if "reasoning_effort" in xai_params:
+                ans["reasoning_effort"] = xai_params["reasoning_effort"]
+        elif obj["type"] == "ollama":
+            ollama_params: v1.PromptOllamaInvocationParametersContent
+            ollama_params = obj["ollama"]
+            if "max_completion_tokens" in ollama_params:
+                ans["max_completion_tokens"] = ollama_params["max_completion_tokens"]
+            if "max_tokens" in ollama_params:
+                ans["max_tokens"] = ollama_params["max_tokens"]
+            if "temperature" in ollama_params:
+                ans["temperature"] = ollama_params["temperature"]
+            if "top_p" in ollama_params:
+                ans["top_p"] = ollama_params["top_p"]
+            if "presence_penalty" in ollama_params:
+                ans["presence_penalty"] = ollama_params["presence_penalty"]
+            if "frequency_penalty" in ollama_params:
+                ans["frequency_penalty"] = ollama_params["frequency_penalty"]
+            if "seed" in ollama_params:
+                ans["seed"] = ollama_params["seed"]
+            if "reasoning_effort" in ollama_params:
+                ans["reasoning_effort"] = ollama_params["reasoning_effort"]
         elif obj["type"] == "anthropic":
             anthropic_params: v1.PromptAnthropicInvocationParametersContent
             anthropic_params = obj["anthropic"]
@@ -284,24 +344,63 @@ class _InvocationParametersConversion:
         model_provider: Literal["AZURE_OPENAI"],
     ) -> v1.PromptAzureOpenAIInvocationParameters: ...
 
+    @overload
     @staticmethod
     def from_openai(
         obj: CompletionCreateParamsBase,
         /,
         *,
-        model_provider: Literal["OPENAI", "AZURE_OPENAI"] = "OPENAI",
+        model_provider: Literal["DEEPSEEK"],
+    ) -> v1.PromptDeepSeekInvocationParameters: ...
+
+    @overload
+    @staticmethod
+    def from_openai(
+        obj: CompletionCreateParamsBase,
+        /,
+        *,
+        model_provider: Literal["XAI"],
+    ) -> v1.PromptXAIInvocationParameters: ...
+
+    @overload
+    @staticmethod
+    def from_openai(
+        obj: CompletionCreateParamsBase,
+        /,
+        *,
+        model_provider: Literal["OLLAMA"],
+    ) -> v1.PromptOllamaInvocationParameters: ...
+
+    @staticmethod
+    def from_openai(
+        obj: CompletionCreateParamsBase,
+        /,
+        *,
+        model_provider: Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "OLLAMA"] = "OPENAI",
     ) -> Union[
         v1.PromptOpenAIInvocationParameters,
         v1.PromptAzureOpenAIInvocationParameters,
+        v1.PromptDeepSeekInvocationParameters,
+        v1.PromptXAIInvocationParameters,
+        v1.PromptOllamaInvocationParameters,
     ]:
         content: Union[
             v1.PromptOpenAIInvocationParametersContent,
             v1.PromptAzureOpenAIInvocationParametersContent,
+            v1.PromptDeepSeekInvocationParametersContent,
+            v1.PromptXAIInvocationParametersContent,
+            v1.PromptOllamaInvocationParametersContent,
         ]
         if model_provider == "OPENAI":
             content = v1.PromptOpenAIInvocationParametersContent()
         elif model_provider == "AZURE_OPENAI":
             content = v1.PromptAzureOpenAIInvocationParametersContent()
+        elif model_provider == "DEEPSEEK":
+            content = v1.PromptDeepSeekInvocationParametersContent()
+        elif model_provider == "XAI":
+            content = v1.PromptXAIInvocationParametersContent()
+        elif model_provider == "OLLAMA":
+            content = v1.PromptOllamaInvocationParametersContent()
         else:
             assert_never(model_provider)
         if "max_completion_tokens" in obj and obj["max_completion_tokens"] is not None:
@@ -331,6 +430,21 @@ class _InvocationParametersConversion:
             return v1.PromptAzureOpenAIInvocationParameters(
                 type="azure_openai",
                 azure_openai=content,
+            )
+        elif model_provider == "DEEPSEEK":
+            return v1.PromptDeepSeekInvocationParameters(
+                type="deepseek",
+                deepseek=content,
+            )
+        elif model_provider == "XAI":
+            return v1.PromptXAIInvocationParameters(
+                type="xai",
+                xai=content,
+            )
+        elif model_provider == "OLLAMA":
+            return v1.PromptOllamaInvocationParameters(
+                type="ollama",
+                ollama=content,
             )
         else:
             assert_never(model_provider)

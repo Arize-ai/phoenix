@@ -22,7 +22,7 @@ export function SelectionGridSizeRadioGroup(
   return (
     <ToggleButtonGroup
       selectedKeys={[props.size]}
-      size="L"
+      size="S"
       aria-label="Selection Grid Size"
       onSelectionChange={(v) => {
         if (v.size === 0) {

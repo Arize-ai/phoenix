@@ -144,6 +144,16 @@ module.exports = {
         module: "@arizeai/components",
         use: "@phoenix/components",
       },
+      {
+        name: "Picker",
+        module: "@arizeai/components",
+        use: "import { Select, SelectValue, SelectItem } from '@phoenix/components'",
+      },
+      {
+        name: "CompactSearchField",
+        module: "@arizeai/components",
+        use: "import { SearchField, Input } from '@phoenix/components'",
+      },
     ],
     "no-duplicate-imports": "error",
   },

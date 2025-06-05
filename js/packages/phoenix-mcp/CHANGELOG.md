@@ -1,5 +1,25 @@
 # @arizeai/phoenix-mcp
 
+## 2.1.10
+
+### Patch Changes
+
+- Updated dependencies [5dd53be]
+  - @arizeai/phoenix-client@2.1.1
+
+## 2.1.9
+
+### Patch Changes
+
+- Updated dependencies [b162720]
+  - @arizeai/phoenix-client@2.1.0
+
+## 2.1.8
+
+### Patch Changes
+
+- 7f7aa06: add project tool
+
 ## 2.1.7
 
 ### Patch Changes

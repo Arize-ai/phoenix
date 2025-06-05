@@ -335,6 +335,48 @@
             "description": "One or more span id to fetch annotations for"
           },
           {
+            "name": "include_annotation_names",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of annotation names to include. If provided, only annotations with these names will be returned. 'note' annotations are excluded by default unless explicitly included in this list.",
+              "title": "Include Annotation Names"
+            },
+            "description": "Optional list of annotation names to include. If provided, only annotations with these names will be returned. 'note' annotations are excluded by default unless explicitly included in this list."
+          },
+          {
+            "name": "exclude_annotation_names",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of annotation names to exclude from results.",
+              "title": "Exclude Annotation Names"
+            },
+            "description": "Optional list of annotation names to exclude from results."
+          },
+          {
             "name": "cursor",
             "in": "query",
             "required": false,
@@ -1537,6 +1579,16 @@
             },
             "description": "Experiment or dataset example not found"
           },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "This experiment run has already been submitted"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -1667,6 +1719,276 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/v1/projects/{project_identifier}/spans/otlpv1": {
+      "get": {
+        "tags": [
+          "spans"
+        ],
+        "summary": "Search spans with simple filters (no DSL)",
+        "description": "Return spans within a project filtered by time range. Supports cursor-based pagination.",
+        "operationId": "spanSearch",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Pagination cursor (Span Global ID)",
+              "title": "Cursor"
+            },
+            "description": "Pagination cursor (Span Global ID)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "exclusiveMinimum": 0,
+              "description": "Maximum number of spans to return",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "Maximum number of spans to return"
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive lower bound time",
+              "title": "Start Time"
+            },
+            "description": "Inclusive lower bound time"
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Exclusive upper bound time",
+              "title": "End Time"
+            },
+            "description": "Exclusive upper bound time"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OtlpSpansResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/projects/{project_identifier}/spans": {
+      "get": {
+        "tags": [
+          "spans"
+        ],
+        "summary": "List spans with simple filters (no DSL)",
+        "description": "Return spans within a project filtered by time range. Supports cursor-based pagination.",
+        "operationId": "getSpans",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Pagination cursor (Span Global ID)",
+              "title": "Cursor"
+            },
+            "description": "Pagination cursor (Span Global ID)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "exclusiveMinimum": 0,
+              "description": "Maximum number of spans to return",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "Maximum number of spans to return"
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive lower bound time",
+              "title": "Start Time"
+            },
+            "description": "Inclusive lower bound time"
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Exclusive upper bound time",
+              "title": "End Time"
+            },
+            "description": "Exclusive upper bound time"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpansResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
           }
         }
       }
@@ -2827,6 +3149,202 @@
           }
         }
       }
+    },
+    "/v1/users": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "List all users",
+        "description": "Retrieve a paginated list of all users in the system.",
+        "operationId": "getUsers",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Cursor for pagination (base64-encoded user ID)",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination (base64-encoded user ID)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "The max number of users to return at a time.",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "The max number of users to return at a time."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A list of users.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUsersResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Create a new user",
+        "description": "Create a new user with the specified configuration.",
+        "operationId": "createUser",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The newly created user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateUserResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Role not found."
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Username or email already exists."
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/users/{user_id}": {
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Delete a user by ID",
+        "description": "Delete an existing user by their unique GlobalID.",
+        "operationId": "deleteUser",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The GlobalID of the user (e.g. 'VXNlcjox').",
+              "title": "User Id"
+            },
+            "description": "The GlobalID of the user (e.g. 'VXNlcjox')."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content returned on successful deletion."
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Cannot delete the default admin or system user"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "User not found."
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3373,6 +3891,65 @@
           "data"
         ],
         "title": "CreatePromptResponseBody"
+      },
+      "CreateUserRequestBody": {
+        "properties": {
+          "user": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/LocalUserData"
+              },
+              {
+                "$ref": "#/components/schemas/OAuth2UserData"
+              }
+            ],
+            "title": "User",
+            "discriminator": {
+              "propertyName": "auth_method",
+              "mapping": {
+                "LOCAL": "#/components/schemas/LocalUserData",
+                "OAUTH2": "#/components/schemas/OAuth2UserData"
+              }
+            }
+          },
+          "send_welcome_email": {
+            "type": "boolean",
+            "title": "Send Welcome Email",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "user"
+        ],
+        "title": "CreateUserRequestBody"
+      },
+      "CreateUserResponseBody": {
+        "properties": {
+          "data": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/LocalUser"
+              },
+              {
+                "$ref": "#/components/schemas/OAuth2User"
+              }
+            ],
+            "title": "Data",
+            "discriminator": {
+              "propertyName": "auth_method",
+              "mapping": {
+                "LOCAL": "#/components/schemas/LocalUser",
+                "OAUTH2": "#/components/schemas/OAuth2User"
+              }
+            }
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateUserResponseBody"
       },
       "Dataset": {
         "properties": {
@@ -4065,6 +4642,48 @@
         ],
         "title": "GetPromptsResponseBody"
       },
+      "GetUsersResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/LocalUser"
+                },
+                {
+                  "$ref": "#/components/schemas/OAuth2User"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "auth_method",
+                "mapping": {
+                  "LOCAL": "#/components/schemas/LocalUser",
+                  "OAUTH2": "#/components/schemas/OAuth2User"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "GetUsersResponseBody"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -4223,15 +4842,221 @@
         ],
         "title": "ListExperimentsResponseBody"
       },
+      "LocalUser": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "SYSTEM",
+              "ADMIN",
+              "MEMBER"
+            ],
+            "title": "Role"
+          },
+          "auth_method": {
+            "type": "string",
+            "const": "LOCAL",
+            "title": "Auth Method"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          },
+          "password_needs_reset": {
+            "type": "boolean",
+            "title": "Password Needs Reset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "email",
+          "username",
+          "role",
+          "auth_method",
+          "password_needs_reset"
+        ],
+        "title": "LocalUser"
+      },
+      "LocalUserData": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "SYSTEM",
+              "ADMIN",
+              "MEMBER"
+            ],
+            "title": "Role"
+          },
+          "auth_method": {
+            "type": "string",
+            "const": "LOCAL",
+            "title": "Auth Method"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "username",
+          "role",
+          "auth_method"
+        ],
+        "title": "LocalUserData"
+      },
       "ModelProvider": {
         "type": "string",
         "enum": [
           "OPENAI",
           "AZURE_OPENAI",
           "ANTHROPIC",
-          "GOOGLE"
+          "GOOGLE",
+          "DEEPSEEK",
+          "XAI",
+          "OLLAMA"
         ],
         "title": "ModelProvider"
+      },
+      "OAuth2User": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "SYSTEM",
+              "ADMIN",
+              "MEMBER"
+            ],
+            "title": "Role"
+          },
+          "auth_method": {
+            "type": "string",
+            "const": "OAUTH2",
+            "title": "Auth Method"
+          },
+          "oauth2_client_id": {
+            "type": "string",
+            "title": "Oauth2 Client Id"
+          },
+          "oauth2_user_id": {
+            "type": "string",
+            "title": "Oauth2 User Id"
+          },
+          "profile_picture_url": {
+            "type": "string",
+            "title": "Profile Picture Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "email",
+          "username",
+          "role",
+          "auth_method"
+        ],
+        "title": "OAuth2User"
+      },
+      "OAuth2UserData": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "SYSTEM",
+              "ADMIN",
+              "MEMBER"
+            ],
+            "title": "Role"
+          },
+          "auth_method": {
+            "type": "string",
+            "const": "OAUTH2",
+            "title": "Auth Method"
+          },
+          "oauth2_client_id": {
+            "type": "string",
+            "title": "Oauth2 Client Id"
+          },
+          "oauth2_user_id": {
+            "type": "string",
+            "title": "Oauth2 User Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "username",
+          "role",
+          "auth_method"
+        ],
+        "title": "OAuth2UserData"
       },
       "OptimizationDirection": {
         "type": "string",
@@ -4241,6 +5066,519 @@
           "NONE"
         ],
         "title": "OptimizationDirection"
+      },
+      "OtlpAnyValue": {
+        "properties": {
+          "array_value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OtlpArrayValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bool_value": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bool Value"
+          },
+          "bytes_value": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bytes Value"
+          },
+          "double_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "$ref": "#/components/schemas/OtlpDoubleValue"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Double Value"
+          },
+          "int_value": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMaximum": 9.223372036854776e+18,
+                "minimum": -9.223372036854776e+18
+              },
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Int Value"
+          },
+          "kvlist_value": {
+            "type": "null",
+            "title": "Kvlist Value"
+          },
+          "string_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "String Value"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OtlpAnyValue"
+      },
+      "OtlpArrayValue": {
+        "properties": {
+          "values": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OtlpAnyValue"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Values",
+            "description": "Array of values. The array may be empty (contain 0 elements)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OtlpArrayValue"
+      },
+      "OtlpDoubleValue": {
+        "type": "string",
+        "enum": [
+          "Infinity",
+          "-Infinity",
+          "NaN"
+        ],
+        "title": "OtlpDoubleValue"
+      },
+      "OtlpEvent": {
+        "properties": {
+          "attributes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OtlpKeyValue"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attributes",
+            "description": "attributes is a collection of attribute key/value pairs on the event. Attribute keys MUST be unique (it is not allowed to have more than one attribute with the same key)."
+          },
+          "dropped_attributes_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4294967295.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dropped Attributes Count",
+            "description": "dropped_attributes_count is the number of dropped attributes. If the value is 0, then no attributes were dropped."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "name of the event. This field is semantically required to be set to non-empty string."
+          },
+          "time_unix_nano": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMaximum": 1.8446744073709552e+19,
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time Unix Nano",
+            "description": "time_unix_nano is the time the event occurred. Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OtlpEvent"
+      },
+      "OtlpKeyValue": {
+        "properties": {
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OtlpAnyValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OtlpKeyValue"
+      },
+      "OtlpKind": {
+        "type": "string",
+        "enum": [
+          "SPAN_KIND_UNSPECIFIED",
+          "SPAN_KIND_INTERNAL",
+          "SPAN_KIND_SERVER",
+          "SPAN_KIND_CLIENT",
+          "SPAN_KIND_PRODUCER",
+          "SPAN_KIND_CONSUMER"
+        ],
+        "title": "OtlpKind"
+      },
+      "OtlpSpan": {
+        "properties": {
+          "attributes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OtlpKeyValue"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attributes",
+            "description": "attributes is a collection of key/value pairs. Note, global attributes like server name can be set using the resource API. Examples of attributes:\n\n    \"/http/user_agent\": \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36\"\n    \"/http/server_latency\": 300\n    \"example.com/myattribute\": true\n    \"example.com/score\": 10.239\n\nThe OpenTelemetry API specification further restricts the allowed value types:\nhttps://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute\nAttribute keys MUST be unique (it is not allowed to have more than one attribute with the same key)."
+          },
+          "dropped_attributes_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4294967295.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dropped Attributes Count",
+            "description": "dropped_attributes_count is the number of attributes that were discarded. Attributes can be discarded because their keys are too long or because there are too many attributes. If this value is 0, then no attributes were dropped."
+          },
+          "dropped_events_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4294967295.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dropped Events Count",
+            "description": "dropped_events_count is the number of dropped events. If the value is 0, then no events were dropped."
+          },
+          "dropped_links_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4294967295.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dropped Links Count",
+            "description": "dropped_links_count is the number of dropped links after the maximum size was enforced. If this value is 0, then no links were dropped."
+          },
+          "end_time_unix_nano": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMaximum": 1.8446744073709552e+19,
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Time Unix Nano",
+            "description": "end_time_unix_nano is the end time of the span. On the client side, this is the time kept by the local machine where the span execution ends. On the server side, this is the time when the server application handler stops running.\nValue is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.\n\nThis field is semantically required and it is expected that end_time >= start_time."
+          },
+          "events": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OtlpEvent"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Events",
+            "description": "events is a collection of Event items. A span with no events is valid."
+          },
+          "flags": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4294967295.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flags",
+            "description": "Flags, a bit field.\n\nBits 0-7 (8 least significant bits) are the trace flags as defined in W3C Trace Context specification. To read the 8-bit W3C trace flag, use `flags & SPAN_FLAGS_TRACE_FLAGS_MASK`.\n\nSee https://www.w3.org/TR/trace-context-2/#trace-flags for the flag definitions.\n\nBits 8 and 9 represent the 3 states of whether a span's parent is remote. The states are (unknown, is not remote, is remote).\nTo read whether the value is known, use `(flags & SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK) != 0`.\nTo read whether the span is remote, use `(flags & SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK) != 0`.\n\nWhen creating span messages, if the message is logically forwarded from another source with an equivalent flags fields (i.e., usually another OTLP span message), the field SHOULD be copied as-is. If creating from a source that does not have an equivalent flags field (such as a runtime representation of an OpenTelemetry span), the high 22 bits MUST be set to zero.\nReaders MUST NOT assume that bits 10-31 (22 most significant bits) will be zero.\n\n[Optional]."
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OtlpKind"
+              },
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": -2147483648.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind",
+            "description": "Distinguishes between spans generated in a particular context. For example, two spans with the same name may be distinguished using `CLIENT` (caller) and `SERVER` (callee) to identify queueing latency associated with the span.",
+            "default": "SPAN_KIND_INTERNAL"
+          },
+          "links": {
+            "type": "null",
+            "title": "Links"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "A description of the span's operation.\n\nFor example, the name can be a qualified method name or a file name and a line number where the operation is called. A best practice is to use the same display name at the same call point in an application. This makes it easier to correlate spans in different traces.\n\nThis field is semantically required to be set to non-empty string. Empty value is equivalent to an unknown span name.\n\nThis field is required."
+          },
+          "parent_span_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Span Id",
+            "description": "The `span_id` of this span's parent span. If this is a root span, then this field must be empty. The ID is an 8-byte array."
+          },
+          "span_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Span Id",
+            "description": "A unique identifier for a span within a trace, assigned when the span is created. The ID is an 8-byte array. An ID with all zeroes OR of length other than 8 bytes is considered invalid (empty string in OTLP/JSON is zero-length and thus is also invalid).\n\nThis field is required."
+          },
+          "start_time_unix_nano": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMaximum": 1.8446744073709552e+19,
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Time Unix Nano",
+            "description": "start_time_unix_nano is the start time of the span. On the client side, this is the time kept by the local machine where the span execution starts. On the server side, this is the time when the server's application handler starts running.\nValue is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.\n\nThis field is semantically required and it is expected that end_time >= start_time."
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OtlpStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An optional final status for this span. Semantically when Status isn't set, it means span's status code is unset, i.e. assume STATUS_CODE_UNSET (code = 0)."
+          },
+          "trace_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace Id",
+            "description": "A unique identifier for a trace. All spans from the same trace share the same `trace_id`. The ID is a 16-byte array. An ID with all zeroes OR of length other than 16 bytes is considered invalid (empty string in OTLP/JSON is zero-length and thus is also invalid).\n\nThis field is required."
+          },
+          "trace_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace State",
+            "description": "trace_state conveys information about request position in multiple distributed tracing graphs. It is a trace_state in w3c-trace-context format: https://www.w3.org/TR/trace-context/#tracestate-header\nSee also https://github.com/w3c/distributed-tracing for more details about this field."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OtlpSpan"
+      },
+      "OtlpSpansResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/OtlpSpan"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "OtlpSpansResponseBody",
+        "description": "Paginated response where each span follows OTLP JSON structure."
+      },
+      "OtlpStatus": {
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": -2147483648.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code",
+            "description": "The status code."
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message",
+            "description": "A developer-facing human readable error message."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OtlpStatus"
       },
       "Project": {
         "properties": {
@@ -4533,6 +5871,69 @@
         ],
         "title": "PromptData"
       },
+      "PromptDeepSeekInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "deepseek",
+            "title": "Type"
+          },
+          "deepseek": {
+            "$ref": "#/components/schemas/PromptDeepSeekInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "deepseek"
+        ],
+        "title": "PromptDeepSeekInvocationParameters"
+      },
+      "PromptDeepSeekInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "title": "Max Completion Tokens"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Reasoning Effort"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptDeepSeekInvocationParametersContent"
+      },
       "PromptGoogleInvocationParameters": {
         "properties": {
           "type": {
@@ -4646,6 +6047,69 @@
           "content"
         ],
         "title": "PromptMessage"
+      },
+      "PromptOllamaInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "ollama",
+            "title": "Type"
+          },
+          "ollama": {
+            "$ref": "#/components/schemas/PromptOllamaInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "ollama"
+        ],
+        "title": "PromptOllamaInvocationParameters"
+      },
+      "PromptOllamaInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "title": "Max Completion Tokens"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Reasoning Effort"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptOllamaInvocationParametersContent"
       },
       "PromptOpenAIInvocationParameters": {
         "properties": {
@@ -5025,6 +6489,15 @@
               },
               {
                 "$ref": "#/components/schemas/PromptGoogleInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptDeepSeekInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptXAIInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptOllamaInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -5033,8 +6506,11 @@
               "mapping": {
                 "anthropic": "#/components/schemas/PromptAnthropicInvocationParameters",
                 "azure_openai": "#/components/schemas/PromptAzureOpenAIInvocationParameters",
+                "deepseek": "#/components/schemas/PromptDeepSeekInvocationParameters",
                 "google": "#/components/schemas/PromptGoogleInvocationParameters",
-                "openai": "#/components/schemas/PromptOpenAIInvocationParameters"
+                "ollama": "#/components/schemas/PromptOllamaInvocationParameters",
+                "openai": "#/components/schemas/PromptOpenAIInvocationParameters",
+                "xai": "#/components/schemas/PromptXAIInvocationParameters"
               }
             }
           },
@@ -5143,6 +6619,15 @@
               },
               {
                 "$ref": "#/components/schemas/PromptGoogleInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptDeepSeekInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptXAIInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptOllamaInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -5151,8 +6636,11 @@
               "mapping": {
                 "anthropic": "#/components/schemas/PromptAnthropicInvocationParameters",
                 "azure_openai": "#/components/schemas/PromptAzureOpenAIInvocationParameters",
+                "deepseek": "#/components/schemas/PromptDeepSeekInvocationParameters",
                 "google": "#/components/schemas/PromptGoogleInvocationParameters",
-                "openai": "#/components/schemas/PromptOpenAIInvocationParameters"
+                "ollama": "#/components/schemas/PromptOllamaInvocationParameters",
+                "openai": "#/components/schemas/PromptOpenAIInvocationParameters",
+                "xai": "#/components/schemas/PromptXAIInvocationParameters"
               }
             }
           },
@@ -5249,6 +6737,152 @@
           "name"
         ],
         "title": "PromptVersionTagData"
+      },
+      "PromptXAIInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "xai",
+            "title": "Type"
+          },
+          "xai": {
+            "$ref": "#/components/schemas/PromptXAIInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "xai"
+        ],
+        "title": "PromptXAIInvocationParameters"
+      },
+      "PromptXAIInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "title": "Max Completion Tokens"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Reasoning Effort"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptXAIInvocationParametersContent"
+      },
+      "Span": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Span Global ID, distinct from the OpenTelemetry span ID"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Name of the span operation"
+          },
+          "context": {
+            "$ref": "#/components/schemas/SpanContext",
+            "description": "Span context containing trace_id and span_id"
+          },
+          "span_kind": {
+            "type": "string",
+            "title": "Span Kind",
+            "description": "Type of work that the span encapsulates"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id",
+            "description": "OpenTelemetry span ID of the parent span"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start Time",
+            "description": "Start time of the span"
+          },
+          "end_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End Time",
+            "description": "End time of the span"
+          },
+          "status_code": {
+            "type": "string",
+            "title": "Status Code",
+            "description": "Status code of the span"
+          },
+          "status_message": {
+            "type": "string",
+            "title": "Status Message",
+            "description": "Status message",
+            "default": ""
+          },
+          "attributes": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Attributes",
+            "description": "Span attributes"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/SpanEvent"
+            },
+            "type": "array",
+            "title": "Events",
+            "description": "Span events"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "context",
+          "span_kind",
+          "start_time",
+          "end_time",
+          "status_code"
+        ],
+        "title": "Span"
       },
       "SpanAnnotation": {
         "properties": {
@@ -5480,6 +7114,81 @@
         ],
         "title": "SpanAnnotationsResponseBody"
       },
+      "SpanContext": {
+        "properties": {
+          "trace_id": {
+            "type": "string",
+            "title": "Trace Id",
+            "description": "OpenTelemetry trace ID"
+          },
+          "span_id": {
+            "type": "string",
+            "title": "Span Id",
+            "description": "OpenTelemetry span ID"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trace_id",
+          "span_id"
+        ],
+        "title": "SpanContext"
+      },
+      "SpanEvent": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Name of the event"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp",
+            "description": "When the event occurred"
+          },
+          "attributes": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Attributes",
+            "description": "Event attributes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "timestamp"
+        ],
+        "title": "SpanEvent"
+      },
+      "SpansResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/Span"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "SpansResponseBody"
+      },
       "TextContentPart": {
         "properties": {
           "type": {
@@ -5674,11 +7383,16 @@
           "dataset_id": {
             "type": "string",
             "title": "Dataset Id"
+          },
+          "version_id": {
+            "type": "string",
+            "title": "Version Id"
           }
         },
         "type": "object",
         "required": [
-          "dataset_id"
+          "dataset_id",
+          "version_id"
         ],
         "title": "UploadDatasetData"
       },

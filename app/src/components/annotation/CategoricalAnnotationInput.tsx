@@ -1,4 +1,5 @@
 import { forwardRef } from "react";
+import { css } from "@emotion/react";
 
 import {
   Button,
@@ -24,53 +25,41 @@ type CategoricalAnnotationInputProps =
 export const CategoricalAnnotationInput = forwardRef<
   HTMLButtonElement,
   CategoricalAnnotationInputProps
->(
-  (
-    {
-      annotationConfig,
-      containerRef,
-      annotation,
-      onSubmitExplanation,
-      ...props
-    },
-    ref
-  ) => {
-    return (
-      <Flex gap="size-50" alignItems="center" position="relative">
-        <AnnotationInputExplanation
-          annotation={annotation}
-          onSubmit={onSubmitExplanation}
-          containerRef={containerRef}
-        />
-        <Select
-          id={annotationConfig.id}
-          name={annotationConfig.name}
-          defaultSelectedKey={annotation?.label ?? undefined}
-          size="S"
-          {...props}
-          css={{
-            width: "100%",
-          }}
-        >
-          <AnnotationInputLabel>{annotationConfig.name}</AnnotationInputLabel>
-          <Button ref={ref}>
-            <SelectValue />
-            <SelectChevronUpDownIcon />
-          </Button>
-          <Text slot="description">{annotationConfig.description}</Text>
-          <Popover UNSTABLE_portalContainer={containerRef}>
-            <ListBox style={{ minHeight: "auto" }}>
-              {annotationConfig.values?.map((option) => (
-                <SelectItem key={option.label} id={option.label}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </ListBox>
-          </Popover>
-        </Select>
-      </Flex>
-    );
-  }
-);
+>(({ annotationConfig, annotation, onSubmitExplanation, ...props }, ref) => {
+  return (
+    <Flex gap="size-50" alignItems="center" position="relative">
+      <AnnotationInputExplanation
+        annotation={annotation}
+        onSubmit={onSubmitExplanation}
+      />
+      <Select
+        id={annotationConfig.id}
+        name={annotationConfig.name}
+        defaultSelectedKey={annotation?.label ?? undefined}
+        size="S"
+        {...props}
+        css={css`
+          width: 100%;
+        `}
+      >
+        <AnnotationInputLabel>{annotationConfig.name}</AnnotationInputLabel>
+        <Button ref={ref}>
+          <SelectValue />
+          <SelectChevronUpDownIcon />
+        </Button>
+        <Text slot="description">{annotationConfig.description}</Text>
+        <Popover>
+          <ListBox style={{ minHeight: "auto" }}>
+            {annotationConfig.values?.map((option) => (
+              <SelectItem key={option.label} id={option.label}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </ListBox>
+        </Popover>
+      </Select>
+    </Flex>
+  );
+});
 
 CategoricalAnnotationInput.displayName = "CategoricalAnnotationInput";

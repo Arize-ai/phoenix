@@ -1,16 +1,21 @@
 import { Key, useCallback, useTransition } from "react";
 import { graphql, useFragment } from "react-relay";
+import { css } from "@emotion/react";
+
+import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
 import {
-  CollectionElement,
-  Content,
-  ContextualHelp,
-  Item,
-  Picker,
-  Section,
-} from "@arizeai/components";
-
-import { Heading } from "@phoenix/components";
+  Button,
+  Heading,
+  Label,
+  ListBox,
+  Popover,
+  Select,
+  SelectChevronUpDownIcon,
+  SelectItem,
+  SelectValue,
+  Text,
+} from "@phoenix/components";
 import { useInferences, usePointCloudContext } from "@phoenix/contexts";
 import {
   DriftMetricDefinition,
@@ -110,25 +115,21 @@ function parseMetricKey({
   }
 }
 
-const contextualHelp = (
-  <ContextualHelp variant="info">
-    <Heading level={4} weight="heavy">
-      Analysis Metric
-    </Heading>
-    <Content>
-      <p>Select a metric to drive the analysis of your embeddings.</p>
-      <p>
-        To analyze the the drift between your two inferences, select a drift
-        metric and the UI will highlight areas of high drift.
-      </p>
-      <p>
-        To analyze the quality of your embeddings, select a dimension data
-        quality metric by which to analyze the point cloud. The UI will
-        highlight areas where the data quality is degrading.
-      </p>
-    </Content>
-  </ContextualHelp>
-);
+const metricSelectorCSS = css`
+  /* Align with other toolbar components */
+  .react-aria-Button {
+    height: 30px;
+    min-height: 30px;
+  }
+
+  .react-aria-Label {
+    padding: 5px 0;
+    display: inline-block;
+    font-size: var(--ac-global-dimension-static-font-size-75);
+    font-weight: var(--px-font-weight-heavy);
+  }
+`;
+
 export function MetricSelector({
   model,
 }: {
@@ -162,7 +163,10 @@ export function MetricSelector({
   );
   const hasNumericDimensions = numericDimensions.length > 0;
   const onSelectionChange = useCallback(
-    (key: Key) => {
+    (key: Key | null) => {
+      if (!key) {
+        return;
+      }
       const metricDefinition = parseMetricKey({
         metricKey: key as string,
         dimensions: numericDimensions,
@@ -173,70 +177,99 @@ export function MetricSelector({
     },
     [setMetric, numericDimensions, startTransition]
   );
+
+  // Create a flat list of all available metrics
+  const allMetrics = [];
+
+  if (hasReferenceInferences) {
+    allMetrics.push({
+      key: getMetricKey({
+        type: "drift",
+        metric: "euclideanDistance",
+      }),
+      label: "Euclidean Distance",
+    });
+  }
+
+  if (hasCorpusInferences) {
+    allMetrics.push({
+      key: getMetricKey({
+        type: "retrieval",
+        metric: "queryDistance",
+      }),
+      label: "Query Distance",
+    });
+  }
+
+  allMetrics.push({
+    key: getMetricKey({
+      type: "performance",
+      metric: "accuracyScore",
+    }),
+    label: "Accuracy Score",
+  });
+
+  if (hasNumericDimensions) {
+    numericDimensions.forEach((dimension) => {
+      allMetrics.push({
+        key: getMetricKey({
+          type: "dataQuality",
+          metric: "average",
+          dimension,
+        }),
+        label: `${dimension.name} avg`,
+      });
+    });
+  }
+
   return (
-    <Picker
-      label="metric"
-      labelExtra={contextualHelp}
-      selectedKey={metric ? getMetricKey(metric) : undefined}
-      onSelectionChange={onSelectionChange}
-      placeholder="Select a metric..."
-      isDisabled={loading}
-    >
-      {hasReferenceInferences ? (
-        <Section title="Drift">
-          <Item
-            key={getMetricKey({
-              type: "drift",
-              metric: "euclideanDistance",
-            })}
-          >
-            Euclidean Distance
-          </Item>
-        </Section>
-      ) : (
-        (null as unknown as CollectionElement<unknown>)
-      )}
-      {hasCorpusInferences ? (
-        <Section title="Retrieval">
-          <Item
-            key={getMetricKey({
-              type: "retrieval",
-              metric: "queryDistance",
-            })}
-          >
-            Query Distance
-          </Item>
-        </Section>
-      ) : (
-        (null as unknown as CollectionElement<unknown>)
-      )}
-      <Section title="Performance">
-        <Item
-          key={getMetricKey({
-            type: "performance",
-            metric: "accuracyScore",
-          })}
+    <TooltipTrigger delay={0}>
+      <TriggerWrap>
+        <Select
+          selectedKey={metric ? getMetricKey(metric) : undefined}
+          onSelectionChange={onSelectionChange}
+          placeholder="Select a metric..."
+          isDisabled={loading}
+          aria-label="Analysis metric"
+          css={metricSelectorCSS}
         >
-          Accuracy Score
-        </Item>
-      </Section>
-      {hasNumericDimensions ? (
-        <Section title="Data Quality">
-          {numericDimensions.map((dimension) => {
-            return (
-              <Item
-                key={getMetricKey({
-                  type: "dataQuality",
-                  metric: "average",
-                  dimension,
-                })}
-              >{`${dimension.name} avg`}</Item>
-            );
-          })}
-        </Section>
-      ) : (
-        (null as unknown as CollectionElement<unknown>)
-      )}
-    </Picker>
+          <Label>Metric</Label>
+          <Button>
+            <SelectValue />
+            <SelectChevronUpDownIcon />
+          </Button>
+          <Popover>
+            <ListBox>
+              {allMetrics.map((metric) => (
+                <SelectItem key={metric.key} id={metric.key}>
+                  {metric.label}
+                </SelectItem>
+              ))}
+            </ListBox>
+          </Popover>
+        </Select>
+      </TriggerWrap>
+      <Tooltip>
+        <section
+          css={css`
+            h4 {
+              margin-bottom: 0.5rem;
+            }
+          `}
+        >
+          <Heading level={4}>Analysis Metric</Heading>
+          <Text>Select a metric to drive the analysis of your embeddings.</Text>
+          <Text>
+            To analyze the the drift between your two inferences, select a drift
+            metric and the UI will highlight areas of high drift.
+          </Text>
+          <Text>
+            To analyze the quality of your embeddings, select a dimension data
+            quality metric by which to analyze the point cloud. The UI will
+            highlight areas where the data quality is degrading.
+          </Text>
+        </section>
+      </Tooltip>
+    </TooltipTrigger>
   );
 }

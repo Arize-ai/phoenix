@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons, Text, TextProps } from "@phoenix/components";
+import { TextColorValue } from "@phoenix/components/types/style";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 export function LatencyText({
   latencyMs,
@@ -16,15 +17,13 @@ export function LatencyText({
    */
   showIcon?: boolean;
 }) {
-  const color = useMemo(() => {
+  const color: TextColorValue = useMemo(() => {
     if (latencyMs < 3000) {
-      return "green-1200";
+      return "success";
     } else if (latencyMs < 8000) {
-      return "yellow-1200";
-    } else if (latencyMs < 12000) {
-      return "orange-1200";
+      return "warning";
     } else {
-      return "red-1200";
+      return "danger";
     }
   }, [latencyMs]);
   const latencyText = useMemo(() => {

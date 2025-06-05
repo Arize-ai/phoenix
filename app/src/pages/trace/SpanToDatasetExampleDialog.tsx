@@ -3,11 +3,26 @@ import { Controller, useForm } from "react-hook-form";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Card, CardProps, Dialog } from "@arizeai/components";
+import { Card, CardProps } from "@arizeai/components";
 
-import { Alert, Button, Flex, Icon, Icons, View } from "@phoenix/components";
+import {
+  Alert,
+  Button,
+  Dialog,
+  Flex,
+  Icon,
+  Icons,
+  View,
+} from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
-import { DatasetPicker, NewDatasetButton } from "@phoenix/components/dataset";
+import { DatasetSelect, NewDatasetButton } from "@phoenix/components/dataset";
+import {
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+} from "@phoenix/components/dialog";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
@@ -128,151 +143,158 @@ export function SpanToDatasetExampleDialog({
     [commit, setError, spanId, onCompleted]
   );
   return (
-    <Dialog
-      size="fullscreen"
-      title="Add Example to Dataset"
-      extra={
-        <Button
-          variant="primary"
-          size="S"
-          isDisabled={!isValid || isCommitting}
-          onPress={() => {
-            return handleSubmit(onSubmit)();
-          }}
-          leadingVisual={
-            <Icon
-              svg={
-                isCommitting ? <Icons.LoadingOutline /> : <Icons.PlusOutline />
+    <Dialog>
+      {({ close }) => (
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Example to Dataset</DialogTitle>
+            <DialogTitleExtra>
+              <Button
+                variant="primary"
+                size="S"
+                isDisabled={!isValid || isCommitting}
+                onPress={() => {
+                  handleSubmit(onSubmit)();
+                  close();
+                }}
+                leadingVisual={
+                  <Icon
+                    svg={
+                      isCommitting ? (
+                        <Icons.LoadingOutline />
+                      ) : (
+                        <Icons.PlusOutline />
+                      )
+                    }
+                  />
+                }
+              >
+                Add Example
+              </Button>
+              <DialogCloseButton slot="close" />
+            </DialogTitleExtra>
+          </DialogHeader>
+          <div
+            css={css`
+              overflow-y: auto;
+              padding: var(--ac-global-dimension-size-400);
+              /* Make widths configurable */
+              .dataset-picker {
+                width: 100%;
               }
-            />
-          }
-        >
-          Add Example
-        </Button>
-      }
-    >
-      <div
-        css={css`
-          overflow-y: auto;
-          padding: var(--ac-global-dimension-size-400);
-          /* Make widths configurable */
-          .dataset-picker {
-            width: 100%;
-            .ac-dropdown--picker,
-            .ac-dropdown-button {
-              width: 100%;
-            }
-          }
-        `}
-      >
-        <Flex direction="row" justifyContent="center">
-          <View width="900px" paddingStart="auto" paddingEnd="auto">
-            <Flex direction="column" gap="size-200">
-              {submitError ? (
-                <Alert variant="danger">{submitError}</Alert>
-              ) : null}
+            `}
+          >
+            <Flex direction="row" justifyContent="center">
+              <View width="900px" paddingStart="auto" paddingEnd="auto">
+                <Flex direction="column" gap="size-200">
+                  {submitError ? (
+                    <Alert variant="danger">{submitError}</Alert>
+                  ) : null}
 
-              <Controller
-                control={control}
-                name="datasetId"
-                render={({
-                  field: { onChange, onBlur },
-                  fieldState: { invalid, error },
-                }) => (
-                  <Flex direction="row" gap="size-100" alignItems="end">
-                    <DatasetPicker
-                      onSelectionChange={onChange}
-                      onBlur={onBlur}
-                      validationState={invalid ? "invalid" : "valid"}
-                      errorMessage={error?.message}
-                      label="Dataset"
-                    />
-                    <NewDatasetButton />
-                  </Flex>
-                )}
-              />
+                  <Controller
+                    control={control}
+                    name="datasetId"
+                    render={({
+                      field: { onChange, onBlur },
+                      fieldState: { invalid, error },
+                    }) => (
+                      <Flex direction="row" gap="size-100" alignItems="end">
+                        <DatasetSelect
+                          isRequired
+                          onSelectionChange={onChange}
+                          onBlur={onBlur}
+                          validationState={invalid ? "invalid" : "valid"}
+                          errorMessage={error?.message}
+                          label="Dataset"
+                        />
+                        <NewDatasetButton />
+                      </Flex>
+                    )}
+                  />
 
-              <Controller
-                control={control}
-                name={"input"}
-                render={({
-                  field: { onChange, onBlur, value },
-                  fieldState: { invalid, error },
-                }) => (
-                  <Card
-                    title="Input"
-                    subTitle="The input to the LLM, retriever, program, etc."
-                    {...defaultCardProps}
-                  >
-                    {invalid ? (
-                      <Alert variant="danger" banner>
-                        {error?.message}
-                      </Alert>
-                    ) : null}
-                    <JSONEditor
-                      value={value}
-                      onChange={onChange}
-                      onBlur={onBlur}
-                    />
-                  </Card>
-                )}
-              />
-              <Controller
-                control={control}
-                name={"output"}
-                render={({
-                  field: { onChange, onBlur, value },
-                  fieldState: { invalid, error },
-                }) => (
-                  <Card
-                    title="Output"
-                    subTitle="The output of the LLM or program to be used as an expected output"
-                    {...defaultCardProps}
-                    backgroundColor="green-100"
-                    borderColor="green-700"
-                  >
-                    {invalid ? (
-                      <Alert variant="danger" banner>
-                        {error?.message}
-                      </Alert>
-                    ) : null}
-                    <JSONEditor
-                      value={value}
-                      onChange={onChange}
-                      onBlur={onBlur}
-                    />
-                  </Card>
-                )}
-              />
-              <Controller
-                control={control}
-                name={"metadata"}
-                render={({
-                  field: { onChange, onBlur, value },
-                  fieldState: { invalid, error },
-                }) => (
-                  <Card
-                    title="Metadata"
-                    subTitle="All data from the span to use during experimentation or evaluation"
-                    {...defaultCardProps}
-                  >
-                    {invalid ? (
-                      <Alert variant="danger" banner>
-                        {error?.message}
-                      </Alert>
-                    ) : null}
-                    <JSONEditor
-                      value={value}
-                      onChange={onChange}
-                      onBlur={onBlur}
-                    />
-                  </Card>
-                )}
-              />
+                  <Controller
+                    control={control}
+                    name={"input"}
+                    render={({
+                      field: { onChange, onBlur, value },
+                      fieldState: { invalid, error },
+                    }) => (
+                      <Card
+                        title="Input"
+                        subTitle="The input to the LLM, retriever, program, etc."
+                        {...defaultCardProps}
+                      >
+                        {invalid ? (
+                          <Alert variant="danger" banner>
+                            {error?.message}
+                          </Alert>
+                        ) : null}
+                        <JSONEditor
+                          value={value}
+                          onChange={onChange}
+                          onBlur={onBlur}
+                        />
+                      </Card>
+                    )}
+                  />
+                  <Controller
+                    control={control}
+                    name={"output"}
+                    render={({
+                      field: { onChange, onBlur, value },
+                      fieldState: { invalid, error },
+                    }) => (
+                      <Card
+                        title="Output"
+                        subTitle="The output of the LLM or program to be used as an expected output"
+                        {...defaultCardProps}
+                        backgroundColor="green-100"
+                        borderColor="green-700"
+                      >
+                        {invalid ? (
+                          <Alert variant="danger" banner>
+                            {error?.message}
+                          </Alert>
+                        ) : null}
+                        <JSONEditor
+                          value={value}
+                          onChange={onChange}
+                          onBlur={onBlur}
+                        />
+                      </Card>
+                    )}
+                  />
+                  <Controller
+                    control={control}
+                    name={"metadata"}
+                    render={({
+                      field: { onChange, onBlur, value },
+                      fieldState: { invalid, error },
+                    }) => (
+                      <Card
+                        title="Metadata"
+                        subTitle="All data from the span to use during experimentation or evaluation"
+                        {...defaultCardProps}
+                      >
+                        {invalid ? (
+                          <Alert variant="danger" banner>
+                            {error?.message}
+                          </Alert>
+                        ) : null}
+                        <JSONEditor
+                          value={value}
+                          onChange={onChange}
+                          onBlur={onBlur}
+                        />
+                      </Card>
+                    )}
+                  />
+                </Flex>
+              </View>
             </Flex>
-          </View>
-        </Flex>
-      </div>
+          </div>
+        </DialogContent>
+      )}
     </Dialog>
   );
 }

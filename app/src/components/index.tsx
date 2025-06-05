@@ -3,7 +3,6 @@ export {
   FieldError,
   Input,
   Label,
-  Dialog,
   DialogTrigger,
   Form,
   I18nProvider,
@@ -52,3 +51,4 @@ export * from "./loading";
 export * from "./alert";
 export * from "./select";
 export * from "./media";
+export * from "./dialog";

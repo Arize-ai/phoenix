@@ -21,14 +21,14 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
 ]
-version = "1.7.0"
+version = "1.10.0"
 dependencies = [
   "httpx",
   "typing-extensions",
 ]
 
 [project.urls]
-Documentation = "https://docs.arize.com/phoenix/"
+Documentation = "https://arize.com/docs/phoenix/"
 Issues = "https://github.com/Arize-ai/phoenix/issues"
 Source = "https://github.com/Arize-ai/phoenix"
 

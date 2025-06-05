@@ -1,3 +1,7 @@
+---
+hidden: true
+---
+
 # Concepts: Retrieval
 
 We've collected a few best practices on how to troubleshoot and evaluate search and retrieval use cases:

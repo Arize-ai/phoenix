@@ -7,12 +7,18 @@ from typing import Any
 from unittest import mock
 
 import pytest
-from opentelemetry.sdk.environment_variables import (
-    OTEL_EXPORTER_OTLP_TRACES_HEADERS,
-)
+from faker import Faker
 from opentelemetry.sdk.trace.export import SpanExportResult
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import format_span_id
+from phoenix.config import (
+    get_env_smtp_hostname,
+    get_env_smtp_password,
+    get_env_smtp_port,
+    get_env_smtp_username,
+)
+from smtpdfix import AuthController, Config, SMTPDFix
+from smtpdfix.certs import Cert, _generate_certs
 from typing_extensions import TypeAlias
 
 from .._helpers import _AdminSecret, _gql, _grpc_span_exporter, _server, _start_span
@@ -28,18 +34,52 @@ def _app(
     _ports: Iterator[int],
     _env_phoenix_sql_database_url: Any,
     _admin_secret: _AdminSecret,
+    _fake: Faker,
 ) -> Iterator[None]:
     values = (
         ("PHOENIX_ENABLE_AUTH", "true"),
         ("PHOENIX_DISABLE_RATE_LIMIT", "true"),
         ("PHOENIX_SECRET", token_hex(16)),
         ("PHOENIX_ADMIN_SECRET", str(_admin_secret)),
-        (OTEL_EXPORTER_OTLP_TRACES_HEADERS, f"Authorization=Bearer {_admin_secret}"),
+        ("PHOENIX_SMTP_HOSTNAME", "127.0.0.1"),
+        ("PHOENIX_SMTP_PORT", str(next(_ports))),
+        ("PHOENIX_SMTP_USERNAME", "test"),
+        ("PHOENIX_SMTP_PASSWORD", "test"),
+        ("PHOENIX_SMTP_MAIL_FROM", _fake.email()),
+        ("PHOENIX_SMTP_VALIDATE_CERTS", "false"),
     )
     with ExitStack() as stack:
         stack.enter_context(mock.patch.dict(os.environ, values))
         stack.enter_context(_server())
         yield
+
+
+@pytest.fixture(scope="package")
+def _tls_certs_server(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Cert:
+    """Fixture that provides TLS certificates in a temporary directory."""
+    path = tmp_path_factory.mktemp("certs_server")
+    return _generate_certs(path, separate_key=True)
+
+
+@pytest.fixture
+def _smtpd(
+    _app: Any,
+    _tls_certs_server: Cert,
+) -> Iterator[AuthController]:
+    os.environ["SMTPD_SSL_CERTIFICATE_FILE"] = str(_tls_certs_server.cert.resolve())  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
+    os.environ["SMTPD_SSL_KEY_FILE"] = str(_tls_certs_server.key[0].resolve())  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
+    config = Config()
+    config.login_username = get_env_smtp_username()
+    config.login_password = get_env_smtp_password()
+    config.use_starttls = True
+    with SMTPDFix(
+        hostname=get_env_smtp_hostname(),
+        port=get_env_smtp_port(),
+        config=config,
+    ) as controller:
+        yield controller
 
 
 SpanId: TypeAlias = str
@@ -55,7 +95,8 @@ def _span_ids(
     for _ in range(2):
         _start_span(project_name="default", exporter=memory).end()
     assert (spans := memory.get_finished_spans())
-    assert _grpc_span_exporter().export(spans) is SpanExportResult.SUCCESS
+    headers = {"authorization": f"Bearer {_admin_secret}"}
+    assert _grpc_span_exporter(headers=headers).export(spans) is SpanExportResult.SUCCESS
     sleep(0.1)
     span1, span2 = spans
     assert (sc1 := span1.get_span_context())  # type: ignore[no-untyped-call]

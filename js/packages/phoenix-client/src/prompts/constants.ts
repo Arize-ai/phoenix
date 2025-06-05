@@ -8,4 +8,7 @@ export const PromptModelProviders: Record<PromptModelProvider, string> = {
   AZURE_OPENAI: "Azure OpenAI",
   ANTHROPIC: "Anthropic",
   GOOGLE: "Google",
+  DEEPSEEK: "DeepSeek",
+  XAI: "xAI",
+  OLLAMA: "Ollama",
 };

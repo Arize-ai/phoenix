@@ -4,8 +4,10 @@ from typing import Any, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import Field
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from starlette.requests import Request
-from starlette.status import HTTP_404_NOT_FOUND
+from starlette.status import HTTP_404_NOT_FOUND, HTTP_409_CONFLICT
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -58,7 +60,11 @@ class CreateExperimentRunResponseBody(ResponseBody[CreateExperimentRunResponseBo
             {
                 "status_code": HTTP_404_NOT_FOUND,
                 "description": "Experiment or dataset example not found",
-            }
+            },
+            {
+                "status_code": HTTP_409_CONFLICT,
+                "description": "This experiment run has already been submitted",
+            },
         ]
     ),
 )
@@ -101,8 +107,14 @@ async def create_experiment_run(
             end_time=end_time,
             error=error,
         )
-        session.add(exp_run)
-        await session.flush()
+        try:
+            session.add(exp_run)
+            await session.flush()
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+            raise HTTPException(
+                detail="This experiment run has already been submitted",
+                status_code=HTTP_409_CONFLICT,
+            )
     request.state.event_queue.put(ExperimentRunInsertEvent((exp_run.id,)))
     run_gid = GlobalID("ExperimentRun", str(exp_run.id))
     return CreateExperimentRunResponseBody(

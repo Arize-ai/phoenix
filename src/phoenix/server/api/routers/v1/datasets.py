@@ -312,6 +312,7 @@ async def list_dataset_versions(
 
 class UploadDatasetData(V1RoutesBaseModel):
     dataset_id: str
+    version_id: str
 
 
 class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
@@ -468,10 +469,15 @@ async def upload_dataset(
     )
     if sync:
         async with request.app.state.db() as session:
-            dataset_id = (await operation(session)).dataset_id
+            event = await operation(session)
+            dataset_id = event.dataset_id
+            version_id = event.dataset_version_id
         request.state.event_queue.put(DatasetInsertEvent((dataset_id,)))
         return UploadDatasetResponseBody(
-            data=UploadDatasetData(dataset_id=str(GlobalID(Dataset.__name__, str(dataset_id))))
+            data=UploadDatasetData(
+                dataset_id=str(GlobalID(Dataset.__name__, str(dataset_id))),
+                version_id=str(GlobalID(DatasetVersion.__name__, str(version_id))),
+            )
         )
     try:
         request.state.enqueue_operation(operation)

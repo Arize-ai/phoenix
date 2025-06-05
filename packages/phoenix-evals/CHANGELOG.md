@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.20.8](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.20.7...arize-phoenix-evals-v0.20.8) (2025-06-04)
+
+
+### Bug Fixes
+
+* **evals:** add support for out of order evals ([#7849](https://github.com/Arize-ai/phoenix/issues/7849)) ([63c012d](https://github.com/Arize-ai/phoenix/commit/63c012d49bf318190cd3170e664d50dbb8179e8a))
+
+## [0.20.7](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.20.6...arize-phoenix-evals-v0.20.7) (2025-05-28)
+
+
+### Bug Fixes
+
+* Stabilize label extraction ([#7499](https://github.com/Arize-ai/phoenix/issues/7499)) ([830247e](https://github.com/Arize-ai/phoenix/commit/830247ef97bca6f4bcbeb6fc2f9ac663c1e19344))
+
 ## [0.20.6](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.20.5...arize-phoenix-evals-v0.20.6) (2025-04-17)
 
 

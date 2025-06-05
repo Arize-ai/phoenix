@@ -1,0 +1,54 @@
+/* Custom CSS for Phoenix Evals Documentation */
+
+.bd-main .bd-content .bd-article-container {
+    max-width: none;
+}
+
+/* Logo styling - using default size to match main Phoenix docs */
+
+/* Code block styling */
+.highlight {
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    padding: 1rem;
+}
+
+/* External links styling */
+#external-links {
+    margin: 1rem 0;
+}
+
+#external-links a {
+    margin-right: 0.5rem;
+    text-decoration: none;
+}
+
+/* API documentation styling */
+.py.class, .py.function, .py.method {
+    margin-bottom: 2rem;
+}
+
+.py.class > dt, .py.function > dt, .py.method > dt {
+    background-color: #f8f9fa;
+    border-left: 4px solid #007bff;
+    padding: 0.5rem;
+    font-weight: bold;
+}
+
+/* Table of contents styling */
+.toctree-wrapper {
+    margin: 2rem 0;
+}
+
+.toctree-wrapper .toctree-l1 > a {
+    font-weight: 500;
+    color: #007bff;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    #external-links a {
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+} 

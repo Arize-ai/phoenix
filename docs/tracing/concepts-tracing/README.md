@@ -1,5 +1,6 @@
 ---
 description: Core concepts about tracing
+hidden: true
 ---
 
 # Concepts: Tracing

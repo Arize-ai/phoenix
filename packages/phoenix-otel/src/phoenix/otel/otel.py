@@ -4,7 +4,7 @@ import sys
 import warnings
 from enum import Enum
 from importlib.metadata import entry_points
-from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union, cast
+from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union
 from urllib.parse import ParseResult, urlparse
 
 from openinference.instrumentation import TracerProvider as _TracerProvider
@@ -16,7 +16,7 @@ from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
     OTLPSpanExporter as _HTTPSpanExporter,
 )
-from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.resources import Resource  # type: ignore
 from opentelemetry.sdk.trace import SpanProcessor
 from opentelemetry.sdk.trace.export import BatchSpanProcessor as _BatchSpanProcessor
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor as _SimpleSpanProcessor
@@ -185,14 +185,16 @@ class TracerProvider(_TracerProvider):
         if verbose:
             print(self._tracing_details())
 
-    def add_span_processor(self, *args: Any, **kwargs: Any) -> None:
+    def add_span_processor(
+        self, *args: Any, replace_default_processor: bool = True, **kwargs: Any
+    ) -> None:
         """
         Registers a new `SpanProcessor` for this `TracerProvider`.
 
         If this `TracerProvider` has a default processor, it will be removed.
         """
 
-        if self._default_processor:
+        if self._default_processor and replace_default_processor:
             self._active_span_processor.shutdown()
             self._active_span_processor._span_processors = tuple()  # remove default processors
             self._default_processor = False
@@ -204,12 +206,21 @@ class TracerProvider(_TracerProvider):
         endpoint: Optional[str] = None
         transport: Optional[str] = None
         headers: Optional[Union[Dict[str, str], str]] = None
+        span_processor: Optional[SpanProcessor] = None
 
         if self._active_span_processor:
             if processors := self._active_span_processor._span_processors:
                 if len(processors) == 1:
                     span_processor = self._active_span_processor._span_processors[0]
-                    if exporter := getattr(span_processor, "span_exporter"):
+                    # Handle both old and new attribute locations for OpenTelemetry compatibility
+                    # OpenTelemetry v1.34.0+ moved exporter from span_exporter to
+                    # _batch_processor._exporter
+                    # https://github.com/open-telemetry/opentelemetry-python/pull/4580
+
+                    exporter = getattr(
+                        getattr(span_processor, "_batch_processor", None), "_exporter", None
+                    ) or getattr(span_processor, "span_exporter", None)
+                    if exporter:
                         processor_name = span_processor.__class__.__name__
                         endpoint = exporter._endpoint
                         transport = _exporter_transport(exporter)
@@ -229,7 +240,9 @@ class TracerProvider(_TracerProvider):
             "|  Using a default SpanProcessor. `add_span_processor` will overwrite this default.\n"
         )
 
-        using_simple_processor = isinstance(span_processor, _SimpleSpanProcessor)
+        using_simple_processor = span_processor is not None and isinstance(
+            span_processor, _SimpleSpanProcessor
+        )
         span_processor_warning = "|  \n"
         if os.name == "nt":
             span_processor_warning += (
@@ -505,6 +518,10 @@ _KNOWN_PROVIDERS = {
 }
 
 
+def _has_scheme(s: str) -> bool:
+    return "//" in s
+
+
 def _normalized_endpoint(
     endpoint: Optional[str], use_http: bool = False
 ) -> Tuple[ParseResult, str]:
@@ -518,8 +535,12 @@ def _normalized_endpoint(
         else:
             parsed = _construct_grpc_endpoint(parsed)
     else:
+        if not _has_scheme(endpoint):
+            # Use // to indicate an "authority" to properly parse the URL
+            # https://en.wikipedia.org/wiki/Uniform_Resource_Identifier#Syntax
+            # However, return the original endpoint to avoid overspecifying the URL scheme
+            return urlparse(f"//{endpoint}"), endpoint
         parsed = urlparse(endpoint)
-    parsed = cast(ParseResult, parsed)
     return parsed, parsed.geturl()
 
 

@@ -98,7 +98,7 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 |  https://github.com/Arize-ai/phoenix
 |
 |  📚 Documentation 📚
-|  https://docs.arize.com/phoenix
+|  https://arize.com/docs/phoenix
 |
 |  🚀 Phoenix Server 🚀
 |  Phoenix UI: {{ ui_path }}
@@ -459,6 +459,7 @@ def main() -> None:
         host=host,  # type: ignore[arg-type]
         port=port,
         root_path=host_root_path,
+        log_level=Settings.logging_level,
     )
 
     if tls_enabled_for_http:

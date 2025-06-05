@@ -140,4 +140,4 @@ Congratulations! You can now create, update, access and use prompts using the Ph
 From here, check out:
 
 * How to use your prompts in [Prompt Playground](../overview-prompts/prompt-playground.md)
-* Prompt iteration [Use Cases](https://docs.arize.com/phoenix/cookbook/prompt-engineering/prompt-optimization)
+* Prompt iteration [Use Cases](https://arize.com/docs/phoenix/cookbook/prompt-engineering/prompt-optimization)

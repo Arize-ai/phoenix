@@ -20,12 +20,12 @@ import { HOSTED_PHOENIX_URL, IS_HOSTED_DEPLOYMENT } from "./hosting";
 import { PythonIntegrations } from "./Integrations";
 
 const PHOENIX_OTEL_DOC_LINK =
-  "https://docs.arize.com/phoenix/tracing/how-to-tracing/setup-tracing";
+  "https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing";
 
 const OTEL_DOC_LINK =
-  "https://docs.arize.com/phoenix/tracing/how-to-tracing/setup-tracing/setup-tracing-python/using-otel-python-directly";
+  "https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-tracing-python/using-otel-python-directly";
 const PHOENIX_ENVIRONMENT_VARIABLES_LINK =
-  "https://docs.arize.com/phoenix/setup/configuration";
+  "https://arize.com/docs/phoenix/setup/configuration";
 
 const INSTALL_PHOENIX_OTEL_PYTHON = `pip install arize-phoenix-otel`;
 const INSTALL_OPENAI_INSTRUMENTATION_PYTHON = `pip install openinference-instrumentation-openai openai`;
@@ -206,7 +206,7 @@ export function PythonProjectGuide(props: PythonProjectGuideProps) {
               </View>
               <Text>
                 For more integrations, checkout our{" "}
-                <ExternalLink href="https://docs.arize.com/phoenix/tracing/integrations-tracing">
+                <ExternalLink href="https://arize.com/docs/phoenix/tracing/integrations-tracing">
                   comprehensive guide
                 </ExternalLink>
               </Text>
