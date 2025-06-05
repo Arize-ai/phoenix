@@ -40,7 +40,7 @@ html_theme.sidebar_secondary.remove: true
 
 Welcome to Arize Phoenix's API reference. This reference details Phoenix's API and how to use its various features. To get a complete guide on how to use Phoenix, including tutorials, quickstarts, and concept explanations, see the [complete documentation](https://arize.com/docs/phoenix).
 
-## Sub-Pachages
+## Sub-Packages
 
 The `arize-phoenix` package includes the entire Phoenix platform. However if you have deployed the Phoenix platform, there are light-weight Python sub-packages that can be used in conjunction with the platform.
 
