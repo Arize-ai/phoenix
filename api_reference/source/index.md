@@ -40,14 +40,14 @@ html_theme.sidebar_secondary.remove: true
 
 Welcome to Arize Phoenix's API reference. This reference details Phoenix's API and how to use its various features. To get a complete guide on how to use Phoenix, including tutorials, quickstarts, and concept explanations, see the [complete documentation](https://arize.com/docs/phoenix).
 
-## Sub-Pachages
+## Sub-Packages
 
-The `arize-phoenix` package includes the entire Phoenix platfom. However if you have deployed the Phoenix platform, there are light-weight Python sub-packages that can be used in conjunction with the platfrom.
+The `arize-phoenix` package includes the entire Phoenix platform. However if you have deployed the Phoenix platform, there are light-weight Python sub-packages that can be used in conjunction with the platform.
 
 - **[arize-phoenix-otel](https://phoenix-otel.readthedocs.io/)** - Provides a lightweight wrapper around OpenTelemetry primitives with Phoenix-aware defaults
-- **[arize-phoenix-client](https://arize.com/docs/phoenix/sdk-api-reference/python-pacakges/arize-phoenix-client)** -Lightweight client for interacting with the Phoenix server via its OpenAPI REST interface
+- **[arize-phoenix-client](https://phoenix-client.readthedocs.io/)** - Lightweight client for interacting with the Phoenix server via its OpenAPI REST interface
 
-- **[arize-phoenix-evals](https://arize.com/docs/phoenix/sdk-api-reference/python-pacakges/arize-phoenix-evals)** - Tooling to evaluate LLM applications including RAG relevance, answer relevance, and more
+- **[arize-phoenix-evals](https://phoenix-evals.readthedocs.io/)** - Tooling to evaluate LLM applications including RAG relevance, answer relevance, and more
 
 ```{seealso}
 Want to become a member of Phoenix's community? Check out our [Slack](https://arize-ai.slack.com/join/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q#/shared-invite/email) and [GitHub repository](https://arize.com/docs/phoenix)!
@@ -59,8 +59,7 @@ Want to become a member of Phoenix's community? Check out our [Slack](https://ar
 :maxdepth: 2
 
 api/session
-api/client
-api/evals
 api/experiments
 api/inferences_schema
 ```
+
