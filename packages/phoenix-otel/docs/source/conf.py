@@ -95,18 +95,6 @@ html_static_path = ["_static"]
 html_css_files = ["custom.css"]
 html_show_sphinx = False
 
-# Configure navbar based on whether we're on Read the Docs or local
-navbar_start = ["navbar-logo"]
-theme_switcher = {}
-
-# Only show version switcher on Read the Docs
-if os.environ.get("READTHEDOCS"):
-    navbar_start.append("version-switcher")
-    theme_switcher = {
-        "json_url": json_url,
-        "version_match": version_match,
-    }
-
 html_theme_options = {
     "logo": {
         "text": "Phoenix OTEL API",
@@ -120,9 +108,9 @@ html_theme_options = {
             "icon": "fa-brands fa-github",
         },
         {
-            "name": "PyPI",
-            "url": "https://pypi.org/project/arize-phoenix-otel/",
-            "icon": "fa-brands fa-python",
+            "name": "X",
+            "url": "https://x.com/ArizePhoenix",
+            "icon": "fa-brands fa-x-twitter",
         },
     ],
     "external_links": [
@@ -130,17 +118,13 @@ html_theme_options = {
         {"name": "Phoenix API Reference", "url": "https://arize-phoenix.readthedocs.io/"},
     ],
     "navbar_align": "content",
-    "navbar_start": navbar_start,
+    "navbar_start": ["navbar-logo"],
     "secondary_sidebar_items": [],
     "footer_start": [],
     "footer_end": ["copyright"],
     "navigation_depth": 3,
     "collapse_navigation": True,
 }
-
-# Add switcher config only if on Read the Docs
-if theme_switcher:
-    html_theme_options["switcher"] = theme_switcher
 
 html_sidebars = {
     "**": ["custom_sidebar.html"],
