@@ -1,4 +1,6 @@
-import { useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
+import { graphql, usePaginationFragment } from "react-relay";
+import { useNavigate } from "react-router";
 import {
   ColumnDef,
   flexRender,
@@ -8,222 +10,150 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Button, Flex, Icon, Icons } from "@phoenix/components";
+import { Flex, Icon, Icons, Link, LinkButton } from "@phoenix/components";
+import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
+import { TextCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
+import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { getProviderName } from "@phoenix/utils/generativeUtils";
 
-// LLM pricing data
-const modelPricingData = [
-  {
-    id: "1",
-    model: "gpt-4.1-2025-04-14",
-    provider: "openai",
-    input: "$0.0000020000",
-    output: "$0.0000080000",
-    cachedInput: "$0.0000005000",
-    cacheWrite: null,
-    cacheRead: null,
-    maintainedBy: "local",
-    regex: "^gpt-4\\.1-2025-04-14$",
-  },
-  {
-    id: "2",
-    model: "gpt-4.1-mini-2025-04-14",
-    provider: "openai",
-    input: "$0.0000004000",
-    output: "$0.0000016000",
-    cachedInput: "$0.0000001000",
-    cacheWrite: null,
-    cacheRead: null,
-    maintainedBy: "override",
-    regex: "^gpt-4\\.1-mini-2025-04-14$",
-  },
-  {
-    id: "2a",
-    model: "gpt-4.1-mini-2025-04-14",
-    provider: "openai",
-    input: "$0.0000004000",
-    output: "$0.0000016000",
-    cachedInput: "$0.0000001000",
-    cacheWrite: null,
-    cacheRead: null,
-    maintainedBy: "local",
-    regex: "^gpt-4\\.1-mini-2025-04-14$",
-  },
-  {
-    id: "3",
-    model: "gpt-4o-mini-2024-07-18",
-    provider: "openai",
-    input: "$0.0000001500",
-    output: "$0.0000006000",
-    cachedInput: "$0.0000000750",
-    cacheWrite: null,
-    cacheRead: null,
-    maintainedBy: "local",
-    regex: "^gpt-4o-mini-2024-07-18$",
-  },
-  {
-    id: "4",
-    model: "claude-3-7-sonnet-latest",
-    provider: "anthropic",
-    input: "0.000003",
-    output: "0.000015",
-    cachedInput: null,
-    cacheWrite: "0.00000375",
-    cacheRead: "0.0000003",
-    maintainedBy: "override",
-    regex: "^claude-3-7-sonnet-latest$",
-  },
-  {
-    id: "4a",
-    model: "claude-3-7-sonnet-latest",
-    provider: "anthropic",
-    input: "0.000003",
-    output: "0.000015",
-    cachedInput: null,
-    cacheWrite: "0.00000375",
-    cacheRead: "0.0000003",
-    maintainedBy: "local",
-    regex: "^claude-3-7-sonnet-latest$",
-  },
-  {
-    id: "5",
-    model: "claude-3-5-haiku-latest",
-    provider: "anthropic",
-    input: "0.0000008",
-    output: "0.000004",
-    cachedInput: null,
-    cacheWrite: "0.000001",
-    cacheRead: "0.00000008",
-    maintainedBy: "local",
-    regex: "^claude-3-5-haiku-latest$",
-  },
-  {
-    id: "6",
-    model: "anthropic.claude-3-opus-20240229-v1:0",
-    provider: "bedrock",
-    input: "0.000015",
-    output: "0.000075",
-    cachedInput: null,
-    cacheWrite: null,
-    cacheRead: null,
-    maintainedBy: "override",
-    regex: "^claude-3-opus-\\d{8}-v1:0$",
-  },
-  {
-    id: "6a",
-    model: "anthropic.claude-3-opus-20240229-v1:0",
-    provider: "bedrock",
-    input: "0.000015",
-    output: "0.000075",
-    cachedInput: null,
-    cacheWrite: null,
-    cacheRead: null,
-    maintainedBy: "local",
-    regex: "^claude-3-opus-\\d{8}-v1:0$",
-  },
-  {
-    id: "7",
-    model: "Llama 3.3 Instruct (70B)",
-    provider: "bedrock",
-    input: "0.00000072",
-    output: "0.00000072",
-    cachedInput: null,
-    cacheWrite: null,
-    cacheRead: null,
-    maintainedBy: "local",
-    regex: "^Llama 3\\.3 Instruct \\(70B\\)$",
-  },
-  {
-    id: "8",
-    model: "o1-2024-12-17",
-    provider: "openai",
-    input: "$0.0000150000",
-    output: "$0.0000600000",
-    cachedInput: "$0.0000075000",
-    cacheWrite: null,
-    cacheRead: null,
-    maintainedBy: "override",
-    regex: "^o1-2024-12-17$",
-  },
-  {
-    id: "8a",
-    model: "o1-2024-12-17",
-    provider: "openai",
-    input: "$0.0000150000",
-    output: "$0.0000600000",
-    cachedInput: "$0.0000075000",
-    cacheWrite: null,
-    cacheRead: null,
-    maintainedBy: "local",
-    regex: "^o1-2024-12-17$",
-  },
-];
+import { ModelsTable_models$key } from "./__generated__/ModelsTable_models.graphql";
+import { ModelsTableModelsQuery } from "./__generated__/ModelsTableModelsQuery.graphql";
 
-const handleEditModelConfig = (_modelId: string, _modelName: string) => {
-  // TODO: Implement edit model config functionality
-  // This could open a modal, navigate to an edit page, etc.
+const PAGE_SIZE = 100;
+
+type ModelsTableProps = {
+  query: ModelsTable_models$key;
 };
 
-export function ModelsTable() {
-  type TableRow = (typeof modelPricingData)[number];
+export function ModelsTable(props: ModelsTableProps) {
+  const navigate = useNavigate();
+  //we need a reference to the scrolling element for logic down below
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
+    ModelsTableModelsQuery,
+    ModelsTable_models$key
+  >(
+    graphql`
+      fragment ModelsTable_models on Query
+      @refetchable(queryName: "ModelsTableModelsQuery")
+      @argumentDefinitions(
+        after: { type: "String", defaultValue: null }
+        first: { type: "Int", defaultValue: 100 }
+      ) {
+        models(first: $first, after: $after)
+          @connection(key: "ModelsTable_models") {
+          edges {
+            model: node {
+              id
+              name
+              provider
+              namePattern
+              providerKey
+              createdAt
+              updatedAt
+            }
+          }
+        }
+      }
+    `,
+    props.query
+  );
 
+  const tableData = useMemo(
+    () =>
+      data.models.edges.map((edge) => {
+        return edge.model;
+      }),
+    [data]
+  );
+
+  const fetchMoreOnBottomReached = useCallback(
+    (containerRefElement?: HTMLDivElement | null) => {
+      if (containerRefElement) {
+        const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
+        //once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
+        if (
+          scrollHeight - scrollTop - clientHeight < 300 &&
+          !isLoadingNext &&
+          hasNext
+        ) {
+          loadNext(PAGE_SIZE);
+        }
+      }
+    },
+    [hasNext, isLoadingNext, loadNext]
+  );
+
+  type TableRow = (typeof tableData)[number];
   const columns = useMemo(() => {
     const cols: ColumnDef<TableRow>[] = [
       {
-        header: "Model",
-        accessorKey: "model",
+        header: "name",
+        accessorKey: "name",
+        cell: ({ row }) => {
+          return <Link to={`${row.original.id}`}>{row.original.name}</Link>;
+        },
       },
       {
-        header: "Regex",
-        accessorKey: "regex",
+        header: "provider",
+        accessorKey: "providerKey",
+        cell: ({ row }) => {
+          const providerKey = row.original.providerKey;
+          if (!providerKey) {
+            return <span>{row.original.provider || "Unknown"}</span>;
+          }
+
+          return (
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <GenerativeProviderIcon provider={providerKey} height={18} />
+              <span>{getProviderName(providerKey as ModelProvider)}</span>
+            </Flex>
+          );
+        },
       },
       {
-        header: "Provider",
-        accessorKey: "provider",
+        header: "name pattern",
+        accessorKey: "namePattern",
+        cell: TextCell,
       },
       {
-        header: "Maintained By",
-        accessorKey: "maintainedBy",
+        header: "created at",
+        accessorKey: "createdAt",
+        cell: TimestampCell,
       },
       {
-        header: "Input Cost",
-        accessorKey: "input",
-      },
-      {
-        header: "Output Cost",
-        accessorKey: "output",
-      },
-      {
-        header: "Cached Input",
-        accessorKey: "cachedInput",
-      },
-      {
-        header: "Cache Write",
-        accessorKey: "cacheWrite",
-      },
-      {
-        header: "Cache Read",
-        accessorKey: "cacheRead",
+        header: "updated at",
+        accessorKey: "updatedAt",
+        cell: TimestampCell,
       },
       {
         id: "actions",
-        header: "Actions",
+        header: "",
         size: 5,
         accessorKey: "id",
-        cell: ({ row }) => (
-          <Flex justifyContent="end" width="100%">
-            <Button
-              size="S"
-              variant="default"
-              leadingVisual={<Icon svg={<Icons.EditOutline />} />}
-              onPress={() =>
-                handleEditModelConfig(row.original.id, row.original.model)
-              }
+        cell: ({ row }) => {
+          return (
+            <Flex
+              direction="row"
+              gap="size-100"
+              justifyContent="end"
+              width="100%"
             >
-              Edit
-            </Button>
-          </Flex>
-        ),
+              <StopPropagation>
+                <LinkButton
+                  leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+                  size="S"
+                  aria-label="Edit model"
+                  to={`${row.original.id}/edit`}
+                >
+                  Edit
+                </LinkButton>
+              </StopPropagation>
+            </Flex>
+          );
+        },
       },
     ];
     return cols;
@@ -231,12 +161,21 @@ export function ModelsTable() {
 
   const table = useReactTable({
     columns,
-    data: modelPricingData,
+    data: tableData,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
   });
 
   const rows = table.getRowModel().rows;
+  const isEmpty = rows.length === 0;
+
+  if (isEmpty) {
+    return (
+      <div>
+        <p>No models found.</p>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -244,6 +183,8 @@ export function ModelsTable() {
         flex: 1 1 auto;
         overflow: auto;
       `}
+      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+      ref={tableContainerRef}
     >
       <table css={selectableTableCSS}>
         <thead>
@@ -292,7 +233,12 @@ export function ModelsTable() {
         <tbody>
           {rows.map((row) => {
             return (
-              <tr key={row.id}>
+              <tr
+                key={row.id}
+                onClick={() => {
+                  navigate(`${row.original.id}`);
+                }}
+              >
                 {row.getVisibleCells().map((cell) => (
                   <td
                     key={cell.id}
