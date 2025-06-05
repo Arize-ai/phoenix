@@ -6,6 +6,7 @@ import {
 } from "react-router";
 import { RouterProvider } from "react-router/dom";
 
+import { modelsLoader } from "@phoenix/pages/models/modelsLoader";
 import { ModelsPage } from "@phoenix/pages/models/ModelsPage";
 import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvidersPage";
 import { settingsAIProvidersPageLoader } from "@phoenix/pages/settings/settingsAIProvidersPageLoader";
@@ -330,6 +331,7 @@ const router = createBrowserRouter(
           <Route
             path="/models"
             element={<ModelsPage />}
+            loader={modelsLoader}
             handle={{
               crumb: () => "models",
             }}

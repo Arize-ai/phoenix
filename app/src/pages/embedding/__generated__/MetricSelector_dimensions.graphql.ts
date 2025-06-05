@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<36523970ff07eec9b959c3a724f000b3>>
+ * @generated SignedSource<<a77fc0e595f1292092c13909147cf604>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -99,10 +99,10 @@ const node: ReaderFragment = {
       "storageKey": "dimensions(include:{\"dataTypes\":[\"numeric\"]})"
     }
   ],
-  "type": "Model",
+  "type": "InferenceModel",
   "abstractKey": null
 };
 
-(node as any).hash = "55d03de16503d7af254c17cef7d18ee0";
+(node as any).hash = "372c00c9d4e2e0512af55c958b21c5e0";
 
 export default node;
