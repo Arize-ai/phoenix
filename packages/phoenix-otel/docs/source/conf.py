@@ -108,9 +108,9 @@ html_theme_options = {
             "icon": "fa-brands fa-github",
         },
         {
-            "name": "Twitter",
+            "name": "X",
             "url": "https://x.com/ArizePhoenix",
-            "icon": "fa-brands fa-twitter",
+            "icon": "fa-brands fa-x-twitter",
         },
     ],
     "external_links": [
