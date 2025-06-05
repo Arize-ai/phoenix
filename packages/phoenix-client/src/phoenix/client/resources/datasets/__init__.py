@@ -4,6 +4,7 @@ import logging
 import re
 from collections import Counter
 from collections.abc import Iterable, Mapping
+from copy import deepcopy
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
@@ -159,8 +160,6 @@ class Dataset:
             raise ImportError(
                 "pandas is required to use to_dataframe(). " "Install it with 'pip install pandas'"
             )
-
-        from copy import deepcopy
 
         if not self.examples:
             return pd.DataFrame(columns=["input", "output", "metadata"]).set_index(  # pyright: ignore[reportUnknownMemberType]
@@ -458,7 +457,7 @@ class Datasets:
         if sum([has_examples, has_tabular, has_json]) > 1:
             raise ValueError(
                 "Please provide only one of: examples, tabular data (dataframe/csv_file_path), "
-                "or JSON data (inputs/outputs/metadata)"
+                "or dictionaries (inputs/outputs/metadata)"
             )
 
         if dataframe is not None and csv_file_path is not None:
@@ -564,7 +563,7 @@ class Datasets:
         if sum([has_examples, has_tabular, has_json]) > 1:
             raise ValueError(
                 "Please provide only one of: examples, tabular data (dataframe/csv_file_path), "
-                "or JSON data (inputs/outputs/metadata)"
+                "or dictionaries (inputs/outputs/metadata)"
             )
 
         if dataframe is not None and csv_file_path is not None:
