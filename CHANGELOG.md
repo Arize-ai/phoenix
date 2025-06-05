@@ -1,5 +1,17 @@
 # Changelog
 
+## [10.7.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.7.0...arize-phoenix-v10.7.1) (2025-06-05)
+
+
+### Bug Fixes
+
+* **datasets:** allow large field sizes for csv dataset upload ([#7943](https://github.com/Arize-ai/phoenix/issues/7943)) ([566a8b0](https://github.com/Arize-ai/phoenix/commit/566a8b0bfa67a4683aa97e47349fc0a9c18593fa))
+
+
+### Documentation
+
+* phoenix-otel documentation header styling - Update conf.py header… ([#7936](https://github.com/Arize-ai/phoenix/issues/7936)) ([0173e7f](https://github.com/Arize-ai/phoenix/commit/0173e7f5e187fe0f4f1c15311a56b878117803a9))
+
 ## [10.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.6.2...arize-phoenix-v10.7.0) (2025-06-04)
 
 
