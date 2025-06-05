@@ -341,6 +341,8 @@ export function openInferenceModelProviderToPhoenixModelProvider(
       return "OPENAI";
     case "anthropic":
       return "ANTHROPIC";
+    case "bedrock":
+      return "BEDROCK";
     case "google":
       return "GOOGLE";
     case "azure":
@@ -1343,6 +1345,29 @@ const anthropicForcedToolUseSchema = z
   .passthrough();
 
 /**
+ * Applies Bedrock-specific constraints to the invocation parameters.
+ *
+ * @param invocationParameters - The invocation parameters to be constrained.
+ * @param model - The model name.
+ * @returns The constrained invocation parameters.
+ */
+const applyBedrockInvocationParameterConstraints = (
+  invocationParameters: InvocationParameterInput[],
+  model: string | null
+): InvocationParameterInput[] => {
+  if (!model) {
+    return invocationParameters;
+  }
+
+  return invocationParameters.filter((param) => {
+    if (param.canonicalName === "REGION") {
+      return param.valueString === "us-east-1";
+    }
+    return true;
+  });
+};
+
+/**
  * Applies Anthropic-specific constraints to the invocation parameters.
  *
  * @param invocationParameters - The invocation parameters to be constrained.
@@ -1430,6 +1455,12 @@ export const applyProviderInvocationParameterConstraints = (
   // We want to remove 0 values for parameters where 0 and null have the same effect
   const filteredInvocationParameters =
     filterZeroValueInvocationParameters(invocationParameters);
+  // if (provider === "BEDROCK") {
+  //   return applyBedrockInvocationParameterConstraints(
+  //     filteredInvocationParameters,
+  //     model
+  //   );
+  // }
   if (provider === "ANTHROPIC") {
     return applyAnthropicInvocationParameterConstraints(
       filteredInvocationParameters,

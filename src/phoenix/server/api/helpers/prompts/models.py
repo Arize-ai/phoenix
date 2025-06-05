@@ -323,11 +323,6 @@ class PromptOpenAIInvocationParametersContent(DBBaseModel):
     reasoning_effort: Literal["low", "medium", "high"] = UNDEFINED
 
 
-class PromptOpenAIInvocationParameters(DBBaseModel):
-    type: Literal["openai"]
-    openai: PromptOpenAIInvocationParametersContent
-
-
 class PromptAzureOpenAIInvocationParametersContent(PromptOpenAIInvocationParametersContent):
     pass
 
@@ -346,6 +341,9 @@ class PromptOllamaInvocationParametersContent(PromptOpenAIInvocationParametersCo
 class PromptBedrockInvocationParametersContent(PromptOpenAIInvocationParametersContent):
     pass
 
+class PromptOpenAIInvocationParameters(DBBaseModel):
+    type: Literal["openai"]
+    openai: PromptOpenAIInvocationParametersContent
 
 class PromptAzureOpenAIInvocationParameters(DBBaseModel):
     type: Literal["azure_openai"]
@@ -398,6 +396,13 @@ class PromptAnthropicInvocationParametersContent(DBBaseModel):
 class PromptAnthropicInvocationParameters(DBBaseModel):
     type: Literal["anthropic"]
     anthropic: PromptAnthropicInvocationParametersContent
+
+class PromptBedrockInvocationParametersContent(DBBaseModel):
+    region: str = UNDEFINED
+    api: str = UNDEFINED
+    max_tokens: int
+    temperature: float = UNDEFINED
+    top_p: float = UNDEFINED
 
 
 class PromptGoogleInvocationParametersContent(DBBaseModel):

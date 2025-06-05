@@ -330,6 +330,10 @@ class _InvocationParametersConversion:
                 ans["max_completion_tokens"] = bedrock_params["max_completion_tokens"]
             if "max_tokens" in bedrock_params:
                 ans["max_tokens"] = bedrock_params["max_tokens"]
+            if "region" in bedrock_params:
+                ans["region"] = bedrock_params["region"]
+            if "api" in bedrock_params:
+                ans["api"] = bedrock_params["api"]
         elif TYPE_CHECKING:
             assert_never(obj["type"])
         return ans
