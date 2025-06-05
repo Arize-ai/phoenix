@@ -1,8 +1,13 @@
+import { useLoaderData } from "react-router";
+
 import { Button, Flex, Heading, Icon, Icons, View } from "@phoenix/components";
 
+import { modelsLoader } from "./modelsLoader";
 import { ModelsTable } from "./ModelsTable";
 
 export function ModelsPage() {
+  const data = useLoaderData<typeof modelsLoader>();
+
   const handleAddModel = () => {
     // TODO: Implement add model functionality
   };
@@ -31,7 +36,7 @@ export function ModelsPage() {
           </Button>
         </Flex>
       </View>
-      <ModelsTable />
+      <ModelsTable query={data} />
     </Flex>
   );
 }

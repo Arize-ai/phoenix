@@ -38,11 +38,11 @@ export function ModelComboBoxLoader({
 }) {
   const data = usePreloadedQuery(modelsQuery, queryReference);
   const items = useMemo((): ModelItem[] => {
-    return data.models.map((model) => ({
+    return data.playgroundModels.map((model) => ({
       name: model.name,
       id: model.name,
     }));
-  }, [data.models]);
+  }, [data.playgroundModels]);
 
   const [fieldState, setFieldState] = useState({
     selectedKey: modelName ?? null,
@@ -126,7 +126,7 @@ export function ModelComboBox(props: ModelComboBoxProps) {
 
 graphql`
   query ModelComboBoxQuery($providerKey: GenerativeProviderKey!) {
-    models(input: { providerKey: $providerKey }) {
+    playgroundModels(input: { providerKey: $providerKey }) {
       name
     }
   }
