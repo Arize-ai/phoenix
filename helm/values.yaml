@@ -289,4 +289,4 @@ image:
   repository: "arizephoenix/phoenix"
 
   # -- Docker image tag/version to deploy
-  tag: version-10.7.0-nonroot
+  tag: version-10.7.1-nonroot
