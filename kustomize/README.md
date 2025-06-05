@@ -8,9 +8,3 @@ kubectl apply -k kustomize/base
 ```
 
 will yield a single node deployment of Phoenix with PostgreSQL
-
-```shell
-kubectl apply -k kustomize/auth
-```
-
-will yield a single node deployment of Phoenix with PostgreSQL and authentication enabled
