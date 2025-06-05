@@ -163,6 +163,8 @@ PARENTS: Mapping[str, Sequence[str]] = {
     "Prompt": ["PromptData"],
     "PromptVersion": ["PromptVersionData"],
     "SpanAnnotation": ["SpanAnnotationData"],
+    "LocalUser": ["LocalUserData"],
+    "OAuth2User": ["OAuth2UserData"],
 }
 
 

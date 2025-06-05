@@ -5,7 +5,7 @@
 Phoenix supports three main options to collect traces:
 
 1. Use [Phoenix's decorators](../how-to-tracing/setup-tracing/instrument-python.md) to mark functions and code blocks.
-2. Use [automatic instrumentation](../integrations-tracing/) to capture all calls made to supported frameworks.
+2. Use [automatic instrumentation](https://arize.com/docs/phoenix/integrations) to capture all calls made to supported frameworks.
 3. Use [base OpenTelemetry ](../how-to-tracing/setup-tracing/custom-spans.md)instrumentation. Supported in [Python](../how-to-tracing/setup-tracing/custom-spans.md) and [TS / JS](../how-to-tracing/setup-tracing/javascript.md), among many other languages.
 
 This example uses options 1 and 2.
@@ -29,7 +29,7 @@ os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
 ```
 
 {% hint style="warning" %}
-Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](https://docs.arize.com/phoenix/learn/faqs/what-is-my-phoenix-endpoint)
+Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](https://arize.com/docs/phoenix/learn/faqs/what-is-my-phoenix-endpoint)
 {% endhint %}
 {% endtab %}
 
@@ -45,7 +45,7 @@ PHOENIX_ENDPOINT = "http://0.0.0.0:6006/v1/traces"
 ```
 
 {% hint style="warning" %}
-Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](https://docs.arize.com/phoenix/learn/faqs/what-is-my-phoenix-endpoint)
+Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](https://arize.com/docs/phoenix/learn/faqs/what-is-my-phoenix-endpoint)
 {% endhint %}
 {% endtab %}
 {% endtabs %}
@@ -117,6 +117,6 @@ You should now see traces in Phoenix!
 
 ## Next Steps
 
-* Explore tracing [integrations](../integrations-tracing/)
+* Explore tracing [integrations](https://arize.com/docs/phoenix/integrations)
 * [Customize tracing](../how-to-tracing/)
-* View use cases to see[ end-to-end examples](https://docs.arize.com/phoenix/cookbook/guide)
+* View use cases to see[ end-to-end examples](https://arize.com/docs/phoenix/cookbook/guide)

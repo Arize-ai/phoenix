@@ -1,19 +1,10 @@
-from collections.abc import Mapping
-from enum import Enum
-
 from sqlalchemy.orm import InstrumentedAttribute
 
 from phoenix.db import models
 
-__all__ = ["UserRole", "COLUMN_ENUMS"]
+__all__ = ["ENUM_COLUMNS"]
 
 
-class UserRole(Enum):
-    SYSTEM = "SYSTEM"
-    ADMIN = "ADMIN"
-    MEMBER = "MEMBER"
-
-
-COLUMN_ENUMS: Mapping[InstrumentedAttribute[str], type[Enum]] = {
-    models.UserRole.name: UserRole,
+ENUM_COLUMNS: set[InstrumentedAttribute[str]] = {
+    models.UserRole.name,
 }

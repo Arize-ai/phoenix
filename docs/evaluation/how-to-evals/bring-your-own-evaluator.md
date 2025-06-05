@@ -64,7 +64,7 @@ The categorical template defines the expected output of the LLM, and the rails d
 ```python
 from phoenix.evals import (
     llm_classify,
-    OpenAIModel # see https://docs.arize.com/phoenix/evaluation/evaluation-models
+    OpenAIModel # see https://arize.com/docs/phoenix/evaluation/evaluation-models
     # for a full list of supported models
 )
 
@@ -138,7 +138,7 @@ We use the more generic `llm_generate` function that can be used for almost any 
 
 <pre class="language-python"><code class="lang-python">from phoenix.evals import (
     llm_generate,
-    OpenAIModel # see https://docs.arize.com/phoenix/evaluation/evaluation-models
+    OpenAIModel # see https://arize.com/docs/phoenix/evaluation/evaluation-models
     # for a full list of supported models
 )
 

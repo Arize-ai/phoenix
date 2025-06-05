@@ -1,3 +1,7 @@
+---
+hidden: true
+---
+
 # Concepts: Prompts
 
 ## Prompt

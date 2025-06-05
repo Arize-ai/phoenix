@@ -2,7 +2,7 @@ import { useSearchParams } from "react-router";
 import { css } from "@emotion/react";
 
 import { Button, Icon, Icons } from "@phoenix/components";
-import { DatasetPicker } from "@phoenix/components/dataset";
+import { DatasetSelect } from "@phoenix/components/dataset";
 
 /**
  * This is to keep the height of the picker and the button the same
@@ -12,14 +12,20 @@ import { DatasetPicker } from "@phoenix/components/dataset";
  */
 const DATASET_PICKER_BUTTON_HEIGHT = 30;
 
-const playgroundDatasetPickerCSS = css`
+const playgroundDatasetSelectCSS = css`
   display: flex;
   direction: row;
   align-items: center;
-  .ac-dropdown > button {
+  & .dataset-picker-button {
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
     height: ${DATASET_PICKER_BUTTON_HEIGHT}px;
+    &[data-pressed],
+    &:hover {
+      // remove the bright hover border effect so that it matches the "clear" button
+      // next to the dataset picker
+      --button-border-color: var(--ac-global-input-field-border-color);
+    }
   }
   & > button {
     border-top-left-radius: 0;
@@ -29,14 +35,14 @@ const playgroundDatasetPickerCSS = css`
   }
 `;
 
-export function PlaygroundDatasetPicker() {
+export function PlaygroundDatasetSelect() {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedDatasetId = searchParams.get("datasetId") ?? "";
 
   return (
-    <div css={playgroundDatasetPickerCSS}>
-      <DatasetPicker
-        size={"compact"}
+    <div css={playgroundDatasetSelectCSS}>
+      <DatasetSelect
+        size="S"
         placeholder="Test over a dataset"
         selectedKey={selectedDatasetId}
         onSelectionChange={(datasetId) => {

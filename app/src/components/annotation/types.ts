@@ -24,6 +24,5 @@ export interface Annotation {
 export type AnnotationInputPropsBase<T extends AnnotationConfig> = {
   annotation?: Annotation;
   annotationConfig: T;
-  containerRef?: HTMLDivElement;
   onSubmitExplanation?: (explanation: string) => void;
 };

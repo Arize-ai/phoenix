@@ -13,8 +13,9 @@ from cachetools import LRUCache
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.auth import CanReadToken, ClaimSet, Token, TokenAttributes
-from phoenix.db import enums, models
+from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.models import UserRoleName
 
 
 class CanSetLastUpdatedAt(Protocol):
@@ -145,7 +146,7 @@ class ApiKey(Token): ...
 
 @dataclass(frozen=True)
 class UserTokenAttributes(TokenAttributes):
-    user_role: enums.UserRole
+    user_role: UserRoleName
 
 
 @dataclass(frozen=True)

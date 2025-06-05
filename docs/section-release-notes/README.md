@@ -17,6 +17,14 @@ layout:
 
 {% embed url="https://github.com/Arize-ai/phoenix/releases" %}
 
+## [05.30.2025: xAI and Deepseek Support in Playground](05.30.2025-xai-and-deepseek-support-in-playground.md)
+
+**Available in Phoenix v10.5.0+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/deepseek.mp4" %}
+
+Deepseek and xAI models are now available in Prompt Playground!
+
 ## [05.20.2025: Datasets and Experiment Evaluations in the JS Client](05.20.2025-datasets-and-experiment-evaluations-in-the-js-client.md)
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/TS-experiments.png" %}
@@ -58,7 +66,7 @@ Annotation Improvements
 
 Phoenix's v9.0.0 release brings with it:
 
-* A host of improvements to [Annotations](https://docs.arize.com/phoenix/tracing/features-tracing/how-to-annotate-traces), including one-to-many support, API access, annotation configs, and custom metadata
+* A host of improvements to [Annotations](https://arize.com/docs/phoenix/tracing/features-tracing/how-to-annotate-traces), including one-to-many support, API access, annotation configs, and custom metadata
 * Customizable data retention policies
 * Hotkeys! :fire:
 
@@ -68,7 +76,7 @@ Phoenix's v9.0.0 release brings with it:
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/genai.mp4" %}
 
-We’ve added a Python auto-instrumentation library for the Google GenAI SDK. This enables seamless tracing of GenAI workflows with full OpenTelemetry compatibility. Additionally, the Google GenAI instrumentor is now supported and works seamlessly with Span Replay in Phoenix.&#x20;
+We’ve added a Python auto-instrumentation library for the Google GenAI SDK. This enables seamless tracing of GenAI workflows with full OpenTelemetry compatibility. Additionally, the Google GenAI instrumentor is now supported and works seamlessly with Span Replay in Phoenix.
 
 ***
 
@@ -114,7 +122,7 @@ Improved trace navigation by automatically scrolling the selected span into view
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/MCP%20tracing.png" %}
 
-We’ve released `openinference-instrumentation-mcp`, a new package in the OpenInference OSS library that enables seamless OpenTelemetry context propagation across MCP clients and servers. It automatically creates spans, injects and extracts context, and connects the full trace across services to give you complete visibility into your MCP-based AI systems.&#x20;
+We’ve released `openinference-instrumentation-mcp`, a new package in the OpenInference OSS library that enables seamless OpenTelemetry context propagation across MCP clients and servers. It automatically creates spans, injects and extracts context, and connects the full trace across services to give you complete visibility into your MCP-based AI systems.
 
 Big thanks to Adrian Cole and Anuraag Agrawal for their contributions to this feature.
 
@@ -134,7 +142,7 @@ Phoenix now supports programmatic API key creation through a new endpoint, makin
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/tool_calling_ids2.gif" %}
 
-Tool call and result IDs are now shown in the span details view. Each ID is placed within a collapsible header and can be easily copied. This update also supports spans with multiple tool calls. Get started with tracing your tool calls [here](https://docs.arize.com/phoenix/tracing/llm-traces-1).
+Tool call and result IDs are now shown in the span details view. Each ID is placed within a collapsible header and can be easily copied. This update also supports spans with multiple tool calls. Get started with tracing your tool calls [here](https://arize.com/docs/phoenix/tracing/llm-traces-1).
 
 ***
 
@@ -142,17 +150,17 @@ Tool call and result IDs are now shown in the span details view. Each ID is plac
 
 **Available in Phoenix 8.24+**
 
-This update enhances the Project Management API with more flexible project identification We've added support for identifying projects by both ID and hex-encoded name and introduced a new `_get_project_by_identifier` helper function.&#x20;
+This update enhances the Project Management API with more flexible project identification We've added support for identifying projects by both ID and hex-encoded name and introduced a new `_get_project_by_identifier` helper function.
 
 ***
 
-## [04.09.2025: New REST API for Projects with RBAC 📽️ ](04.09.2025-new-rest-api-for-projects-with-rbac.md)
+## [04.09.2025: New REST API for Projects with RBAC 📽️](04.09.2025-new-rest-api-for-projects-with-rbac.md)
 
 **Available in Phoenix 8.23+**
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/project_management_REST_API.mp4" %}
 
-This release introduces a REST API for managing projects, complete with full CRUD functionality and  access control. Key features include CRUD Operations and Role-Based Access Control. Check out our [new documentation ](https://docs.arize.com/phoenix/sdk-api-reference/projects)to test these features.&#x20;
+This release introduces a REST API for managing projects, complete with full CRUD functionality and access control. Key features include CRUD Operations and Role-Based Access Control. Check out our [new documentation ](https://arize.com/docs/phoenix/sdk-api-reference/projects)to test these features.
 
 ***
 
@@ -162,7 +170,7 @@ This release introduces a REST API for managing projects, complete with full CRU
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/prompt_tagging.gif" %}
 
-We’ve added support for Prompt Tagging in the Phoenix client. This new feature gives you more control and visibility over your prompts throughout the development lifecycle. Tag prompts directly in code, label prompt versions, and add tag descriptions. Check out documentation on [prompt tags](https://docs.arize.com/phoenix/prompt-engineering/how-to-prompts/tag-a-prompt).&#x20;
+We’ve added support for Prompt Tagging in the Phoenix client. This new feature gives you more control and visibility over your prompts throughout the development lifecycle. Tag prompts directly in code, label prompt versions, and add tag descriptions. Check out documentation on [prompt tags](https://arize.com/docs/phoenix/prompt-engineering/how-to-prompts/tag-a-prompt).
 
 ***
 
@@ -330,9 +338,9 @@ register(auto_instrument=True)
 
 In addition to using our automatic instrumentors and tracing directly using OTEL, we've now added our own layer to let you have the granularity of manual instrumentation without as much boilerplate code.
 
-You can now access a tracer object with streamlined options to trace functions and code blocks. The main two options are using the **decorator** `@tracer.chain` and using the tracer in a `with` clause.&#x20;
+You can now access a tracer object with streamlined options to trace functions and code blocks. The main two options are using the **decorator** `@tracer.chain` and using the tracer in a `with` clause.
 
-Check out the [docs](https://docs.arize.com/phoenix/tracing/how-to-tracing/instrument-python#using-your-tracer) for more on how to use tracer objects.
+Check out the [docs](https://arize.com/docs/phoenix/tracing/how-to-tracing/instrument-python#using-your-tracer) for more on how to use tracer objects.
 
 ***
 
@@ -344,7 +352,7 @@ Check out the [docs](https://docs.arize.com/phoenix/tracing/how-to-tracing/instr
 
 Sessions allow you to group multiple responses into a single thread. Each response is still captured as a single trace, but each trace is linked together and presented in a combined view.
 
-Sessions make it easier to visual multi-turn exchanges with your chatbot or agent Sessions launches with Python and TS/JS support. For more on sessions, check out[ a walkthrough video](https://www.youtube.com/watch?v=dzS6x0BE-EU) and the [docs](https://docs.arize.com/phoenix/tracing/how-to-tracing/setup-sessions?utm_campaign=Phoenix%20Newsletter\&utm_source=hs_email\&utm_medium=email&_hsenc=p2ANqtz--aSHse9NA8I5ncZzavHCp6LBXibZCgbWcRrxbh2RwugL6IQdTOSu8cz-Wqh6EO9xJLGX2E).
+Sessions make it easier to visual multi-turn exchanges with your chatbot or agent Sessions launches with Python and TS/JS support. For more on sessions, check out[ a walkthrough video](https://www.youtube.com/watch?v=dzS6x0BE-EU) and the [docs](https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-sessions?utm_campaign=Phoenix%20Newsletter\&utm_source=hs_email\&utm_medium=email&_hsenc=p2ANqtz--aSHse9NA8I5ncZzavHCp6LBXibZCgbWcRrxbh2RwugL6IQdTOSu8cz-Wqh6EO9xJLGX2E).
 
 ***
 
@@ -358,7 +366,7 @@ Prompt Playground is now available in the Phoenix platform! This new release all
 
 * Replay individual spans with modified prompts, or run full Datasets through your variations.
 * Easily test different models, prompts, tools, and output formats side-by-side, directly in the platform.
-* Automatically capture traces as Experiment runs for later debugging. See [here](https://docs.arize.com/phoenix/prompt-engineering/overview-prompts/prompt-playground) for more information on Prompt Playground, or jump into the platform to try it out for yourself.
+* Automatically capture traces as Experiment runs for later debugging. See [here](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts/prompt-playground) for more information on Prompt Playground, or jump into the platform to try it out for yourself.
 
 ***
 
@@ -370,7 +378,7 @@ Prompt Playground is now available in the Phoenix platform! This new release all
 
 We've added Authentication and Rules-based Access Controls to Phoenix. This was a long-requested feature set, and we're excited for the new uses of Phoenix this will unlock!
 
-The auth feature set includes secure access, RBAC, API keys, and OAuth2 Support. For all the details on authentication, view our [docs](https://docs.arize.com/phoenix/deployment/authentication).
+The auth feature set includes secure access, RBAC, API keys, and OAuth2 Support. For all the details on authentication, view our [docs](https://arize.com/docs/phoenix/deployment/authentication).
 
 ***
 
@@ -408,7 +416,7 @@ Hosted Phoenix is 100% free-to-use, [check it out today](https://app.phoenix.ari
 
 **Datasets**: Datasets are a new core feature in Phoenix that live alongside your projects. They can be imported, exported, created, curated, manipulated, and viewed within the platform, and make fine-turning and experimentation easier.n
 
-For more details on using datasets see our [documentation](https://docs.arize.com/phoenix/datasets-and-experiments/overview-datasets?utm_campaign=Phoenix%20Newsletter\&utm_source=hs_email\&utm_medium=email&_hsenc=p2ANqtz-9Tx_lYbuasbD3Mzdwl0VNPcvy_YcbPudxu1qwBZ3T7Mh---A4PO-OJfhas-RR4Ys_IEb0F) or [example notebook](https://colab.research.google.com/drive/1e4vZR5VPelXXYGtWfvM3CErPhItHAIp2?usp=sharing\&utm_campaign=Phoenix%20Newsletter\&utm_source=hs_email\&utm_medium=email&_hsenc=p2ANqtz-9Tx_lYbuasbD3Mzdwl0VNPcvy_YcbPudxu1qwBZ3T7Mh---A4PO-OJfhas-RR4Ys_IEb0F).
+For more details on using datasets see our [documentation](https://arize.com/docs/phoenix/datasets-and-experiments/overview-datasets?utm_campaign=Phoenix%20Newsletter\&utm_source=hs_email\&utm_medium=email&_hsenc=p2ANqtz-9Tx_lYbuasbD3Mzdwl0VNPcvy_YcbPudxu1qwBZ3T7Mh---A4PO-OJfhas-RR4Ys_IEb0F) or [example notebook](https://colab.research.google.com/drive/1e4vZR5VPelXXYGtWfvM3CErPhItHAIp2?usp=sharing\&utm_campaign=Phoenix%20Newsletter\&utm_source=hs_email\&utm_medium=email&_hsenc=p2ANqtz-9Tx_lYbuasbD3Mzdwl0VNPcvy_YcbPudxu1qwBZ3T7Mh---A4PO-OJfhas-RR4Ys_IEb0F).
 
 **Experiments:** Our new Datasets and Experiments feature enables you to create and manage datasets for rigorous testing and evaluation of your models. Check out our full [walkthrough](https://www.youtube.com/watch?v=rzxN-YV_DbE\&t=25s).
 

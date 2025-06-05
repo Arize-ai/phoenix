@@ -6,12 +6,12 @@ description: Various options for to help you get data out of Phoenix
 
 ## Options for Exporting Data from Phoenix
 
-| Method                                                                                               | Description                                        | Helpful for                                                                               |
-| ---------------------------------------------------------------------------------------------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| [Download all spans as a dataframe](extract-data-from-spans.md#downloading-all-spans-as-a-dataframe) | Exports all spans in a project as a dataframe      | **Evaluation** - Filtering your spans locally using pandas instead of Phoenix DSL.        |
-| [Span Queries](extract-data-from-spans.md#running-span-queries)                                      | Exports specific spans or traces based on filters  | **Evaluation** - Querying spans from Phoenix                                              |
-| [Pre-defined Queries](extract-data-from-spans.md#pre-defined-queries)                                | Exports specific groups of spans from a RAG system | **RAG Evaluation** - Easily exporting retrieved documents or Q\&A data from a RAG system. |
-| [Saving All Traces](extract-data-from-spans.md#save-all-traces)                                      | Saves all traces as a local file                   | **Storing Data** - Backing up an entire Phoenix instance.                                 |
+| Method                                                                                               | Description                                       | Helpful for                                                                                                                                                                           |
+| ---------------------------------------------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Download all spans as a dataframe](extract-data-from-spans.md#downloading-all-spans-as-a-dataframe) | Exports all spans in a project as a dataframe     | **Evaluation** - Filtering your spans locally using pandas instead of Phoenix DSL.                                                                                                    |
+| [Span Queries](extract-data-from-spans.md#running-span-queries)                                      | Exports specific spans or traces based on filters | **Evaluation** - Querying spans from Phoenix                                                                                                                                          |
+| [Pre-defined Queries](extract-data-from-spans.md#pre-defined-queries)                                | Exports specific groups of spans                  | <p><strong>Agent Evaluation</strong> - Easily export tool calls.</p><p><strong>RAG Evaluation</strong> - Easily exporting retrieved documents or Q&#x26;A data from a RAG system.</p> |
+| [Saving All Traces](extract-data-from-spans.md#save-all-traces)                                      | Saves all traces as a local file                  | **Storing Data** - Backing up an entire Phoenix instance.                                                                                                                             |
 
 ## Connect to Phoenix
 
@@ -99,7 +99,7 @@ phoenix_df = px_client.query_spans(start_time=start, end_time=end)
 
 ### How to Specify a Project
 
-By default all queries are executed against the default project or the project set via the `PHOENIX_PROJECT_NAME` environment variable. If you choose to pull from a different project, all methods on the [Client](https://docs.arize.com/phoenix/references/api/client) have an optional parameter named `project_name`
+By default all queries are executed against the default project or the project set via the `PHOENIX_PROJECT_NAME` environment variable. If you choose to pull from a different project, all methods on the [Client](https://arize.com/docs/phoenix/references/api/client) have an optional parameter named `project_name`
 
 ```python
 import phoenix as px
@@ -255,7 +255,7 @@ query = SpanQuery().select(**{
 
 #### Concatenating
 
-The document contents can also be concatenated together. The query below concatenates the list of `document.content` with  (double newlines), which is the default separator. Keyword arguments are necessary to name the output columns, and in this example we name the output column as `reference`. (Python's double-asterisk unpacking idiom can be used to specify arbitrary output names containing spaces or symbols. See [here](extract-data-from-spans.md#arbitrary-output-column-names) for an example.)
+The document contents can also be concatenated together. The query below concatenates the list of `document.content` with (double newlines), which is the default separator. Keyword arguments are necessary to name the output columns, and in this example we name the output column as `reference`. (Python's double-asterisk unpacking idiom can be used to specify arbitrary output names containing spaces or symbols. See [here](extract-data-from-spans.md#arbitrary-output-column-names) for an example.)
 
 ```python
 query = SpanQuery().concat(
@@ -374,9 +374,20 @@ Phoenix also provides helper functions that executes predefined queries for the 
 If you need to run the query against a specific project, you can add the `project_name` as a parameter to any of the pre-defined queries
 {% endhint %}
 
+### Tool Calls
+
+The query below will automatically export any tool calls selected by LLM calls. The output DataFrame can be easily combined with [tool-calling-eval.md](../../../evaluation/how-to-evals/running-pre-tested-evals/tool-calling-eval.md "mention").
+
+```python
+from phoenix.trace.dsl.helpers import get_called_tools
+
+tools_df = get_called_tools(client)
+tools_df
+```
+
 ### Retrieved Documents
 
-The query shown in the [example](extract-data-from-spans.md#example) can be done more simply with a helper function as follows. The output DataFrame can be used directly as input for the [Retrieval (RAG) Relevance evaluations](../../../evaluation/how-to-evals/running-pre-tested-evals/retrieval-rag-relevance.md#how-to-run-the-eval).
+The query shown in the example can be done more simply with a helper function as follows. The output DataFrame can be used directly as input for the [Retrieval (RAG) Relevance evaluations](../../../evaluation/how-to-evals/running-pre-tested-evals/retrieval-rag-relevance.md#how-to-run-the-eval).
 
 ```python
 from phoenix.session.evaluation import get_retrieved_documents

@@ -38,7 +38,7 @@
 * [LLM as a Judge](evaluation/llm-as-a-judge.md)
 * [Custom Task Evaluation](evaluation/custom-task-evaluation.md)
 
-## 🔍 Retrieval & Infrences
+## 🔍 Retrieval & Inferences
 
 * [Retrieval with Embeddings](retrieval-and-infrences/retrieval-with-embeddings.md)
 * [Benchmarking Retrieval](retrieval-and-infrences/benchmarking-retrieval.md)
@@ -46,10 +46,7 @@
 ***
 
 * [Retrieval Evals on Document Chunks](retrieval-evals-on-document-chunks.md)
-
-## 🌌 Inferences
-
-* [Inferences Concepts](inferences/inferences-concepts.md)
+* [Inferences Concepts](inferences-concepts.md)
 
 ## 📚 Resources
 

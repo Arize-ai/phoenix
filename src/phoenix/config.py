@@ -1177,7 +1177,7 @@ def ensure_working_dir_if_needed() -> None:
     This is bypassed if a postgres database is configured and a working directory is not set.
     """
     if _no_local_storage():
-        pass
+        return
 
     logger.info(f"📋 Ensuring phoenix working directory: {WORKING_DIR}")
     try:

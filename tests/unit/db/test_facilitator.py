@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from phoenix.config import ENV_PHOENIX_ADMINS
 from phoenix.db import models
-from phoenix.db.enums import UserRole
+from phoenix.db.enums import ENUM_COLUMNS
 from phoenix.db.facilitator import (
     _ensure_admins,
     _ensure_default_project_trace_retention_policy,
@@ -36,6 +36,19 @@ class _MockWelcomeEmailSender:
             raise RuntimeError("Failed to send email")
 
 
+class TestEnsureEnums:
+    async def test_ensure_enums(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        await _ensure_enums(db)
+        for column in ENUM_COLUMNS:
+            assert isinstance(column.type, sa.Enum)
+            async with db() as session:
+                actual = await session.scalars(select(column))
+            assert sorted(actual) == sorted(column.type.enums)
+
+
 class TestEnsureStartupAdmins:
     @pytest.mark.parametrize("email_sending_fails", [False, True])
     async def test_ensure_startup_admins(
@@ -57,12 +70,10 @@ class TestEnsureStartupAdmins:
         # Create existing users (not admins) for the test
         async with db() as session:
             # Fetch role IDs
-            admin_role_id = await session.scalar(
-                select(models.UserRole.id).filter_by(name=UserRole.ADMIN.value)
-            )
+            admin_role_id = await session.scalar(select(models.UserRole.id).filter_by(name="ADMIN"))
             assert isinstance(admin_role_id, int)
             member_role_id = await session.scalar(
-                select(models.UserRole.id).filter_by(name=UserRole.MEMBER.value)
+                select(models.UserRole.id).filter_by(name="MEMBER")
             )
             assert isinstance(member_role_id, int)
             # Create users with MEMBER role (not ADMIN)

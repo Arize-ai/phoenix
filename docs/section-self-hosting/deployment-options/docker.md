@@ -1,3 +1,7 @@
+---
+description: Deploy using docker compose for a local or cloud deployment
+---
+
 # Docker
 
 {% embed url="https://hub.docker.com/r/arizephoenix/phoenix" %}
@@ -143,7 +147,7 @@ Note that the above setup is using your local disc as a volume mount to store th
 
 ## SQLite
 
-You can also run Phonix using SQLite with a persistent disc attached.
+You can also run Phonix using SQLite with a persistent disc attached:
 
 ```yaml
 # docker-compose.yml

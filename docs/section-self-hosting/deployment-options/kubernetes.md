@@ -1,6 +1,10 @@
 ---
+<<<<<<< HEAD
 description: >-
   Phoenix can be deployed on Kubernetes with PostgreSQL using kustomize or with SQLite using a manual manifest.
+=======
+description: Phoenix can be deployed on Kubernetes with PostGres
+>>>>>>> 4c7e0e38d4b2656c63bbf1d9d080af3e2e85bb91
 ---
 
 # Kubernetes

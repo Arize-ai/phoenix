@@ -1,4 +1,6 @@
+from pathlib import Path
 from typing import Any, Optional
+from unittest.mock import MagicMock
 from urllib.parse import quote_plus
 
 import pytest
@@ -7,6 +9,7 @@ from starlette.datastructures import URL
 
 from phoenix.config import (
     ENV_PHOENIX_ADMINS,
+    ensure_working_dir_if_needed,
     get_env_admins,
     get_env_auth_settings,
     get_env_phoenix_admin_secret,
@@ -755,3 +758,20 @@ class TestGetEnvAuthSettings:
         with pytest.raises(ValueError) as e:
             get_env_auth_settings()
         assert expected_error_msg in str(e.value)
+
+
+def test_ensure_working_dir_if_needed_skips_when_no_local_storage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
+    monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "password")
+    monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "host")
+    monkeypatch.setenv("PHOENIX_POSTGRES_PORT", "5432")
+    monkeypatch.setenv("PHOENIX_POSTGRES_DB", "somedb")
+    monkeypatch.delenv("PHOENIX_WORKING_DIR", raising=False)
+    mkdir_spy = MagicMock()
+    monkeypatch.setattr(Path, "mkdir", mkdir_spy, raising=True)
+
+    ensure_working_dir_if_needed()
+
+    mkdir_spy.assert_not_called()

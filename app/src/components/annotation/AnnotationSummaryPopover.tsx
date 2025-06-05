@@ -63,6 +63,7 @@ export function AnnotationSummaryPopover({
       <StopPropagation>
         <Popover
           shouldCloseOnInteractOutside={() => true}
+          isKeyboardDismissDisabled={false}
           style={{ minWidth: width }}
         >
           <PopoverArrow />
@@ -118,7 +119,7 @@ export function AnnotationSummaryPopover({
                           <th>author</th>
                           <th>label</th>
                           <th>score</th>
-                          <th>filters</th>
+                          {showFilterActions ? <th>filters</th> : null}
                         </tr>
                       </thead>
                       <tbody>
@@ -152,7 +153,11 @@ export function AnnotationSummaryPopover({
                             <td>
                               {annotation.label ? (
                                 <Text title={annotation.label}>
-                                  <Truncate maxWidth="150px">
+                                  <Truncate
+                                    maxWidth={
+                                      showFilterActions ? "150px" : "200px"
+                                    }
+                                  >
                                     {annotation.label}
                                   </Truncate>
                                 </Text>

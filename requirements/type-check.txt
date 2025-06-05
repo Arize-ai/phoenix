@@ -17,7 +17,7 @@ psycopg[binary,pool]
 py-grpc-prometheus
 pypistats  # this is needed to type-check third-party packages
 requests  # this is needed to type-check third-party packages
-strawberry-graphql[opentelemetry]==0.269.0  # fix relay ids
+strawberry-graphql[opentelemetry]==0.270.1
 tenacity
 types-cachetools
 types-jsonschema

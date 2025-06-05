@@ -10,7 +10,7 @@ In chatbots and Q\&A systems, many times reference links are provided in the res
 
 **ANSWER**: Phoenix does support a large set of LLM models through the model object. Phoenix supports OpenAI (GPT-4, GPT-4-32k, GPT-3.5 Turbo, GPT-3.5 Instruct, etc...), Azure OpenAI, Google Palm2 Text Bison, and All AWS Bedrock models (Claude, Mistral, etc...).
 
-**REFERENCE LINK**: [https://docs.arize.com/phoenix/api/evaluation-models](https://colab.research.google.com/corgiredirector?site=https%3A%2F%2Fdocs.arize.com%2Fphoenix%2Fapi%2Fevaluation-models)
+**REFERENCE LINK**: [https://arize.com/docs/phoenix/api/evaluation-models](https://colab.research.google.com/corgiredirector?site=https%3A%2F%2Fdocs.arize.com%2Fphoenix%2Fapi%2Fevaluation-models)
 
 This Eval checks the reference link returned answers the question asked in a conversation
 

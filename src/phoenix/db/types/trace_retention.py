@@ -5,6 +5,7 @@ from typing import Annotated, Iterable, Literal, Optional, Union
 
 import sqlalchemy as sa
 from pydantic import AfterValidator, BaseModel, Field, RootModel
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.utilities import hour_of_week
@@ -25,19 +26,25 @@ class _MaxDays(BaseModel):
 class _MaxCount(BaseModel):
     max_count: Annotated[int, Field(ge=0)]
 
-    @property
-    def max_count_filter(self) -> sa.ColumnElement[bool]:
+    def max_count_filter(
+        self,
+        project_rowids: Union[Iterable[int], sa.ScalarSelect[int]],
+    ) -> sa.ColumnElement[bool]:
         if self.max_count <= 0:
             return sa.literal(False)
         from phoenix.db.models import Trace
 
-        return Trace.start_time < (
-            sa.select(Trace.start_time)
-            .order_by(Trace.start_time.desc())
-            .offset(self.max_count - 1)
-            .limit(1)
-            .scalar_subquery()
+        ranked = (
+            sa.select(
+                Trace.id,
+                func.row_number()
+                .over(partition_by=Trace.project_rowid, order_by=Trace.start_time.desc())
+                .label("rn"),
+            )
+            .where(Trace.project_rowid.in_(project_rowids))
+            .cte("ranked")
         )
+        return Trace.id.in_(sa.select(ranked.c.id).where(ranked.c.rn > self.max_count))
 
 
 class MaxDaysRule(_MaxDays, BaseModel):
@@ -82,7 +89,7 @@ class MaxCountRule(_MaxCount, BaseModel):
         stmt = (
             sa.delete(Trace)
             .where(Trace.project_rowid.in_(project_rowids))
-            .where(self.max_count_filter)
+            .where(self.max_count_filter(project_rowids))
             .returning(Trace.project_rowid)
         )
         return set(await session.scalars(stmt))
@@ -106,7 +113,7 @@ class MaxDaysOrCountRule(_MaxDays, _MaxCount, BaseModel):
         stmt = (
             sa.delete(Trace)
             .where(Trace.project_rowid.in_(project_rowids))
-            .where(sa.or_(self.max_days_filter, self.max_count_filter))
+            .where(sa.or_(self.max_days_filter, self.max_count_filter(project_rowids)))
             .returning(Trace.project_rowid)
         )
         return set(await session.scalars(stmt))

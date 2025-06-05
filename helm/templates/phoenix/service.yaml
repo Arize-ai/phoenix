@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "phoenix.service" . }}
+  namespace: {{ .Release.Namespace | quote }}
+{{- if .Values.server.annotations}}
+  annotations:
+{{ toYaml .Values.server.annotations | indent 4 }}
+{{- end }}
+{{- if .Values.server.labels }}
+  labels:
+{{ toYaml .Values.server.labels | indent 4 }}
+{{- end }}
+spec:
+  type: NodePort
+  ports:
+    - name: {{ template "phoenix.grpcPortName" . }}
+      port: {{ template "phoenix.grpcPort" . }}
+    - name: {{ template "phoenix.appPortName" . }}
+      port: {{ template "phoenix.appPort" . }}
+    - name: {{ template "phoenix.metricsPortName" . }}
+      port: {{ template "phoenix.metricsPort" . }} 
+  selector:
+    app: {{ .Release.Name }}

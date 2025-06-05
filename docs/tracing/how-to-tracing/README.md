@@ -7,7 +7,7 @@ description: Guides on how to use traces
 ## Setup Tracing
 
 * Setup Tracing in [Python](./#instrument-python-using-openinference-helpers) or [Typescript](setup-tracing/javascript.md)
-* Add Integrations via [Auto Instrumentation](../integrations-tracing/)
+* Add Integrations via [Auto Instrumentation](https://arize.com/docs/phoenix/integrations)
 * [Manually Instrument](./#manual-instrumentation) your application
 
 ## [Customize Traces & Spans](add-metadata/customize-spans.md)
