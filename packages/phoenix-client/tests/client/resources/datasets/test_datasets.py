@@ -1,8 +1,9 @@
 import gzip
 from datetime import datetime
+from io import StringIO
 from pathlib import Path
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import Mock, mock_open, patch
 
 import pandas as pd
 import pytest
@@ -166,24 +167,34 @@ class TestHelperFunctions:
         assert not _is_valid_dataset_example({"incomplete": "dict"})
         assert not _is_valid_dataset_example("not a dict")
 
-    def test_get_csv_column_headers(self, tmp_path: Path) -> None:
-        csv_file = tmp_path / "test.csv"
-        csv_file.write_text("col1,col2,col3\nval1,val2,val3\n")
+    def test_get_csv_column_headers(self) -> None:
+        csv_content = "col1,col2,col3\nval1,val2,val3\n"
 
-        headers = _get_csv_column_headers(csv_file)
-        assert headers == ("col1", "col2", "col3")
+        mock_path = Mock(spec=Path)
+        mock_path.resolve.return_value = mock_path
+        mock_path.is_file.return_value = True
 
-    def test_get_csv_column_headers_errors(self, tmp_path: Path) -> None:
-        empty_file = tmp_path / "empty.csv"
-        empty_file.write_text("")
+        with patch("builtins.open", mock_open(read_data=csv_content)):
+            headers = _get_csv_column_headers(mock_path)
+            assert headers == ("col1", "col2", "col3")
 
-        with pytest.raises(ValueError, match="CSV file has no data rows"):
-            _get_csv_column_headers(empty_file)
+    def test_get_csv_column_headers_errors(self) -> None:
+        # Test empty file
+        mock_path = Mock(spec=Path)
+        mock_path.resolve.return_value = mock_path
+        mock_path.is_file.return_value = True
 
+        with patch("builtins.open", mock_open(read_data="")):
+            with pytest.raises(ValueError, match="CSV file has no data rows"):
+                _get_csv_column_headers(mock_path)
+
+        # Test file not found
+        mock_path.is_file.return_value = False
         with pytest.raises(FileNotFoundError):
-            _get_csv_column_headers(Path("/non/existent/file.csv"))
+            _get_csv_column_headers(mock_path)
 
-    def test_infer_keys(self, tmp_path: Path) -> None:
+    def test_infer_keys(self) -> None:
+        # Test with DataFrame
         df = pd.DataFrame(
             {"input1": [1, 2], "input2": [3, 4], "response": [5, 6], "metadata1": [7, 8]}
         )
@@ -194,19 +205,25 @@ class TestHelperFunctions:
         assert output_keys == ("response",)
         assert metadata_keys == ("metadata1",)
 
-        csv_file = tmp_path / "test.csv"
-        csv_file.write_text("feature1,feature2,output,extra\nval1,val2,val3,val4\n")
+        # Test with mocked CSV file by patching _get_csv_column_headers
+        expected_headers = ("feature1", "feature2", "output", "extra")
 
-        input_keys, output_keys, metadata_keys = _infer_keys(csv_file)
+        with patch(
+            "phoenix.client.resources.datasets._get_csv_column_headers",
+            return_value=expected_headers,
+        ):
+            input_keys, output_keys, metadata_keys = _infer_keys("/fake/path.csv")
 
-        assert input_keys == ("feature1", "feature2")
-        assert output_keys == ("output",)
-        assert metadata_keys == ("extra",)
+            assert input_keys == ("feature1", "feature2")
+            assert output_keys == ("output",)
+            assert metadata_keys == ("extra",)
 
-    def test_prepare_csv(self, tmp_path: Path) -> None:
-        csv_file = tmp_path / "test.csv"
+    def test_prepare_csv(self) -> None:
         csv_content = "input1,input2,output\nval1,val2,val3\n"
-        csv_file.write_text(csv_content)
+        mock_path = Mock(spec=Path)
+        mock_path.resolve.return_value = mock_path
+        mock_path.is_file.return_value = True
+        mock_path.name = "test.csv"
 
         keys = DatasetKeys(
             input_keys=frozenset(["input1", "input2"]),
@@ -214,19 +231,26 @@ class TestHelperFunctions:
             metadata_keys=frozenset(),
         )
 
-        name, file_obj, content_type, headers = _prepare_csv(csv_file, keys)
+        # Mock both text and binary file operations
+        with patch("builtins.open", mock_open(read_data=csv_content)) as mock_file:
+            # Configure mock to return bytes when opened in binary mode
+            mock_file.return_value.read.return_value = csv_content.encode()
 
-        assert name == "test.csv"
-        assert content_type == "text/csv"
-        assert headers == {"Content-Encoding": "gzip"}
+            name, file_obj, content_type, headers = _prepare_csv(mock_path, keys)
 
-        file_obj.seek(0)
-        decompressed = gzip.decompress(file_obj.read()).decode()
-        assert decompressed == csv_content
+            assert name == "test.csv"
+            assert content_type == "text/csv"
+            assert headers == {"Content-Encoding": "gzip"}
 
-    def test_prepare_csv_validation(self, tmp_path: Path) -> None:
-        csv_file = tmp_path / "test.csv"
-        csv_file.write_text("col1,col1,col2\nval1,val2,val3\n")
+            file_obj.seek(0)
+            decompressed = gzip.decompress(file_obj.read()).decode()
+            assert decompressed == csv_content
+
+    def test_prepare_csv_validation(self) -> None:
+        csv_content = "col1,col1,col2\nval1,val2,val3\n"
+        mock_path = Mock(spec=Path)
+        mock_path.resolve.return_value = mock_path
+        mock_path.is_file.return_value = True
 
         keys = DatasetKeys(
             input_keys=frozenset(["col1"]),
@@ -234,8 +258,9 @@ class TestHelperFunctions:
             metadata_keys=frozenset(),
         )
 
-        with pytest.raises(ValueError, match="Duplicate column headers"):
-            _prepare_csv(csv_file, keys)
+        with patch("builtins.open", mock_open(read_data=csv_content)):
+            with pytest.raises(ValueError, match="Duplicate column headers"):
+                _prepare_csv(mock_path, keys)
 
     def test_prepare_dataframe_as_json(self) -> None:
         df = pd.DataFrame({"input": ["a", "b"], "output": ["x", "y"], "metadata": ["m1", "m2"]})
@@ -274,3 +299,126 @@ class TestDatasetUploadError:
     def test_error_message(self) -> None:
         error = DatasetUploadError("Upload failed")
         assert str(error) == "Upload failed"
+
+
+class TestCSVProcessing:
+    def test_csv_parsing_with_various_formats(self) -> None:
+        # Test basic CSV
+        basic_csv = "input,output,metadata\nhello,hi,test\nworld,earth,demo"
+        df_basic = pd.read_csv(StringIO(basic_csv))  # pyright: ignore[reportUnknownMemberType]
+        input_keys, output_keys, metadata_keys = _infer_keys(df_basic)
+        assert input_keys == ("input",)
+        assert output_keys == ("output",)
+        assert metadata_keys == ("metadata",)
+
+        # Test CSV with quoted fields containing commas
+        quoted_csv = (
+            'question,answer,notes\n"What is 2+2?","4","simple math"\n"What is the capital of '
+            'France?","Paris","geography, Europe"'
+        )
+        df_quoted = pd.read_csv(StringIO(quoted_csv))  # pyright: ignore[reportUnknownMemberType]
+        input_keys, output_keys, metadata_keys = _infer_keys(df_quoted)
+        assert input_keys == ("question",)
+        assert output_keys == ("answer",)
+        assert metadata_keys == ("notes",)
+        # Verify quoted field was parsed correctly
+        assert df_quoted.iloc[1]["notes"] == "geography, Europe"  # pyright: ignore[reportGeneralTypeIssues]
+
+        # Test CSV with response column detection
+        response_csv = (
+            "feature1,feature2,response,extra\nval1,val2,resp1,meta1\nval3,val4,resp2,meta2"
+        )
+        df_response = pd.read_csv(StringIO(response_csv))  # pyright: ignore[reportUnknownMemberType]
+        input_keys, output_keys, metadata_keys = _infer_keys(df_response)
+        assert input_keys == ("feature1", "feature2")
+        assert output_keys == ("response",)
+        assert metadata_keys == ("extra",)
+
+    def test_csv_key_inference_patterns(self) -> None:
+        """Test different patterns for output column detection."""
+        test_cases = [
+            ("input1,input2,output", ("input1", "input2"), ("output",), ()),
+            ("feat1,feat2,answer", ("feat1", "feat2"), ("answer",), ()),
+            ("x,y,response,meta", ("x", "y"), ("response",), ("meta",)),
+            ("a,outputs,b", ("a",), ("outputs",), ("b",)),
+            ("col1,col2", ("col1", "col2"), (), ()),  # No output column
+        ]
+
+        for csv_header, expected_input, expected_output, expected_metadata in test_cases:
+            csv_content = (
+                csv_header + "\nval1,val2" + (",val3" if csv_header.count(",") == 2 else "")
+            )
+            df = pd.read_csv(StringIO(csv_content))  # pyright: ignore[reportUnknownMemberType]
+            input_keys, output_keys, metadata_keys = _infer_keys(df)
+            assert input_keys == expected_input, f"Failed for {csv_header}"
+            assert output_keys == expected_output, f"Failed for {csv_header}"
+            assert metadata_keys == expected_metadata, f"Failed for {csv_header}"
+
+    def test_dataframe_to_csv_preparation(self) -> None:
+        # Create a DataFrame with complex data
+        df = pd.DataFrame(
+            {
+                "input_text": ["What is AI?", "Define ML"],
+                "input_context": ["technology", "computer science"],
+                "output_answer": ["Artificial Intelligence", "Machine Learning"],
+                "metadata_source": ["wiki", "textbook"],
+                "metadata_confidence": [0.9, 0.95],
+            }
+        )
+
+        keys = DatasetKeys(
+            input_keys=frozenset(["input_text", "input_context"]),
+            output_keys=frozenset(["output_answer"]),
+            metadata_keys=frozenset(["metadata_source", "metadata_confidence"]),
+        )
+
+        name, file_obj, content_type, headers = _prepare_dataframe_as_json(df, keys)
+
+        assert name == "dataframe.csv"
+        assert content_type == "text/csv"
+        assert headers == {"Content-Encoding": "gzip"}
+
+        file_obj.seek(0)
+        decompressed = gzip.decompress(file_obj.read()).decode()
+
+        generated_df = pd.read_csv(StringIO(decompressed))  # pyright: ignore[reportUnknownMemberType]
+
+        # Verify structure - columns should be sorted alphabetically within each group
+        # (input keys sorted, output keys sorted, metadata keys sorted)
+        expected_columns = [
+            "input_context",
+            "input_text",
+            "output_answer",
+            "metadata_confidence",
+            "metadata_source",
+        ]
+        assert list(generated_df.columns) == expected_columns
+        assert len(generated_df) == 2
+
+        assert generated_df.iloc[0]["input_text"] == "What is AI?"  # pyright: ignore[reportGeneralTypeIssues]
+        assert generated_df.iloc[1]["output_answer"] == "Machine Learning"  # pyright: ignore[reportGeneralTypeIssues]
+
+    def test_csv_validation_edge_cases(self) -> None:
+        """Test validation of problematic CSV scenarios."""
+        df_with_duplicate_cols = pd.DataFrame([[1, 2, 3]], columns=["col1", "col1", "col2"])
+        assert list(df_with_duplicate_cols.columns) == ["col1", "col1", "col2"]
+
+        keys = DatasetKeys(
+            input_keys=frozenset(["col1"]),
+            output_keys=frozenset(["col2"]),
+            metadata_keys=frozenset(),
+        )
+
+        # This should raise an error due to duplicate column names
+        with pytest.raises(ValueError, match="Duplicate column names in DataFrame"):
+            _prepare_dataframe_as_json(df_with_duplicate_cols, keys)
+
+        df = pd.DataFrame({"col1": [1], "col2": [2]})
+        keys_with_missing = DatasetKeys(
+            input_keys=frozenset(["col1", "missing_col"]),
+            output_keys=frozenset(["col2"]),
+            metadata_keys=frozenset(),
+        )
+
+        with pytest.raises(ValueError, match="Keys not found"):
+            keys_with_missing.check_differences(frozenset(df.columns))
