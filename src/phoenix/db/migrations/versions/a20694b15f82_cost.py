@@ -95,8 +95,64 @@ def upgrade() -> None:
             "cost_type",
         ),
     )
+    op.create_table(
+        "span_costs",
+        sa.Column(
+            "id",
+            sa.Integer,
+            primary_key=True,
+        ),
+        sa.Column(
+            "span_id",
+            sa.Integer,
+            sa.ForeignKey("spans.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "input_token_cost",
+            sa.Float,
+            nullable=True,
+        ),
+        sa.Column(
+            "output_token_cost",
+            sa.Float,
+            nullable=True,
+        ),
+        sa.Column(
+            "cache_read_token_cost",
+            sa.Float,
+            nullable=True,
+        ),
+        sa.Column(
+            "cache_write_token_cost",
+            sa.Float,
+            nullable=True,
+        ),
+        sa.Column(
+            "prompt_audio_token_cost",
+            sa.Float,
+            nullable=True,
+        ),
+        sa.Column(
+            "completion_audio_token_cost",
+            sa.Float,
+            nullable=True,
+        ),
+        sa.Column(
+            "reasoning_token_cost",
+            sa.Float,
+            nullable=True,
+        ),
+        sa.Column(
+            "total_token_cost",
+            sa.Float,
+            nullable=False,
+            index=True,
+        ),
+    )
 
 
 def downgrade() -> None:
+    op.drop_table("span_costs")
     op.drop_table("model_costs")
     op.drop_table("models")
