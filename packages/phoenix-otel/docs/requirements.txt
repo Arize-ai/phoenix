@@ -4,4 +4,4 @@ pydata-sphinx-theme
 linkify-it-py
 sphinx_design
 
--e .. 
+-e packages/phoenix-otel 
