@@ -277,10 +277,10 @@ Who wrote Hamlet?,Shakespeare,literature
         new_name = f"test_from_df_{uuid.uuid4().hex[:8]}"
         new_dataset = await _await_or_return(
             Client().datasets.create_dataset(
-                dataset_name=new_name, 
+                dataset_name=new_name,
                 inputs=inputs,  # pyright: ignore[reportUnknownArgumentType]
                 outputs=outputs,  # pyright: ignore[reportUnknownArgumentType]
-                metadata=metadata  # pyright: ignore[reportUnknownArgumentType]
+                metadata=metadata,  # pyright: ignore[reportUnknownArgumentType]
             )
         )
 
