@@ -89,8 +89,8 @@ class TestDataset:
         assert isinstance(df, pd.DataFrame)
         assert len(df) == 2
         assert list(df.columns) == ["input", "output", "metadata"]
-        assert df.index.name == "example_id"
-        assert list(df.index) == ["ex1", "ex2"]
+        assert df.index.name == "example_id"  # pyright: ignore[reportUnknownMemberType]
+        assert list(df.index) == ["ex1", "ex2"]  # pyright: ignore[reportUnknownMemberType]
 
     def test_to_dataframe_no_pandas(self, dataset_info: Any, examples_data: Any) -> None:
         dataset = Dataset(dataset_info, examples_data)
