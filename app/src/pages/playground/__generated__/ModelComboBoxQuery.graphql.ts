@@ -14,7 +14,7 @@ export type ModelComboBoxQuery$variables = {
   providerKey: GenerativeProviderKey;
 };
 export type ModelComboBoxQuery$data = {
-  readonly models: ReadonlyArray<{
+  readonly playgroundModels: ReadonlyArray<{
     readonly name: string;
   }>;
 };
@@ -47,9 +47,9 @@ v1 = [
         "name": "input"
       }
     ],
-    "concreteType": "GenerativeModel",
+    "concreteType": "PlaygroundModel",
     "kind": "LinkedField",
-    "name": "models",
+    "name": "playgroundModels",
     "plural": true,
     "selections": [
       {
@@ -81,16 +81,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "a3417a3b2ae9ad193a5fd68335cfd660",
+    "cacheID": "67fe753e1bc2ede814f616699bf7f3bb",
     "id": null,
     "metadata": {},
     "name": "ModelComboBoxQuery",
     "operationKind": "query",
-    "text": "query ModelComboBoxQuery(\n  $providerKey: GenerativeProviderKey!\n) {\n  models(input: {providerKey: $providerKey}) {\n    name\n  }\n}\n"
+    "text": "query ModelComboBoxQuery(\n  $providerKey: GenerativeProviderKey!\n) {\n  playgroundModels(input: {providerKey: $providerKey}) {\n    name\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "fc5563c6dca10fdeda807cd7061e275a";
+(node as any).hash = "1e812293e1547b594275780290b294be";
 
 export default node;
