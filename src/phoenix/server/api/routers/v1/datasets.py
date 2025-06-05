@@ -3,6 +3,7 @@ import gzip
 import io
 import json
 import logging
+import sys
 import urllib
 import zlib
 from asyncio import QueueFull
@@ -56,6 +57,9 @@ from .utils import (
     add_errors_to_responses,
     add_text_csv_content_to_responses,
 )
+
+csv.field_size_limit(sys.maxsize)  # allows arbitrarily large field sizes for CSV upload
+
 
 logger = logging.getLogger(__name__)
 
