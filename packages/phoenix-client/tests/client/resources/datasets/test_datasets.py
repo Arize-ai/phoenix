@@ -1,6 +1,7 @@
 import gzip
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pandas as pd
@@ -11,13 +12,13 @@ from phoenix.client.resources.datasets import (
     Dataset,
     DatasetKeys,
     DatasetUploadError,
-    _get_csv_column_headers,
-    _infer_keys,
-    _is_all_dict,
-    _is_valid_dataset_example,
-    _parse_datetime,
-    _prepare_csv,
-    _prepare_dataframe_as_json,
+    _get_csv_column_headers,  # pyright: ignore[reportPrivateUsage]
+    _infer_keys,  # pyright: ignore[reportPrivateUsage]
+    _is_all_dict,  # pyright: ignore[reportPrivateUsage]
+    _is_valid_dataset_example,  # pyright: ignore[reportPrivateUsage]
+    _parse_datetime,  # pyright: ignore[reportPrivateUsage]
+    _prepare_csv,  # pyright: ignore[reportPrivateUsage]
+    _prepare_dataframe_as_json,  # pyright: ignore[reportPrivateUsage]
 )
 
 
@@ -57,7 +58,7 @@ class TestDataset:
             ],
         )
 
-    def test_properties(self, dataset_info, examples_data):
+    def test_properties(self, dataset_info: Any, examples_data: Any) -> None:
         dataset = Dataset(dataset_info, examples_data)
 
         assert dataset.id == "dataset123"
@@ -70,7 +71,7 @@ class TestDataset:
         assert isinstance(dataset.created_at, datetime)
         assert isinstance(dataset.updated_at, datetime)
 
-    def test_sequence_operations(self, dataset_info, examples_data):
+    def test_sequence_operations(self, dataset_info: Any, examples_data: Any) -> None:
         dataset = Dataset(dataset_info, examples_data)
 
         assert len(dataset) == 2
@@ -81,7 +82,7 @@ class TestDataset:
         assert len(examples) == 2
         assert all(isinstance(ex, dict) for ex in examples)
 
-    def test_to_dataframe(self, dataset_info, examples_data):
+    def test_to_dataframe(self, dataset_info: Any, examples_data: Any) -> None:
         dataset = Dataset(dataset_info, examples_data)
         df = dataset.to_dataframe()
 
@@ -91,14 +92,14 @@ class TestDataset:
         assert df.index.name == "example_id"
         assert list(df.index) == ["ex1", "ex2"]
 
-    def test_to_dataframe_no_pandas(self, dataset_info, examples_data):
+    def test_to_dataframe_no_pandas(self, dataset_info: Any, examples_data: Any) -> None:
         dataset = Dataset(dataset_info, examples_data)
 
         with patch("builtins.__import__", side_effect=ImportError("No pandas")):
             with pytest.raises(ImportError, match="pandas is required"):
                 dataset.to_dataframe()
 
-    def test_repr(self, dataset_info, examples_data):
+    def test_repr(self, dataset_info: Any, examples_data: Any) -> None:
         dataset = Dataset(dataset_info, examples_data)
         repr_str = repr(dataset)
         assert "Dataset(" in repr_str
@@ -107,7 +108,7 @@ class TestDataset:
 
 
 class TestDatasetKeys:
-    def test_valid_keys(self):
+    def test_valid_keys(self) -> None:
         keys = DatasetKeys(
             input_keys=frozenset(["a", "b"]),
             output_keys=frozenset(["c"]),
@@ -118,7 +119,7 @@ class TestDatasetKeys:
         assert keys.metadata == frozenset(["d", "e"])
         assert set(keys) == {"a", "b", "c", "d", "e"}
 
-    def test_overlapping_keys_validation(self):
+    def test_overlapping_keys_validation(self) -> None:
         with pytest.raises(ValueError, match="Input and output keys overlap"):
             DatasetKeys(
                 input_keys=frozenset(["a", "b"]),
@@ -126,7 +127,7 @@ class TestDatasetKeys:
                 metadata_keys=frozenset(["d"]),
             )
 
-    def test_check_differences(self):
+    def test_check_differences(self) -> None:
         keys = DatasetKeys(
             input_keys=frozenset(["a"]),
             output_keys=frozenset(["b"]),
@@ -140,7 +141,7 @@ class TestDatasetKeys:
 
 
 class TestHelperFunctions:
-    def test_parse_datetime(self):
+    def test_parse_datetime(self) -> None:
         dt = _parse_datetime("2024-01-15T10:30:00")
         assert dt.year == 2024
         assert dt.month == 1
@@ -148,12 +149,12 @@ class TestHelperFunctions:
         assert dt.hour == 10
         assert dt.minute == 30
 
-    def test_is_all_dict(self):
+    def test_is_all_dict(self) -> None:
         assert _is_all_dict([{"a": 1}, {"b": 2}])
         assert not _is_all_dict([{"a": 1}, "not a dict"])
         assert _is_all_dict([])
 
-    def test_is_valid_dataset_example(self):
+    def test_is_valid_dataset_example(self) -> None:
         valid_example = v1.DatasetExample(
             id="ex1",
             input={"text": "hello"},
@@ -165,47 +166,47 @@ class TestHelperFunctions:
         assert not _is_valid_dataset_example({"incomplete": "dict"})
         assert not _is_valid_dataset_example("not a dict")
 
-    def test_get_csv_column_headers(self, tmp_path):
+    def test_get_csv_column_headers(self, tmp_path: Path) -> None:
         csv_file = tmp_path / "test.csv"
-        csv_file.write_text("col1,col2,col3\nval1,val2,val3\n")
+        csv_file.write_text("col1,col2,col3\nval1,val2,val3\n")  # type: ignore[reportUnknownMemberType]
 
         headers = _get_csv_column_headers(csv_file)
         assert headers == ("col1", "col2", "col3")
 
-    def test_get_csv_column_headers_errors(self, tmp_path):
+    def test_get_csv_column_headers_errors(self, tmp_path: Path) -> None:
         empty_file = tmp_path / "empty.csv"
-        empty_file.write_text("")
+        empty_file.write_text("")  # type: ignore[reportUnknownMemberType]
 
         with pytest.raises(ValueError, match="CSV file has no data rows"):
-            _get_csv_column_headers(empty_file)
+            _get_csv_column_headers(empty_file)  # type: ignore[reportUnknownArgumentType]
 
         with pytest.raises(FileNotFoundError):
             _get_csv_column_headers(Path("/non/existent/file.csv"))
 
-    def test_infer_keys(self, tmp_path):
+    def test_infer_keys(self, tmp_path: Path) -> None:
         df = pd.DataFrame(
             {"input1": [1, 2], "input2": [3, 4], "response": [5, 6], "metadata1": [7, 8]}
         )
 
-        input_keys, output_keys, metadata_keys = _infer_keys(df)
+        input_keys, output_keys, metadata_keys = _infer_keys(df)  # type: ignore[reportUnknownArgumentType]
 
         assert input_keys == ("input1", "input2")
         assert output_keys == ("response",)
         assert metadata_keys == ("metadata1",)
 
         csv_file = tmp_path / "test.csv"
-        csv_file.write_text("feature1,feature2,output,extra\nval1,val2,val3,val4\n")
+        csv_file.write_text("feature1,feature2,output,extra\nval1,val2,val3,val4\n")  # type: ignore[reportUnknownMemberType]
 
-        input_keys, output_keys, metadata_keys = _infer_keys(csv_file)
+        input_keys, output_keys, metadata_keys = _infer_keys(csv_file)  # type: ignore[reportUnknownArgumentType]
 
         assert input_keys == ("feature1", "feature2")
         assert output_keys == ("output",)
         assert metadata_keys == ("extra",)
 
-    def test_prepare_csv(self, tmp_path):
+    def test_prepare_csv(self, tmp_path: Path) -> None:
         csv_file = tmp_path / "test.csv"
         csv_content = "input1,input2,output\nval1,val2,val3\n"
-        csv_file.write_text(csv_content)
+        csv_file.write_text(csv_content)  # type: ignore[reportUnknownMemberType]
 
         keys = DatasetKeys(
             input_keys=frozenset(["input1", "input2"]),
@@ -213,7 +214,7 @@ class TestHelperFunctions:
             metadata_keys=frozenset(),
         )
 
-        name, file_obj, content_type, headers = _prepare_csv(csv_file, keys)
+        name, file_obj, content_type, headers = _prepare_csv(csv_file, keys)  # type: ignore[reportUnknownArgumentType]
 
         assert name == "test.csv"
         assert content_type == "text/csv"
@@ -223,9 +224,9 @@ class TestHelperFunctions:
         decompressed = gzip.decompress(file_obj.read()).decode()
         assert decompressed == csv_content
 
-    def test_prepare_csv_validation(self, tmp_path):
+    def test_prepare_csv_validation(self, tmp_path: Path) -> None:
         csv_file = tmp_path / "test.csv"
-        csv_file.write_text("col1,col1,col2\nval1,val2,val3\n")
+        csv_file.write_text("col1,col1,col2\nval1,val2,val3\n")  # type: ignore[reportUnknownMemberType]
 
         keys = DatasetKeys(
             input_keys=frozenset(["col1"]),
@@ -236,7 +237,7 @@ class TestHelperFunctions:
         with pytest.raises(ValueError, match="Duplicate column headers"):
             _prepare_csv(csv_file, keys)
 
-    def test_prepare_dataframe_as_json(self):
+    def test_prepare_dataframe_as_json(self) -> None:
         df = pd.DataFrame({"input": ["a", "b"], "output": ["x", "y"], "metadata": ["m1", "m2"]})
 
         keys = DatasetKeys(
@@ -257,7 +258,7 @@ class TestHelperFunctions:
         assert "a,x,m1" in decompressed
         assert "b,y,m2" in decompressed
 
-    def test_prepare_dataframe_validation(self):
+    def test_prepare_dataframe_validation(self) -> None:
         df = pd.DataFrame()
         keys = DatasetKeys(
             input_keys=frozenset(),
@@ -270,6 +271,6 @@ class TestHelperFunctions:
 
 
 class TestDatasetUploadError:
-    def test_error_message(self):
+    def test_error_message(self) -> None:
         error = DatasetUploadError("Upload failed")
         assert str(error) == "Upload failed"

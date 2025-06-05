@@ -32,7 +32,7 @@ def _is_valid_dataset_example(obj: Any) -> bool:
 
     required_fields = set(v1.DatasetExample.__annotations__.keys())
 
-    if not required_fields.issubset(obj.keys()):
+    if not required_fields.issubset(obj.keys()):  # pyright: ignore[reportUnknownArgumentType]
         return False
     return True
 
@@ -109,7 +109,7 @@ class Dataset:
     def example_count(self) -> int:
         """Number of examples in this version."""
         if "example_count" in self._dataset_info:
-            return self._dataset_info["example_count"]
+            return self._dataset_info["example_count"]  # type: ignore[no-any-return,typeddict-item]
         return len(self.examples)
 
     def __repr__(self) -> str:
@@ -163,7 +163,7 @@ class Dataset:
         from copy import deepcopy
 
         if not self.examples:
-            return pd.DataFrame(columns=["input", "output", "metadata"]).set_index(
+            return pd.DataFrame(columns=["input", "output", "metadata"]).set_index(  # pyright: ignore[reportUnknownMemberType]
                 pd.Index([], name="example_id")
             )
 
@@ -177,7 +177,7 @@ class Dataset:
             for example in self.examples
         ]
 
-        return pd.DataFrame.from_records(records).set_index("example_id")
+        return pd.DataFrame.from_records(records).set_index("example_id")  # pyright: ignore[reportUnknownMemberType]
 
 
 # Type alias for flexible dataset identification
@@ -294,7 +294,7 @@ class Datasets:
                 return dataset, None
             else:
                 return None, dataset
-        elif isinstance(dataset, dict):
+        elif isinstance(dataset, dict):  # pyright: ignore[reportUnnecessaryIsInstance]
             return dataset.get("id"), dataset.get("name")
         else:
             raise ValueError(
@@ -407,7 +407,7 @@ class Datasets:
             if "created_at" in record:
                 record["created_at"] = _parse_datetime(record["created_at"])
 
-        return records
+        return records  # type: ignore[no-any-return]
 
     def create_dataset(
         self,
@@ -477,7 +477,7 @@ class Datasets:
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
-            assert table is not None  # Type narrowing for mypy
+            assert table is not None
             return self._upload_tabular_dataset(
                 table,
                 dataset_name=dataset_name,
@@ -554,6 +554,9 @@ class Datasets:
             else:
                 raise ValueError("Could not determine dataset name from input")
 
+        # At this point resolved_name is guaranteed to be not None
+        assert resolved_name is not None
+
         has_examples = examples is not None
         has_tabular = dataframe is not None or csv_file_path is not None
         has_json = any(inputs) or any(outputs) or any(metadata)
@@ -580,7 +583,7 @@ class Datasets:
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
-            assert table is not None  # Type narrowing for mypy
+            assert table is not None
             return self._upload_tabular_dataset(
                 table,
                 dataset_name=resolved_name,
@@ -672,7 +675,7 @@ class Datasets:
             try:
                 import pandas as pd
 
-                if not isinstance(table, pd.DataFrame):
+                if not isinstance(table, pd.DataFrame):  # pyright: ignore[reportUnnecessaryIsInstance]
                     raise ValueError("Expected pandas DataFrame")
             except ImportError:
                 raise ImportError(
@@ -860,7 +863,7 @@ class AsyncDatasets:
                 return dataset, None
             else:
                 return None, dataset
-        elif isinstance(dataset, dict):
+        elif isinstance(dataset, dict):  # pyright: ignore[reportUnnecessaryIsInstance]
             return dataset.get("id"), dataset.get("name")
         else:
             raise ValueError(
@@ -981,7 +984,7 @@ class AsyncDatasets:
             if "created_at" in record:
                 record["created_at"] = _parse_datetime(record["created_at"])
 
-        return records
+        return records  # type: ignore[no-any-return]
 
     async def create_dataset(
         self,
@@ -1051,7 +1054,7 @@ class AsyncDatasets:
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
-            assert table is not None  # Type narrowing for mypy
+            assert table is not None
             return await self._upload_tabular_dataset(
                 table,
                 dataset_name=dataset_name,
@@ -1130,6 +1133,9 @@ class AsyncDatasets:
             else:
                 raise ValueError("Could not determine dataset name from input")
 
+        # At this point resolved_name is guaranteed to be not None
+        assert resolved_name is not None
+
         has_examples = examples is not None
         has_tabular = dataframe is not None or csv_file_path is not None
         has_json = any(inputs) or any(outputs) or any(metadata)
@@ -1156,7 +1162,7 @@ class AsyncDatasets:
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
-            assert table is not None  # Type narrowing for mypy
+            assert table is not None
             return await self._upload_tabular_dataset(
                 table,
                 dataset_name=resolved_name,
@@ -1233,7 +1239,7 @@ class AsyncDatasets:
             try:
                 import pandas as pd
 
-                if not isinstance(table, pd.DataFrame):
+                if not isinstance(table, pd.DataFrame):  # pyright: ignore[reportUnnecessaryIsInstance]
                     raise ValueError("Expected pandas DataFrame")
             except ImportError:
                 raise ImportError(
