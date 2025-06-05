@@ -1248,6 +1248,36 @@ input Granularity {
 
 scalar Identifier
 
+type InferenceModel {
+  dimensions(first: Int = 50, last: Int, after: String, before: String, include: DimensionFilter, exclude: DimensionFilter): DimensionConnection!
+  primaryInferences: Inferences!
+  referenceInferences: Inferences
+  corpusInferences: Inferences
+  embeddingDimensions(first: Int = 50, last: Int, after: String, before: String): EmbeddingDimensionConnection!
+
+  """Returns exported file names sorted by descending modification time."""
+  exportedFiles: [ExportedFile!]!
+  performanceMetric(
+    metric: PerformanceMetricInput!
+    timeRange: TimeRange
+
+    """The inferences (primary or reference) to query"""
+    inferencesRole: InferencesRole = primary
+  ): Float
+
+  """
+  Returns the time series of the specified metric for data within a time range. Data points are generated starting at the end time and are separated by the sampling interval. Each data point is labeled by the end instant and contains data from their respective evaluation windows.
+  """
+  performanceTimeSeries(
+    metric: PerformanceMetricInput!
+    timeRange: TimeRange!
+    granularity: Granularity!
+
+    """The inferences (primary or reference) to query"""
+    inferencesRole: InferencesRole = primary
+  ): PerformanceTimeSeries!
+}
+
 type Inferences {
   """The start bookend of the data"""
   startTime: DateTime!
@@ -1351,34 +1381,35 @@ type MissingValueBin {
   name: String
 }
 
-type Model {
-  dimensions(first: Int = 50, last: Int, after: String, before: String, include: DimensionFilter, exclude: DimensionFilter): DimensionConnection!
-  primaryInferences: Inferences!
-  referenceInferences: Inferences
-  corpusInferences: Inferences
-  embeddingDimensions(first: Int = 50, last: Int, after: String, before: String): EmbeddingDimensionConnection!
+type Model implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: String!
+  provider: String
+  namePattern: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
 
-  """Returns exported file names sorted by descending modification time."""
-  exportedFiles: [ExportedFile!]!
-  performanceMetric(
-    metric: PerformanceMetricInput!
-    timeRange: TimeRange
+  """The generative provider if the model provider matches a known provider"""
+  generativeProvider: GenerativeProvider
+}
 
-    """The inferences (primary or reference) to query"""
-    inferencesRole: InferencesRole = primary
-  ): Float
+"""A connection to a list of items."""
+type ModelConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
 
-  """
-  Returns the time series of the specified metric for data within a time range. Data points are generated starting at the end time and are separated by the sampling interval. Each data point is labeled by the end instant and contains data from their respective evaluation windows.
-  """
-  performanceTimeSeries(
-    metric: PerformanceMetricInput!
-    timeRange: TimeRange!
-    granularity: Granularity!
+  """Contains the nodes in this connection"""
+  edges: [ModelEdge!]!
+}
 
-    """The inferences (primary or reference) to query"""
-    inferencesRole: InferencesRole = primary
-  ): PerformanceTimeSeries!
+"""An edge in a connection."""
+type ModelEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Model!
 }
 
 enum ModelProvider {
@@ -1934,7 +1965,8 @@ type PromptVersionTagMutationPayload {
 
 type Query {
   modelProviders: [GenerativeProvider!]!
-  models(input: ModelsInput = null): [GenerativeModel!]!
+  models(first: Int = 50, last: Int, after: String, before: String): ModelConnection!
+  generativeModels(input: ModelsInput = null): [GenerativeModel!]!
   modelInvocationParameters(input: ModelsInput = null): [InvocationParameter!]!
   users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
   userRoles: [UserRole!]!
@@ -1947,7 +1979,7 @@ type Query {
   compareExperiments(experimentIds: [ID!]!, filterCondition: String): [ExperimentComparison!]!
   validateExperimentRunFilterCondition(condition: String!, experimentIds: [ID!]!): ValidationResult!
   functionality: Functionality!
-  model: Model!
+  model: InferenceModel!
   node(id: ID!): Node!
   viewer: User
   prompts(first: Int = 50, last: Int, after: String, before: String): PromptConnection!
