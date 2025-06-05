@@ -62,11 +62,7 @@ spec:
             - -c
             - exec pg_isready --host $POD_IP
         volumeMounts:
-<<<<<<< HEAD
-        - mountPath: /var/lib/postgresql/data
-=======
         - mountPath: /var/lib/postgresql
->>>>>>> 1003568f2ab904086ac7112124c58839b2411d50
           name: postgres-data
   volumeClaimTemplates:
     - metadata:
