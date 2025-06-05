@@ -12,11 +12,7 @@ build:
 
 # Build documentation in the "docs/" directory with Sphinx
 sphinx:
-<<<<<<< HEAD
     configuration: packages/phoenix-otel/docs/source/conf.py
-=======
-    configuration: docs/source/conf.py
->>>>>>> d27c4b0e6e39637ca6427944e648c212d647ae3a
     # Fail on all warnings to avoid broken references
     fail_on_warning: true
 
@@ -24,12 +20,6 @@ sphinx:
 # to build your documentation
 python:
     install:
-<<<<<<< HEAD
         - requirements: packages/phoenix-otel/docs/requirements.txt
         - method: pip
           path: packages/phoenix-otel 
-=======
-        - requirements: docs/requirements.txt
-        - method: pip
-          path: . 
->>>>>>> d27c4b0e6e39637ca6427944e648c212d647ae3a
