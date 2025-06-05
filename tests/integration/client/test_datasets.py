@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import pytest
@@ -268,15 +269,18 @@ Who wrote Hamlet?,Shakespeare,literature
         assert list(df.columns) == ["input", "output", "metadata"]
 
         # Extract data from DataFrame
-        inputs = df["input"].tolist()
-        outputs = df["output"].tolist()
-        metadata = df["metadata"].tolist()
+        inputs: list[dict[str, Any]] = df["input"].tolist()  # pyright: ignore[reportUnknownVariableType]
+        outputs: list[dict[str, Any]] = df["output"].tolist()  # pyright: ignore[reportUnknownVariableType]
+        metadata: list[dict[str, Any]] = df["metadata"].tolist()  # pyright: ignore[reportUnknownVariableType]
 
         # Create new dataset from DataFrame data
         new_name = f"test_from_df_{uuid.uuid4().hex[:8]}"
         new_dataset = await _await_or_return(
             Client().datasets.create_dataset(
-                dataset_name=new_name, inputs=inputs, outputs=outputs, metadata=metadata
+                dataset_name=new_name, 
+                inputs=inputs,  # pyright: ignore[reportUnknownArgumentType]
+                outputs=outputs,  # pyright: ignore[reportUnknownArgumentType]
+                metadata=metadata  # pyright: ignore[reportUnknownArgumentType]
             )
         )
 
