@@ -1,4 +1,3 @@
-import base64
 import logging
 from datetime import datetime, timezone, tzinfo
 from io import StringIO
@@ -11,6 +10,7 @@ if TYPE_CHECKING:
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.types.spans import SpanQuery
+from phoenix.client.utils.id_handling import is_node_id
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +91,7 @@ class Spans:
             if project_identifier and project_name:
                 raise ValueError("Provide only one of 'project_identifier' or 'project_name'.")
             elif project_identifier and not project_name:
-                if _is_node_id(project_identifier, node_type="Project"):
+                if is_node_id(project_identifier, node_type="Project"):
                     project_response = self._client.get(
                         url=f"v1/projects/{project_identifier}",
                         headers={"accept": "application/json"},
@@ -485,7 +485,7 @@ class AsyncSpans:
             if project_identifier and project_name:
                 raise ValueError("Provide only one of 'project_identifier' or 'project_name'.")
             elif project_identifier and not project_name:
-                if _is_node_id(project_identifier, node_type="Project"):
+                if is_node_id(project_identifier, node_type="Project"):
                     project_response = await self._client.get(
                         url=f"v1/projects/{project_identifier}",
                         headers={"accept": "application/json"},
@@ -866,16 +866,6 @@ def _process_span_dataframe(response: httpx.Response) -> "pd.DataFrame":
         return dfs[0]  # only passing in one query
     else:
         return pd.DataFrame()
-
-
-def _is_node_id(s: str, node_type: str) -> bool:
-    try:
-        decoded = base64.b64decode(s, validate=True)
-        if not decoded.startswith(f"{node_type}:".encode("utf-8")):
-            return False
-        return True
-    except Exception:
-        return False
 
 
 def _flatten_nested_column(df: "pd.DataFrame", column_name: str) -> "pd.DataFrame":
