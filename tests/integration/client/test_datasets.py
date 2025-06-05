@@ -35,7 +35,7 @@ class TestDatasetIntegration:
         # Create dataset with JSON data
         dataset = await _await_or_return(
             Client().datasets.create_dataset(
-                dataset_name=unique_name,
+                name=unique_name,
                 inputs=[{"text": "What is 2+2?"}, {"text": "What is the capital of France?"}],
                 outputs=[{"answer": "4"}, {"answer": "Paris"}],
                 metadata=[{"category": "math"}, {"category": "geography"}],
@@ -78,7 +78,7 @@ class TestDatasetIntegration:
         # Create initial dataset
         dataset = await _await_or_return(
             Client().datasets.create_dataset(
-                dataset_name=unique_name,
+                name=unique_name,
                 inputs=[{"text": "Hello"}],
                 outputs=[{"response": "Hi"}],
             )
@@ -121,7 +121,7 @@ class TestDatasetIntegration:
         # Create dataset
         dataset = await _await_or_return(
             Client().datasets.create_dataset(
-                dataset_name=unique_name,
+                name=unique_name,
                 inputs=[{"text": "v1"}],
                 outputs=[{"response": "version 1"}],
             )
@@ -172,7 +172,7 @@ Who wrote Hamlet?,Shakespeare,literature
 
         dataset = await _await_or_return(
             Client().datasets.create_dataset(
-                dataset_name=unique_name,
+                name=unique_name,
                 csv_file_path=csv_file,
                 input_keys=["question"],
                 output_keys=["answer"],
@@ -212,7 +212,7 @@ Who wrote Hamlet?,Shakespeare,literature
 
         dataset = await _await_or_return(
             Client().datasets.create_dataset(
-                dataset_name=unique_name,
+                name=unique_name,
                 dataframe=df,
                 input_keys=["prompt"],
                 output_keys=["response"],
@@ -245,7 +245,7 @@ Who wrote Hamlet?,Shakespeare,literature
         # Create dataset
         dataset = await _await_or_return(
             Client().datasets.create_dataset(
-                dataset_name=unique_name,
+                name=unique_name,
                 inputs=[
                     {"question": "What is AI?", "context": "technology"},
                     {"question": "Define ML", "context": "tech"},
@@ -277,7 +277,7 @@ Who wrote Hamlet?,Shakespeare,literature
         new_name = f"test_from_df_{uuid.uuid4().hex[:8]}"
         new_dataset = await _await_or_return(
             Client().datasets.create_dataset(
-                dataset_name=new_name,
+                name=new_name,
                 inputs=inputs,  # pyright: ignore[reportUnknownArgumentType]
                 outputs=outputs,  # pyright: ignore[reportUnknownArgumentType]
                 metadata=metadata,  # pyright: ignore[reportUnknownArgumentType]
@@ -307,7 +307,7 @@ Who wrote Hamlet?,Shakespeare,literature
         source_name = f"test_source_{uuid.uuid4().hex[:8]}"
         source = await _await_or_return(
             Client().datasets.create_dataset(
-                dataset_name=source_name,
+                name=source_name,
                 inputs=[{"q": "Q1"}, {"q": "Q2"}, {"q": "Q3"}],
                 outputs=[{"a": "A1"}, {"a": "A2"}, {"a": "A3"}],
                 metadata=[{"idx": 1}, {"idx": 2}, {"idx": 3}],
@@ -318,7 +318,7 @@ Who wrote Hamlet?,Shakespeare,literature
         target_name = f"test_target_{uuid.uuid4().hex[:8]}"
         target = await _await_or_return(
             Client().datasets.create_dataset(
-                dataset_name=target_name,
+                name=target_name,
                 examples=source[0],  # Single example
             )
         )
@@ -357,7 +357,7 @@ Who wrote Hamlet?,Shakespeare,literature
         # Create dataset
         dataset = await _await_or_return(
             Client().datasets.create_dataset(
-                dataset_name=unique_name,
+                name=unique_name,
                 inputs=[{"text": "test"}],
                 outputs=[{"result": "success"}],
             )
@@ -406,7 +406,7 @@ Who wrote Hamlet?,Shakespeare,literature
         with pytest.raises(ValueError, match="inputs must be non-empty"):
             await _await_or_return(
                 Client().datasets.create_dataset(
-                    dataset_name="test",
+                    name="test",
                     inputs=[],
                     outputs=[],
                 )
@@ -434,7 +434,7 @@ Who wrote Hamlet?,Shakespeare,literature
         source_name = f"test_source_{uuid.uuid4().hex[:8]}"
         source_dataset = await _await_or_return(
             Client().datasets.create_dataset(
-                dataset_name=source_name,
+                name=source_name,
                 inputs=[
                     {"question": "What is Python?", "difficulty": "easy"},
                     {"question": "Explain async/await", "difficulty": "medium"},
@@ -459,7 +459,7 @@ Who wrote Hamlet?,Shakespeare,literature
         target_name = f"test_target_{uuid.uuid4().hex[:8]}"
         target_dataset = await _await_or_return(
             Client().datasets.create_dataset(
-                dataset_name=target_name,
+                name=target_name,
                 inputs=[{"placeholder": "initial"}],
                 outputs=[{"placeholder": "initial"}],
             )
@@ -492,7 +492,7 @@ Who wrote Hamlet?,Shakespeare,literature
         subset_target_name = f"test_subset_{uuid.uuid4().hex[:8]}"
         subset_dataset = await _await_or_return(
             Client().datasets.create_dataset(
-                dataset_name=subset_target_name,
+                name=subset_target_name,
                 examples=source_dataset.examples[:2],  # Only first 2 examples
             )
         )

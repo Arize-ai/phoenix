@@ -11,8 +11,6 @@ def is_node_id(s: str, node_type: str) -> bool:
     """
     try:
         decoded = base64.b64decode(s, validate=True)
-        if not decoded.startswith(f"{node_type}:".encode("utf-8")):
-            return False
-        return True
+        return bool(decoded.startswith(f"{node_type}:".encode("utf-8")))
     except Exception:
         return False

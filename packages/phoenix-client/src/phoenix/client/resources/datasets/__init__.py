@@ -146,7 +146,7 @@ class Dataset:
             ImportError: If pandas is not installed.
 
         Example:
-            >>> dataset = client.datasets.get_dataset(dataset_name="my-dataset")
+            >>> dataset = client.datasets.get_dataset(dataset="my-dataset")
             >>> df = dataset.to_dataframe()
             >>> print(df.columns)
             Index(['input', 'output', 'metadata'], dtype='object')
@@ -237,7 +237,7 @@ class Datasets:
         Creating and updating datasets:
             >>> # Create a new dataset
             >>> dataset = client.datasets.create_dataset(
-            ...     dataset_name="qa-dataset",
+            ...     name="qa-dataset",
             ...     inputs=[
             ...         {"question": "What is 2+2?"},
             ...         {"question": "What's the capital of France?"},
@@ -265,7 +265,7 @@ class Datasets:
             ...     "score": [0.9, 0.95]
             ... })
             >>> dataset = client.datasets.create_dataset(
-            ...     dataset_name="greetings",
+            ...     name="greetings",
             ...     dataframe=df,
             ...     input_keys=["prompt"],
             ...     output_keys=["response"],
@@ -412,7 +412,7 @@ class Datasets:
     def create_dataset(
         self,
         *,
-        dataset_name: str,
+        name: str,
         examples: Optional[Union[v1.DatasetExample, Iterable[v1.DatasetExample]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
@@ -480,7 +480,7 @@ class Datasets:
             assert table is not None
             return self._upload_tabular_dataset(
                 table,
-                dataset_name=dataset_name,
+                dataset_name=name,
                 input_keys=input_keys,
                 output_keys=output_keys,
                 metadata_keys=metadata_keys,
@@ -490,7 +490,7 @@ class Datasets:
             )
         else:
             return self._upload_json_dataset(
-                dataset_name=dataset_name,
+                dataset_name=name,
                 inputs=inputs,
                 outputs=outputs,
                 metadata=metadata,
@@ -682,7 +682,7 @@ class Datasets:
                     "pandas is required to upload DataFrames. "
                     "Install it with 'pip install pandas'"
                 )
-            file = _prepare_dataframe_as_json(table, keys)
+            file = _prepare_dataframe_as_csv(table, keys)
 
         logger.info("Uploading dataset...")
         response = self._client.post(
@@ -697,6 +697,7 @@ class Datasets:
                 "metadata_keys[]": sorted(keys.metadata),
             },
             params={"sync": True},
+            headers={"accept": "application/json"},
             timeout=timeout,
         )
 
@@ -806,7 +807,7 @@ class AsyncDatasets:
         Creating and updating datasets:
             >>> # Create a new dataset
             >>> dataset = await client.datasets.create_dataset(
-            ...     dataset_name="qa-dataset",
+            ...     name="qa-dataset",
             ...     inputs=[
             ...         {"question": "What is 2+2?"},
             ...         {"question": "What's the capital of France?"},
@@ -834,7 +835,7 @@ class AsyncDatasets:
             ...     "score": [0.9, 0.95]
             ... })
             >>> dataset = await client.datasets.create_dataset(
-            ...     dataset_name="greetings",
+            ...     name="greetings",
             ...     dataframe=df,
             ...     input_keys=["prompt"],
             ...     output_keys=["response"],
@@ -848,7 +849,6 @@ class AsyncDatasets:
     async def _resolve_dataset_id_and_name(
         self,
         dataset: DatasetIdentifier,
-        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> tuple[Optional[str], Optional[str]]:
         """
         Resolve dataset ID and name from various input forms.
@@ -894,9 +894,7 @@ class AsyncDatasets:
             ValueError: If dataset format is invalid.
             httpx.HTTPStatusError: If the API returns an error response.
         """
-        resolved_id, resolved_name = await self._resolve_dataset_id_and_name(
-            dataset, timeout=timeout
-        )
+        resolved_id, resolved_name = await self._resolve_dataset_id_and_name(dataset)
 
         if resolved_id:
             dataset_id = resolved_id
@@ -989,7 +987,7 @@ class AsyncDatasets:
     async def create_dataset(
         self,
         *,
-        dataset_name: str,
+        name: str,
         examples: Optional[Union[v1.DatasetExample, Iterable[v1.DatasetExample]]] = None,
         dataframe: Optional["pd.DataFrame"] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
@@ -1057,7 +1055,7 @@ class AsyncDatasets:
             assert table is not None
             return await self._upload_tabular_dataset(
                 table,
-                dataset_name=dataset_name,
+                dataset_name=name,
                 input_keys=input_keys,
                 output_keys=output_keys,
                 metadata_keys=metadata_keys,
@@ -1067,7 +1065,7 @@ class AsyncDatasets:
             )
         else:
             return await self._upload_json_dataset(
-                dataset_name=dataset_name,
+                dataset_name=name,
                 inputs=inputs,
                 outputs=outputs,
                 metadata=metadata,
@@ -1246,7 +1244,7 @@ class AsyncDatasets:
                     "pandas is required to upload DataFrames. "
                     "Install it with 'pip install pandas'"
                 )
-            file = _prepare_dataframe_as_json(table, keys)
+            file = _prepare_dataframe_as_csv(table, keys)
 
         logger.info("Uploading dataset...")
         response = await self._client.post(
@@ -1261,6 +1259,7 @@ class AsyncDatasets:
                 "metadata_keys[]": sorted(keys.metadata),
             },
             params={"sync": True},
+            headers={"accept": "application/json"},
             timeout=timeout,
         )
 
@@ -1366,8 +1365,8 @@ def _get_csv_column_headers(path: Path) -> tuple[str, ...]:
             column_headers = tuple(next(reader))
             # Check if there's at least one data row
             next(reader)
-        except StopIteration:
-            raise ValueError("CSV file has no data rows")
+        except StopIteration as e:
+            raise ValueError("CSV file has no data rows") from e
 
     return column_headers
 
@@ -1394,7 +1393,7 @@ def _prepare_csv(path: Path, keys: DatasetKeys) -> tuple[str, BinaryIO, str, dic
     return (path.name, compressed, "text/csv", {"Content-Encoding": "gzip"})
 
 
-def _prepare_dataframe_as_json(
+def _prepare_dataframe_as_csv(
     df: "pd.DataFrame", keys: DatasetKeys
 ) -> tuple[str, BinaryIO, str, dict[str, str]]:
     """
@@ -1439,9 +1438,9 @@ def _infer_keys(
             column_headers = tuple(table.columns)
         else:
             column_headers = _get_csv_column_headers(Path(table))
-    except ImportError:
+    except ImportError as e:
         if not isinstance(table, (str, Path)):
-            raise ValueError("Pandas not available, table must be a CSV file path")
+            raise ValueError("Pandas not available, table must be a CSV file path") from e
         column_headers = _get_csv_column_headers(Path(table))
 
     # Pattern to match output/response columns

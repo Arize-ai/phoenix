@@ -362,14 +362,13 @@ class TestCSVProcessing:
                 "input_context": ["technology", "computer science"],
                 "output_answer": ["Artificial Intelligence", "Machine Learning"],
                 "metadata_source": ["wiki", "textbook"],
-                "metadata_confidence": [0.9, 0.95],
             }
         )
 
         keys = DatasetKeys(
             input_keys=frozenset(["input_text", "input_context"]),
             output_keys=frozenset(["output_answer"]),
-            metadata_keys=frozenset(["metadata_source", "metadata_confidence"]),
+            metadata_keys=frozenset(["metadata_source"]),
         )
 
         name, file_obj, content_type, headers = _prepare_dataframe_as_json(df, keys)
@@ -389,7 +388,6 @@ class TestCSVProcessing:
             "input_context",
             "input_text",
             "output_answer",
-            "metadata_confidence",
             "metadata_source",
         ]
         assert list(generated_df.columns) == expected_columns
@@ -409,7 +407,6 @@ class TestCSVProcessing:
             metadata_keys=frozenset(),
         )
 
-        # This should raise an error due to duplicate column names
         with pytest.raises(ValueError, match="Duplicate column names in DataFrame"):
             _prepare_dataframe_as_json(df_with_duplicate_cols, keys)
 
