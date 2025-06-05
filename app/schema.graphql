@@ -2179,6 +2179,9 @@ type Span implements Node {
 
   """Invocation parameters for the span"""
   invocationParameters: [InvocationParameter!]!
+
+  """The cost of the span"""
+  cost: TokenCost
 }
 
 type SpanAnnotation implements Node & Annotation {
@@ -2400,6 +2403,17 @@ interface TimeSeries {
 type TimeSeriesDataPoint {
   timestamp: DateTime!
   value: Float
+}
+
+type TokenCost {
+  input: Float
+  output: Float
+  cacheRead: Float
+  cacheWrite: Float
+  promptAudio: Float
+  completionAudio: Float
+  reasoning: Float
+  total: Float!
 }
 
 type TokenCountPromptDetails {
