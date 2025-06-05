@@ -7,7 +7,11 @@ build:
 
 sphinx:
   configuration: packages/phoenix-client/docs/source/conf.py
+  builder: html
+  fail_on_warning: false
 
 python:
   install:
-    - requirements: packages/phoenix-client/docs/requirements.txt 
+    - requirements: packages/phoenix-client/docs/requirements.txt
+    - method: pip
+      path: packages/phoenix-client 
