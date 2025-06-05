@@ -41,6 +41,7 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
+import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
@@ -230,6 +231,9 @@ export function SpansTable(props: SpansTableProps) {
                   ndcg
                   precision
                   hit
+                }
+                cost {
+                  total
                 }
                 ...AnnotationSummaryGroup
               }
@@ -484,6 +488,18 @@ export function SpansTable(props: SpansTableProps) {
         return (
           <TokenCount tokenCountTotal={tokenCountTotal || 0} nodeId={span.id} />
         );
+      },
+    },
+    {
+      header: "cost",
+      accessorKey: "cost.total",
+      cell: ({ row, getValue }) => {
+        const value = getValue();
+        if (value === null || typeof value !== "number") {
+          return "--";
+        }
+        const span = row.original;
+        return <TokenCosts totalCost={value} nodeId={span.id} />;
       },
     },
   ];

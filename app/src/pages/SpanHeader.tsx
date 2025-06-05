@@ -6,6 +6,7 @@ import { Flex, Text } from "@phoenix/components";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
+import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
@@ -25,6 +26,9 @@ export function SpanHeader(props: SpanHeaderProps) {
         latencyMs
         startTime
         tokenCountTotal
+        cost {
+          total
+        }
       }
     `,
     props.span
@@ -66,6 +70,9 @@ export function SpanHeader(props: SpanHeaderProps) {
               nodeId={span.id}
               size="S"
             />
+          ) : null}
+          {span.cost?.total ? (
+            <TokenCosts totalCost={span.cost.total} nodeId={span.id} />
           ) : null}
         </Flex>
       </Flex>
