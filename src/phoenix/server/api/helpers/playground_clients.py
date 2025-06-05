@@ -601,20 +601,31 @@ class OllamaStreamingClient(OpenAIBaseStreamingClient):
     provider_key=GenerativeProviderKey.BEDROCK,
     model_names=[
         PROVIDER_DEFAULT,
-        "claude-sonnet-4-0",
-        "claude-sonnet-4-20250514",
-        "claude-opus-4-0",
-        "claude-opus-4-20250514",
-        "claude-3-7-sonnet-latest",
-        "claude-3-7-sonnet-20250219",
-        "claude-3-5-sonnet-latest",
-        "claude-3-5-haiku-latest",
-        "claude-3-5-sonnet-20241022",
-        "claude-3-5-haiku-20241022",
-        "claude-3-5-sonnet-20240620",
-        "claude-3-opus-latest",
-        "claude-3-sonnet-20240229",
-        "claude-3-haiku-20240307",
+        "anthropic.claude-3-5-sonnet-20240620-v1:0",
+        "anthropic.claude-3-7-sonnet-20250219-v1:0",
+        "anthropic.claude-3-haiku-20240307-v1:0",
+        "anthropic.claude-3-5-sonnet-20241022-v2:0",
+        "anthropic.claude-3-5-haiku-20241022-v1:0",
+        "anthropic.claude-opus-4-20250514-v1:0",
+        "anthropic.claude-sonnet-4-20250514-v1:0",
+        "amazon.titan-embed-text-v2:0",
+        "amazon.nova-pro-v1:0",
+        "amazon.nova-premier-v1:0",
+        "amazon.nova-lite-v1:0",
+        "amazon.nova-micro-v1:0",
+        "deepseek.r1-v1:0",
+        "mistral.pixtral-large-2502-v1:0",
+        "meta.llama3-1-8b-instruct-v1:0",
+        "meta.llama3-1-8b-instruct-v1:0",
+        "meta.llama3-1-70b-instruct-v1:0",
+        "meta.llama3-1-405b-instruct-v1:0",
+        "meta.llama3-2-11b-instruct-v1:0",
+        "meta.llama3-2-90b-instruct-v1:0",
+        "meta.llama3-2-1b-instruct-v1:0",
+        "meta.llama3-2-3b-instruct-v1:0",
+        "meta.llama3-3-70b-instruct-v1:0",
+        "meta.llama4-scout-17b-instruct-v1:0",
+        "meta.llama4-maverick-17b-instruct-v1:0",
     ],
 )
 class BedrockStreamingClient(OpenAIBaseStreamingClient):
@@ -623,7 +634,98 @@ class BedrockStreamingClient(OpenAIBaseStreamingClient):
         model: GenerativeModelInput,
         credentials: Optional[list[PlaygroundClientCredential]] = None,
     ) -> None:
-        pass
+        super().__init__(model=model, credentials=credentials)
+
+
+        self.aws_access_key_id = _get_credential_value(credentials, "AWS_ACCESS_KEY_ID") or getenv("AWS_ACCESS_KEY_ID")
+        self.aws_secret_access_key = _get_credential_value(credentials, "AWS_SECRET_ACCESS_KEY") or getenv("AWS_SECRET_ACCESS_KEY")
+        self.aws_session_token = _get_credential_value(credentials, "AWS_SESSION_TOKEN") or getenv("AWS_SESSION_TOKEN")
+        self.client = None
+
+
+    @classmethod
+    def dependencies(cls) -> list[Dependency]:
+        return [Dependency(name="boto3")]
+
+    @classmethod
+    def supported_invocation_parameters(cls) -> list[InvocationParameter]:
+        return [
+            StringListInvocationParameter(
+                invocation_name="region",
+                label="Region",
+                default_value=["us-east-1"],
+            ),
+            StringListInvocationParameter(
+                invocation_name="api",
+                label="API",
+                default_value=["conservation"],
+            ),
+            IntInvocationParameter(
+                invocation_name="max_tokens",
+                canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
+                label="Max Tokens",
+                default_value=1024,
+                required=True,
+            ),
+            BoundedFloatInvocationParameter(
+                invocation_name="temperature",
+                canonical_name=CanonicalParameterName.TEMPERATURE,
+                label="Temperature",
+                default_value=1.0,
+                min_value=0.0,
+                max_value=1.0,
+            ),
+            BoundedFloatInvocationParameter(
+                invocation_name="top_p",
+                canonical_name=CanonicalParameterName.TOP_P,
+                label="Top P",
+                default_value=1.0,
+                min_value=0.0,
+                max_value=1.0,
+            ),
+            JSONInvocationParameter(
+                invocation_name="tool_choice",
+                label="Tool Choice",
+                canonical_name=CanonicalParameterName.TOOL_CHOICE,
+            ),
+        ]
+
+    async def chat_completion_create(
+        self,
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+        ],
+        tools: list[JSONScalarType],
+        **invocation_parameters: Any,
+    ) -> AsyncIterator[ChatCompletionChunk]:
+        import boto3
+        import boto3.bedrock.streaming as bedrock_streaming
+        import boto3.bedrock.types as bedrock_types
+
+        if not self.client:
+            self.client = boto3.client("bedrock-runtime", region_name=invocation_parameters["region"], 
+                                       aws_access_key_id=self.aws_access_key_id,
+                                       aws_secret_access_key=self.aws_secret_access_key,
+                                       aws_session_token=self.aws_session_token)
+
+        bedrock_params = {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": invocation_parameters["max_tokens"],
+            "messages": messages,
+            "temperature": invocation_parameters["temperature"],
+            "top_p": invocation_parameters["top_p"],
+        }
+
+        response = self.client.invoke_model(
+            modelId="us.anthropic.claude-3-haiku-20240307-v1:0",  # or another Claude model
+            contentType="application/json",
+            accept="application/json",
+            body=json.dumps(bedrock_params)
+        )
+
+        for chunk in response:
+            yield chunk
+
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.OPENAI,
