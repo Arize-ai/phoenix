@@ -953,9 +953,7 @@ class AsyncDatasets:
             ValueError: If dataset format is invalid.
             httpx.HTTPStatusError: If the API returns an error response.
         """
-        resolved_id, resolved_name = await self._resolve_dataset_id_and_name(
-            dataset, timeout=timeout
-        )
+        resolved_id, resolved_name = await self._resolve_dataset_id_and_name(dataset)
 
         if resolved_id:
             dataset_id = resolved_id
@@ -1115,9 +1113,7 @@ class AsyncDatasets:
             ImportError: If pandas is required but not installed.
             httpx.HTTPStatusError: If the API returns an error response.
         """
-        resolved_id, resolved_name = await self._resolve_dataset_id_and_name(
-            dataset, timeout=timeout
-        )
+        resolved_id, resolved_name = await self._resolve_dataset_id_and_name(dataset)
 
         if not resolved_name:
             if resolved_id:

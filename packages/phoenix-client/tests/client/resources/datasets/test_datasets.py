@@ -19,7 +19,7 @@ from phoenix.client.resources.datasets import (
     _is_valid_dataset_example,  # pyright: ignore[reportPrivateUsage]
     _parse_datetime,  # pyright: ignore[reportPrivateUsage]
     _prepare_csv,  # pyright: ignore[reportPrivateUsage]
-    _prepare_dataframe_as_json,  # pyright: ignore[reportPrivateUsage]
+    _prepare_dataframe_as_csv,  # pyright: ignore[reportPrivateUsage]
 )
 
 
@@ -271,7 +271,7 @@ class TestHelperFunctions:
             metadata_keys=frozenset(["metadata"]),
         )
 
-        name, file_obj, content_type, headers = _prepare_dataframe_as_json(df, keys)
+        name, file_obj, content_type, headers = _prepare_dataframe_as_csv(df, keys)
 
         assert name == "dataframe.csv"
         assert content_type == "text/csv"
@@ -292,7 +292,7 @@ class TestHelperFunctions:
         )
 
         with pytest.raises(ValueError, match="DataFrame has no data"):
-            _prepare_dataframe_as_json(df, keys)
+            _prepare_dataframe_as_csv(df, keys)
 
 
 class TestDatasetUploadError:
@@ -371,7 +371,7 @@ class TestCSVProcessing:
             metadata_keys=frozenset(["metadata_source"]),
         )
 
-        name, file_obj, content_type, headers = _prepare_dataframe_as_json(df, keys)
+        name, file_obj, content_type, headers = _prepare_dataframe_as_csv(df, keys)
 
         assert name == "dataframe.csv"
         assert content_type == "text/csv"
@@ -408,7 +408,7 @@ class TestCSVProcessing:
         )
 
         with pytest.raises(ValueError, match="Duplicate column names in DataFrame"):
-            _prepare_dataframe_as_json(df_with_duplicate_cols, keys)
+            _prepare_dataframe_as_csv(df_with_duplicate_cols, keys)
 
         df = pd.DataFrame({"col1": [1], "col2": [2]})
         keys_with_missing = DatasetKeys(
