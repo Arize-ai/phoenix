@@ -57,6 +57,11 @@ from .utils import (
     add_text_csv_content_to_responses,
 )
 
+csv.field_size_limit(
+    1_000_000_000  # allows large field sizes for CSV upload (1GB)
+)
+
+
 logger = logging.getLogger(__name__)
 
 DATASET_NODE_NAME = DatasetNodeType.__name__
