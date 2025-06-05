@@ -80,3 +80,5 @@ js/examples/notebooks/**/deno.lock
 # uv
 uv.lock
 packages/phoenix-otel/docs/build/
+packages/phoenix-client/docs/build/
+packages/phoenix-evals/docs/build/
