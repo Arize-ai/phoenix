@@ -28,6 +28,7 @@ _MAX_SPAN_IDS_PER_REQUEST = 100
 _INVALID_SPAN_ID = 0x0000000000000000
 _INVALID_TRACE_ID = 0x00000000000000000000000000000000
 
+
 def _generate_trace_id() -> str:
     """Generates a random trace ID in hexadecimal format (16 bytes / 128 bits)."""
     trace_id = random.getrandbits(128)
@@ -506,22 +507,22 @@ class Spans:
         # Generate new IDs if requested
         if generate_new_ids:
             spans = list(deepcopy(spans))  # Deep copy to avoid modifying the original
-            
+
             # Create mappings for old to new IDs
             trace_id_mapping: dict[str, str] = {}
             span_id_mapping: dict[str, str] = {}
-            
+
             # First pass: Generate new IDs and build mappings
             for span in spans:
                 if span.get("context"):
                     old_trace_id = span["context"].get("trace_id", "")
                     if old_trace_id and old_trace_id not in trace_id_mapping:
                         trace_id_mapping[old_trace_id] = _generate_trace_id()
-                    
+
                     old_span_id = span["context"].get("span_id", "")
                     if old_span_id and old_span_id not in span_id_mapping:
                         span_id_mapping[old_span_id] = _generate_span_id()
-            
+
             # Second pass: Apply new IDs and update parent references
             for span in spans:
                 if span.get("context"):
@@ -529,12 +530,12 @@ class Spans:
                     old_trace_id = span["context"].get("trace_id", "")
                     if old_trace_id in trace_id_mapping:
                         span["context"]["trace_id"] = trace_id_mapping[old_trace_id]
-                    
+
                     # Update span_id
                     old_span_id = span["context"].get("span_id", "")
                     if old_span_id in span_id_mapping:
                         span["context"]["span_id"] = span_id_mapping[old_span_id]
-                
+
                 # Update parent_id if it exists
                 old_parent_id = span.get("parent_id")
                 if old_parent_id and old_parent_id in span_id_mapping:
@@ -1092,22 +1093,22 @@ class AsyncSpans:
         # Generate new IDs if requested
         if generate_new_ids:
             spans = list(deepcopy(spans))  # Deep copy to avoid modifying the original
-            
+
             # Create mappings for old to new IDs
             trace_id_mapping: dict[str, str] = {}
             span_id_mapping: dict[str, str] = {}
-            
+
             # First pass: Generate new IDs and build mappings
             for span in spans:
                 if span.get("context"):
                     old_trace_id = span["context"].get("trace_id", "")
                     if old_trace_id and old_trace_id not in trace_id_mapping:
                         trace_id_mapping[old_trace_id] = _generate_trace_id()
-                    
+
                     old_span_id = span["context"].get("span_id", "")
                     if old_span_id and old_span_id not in span_id_mapping:
                         span_id_mapping[old_span_id] = _generate_span_id()
-            
+
             # Second pass: Apply new IDs and update parent references
             for span in spans:
                 if span.get("context"):
@@ -1115,12 +1116,12 @@ class AsyncSpans:
                     old_trace_id = span["context"].get("trace_id", "")
                     if old_trace_id in trace_id_mapping:
                         span["context"]["trace_id"] = trace_id_mapping[old_trace_id]
-                    
+
                     # Update span_id
                     old_span_id = span["context"].get("span_id", "")
                     if old_span_id in span_id_mapping:
                         span["context"]["span_id"] = span_id_mapping[old_span_id]
-                
+
                 # Update parent_id if it exists
                 old_parent_id = span.get("parent_id")
                 if old_parent_id and old_parent_id in span_id_mapping:
