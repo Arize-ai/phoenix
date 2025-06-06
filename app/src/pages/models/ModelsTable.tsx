@@ -10,12 +10,12 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, Link, LinkButton } from "@phoenix/components";
+import { Flex, Icon, Icons, Link } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
-import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { TextCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { EditModelButton } from "@phoenix/pages/models/EditModelButton";
 import { getProviderName } from "@phoenix/utils/generativeUtils";
 
 import { ModelsTable_models$key } from "./__generated__/ModelsTable_models.graphql";
@@ -190,25 +190,7 @@ export function ModelsTable(props: ModelsTableProps) {
         size: 5,
         accessorKey: "id",
         cell: ({ row }) => {
-          return (
-            <Flex
-              direction="row"
-              gap="size-100"
-              justifyContent="end"
-              width="100%"
-            >
-              <StopPropagation>
-                <LinkButton
-                  leadingVisual={<Icon svg={<Icons.EditOutline />} />}
-                  size="S"
-                  aria-label="Edit model"
-                  to={`${row.original.id}/edit`}
-                >
-                  Edit
-                </LinkButton>
-              </StopPropagation>
-            </Flex>
-          );
+          return <EditModelButton modelId={row.original.id} />;
         },
       },
     ];
