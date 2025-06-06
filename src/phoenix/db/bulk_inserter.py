@@ -24,7 +24,7 @@ from phoenix.db.insertion.span_annotation import SpanAnnotationQueueInserter
 from phoenix.db.insertion.trace_annotation import TraceAnnotationQueueInserter
 from phoenix.db.insertion.types import Insertables, Precursors
 from phoenix.db.models import SpanCost
-from phoenix.server.cost_tracking.cost_lookup import COST_TABLE
+from phoenix.server.cost_tracking.cost_lookup import get_cost_table
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.types import CanPutItem, DbSessionFactory
 from phoenix.trace.attributes import get_attribute_value
@@ -310,7 +310,8 @@ def _calculate_span_cost(span: Span, span_id: int) -> Optional[SpanCost]:
         return None
 
     llm_provider = get_attribute_value(span.attributes, LLM_PROVIDER)
-    cost_table_result = COST_TABLE.get_cost(provider=llm_provider, model_name=llm_model_name)
+    cost_table = get_cost_table()
+    cost_table_result = cost_table.get_cost(provider=llm_provider, model_name=llm_model_name)
     if not cost_table_result:
         return None
 

@@ -1417,6 +1417,7 @@ type Model implements Node & ModelInterface {
   namePattern: String!
   createdAt: DateTime!
   updatedAt: DateTime!
+  cost: TokenCost
 }
 
 """A connection to a list of items."""
@@ -2448,7 +2449,7 @@ type TokenCost {
   promptAudio: Float
   completionAudio: Float
   reasoning: Float
-  total: Float!
+  total: Float
 }
 
 type TokenCountPromptDetails {
