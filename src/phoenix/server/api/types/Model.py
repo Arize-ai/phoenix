@@ -21,7 +21,7 @@ class Model(Node, ModelInterface):
     created_at: datetime
     updated_at: datetime
     provider_key: Optional[GenerativeProviderKey]
-    costs: strawberry.Private[list[models.ModelCost]] = None
+    costs: strawberry.Private[Optional[list[models.ModelCost]]] = None
 
     @strawberry.field
     async def cost(self, info: Info[Context, None]) -> Optional[TokenCost]:
