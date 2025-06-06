@@ -1,28 +1,30 @@
 import { createClient } from "../client";
 import { ClientFn } from "../types/core";
-import { components, operations } from "../__generated__/api/v1";
+import { operations } from "../__generated__/api/v1";
+import { ProjectSelector } from "../types/projects";
 
 /**
  * Parameters to get spans from a project using auto-generated types
  */
-interface GetSpansParams
-  extends ClientFn,
-    Omit<
-      NonNullable<operations["getSpans"]["parameters"]["query"]>,
-      "start_time" | "end_time"
-    > {
-  /** The project identifier: either project ID or project name (maps to path parameter) */
-  projectIdentifier: operations["getSpans"]["parameters"]["path"]["project_identifier"];
-  /** Inclusive lower bound time (convenience field with camelCase naming) */
+interface GetSpansParams extends ClientFn {
+  /** The project to get spans from */
+  project: ProjectSelector;
+  /** Inclusive lower bound time. Must be a valid ISO 8601 string or Date object. */
   startTime?: Date | string | null;
-  /** Exclusive upper bound time (convenience field with camelCase naming) */
+  /** Exclusive upper bound time. Must be a valid ISO 8601 string or Date object. */
   endTime?: Date | string | null;
+  /** Pagination cursor (Span Global ID) */
+  cursor?: string | null;
+  /** Maximum number of spans to return */
+  limit?: number;
 }
 
-/**
- * Response type for span search using auto-generated types
- */
-type SpanSearchResponse = components["schemas"]["SpansResponseBody"];
+type GetSpansResponse = operations["getSpans"]["responses"]["200"];
+
+export type GetSpansResult = {
+  spans: GetSpansResponse["content"]["application/json"]["data"];
+  nextCursor: GetSpansResponse["content"]["application/json"]["next_cursor"];
+};
 
 /**
  * Get spans from a project with filtering criteria.
@@ -32,6 +34,8 @@ type SpanSearchResponse = components["schemas"]["SpansResponseBody"];
  * The spans are returned in Phoenix's standard format with human-readable timestamps
  * and simplified attribute structures.
  *
+ * @experimental this function is experimental and may change in the future
+ *
  * @param params - The parameters to search for spans
  * @returns A paginated response containing spans and optional next cursor
  *
@@ -40,7 +44,7 @@ type SpanSearchResponse = components["schemas"]["SpansResponseBody"];
  * // Get recent spans from a project
  * const result = await getSpans({
  *   client,
- *   projectIdentifier: "my-project",
+ *   project: { projectName: "my-project" },
  *   limit: 50
  * });
  *
@@ -58,31 +62,32 @@ type SpanSearchResponse = components["schemas"]["SpansResponseBody"];
  * do {
  *   const result = await getSpans({
  *     client,
- *     projectIdentifier: "my-project",
+ *     project: { projectName: "my-project" },
  *     cursor,
  *     limit: 100
  *   });
  *
  *   // Process spans
- *   result.data.forEach(span => {
+ *   result.spans.forEach(span => {
  *     console.log(`Span: ${span.name}, Trace: ${span.context.trace_id}`);
  *   });
  *
- *   cursor = result.next_cursor || undefined;
+ *   cursor = result.nextCursor || undefined;
  * } while (cursor);
  * ```
  */
 export async function getSpans({
   client: _client,
-  projectIdentifier,
+  project,
   cursor,
   limit = 100,
   startTime,
   endTime,
-}: GetSpansParams): Promise<SpanSearchResponse> {
+}: GetSpansParams): Promise<GetSpansResult> {
   const client = _client ?? createClient();
+  const projectIdentifier =
+    "projectId" in project ? project.projectId : project.projectName;
 
-  // Build query parameters using auto-generated types
   const params: NonNullable<operations["getSpans"]["parameters"]["query"]> = {
     limit,
   };
@@ -112,13 +117,9 @@ export async function getSpans({
     }
   );
 
-  if (error) {
-    throw new Error(`Failed to get spans: ${JSON.stringify(error)}`);
-  }
-
-  if (!data) {
-    throw new Error("No data returned from server");
-  }
-
-  return data as SpanSearchResponse;
+  if (error) throw error;
+  return {
+    spans: data?.data ?? [],
+    nextCursor: data?.next_cursor ?? null,
+  };
 }
