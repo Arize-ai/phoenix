@@ -322,6 +322,9 @@ class PromptOpenAIInvocationParametersContent(DBBaseModel):
     seed: int = UNDEFINED
     reasoning_effort: Literal["low", "medium", "high"] = UNDEFINED
 
+class PromptOpenAIInvocationParameters(DBBaseModel):
+    type: Literal["openai"]
+    openai: PromptOpenAIInvocationParametersContent
 
 class PromptAzureOpenAIInvocationParametersContent(PromptOpenAIInvocationParametersContent):
     pass
@@ -341,9 +344,6 @@ class PromptOllamaInvocationParametersContent(PromptOpenAIInvocationParametersCo
 class PromptBedrockInvocationParametersContent(PromptOpenAIInvocationParametersContent):
     pass
 
-class PromptOpenAIInvocationParameters(DBBaseModel):
-    type: Literal["openai"]
-    openai: PromptOpenAIInvocationParametersContent
 
 class PromptAzureOpenAIInvocationParameters(DBBaseModel):
     type: Literal["azure_openai"]

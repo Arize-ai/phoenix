@@ -616,7 +616,6 @@ class OllamaStreamingClient(OpenAIBaseStreamingClient):
         "deepseek.r1-v1:0",
         "mistral.pixtral-large-2502-v1:0",
         "meta.llama3-1-8b-instruct-v1:0",
-        "meta.llama3-1-8b-instruct-v1:0",
         "meta.llama3-1-70b-instruct-v1:0",
         "meta.llama3-1-405b-instruct-v1:0",
         "meta.llama3-2-11b-instruct-v1:0",
@@ -747,7 +746,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
                         # Initialize tool handling if needed
                         pass
 
-    def _build_bedrock_messages(self, messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]]) -> list[dict]:
+    def _build_bedrock_messages(self, messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]]) -> tuple[list[dict], str]:
         bedrock_messages = []
         system_prompt = ""
         for role, content, _, _ in messages:
