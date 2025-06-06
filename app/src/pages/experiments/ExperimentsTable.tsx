@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import {
@@ -107,7 +107,7 @@ const TableBody = <T extends { id: string }>({
 };
 
 // Memoized wrapper for table body to use during column resizing
-export const MemoizedTableBody = React.memo(
+export const MemoizedTableBody = memo(
   TableBody,
   (prev, next) => prev.table.options.data === next.table.options.data
 ) as typeof TableBody;
@@ -394,7 +394,7 @@ export function ExperimentsTable({
    * Calculate all column sizes at once as CSS variables for performance
    * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
    */
-  const [columnSizeVars] = React.useMemo(() => {
+  const [columnSizeVars] = useMemo(() => {
     const headers = getFlatHeaders();
     const colSizes: { [key: string]: number } = {};
     for (let i = 0; i < headers.length; i++) {
