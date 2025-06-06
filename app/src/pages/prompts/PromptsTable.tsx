@@ -179,9 +179,7 @@ export function PromptsTable(props: PromptsTableProps) {
                   {header.isPlaceholder ? null : (
                     <div
                       {...{
-                        className: header.column.getCanSort()
-                          ? "cursor-pointer"
-                          : "",
+                        className: header.column.getCanSort() ? "sort" : "",
                         ["aria-role"]: header.column.getCanSort()
                           ? "button"
                           : null,

@@ -154,9 +154,7 @@ export function SystemAPIKeysTable({
                 {header.isPlaceholder ? null : (
                   <div
                     {...{
-                      className: header.column.getCanSort()
-                        ? "cursor-pointer"
-                        : "",
+                      className: header.column.getCanSort() ? "sort" : "",
                       onClick: header.column.getToggleSortingHandler(),
                       style: {
                         left: header.getStart(),

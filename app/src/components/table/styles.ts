@@ -26,8 +26,14 @@ export const tableCSS = css`
         &:not(:last-of-type) {
           border-right: 1px solid var(--ac-global-border-color-default);
         }
-        .cursor-pointer {
+        .sort {
+          /* The sortable part of the header */
           cursor: pointer;
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+
+          gap: var(--ac-global-dimension-size-50);
         }
         .sort-icon {
           margin-left: var(--ac-global-dimension-size-50);
