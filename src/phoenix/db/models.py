@@ -1537,6 +1537,10 @@ class SpanCost(Base):
         ForeignKey("spans.id", ondelete="CASCADE"),
         nullable=False,
     )
+    model_id: Mapped[int] = mapped_column(
+        ForeignKey("models.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     input_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     output_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     cache_read_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
