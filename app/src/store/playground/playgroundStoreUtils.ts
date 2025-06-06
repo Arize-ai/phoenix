@@ -26,6 +26,7 @@ export const convertInstanceToolsToProvider = ({
       case "DEEPSEEK":
       case "XAI":
       case "OLLAMA":
+      case "BEDROCK":
       case "AZURE_OPENAI": {
         const maybeOpenAIToolDefinition = toOpenAIToolDefinition(
           tool.definition
@@ -80,6 +81,7 @@ export const convertMessageToolCallsToProvider = ({
       case "DEEPSEEK":
       case "XAI":
       case "OLLAMA":
+      case "BEDROCK":
       case "AZURE_OPENAI": {
         return toOpenAIToolCall(toolCall) ?? toolCall;
       }

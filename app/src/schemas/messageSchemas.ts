@@ -384,6 +384,7 @@ export const fromOpenAIMessage = <T extends ModelProvider>({
     case "DEEPSEEK":
     case "XAI":
     case "OLLAMA":
+    case "BEDROCK":
       return message as ProviderToMessageMap[T];
     case "ANTHROPIC":
       return openAIMessageToAnthropic.parse(message) as ProviderToMessageMap[T];
@@ -413,6 +414,7 @@ type ProviderToMessageMap = {
   DEEPSEEK: OpenAIMessage;
   XAI: OpenAIMessage;
   OLLAMA: OpenAIMessage;
+  BEDROCK: OpenAIMessage;
   ANTHROPIC: AnthropicMessage;
   // Use generic JSON type for unknown message formats / new providers
   GOOGLE: JSONLiteral;
