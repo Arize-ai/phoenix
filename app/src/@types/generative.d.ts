@@ -6,7 +6,7 @@ declare type ModelProvider =
   | "GOOGLE"
   | "DEEPSEEK"
   | "XAI"
-  | "OLLAMA";
+  | "OLLAMA"
   | "BEDROCK";
 
 /**
