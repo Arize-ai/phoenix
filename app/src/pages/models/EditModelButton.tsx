@@ -16,6 +16,7 @@ import {
   Icons,
   Loading,
   Modal,
+  ModalOverlay,
 } from "@phoenix/components";
 import {
   Dialog,
@@ -130,27 +131,29 @@ export function EditModelButton({
       </Button>
       <DialogContainer onDismiss={handleClose}>
         {isOpen && (
-          <Modal>
-            <Dialog>
-              <DialogHeader>
-                <DialogTitle>Edit Model</DialogTitle>
-                <DialogTitleExtra>
-                  <DialogCloseButton slot="close" />
-                </DialogTitleExtra>
-              </DialogHeader>
-              <Suspense fallback={<Loading />}>
-                {queryReference ? (
-                  <EditModelDialogContent
-                    queryReference={queryReference}
-                    onModelEdited={onModelEdited}
-                    onClose={handleClose}
-                  />
-                ) : (
-                  <Loading />
-                )}
-              </Suspense>
-            </Dialog>
-          </Modal>
+          <ModalOverlay>
+            <Modal>
+              <Dialog>
+                <DialogHeader>
+                  <DialogTitle>Edit Model</DialogTitle>
+                  <DialogTitleExtra>
+                    <DialogCloseButton slot="close" />
+                  </DialogTitleExtra>
+                </DialogHeader>
+                <Suspense fallback={<Loading />}>
+                  {queryReference ? (
+                    <EditModelDialogContent
+                      queryReference={queryReference}
+                      onModelEdited={onModelEdited}
+                      onClose={handleClose}
+                    />
+                  ) : (
+                    <Loading />
+                  )}
+                </Suspense>
+              </Dialog>
+            </Modal>
+          </ModalOverlay>
         )}
       </DialogContainer>
     </DialogTrigger>
