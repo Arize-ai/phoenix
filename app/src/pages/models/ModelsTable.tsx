@@ -53,13 +53,22 @@ export function ModelsTable(props: ModelsTableProps) {
               providerKey
               createdAt
               updatedAt
-              cost {
+              tokenCost {
                 input
                 output
                 cacheRead
                 cacheWrite
                 promptAudio
                 completionAudio
+              }
+              totalTokenCost {
+                input
+                output
+                cacheRead
+                cacheWrite
+                promptAudio
+                completionAudio
+                total
               }
             }
           }
@@ -125,49 +134,105 @@ export function ModelsTable(props: ModelsTableProps) {
       },
       {
         header: "input cost",
-        accessorKey: "cost.input",
+        accessorKey: "tokenCost.input",
         cell: ({ row }) => {
-          const cost = row.original.cost?.input;
+          const cost = row.original.tokenCost?.input;
           return cost ? `$${cost.toPrecision(3)}` : "--";
         },
       },
       {
         header: "output cost",
-        accessorKey: "cost.output",
+        accessorKey: "tokenCost.output",
         cell: ({ row }) => {
-          const cost = row.original.cost?.output;
+          const cost = row.original.tokenCost?.output;
           return cost ? `$${cost.toPrecision(3)}` : "--";
         },
       },
       {
         header: "cache read cost",
-        accessorKey: "cost.cacheRead",
+        accessorKey: "tokenCost.cacheRead",
         cell: ({ row }) => {
-          const cost = row.original.cost?.cacheRead;
+          const cost = row.original.tokenCost?.cacheRead;
           return cost ? `$${cost.toPrecision(3)}` : "--";
         },
       },
       {
         header: "cache write cost",
-        accessorKey: "cost.cacheWrite",
+        accessorKey: "tokenCost.cacheWrite",
         cell: ({ row }) => {
-          const cost = row.original.cost?.cacheWrite;
+          const cost = row.original.tokenCost?.cacheWrite;
           return cost ? `$${cost.toPrecision(3)}` : "--";
         },
       },
       {
         header: "prompt audio cost",
-        accessorKey: "cost.promptAudio",
+        accessorKey: "tokenCost.promptAudio",
         cell: ({ row }) => {
-          const cost = row.original.cost?.promptAudio;
+          const cost = row.original.tokenCost?.promptAudio;
           return cost ? `$${cost.toPrecision(3)}` : "--";
         },
       },
       {
         header: "completion audio cost",
-        accessorKey: "cost.completionAudio",
+        accessorKey: "tokenCost.completionAudio",
         cell: ({ row }) => {
-          const cost = row.original.cost?.completionAudio;
+          const cost = row.original.tokenCost?.completionAudio;
+          return cost ? `$${cost.toPrecision(3)}` : "--";
+        },
+      },
+      {
+        header: "total cost",
+        accessorKey: "totalTokenCost.total",
+        cell: ({ row }) => {
+          const cost = row.original.totalTokenCost?.total;
+          return cost ? `$${cost.toPrecision(3)}` : "--";
+        },
+      },
+      {
+        header: "total input cost",
+        accessorKey: "totalTokenCost.input",
+        cell: ({ row }) => {
+          const cost = row.original.totalTokenCost?.input;
+          return cost ? `$${cost.toPrecision(3)}` : "--";
+        },
+      },
+      {
+        header: "total output cost",
+        accessorKey: "totalTokenCost.output",
+        cell: ({ row }) => {
+          const cost = row.original.totalTokenCost?.output;
+          return cost ? `$${cost.toPrecision(3)}` : "--";
+        },
+      },
+      {
+        header: "total cache read cost",
+        accessorKey: "totalTokenCost.cacheRead",
+        cell: ({ row }) => {
+          const cost = row.original.totalTokenCost?.cacheRead;
+          return cost ? `$${cost.toPrecision(3)}` : "--";
+        },
+      },
+      {
+        header: "total cache write cost",
+        accessorKey: "totalTokenCost.cacheWrite",
+        cell: ({ row }) => {
+          const cost = row.original.totalTokenCost?.cacheWrite;
+          return cost ? `$${cost.toPrecision(3)}` : "--";
+        },
+      },
+      {
+        header: "total prompt audio cost",
+        accessorKey: "totalTokenCost.promptAudio",
+        cell: ({ row }) => {
+          const cost = row.original.totalTokenCost?.promptAudio;
+          return cost ? `$${cost.toPrecision(3)}` : "--";
+        },
+      },
+      {
+        header: "total completion audio cost",
+        accessorKey: "totalTokenCost.completionAudio",
+        cell: ({ row }) => {
+          const cost = row.original.totalTokenCost?.completionAudio;
           return cost ? `$${cost.toPrecision(3)}` : "--";
         },
       },
