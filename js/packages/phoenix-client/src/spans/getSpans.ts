@@ -49,13 +49,15 @@ export type GetSpansResult = {
  * });
  *
  * // Get spans in a time range
+
  * const result = await getSpans({
  *   client,
- *   projectIdentifier: "my-project",
+ *   project: { projectName: "my-project" },
  *   startTime: new Date("2024-01-01"),
  *   endTime: new Date("2024-01-02"),
  *   limit: 100
  * });
+
  *
  * // Paginate through results
  * let cursor: string | undefined;
