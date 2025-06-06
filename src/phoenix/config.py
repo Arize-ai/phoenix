@@ -288,6 +288,12 @@ Whether to verify client certificates for mutual TLS (mTLS) authentication.
 When set to true, clients must provide valid certificates signed by the CA specified in
 PHOENIX_TLS_CA_FILE.
 """
+ENV_PHOENIX_PROXY_LOGOUT = "PHOENIX_PROXY_LOGOUT"
+"""
+Whether to enable proxy-compatible logout handling. When set to true, the server will handle the
+logout process instead of the client. This is useful when the client is not able to handle the
+logout process, e.g., when Phoenix is deployed behind a reverse proxy.
+"""
 
 
 @dataclass(frozen=True)
@@ -1518,6 +1524,10 @@ def get_env_allowed_origins() -> Optional[list[str]]:
         return None
 
     return allowed_origins.split(",")
+
+
+def get_env_proxy_logout() -> bool:
+    return _bool_val(ENV_PHOENIX_PROXY_LOGOUT, False)
 
 
 def verify_server_environment_variables() -> None:

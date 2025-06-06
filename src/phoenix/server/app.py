@@ -214,6 +214,7 @@ class AppConfig(NamedTuple):
     oauth2_idps: Sequence[OAuth2Idp]
     basic_auth_disabled: bool = False
     auto_login_idp_name: Optional[str] = None
+    proxy_logout: bool = False
 
 
 class Static(StaticFiles):
@@ -279,6 +280,7 @@ class Static(StaticFiles):
                     "oauth2_idps": self._app_config.oauth2_idps,
                     "basic_auth_disabled": self._app_config.basic_auth_disabled,
                     "auto_login_idp_name": self._app_config.auto_login_idp_name,
+                    "proxy_logout": self._app_config.proxy_logout,
                 },
             )
         except Exception as e:
@@ -792,6 +794,7 @@ def create_app(
     basic_auth_disabled: bool = False,
     bulk_inserter_factory: Optional[Callable[..., BulkInserter]] = None,
     allowed_origins: Optional[list[str]] = None,
+    proxy_logout: bool = False,
 ) -> FastAPI:
     verify_server_environment_variables()
     if model.embedding_dimensions:
@@ -964,6 +967,7 @@ def create_app(
                     oauth2_idps=oauth2_idps,
                     basic_auth_disabled=basic_auth_disabled,
                     auto_login_idp_name=auto_login_idp_name,
+                    proxy_logout=proxy_logout,
                 ),
             ),
             name="static",

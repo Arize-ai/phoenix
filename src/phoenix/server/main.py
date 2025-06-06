@@ -34,6 +34,7 @@ from phoenix.config import (
     get_env_oauth2_settings,
     get_env_password_reset_token_expiry,
     get_env_port,
+    get_env_proxy_logout,
     get_env_refresh_token_expiry,
     get_env_smtp_hostname,
     get_env_smtp_mail_from,
@@ -451,6 +452,7 @@ def main() -> None:
         email_sender=email_sender,
         oauth2_client_configs=get_env_oauth2_settings(),
         allowed_origins=allowed_origins,
+        proxy_logout=get_env_proxy_logout(),
     )
 
     # Configure server with TLS if enabled
