@@ -1322,6 +1322,11 @@ class Model(Base):
         onupdate=func.now(),
     )
 
+    costs: Mapped[list["ModelCost"]] = relationship(
+        "ModelCost",
+        back_populates="model",
+    )
+
 
 class ModelCost(Base):
     __tablename__ = "model_costs"
@@ -1337,6 +1342,8 @@ class ModelCost(Base):
         nullable=False,
     )
     cost_per_token: Mapped[float] = mapped_column(Float, nullable=False)
+
+    model: Mapped["Model"] = relationship("Model", back_populates="costs")
 
     __table_args__ = (
         UniqueConstraint(

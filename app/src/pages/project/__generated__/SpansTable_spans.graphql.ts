@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6817fb09c027020d53571fa51ffbadfd>>
+ * @generated SignedSource<<5a1b5302e22a2fb817abcb16e5eb17fa>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,7 +20,7 @@ export type SpansTable_spans$data = {
     readonly edges: ReadonlyArray<{
       readonly span: {
         readonly cost: {
-          readonly total: number;
+          readonly total: number | null;
         } | null;
         readonly cumulativeTokenCountTotal: number | null;
         readonly documentRetrievalMetrics: ReadonlyArray<{

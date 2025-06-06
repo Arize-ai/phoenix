@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0a86c91658273c202ec62854a1f3c443>>
+ * @generated SignedSource<<0bfc77cadb8cb389b5404396eeb2fd03>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,7 +15,7 @@ import { FragmentRefs } from "relay-runtime";
 export type SpanHeader_span$data = {
   readonly code: SpanStatusCode;
   readonly cost: {
-    readonly total: number;
+    readonly total: number | null;
   } | null;
   readonly id: string;
   readonly latencyMs: number | null;

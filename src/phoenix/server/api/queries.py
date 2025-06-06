@@ -26,6 +26,7 @@ from phoenix.db.models import DatasetExampleRevision as OrmRevision
 from phoenix.db.models import DatasetVersion as OrmVersion
 from phoenix.db.models import Experiment as OrmExperiment
 from phoenix.db.models import ExperimentRun as OrmExperimentRun
+from phoenix.db.models import Model as OrmModel
 from phoenix.db.models import Trace as OrmTrace
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
@@ -130,282 +131,34 @@ class Query:
             before=before if isinstance(before, CursorString) else None,
         )
 
-        # TODO: Replace with actual database query when model table is ready
-        # For now, using synthetic data
-        from datetime import datetime, timezone
+        async with info.context.db() as session:
+            result = await session.execute(
+                select(OrmModel)
+                .order_by(
+                    OrmModel.provider.is_(None),  # null providers last
+                    OrmModel.provider,
+                    OrmModel.name,
+                )
+                .options(joinedload(OrmModel.costs))
+            )
+            db_models = result.unique().scalars().all()
 
-        synthetic_models = [
-            # OpenAI Models
+        models = [
             Model(
-                id_attr=1,
-                name="gpt-4",
-                provider="openai",
-                name_pattern="gpt-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.OPENAI,
-            ),
-            Model(
-                id_attr=2,
-                name="gpt-4-turbo",
-                provider="openai",
-                name_pattern="gpt-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.OPENAI,
-            ),
-            Model(
-                id_attr=3,
-                name="gpt-4-turbo-preview",
-                provider="openai",
-                name_pattern="gpt-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.OPENAI,
-            ),
-            Model(
-                id_attr=4,
-                name="gpt-4o",
-                provider="openai",
-                name_pattern="gpt-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.OPENAI,
-            ),
-            Model(
-                id_attr=5,
-                name="gpt-4o-mini",
-                provider="openai",
-                name_pattern="gpt-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.OPENAI,
-            ),
-            Model(
-                id_attr=6,
-                name="gpt-3.5-turbo",
-                provider="openai",
-                name_pattern="gpt-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.OPENAI,
-            ),
-            Model(
-                id_attr=7,
-                name="gpt-3.5-turbo-instruct",
-                provider="openai",
-                name_pattern="gpt-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.OPENAI,
-            ),
-            Model(
-                id_attr=8,
-                name="o1-preview",
-                provider="openai",
-                name_pattern="o1-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.OPENAI,
-            ),
-            Model(
-                id_attr=9,
-                name="o1-mini",
-                provider="openai",
-                name_pattern="o1-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.OPENAI,
-            ),
-            # Anthropic Models
-            Model(
-                id_attr=10,
-                name="claude-3-sonnet",
-                provider="anthropic",
-                name_pattern="claude-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.ANTHROPIC,
-            ),
-            Model(
-                id_attr=11,
-                name="claude-3-haiku",
-                provider="anthropic",
-                name_pattern="claude-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.ANTHROPIC,
-            ),
-            Model(
-                id_attr=12,
-                name="claude-3-opus",
-                provider="anthropic",
-                name_pattern="claude-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.ANTHROPIC,
-            ),
-            Model(
-                id_attr=13,
-                name="claude-3.5-sonnet",
-                provider="anthropic",
-                name_pattern="claude-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.ANTHROPIC,
-            ),
-            # Google Models
-            Model(
-                id_attr=14,
-                name="gemini-pro",
-                provider="google",
-                name_pattern="gemini-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.GOOGLE,
-            ),
-            Model(
-                id_attr=15,
-                name="gemini-1.5-pro",
-                provider="google",
-                name_pattern="gemini-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.GOOGLE,
-            ),
-            Model(
-                id_attr=16,
-                name="gemini-1.5-flash",
-                provider="google",
-                name_pattern="gemini-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.GOOGLE,
-            ),
-            # DeepSeek Models
-            Model(
-                id_attr=17,
-                name="deepseek-v2",
-                provider="deepseek",
-                name_pattern="deepseek-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.DEEPSEEK,
-            ),
-            Model(
-                id_attr=18,
-                name="deepseek-coder",
-                provider="deepseek",
-                name_pattern="deepseek-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.DEEPSEEK,
-            ),
-            # xAI Models
-            Model(
-                id_attr=19,
-                name="grok-1",
-                provider="xai",
-                name_pattern="grok-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.XAI,
-            ),
-            Model(
-                id_attr=20,
-                name="grok-2",
-                provider="xai",
-                name_pattern="grok-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.XAI,
-            ),
-            # Ollama Models
-            Model(
-                id_attr=21,
-                name="llama-3.1-70b",
-                provider="ollama",
-                name_pattern="llama-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.OLLAMA,
-            ),
-            Model(
-                id_attr=22,
-                name="llama-3.1-8b",
-                provider="ollama",
-                name_pattern="llama-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.OLLAMA,
-            ),
-            Model(
-                id_attr=23,
-                name="mistral-7b",
-                provider="ollama",
-                name_pattern="mistral-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.OLLAMA,
-            ),
-            Model(
-                id_attr=24,
-                name="codellama-13b",
-                provider="ollama",
-                name_pattern="codellama-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.OLLAMA,
-            ),
-            Model(
-                id_attr=25,
-                name="phi-3-mini",
-                provider="ollama",
-                name_pattern="phi-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.OLLAMA,
-            ),
-            Model(
-                id_attr=26,
-                name="qwen-2.5-7b",
-                provider="ollama",
-                name_pattern="qwen-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.OLLAMA,
-            ),
-            Model(
-                id_attr=27,
-                name="gemma-2-9b",
-                provider="ollama",
-                name_pattern="gemma-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.OLLAMA,
-            ),
-            # Azure OpenAI Models (uses OpenAI models but deployed on Azure)
-            Model(
-                id_attr=28,
-                name="gpt-4-azure",
-                provider="azure_openai",
-                name_pattern="gpt-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.AZURE_OPENAI,
-            ),
-            Model(
-                id_attr=29,
-                name="gpt-35-turbo-azure",
-                provider="azure_openai",
-                name_pattern="gpt-*",
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                provider_key=GenerativeProviderKey.AZURE_OPENAI,
-            ),
+                id_attr=model.id,
+                name=model.name,
+                provider=model.provider,
+                name_pattern=model.name_pattern,
+                created_at=model.created_at,
+                updated_at=model.updated_at,
+                provider_key=GenerativeProviderKey[model.provider.upper()]
+                if model.provider is not None
+                else None,
+                costs=model.costs,
+            )
+            for model in db_models
         ]
-
-        return connection_from_list(data=synthetic_models, args=args)
+        return connection_from_list(data=models, args=args)
 
     @strawberry.field
     async def playground_models(self, input: Optional[ModelsInput] = None) -> list[PlaygroundModel]:
