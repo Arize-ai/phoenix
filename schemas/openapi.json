@@ -5068,7 +5068,8 @@
           "GOOGLE",
           "DEEPSEEK",
           "XAI",
-          "OLLAMA"
+          "OLLAMA",
+          "BEDROCK"
         ],
         "title": "ModelProvider"
       },
@@ -5933,6 +5934,55 @@
         "type": "object",
         "title": "PromptAzureOpenAIInvocationParametersContent"
       },
+      "PromptBedrockInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "bedrock",
+            "title": "Type"
+          },
+          "bedrock": {
+            "$ref": "#/components/schemas/PromptBedrockInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "bedrock"
+        ],
+        "title": "PromptBedrockInvocationParameters"
+      },
+      "PromptBedrockInvocationParametersContent": {
+        "properties": {
+          "region": {
+            "type": "string",
+            "title": "Region"
+          },
+          "api": {
+            "type": "string",
+            "title": "Api"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "max_tokens"
+        ],
+        "title": "PromptBedrockInvocationParametersContent"
+      },
       "PromptChatTemplate": {
         "properties": {
           "type": {
@@ -6617,6 +6667,9 @@
               },
               {
                 "$ref": "#/components/schemas/PromptOllamaInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptBedrockInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -6625,6 +6678,7 @@
               "mapping": {
                 "anthropic": "#/components/schemas/PromptAnthropicInvocationParameters",
                 "azure_openai": "#/components/schemas/PromptAzureOpenAIInvocationParameters",
+                "bedrock": "#/components/schemas/PromptBedrockInvocationParameters",
                 "deepseek": "#/components/schemas/PromptDeepSeekInvocationParameters",
                 "google": "#/components/schemas/PromptGoogleInvocationParameters",
                 "ollama": "#/components/schemas/PromptOllamaInvocationParameters",
@@ -6747,6 +6801,9 @@
               },
               {
                 "$ref": "#/components/schemas/PromptOllamaInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptBedrockInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -6755,6 +6812,7 @@
               "mapping": {
                 "anthropic": "#/components/schemas/PromptAnthropicInvocationParameters",
                 "azure_openai": "#/components/schemas/PromptAzureOpenAIInvocationParameters",
+                "bedrock": "#/components/schemas/PromptBedrockInvocationParameters",
                 "deepseek": "#/components/schemas/PromptDeepSeekInvocationParameters",
                 "google": "#/components/schemas/PromptGoogleInvocationParameters",
                 "ollama": "#/components/schemas/PromptOllamaInvocationParameters",
