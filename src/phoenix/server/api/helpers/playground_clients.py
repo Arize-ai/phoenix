@@ -628,20 +628,22 @@ class OllamaStreamingClient(OpenAIBaseStreamingClient):
         "meta.llama4-maverick-17b-instruct-v1:0",
     ],
 )
-class BedrockStreamingClient(OpenAIBaseStreamingClient):
+class BedrockStreamingClient(PlaygroundStreamingClient):
     def __init__(
         self,
         model: GenerativeModelInput,
         credentials: Optional[list[PlaygroundClientCredential]] = None,
     ) -> None:
+        import boto3
         super().__init__(model=model, credentials=credentials)
-
+        # self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.GOOGLE.value
+        # self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.VERTEXAI.value
 
         self.aws_access_key_id = _get_credential_value(credentials, "AWS_ACCESS_KEY_ID") or getenv("AWS_ACCESS_KEY_ID")
         self.aws_secret_access_key = _get_credential_value(credentials, "AWS_SECRET_ACCESS_KEY") or getenv("AWS_SECRET_ACCESS_KEY")
         self.aws_session_token = _get_credential_value(credentials, "AWS_SESSION_TOKEN") or getenv("AWS_SESSION_TOKEN")
-        self.client = None
-
+        self.client = boto3.client(service_name="bedrock-runtime",region_name="us-east-2", aws_access_key_id=self.aws_access_key_id, aws_secret_access_key=self.aws_secret_access_key, aws_session_token=self.aws_session_token)
+        self.client._client = _HttpxClient({}, self._attributes)
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
@@ -699,32 +701,68 @@ class BedrockStreamingClient(OpenAIBaseStreamingClient):
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         import boto3
-        import boto3.bedrock.streaming as bedrock_streaming
-        import boto3.bedrock.types as bedrock_types
 
-        if not self.client:
-            self.client = boto3.client("bedrock-runtime", region_name=invocation_parameters["region"], 
+        if self.client.meta.region_name != invocation_parameters["region"]:
+            self.client = boto3.client("bedrock-runtime", region_name=invocation_parameters["region"][0], 
                                        aws_access_key_id=self.aws_access_key_id,
                                        aws_secret_access_key=self.aws_secret_access_key,
                                        aws_session_token=self.aws_session_token)
 
+        bedrock_messages, system_prompt = self._build_bedrock_messages(messages)
         bedrock_params = {
             "anthropic_version": "bedrock-2023-05-31",
             "max_tokens": invocation_parameters["max_tokens"],
-            "messages": messages,
+            "messages": bedrock_messages,
+            "system": system_prompt,
             "temperature": invocation_parameters["temperature"],
             "top_p": invocation_parameters["top_p"],
         }
 
-        response = self.client.invoke_model(
-            modelId="us.anthropic.claude-3-haiku-20240307-v1:0",  # or another Claude model
+        response = self.client.invoke_model_with_response_stream(
+            modelId=f"us.{self.model_name}",  # or another Claude model
             contentType="application/json",
             accept="application/json",
             body=json.dumps(bedrock_params)
         )
 
-        for chunk in response:
-            yield chunk
+        # The response['body'] is an EventStream object
+        event_stream = response['body']
+
+        # Iterate over the EventStream
+        for event in event_stream:
+            # Check if this is a 'chunk' event (PayloadPart)
+            if 'chunk' in event:
+                chunk_data = json.loads(event['chunk']['bytes'].decode('utf-8'))
+
+                # Handle different event types from Claude
+                if chunk_data.get('type') == 'content_block_delta':
+                    delta = chunk_data.get('delta', {})
+                    if 'text' in delta:
+                        yield TextChunk(content=delta['text'])
+
+                elif chunk_data.get('type') == 'content_block_start':
+                    content_block = chunk_data.get('content_block', {})
+                    if content_block.get('type') == 'tool_use':
+                        # Initialize tool handling if needed
+                        pass
+
+    def _build_bedrock_messages(self, messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]]) -> list[dict]:
+        bedrock_messages = []
+        system_prompt = ""
+        for role, content, _, _ in messages:
+            if role == ChatCompletionMessageRole.USER:
+                bedrock_messages.append({
+                    "role": "user",
+                    "content": content,
+                })
+            elif role == ChatCompletionMessageRole.AI:
+                bedrock_messages.append({
+                    "role": "assistant",
+                    "content": content,
+                })
+            elif role == ChatCompletionMessageRole.SYSTEM:
+                system_prompt += content + "\n"
+        return bedrock_messages, system_prompt
 
 
 @register_llm_client(
