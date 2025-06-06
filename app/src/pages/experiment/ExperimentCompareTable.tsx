@@ -496,7 +496,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                           <div
                             {...{
                               className: header.column.getCanSort()
-                                ? "cursor-pointer"
+                                ? "sort"
                                 : "",
                               onClick: header.column.getToggleSortingHandler(),
                               style: {
