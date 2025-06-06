@@ -642,7 +642,11 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         self.aws_secret_access_key = _get_credential_value(credentials, "AWS_SECRET_ACCESS_KEY") or getenv("AWS_SECRET_ACCESS_KEY")
         self.aws_session_token = _get_credential_value(credentials, "AWS_SESSION_TOKEN") or getenv("AWS_SESSION_TOKEN")
         self.model_name = model.name
-        self.client = boto3.client(service_name="bedrock-runtime",region_name="us-east-2", aws_access_key_id=self.aws_access_key_id, aws_secret_access_key=self.aws_secret_access_key, aws_session_token=self.aws_session_token)
+        self.client = boto3.client(service_name="bedrock-runtime",
+                                   region_name="us-east-1", # match the default region in the UI
+                                   aws_access_key_id=self.aws_access_key_id, 
+                                   aws_secret_access_key=self.aws_secret_access_key, 
+                                   aws_session_token=self.aws_session_token)
         self.client._client = _HttpxClient({}, self._attributes)
 
     @classmethod
@@ -702,8 +706,9 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
     ) -> AsyncIterator[ChatCompletionChunk]:
         import boto3
 
-        if self.client.meta.region_name != invocation_parameters["region"]:
-            self.client = boto3.client("bedrock-runtime", region_name=invocation_parameters["region"][0], 
+        if self.client.meta.region_name != invocation_parameters["region"][0]: # override the region if it's different from the default
+            self.client = boto3.client("bedrock-runtime",
+                                       region_name=invocation_parameters["region"][0],
                                        aws_access_key_id=self.aws_access_key_id,
                                        aws_secret_access_key=self.aws_secret_access_key,
                                        aws_session_token=self.aws_session_token)
