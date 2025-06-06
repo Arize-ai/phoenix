@@ -10,7 +10,7 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, Link } from "@phoenix/components";
+import { Flex, Icon, Icons } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { TextCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -100,9 +100,6 @@ export function ModelsTable(props: ModelsTableProps) {
       {
         header: "name",
         accessorKey: "name",
-        cell: ({ row }) => {
-          return <Link to={`${row.original.id}`}>{row.original.name}</Link>;
-        },
       },
       {
         header: "provider",

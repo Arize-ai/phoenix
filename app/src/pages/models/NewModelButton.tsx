@@ -9,6 +9,7 @@ import {
   Icon,
   Icons,
   Modal,
+  ModalOverlay,
 } from "@phoenix/components";
 import {
   Dialog,
@@ -51,31 +52,33 @@ export function NewModelButton({
       </Button>
       <DialogContainer onDismiss={() => setIsOpen(false)}>
         {isOpen && (
-          <Modal>
-            <Dialog>
-              <DialogHeader>
-                <DialogTitle>Create New Model</DialogTitle>
-                <DialogTitleExtra>
-                  <DialogCloseButton slot="close" />
-                </DialogTitleExtra>
-              </DialogHeader>
-              {error ? <Alert variant="danger">{error}</Alert> : null}
-              <ModelForm
-                onSubmit={(params) => {
-                  setError(null);
-                  setIsOpen(false);
-                  onModelCreated && onModelCreated(params);
-                  notifySuccess({
-                    title: `Model Created`,
-                    message: `Model "${params.name}" created successfully`,
-                  });
-                }}
-                isSubmitting={false}
-                submitButtonText="Create Model"
-                formMode="create"
-              />
-            </Dialog>
-          </Modal>
+          <ModalOverlay>
+            <Modal>
+              <Dialog>
+                <DialogHeader>
+                  <DialogTitle>Create New Model</DialogTitle>
+                  <DialogTitleExtra>
+                    <DialogCloseButton slot="close" />
+                  </DialogTitleExtra>
+                </DialogHeader>
+                {error ? <Alert variant="danger">{error}</Alert> : null}
+                <ModelForm
+                  onSubmit={(params) => {
+                    setError(null);
+                    setIsOpen(false);
+                    onModelCreated && onModelCreated(params);
+                    notifySuccess({
+                      title: `Model Created`,
+                      message: `Model "${params.name}" created successfully`,
+                    });
+                  }}
+                  isSubmitting={false}
+                  submitButtonText="Create Model"
+                  formMode="create"
+                />
+              </Dialog>
+            </Modal>
+          </ModalOverlay>
         )}
       </DialogContainer>
     </DialogTrigger>
