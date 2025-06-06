@@ -684,10 +684,12 @@ class Query:
             return to_gql_trace_annotation(trace_annotation)
         elif type_name == Model.__name__:
             async with info.context.db() as session:
-                model = await session.get(
-                    models.Model,
-                    node_id,
-                ).options(joinedload(models.Model.costs))
+                stmt = (
+                    select(models.Model)
+                    .where(models.Model.id == node_id)
+                    .options(joinedload(models.Model.costs))
+                )
+                model = await session.scalar(stmt)
                 if not model:
                     raise NotFound(f"Unknown model: {id}")
             return Model(
