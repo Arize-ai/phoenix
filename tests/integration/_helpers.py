@@ -1009,7 +1009,7 @@ def _log_out(
     auth: Optional[_SecurityArtifact] = None,
     /,
 ) -> None:
-    resp = _httpx_client(auth).post("auth/logout")
+    resp = _httpx_client(auth).get("auth/logout")
     resp.raise_for_status()
     tokens = _extract_tokens(resp.headers, "set-cookie")
     for k in _COOKIE_NAMES:
