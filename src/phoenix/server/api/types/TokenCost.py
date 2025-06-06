@@ -7,14 +7,14 @@ from phoenix.db import models
 
 @strawberry.type
 class TokenCost:
-    input: Optional[float]
-    output: Optional[float]
-    cache_read: Optional[float]
-    cache_write: Optional[float]
-    prompt_audio: Optional[float]
-    completion_audio: Optional[float]
-    reasoning: Optional[float]
-    total: float
+    input: Optional[float] = None
+    output: Optional[float] = None
+    cache_read: Optional[float] = None
+    cache_write: Optional[float] = None
+    prompt_audio: Optional[float] = None
+    completion_audio: Optional[float] = None
+    reasoning: Optional[float] = None
+    total: Optional[float] = None
 
 
 def to_gql_token_cost(span_cost: models.SpanCost) -> TokenCost:
