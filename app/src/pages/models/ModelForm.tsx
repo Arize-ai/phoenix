@@ -230,9 +230,9 @@ export function ModelForm({
               </TextField>
             )}
           />
-
-          <Heading level={3}>Cost Configuration (USD)</Heading>
-
+          <Heading level={3} weight="heavy">
+            Cost Configuration
+          </Heading>
           <Flex direction="row" gap="size-200">
             <Controller
               name="cost.input"

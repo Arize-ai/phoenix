@@ -20,6 +20,7 @@ import { getProviderName } from "@phoenix/utils/generativeUtils";
 
 import { ModelsTable_models$key } from "./__generated__/ModelsTable_models.graphql";
 import { ModelsTableModelsQuery } from "./__generated__/ModelsTableModelsQuery.graphql";
+import { EditModelButton } from "@phoenix/pages/models/EditModelButton";
 
 const PAGE_SIZE = 100;
 
@@ -190,25 +191,7 @@ export function ModelsTable(props: ModelsTableProps) {
         size: 5,
         accessorKey: "id",
         cell: ({ row }) => {
-          return (
-            <Flex
-              direction="row"
-              gap="size-100"
-              justifyContent="end"
-              width="100%"
-            >
-              <StopPropagation>
-                <LinkButton
-                  leadingVisual={<Icon svg={<Icons.EditOutline />} />}
-                  size="S"
-                  aria-label="Edit model"
-                  to={`${row.original.id}/edit`}
-                >
-                  Edit
-                </LinkButton>
-              </StopPropagation>
-            </Flex>
-          );
+          return <EditModelButton modelId={row.original.id} />;
         },
       },
     ];
