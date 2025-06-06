@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<39f0b0555b460a42c8192a413c0fda32>>
+ * @generated SignedSource<<35be1889d3e9854a3440c9e847c78a4b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,7 +14,11 @@ export type EditModelButtonQuery$variables = {
 };
 export type EditModelButtonQuery$data = {
   readonly node: {
-    readonly cost?: {
+    readonly id?: string;
+    readonly name?: string;
+    readonly namePattern?: string;
+    readonly provider?: string | null;
+    readonly tokenCost?: {
       readonly cacheRead: number | null;
       readonly cacheWrite: number | null;
       readonly completionAudio: number | null;
@@ -22,10 +26,6 @@ export type EditModelButtonQuery$data = {
       readonly output: number | null;
       readonly promptAudio: number | null;
     } | null;
-    readonly id?: string;
-    readonly name?: string;
-    readonly namePattern?: string;
-    readonly provider?: string | null;
   };
 };
 export type EditModelButtonQuery = {
@@ -81,7 +81,7 @@ v6 = {
   "args": null,
   "concreteType": "TokenCost",
   "kind": "LinkedField",
-  "name": "cost",
+  "name": "tokenCost",
   "plural": false,
   "selections": [
     {
@@ -202,16 +202,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e30a2fc163ac4263bbcc31e40df14fa2",
+    "cacheID": "db90e7804666676e88551ae70a9be899",
     "id": null,
     "metadata": {},
     "name": "EditModelButtonQuery",
     "operationKind": "query",
-    "text": "query EditModelButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on Model {\n      id\n      name\n      provider\n      namePattern\n      cost {\n        input\n        output\n        cacheRead\n        cacheWrite\n        promptAudio\n        completionAudio\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query EditModelButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on Model {\n      id\n      name\n      provider\n      namePattern\n      tokenCost {\n        input\n        output\n        cacheRead\n        cacheWrite\n        promptAudio\n        completionAudio\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ce50d64f55c43f371c253ac614f67dde";
+(node as any).hash = "2702fa9ebf7a0e966c6b2a261a0ccb75";
 
 export default node;
