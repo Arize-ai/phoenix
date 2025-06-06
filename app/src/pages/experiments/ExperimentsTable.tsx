@@ -33,6 +33,7 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
+import { makeSafeColumnId } from "@phoenix/utils/makeSafeColumnId";
 import {
   floatFormatter,
   formatPercent,
@@ -79,7 +80,7 @@ const TableBody = <T extends { id: string }>({
             }}
           >
             {row.getVisibleCells().map((cell) => {
-              const colSizeVar = `--col-${cell.column.id}-size`;
+              const colSizeVar = `--col-${makeSafeColumnId(cell.column.id)}-size`;
               return (
                 <td
                   key={cell.id}
@@ -399,8 +400,10 @@ export function ExperimentsTable({
     const colSizes: { [key: string]: number } = {};
     for (let i = 0; i < headers.length; i++) {
       const header = headers[i]!;
-      colSizes[`--header-${header.id}-size`] = header.getSize();
-      colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
+      colSizes[`--header-${makeSafeColumnId(header.id)}-size`] =
+        header.getSize();
+      colSizes[`--col-${makeSafeColumnId(header.column.id)}-size`] =
+        header.column.getSize();
     }
     return [colSizes];
     // Disabled lint as per tanstack docs linked above
@@ -437,7 +440,7 @@ export function ExperimentsTable({
                   colSpan={header.colSpan}
                   key={header.id}
                   style={{
-                    width: `calc(var(--header-${header.id}-size) * 1px)`,
+                    width: `calc(var(--header-${makeSafeColumnId(header.id)}-size) * 1px)`,
                   }}
                   align={header.column.columnDef?.meta?.textAlign}
                 >
