@@ -32,6 +32,7 @@ export function TracePage() {
 
   return (
     <ModalOverlay
+      isOpen
       onOpenChange={(isOpen) => {
         if (!isOpen) {
           navigate(`${rootPath}/${tab}`);
