@@ -10,17 +10,16 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, Link, LinkButton } from "@phoenix/components";
+import { Flex, Icon, Icons, Link } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
-import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { TextCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { EditModelButton } from "@phoenix/pages/models/EditModelButton";
 import { getProviderName } from "@phoenix/utils/generativeUtils";
 
 import { ModelsTable_models$key } from "./__generated__/ModelsTable_models.graphql";
 import { ModelsTableModelsQuery } from "./__generated__/ModelsTableModelsQuery.graphql";
-import { EditModelButton } from "@phoenix/pages/models/EditModelButton";
 
 const PAGE_SIZE = 100;
 
