@@ -1,10 +1,11 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
+  Table,
   useReactTable,
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
@@ -20,17 +21,23 @@ import { Flex, Heading, Link, Text, View } from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
 import { SequenceNumberToken } from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
-import { CompactJSONCell, IntCell } from "@phoenix/components/table";
+import {
+  CompactJSONCell,
+  IntCell,
+  LoadMoreRow,
+} from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
 import {
   floatFormatter,
   formatPercent,
 } from "@phoenix/utils/numberFormatUtils";
+import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
 import { experimentsLoaderQuery$data } from "./__generated__/experimentsLoaderQuery.graphql";
 import type { ExperimentsTableFragment$key } from "./__generated__/ExperimentsTableFragment.graphql";
@@ -42,6 +49,70 @@ import { ExperimentsEmpty } from "./ExperimentsEmpty";
 
 const PAGE_SIZE = 100;
 
+const defaultColumnSettings = {
+  minSize: 100,
+} satisfies Partial<ColumnDef<unknown>>;
+
+const TableBody = <T extends { id: string }>({
+  table,
+  hasNext,
+  onLoadNext,
+  isLoadingNext,
+  dataset,
+}: {
+  table: Table<T>;
+  hasNext: boolean;
+  onLoadNext: () => void;
+  isLoadingNext: boolean;
+  dataset: experimentsLoaderQuery$data["dataset"];
+}) => {
+  const navigate = useNavigate();
+  return (
+    <tbody>
+      {table.getRowModel().rows.map((row) => {
+        return (
+          <tr
+            key={row.id}
+            onClick={() => {
+              navigate(
+                `/datasets/${dataset.id}/compare?experimentId=${row.original.id}`
+              );
+            }}
+          >
+            {row.getVisibleCells().map((cell) => {
+              const colSizeVar = `--col-${makeSafeColumnId(cell.column.id)}-size`;
+              return (
+                <td
+                  key={cell.id}
+                  style={{
+                    width: `calc(var(${colSizeVar}) * 1px)`,
+                    maxWidth: `calc(var(${colSizeVar}) * 1px)`,
+                  }}
+                >
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </td>
+              );
+            })}
+          </tr>
+        );
+      })}
+      {hasNext ? (
+        <LoadMoreRow
+          onLoadMore={onLoadNext}
+          key="load-more"
+          isLoadingNext={isLoadingNext}
+        />
+      ) : null}
+    </tbody>
+  );
+};
+
+// Memoized wrapper for table body to use during column resizing
+export const MemoizedTableBody = memo(
+  TableBody,
+  (prev, next) => prev.table.options.data === next.table.options.data
+) as typeof TableBody;
+
 export function ExperimentsTable({
   dataset,
 }: {
@@ -49,6 +120,7 @@ export function ExperimentsTable({
 }) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [rowSelection, setRowSelection] = useState({});
+  const [columnSizing, setColumnSizing] = useState({});
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<ExperimentsTableQuery, ExperimentsTableFragment$key>(
       graphql`
@@ -111,10 +183,13 @@ export function ExperimentsTable({
       }),
     [data.experiments.edges]
   );
+
   type TableRow = (typeof tableData)[number];
+
   const baseColumns: ColumnDef<TableRow>[] = [
     {
       id: "select",
+      maxSize: 50,
       header: ({ table }) => (
         <IndeterminateCheckboxCell
           {...{
@@ -166,6 +241,7 @@ export function ExperimentsTable({
       cell: TimestampCell,
     },
   ];
+
   const annotationColumns: ColumnDef<TableRow>[] =
     data.experimentAnnotationSummaries.map((annotationSummary) => {
       const { annotationName, minScore, maxScore } = annotationSummary;
@@ -174,7 +250,6 @@ export function ExperimentsTable({
           <Flex
             direction="row"
             gap="size-100"
-            wrap
             alignItems="center"
             justifyContent="end"
           >
@@ -250,6 +325,7 @@ export function ExperimentsTable({
     },
     {
       id: "actions",
+      maxSize: 120,
       cell: ({ row }) => {
         const project = row.original.project;
         const metadata = row.original.metadata;
@@ -270,15 +346,21 @@ export function ExperimentsTable({
       },
     },
   ];
+
   const table = useReactTable<TableRow>({
     columns: [...baseColumns, ...annotationColumns, ...tailColumns],
     data: tableData,
-    getCoreRowModel: getCoreRowModel(),
     state: {
       rowSelection,
+      columnSizing,
     },
+    defaultColumn: defaultColumnSettings,
+    columnResizeMode: "onChange",
     onRowSelectionChange: setRowSelection,
+    onColumnSizingChange: setColumnSizing,
+    getCoreRowModel: getCoreRowModel(),
   });
+
   const rows = table.getRowModel().rows;
   const selectedRows = table.getSelectedRowModel().rows;
   const selectedExperiments = selectedRows.map((row) => row.original);
@@ -304,7 +386,30 @@ export function ExperimentsTable({
     },
     [hasNext, isLoadingNext, loadNext]
   );
-  const navigate = useNavigate();
+
+  const { columnSizingInfo, columnSizing: columnSizingState } =
+    table.getState();
+  const getFlatHeaders = table.getFlatHeaders;
+
+  /**
+   * Calculate all column sizes at once as CSS variables for performance
+   * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
+   */
+  const [columnSizeVars] = useMemo(() => {
+    const headers = getFlatHeaders();
+    const colSizes: { [key: string]: number } = {};
+    for (let i = 0; i < headers.length; i++) {
+      const header = headers[i]!;
+      colSizes[`--header-${makeSafeColumnId(header.id)}-size`] =
+        header.getSize();
+      colSizes[`--col-${makeSafeColumnId(header.column.id)}-size`] =
+        header.column.getSize();
+    }
+    return [colSizes];
+    // Disabled lint as per tanstack docs linked above
+    // eslint-disable-next-line react-compiler/react-compiler
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getFlatHeaders, columnSizingInfo, columnSizingState]);
 
   if (isEmpty) {
     return <ExperimentsEmpty />;
@@ -315,51 +420,73 @@ export function ExperimentsTable({
       css={css`
         flex: 1 1 auto;
         overflow: auto;
-        width: table.getTotalSize();
       `}
       ref={tableContainerRef}
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
     >
-      <table css={selectableTableCSS}>
+      <table
+        css={selectableTableCSS}
+        style={{
+          ...columnSizeVars,
+          width: table.getTotalSize(),
+          minWidth: "100%",
+        }}
+      >
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
                 <th
+                  colSpan={header.colSpan}
                   key={header.id}
+                  style={{
+                    width: `calc(var(--header-${makeSafeColumnId(header.id)}-size) * 1px)`,
+                  }}
                   align={header.column.columnDef?.meta?.textAlign}
                 >
-                  <div>
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext()
-                    )}
-                  </div>
+                  {header.isPlaceholder ? null : (
+                    <>
+                      <div>
+                        <Truncate maxWidth="100%">
+                          {flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                        </Truncate>
+                      </div>
+                      <div
+                        {...{
+                          onMouseDown: header.getResizeHandler(),
+                          onTouchStart: header.getResizeHandler(),
+                          className: `resizer ${
+                            header.column.getIsResizing() ? "isResizing" : ""
+                          }`,
+                        }}
+                      />
+                    </>
+                  )}
                 </th>
               ))}
             </tr>
           ))}
         </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr
-              key={row.id}
-              onClick={() => {
-                navigate(
-                  `/datasets/${dataset.id}/compare?experimentId=${row.original.id}`
-                );
-              }}
-            >
-              {row.getVisibleCells().map((cell) => {
-                return (
-                  <td key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
-        </tbody>
+        {columnSizingInfo.isResizingColumn ? (
+          <MemoizedTableBody
+            table={table}
+            hasNext={hasNext}
+            onLoadNext={() => loadNext(PAGE_SIZE)}
+            isLoadingNext={isLoadingNext}
+            dataset={dataset}
+          />
+        ) : (
+          <TableBody
+            table={table}
+            hasNext={hasNext}
+            onLoadNext={() => loadNext(PAGE_SIZE)}
+            isLoadingNext={isLoadingNext}
+            dataset={dataset}
+          />
+        )}
       </table>
       {selectedRows.length ? (
         <ExperimentSelectionToolbar
