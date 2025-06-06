@@ -1,5 +1,13 @@
 # Changelog
 
+## [10.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.8.0...arize-phoenix-v10.9.0) (2025-06-06)
+
+
+### Features
+
+* Composable ModalOverlay component ([#7969](https://github.com/Arize-ai/phoenix/issues/7969)) ([4bc2824](https://github.com/Arize-ai/phoenix/commit/4bc28244812641df84c9b2d6d9c8c15d559a7937))
+* **experiments:** experiment progress chart ([#7978](https://github.com/Arize-ai/phoenix/issues/7978)) ([ef697eb](https://github.com/Arize-ai/phoenix/commit/ef697ebf473a204e8521a7440d49c05d8a1698a8))
+
 ## [10.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.7.1...arize-phoenix-v10.8.0) (2025-06-06)
 
 
