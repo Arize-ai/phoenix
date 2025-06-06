@@ -43,6 +43,7 @@ import {
   Icons,
   Loading,
   Modal,
+  ModalOverlay,
   Text,
   View,
 } from "@phoenix/components";
@@ -300,13 +301,15 @@ function ExampleOutputContent({
                   aria-label="View run trace"
                   leadingVisual={<Icon svg={<Icons.Trace />} />}
                 />
-                <Modal size="fullscreen" variant="slideover">
-                  <PlaygroundRunTraceDetailsDialog
-                    traceId={span.context.traceId}
-                    projectId={span.project.id}
-                    title={`Experiment Run Trace`}
-                  />
-                </Modal>
+                <ModalOverlay>
+                  <Modal size="fullscreen" variant="slideover">
+                    <PlaygroundRunTraceDetailsDialog
+                      traceId={span.context.traceId}
+                      projectId={span.project.id}
+                      title={`Experiment Run Trace`}
+                    />
+                  </Modal>
+                </ModalOverlay>
               </DialogTrigger>
             </>
           )}

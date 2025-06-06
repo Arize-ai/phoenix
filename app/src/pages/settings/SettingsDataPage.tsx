@@ -15,6 +15,7 @@ import {
   Icon,
   Icons,
   Modal,
+  ModalOverlay,
 } from "@phoenix/components";
 import { CanManageRetentionPolicy } from "@phoenix/components/auth";
 
@@ -40,26 +41,28 @@ export function SettingsDataPage() {
             >
               New Policy
             </Button>
-            <Modal>
-              <Dialog>
-                {({ close }) => (
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>New Retention Policy</DialogTitle>
-                      <DialogTitleExtra>
-                        <DialogCloseButton slot="close" />
-                      </DialogTitleExtra>
-                    </DialogHeader>
-                    <CreateRetentionPolicy
-                      queryId={queryId}
-                      onCreate={() => {
-                        close();
-                      }}
-                    />
-                  </DialogContent>
-                )}
-              </Dialog>
-            </Modal>
+            <ModalOverlay>
+              <Modal>
+                <Dialog>
+                  {({ close }) => (
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>New Retention Policy</DialogTitle>
+                        <DialogTitleExtra>
+                          <DialogCloseButton slot="close" />
+                        </DialogTitleExtra>
+                      </DialogHeader>
+                      <CreateRetentionPolicy
+                        queryId={queryId}
+                        onCreate={() => {
+                          close();
+                        }}
+                      />
+                    </DialogContent>
+                  )}
+                </Dialog>
+              </Modal>
+            </ModalOverlay>
           </DialogTrigger>
         </CanManageRetentionPolicy>
       }

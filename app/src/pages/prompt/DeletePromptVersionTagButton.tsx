@@ -10,6 +10,7 @@ import {
   Icon,
   Icons,
   Modal,
+  ModalOverlay,
   Text,
   View,
 } from "@phoenix/components";
@@ -48,54 +49,56 @@ export function DeletePromptVersionTagButton({
         size="S"
         leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
       />
-      <Modal size="S" isDismissable>
-        <Dialog>
-          <Heading slot="title">Delete Tag</Heading>
-          <View padding="size-200">
-            <View paddingBottom="size-100">
-              <Text color="danger" size="XS">
-                Are you sure you want to delete this tag? This will make pulling
-                prompts by this tag no longer possible. Make sure this tag is
-                not used before deleting.
-              </Text>
+      <ModalOverlay>
+        <Modal size="S">
+          <Dialog>
+            <Heading slot="title">Delete Tag</Heading>
+            <View padding="size-200">
+              <View paddingBottom="size-100">
+                <Text color="danger" size="XS">
+                  Are you sure you want to delete this tag? This will make
+                  pulling prompts by this tag no longer possible. Make sure this
+                  tag is not used before deleting.
+                </Text>
+              </View>
             </View>
-          </View>
-          <View
-            paddingX="size-200"
-            paddingY="size-100"
-            borderTopWidth="thin"
-            borderColor="light"
-          >
-            <Flex gap="size-100" justifyContent="end">
-              <Button size="S" onPress={() => setIsOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                size="S"
-                onPress={() =>
-                  commitDelete({
-                    variables: {
-                      input: {
-                        promptVersionTagId,
+            <View
+              paddingX="size-200"
+              paddingY="size-100"
+              borderTopWidth="thin"
+              borderColor="light"
+            >
+              <Flex gap="size-100" justifyContent="end">
+                <Button size="S" onPress={() => setIsOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="danger"
+                  size="S"
+                  onPress={() =>
+                    commitDelete({
+                      variables: {
+                        input: {
+                          promptVersionTagId,
+                        },
+                        promptId,
                       },
-                      promptId,
-                    },
-                    onCompleted: () => {
-                      notifySuccess({
-                        title: "Tag Deleted",
-                        message: "The tag has been deleted",
-                      });
-                    },
-                  })
-                }
-              >
-                {isCommitting ? "Deleting..." : "Delete Tag"}
-              </Button>
-            </Flex>
-          </View>
-        </Dialog>
-      </Modal>
+                      onCompleted: () => {
+                        notifySuccess({
+                          title: "Tag Deleted",
+                          message: "The tag has been deleted",
+                        });
+                      },
+                    })
+                  }
+                >
+                  {isCommitting ? "Deleting..." : "Delete Tag"}
+                </Button>
+              </Flex>
+            </View>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
     </DialogTrigger>
   );
 }
