@@ -53,6 +53,14 @@ export function ModelsTable(props: ModelsTableProps) {
               providerKey
               createdAt
               updatedAt
+              cost {
+                input
+                output
+                cacheRead
+                cacheWrite
+                promptAudio
+                completionAudio
+              }
             }
           }
         }
@@ -117,6 +125,54 @@ export function ModelsTable(props: ModelsTableProps) {
         header: "name pattern",
         accessorKey: "namePattern",
         cell: TextCell,
+      },
+      {
+        header: "input cost",
+        accessorKey: "cost.input",
+        cell: ({ row }) => {
+          const cost = row.original.cost?.input;
+          return cost ? `$${cost.toPrecision(3)}` : "--";
+        },
+      },
+      {
+        header: "output cost",
+        accessorKey: "cost.output",
+        cell: ({ row }) => {
+          const cost = row.original.cost?.output;
+          return cost ? `$${cost.toPrecision(3)}` : "--";
+        },
+      },
+      {
+        header: "cache read cost",
+        accessorKey: "cost.cacheRead",
+        cell: ({ row }) => {
+          const cost = row.original.cost?.cacheRead;
+          return cost ? `$${cost.toPrecision(3)}` : "--";
+        },
+      },
+      {
+        header: "cache write cost",
+        accessorKey: "cost.cacheWrite",
+        cell: ({ row }) => {
+          const cost = row.original.cost?.cacheWrite;
+          return cost ? `$${cost.toPrecision(3)}` : "--";
+        },
+      },
+      {
+        header: "prompt audio cost",
+        accessorKey: "cost.promptAudio",
+        cell: ({ row }) => {
+          const cost = row.original.cost?.promptAudio;
+          return cost ? `$${cost.toPrecision(3)}` : "--";
+        },
+      },
+      {
+        header: "completion audio cost",
+        accessorKey: "cost.completionAudio",
+        cell: ({ row }) => {
+          const cost = row.original.cost?.completionAudio;
+          return cost ? `$${cost.toPrecision(3)}` : "--";
+        },
       },
       {
         header: "created at",

@@ -133,13 +133,15 @@ class Query:
 
         async with info.context.db() as session:
             result = await session.execute(
-                select(OrmModel).order_by(
+                select(OrmModel)
+                .order_by(
                     OrmModel.provider.is_(None),  # null providers last
                     OrmModel.provider,
                     OrmModel.name,
                 )
+                .options(joinedload(OrmModel.costs))
             )
-            db_models = result.scalars().all()
+            db_models = result.unique().scalars().all()
 
         models = [
             Model(
@@ -152,6 +154,7 @@ class Query:
                 provider_key=GenerativeProviderKey[model.provider.upper()]
                 if model.provider is not None
                 else None,
+                costs=model.costs,
             )
             for model in db_models
         ]
