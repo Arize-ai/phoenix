@@ -418,7 +418,7 @@ export function ExperimentsTable({
   return (
     <div
       css={css`
-        flex: 1 1 auto;
+        height: 100%;
         overflow: auto;
       `}
       ref={tableContainerRef}
