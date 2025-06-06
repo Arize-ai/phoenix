@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useMemo } from "react";
-import { Outlet, useNavigate } from "react-router";
+import { Outlet } from "react-router";
 import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons, Loading } from "@phoenix/components";
@@ -14,7 +14,6 @@ import {
   ThemeToggle,
   TopNavbar,
 } from "@phoenix/components/nav";
-import { useNotifyError } from "@phoenix/contexts";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 import { prependBasename } from "@phoenix/utils/routingUtils";
@@ -84,19 +83,6 @@ function SideNav() {
   const onLogout = useCallback(() => {
     window.location.replace(prependBasename("/auth/logout"));
   }, []);
-  // const onLogout = useCallback(async () => {
-  //   const response = await fetch(prependBasename("/auth/logout"), {
-  //     method: "POST",
-  //   });
-  //   if (response.ok) {
-  //     navigate(window.Config.basicAuthDisabled ? "/logout" : "/login");
-  //     return;
-  //   }
-  //   notifyError({
-  //     title: "Logout Failed",
-  //     message: "Failed to log out: " + response.statusText,
-  //   });
-  // }, [navigate, notifyError]);
   return (
     <SideNavbar>
       <Brand />
