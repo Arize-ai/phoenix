@@ -1,10 +1,13 @@
 import logging
+import random
 import warnings
+from copy import deepcopy
 from datetime import datetime, timezone, tzinfo
 from io import StringIO
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union, cast
 
 import httpx
+from opentelemetry.sdk.trace.id_generator import RandomIdGenerator as DefaultOTelIDGenerator
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -18,6 +21,32 @@ logger = logging.getLogger(__name__)
 DEFAULT_TIMEOUT_IN_SECONDS = 5
 _LOCAL_TIMEZONE = datetime.now(timezone.utc).astimezone().tzinfo
 _MAX_SPAN_IDS_PER_REQUEST = 100
+
+
+# Source implementation:opentelemetry.sdk.trace.id_generator.RandomIdGenerator
+
+_INVALID_SPAN_ID = 0x0000000000000000
+_INVALID_TRACE_ID = 0x00000000000000000000000000000000
+
+def _generate_trace_id() -> str:
+    """Generates a random trace ID in hexadecimal format (16 bytes / 128 bits)."""
+    trace_id = random.getrandbits(128)
+    while trace_id == _INVALID_TRACE_ID:
+        trace_id = random.getrandbits(128)
+    return _hex(trace_id)
+
+
+def _generate_span_id() -> str:
+    """Generates a random span ID in hexadecimal format (8 bytes / 64 bits)."""
+    span_id = random.getrandbits(64)
+    while span_id == _INVALID_SPAN_ID:
+        span_id = random.getrandbits(64)
+    return _hex(span_id)
+
+
+def _hex(number: int) -> str:
+    """Converts an integer to a hexadecimal string."""
+    return hex(number)[2:]
 
 
 class Spans:
@@ -49,6 +78,14 @@ class Spans:
             ... except SpanCreationError as e:
             ...     print(f"Failed to create spans: {e}")
             ...     print(f"Invalid spans: {len(e.invalid_spans)}")
+
+            # Create spans with new IDs to guarantee success
+            >>> result = client.spans.create_spans(
+            ...     project_identifier="my-project",
+            ...     spans=spans,
+            ...     generate_new_ids=True
+            ... )
+            >>> print(f"All {result['total_queued']} spans queued successfully")
 
     """
 
@@ -438,6 +475,7 @@ class Spans:
         spans: Sequence[v1.Span],
         check_duplicates: bool = False,
         raise_on_error: bool = False,
+        generate_new_ids: bool = False,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> v1.CreateSpansResponseBody:
         """
@@ -450,6 +488,9 @@ class Spans:
                 Adds latency but provides immediate feedback (default: False).
             raise_on_error: If true, raise SpanCreationError when spans fail to be queued.
                 If false, log warnings instead (default: False).
+            generate_new_ids: If true, generate new valid span_ids and trace_ids for all spans
+                to guarantee insertion success. This will regenerate IDs while maintaining
+                the parent-child relationships within the span collection (default: False).
             timeout: Optional request timeout in seconds.
 
         Returns:
@@ -462,6 +503,43 @@ class Spans:
             httpx.HTTPStatusError: If the API returns an error response.
             httpx.TimeoutException: If the request times out.
         """
+        # Generate new IDs if requested
+        if generate_new_ids:
+            spans = list(deepcopy(spans))  # Deep copy to avoid modifying the original
+            
+            # Create mappings for old to new IDs
+            trace_id_mapping: dict[str, str] = {}
+            span_id_mapping: dict[str, str] = {}
+            
+            # First pass: Generate new IDs and build mappings
+            for span in spans:
+                if span.get("context"):
+                    old_trace_id = span["context"].get("trace_id", "")
+                    if old_trace_id and old_trace_id not in trace_id_mapping:
+                        trace_id_mapping[old_trace_id] = _generate_trace_id()
+                    
+                    old_span_id = span["context"].get("span_id", "")
+                    if old_span_id and old_span_id not in span_id_mapping:
+                        span_id_mapping[old_span_id] = _generate_span_id()
+            
+            # Second pass: Apply new IDs and update parent references
+            for span in spans:
+                if span.get("context"):
+                    # Update trace_id
+                    old_trace_id = span["context"].get("trace_id", "")
+                    if old_trace_id in trace_id_mapping:
+                        span["context"]["trace_id"] = trace_id_mapping[old_trace_id]
+                    
+                    # Update span_id
+                    old_span_id = span["context"].get("span_id", "")
+                    if old_span_id in span_id_mapping:
+                        span["context"]["span_id"] = span_id_mapping[old_span_id]
+                
+                # Update parent_id if it exists
+                old_parent_id = span.get("parent_id")
+                if old_parent_id and old_parent_id in span_id_mapping:
+                    span["parent_id"] = span_id_mapping[old_parent_id]
+
         request_body = v1.CreateSpansRequestBody(data=list(spans))
 
         params: dict[str, Union[bool, str]] = {}
@@ -585,6 +663,14 @@ class AsyncSpans:
             ... except SpanCreationError as e:
             ...     print(f"Failed to create spans: {e}")
             ...     print(f"Invalid spans: {len(e.invalid_spans)}")
+
+            # Create spans with new IDs to guarantee success
+            >>> result = await client.spans.create_spans(
+            ...     project_identifier="my-project",
+            ...     spans=spans,
+            ...     generate_new_ids=True
+            ... )
+            >>> print(f"All {result['total_queued']} spans queued successfully")
 
     """
 
@@ -975,6 +1061,7 @@ class AsyncSpans:
         spans: Sequence[v1.Span],
         check_duplicates: bool = False,
         raise_on_error: bool = False,
+        generate_new_ids: bool = False,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> v1.CreateSpansResponseBody:
         """
@@ -987,6 +1074,9 @@ class AsyncSpans:
                 Adds latency but provides immediate feedback (default: False).
             raise_on_error: If true, raise SpanCreationError when spans fail to be queued.
                 If false, log warnings instead (default: False).
+            generate_new_ids: If true, generate new valid span_ids and trace_ids for all spans
+                to guarantee insertion success. This will regenerate IDs while maintaining
+                the parent-child relationships within the span collection (default: False).
             timeout: Optional request timeout in seconds.
 
         Returns:
@@ -999,6 +1089,43 @@ class AsyncSpans:
             httpx.HTTPStatusError: If the API returns an error response.
             httpx.TimeoutException: If the request times out.
         """
+        # Generate new IDs if requested
+        if generate_new_ids:
+            spans = list(deepcopy(spans))  # Deep copy to avoid modifying the original
+            
+            # Create mappings for old to new IDs
+            trace_id_mapping: dict[str, str] = {}
+            span_id_mapping: dict[str, str] = {}
+            
+            # First pass: Generate new IDs and build mappings
+            for span in spans:
+                if span.get("context"):
+                    old_trace_id = span["context"].get("trace_id", "")
+                    if old_trace_id and old_trace_id not in trace_id_mapping:
+                        trace_id_mapping[old_trace_id] = _generate_trace_id()
+                    
+                    old_span_id = span["context"].get("span_id", "")
+                    if old_span_id and old_span_id not in span_id_mapping:
+                        span_id_mapping[old_span_id] = _generate_span_id()
+            
+            # Second pass: Apply new IDs and update parent references
+            for span in spans:
+                if span.get("context"):
+                    # Update trace_id
+                    old_trace_id = span["context"].get("trace_id", "")
+                    if old_trace_id in trace_id_mapping:
+                        span["context"]["trace_id"] = trace_id_mapping[old_trace_id]
+                    
+                    # Update span_id
+                    old_span_id = span["context"].get("span_id", "")
+                    if old_span_id in span_id_mapping:
+                        span["context"]["span_id"] = span_id_mapping[old_span_id]
+                
+                # Update parent_id if it exists
+                old_parent_id = span.get("parent_id")
+                if old_parent_id and old_parent_id in span_id_mapping:
+                    span["parent_id"] = span_id_mapping[old_parent_id]
+
         request_body = v1.CreateSpansRequestBody(data=list(spans))
 
         params: dict[str, Union[bool, str]] = {}

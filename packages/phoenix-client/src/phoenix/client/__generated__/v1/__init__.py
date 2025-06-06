@@ -594,13 +594,13 @@ class PromptXAIInvocationParameters(TypedDict):
 
 
 class Span(TypedDict):
+    id: NotRequired[str]
     name: str
     context: SpanContext
     span_kind: str
     start_time: str
     end_time: str
     status_code: str
-    id: NotRequired[str]
     parent_id: NotRequired[str]
     status_message: NotRequired[str]
     attributes: NotRequired[Mapping[str, Any]]
