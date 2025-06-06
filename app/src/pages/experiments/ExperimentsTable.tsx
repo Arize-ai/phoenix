@@ -45,7 +45,6 @@ import { ExperimentsTableQuery } from "./__generated__/ExperimentsTableQuery.gra
 import { DownloadExperimentActionMenu } from "./DownloadExperimentActionMenu";
 import { ErrorRateCell } from "./ErrorRateCell";
 import { ExperimentSelectionToolbar } from "./ExperimentSelectionToolbar";
-import { ExperimentsEmpty } from "./ExperimentsEmpty";
 
 const PAGE_SIZE = 100;
 
@@ -361,14 +360,11 @@ export function ExperimentsTable({
     getCoreRowModel: getCoreRowModel(),
   });
 
-  const rows = table.getRowModel().rows;
   const selectedRows = table.getSelectedRowModel().rows;
   const selectedExperiments = selectedRows.map((row) => row.original);
   const clearSelection = useCallback(() => {
     setRowSelection({});
   }, [setRowSelection]);
-
-  const isEmpty = rows.length === 0;
 
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
@@ -411,14 +407,10 @@ export function ExperimentsTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getFlatHeaders, columnSizingInfo, columnSizingState]);
 
-  if (isEmpty) {
-    return <ExperimentsEmpty />;
-  }
-
   return (
     <div
       css={css`
-        flex: 1 1 auto;
+        height: 100%;
         overflow: auto;
       `}
       ref={tableContainerRef}
