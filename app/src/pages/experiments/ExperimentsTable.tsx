@@ -33,11 +33,11 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
-import { makeSafeColumnId } from "@phoenix/utils/makeSafeColumnId";
 import {
   floatFormatter,
   formatPercent,
 } from "@phoenix/utils/numberFormatUtils";
+import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
 import { experimentsLoaderQuery$data } from "./__generated__/experimentsLoaderQuery.graphql";
 import type { ExperimentsTableFragment$key } from "./__generated__/ExperimentsTableFragment.graphql";
