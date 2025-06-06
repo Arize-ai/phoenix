@@ -1,5 +1,20 @@
 # Changelog
 
+## [10.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.7.1...arize-phoenix-v10.8.0) (2025-06-06)
+
+
+### Features
+
+* Add dataset methods to phoenix client ([#7931](https://github.com/Arize-ai/phoenix/issues/7931)) ([4a5aa39](https://github.com/Arize-ai/phoenix/commit/4a5aa39b90adfb9896f336db7998bcde7c481bf8))
+* **experiments:** make experiments table resizable ([#7964](https://github.com/Arize-ai/phoenix/issues/7964)) ([93d9c52](https://github.com/Arize-ai/phoenix/commit/93d9c5270e4bead667953475d195f543b59bdede))
+* separate docs phoenix client evals ([#7948](https://github.com/Arize-ai/phoenix/issues/7948)) ([e569b68](https://github.com/Arize-ai/phoenix/commit/e569b6802ab9e31cb230a30dbc08f60d7e28e993))
+
+
+### Bug Fixes
+
+* provider tab ([#7972](https://github.com/Arize-ai/phoenix/issues/7972)) ([82ce450](https://github.com/Arize-ai/phoenix/commit/82ce450c815f077368dc9d70b6638467f565765f))
+* **tables:** sort ([#7963](https://github.com/Arize-ai/phoenix/issues/7963)) ([6b18c35](https://github.com/Arize-ai/phoenix/commit/6b18c356eeb0a4ffc25d366e9964778031db3d34))
+
 ## [10.7.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.7.0...arize-phoenix-v10.7.1) (2025-06-05)
 
 
