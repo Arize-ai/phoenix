@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
-import { Dialog, Loading, Modal } from "@phoenix/components";
+import { Dialog, Loading, Modal, ModalOverlay } from "@phoenix/components";
 import {
   DialogCloseButton,
   DialogContent,
@@ -31,43 +31,40 @@ export function TracePage() {
   const paginationSubjectId = selectedSpanNodeId || traceId;
 
   return (
-    <Modal
-      variant="slideover"
-      size="fullscreen"
-      isOpen
-      isDismissable
-      shouldCloseOnInteractOutside={() => false}
+    <ModalOverlay
       onOpenChange={(isOpen) => {
         if (!isOpen) {
           navigate(`${rootPath}/${tab}`);
         }
       }}
     >
-      <Dialog>
-        {({ close }) => (
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Trace Details</DialogTitle>
-              <DialogTitleExtra>
-                <TraceDetailsPaginator currentId={paginationSubjectId} />
-                <ShareLinkButton
-                  preserveSearchParams
-                  buttonText="Share"
-                  tooltipText="Copy trace link to clipboard"
-                  successText="Trace link copied to clipboard"
+      <Modal variant="slideover" size="fullscreen">
+        <Dialog>
+          {({ close }) => (
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Trace Details</DialogTitle>
+                <DialogTitleExtra>
+                  <TraceDetailsPaginator currentId={paginationSubjectId} />
+                  <ShareLinkButton
+                    preserveSearchParams
+                    buttonText="Share"
+                    tooltipText="Copy trace link to clipboard"
+                    successText="Trace link copied to clipboard"
+                  />
+                  <DialogCloseButton close={close} />
+                </DialogTitleExtra>
+              </DialogHeader>
+              <Suspense fallback={<Loading />}>
+                <TraceDetails
+                  traceId={traceId as string}
+                  projectId={projectId as string}
                 />
-                <DialogCloseButton close={close} />
-              </DialogTitleExtra>
-            </DialogHeader>
-            <Suspense fallback={<Loading />}>
-              <TraceDetails
-                traceId={traceId as string}
-                projectId={projectId as string}
-              />
-            </Suspense>
-          </DialogContent>
-        )}
-      </Dialog>
-    </Modal>
+              </Suspense>
+            </DialogContent>
+          )}
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
   );
 }
