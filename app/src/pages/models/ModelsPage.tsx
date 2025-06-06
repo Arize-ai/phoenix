@@ -1,16 +1,13 @@
 import { useLoaderData } from "react-router";
 
-import { Button, Flex, Heading, Icon, Icons, View } from "@phoenix/components";
+import { Flex, Heading, View } from "@phoenix/components";
 
 import { modelsLoader } from "./modelsLoader";
 import { ModelsTable } from "./ModelsTable";
+import { NewModelButton } from "./NewModelButton";
 
 export function ModelsPage() {
   const data = useLoaderData<typeof modelsLoader>();
-
-  const handleAddModel = () => {
-    // TODO: Implement add model functionality
-  };
 
   return (
     <Flex direction="column" height="100%">
@@ -26,14 +23,7 @@ export function ModelsPage() {
           alignItems="center"
         >
           <Heading level={1}>Models</Heading>
-          <Button
-            size="M"
-            variant="primary"
-            leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
-            onPress={handleAddModel}
-          >
-            Add Model
-          </Button>
+          <NewModelButton />
         </Flex>
       </View>
       <ModelsTable query={data} />

@@ -682,6 +682,28 @@ class Query:
                 if not trace_annotation:
                     raise NotFound(f"Unknown trace annotation: {id}")
             return to_gql_trace_annotation(trace_annotation)
+        elif type_name == Model.__name__:
+            async with info.context.db() as session:
+                stmt = (
+                    select(models.Model)
+                    .where(models.Model.id == node_id)
+                    .options(joinedload(models.Model.costs))
+                )
+                model = await session.scalar(stmt)
+                if not model:
+                    raise NotFound(f"Unknown model: {id}")
+            return Model(
+                id_attr=model.id,
+                name=model.name,
+                provider=model.provider,
+                name_pattern=model.name_pattern,
+                created_at=model.created_at,
+                updated_at=model.updated_at,
+                provider_key=GenerativeProviderKey[model.provider.upper()]
+                if model.provider is not None
+                else None,
+                costs=model.costs,
+            )
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field
