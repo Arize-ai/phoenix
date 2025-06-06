@@ -80,22 +80,23 @@ function SideNav() {
   const hasInferences = useMemo(() => {
     return window.Config.hasInferences;
   }, []);
-  const notifyError = useNotifyError();
   const { authenticationEnabled } = useFunctionality();
-  const navigate = useNavigate();
-  const onLogout = useCallback(async () => {
-    const response = await fetch(prependBasename("/auth/logout"), {
-      method: "POST",
-    });
-    if (response.ok) {
-      navigate(window.Config.basicAuthDisabled ? "/logout" : "/login");
-      return;
-    }
-    notifyError({
-      title: "Logout Failed",
-      message: "Failed to log out: " + response.statusText,
-    });
-  }, [navigate, notifyError]);
+  const onLogout = useCallback(() => {
+    window.location.replace(prependBasename("/auth/logout"));
+  }, []);
+  // const onLogout = useCallback(async () => {
+  //   const response = await fetch(prependBasename("/auth/logout"), {
+  //     method: "POST",
+  //   });
+  //   if (response.ok) {
+  //     navigate(window.Config.basicAuthDisabled ? "/logout" : "/login");
+  //     return;
+  //   }
+  //   notifyError({
+  //     title: "Logout Failed",
+  //     message: "Failed to log out: " + response.statusText,
+  //   });
+  // }, [navigate, notifyError]);
   return (
     <SideNavbar>
       <Brand />
