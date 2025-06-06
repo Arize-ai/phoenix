@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<08d34b5d6ee7804ba15158e2c57ccf47>>
+ * @generated SignedSource<<8b4a18130908d77224ccdec1e1da9825>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,6 +15,14 @@ export type ModelsTable_models$data = {
   readonly models: {
     readonly edges: ReadonlyArray<{
       readonly model: {
+        readonly cost: {
+          readonly cacheRead: number | null;
+          readonly cacheWrite: number | null;
+          readonly completionAudio: number | null;
+          readonly input: number | null;
+          readonly output: number | null;
+          readonly promptAudio: number | null;
+        } | null;
         readonly createdAt: string;
         readonly id: string;
         readonly name: string;
@@ -148,6 +156,59 @@ return {
                   "kind": "ScalarField",
                   "name": "updatedAt",
                   "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "TokenCost",
+                  "kind": "LinkedField",
+                  "name": "cost",
+                  "plural": false,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "input",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "output",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "cacheRead",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "cacheWrite",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "promptAudio",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "completionAudio",
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
                 }
               ],
               "storageKey": null
@@ -214,6 +275,6 @@ return {
 };
 })();
 
-(node as any).hash = "4340a3f9b67b1c440a40b5f4b5654baa";
+(node as any).hash = "fc560b4e4fae1ba21818797553912fab";
 
 export default node;
