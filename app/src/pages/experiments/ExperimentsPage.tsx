@@ -8,11 +8,15 @@ import { resizeHandleCSS } from "@phoenix/components/resize";
 import { ExperimentsChart } from "@phoenix/pages/experiments/ExperimentsChart";
 import { experimentsLoader } from "@phoenix/pages/experiments/experimentsLoader";
 
+import { ExperimentsEmpty } from "./ExperimentsEmpty";
 import { ExperimentsTable } from "./ExperimentsTable";
 
 export function ExperimentsPage() {
   const loaderData = useLoaderData<typeof experimentsLoader>();
   invariant(loaderData, "loaderData is required");
+  if (!loaderData.dataset.firstExperiment?.edges.length) {
+    return <ExperimentsEmpty />;
+  }
   return (
     <>
       <PanelGroup direction="vertical" autoSaveId="experiments-layout">
