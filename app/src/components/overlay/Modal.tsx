@@ -100,7 +100,7 @@ const modalCSS = css`
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      z-index: 100;
+      z-index: 1001;
 
       &[data-entering] {
         animation: ${modalZoom} 300ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
