@@ -42,13 +42,13 @@ describe("getSpans", () => {
 
   it("should get spans with basic parameters", async () => {
     const result = await getSpans({
-      projectIdentifier: "test-project",
+      project: { projectName: "test-project" },
     });
 
-    expect(result.data).toHaveLength(1);
-    expect(result.data[0]?.context.span_id).toBe("span-456");
-    expect(result.data[0]?.name).toBe("test-span");
-    expect(result.next_cursor).toBe("next-cursor-123");
+    expect(result.spans).toHaveLength(1);
+    expect(result.spans[0]?.context.span_id).toBe("span-456");
+    expect(result.spans[0]?.name).toBe("test-span");
+    expect(result.nextCursor).toBe("next-cursor-123");
   });
 
   it("should get spans with all supported filter parameters", async () => {
@@ -56,34 +56,34 @@ describe("getSpans", () => {
     const endTime = new Date("2022-01-02T00:00:00Z");
 
     const result = await getSpans({
-      projectIdentifier: "test-project",
+      project: { projectName: "test-project" },
       cursor: "cursor-123",
       limit: 50,
       startTime: startTime,
       endTime: endTime,
     });
 
-    expect(result.data).toHaveLength(1);
-    expect(result.next_cursor).toBe("next-cursor-123");
+    expect(result.spans).toHaveLength(1);
+    expect(result.nextCursor).toBe("next-cursor-123");
   });
 
   it("should get spans with string time parameters", async () => {
     const result = await getSpans({
-      projectIdentifier: "test-project",
+      project: { projectName: "test-project" },
       startTime: "2022-01-01T00:00:00Z",
       endTime: "2022-01-02T00:00:00Z",
     });
 
-    expect(result.data).toHaveLength(1);
+    expect(result.spans).toHaveLength(1);
   });
 
   it("should handle pagination with cursor", async () => {
     const result = await getSpans({
-      projectIdentifier: "test-project",
+      project: { projectName: "test-project" },
       cursor: "some-cursor-value",
       limit: 25,
     });
 
-    expect(result.data).toHaveLength(1);
+    expect(result.spans).toHaveLength(1);
   });
 });
