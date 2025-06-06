@@ -956,3 +956,142 @@ async def annotate_spans(
             for id_ in inserted_ids
         ]
     )
+
+
+class CreateSpansRequestBody(RequestBody[list[Span]]):
+    data: list[Span]
+
+
+class SpanCreationResult(V1RoutesBaseModel):
+    span_id: str = Field(description="OpenTelemetry span ID")
+    status: Literal["queued", "duplicate", "error"] = Field(
+        description="Status of the span creation attempt"
+    )
+    message: Optional[str] = Field(default=None, description="Additional information if applicable")
+
+
+class CreateSpansResponseBody(ResponseBody[list[SpanCreationResult]]):
+    pass
+
+
+@router.post(
+    "/projects/{project_identifier}/spans",
+    operation_id="createSpans",
+    summary="Create spans",
+    description="Submit spans to be inserted into a project. Returns immediately while processing happens asynchronously.",
+    responses=add_errors_to_responses([HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY]),
+)
+async def create_spans(
+    request: Request,
+    request_body: CreateSpansRequestBody,
+    project_identifier: str = Path(
+        description=(
+            "The project identifier: either project ID or project name. If using a project name, "
+            "it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+        )
+    ),
+    check_duplicates: bool = Query(
+        default=False,
+        description="If true, check for existing spans before queuing. Adds latency but provides immediate feedback.",
+    ),
+) -> CreateSpansResponseBody:
+    """
+    IMPLEMENTATION NOTES - Key decisions needed:
+
+    1. **Duplicate Detection Strategy**:
+       - Option A: Check for existing span_ids before queuing (adds latency)
+       - Option B: Queue all spans and let bulk inserter handle duplicates silently
+       - Option C: Hybrid - quick bloom filter check, then queue
+       - Current stub uses query param to let caller choose
+
+    2. **Data Conversion**:
+       - Need to convert API Span model to phoenix.trace.schemas.Span
+       - Handle GlobalID in the API model vs raw IDs in internal model
+       - Validate and convert span_kind string to SpanKind enum
+       - Convert SpanEvent list properly
+
+    3. **Response Format**:
+       - Should we return individual results per span?
+       - Should we group by status (queued vs duplicate)?
+       - How much detail about failures?
+
+    4. **Validation**:
+       - How much validation before queuing?
+       - Check required fields (trace_id, span_id)?
+       - Validate parent_id references?
+       - Validate time ranges?
+
+    5. **Project Resolution**:
+       - Get project by identifier first
+       - Convert to project name for bulk inserter
+
+    6. **Error Handling**:
+       - What if some spans are invalid?
+       - Should we queue valid ones and report errors for invalid?
+       - Or reject the entire batch?
+
+    7. **Performance Considerations**:
+       - Bulk duplicate checking query optimization
+       - Consider using INSERT ... ON CONFLICT in a temp table
+       - Limit batch size?
+
+    8. **Async Feedback Mechanism**:
+       - Could implement a job ID system for checking status later
+       - WebSocket notifications for completion?
+       - Polling endpoint for batch status?
+    """
+
+    # Stub implementation
+    async with request.app.state.db() as session:
+        project = await _get_project_by_identifier(session, project_identifier)
+
+    results: list[SpanCreationResult] = []
+
+    if check_duplicates:
+        # TODO: Implement duplicate checking
+        # Extract span_ids from request
+        # Query database for existing span_ids
+        # Mark duplicates in results
+        pass
+
+    # TODO: Convert API spans to internal format
+    # for api_span in request_body.data:
+    #     try:
+    #         internal_span = _convert_api_span_to_internal(api_span)
+    #         await request.state.queue_span_for_bulk_insert(internal_span, project.name)
+    #         results.append(SpanCreationResult(
+    #             span_id=api_span.context.span_id,
+    #             status="queued"
+    #         ))
+    #     except Exception as e:
+    #         results.append(SpanCreationResult(
+    #             span_id=api_span.context.span_id,
+    #             status="error",
+    #             message=str(e)
+    #         ))
+
+    # Temporary response for stub
+    for span in request_body.data:
+        results.append(
+            SpanCreationResult(
+                span_id=span.context.span_id,
+                status="queued",
+                message="Span creation not yet implemented",
+            )
+        )
+
+    return CreateSpansResponseBody(data=results)
+
+
+def _convert_api_span_to_internal(api_span: Span):
+    """
+    TODO: Implement conversion from API Span to phoenix.trace.schemas.Span
+
+    Key conversions needed:
+    - Remove GlobalID wrapper from api_span.id
+    - Convert span_kind string to SpanKind enum
+    - Convert SpanEvent timestamps properly
+    - Ensure all required fields are present
+    - Handle attribute flattening/unflattening if needed
+    """
+    raise NotImplementedError("Span conversion not yet implemented")
