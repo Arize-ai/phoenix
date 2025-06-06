@@ -642,6 +642,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         self.aws_access_key_id = _get_credential_value(credentials, "AWS_ACCESS_KEY_ID") or getenv("AWS_ACCESS_KEY_ID")
         self.aws_secret_access_key = _get_credential_value(credentials, "AWS_SECRET_ACCESS_KEY") or getenv("AWS_SECRET_ACCESS_KEY")
         self.aws_session_token = _get_credential_value(credentials, "AWS_SESSION_TOKEN") or getenv("AWS_SESSION_TOKEN")
+        self.model_name = model.name
         self.client = boto3.client(service_name="bedrock-runtime",region_name="us-east-2", aws_access_key_id=self.aws_access_key_id, aws_secret_access_key=self.aws_secret_access_key, aws_session_token=self.aws_session_token)
         self.client._client = _HttpxClient({}, self._attributes)
 
