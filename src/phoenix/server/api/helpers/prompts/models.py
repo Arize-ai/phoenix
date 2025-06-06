@@ -341,9 +341,6 @@ class PromptXAIInvocationParametersContent(PromptOpenAIInvocationParametersConte
 class PromptOllamaInvocationParametersContent(PromptOpenAIInvocationParametersContent):
     pass
 
-class PromptBedrockInvocationParametersContent(PromptOpenAIInvocationParametersContent):
-    pass
-
 
 class PromptAzureOpenAIInvocationParameters(DBBaseModel):
     type: Literal["azure_openai"]
