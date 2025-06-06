@@ -91,6 +91,7 @@ export function ChatMessageToolCallsEditor({
       case "DEEPSEEK":
       case "XAI":
       case "OLLAMA":
+      case "BEDROCK":
         return openAIToolCallsJSONSchema as JSONSchema7;
       case "ANTHROPIC":
         return anthropicToolCallsJSONSchema as JSONSchema7;
