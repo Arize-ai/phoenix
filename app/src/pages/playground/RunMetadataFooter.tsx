@@ -11,6 +11,7 @@ import {
   Icons,
   Loading,
   Modal,
+  ModalOverlay,
   View,
 } from "@phoenix/components";
 import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
@@ -78,17 +79,14 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
             >
               Annotate
             </Button>
-            <Modal
-              variant="slideover"
-              size="S"
-              isDismissable
-              shouldCloseOnInteractOutside={() => true}
-            >
-              <EditSpanAnnotationsDialog
-                spanNodeId={spanId}
-                projectId={trace.project.id}
-              />
-            </Modal>
+            <ModalOverlay>
+              <Modal variant="slideover" size="S">
+                <EditSpanAnnotationsDialog
+                  spanNodeId={spanId}
+                  projectId={trace.project.id}
+                />
+              </Modal>
+            </ModalOverlay>
           </DialogTrigger>
           <DialogTrigger
             onOpenChange={(open) => {
@@ -103,20 +101,17 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
             <Button size="S" leadingVisual={<Icon svg={<Icons.Trace />} />}>
               View Trace
             </Button>
-            <Modal
-              variant="slideover"
-              size="fullscreen"
-              isDismissable
-              shouldCloseOnInteractOutside={() => true}
-            >
-              <Suspense fallback={<Loading />}>
-                <PlaygroundRunTraceDetailsDialog
-                  traceId={trace.traceId}
-                  projectId={trace.project.id}
-                  title={`Playground Trace`}
-                />
-              </Suspense>
-            </Modal>
+            <ModalOverlay>
+              <Modal variant="slideover" size="fullscreen">
+                <Suspense fallback={<Loading />}>
+                  <PlaygroundRunTraceDetailsDialog
+                    traceId={trace.traceId}
+                    projectId={trace.project.id}
+                    title={`Playground Trace`}
+                  />
+                </Suspense>
+              </Modal>
+            </ModalOverlay>
           </DialogTrigger>
         </Flex>
       </Flex>

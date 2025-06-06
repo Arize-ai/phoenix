@@ -21,6 +21,7 @@ import {
   Input,
   Label,
   Modal,
+  ModalOverlay,
   Text,
   TextField,
   View,
@@ -294,9 +295,11 @@ export function ModelConfigButton(props: ModelConfigButtonProps) {
           ) : null}
         </Flex>
       </Button>
-      <Modal isDismissable variant="slideover" size="S">
-        <ModelConfigDialog {...props} />
-      </Modal>
+      <ModalOverlay>
+        <Modal variant="slideover" size="S">
+          <ModelConfigDialog {...props} />
+        </Modal>
+      </ModalOverlay>
     </DialogTrigger>
   );
 }
