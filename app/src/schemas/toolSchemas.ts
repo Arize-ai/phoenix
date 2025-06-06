@@ -232,6 +232,7 @@ type ProviderToToolDefinitionMap = {
   DEEPSEEK: OpenAIToolDefinition;
   XAI: OpenAIToolDefinition;
   OLLAMA: OpenAIToolDefinition;
+  BEDROCK: OpenAIToolDefinition;
 };
 
 /**
@@ -271,6 +272,7 @@ export const fromOpenAIToolDefinition = <T extends ModelProvider>({
     case "DEEPSEEK":
     case "XAI":
     case "OLLAMA":
+    case "BEDROCK":
       return toolDefinition as ProviderToToolDefinitionMap[T];
     case "ANTHROPIC":
       return openAIToolToAnthropic.parse(

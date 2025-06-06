@@ -8,7 +8,7 @@
   "dependencies": {
     "@apollo/client": "^3.13.7",
     "@arizeai/components": "2.0.0-0",
-    "@arizeai/openinference-semantic-conventions": "^0.13.0",
+    "@arizeai/openinference-semantic-conventions": "^1.1.0",
     "@arizeai/point-cloud": "^3.0.6",
     "@codemirror/autocomplete": "6.12.0",
     "@codemirror/commands": "^6.8.0",
