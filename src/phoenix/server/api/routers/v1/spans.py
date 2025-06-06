@@ -27,10 +27,10 @@ from phoenix.server.dml_event import SpanAnnotationInsertEvent
 from phoenix.trace.attributes import flatten
 from phoenix.trace.dsl import SpanQuery as SpanQuery_
 from phoenix.trace.schemas import (
-    Span as InternalSpan,
+    Span as SpanForInsertion,
 )
 from phoenix.trace.schemas import (
-    SpanContext as InternalSpanContext,
+    SpanContext as InsertionSpanContext,
 )
 from phoenix.trace.schemas import (
     SpanEvent as InternalSpanEvent,
@@ -1022,25 +1022,20 @@ async def create_spans(
         description="If true, check for existing spans before queuing. Adds latency but provides immediate feedback.",
     ),
 ) -> CreateSpansResponseBody:
-    def convert_api_span_to_internal(api_span: Span) -> InternalSpan:
+    def convert_api_span_to_internal(api_span: Span) -> SpanForInsertion:
         """
         Convert from API Span to phoenix.trace.schemas.Span
         """
-        # Convert span_kind string to SpanKind enum
-        # The API model stores span_kind as the OpenInference span kind string
         try:
             span_kind = SpanKind(api_span.span_kind.upper())
         except ValueError:
-            # Default to UNKNOWN if the span kind is not recognized
             span_kind = SpanKind.UNKNOWN
 
-        # Convert status_code string to SpanStatusCode enum
         try:
             status_code = SpanStatusCode(api_span.status_code.upper())
         except ValueError:
             status_code = SpanStatusCode.UNSET
 
-        # Convert SpanEvents - ensure all have valid timestamps
         internal_events: list[InternalSpanEvent] = []
         for event in api_span.events:
             if event.timestamp:
@@ -1054,10 +1049,10 @@ async def create_spans(
         attributes = dict(api_span.attributes)
         attributes["openinference.span.kind"] = api_span.span_kind
 
-        # Create internal span
-        return InternalSpan(
+        # Create span for insertion
+        return SpanForInsertion(
             name=api_span.name,
-            context=InternalSpanContext(
+            context=InsertionSpanContext(
                 trace_id=api_span.context.trace_id, span_id=api_span.context.span_id
             ),
             span_kind=span_kind,
@@ -1068,19 +1063,17 @@ async def create_spans(
             status_message=api_span.status_message,
             attributes=attributes,
             events=internal_events,
-            conversation=None,  # Not exposed in API
+            conversation=None,  # Unused
         )
 
-    # Implementation
     async with request.app.state.db() as session:
         project = await _get_project_by_identifier(session, project_identifier)
 
     total_received = len(request_body.data)
     duplicate_spans: list[DuplicateSpanInfo] = []
     invalid_spans: list[InvalidSpanInfo] = []
-    spans_to_queue: list[tuple[InternalSpan, str]] = []
+    spans_to_queue: list[tuple[SpanForInsertion, str]] = []
 
-    # Check for duplicates if requested
     existing_span_ids: set[str] = set()
     if check_duplicates and request_body.data:
         span_ids = [span.context.span_id for span in request_body.data]
@@ -1090,7 +1083,6 @@ async def create_spans(
             )
             existing_span_ids = {row[0] for row in existing_result}
 
-    # Process each span
     for api_span in request_body.data:
         # Check if it's a duplicate
         if api_span.context.span_id in existing_span_ids:
@@ -1101,10 +1093,9 @@ async def create_spans(
             )
             continue
 
-        # Try to convert to internal format
         try:
-            internal_span = convert_api_span_to_internal(api_span)
-            spans_to_queue.append((internal_span, project.name))
+            span_for_insertion = convert_api_span_to_internal(api_span)
+            spans_to_queue.append((span_for_insertion, project.name))
         except Exception as e:
             invalid_spans.append(
                 InvalidSpanInfo(
@@ -1114,9 +1105,8 @@ async def create_spans(
                 )
             )
 
-    # Queue valid spans for bulk insert
-    for span, project_name in spans_to_queue:
-        await request.app.state.queue_span_for_bulk_insert(span, project_name)
+    for span_for_insertion, project_name in spans_to_queue:
+        await request.app.state.queue_span_for_bulk_insert(span_for_insertion, project_name)
 
     return CreateSpansResponseBody(
         total_received=total_received,
