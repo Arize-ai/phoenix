@@ -572,7 +572,7 @@ export function SpansTable(props: SpansTableProps) {
    * and pass the column sizes down as CSS variables to the <table> element.
    * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
    */
-  const [columnSizeVars] = React.useMemo(() => {
+  const [columnSizeVars] = useMemo(() => {
     const headers = getFlatHeaders();
     const colSizes: { [key: string]: number } = {};
     for (let i = 0; i < headers.length; i++) {

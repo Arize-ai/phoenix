@@ -52,6 +52,66 @@ const defaultColumnSettings = {
   minSize: 100,
 } satisfies Partial<ColumnDef<unknown>>;
 
+const TableBody = <T extends { id: string }>({
+  table,
+  hasNext,
+  onLoadNext,
+  isLoadingNext,
+  dataset,
+}: {
+  table: Table<T>;
+  hasNext: boolean;
+  onLoadNext: () => void;
+  isLoadingNext: boolean;
+  dataset: experimentsLoaderQuery$data["dataset"];
+}) => {
+  const navigate = useNavigate();
+  return (
+    <tbody>
+      {table.getRowModel().rows.map((row) => {
+        return (
+          <tr
+            key={row.id}
+            onClick={() => {
+              navigate(
+                `/datasets/${dataset.id}/compare?experimentId=${row.original.id}`
+              );
+            }}
+          >
+            {row.getVisibleCells().map((cell) => {
+              const colSizeVar = `--col-${cell.column.id}-size`;
+              return (
+                <td
+                  key={cell.id}
+                  style={{
+                    width: `calc(var(${colSizeVar}) * 1px)`,
+                    maxWidth: `calc(var(${colSizeVar}) * 1px)`,
+                  }}
+                >
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </td>
+              );
+            })}
+          </tr>
+        );
+      })}
+      {hasNext ? (
+        <LoadMoreRow
+          onLoadMore={onLoadNext}
+          key="load-more"
+          isLoadingNext={isLoadingNext}
+        />
+      ) : null}
+    </tbody>
+  );
+};
+
+// Memoized wrapper for table body to use during column resizing
+export const MemoizedTableBody = React.memo(
+  TableBody,
+  (prev, next) => prev.table.options.data === next.table.options.data
+) as typeof TableBody;
+
 export function ExperimentsTable({
   dataset,
 }: {
@@ -124,66 +184,6 @@ export function ExperimentsTable({
   );
 
   type TableRow = (typeof tableData)[number];
-
-  const TableBody = ({
-    table,
-    hasNext,
-    onLoadNext,
-    isLoadingNext,
-    dataset,
-  }: {
-    table: Table<TableRow>;
-    hasNext: boolean;
-    onLoadNext: () => void;
-    isLoadingNext: boolean;
-    dataset: experimentsLoaderQuery$data["dataset"];
-  }) => {
-    const navigate = useNavigate();
-    return (
-      <tbody>
-        {table.getRowModel().rows.map((row) => {
-          return (
-            <tr
-              key={row.id}
-              onClick={() => {
-                navigate(
-                  `/datasets/${dataset.id}/compare?experimentId=${row.original.id}`
-                );
-              }}
-            >
-              {row.getVisibleCells().map((cell) => {
-                const colSizeVar = `--col-${cell.column.id}-size`;
-                return (
-                  <td
-                    key={cell.id}
-                    style={{
-                      width: `calc(var(${colSizeVar}) * 1px)`,
-                      maxWidth: `calc(var(${colSizeVar}) * 1px)`,
-                    }}
-                  >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                );
-              })}
-            </tr>
-          );
-        })}
-        {hasNext ? (
-          <LoadMoreRow
-            onLoadMore={onLoadNext}
-            key="load-more"
-            isLoadingNext={isLoadingNext}
-          />
-        ) : null}
-      </tbody>
-    );
-  };
-
-  // Memoized wrapper for table body to use during column resizing
-  const MemoizedTableBody = React.memo(
-    TableBody,
-    (prev, next) => prev.table.options.data === next.table.options.data
-  ) as typeof TableBody;
 
   const baseColumns: ColumnDef<TableRow>[] = [
     {
@@ -422,34 +422,7 @@ export function ExperimentsTable({
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
     >
       <table
-        css={css`
-          ${selectableTableCSS}
-          .resizer {
-            position: absolute;
-            right: 0;
-            top: 0;
-            height: 100%;
-            width: 5px;
-            background: rgba(0, 0, 0, 0.5);
-            cursor: col-resize;
-            user-select: none;
-            touch-action: none;
-            opacity: 0;
-          }
-
-          .resizer.isResizing {
-            background: blue;
-            opacity: 1;
-          }
-
-          th:hover .resizer {
-            opacity: 1;
-          }
-
-          th {
-            position: relative;
-          }
-        `}
+        css={selectableTableCSS}
         style={{
           ...columnSizeVars,
           width: table.getTotalSize(),
