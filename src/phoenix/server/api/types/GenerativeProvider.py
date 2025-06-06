@@ -107,9 +107,10 @@ class GenerativeProvider:
     @strawberry.field(description="The credential requirements for the provider")  # type: ignore
     async def credential_requirements(self) -> list[GenerativeProviderCredentialConfig]:
         # Handle providers that don't require credentials
-        if self.key == GenerativeProviderKey.OLLAMA:
+        credential_requirements = self.model_provider_to_credential_requirements_map.get(self.key)
+        if credential_requirements is None:
             return []
-        return [self.model_provider_to_credential_requirements_map[self.key]]
+        return [credential_requirements]
 
     @strawberry.field(description="Whether the credentials are set on the server for the provider")  # type: ignore
     async def credentials_set(self) -> bool:
