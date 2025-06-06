@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import secrets
 from asyncio import gather
 from functools import partial
+from pathlib import Path
 from typing import Optional
 
 import sqlalchemy as sa
+from sqlalchemy import delete, select
 
 from phoenix import config
 from phoenix.auth import (
@@ -26,7 +29,11 @@ from phoenix.config import (
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.enums import ENUM_COLUMNS
-from phoenix.db.models import UserRoleName
+from phoenix.db.models import (
+    Model,
+    ModelCost,
+    UserRoleName,
+)
 from phoenix.db.types.trace_retention import (
     MaxDaysRule,
     TraceRetentionCronExpression,
@@ -62,6 +69,7 @@ class Facilitator:
             _get_system_user_id,
             partial(_ensure_admins, email_sender=self._email_sender),
             _ensure_default_project_trace_retention_policy,
+            _ensure_model_costs,
         ):
             await fn(self._db)
 
@@ -261,3 +269,71 @@ async def _ensure_default_project_trace_retention_policy(db: DbSessionFactory) -
                 }
             ],
         )
+
+
+async def _ensure_model_costs(db: DbSessionFactory) -> None:
+    async with db() as session:
+        with open(
+            Path(__file__).parent.parent / "server" / "cost_tracking" / "model_cost_manifest.json"
+        ) as f:
+            manifest = json.load(f)
+
+        for model_data in manifest:
+            result = await session.execute(select(Model).where(Model.name == model_data["model"]))
+            existing_model = result.scalar_one_or_none()
+
+            if existing_model is None:
+                model = Model(
+                    name=model_data["model"],
+                    provider=model_data["provider"],
+                    name_pattern=model_data["regex"],
+                )
+                session.add(model)
+                await session.flush()
+            else:
+                existing_model.provider = model_data["provider"]
+                existing_model.name_pattern = model_data["regex"]
+                model = existing_model
+                await session.execute(delete(ModelCost).where(ModelCost.model_id == model.id))
+
+            costs = []
+            if model_data["input"] is not None:
+                costs.append(
+                    ModelCost(
+                        model_id=model.id,
+                        token_type="input",
+                        cost_type="DEFAULT",
+                        cost_per_token=model_data["input"],
+                    )
+                )
+            if model_data["output"] is not None:
+                costs.append(
+                    ModelCost(
+                        model_id=model.id,
+                        token_type="output",
+                        cost_type="DEFAULT",
+                        cost_per_token=model_data["output"],
+                    )
+                )
+            if model_data["cache_write"] is not None:
+                costs.append(
+                    ModelCost(
+                        model_id=model.id,
+                        token_type="cache_write",
+                        cost_type="DEFAULT",
+                        cost_per_token=model_data["cache_write"],
+                    )
+                )
+            if model_data["cache_read"] is not None:
+                costs.append(
+                    ModelCost(
+                        model_id=model.id,
+                        token_type="cache_read",
+                        cost_type="DEFAULT",
+                        cost_per_token=model_data["cache_read"],
+                    )
+                )
+
+            session.add_all(costs)
+
+        await session.commit()
