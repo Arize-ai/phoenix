@@ -465,7 +465,7 @@ class _InvocationParametersConversion:
             return v1.PromptXAIInvocationParameters(
                 type="xai",
                 xai=content,
-            )   
+            )
         elif model_provider == "BEDROCK":
             return v1.PromptBedrockInvocationParameters(
                 type="bedrock",
