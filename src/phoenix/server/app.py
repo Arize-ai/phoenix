@@ -87,6 +87,7 @@ from phoenix.server.api.dataloaders import (
     ExperimentSequenceNumberDataLoader,
     LatencyMsQuantileDataLoader,
     MinStartOrMaxEndTimeDataLoader,
+    ModelTotalCostsDataLoader,
     NumChildSpansDataLoader,
     NumSpansPerTraceDataLoader,
     ProjectByNameDataLoader,
@@ -662,6 +663,7 @@ def create_graphql_router(
                 ),
                 num_child_spans=NumChildSpansDataLoader(db),
                 num_spans_per_trace=NumSpansPerTraceDataLoader(db),
+                model_total_costs=ModelTotalCostsDataLoader(db),
                 project_fields=TableFieldsDataLoader(db, models.Project),
                 projects_by_trace_retention_policy_id=ProjectIdsByTraceRetentionPolicyIdDataLoader(
                     db
