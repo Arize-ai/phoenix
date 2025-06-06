@@ -351,7 +351,11 @@ export interface paths {
          */
         get: operations["getSpans"];
         put?: never;
-        post?: never;
+        /**
+         * Create spans
+         * @description Submit spans to be inserted into a project. Returns immediately while processing happens asynchronously.
+         */
+        post: operations["createSpans"];
         delete?: never;
         options?: never;
         head?: never;
@@ -823,6 +827,44 @@ export interface components {
         CreatePromptResponseBody: {
             data: components["schemas"]["PromptVersion"];
         };
+        /** CreateSpansRequestBody */
+        CreateSpansRequestBody: {
+            /** Data */
+            data: components["schemas"]["Span"][];
+        };
+        /** CreateSpansResponseBody */
+        CreateSpansResponseBody: {
+            /**
+             * Total Received
+             * @description Total number of spans received
+             */
+            total_received: number;
+            /**
+             * Total Queued
+             * @description Number of spans successfully queued for insertion
+             */
+            total_queued: number;
+            /**
+             * Total Duplicates
+             * @description Number of duplicate spans found
+             */
+            total_duplicates: number;
+            /**
+             * Total Invalid
+             * @description Number of invalid spans
+             */
+            total_invalid: number;
+            /**
+             * Duplicate Spans
+             * @description Details of duplicate spans (if check_duplicates was true)
+             */
+            duplicate_spans?: components["schemas"]["DuplicateSpanInfo"][];
+            /**
+             * Invalid Spans
+             * @description Details of invalid spans that could not be queued
+             */
+            invalid_spans?: components["schemas"]["InvalidSpanInfo"][];
+        };
         /** CreateUserRequestBody */
         CreateUserRequestBody: {
             /** User */
@@ -928,6 +970,19 @@ export interface components {
         DeleteAnnotationConfigResponseBody: {
             /** Data */
             data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
+        };
+        /** DuplicateSpanInfo */
+        DuplicateSpanInfo: {
+            /**
+             * Span Id
+             * @description OpenTelemetry span ID
+             */
+            span_id: string;
+            /**
+             * Trace Id
+             * @description OpenTelemetry trace ID
+             */
+            trace_id: string;
         };
         /** Experiment */
         Experiment: {
@@ -1147,6 +1202,24 @@ export interface components {
              * @description The ID of the inserted span annotation
              */
             id: string;
+        };
+        /** InvalidSpanInfo */
+        InvalidSpanInfo: {
+            /**
+             * Span Id
+             * @description OpenTelemetry span ID
+             */
+            span_id: string;
+            /**
+             * Trace Id
+             * @description OpenTelemetry trace ID
+             */
+            trace_id: string;
+            /**
+             * Error
+             * @description Error message explaining why the span is invalid
+             */
+            error: string;
         };
         /** ListDatasetExamplesData */
         ListDatasetExamplesData: {
@@ -1941,8 +2014,9 @@ export interface components {
             /**
              * Id
              * @description Span Global ID, distinct from the OpenTelemetry span ID
+             * @default
              */
-            id: string;
+            id?: string;
             /**
              * Name
              * @description Name of the span operation
@@ -3503,6 +3577,63 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SpansResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    createSpans: {
+        parameters: {
+            query?: {
+                /** @description If true, check for existing spans before queuing. Adds latency but provides immediate feedback. */
+                check_duplicates?: boolean;
+            };
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSpansRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateSpansResponseBody"];
                 };
             };
             /** @description Forbidden */

@@ -1991,6 +1991,91 @@
             "description": "Unprocessable Entity"
           }
         }
+      },
+      "post": {
+        "tags": [
+          "spans"
+        ],
+        "summary": "Create spans",
+        "description": "Submit spans to be inserted into a project. Returns immediately while processing happens asynchronously.",
+        "operationId": "createSpans",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+          },
+          {
+            "name": "check_duplicates",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "If true, check for existing spans before queuing. Adds latency but provides immediate feedback.",
+              "default": false,
+              "title": "Check Duplicates"
+            },
+            "description": "If true, check for existing spans before queuing. Adds latency but provides immediate feedback."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSpansRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateSpansResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
       }
     },
     "/v1/span_annotations": {
@@ -3892,6 +3977,70 @@
         ],
         "title": "CreatePromptResponseBody"
       },
+      "CreateSpansRequestBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/Span"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateSpansRequestBody"
+      },
+      "CreateSpansResponseBody": {
+        "properties": {
+          "total_received": {
+            "type": "integer",
+            "title": "Total Received",
+            "description": "Total number of spans received"
+          },
+          "total_queued": {
+            "type": "integer",
+            "title": "Total Queued",
+            "description": "Number of spans successfully queued for insertion"
+          },
+          "total_duplicates": {
+            "type": "integer",
+            "title": "Total Duplicates",
+            "description": "Number of duplicate spans found"
+          },
+          "total_invalid": {
+            "type": "integer",
+            "title": "Total Invalid",
+            "description": "Number of invalid spans"
+          },
+          "duplicate_spans": {
+            "items": {
+              "$ref": "#/components/schemas/DuplicateSpanInfo"
+            },
+            "type": "array",
+            "title": "Duplicate Spans",
+            "description": "Details of duplicate spans (if check_duplicates was true)"
+          },
+          "invalid_spans": {
+            "items": {
+              "$ref": "#/components/schemas/InvalidSpanInfo"
+            },
+            "type": "array",
+            "title": "Invalid Spans",
+            "description": "Details of invalid spans that could not be queued"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_received",
+          "total_queued",
+          "total_duplicates",
+          "total_invalid"
+        ],
+        "title": "CreateSpansResponseBody"
+      },
       "CreateUserRequestBody": {
         "properties": {
           "user": {
@@ -4156,6 +4305,26 @@
           "data"
         ],
         "title": "DeleteAnnotationConfigResponseBody"
+      },
+      "DuplicateSpanInfo": {
+        "properties": {
+          "span_id": {
+            "type": "string",
+            "title": "Span Id",
+            "description": "OpenTelemetry span ID"
+          },
+          "trace_id": {
+            "type": "string",
+            "title": "Trace Id",
+            "description": "OpenTelemetry trace ID"
+          }
+        },
+        "type": "object",
+        "required": [
+          "span_id",
+          "trace_id"
+        ],
+        "title": "DuplicateSpanInfo"
       },
       "Experiment": {
         "properties": {
@@ -4715,6 +4884,32 @@
           "id"
         ],
         "title": "InsertedSpanAnnotation"
+      },
+      "InvalidSpanInfo": {
+        "properties": {
+          "span_id": {
+            "type": "string",
+            "title": "Span Id",
+            "description": "OpenTelemetry span ID"
+          },
+          "trace_id": {
+            "type": "string",
+            "title": "Trace Id",
+            "description": "OpenTelemetry trace ID"
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "description": "Error message explaining why the span is invalid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "span_id",
+          "trace_id",
+          "error"
+        ],
+        "title": "InvalidSpanInfo"
       },
       "ListDatasetExamplesData": {
         "properties": {
@@ -6806,7 +7001,8 @@
           "id": {
             "type": "string",
             "title": "Id",
-            "description": "Span Global ID, distinct from the OpenTelemetry span ID"
+            "description": "Span Global ID, distinct from the OpenTelemetry span ID",
+            "default": ""
           },
           "name": {
             "type": "string",
@@ -6874,7 +7070,6 @@
         },
         "type": "object",
         "required": [
-          "id",
           "name",
           "context",
           "span_kind",

@@ -1,4 +1,5 @@
 import logging
+import warnings
 from datetime import datetime, timezone, tzinfo
 from io import StringIO
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union, cast
@@ -31,6 +32,23 @@ class Spans:
             >>> query = SpanQuery().select("name", "span_id").where("name == 'my-span'")
             >>> df = client.spans.get_spans_dataframe(query=query)
             >>> all_spans_in_project = client.spans.get_spans_dataframe()
+
+            # Create spans
+            >>> spans = [{"id": "1", "name": "test", "context": {"trace_id": "123", "span_id": "456"}, ...}]
+            >>> result = client.spans.create_spans(project_identifier="my-project", spans=spans)
+            >>> print(f"Queued {result['total_queued']} spans")
+
+            # Create spans with error handling
+            >>> try:
+            ...     result = client.spans.create_spans(
+            ...         project_identifier="my-project",
+            ...         spans=spans,
+            ...         check_duplicates=True,
+            ...         raise_on_error=True
+            ...     )
+            ... except SpanCreationError as e:
+            ...     print(f"Failed to create spans: {e}")
+            ...     print(f"Invalid spans: {len(e.invalid_spans)}")
 
     """
 
@@ -402,7 +420,7 @@ class Spans:
             )
             response.raise_for_status()
             payload = response.json()
-            payload = cast(v1.SpanSearchResponseBody, payload)
+            payload = cast(v1.SpansResponseBody, payload)
 
             spans = payload["data"]
             all_spans.extend(spans)
@@ -412,6 +430,131 @@ class Spans:
                 break
 
         return all_spans[:limit]
+
+    def create_spans(
+        self,
+        *,
+        project_identifier: str,
+        spans: Sequence[v1.Span],
+        check_duplicates: bool = False,
+        raise_on_error: bool = False,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> v1.CreateSpansResponseBody:
+        """
+        Creates spans in a project.
+
+        Args:
+            project_identifier: The project identifier (name or ID) used in the API path.
+            spans: A sequence of Span objects to create.
+            check_duplicates: If true, check for existing spans before queuing.
+                Adds latency but provides immediate feedback (default: False).
+            raise_on_error: If true, raise SpanCreationError when spans fail to be queued.
+                If false, log warnings instead (default: False).
+            timeout: Optional request timeout in seconds.
+
+        Returns:
+            A CreateSpansResponseBody with statistics about the operation including
+            total_received, total_queued, total_duplicates, total_invalid, and
+            optionally lists of duplicate_spans and invalid_spans.
+
+        Raises:
+            SpanCreationError: If raise_on_error is True and some spans failed to be queued.
+            httpx.HTTPStatusError: If the API returns an error response.
+            httpx.TimeoutException: If the request times out.
+        """
+        request_body = v1.CreateSpansRequestBody(data=list(spans))
+
+        params: dict[str, Union[bool, str]] = {}
+        if check_duplicates:
+            params["check_duplicates"] = check_duplicates
+
+        try:
+            response = self._client.post(
+                url=f"v1/projects/{project_identifier}/spans",
+                json=request_body,
+                params=params,
+                headers={"accept": "application/json"},
+                timeout=timeout,
+            )
+            response.raise_for_status()
+            result = cast(v1.CreateSpansResponseBody, response.json())
+
+            # Check for failures
+            total_received = result.get("total_received", 0)
+            total_queued = result.get("total_queued", 0)
+            total_invalid = result.get("total_invalid", 0)
+            total_duplicates = result.get("total_duplicates", 0)
+            invalid_spans = result.get("invalid_spans", [])
+            duplicate_spans = result.get("duplicate_spans", [])
+
+            # Handle invalid spans
+            if total_invalid > 0:
+                error_details: list[str] = []
+                for invalid_span in invalid_spans[:5]:  # Show first 5 errors
+                    span_id = invalid_span.get("span_id", "unknown")
+                    error = invalid_span.get("error", "unknown error")
+                    error_details.append(f"  - Span {span_id}: {error}")
+
+                if len(invalid_spans) > 5:
+                    error_details.append(f"  ... and {len(invalid_spans) - 5} more errors")
+
+                error_msg = f"Failed to queue {total_invalid} invalid spans:\n" + "\n".join(
+                    error_details
+                )
+
+                if raise_on_error:
+                    raise SpanCreationError(
+                        message=error_msg,
+                        invalid_spans=invalid_spans,
+                        duplicate_spans=duplicate_spans,
+                        total_received=total_received,
+                        total_queued=total_queued,
+                        total_invalid=total_invalid,
+                        total_duplicates=total_duplicates,
+                    )
+                else:
+                    warnings.warn(error_msg, UserWarning)
+
+            # Handle duplicates (only warn, don't error)
+            if check_duplicates and total_duplicates > 0:
+                dup_info: list[str] = []
+                for dup_span in duplicate_spans[:5]:  # Show first 5 duplicates
+                    span_id = dup_span.get("span_id", "unknown")
+                    dup_info.append(f"  - Span {span_id}")
+
+                if len(duplicate_spans) > 5:
+                    dup_info.append(f"  ... and {len(duplicate_spans) - 5} more duplicates")
+
+                warning_msg = (
+                    f"Found {total_duplicates} duplicate spans that were not queued:\n"
+                    + "\n".join(dup_info)
+                )
+                warnings.warn(warning_msg, UserWarning)
+
+            # Log summary
+            if total_queued < total_received:
+                logger.info(
+                    f"Span creation summary: {total_queued}/{total_received} spans queued "
+                    f"({total_invalid} invalid, {total_duplicates} duplicates)"
+                )
+
+            return result
+
+        except httpx.TimeoutException as error:
+            error_message = (
+                (
+                    f"The request timed out after {timeout} seconds. The timeout can be increased "
+                    "by passing a larger value to the `timeout` parameter "
+                    "and can be disabled altogether by passing `None`."
+                )
+                if timeout is not None
+                else (
+                    "The request timed out. The timeout can be adjusted by "
+                    "passing a number of seconds to the `timeout` parameter "
+                    "and can be disabled altogether by passing `None`."
+                )
+            )
+            raise TimeoutError(error_message) from error
 
 
 class AsyncSpans:
@@ -425,6 +568,23 @@ class AsyncSpans:
             >>> client = AsyncClient()
             >>> query = SpanQuery().select("name", "span_id").where("name == 'my-span'")
             >>> df = await client.spans.get_spans_dataframe(query=query)
+
+            # Create spans
+            >>> spans = [{"id": "1", "name": "test", "context": {"trace_id": "123", "span_id": "456"}, ...}]
+            >>> result = await client.spans.create_spans(project_identifier="my-project", spans=spans)
+            >>> print(f"Queued {result['total_queued']} spans")
+
+            # Create spans with error handling
+            >>> try:
+            ...     result = await client.spans.create_spans(
+            ...         project_identifier="my-project",
+            ...         spans=spans,
+            ...         check_duplicates=True,
+            ...         raise_on_error=True
+            ...     )
+            ... except SpanCreationError as e:
+            ...     print(f"Failed to create spans: {e}")
+            ...     print(f"Invalid spans: {len(e.invalid_spans)}")
 
     """
 
@@ -808,6 +968,131 @@ class AsyncSpans:
 
         return all_spans[:limit]
 
+    async def create_spans(
+        self,
+        *,
+        project_identifier: str,
+        spans: Sequence[v1.Span],
+        check_duplicates: bool = False,
+        raise_on_error: bool = False,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> v1.CreateSpansResponseBody:
+        """
+        Creates spans in a project.
+
+        Args:
+            project_identifier: The project identifier (name or ID) used in the API path.
+            spans: A sequence of Span objects to create.
+            check_duplicates: If true, check for existing spans before queuing.
+                Adds latency but provides immediate feedback (default: False).
+            raise_on_error: If true, raise SpanCreationError when spans fail to be queued.
+                If false, log warnings instead (default: False).
+            timeout: Optional request timeout in seconds.
+
+        Returns:
+            A CreateSpansResponseBody with statistics about the operation including
+            total_received, total_queued, total_duplicates, total_invalid, and
+            optionally lists of duplicate_spans and invalid_spans.
+
+        Raises:
+            SpanCreationError: If raise_on_error is True and some spans failed to be queued.
+            httpx.HTTPStatusError: If the API returns an error response.
+            httpx.TimeoutException: If the request times out.
+        """
+        request_body = v1.CreateSpansRequestBody(data=list(spans))
+
+        params: dict[str, Union[bool, str]] = {}
+        if check_duplicates:
+            params["check_duplicates"] = check_duplicates
+
+        try:
+            response = await self._client.post(
+                url=f"v1/projects/{project_identifier}/spans",
+                json=request_body,
+                params=params,
+                headers={"accept": "application/json"},
+                timeout=timeout,
+            )
+            response.raise_for_status()
+            result = cast(v1.CreateSpansResponseBody, response.json())
+
+            # Check for failures
+            total_received = result.get("total_received", 0)
+            total_queued = result.get("total_queued", 0)
+            total_invalid = result.get("total_invalid", 0)
+            total_duplicates = result.get("total_duplicates", 0)
+            invalid_spans = result.get("invalid_spans", [])
+            duplicate_spans = result.get("duplicate_spans", [])
+
+            # Handle invalid spans
+            if total_invalid > 0:
+                error_details: list[str] = []
+                for invalid_span in invalid_spans[:5]:  # Show first 5 errors
+                    span_id = invalid_span.get("span_id", "unknown")
+                    error = invalid_span.get("error", "unknown error")
+                    error_details.append(f"  - Span {span_id}: {error}")
+
+                if len(invalid_spans) > 5:
+                    error_details.append(f"  ... and {len(invalid_spans) - 5} more errors")
+
+                error_msg = f"Failed to queue {total_invalid} invalid spans:\n" + "\n".join(
+                    error_details
+                )
+
+                if raise_on_error:
+                    raise SpanCreationError(
+                        message=error_msg,
+                        invalid_spans=invalid_spans,
+                        duplicate_spans=duplicate_spans,
+                        total_received=total_received,
+                        total_queued=total_queued,
+                        total_invalid=total_invalid,
+                        total_duplicates=total_duplicates,
+                    )
+                else:
+                    warnings.warn(error_msg, UserWarning)
+
+            # Handle duplicates (only warn, don't error)
+            if check_duplicates and total_duplicates > 0:
+                dup_info: list[str] = []
+                for dup_span in duplicate_spans[:5]:  # Show first 5 duplicates
+                    span_id = dup_span.get("span_id", "unknown")
+                    dup_info.append(f"  - Span {span_id}")
+
+                if len(duplicate_spans) > 5:
+                    dup_info.append(f"  ... and {len(duplicate_spans) - 5} more duplicates")
+
+                warning_msg = (
+                    f"Found {total_duplicates} duplicate spans that were not queued:\n"
+                    + "\n".join(dup_info)
+                )
+                warnings.warn(warning_msg, UserWarning)
+
+            # Log summary
+            if total_queued < total_received:
+                logger.info(
+                    f"Span creation summary: {total_queued}/{total_received} spans queued "
+                    f"({total_invalid} invalid, {total_duplicates} duplicates)"
+                )
+
+            return result
+
+        except httpx.TimeoutException as error:
+            error_message = (
+                (
+                    f"The request timed out after {timeout} seconds. The timeout can be increased "
+                    "by passing a larger value to the `timeout` parameter "
+                    "and can be disabled altogether by passing `None`."
+                )
+                if timeout is not None
+                else (
+                    "The request timed out. The timeout can be adjusted by "
+                    "passing a number of seconds to the `timeout` parameter "
+                    "and can be disabled altogether by passing `None`."
+                )
+            )
+            raise TimeoutError(error_message) from error
+
 
 def _to_iso_format(value: Optional[datetime]) -> Optional[str]:
     return value.isoformat() if value else None
@@ -882,3 +1167,25 @@ def _flatten_nested_column(df: "pd.DataFrame", column_name: str) -> "pd.DataFram
 
 
 class TimeoutError(Exception): ...
+
+
+class SpanCreationError(Exception):
+    """Raised when some spans fail to be queued for creation."""
+
+    def __init__(
+        self,
+        message: str,
+        invalid_spans: Optional[Sequence[v1.InvalidSpanInfo]] = None,
+        duplicate_spans: Optional[Sequence[v1.DuplicateSpanInfo]] = None,
+        total_received: int = 0,
+        total_queued: int = 0,
+        total_invalid: int = 0,
+        total_duplicates: int = 0,
+    ):
+        super().__init__(message)
+        self.invalid_spans = invalid_spans or []
+        self.duplicate_spans = duplicate_spans or []
+        self.total_received = total_received
+        self.total_queued = total_queued
+        self.total_invalid = total_invalid
+        self.total_duplicates = total_duplicates

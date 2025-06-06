@@ -406,7 +406,9 @@ class SpanEvent(V1RoutesBaseModel):
 
 
 class Span(V1RoutesBaseModel):
-    id: str = Field(description="Span Global ID, distinct from the OpenTelemetry span ID")
+    id: str = Field(
+        default="", description="Span Global ID, distinct from the OpenTelemetry span ID"
+    )
     name: str = Field(description="Name of the span operation")
     context: SpanContext = Field(description="Span context containing trace_id and span_id")
     span_kind: str = Field(description="Type of work that the span encapsulates")
@@ -1022,9 +1024,10 @@ async def create_spans(
         description="If true, check for existing spans before queuing. Adds latency but provides immediate feedback.",
     ),
 ) -> CreateSpansResponseBody:
-    def convert_api_span_to_internal(api_span: Span) -> SpanForInsertion:
+    def convert_api_span_for_insertion(api_span: Span) -> SpanForInsertion:
         """
         Convert from API Span to phoenix.trace.schemas.Span
+        Note: The 'id' field has a default empty string and is ignored during insertion.
         """
         try:
             span_kind = SpanKind(api_span.span_kind.upper())
@@ -1049,7 +1052,7 @@ async def create_spans(
         attributes = dict(api_span.attributes)
         attributes["openinference.span.kind"] = api_span.span_kind
 
-        # Create span for insertion
+        # Create span for insertion - note we ignore the 'id' field as it's server-generated
         return SpanForInsertion(
             name=api_span.name,
             context=InsertionSpanContext(
@@ -1094,7 +1097,7 @@ async def create_spans(
             continue
 
         try:
-            span_for_insertion = convert_api_span_to_internal(api_span)
+            span_for_insertion = convert_api_span_for_insertion(api_span)
             spans_to_queue.append((span_for_insertion, project.name))
         except Exception as e:
             invalid_spans.append(
