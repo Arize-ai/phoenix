@@ -85,7 +85,7 @@ function SideNav() {
   const navigate = useNavigate();
   const onLogout = useCallback(async () => {
     if (window.Config.proxyLogout) {
-      window.location.href = prependBasename("/auth/logout");
+      window.location.replace(prependBasename("/auth/logout"));
       return;
     }
     const response = await fetch(prependBasename("/auth/logout"), {
