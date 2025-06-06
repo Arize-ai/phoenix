@@ -12,6 +12,7 @@ from phoenix.db import models
 
 @dataclass
 class ModelTokenCost:
+    model_id: int
     input: Optional[float] = None
     output: Optional[float] = None
     cache_write: Optional[float] = None
@@ -224,7 +225,7 @@ async def _create_cost_table(session: AsyncSession) -> "ModelCostLookup":
     db_models = result.unique().scalars().all()
 
     for model in db_models:
-        token_cost = ModelTokenCost()
+        token_cost = ModelTokenCost(model_id=model.id)
         pattern = re.compile(model.name_pattern)
         for cost in model.costs:
             setattr(token_cost, cost.token_type, cost.cost_per_token)

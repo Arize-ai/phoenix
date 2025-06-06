@@ -316,6 +316,7 @@ def _calculate_span_cost(span: Span, span_id: int) -> Optional[SpanCost]:
         return None
 
     _, token_costs = cost_table_result[0]
+    model_id = token_costs.model_id
     cost_per_prompt_audio_token = token_costs.prompt_audio
     cost_per_completion_audio_token = token_costs.completion_audio
     cost_per_cache_read_token = token_costs.cache_read
@@ -427,6 +428,7 @@ def _calculate_span_cost(span: Span, span_id: int) -> Optional[SpanCost]:
 
     return SpanCost(
         span_id=span_id,
+        model_id=model_id,
         input_token_cost=input_token_cost,
         output_token_cost=output_token_cost,
         cache_read_token_cost=cache_read_token_cost,
