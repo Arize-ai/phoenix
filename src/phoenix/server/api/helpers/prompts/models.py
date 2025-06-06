@@ -401,6 +401,10 @@ class PromptBedrockInvocationParametersContent(DBBaseModel):
     temperature: float = UNDEFINED
     top_p: float = UNDEFINED
 
+class PromptBedrockInvocationParameters(DBBaseModel):
+    type: Literal["bedrock"]
+    bedrock: PromptBedrockInvocationParametersContent
+
 
 class PromptGoogleInvocationParametersContent(DBBaseModel):
     temperature: float = UNDEFINED
@@ -415,11 +419,6 @@ class PromptGoogleInvocationParametersContent(DBBaseModel):
 class PromptGoogleInvocationParameters(DBBaseModel):
     type: Literal["google"]
     google: PromptGoogleInvocationParametersContent
-
-
-class PromptBedrockInvocationParameters(DBBaseModel):
-    type: Literal["bedrock"]
-    bedrock: PromptBedrockInvocationParametersContent
 
 
 PromptInvocationParameters: TypeAlias = Annotated[
@@ -546,6 +545,7 @@ def normalize_tools(
         or model_provider is ModelProvider.DEEPSEEK
         or model_provider is ModelProvider.XAI
         or model_provider is ModelProvider.OLLAMA
+        or model_provider is ModelProvider.BEDROCK
     ):
         openai_tools = [OpenAIToolDefinition.model_validate(schema) for schema in schemas]
         tools = [_openai_to_prompt_tool(openai_tool) for openai_tool in openai_tools]
@@ -562,6 +562,7 @@ def normalize_tools(
             or model_provider is ModelProvider.DEEPSEEK
             or model_provider is ModelProvider.XAI
             or model_provider is ModelProvider.OLLAMA
+            or model_provider is ModelProvider.BEDROCK
         ):
             ans.tool_choice = OpenAIToolChoiceConversion.from_openai(tool_choice)  # type: ignore[arg-type]
         elif model_provider is ModelProvider.ANTHROPIC:
@@ -586,6 +587,7 @@ def denormalize_tools(
         or model_provider is ModelProvider.DEEPSEEK
         or model_provider is ModelProvider.XAI
         or model_provider is ModelProvider.OLLAMA
+        or model_provider is ModelProvider.BEDROCK
     ):
         denormalized_tools = [_prompt_to_openai_tool(tool) for tool in tools.tools]
         if tools.tool_choice:
