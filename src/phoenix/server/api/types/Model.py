@@ -21,13 +21,26 @@ class Model(Node, ModelInterface):
     created_at: datetime
     updated_at: datetime
     provider_key: Optional[GenerativeProviderKey]
-    costs: strawberry.Private[Optional[list[models.ModelCost]]] = None
+    costs: strawberry.Private[list[models.ModelCost]]
 
     @strawberry.field
     async def cost(self, info: Info[Context, None]) -> Optional[TokenCost]:
-        if self.costs is None:
-            raise NotImplementedError
         token_cost = TokenCost()
         for cost in self.costs:
             setattr(token_cost, cost.token_type, cost.cost_per_token)
         return token_cost
+
+
+def to_gql_model(orm_model: models.Model) -> Model:
+    return Model(
+        id_attr=orm_model.id,
+        name=orm_model.name,
+        provider=orm_model.provider,
+        name_pattern=orm_model.name_pattern,
+        created_at=orm_model.created_at,
+        updated_at=orm_model.updated_at,
+        provider_key=GenerativeProviderKey[orm_model.provider.upper()]
+        if orm_model.provider is not None
+        else None,
+        costs=orm_model.costs,
+    )

@@ -210,6 +210,7 @@ def estimate_cpu_usage_percent() -> Optional[float]:
             except Exception:
                 pass
         return psutil.cpu_percent(interval=None)
+    return None
 
 
 @lru_cache(maxsize=1)

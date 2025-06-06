@@ -315,14 +315,15 @@ def _calculate_span_cost(span: Span, span_id: int) -> Optional[SpanCost]:
     if not cost_table_result:
         return None
 
-    _, token_costs = cost_table_result[0]
-    cost_per_prompt_audio_token = token_costs.prompt_audio
-    cost_per_completion_audio_token = token_costs.completion_audio
-    cost_per_cache_read_token = token_costs.cache_read
-    cost_per_cache_write_token = token_costs.cache_write
-    cost_per_input_token = token_costs.input
-    cost_per_output_token = token_costs.output
-    cost_per_reasoning_token = token_costs.reasoning
+    _, model = cost_table_result[0]
+    costs_by_type: dict[str, float] = {cost.token_type: cost.cost_per_token for cost in model.costs}
+    cost_per_prompt_audio_token = costs_by_type.get("prompt_audio")
+    cost_per_completion_audio_token = costs_by_type.get("completion_audio")
+    cost_per_cache_read_token = costs_by_type.get("cache_read")
+    cost_per_cache_write_token = costs_by_type.get("cache_write")
+    cost_per_input_token = costs_by_type.get("input")
+    cost_per_output_token = costs_by_type.get("output")
+    cost_per_reasoning_token = costs_by_type.get("reasoning")
 
     llm_prompt_audio_tokens = get_attribute_value(
         span.attributes,
