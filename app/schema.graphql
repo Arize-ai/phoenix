@@ -594,6 +594,16 @@ type DatasetExampleRevision implements ExampleRevision {
   createdAt: DateTime!
 }
 
+"""The filter key and value for dataset connections"""
+input DatasetFilter {
+  col: DatasetFilterColumn!
+  value: String!
+}
+
+enum DatasetFilterColumn {
+  name
+}
+
 type DatasetMutationPayload {
   dataset: Dataset!
 }
@@ -1942,7 +1952,7 @@ type Query {
   systemApiKeys: [SystemApiKey!]!
   projects(first: Int = 50, last: Int, after: String, before: String, sort: ProjectSort, filter: ProjectFilter): ProjectConnection!
   projectsLastUpdatedAt: DateTime
-  datasets(first: Int = 50, last: Int, after: String, before: String, sort: DatasetSort): DatasetConnection!
+  datasets(first: Int = 50, last: Int, after: String, before: String, sort: DatasetSort, filter: DatasetFilter): DatasetConnection!
   datasetsLastUpdatedAt: DateTime
   compareExperiments(experimentIds: [ID!]!, filterCondition: String): [ExperimentComparison!]!
   validateExperimentRunFilterCondition(condition: String!, experimentIds: [ID!]!): ValidationResult!
