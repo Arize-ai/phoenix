@@ -1009,8 +1009,13 @@ def _log_out(
     auth: Optional[_SecurityArtifact] = None,
     /,
 ) -> None:
-    resp = _httpx_client(auth).post("auth/logout")
-    resp.raise_for_status()
+    resp = _httpx_client(auth).get("auth/logout", follow_redirects=False)
+    try:
+        resp.raise_for_status()
+    except HTTPStatusError as e:
+        if e.response.status_code != 302:
+            raise
+        assert e.response.headers["location"] in ("/login", "/logout")
     tokens = _extract_tokens(resp.headers, "set-cookie")
     for k in _COOKIE_NAMES:
         assert tokens[k] == '""'
