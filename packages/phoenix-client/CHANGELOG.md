@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.10.0...arize-phoenix-client-v1.11.0) (2025-06-07)
+
+
+### Features
+
+* Add dataset methods to phoenix client ([#7931](https://github.com/Arize-ai/phoenix/issues/7931)) ([4a5aa39](https://github.com/Arize-ai/phoenix/commit/4a5aa39b90adfb9896f336db7998bcde7c481bf8))
+* **auth:** logout ([#7985](https://github.com/Arize-ai/phoenix/issues/7985)) ([63128c5](https://github.com/Arize-ai/phoenix/commit/63128c5328222147fe5c5103d8dd3576d5534bc2))
+* separate docs phoenix client evals ([#7948](https://github.com/Arize-ai/phoenix/issues/7948)) ([e569b68](https://github.com/Arize-ai/phoenix/commit/e569b6802ab9e31cb230a30dbc08f60d7e28e993))
+
 ## [1.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.9.0...arize-phoenix-client-v1.10.0) (2025-06-04)
 
 
