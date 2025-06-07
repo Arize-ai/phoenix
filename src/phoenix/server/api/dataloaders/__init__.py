@@ -17,6 +17,7 @@ from .experiment_run_counts import ExperimentRunCountsDataLoader
 from .experiment_sequence_number import ExperimentSequenceNumberDataLoader
 from .latency_ms_quantile import LatencyMsQuantileCache, LatencyMsQuantileDataLoader
 from .min_start_or_max_end_times import MinStartOrMaxEndTimeCache, MinStartOrMaxEndTimeDataLoader
+from .model_total_costs import ModelTotalCostsDataLoader
 from .num_child_spans import NumChildSpansDataLoader
 from .num_spans_per_trace import NumSpansPerTraceDataLoader
 from .project_by_name import ProjectByNameDataLoader
@@ -58,6 +59,7 @@ __all__ = [
     "ExperimentSequenceNumberDataLoader",
     "LatencyMsQuantileDataLoader",
     "MinStartOrMaxEndTimeDataLoader",
+    "ModelTotalCostsDataLoader",
     "NumChildSpansDataLoader",
     "NumSpansPerTraceDataLoader",
     "ProjectIdsByTraceRetentionPolicyIdDataLoader",

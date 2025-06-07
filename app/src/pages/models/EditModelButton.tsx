@@ -38,7 +38,7 @@ const ModelQuery = graphql`
         name
         provider
         namePattern
-        cost {
+        tokenCost {
           input
           output
           cacheRead
@@ -76,7 +76,7 @@ function EditModelDialogContent({
       modelName={modelData.name}
       modelProvider={modelData.provider}
       modelNamePattern={modelData.namePattern}
-      modelCost={modelData.cost}
+      modelCost={modelData.tokenCost}
       onSubmit={(params) => {
         onClose();
         onModelEdited && onModelEdited(params);
