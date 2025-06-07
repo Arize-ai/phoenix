@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.10.3...arize-phoenix-otel-v0.11.0) (2025-06-07)
+
+
+### Features
+
+* **auth:** logout ([#7985](https://github.com/Arize-ai/phoenix/issues/7985)) ([63128c5](https://github.com/Arize-ai/phoenix/commit/63128c5328222147fe5c5103d8dd3576d5534bc2))
+
+
+### Documentation
+
+* phoenix-otel documentation header styling - Update conf.py header… ([#7936](https://github.com/Arize-ai/phoenix/issues/7936)) ([0173e7f](https://github.com/Arize-ai/phoenix/commit/0173e7f5e187fe0f4f1c15311a56b878117803a9))
+
 ## [0.10.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.10.2...arize-phoenix-otel-v0.10.3) (2025-06-04)
 
 
