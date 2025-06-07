@@ -62,7 +62,7 @@ function TooltipContent({
       <ChartTooltip>
         <Flex direction="row" alignItems="center" gap="size-100">
           <Text weight="heavy" size="S">
-            Experiment
+            experiment
           </Text>
           <SequenceNumberToken sequenceNumber={Number(label)} />
         </Flex>
@@ -71,10 +71,7 @@ function TooltipContent({
             key={String(entry.dataKey)}
             color={getWordColor(String(entry.dataKey))}
             shape="line"
-            name={
-              String(entry.dataKey).charAt(0).toUpperCase() +
-              String(entry.dataKey).slice(1)
-            }
+            name={String(entry.dataKey)}
             value={
               typeof entry.value === "number"
                 ? numberFormatter.format(entry.value)
