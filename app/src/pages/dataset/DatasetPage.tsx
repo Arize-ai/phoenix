@@ -29,7 +29,7 @@ import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { datasetLoaderQuery$data } from "./__generated__/datasetLoaderQuery.graphql";
 import { AddDatasetExampleButton } from "./AddDatasetExampleButton";
-import { DatasetCodeDropdown } from "./DatasetCodeDropdown";
+import { DatasetCodeButton } from "./DatasetCodeButton";
 import { DatasetHistoryButton } from "./DatasetHistoryButton";
 import { RunExperimentButton } from "./RunExperimentButton";
 
@@ -120,12 +120,12 @@ function DatasetPageContent({
         paddingBottom="size-50"
         flex="none"
       >
-        <Flex
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-        >
-          <Flex direction="column" justifyContent="space-between">
+        <Flex direction="row" justifyContent="space-between" alignItems="start">
+          <Flex
+            direction="column"
+            justifyContent="space-between"
+            alignItems="start"
+          >
             <Flex direction="row" gap="size-200" alignItems="center">
               {/* TODO(datasets): Add an icon here to make the UI cohesive */}
               {/* <Icon svg={<Icons.DatabaseOutline />} /> */}
@@ -137,9 +137,10 @@ function DatasetPageContent({
               </Flex>
             </Flex>
           </Flex>
-          <Flex direction="row" gap="size-100">
+          <Flex direction="row" gap="size-100" alignItems="center">
             <ActionMenu
               align="end"
+              buttonSize="compact"
               icon={<Icon svg={<Icons.DownloadOutline />} />}
               onAction={(action) => {
                 switch (action) {
@@ -173,16 +174,8 @@ function DatasetPageContent({
               <Item key="openai-evals">Download OpenAI Evals JSONL</Item>
             </ActionMenu>
             <DatasetHistoryButton datasetId={dataset.id} />
-            <DatasetCodeDropdown />
+            <DatasetCodeButton />
             <RunExperimentButton />
-            <Button
-              leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
-              onPress={() => {
-                navigate(`/playground?datasetId=${dataset.id}`);
-              }}
-            >
-              Playground
-            </Button>
             <AddDatasetExampleButton
               datasetId={dataset.id}
               onAddExampleCompleted={() => {
@@ -194,6 +187,16 @@ function DatasetPageContent({
                 refreshLatestVersion();
               }}
             />
+            <Button
+              size="S"
+              variant="primary"
+              leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+              onPress={() => {
+                navigate(`/playground?datasetId=${dataset.id}`);
+              }}
+            >
+              Playground
+            </Button>
           </Flex>
         </Flex>
       </View>
