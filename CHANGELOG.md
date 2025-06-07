@@ -1,5 +1,12 @@
 # Changelog
 
+## [10.9.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.9.0...arize-phoenix-v10.9.1) (2025-06-07)
+
+
+### Documentation
+
+* fix js readme ([#7987](https://github.com/Arize-ai/phoenix/issues/7987)) ([a6112aa](https://github.com/Arize-ai/phoenix/commit/a6112aa891e6fc0f2b8060024cda90ce415e92c0))
+
 ## [10.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.8.0...arize-phoenix-v10.9.0) (2025-06-06)
 
 
