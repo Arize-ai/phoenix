@@ -41,6 +41,7 @@ from phoenix.server.api.helpers.playground_clients import initialize_playground_
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.input_types.Coordinates import InputCoordinate2D, InputCoordinate3D
+from phoenix.server.api.input_types.DatasetFilter import DatasetFilter
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
 from phoenix.server.api.input_types.ProjectFilter import ProjectFilter
@@ -285,6 +286,7 @@ class Query:
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
         sort: Optional[DatasetSort] = UNSET,
+        filter: Optional[DatasetFilter] = UNSET,
     ) -> Connection[Dataset]:
         args = ConnectionArgs(
             first=first,
@@ -296,6 +298,8 @@ class Query:
         if sort:
             sort_col = getattr(models.Dataset, sort.col.value)
             stmt = stmt.order_by(sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc())
+        if filter:
+            stmt = stmt.where(getattr(models.Dataset, filter.col.value).ilike(f"%{filter.value}%"))
         async with info.context.db() as session:
             datasets = await session.scalars(stmt)
         return connection_from_list(

@@ -802,3 +802,119 @@ async def dataset_with_deletion(db: DbSessionFactory) -> None:
                 },
             ],
         )
+
+
+@pytest.mark.parametrize(
+    "filter_value, expected_names",
+    [
+        pytest.param(
+            "dataset",
+            ["test_dataset", "dataset_test"],
+            id="filter-matches-all",
+        ),
+        pytest.param(
+            "test",
+            ["test_dataset", "dataset_test"],
+            id="filter-matches-partial",
+        ),
+        pytest.param(
+            "TEST",
+            ["test_dataset", "dataset_test"],
+            id="filter-case-insensitive",
+        ),
+        pytest.param(
+            "nomatch",
+            [],
+            id="filter-no-matches",
+        ),
+    ],
+)
+async def test_dataset_filter(
+    filter_value: str,
+    expected_names: list[str],
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test dataset filtering capabilities."""
+    # Create test datasets
+    async with db() as session:
+        for name in ["test_dataset", "dataset_test", "other_name"]:
+            dataset = models.Dataset(name=name)
+            session.add(dataset)
+        await session.commit()
+
+    query = """
+        query ($filter: DatasetFilter) {
+            datasets(filter: $filter) {
+                edges {
+                    node {
+                        name
+                    }
+                }
+            }
+        }
+    """
+
+    variables = {"filter": {"col": "name", "value": filter_value}}
+    response = await gql_client.execute(query=query, variables=variables)
+    assert not response.errors
+    assert (data := response.data) is not None
+    datasets = data["datasets"]
+    dataset_names = [edge["node"]["name"] for edge in datasets["edges"]]
+    assert sorted(dataset_names) == sorted(expected_names)
+
+
+@pytest.mark.parametrize(
+    "sort, filter_value, expected_names",
+    [
+        pytest.param(
+            {"col": "name", "dir": "asc"},
+            "test",
+            ["dataset_test", "test_dataset"],
+            id="filter-and-sort-asc",
+        ),
+        pytest.param(
+            {"col": "name", "dir": "desc"},
+            "test",
+            ["test_dataset", "dataset_test"],
+            id="filter-and-sort-desc",
+        ),
+    ],
+)
+async def test_dataset_filter_and_sort(
+    sort: dict[str, str],
+    filter_value: str,
+    expected_names: list[str],
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test combining dataset filtering and sorting."""
+    # Create test datasets
+    async with db() as session:
+        for name in ["test_dataset", "dataset_test", "other_name"]:
+            dataset = models.Dataset(name=name)
+            session.add(dataset)
+        await session.commit()
+
+    query = """
+        query ($sort: DatasetSort, $filter: DatasetFilter) {
+            datasets(sort: $sort, filter: $filter) {
+                edges {
+                    node {
+                        name
+                    }
+                }
+            }
+        }
+    """
+
+    variables = {
+        "sort": sort,
+        "filter": {"col": "name", "value": filter_value},
+    }
+    response = await gql_client.execute(query=query, variables=variables)
+    assert not response.errors
+    assert (data := response.data) is not None
+    datasets = data["datasets"]
+    dataset_names = [edge["node"]["name"] for edge in datasets["edges"]]
+    assert dataset_names == expected_names

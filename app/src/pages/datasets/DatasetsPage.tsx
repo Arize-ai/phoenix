@@ -11,6 +11,7 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 
 import { DatasetsPageQuery } from "./__generated__/DatasetsPageQuery.graphql";
 import { DatasetFromCSVForm } from "./DatasetFromCSVForm";
+import { DatasetsSearch } from "./DatasetsSearch";
 import { DatasetsTable } from "./DatasetsTable";
 
 export function DatasetsPage() {
@@ -23,13 +24,16 @@ export function DatasetsPage() {
 
 export function DatasetsPageContent() {
   const [fetchKey, setFetchKey] = useState(0);
+  const [filter, setFilter] = useState<string>("");
   const data = useLazyLoadQuery<DatasetsPageQuery>(
     graphql`
-      query DatasetsPageQuery {
-        ...DatasetsTable_datasets
+      query DatasetsPageQuery($filter: DatasetFilter) {
+        ...DatasetsTable_datasets @arguments(filter: $filter)
       }
     `,
-    {},
+    {
+      filter: filter ? { col: "name", value: filter } : null,
+    },
     {
       fetchKey: fetchKey,
       fetchPolicy: "store-and-network",
@@ -47,12 +51,19 @@ export function DatasetsPageContent() {
         borderBottomColor="dark"
         flex="none"
       >
-        <Flex direction="row" justifyContent="space-between">
-          <Heading level={1}>Datasets</Heading>
-          <CreateDatasetActionMenu onDatasetCreated={onDatasetCreated} />
+        <Flex direction="column" gap="size-200">
+          <Flex
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Heading level={1}>Datasets</Heading>
+            <CreateDatasetActionMenu onDatasetCreated={onDatasetCreated} />
+          </Flex>
+          <DatasetsSearch onChange={setFilter} />
         </Flex>
       </View>
-      <DatasetsTable query={data} />
+      <DatasetsTable query={data} filter={filter} />
     </Flex>
   );
 }

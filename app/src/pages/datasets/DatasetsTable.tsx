@@ -36,6 +36,7 @@ const PAGE_SIZE = 100;
 
 type DatasetsTableProps = {
   query: DatasetsTable_datasets$key;
+  filter: string;
 };
 
 function toGqlSort(sort: SortingState[number]): DatasetSort {
@@ -50,6 +51,7 @@ function toGqlSort(sort: SortingState[number]): DatasetSort {
 }
 
 export function DatasetsTable(props: DatasetsTableProps) {
+  const { filter } = props;
   const [sorting, setSorting] = useState<SortingState>([]);
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -71,8 +73,9 @@ export function DatasetsTable(props: DatasetsTableProps) {
             type: "DatasetSort"
             defaultValue: { col: createdAt, dir: desc }
           }
+          filter: { type: "DatasetFilter", defaultValue: null }
         ) {
-          datasets(first: $first, after: $after, sort: $sort)
+          datasets(first: $first, after: $after, sort: $sort, filter: $filter)
             @connection(key: "DatasetsTable_datasets") {
             edges {
               node {
@@ -104,11 +107,15 @@ export function DatasetsTable(props: DatasetsTableProps) {
           !isLoadingNext &&
           hasNext
         ) {
-          loadNext(PAGE_SIZE);
+          loadNext(PAGE_SIZE, {
+            UNSTABLE_extraVariables: {
+              filter: filter ? { col: "name", value: filter } : null,
+            },
+          });
         }
       }
     },
-    [hasNext, isLoadingNext, loadNext]
+    [hasNext, isLoadingNext, loadNext, filter]
   );
   const table = useReactTable({
     columns: [
@@ -172,7 +179,12 @@ export function DatasetsTable(props: DatasetsTableProps) {
                   title: "Dataset updated",
                   message: `${row.original.name} has been successfully updated.`,
                 });
-                refetch({}, { fetchPolicy: "store-and-network" });
+                refetch(
+                  {
+                    filter: filter ? { col: "name", value: filter } : null,
+                  },
+                  { fetchPolicy: "store-and-network" }
+                );
               }}
               onDatasetEditError={(error) => {
                 const formattedError =
@@ -187,7 +199,12 @@ export function DatasetsTable(props: DatasetsTableProps) {
                   title: "Dataset deleted",
                   message: `${row.original.name} has been successfully deleted.`,
                 });
-                refetch({}, { fetchPolicy: "store-and-network" });
+                refetch(
+                  {
+                    filter: filter ? { col: "name", value: filter } : null,
+                  },
+                  { fetchPolicy: "store-and-network" }
+                );
               }}
               onDatasetDeleteError={(error) => {
                 const formattedError =
@@ -222,11 +239,12 @@ export function DatasetsTable(props: DatasetsTableProps) {
           sort: sort ? toGqlSort(sort) : { col: "createdAt", dir: "desc" },
           after: null,
           first: PAGE_SIZE,
+          filter: filter ? { col: "name", value: filter } : null,
         },
         { fetchPolicy: "store-and-network" }
       );
     });
-  }, [sorting, refetch]);
+  }, [sorting, refetch, filter]);
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
   return (
