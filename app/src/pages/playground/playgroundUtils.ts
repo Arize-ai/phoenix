@@ -155,6 +155,7 @@ export function processAttributeToolCalls({
         case "OPENAI":
         case "AZURE_OPENAI":
         case "DEEPSEEK":
+        case "BEDROCK":
         case "XAI":
         case "OLLAMA":
           return {
@@ -340,6 +341,8 @@ export function openInferenceModelProviderToPhoenixModelProvider(
       return "OPENAI";
     case "anthropic":
       return "ANTHROPIC";
+    case "aws":
+      return "BEDROCK";
     case "google":
       return "GOOGLE";
     case "azure":
@@ -898,6 +901,7 @@ export const createToolForProvider = ({
     case "DEEPSEEK":
     case "XAI":
     case "OLLAMA":
+    case "BEDROCK":
     case "AZURE_OPENAI":
       return {
         id: generateToolId(),
@@ -933,6 +937,7 @@ export const createToolCallForProvider = (
     case "DEEPSEEK":
     case "XAI":
     case "OLLAMA":
+    case "BEDROCK":
       return createOpenAIToolCall();
     case "ANTHROPIC":
       return createAnthropicToolCall();

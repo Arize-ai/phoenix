@@ -55,6 +55,7 @@ export const findToolChoiceType = (
     case "DEEPSEEK":
     case "XAI":
     case "OLLAMA":
+    case "BEDROCK":
     case "OPENAI":
       if (
         isObject(choice) &&

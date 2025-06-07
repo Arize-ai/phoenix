@@ -11,6 +11,7 @@ import {
   DeepSeekInvocationParameters,
   XAIInvocationParameters,
   OllamaInvocationParameters,
+  BedrockInvocationParameters,
   PromptChatMessage,
 } from "../types/prompts";
 import { assertUnreachable } from "../utils/assertUnreachable";
@@ -120,6 +121,11 @@ interface OllamaPromptVersionInput extends PromptVersionInputBase {
   invocationParameters?: OllamaInvocationParameters;
 }
 
+interface BedrockPromptVersionInput extends PromptVersionInputBase {
+  modelProvider: "BEDROCK";
+  invocationParameters?: BedrockInvocationParameters;
+}
+
 type PromptVersionInput =
   | OpenAIPromptVersionInput
   | AzureOpenAIPromptVersionInput
@@ -127,7 +133,8 @@ type PromptVersionInput =
   | GooglePromptVersionInput
   | DeepSeekPromptVersionInput
   | XAIPromptVersionInput
-  | OllamaPromptVersionInput;
+  | OllamaPromptVersionInput
+  | BedrockPromptVersionInput;
 
 /**
  * A helper function to construct a prompt version declaratively.
@@ -257,6 +264,22 @@ export function promptVersion(params: PromptVersionInput): PromptVersionData {
         invocation_parameters: {
           type: "ollama",
           ollama: invocation_parameters ?? {},
+        },
+      };
+    case "BEDROCK":
+      return {
+        description,
+        model_provider,
+        model_name,
+        template_type: "CHAT",
+        template_format,
+        template: {
+          type: "chat",
+          messages: templateMessages,
+        },
+        invocation_parameters: {
+          type: "bedrock",
+          bedrock: invocation_parameters ?? {},
         },
       };
     default:

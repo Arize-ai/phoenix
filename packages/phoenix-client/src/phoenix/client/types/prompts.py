@@ -61,7 +61,7 @@ class PromptVersion:
         model_name: str,
         description: Optional[str] = None,
         model_provider: Literal[
-            "OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE", "DEEPSEEK", "XAI", "OLLAMA"
+            "OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE", "DEEPSEEK", "XAI", "BEDROCK", "OLLAMA"
         ] = "OPENAI",
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
     ) -> None:
@@ -73,7 +73,7 @@ class PromptVersion:
             model_name (str): The name of the model to use for the prompt.
             description (Optional[str]): A description of the prompt. Defaults to None.
             model_provider (Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE",
-                "DEEPSEEK", "XAI", "OLLAMA"]): The provider of the model to use for the prompt.
+                "DEEPSEEK", "XAI", "BEDROCK", "OLLAMA"]): The provider of the model to use for the prompt.
                 Defaults to "OPENAI".
             template_format (Literal["F_STRING", "MUSTACHE", "NONE"]): The format of the template
                 to use for the prompt. Defaults to "MUSTACHE".
@@ -82,7 +82,7 @@ class PromptVersion:
         self._template_type: Literal["CHAT"] = "CHAT"
         self._model_name = model_name
         self._model_provider: Literal[
-            "OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE", "DEEPSEEK", "XAI", "OLLAMA"
+            "OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE", "DEEPSEEK", "XAI", "BEDROCK", "OLLAMA"
         ] = model_provider
         self._template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = template_format
         self._description = description
@@ -94,6 +94,7 @@ class PromptVersion:
             v1.PromptDeepSeekInvocationParameters,
             v1.PromptXAIInvocationParameters,
             v1.PromptOllamaInvocationParameters,
+            v1.PromptBedrockInvocationParameters,
         ]
         if model_provider == "OPENAI":
             self._invocation_parameters = v1.PromptOpenAIInvocationParameters(
@@ -131,6 +132,11 @@ class PromptVersion:
             self._invocation_parameters = v1.PromptOllamaInvocationParameters(
                 type="ollama",
                 ollama=v1.PromptOllamaInvocationParametersContent(),
+            )
+        elif model_provider == "BEDROCK":
+            self._invocation_parameters = v1.PromptBedrockInvocationParameters(
+                type="bedrock",
+                bedrock=v1.PromptBedrockInvocationParametersContent(),
             )
         else:
             assert_never(model_provider)
@@ -252,7 +258,7 @@ class PromptVersion:
         *,
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
         description: Optional[str] = None,
-        model_provider: Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "OLLAMA"] = "OPENAI",
+        model_provider: Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "BEDROCK", "OLLAMA"] = "OPENAI",
     ) -> Self:
         """
         Creates a prompt version from an OpenAI chat completion model.
@@ -262,7 +268,7 @@ class PromptVersion:
             template_format (Literal["F_STRING", "MUSTACHE", "NONE"]): The format of the template
                 to use for the prompt. Defaults to "MUSTACHE".
             description (Optional[str]): A description of the prompt. Defaults to None.
-            model_provider (Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "OLLAMA"]):
+            model_provider (Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "BEDROCK", "OLLAMA"]):
                 The provider of the model to use for the prompt. Defaults to "OPENAI".
 
         Returns:
@@ -401,6 +407,7 @@ def _to_sdk(
         "DEEPSEEK",
         "XAI",
         "OLLAMA",
+        "BEDROCK",
     ],
 ) -> SDK:
     if model_provider == "OPENAI":
@@ -416,5 +423,7 @@ def _to_sdk(
     if model_provider == "XAI":
         return "openai"
     if model_provider == "OLLAMA":
+        return "openai"
+    if model_provider == "BEDROCK":
         return "openai"
     assert_never(model_provider)
