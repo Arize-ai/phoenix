@@ -6,6 +6,8 @@ import {
 } from "react-router";
 import { RouterProvider } from "react-router/dom";
 
+import { modelsLoader } from "@phoenix/pages/models/modelsLoader";
+import { ModelsPage } from "@phoenix/pages/models/ModelsPage";
 import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvidersPage";
 import { settingsAIProvidersPageLoader } from "@phoenix/pages/settings/settingsAIProvidersPageLoader";
 import { SettingsAnnotationsPage } from "@phoenix/pages/settings/SettingsAnnotationsPage";
@@ -67,7 +69,7 @@ import {
   homeLoader,
   LoggedOutPage,
   LoginPage,
-  ModelPage,
+  ModelInferencesPage,
   ModelRoot,
   PlaygroundPage,
   ProfilePage,
@@ -129,8 +131,8 @@ const router = createBrowserRouter(
             handle={{ crumb: () => "model" }}
             element={<ModelRoot />}
           >
-            <Route index element={<ModelPage />} />
-            <Route element={<ModelPage />}>
+            <Route index element={<ModelInferencesPage />} />
+            <Route element={<ModelInferencesPage />}>
               <Route path="dimensions">
                 <Route
                   path=":dimensionId"
@@ -326,6 +328,14 @@ const router = createBrowserRouter(
               />
             </Route>
           </Route>
+          <Route
+            path="/models"
+            element={<ModelsPage />}
+            loader={modelsLoader}
+            handle={{
+              crumb: () => "models",
+            }}
+          />
           <Route
             path="/apis"
             element={<APIsPage />}

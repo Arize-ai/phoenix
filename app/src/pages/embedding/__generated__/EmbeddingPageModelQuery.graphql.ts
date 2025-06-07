@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<621d14a0b91e636f573d99f1ab1a5aaf>>
+ * @generated SignedSource<<d8fbd835f366cb8e01e8fa874e635509>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -31,7 +31,7 @@ const node: ConcreteRequest = {
       {
         "alias": null,
         "args": null,
-        "concreteType": "Model",
+        "concreteType": "InferenceModel",
         "kind": "LinkedField",
         "name": "model",
         "plural": false,
@@ -57,7 +57,7 @@ const node: ConcreteRequest = {
       {
         "alias": null,
         "args": null,
-        "concreteType": "Model",
+        "concreteType": "InferenceModel",
         "kind": "LinkedField",
         "name": "model",
         "plural": false,
@@ -132,12 +132,12 @@ const node: ConcreteRequest = {
     ]
   },
   "params": {
-    "cacheID": "4ccf476dd862525b059197daccd0d4d9",
+    "cacheID": "fd9d393b5de6aab89ac3f91ac93def55",
     "id": null,
     "metadata": {},
     "name": "EmbeddingPageModelQuery",
     "operationKind": "query",
-    "text": "query EmbeddingPageModelQuery {\n  model {\n    ...MetricSelector_dimensions\n  }\n}\n\nfragment MetricSelector_dimensions on Model {\n  numericDimensions: dimensions(include: {dataTypes: [numeric]}) {\n    edges {\n      node {\n        id\n        name\n        type\n      }\n    }\n  }\n}\n"
+    "text": "query EmbeddingPageModelQuery {\n  model {\n    ...MetricSelector_dimensions\n  }\n}\n\nfragment MetricSelector_dimensions on InferenceModel {\n  numericDimensions: dimensions(include: {dataTypes: [numeric]}) {\n    edges {\n      node {\n        id\n        name\n        type\n      }\n    }\n  }\n}\n"
   }
 };
 
