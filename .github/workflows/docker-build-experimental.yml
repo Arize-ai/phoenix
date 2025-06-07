@@ -6,7 +6,6 @@ on:
     branches:
       - feat/version-10
       - feat/openid-only
-      - cephalization/get-logout-refactor
 
 jobs:
   push_to_registry:
