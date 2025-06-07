@@ -113,6 +113,7 @@ def upgrade() -> None:
             sa.Integer,
             sa.ForeignKey("models.id", ondelete="CASCADE"),
             nullable=False,
+            index=True,
         ),
         sa.Column(
             "input_token_cost",
