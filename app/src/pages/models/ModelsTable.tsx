@@ -137,7 +137,7 @@ export function ModelsTable(props: ModelsTableProps) {
         accessorKey: "tokenCost.input",
         cell: ({ row }) => {
           const cost = row.original.tokenCost?.input;
-          return cost ? `$${cost.toPrecision(3)}` : "--";
+          return cost != null ? `$${cost.toPrecision(3)}` : "--";
         },
       },
       {
@@ -145,7 +145,7 @@ export function ModelsTable(props: ModelsTableProps) {
         accessorKey: "tokenCost.output",
         cell: ({ row }) => {
           const cost = row.original.tokenCost?.output;
-          return cost ? `$${cost.toPrecision(3)}` : "--";
+          return cost != null ? `$${cost.toPrecision(3)}` : "--";
         },
       },
       {
@@ -153,7 +153,7 @@ export function ModelsTable(props: ModelsTableProps) {
         accessorKey: "tokenCost.cacheRead",
         cell: ({ row }) => {
           const cost = row.original.tokenCost?.cacheRead;
-          return cost ? `$${cost.toPrecision(3)}` : "--";
+          return cost != null ? `$${cost.toPrecision(3)}` : "--";
         },
       },
       {
@@ -161,7 +161,7 @@ export function ModelsTable(props: ModelsTableProps) {
         accessorKey: "tokenCost.cacheWrite",
         cell: ({ row }) => {
           const cost = row.original.tokenCost?.cacheWrite;
-          return cost ? `$${cost.toPrecision(3)}` : "--";
+          return cost != null ? `$${cost.toPrecision(3)}` : "--";
         },
       },
       {
@@ -169,7 +169,7 @@ export function ModelsTable(props: ModelsTableProps) {
         accessorKey: "tokenCost.promptAudio",
         cell: ({ row }) => {
           const cost = row.original.tokenCost?.promptAudio;
-          return cost ? `$${cost.toPrecision(3)}` : "--";
+          return cost != null ? `$${cost.toPrecision(3)}` : "--";
         },
       },
       {
@@ -177,7 +177,7 @@ export function ModelsTable(props: ModelsTableProps) {
         accessorKey: "tokenCost.completionAudio",
         cell: ({ row }) => {
           const cost = row.original.tokenCost?.completionAudio;
-          return cost ? `$${cost.toPrecision(3)}` : "--";
+          return cost != null ? `$${cost.toPrecision(3)}` : "--";
         },
       },
       {
@@ -185,7 +185,7 @@ export function ModelsTable(props: ModelsTableProps) {
         accessorKey: "totalTokenCost.total",
         cell: ({ row }) => {
           const cost = row.original.totalTokenCost?.total;
-          return cost ? `$${cost.toPrecision(3)}` : "--";
+          return cost != null ? `$${cost.toPrecision(3)}` : "--";
         },
       },
       {
@@ -193,7 +193,7 @@ export function ModelsTable(props: ModelsTableProps) {
         accessorKey: "totalTokenCost.input",
         cell: ({ row }) => {
           const cost = row.original.totalTokenCost?.input;
-          return cost ? `$${cost.toPrecision(3)}` : "--";
+          return cost != null ? `$${cost.toPrecision(3)}` : "--";
         },
       },
       {
@@ -201,7 +201,7 @@ export function ModelsTable(props: ModelsTableProps) {
         accessorKey: "totalTokenCost.output",
         cell: ({ row }) => {
           const cost = row.original.totalTokenCost?.output;
-          return cost ? `$${cost.toPrecision(3)}` : "--";
+          return cost != null ? `$${cost.toPrecision(3)}` : "--";
         },
       },
       {
@@ -209,7 +209,7 @@ export function ModelsTable(props: ModelsTableProps) {
         accessorKey: "totalTokenCost.cacheRead",
         cell: ({ row }) => {
           const cost = row.original.totalTokenCost?.cacheRead;
-          return cost ? `$${cost.toPrecision(3)}` : "--";
+          return cost != null ? `$${cost.toPrecision(3)}` : "--";
         },
       },
       {
@@ -217,7 +217,7 @@ export function ModelsTable(props: ModelsTableProps) {
         accessorKey: "totalTokenCost.cacheWrite",
         cell: ({ row }) => {
           const cost = row.original.totalTokenCost?.cacheWrite;
-          return cost ? `$${cost.toPrecision(3)}` : "--";
+          return cost != null ? `$${cost.toPrecision(3)}` : "--";
         },
       },
       {
@@ -225,7 +225,7 @@ export function ModelsTable(props: ModelsTableProps) {
         accessorKey: "totalTokenCost.promptAudio",
         cell: ({ row }) => {
           const cost = row.original.totalTokenCost?.promptAudio;
-          return cost ? `$${cost.toPrecision(3)}` : "--";
+          return cost != null ? `$${cost.toPrecision(3)}` : "--";
         },
       },
       {
@@ -233,7 +233,7 @@ export function ModelsTable(props: ModelsTableProps) {
         accessorKey: "totalTokenCost.completionAudio",
         cell: ({ row }) => {
           const cost = row.original.totalTokenCost?.completionAudio;
-          return cost ? `$${cost.toPrecision(3)}` : "--";
+          return cost != null ? `$${cost.toPrecision(3)}` : "--";
         },
       },
       {

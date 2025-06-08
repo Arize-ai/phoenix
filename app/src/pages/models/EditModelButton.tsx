@@ -2,6 +2,7 @@ import { Suspense, useState } from "react";
 import {
   graphql,
   PreloadedQuery,
+  useMutation,
   usePreloadedQuery,
   useQueryLoader,
 } from "react-relay";
@@ -25,8 +26,11 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/dialog/Dialog";
-import { useNotifySuccess } from "@phoenix/contexts";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
+import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
+import { EditModelButtonMutation } from "./__generated__/EditModelButtonMutation.graphql";
 import { EditModelButtonQuery } from "./__generated__/EditModelButtonQuery.graphql";
 import { ModelForm, ModelFormParams } from "./ModelForm";
 
@@ -64,7 +68,16 @@ function EditModelDialogContent({
     ModelQuery,
     queryReference
   );
+  const [commitUpdateModel, isCommittingUpdateModel] =
+    useMutation<EditModelButtonMutation>(graphql`
+      mutation EditModelButtonMutation($input: UpdateModelMutationInput!) {
+        updateModel(input: $input) {
+          __typename
+        }
+      }
+    `);
   const notifySuccess = useNotifySuccess();
+  const notifyError = useNotifyError();
   const modelData = data?.node;
 
   if (!modelData) {
@@ -78,14 +91,41 @@ function EditModelDialogContent({
       modelNamePattern={modelData.namePattern}
       modelCost={modelData.tokenCost}
       onSubmit={(params) => {
-        onClose();
-        onModelEdited && onModelEdited(params);
-        notifySuccess({
-          title: `Model Updated`,
-          message: `Model "${params.name}" updated successfully`,
+        commitUpdateModel({
+          variables: {
+            input: {
+              id: modelData.id!,
+              name: params.name,
+              provider: params.provider,
+              namePattern: params.namePattern,
+              inputCostPerToken: params.cost.input,
+              outputCostPerToken: params.cost.output,
+              cacheReadCostPerToken: params.cost.cacheRead,
+              cacheWriteCostPerToken: params.cost.cacheWrite,
+              promptAudioCostPerToken: params.cost.promptAudio,
+              completionAudioCostPerToken: params.cost.completionAudio,
+              reasoningCostPerToken: params.cost.reasoning,
+            },
+          },
+          onCompleted: () => {
+            onClose();
+            onModelEdited && onModelEdited(params);
+            notifySuccess({
+              title: `Model Updated`,
+              message: `Model "${params.name}" updated successfully`,
+            });
+          },
+          onError: (error) => {
+            const formattedError =
+              getErrorMessagesFromRelayMutationError(error);
+            notifyError({
+              title: "Failed to update model",
+              message: formattedError?.[0] ?? "Failed to update model",
+            });
+          },
         });
       }}
-      isSubmitting={false}
+      isSubmitting={isCommittingUpdateModel}
       submitButtonText="Save Changes"
       formMode="edit"
     />
@@ -132,27 +172,29 @@ export function EditModelButton({
       <DialogContainer onDismiss={handleClose}>
         {isOpen && (
           <ModalOverlay>
-            <Modal>
-              <Dialog>
-                <DialogHeader>
-                  <DialogTitle>Edit Model</DialogTitle>
-                  <DialogTitleExtra>
-                    <DialogCloseButton slot="close" />
-                  </DialogTitleExtra>
-                </DialogHeader>
-                <Suspense fallback={<Loading />}>
-                  {queryReference ? (
-                    <EditModelDialogContent
-                      queryReference={queryReference}
-                      onModelEdited={onModelEdited}
-                      onClose={handleClose}
-                    />
-                  ) : (
-                    <Loading />
-                  )}
-                </Suspense>
-              </Dialog>
-            </Modal>
+            <StopPropagation>
+              <Modal>
+                <Dialog>
+                  <DialogHeader>
+                    <DialogTitle>Edit Model</DialogTitle>
+                    <DialogTitleExtra>
+                      <DialogCloseButton slot="close" />
+                    </DialogTitleExtra>
+                  </DialogHeader>
+                  <Suspense fallback={<Loading />}>
+                    {queryReference ? (
+                      <EditModelDialogContent
+                        queryReference={queryReference}
+                        onModelEdited={onModelEdited}
+                        onClose={handleClose}
+                      />
+                    ) : (
+                      <Loading />
+                    )}
+                  </Suspense>
+                </Dialog>
+              </Modal>
+            </StopPropagation>
           </ModalOverlay>
         )}
       </DialogContainer>
