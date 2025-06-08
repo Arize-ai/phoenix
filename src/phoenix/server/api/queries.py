@@ -311,8 +311,10 @@ class Query:
         self,
         info: Info[Context, None],
         experiment_ids: list[GlobalID],
+        first: Optional[int] = 50,
+        after: Optional[CursorString] = UNSET,
         filter_condition: Optional[str] = UNSET,
-    ) -> list[ExperimentComparison]:
+    ) -> Connection[ExperimentComparison]:
         experiment_ids_ = [
             from_global_id_with_expected_type(experiment_id, OrmExperiment.__name__)
             for experiment_id in experiment_ids
@@ -417,6 +419,7 @@ class Query:
                 )
             experiment_comparisons.append(
                 ExperimentComparison(
+                    id_attr=example.id,
                     example=DatasetExample(
                         id_attr=example.id,
                         created_at=example.created_at,
@@ -425,7 +428,13 @@ class Query:
                     run_comparison_items=run_comparison_items,
                 )
             )
-        return experiment_comparisons
+        return connection_from_list(
+            data=experiment_comparisons,
+            args=ConnectionArgs(
+                first=first,
+                after=after if isinstance(after, CursorString) else None,
+            ),
+        )
 
     @strawberry.field
     async def validate_experiment_run_filter_condition(

@@ -1054,6 +1054,24 @@ type ExperimentComparison {
 }
 
 """A connection to a list of items."""
+type ExperimentComparisonConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ExperimentComparisonEdge!]!
+}
+
+"""An edge in a connection."""
+type ExperimentComparisonEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ExperimentComparison!
+}
+
+"""A connection to a list of items."""
 type ExperimentConnection {
   """Pagination data for this connection"""
   pageInfo: PageInfo!
@@ -1944,7 +1962,7 @@ type Query {
   projectsLastUpdatedAt: DateTime
   datasets(first: Int = 50, last: Int, after: String, before: String, sort: DatasetSort): DatasetConnection!
   datasetsLastUpdatedAt: DateTime
-  compareExperiments(experimentIds: [ID!]!, filterCondition: String): [ExperimentComparison!]!
+  compareExperiments(experimentIds: [ID!]!, first: Int = 50, after: String, filterCondition: String): ExperimentComparisonConnection!
   validateExperimentRunFilterCondition(condition: String!, experimentIds: [ID!]!): ValidationResult!
   functionality: Functionality!
   model: Model!

@@ -68,6 +68,7 @@ export function ExperimentComparePage() {
         <ExperimentRunFilterConditionProvider>
           <Suspense fallback={<Loading />}>
             <ExperimentCompareTable
+              query={loaderData}
               datasetId={loaderData.dataset.id}
               experimentIds={experimentIds}
               displayFullText={displayFullText}

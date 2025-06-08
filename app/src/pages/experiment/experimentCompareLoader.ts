@@ -10,10 +10,14 @@ import { experimentCompareLoaderQuery } from "./__generated__/experimentCompareL
  */
 export async function experimentCompareLoader(args: LoaderFunctionArgs) {
   const { datasetId } = args.params;
+  const url = new URL(args.request.url);
+  const experimentIds = url.searchParams.getAll("experimentId");
   return await fetchQuery<experimentCompareLoaderQuery>(
     RelayEnvironment,
     graphql`
-      query experimentCompareLoaderQuery($id: ID!) {
+      query experimentCompareLoaderQuery($id: ID!, $experimentIDs: [ID!]!) {
+        ...ExperimentCompareTable_comparisons
+          @arguments(experimentIds: $experimentIDs, datasetId: $id)
         dataset: node(id: $id) {
           id
           ... on Dataset {
@@ -26,6 +30,7 @@ export async function experimentCompareLoader(args: LoaderFunctionArgs) {
     `,
     {
       id: datasetId as string,
+      experimentIDs: experimentIds,
     }
   ).toPromise();
 }
