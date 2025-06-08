@@ -1313,7 +1313,7 @@ class Model(Base):
     name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     provider: Mapped[Optional[str]]
     name_pattern: Mapped[str] = mapped_column(String, nullable=False)
-    is_default: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    is_override: Mapped[bool] = mapped_column(Boolean, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp,
         server_default=func.now(),
@@ -1544,13 +1544,45 @@ class SpanCost(Base):
         nullable=False,
         index=True,
     )
-    input_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    output_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    cache_read_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    cache_write_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    prompt_audio_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    completion_audio_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    reasoning_token_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    total_token_cost: Mapped[float] = mapped_column(Float, nullable=False, index=True)
+    input_token_cost: Mapped[Optional[float]] = mapped_column(
+        Float,
+        nullable=True,
+        index=True,
+    )
+    output_token_cost: Mapped[Optional[float]] = mapped_column(
+        Float,
+        nullable=True,
+        index=True,
+    )
+    cache_read_token_cost: Mapped[Optional[float]] = mapped_column(
+        Float,
+        nullable=True,
+        index=True,
+    )
+    cache_write_token_cost: Mapped[Optional[float]] = mapped_column(
+        Float,
+        nullable=True,
+        index=True,
+    )
+    prompt_audio_token_cost: Mapped[Optional[float]] = mapped_column(
+        Float,
+        nullable=True,
+        index=True,
+    )
+    completion_audio_token_cost: Mapped[Optional[float]] = mapped_column(
+        Float,
+        nullable=True,
+        index=True,
+    )
+    reasoning_token_cost: Mapped[Optional[float]] = mapped_column(
+        Float,
+        nullable=True,
+        index=True,
+    )
+    total_token_cost: Mapped[float] = mapped_column(
+        Float,
+        nullable=False,
+        index=True,
+    )
 
     span: Mapped["Span"] = relationship("Span", back_populates="span_cost")

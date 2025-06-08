@@ -80,7 +80,7 @@ class ModelMutationMixin:
                 name=input.name,
                 provider=input.provider,
                 name_pattern=input.name_pattern,
-                is_default=False,
+                is_override=True,
             )
             model.costs.append(
                 models.ModelCost(
@@ -164,7 +164,7 @@ class ModelMutationMixin:
             )
             if model is None:
                 raise NotFound(f'Model "{input.id}" not found')
-            if model.is_default:
+            if not model.is_override:
                 if input.name != model.name:
                     raise BadRequest("Cannot update name of default model")
                 if input.provider != model.provider:
@@ -248,7 +248,8 @@ class ModelMutationMixin:
                     )
                 )
             session.add(model)
-            await session.commit()
+            await session.flush()
+            await session.refresh(model)
 
         return UpdateModelMutationPayload(
             model=to_gql_model(model),
@@ -272,7 +273,7 @@ class ModelMutationMixin:
             )
             if model is None:
                 raise NotFound(f'Model "{input.id}" not found')
-            if model.is_default:
+            if not model.is_override:
                 await session.rollback()
                 raise BadRequest("Cannot delete default model")
         return DeleteModelMutationPayload(
