@@ -1,24 +1,38 @@
 import asyncio
 
-from agents import Agent, Runner
-from agents.mcp import MCPServer, MCPServerStdio
 from dotenv import load_dotenv
+
+# 1. Load environment variables
+load_dotenv()
 
 from phoenix.otel import register
 
-load_dotenv()
+# Connect to your Arize instance
+tracer_provider = register(project_name="test_mcp_project")
 
-tracer_provider = register(auto_instrument=True, endpoint="http://localhost:6006/v1/traces")
+# 2. Set up instrumentation BEFORE any imports that use MCP
+from openinference.instrumentation.mcp import MCPInstrumentor
+from openinference.instrumentation.openai_agents import OpenAIAgentsInstrumentor
+
+# Apply instrumentation before any MCP imports
+MCPInstrumentor().instrument(tracer_provider=tracer_provider)
+OpenAIAgentsInstrumentor().instrument(tracer_provider=tracer_provider)
+
+# 3. Only NOW import modules that use MCP
+from agents import Agent, Runner
+from agents.mcp import MCPServer, MCPServerStdio
 
 
 async def run(mcp_server: MCPServer):
     agent = Agent(
-        name="Assistant",
         instructions="Use the tools to answer the users question.",
+        name="Assistant",
         mcp_servers=[mcp_server],
     )
     while True:
-        message = input("\n\nEnter your question (or 'exit' to quit): ")
+        message = input("\n\nEnter your question (or 'exit' to quit or blank for default): ")
+        if not message:
+            message = "What is the effect of tariffs on canada"
         if message.lower() == "exit" or message.lower() == "q":
             break
         print(f"\n\nRunning: {message}")
@@ -31,7 +45,7 @@ async def main():
         name="Financial Analysis Server",
         params={
             "command": "fastmcp",
-            "args": ["run", "./tutorials/mcp/tracing_between_mcp_client_and_server/server.py"],
+            "args": ["run", "./server.py"],
         },
         client_session_timeout_seconds=30,
     ) as server:
