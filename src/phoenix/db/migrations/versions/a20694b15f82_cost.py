@@ -43,6 +43,11 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column(
+            "is_default",
+            sa.Boolean,
+            nullable=False,
+        ),
+        sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
             nullable=False,

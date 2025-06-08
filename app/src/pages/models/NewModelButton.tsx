@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { graphql, useMutation } from "react-relay";
 
 import { DialogContainer } from "@arizeai/components";
 
@@ -18,8 +19,10 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/dialog/Dialog";
-import { useNotifySuccess } from "@phoenix/contexts";
+import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
+import type { NewModelButtonCreateModelMutation } from "./__generated__/NewModelButtonCreateModelMutation.graphql";
 import { ModelForm, ModelFormParams } from "./ModelForm";
 
 export function NewModelButton({
@@ -30,6 +33,21 @@ export function NewModelButton({
   const [error, setError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const notifySuccess = useNotifySuccess();
+  const notifyError = useNotifyError();
+
+  const [commit, isCommitting] = useMutation<NewModelButtonCreateModelMutation>(
+    graphql`
+      mutation NewModelButtonCreateModelMutation(
+        $input: CreateModelMutationInput!
+      ) {
+        createModel(input: $input) {
+          model {
+            id
+          }
+        }
+      }
+    `
+  );
 
   return (
     <DialogTrigger
@@ -47,8 +65,9 @@ export function NewModelButton({
           setError(null);
           setIsOpen(true);
         }}
+        isDisabled={isCommitting}
       >
-        Add Model
+        {isCommitting ? "Adding Model..." : "Add Model"}
       </Button>
       <DialogContainer onDismiss={() => setIsOpen(false)}>
         {isOpen && (
@@ -66,10 +85,34 @@ export function NewModelButton({
                   onSubmit={(params) => {
                     setError(null);
                     setIsOpen(false);
-                    onModelCreated && onModelCreated(params);
-                    notifySuccess({
-                      title: `Model Created`,
-                      message: `Model "${params.name}" created successfully`,
+                    commit({
+                      variables: {
+                        input: {
+                          name: params.name,
+                          provider: params.provider || null,
+                          namePattern: params.namePattern,
+                          inputCostPerToken: params.cost.input,
+                          outputCostPerToken: params.cost.output,
+                          cacheReadCostPerToken: params.cost.cacheRead,
+                          cacheWriteCostPerToken: params.cost.cacheWrite,
+                          promptAudioCostPerToken: params.cost.promptAudio,
+                        },
+                      },
+                      onCompleted: () => {
+                        onModelCreated && onModelCreated(params);
+                        notifySuccess({
+                          title: `Model Created`,
+                          message: `Model "${params.name}" added successfully`,
+                        });
+                      },
+                      onError: (error) => {
+                        const formattedError =
+                          getErrorMessagesFromRelayMutationError(error);
+                        notifyError({
+                          title: "An error occurred",
+                          message: `Failed to add model: ${formattedError?.[0] ?? error.message}`,
+                        });
+                      },
                     });
                   }}
                   isSubmitting={false}
