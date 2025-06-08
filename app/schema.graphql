@@ -403,6 +403,24 @@ input CreateDatasetInput {
   metadata: JSON
 }
 
+input CreateModelMutationInput {
+  name: String!
+  provider: String
+  namePattern: String!
+  inputCostPerToken: Float!
+  outputCostPerToken: Float!
+  cacheReadCostPerToken: Float = null
+  cacheWriteCostPerToken: Float = null
+  promptAudioCostPerToken: Float = null
+  completionAudioCostPerToken: Float = null
+  reasoningCostPerToken: Float = null
+}
+
+type CreateModelMutationPayload {
+  model: Model!
+  query: Query!
+}
+
 input CreateProjectTraceRetentionPolicyInput {
   name: String!
   cronExpression: CronExpression!
@@ -687,6 +705,15 @@ input DeleteDatasetInput {
 
 input DeleteExperimentsInput {
   experimentIds: [ID!]!
+}
+
+input DeleteModelMutationInput {
+  id: ID!
+}
+
+type DeleteModelMutationPayload {
+  model: Model!
+  query: Query!
 }
 
 input DeleteProjectTraceRetentionPolicyInput {
@@ -1383,6 +1410,7 @@ type Model implements Node & ModelInterface {
   providerKey: GenerativeProviderKey
   provider: String
   namePattern: String!
+  isDefault: Boolean!
   createdAt: DateTime!
   updatedAt: DateTime!
   tokenCost: TokenCost
@@ -1457,6 +1485,9 @@ type Mutation {
   Given a list of clusters, export the corresponding data subset in Parquet format. File name is optional, but if specified, should be without file extension. By default the exported file name is current timestamp.
   """
   exportClusters(clusters: [ClusterInput!]!, fileName: String): ExportedFile!
+  createModel(input: CreateModelMutationInput!): CreateModelMutationPayload!
+  updateModel(input: UpdateModelMutationInput!): UpdateModelMutationPayload!
+  deleteModel(input: DeleteModelMutationInput!): DeleteModelMutationPayload!
   deleteProject(id: ID!): Query!
   clearProject(input: ClearProjectInput!): Query!
   createProjectTraceRetentionPolicy(input: CreateProjectTraceRetentionPolicyInput!): ProjectTraceRetentionPolicyMutationPayload!
@@ -2599,6 +2630,25 @@ input UpdateAnnotationConfigInput {
 type UpdateAnnotationConfigPayload {
   query: Query!
   annotationConfig: AnnotationConfig!
+}
+
+input UpdateModelMutationInput {
+  id: ID!
+  name: String!
+  provider: String
+  namePattern: String!
+  inputCostPerToken: Float!
+  outputCostPerToken: Float!
+  cacheReadCostPerToken: Float = null
+  cacheWriteCostPerToken: Float = null
+  promptAudioCostPerToken: Float = null
+  completionAudioCostPerToken: Float = null
+  reasoningCostPerToken: Float = null
+}
+
+type UpdateModelMutationPayload {
+  model: Model!
+  query: Query!
 }
 
 type User implements Node {
