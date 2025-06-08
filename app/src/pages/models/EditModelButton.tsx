@@ -26,7 +26,6 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/dialog/Dialog";
-import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -172,29 +171,27 @@ export function EditModelButton({
       <DialogContainer onDismiss={handleClose}>
         {isOpen && (
           <ModalOverlay>
-            <StopPropagation>
-              <Modal>
-                <Dialog>
-                  <DialogHeader>
-                    <DialogTitle>Edit Model</DialogTitle>
-                    <DialogTitleExtra>
-                      <DialogCloseButton slot="close" />
-                    </DialogTitleExtra>
-                  </DialogHeader>
-                  <Suspense fallback={<Loading />}>
-                    {queryReference ? (
-                      <EditModelDialogContent
-                        queryReference={queryReference}
-                        onModelEdited={onModelEdited}
-                        onClose={handleClose}
-                      />
-                    ) : (
-                      <Loading />
-                    )}
-                  </Suspense>
-                </Dialog>
-              </Modal>
-            </StopPropagation>
+            <Modal>
+              <Dialog>
+                <DialogHeader>
+                  <DialogTitle>Edit Model</DialogTitle>
+                  <DialogTitleExtra>
+                    <DialogCloseButton slot="close" />
+                  </DialogTitleExtra>
+                </DialogHeader>
+                <Suspense fallback={<Loading />}>
+                  {queryReference ? (
+                    <EditModelDialogContent
+                      queryReference={queryReference}
+                      onModelEdited={onModelEdited}
+                      onClose={handleClose}
+                    />
+                  ) : (
+                    <Loading />
+                  )}
+                </Suspense>
+              </Dialog>
+            </Modal>
           </ModalOverlay>
         )}
       </DialogContainer>

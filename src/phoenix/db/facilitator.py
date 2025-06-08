@@ -288,7 +288,7 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
                     name=model_data["model"],
                     provider=model_data["provider"],
                     name_pattern=model_data["regex"],
-                    is_default=True,
+                    is_override=False,
                 )
                 session.add(model)
                 await session.flush()

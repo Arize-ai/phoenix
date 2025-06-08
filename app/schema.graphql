@@ -1764,7 +1764,7 @@ type Model implements Node & ModelInterface {
   providerKey: GenerativeProviderKey
   provider: String
   namePattern: String!
-  isDefault: Boolean!
+  isOverride: Boolean!
   createdAt: DateTime!
   updatedAt: DateTime!
   tokenCost: TokenCost
@@ -2978,6 +2978,7 @@ enum SpanColumn {
   cumulativeTokenCountTotal
   cumulativeTokenCountPrompt
   cumulativeTokenCountCompletion
+  tokenCostTotal
 }
 
 """

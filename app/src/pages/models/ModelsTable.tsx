@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useRef } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate } from "react-router";
 import {
   ColumnDef,
   flexRender,
@@ -28,7 +27,6 @@ type ModelsTableProps = {
 };
 
 export function ModelsTable(props: ModelsTableProps) {
-  const navigate = useNavigate();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
@@ -60,15 +58,7 @@ export function ModelsTable(props: ModelsTableProps) {
                 cacheWrite
                 promptAudio
                 completionAudio
-              }
-              totalTokenCost {
-                input
-                output
-                cacheRead
-                cacheWrite
-                promptAudio
-                completionAudio
-                total
+                reasoning
               }
             }
           }
@@ -181,58 +171,10 @@ export function ModelsTable(props: ModelsTableProps) {
         },
       },
       {
-        header: "total cost",
-        accessorKey: "totalTokenCost.total",
+        header: "reasoning cost",
+        accessorKey: "tokenCost.reasoning",
         cell: ({ row }) => {
-          const cost = row.original.totalTokenCost?.total;
-          return cost != null ? `$${cost.toPrecision(3)}` : "--";
-        },
-      },
-      {
-        header: "total input cost",
-        accessorKey: "totalTokenCost.input",
-        cell: ({ row }) => {
-          const cost = row.original.totalTokenCost?.input;
-          return cost != null ? `$${cost.toPrecision(3)}` : "--";
-        },
-      },
-      {
-        header: "total output cost",
-        accessorKey: "totalTokenCost.output",
-        cell: ({ row }) => {
-          const cost = row.original.totalTokenCost?.output;
-          return cost != null ? `$${cost.toPrecision(3)}` : "--";
-        },
-      },
-      {
-        header: "total cache read cost",
-        accessorKey: "totalTokenCost.cacheRead",
-        cell: ({ row }) => {
-          const cost = row.original.totalTokenCost?.cacheRead;
-          return cost != null ? `$${cost.toPrecision(3)}` : "--";
-        },
-      },
-      {
-        header: "total cache write cost",
-        accessorKey: "totalTokenCost.cacheWrite",
-        cell: ({ row }) => {
-          const cost = row.original.totalTokenCost?.cacheWrite;
-          return cost != null ? `$${cost.toPrecision(3)}` : "--";
-        },
-      },
-      {
-        header: "total prompt audio cost",
-        accessorKey: "totalTokenCost.promptAudio",
-        cell: ({ row }) => {
-          const cost = row.original.totalTokenCost?.promptAudio;
-          return cost != null ? `$${cost.toPrecision(3)}` : "--";
-        },
-      },
-      {
-        header: "total completion audio cost",
-        accessorKey: "totalTokenCost.completionAudio",
-        cell: ({ row }) => {
-          const cost = row.original.totalTokenCost?.completionAudio;
+          const cost = row.original.tokenCost?.reasoning;
           return cost != null ? `$${cost.toPrecision(3)}` : "--";
         },
       },
@@ -333,12 +275,7 @@ export function ModelsTable(props: ModelsTableProps) {
         <tbody>
           {rows.map((row) => {
             return (
-              <tr
-                key={row.id}
-                onClick={() => {
-                  navigate(`${row.original.id}`);
-                }}
-              >
+              <tr key={row.id}>
                 {row.getVisibleCells().map((cell) => (
                   <td
                     key={cell.id}
