@@ -7,6 +7,7 @@ from sqlalchemy import (
     JSON,
     NUMERIC,
     TIMESTAMP,
+    Boolean,
     CheckConstraint,
     ColumnElement,
     Dialect,
@@ -1312,6 +1313,7 @@ class Model(Base):
     name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     provider: Mapped[Optional[str]]
     name_pattern: Mapped[str] = mapped_column(String, nullable=False)
+    is_default: Mapped[bool] = mapped_column(Boolean, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp,
         server_default=func.now(),
