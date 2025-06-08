@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<72f01fc8ee076795ba6b246dbc7ac8a2>>
+ * @generated SignedSource<<87f66497621d181064326e406cb7e4e0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -32,48 +32,6 @@ v1 = {
   "args": null,
   "kind": "ScalarField",
   "name": "id",
-  "storageKey": null
-},
-v2 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "input",
-  "storageKey": null
-},
-v3 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "output",
-  "storageKey": null
-},
-v4 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "cacheRead",
-  "storageKey": null
-},
-v5 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "cacheWrite",
-  "storageKey": null
-},
-v6 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "promptAudio",
-  "storageKey": null
-},
-v7 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "completionAudio",
   "storageKey": null
 };
 return {
@@ -173,34 +131,53 @@ return {
                     "name": "tokenCost",
                     "plural": false,
                     "selections": [
-                      (v2/*: any*/),
-                      (v3/*: any*/),
-                      (v4/*: any*/),
-                      (v5/*: any*/),
-                      (v6/*: any*/),
-                      (v7/*: any*/)
-                    ],
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "TokenCost",
-                    "kind": "LinkedField",
-                    "name": "totalTokenCost",
-                    "plural": false,
-                    "selections": [
-                      (v2/*: any*/),
-                      (v3/*: any*/),
-                      (v4/*: any*/),
-                      (v5/*: any*/),
-                      (v6/*: any*/),
-                      (v7/*: any*/),
                       {
                         "alias": null,
                         "args": null,
                         "kind": "ScalarField",
-                        "name": "total",
+                        "name": "input",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "output",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "cacheRead",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "cacheWrite",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "promptAudio",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "completionAudio",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "reasoning",
                         "storageKey": null
                       }
                     ],
@@ -278,12 +255,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "06862c86c59617089955b12c50ee8325",
+    "cacheID": "f4623176c77b855fbcdc0b1eea586ae7",
     "id": null,
     "metadata": {},
     "name": "modelsLoaderQuery",
     "operationKind": "query",
-    "text": "query modelsLoaderQuery {\n  ...ModelsTable_models\n}\n\nfragment ModelsTable_models on Query {\n  models(first: 100) {\n    edges {\n      model: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        createdAt\n        updatedAt\n        tokenCost {\n          input\n          output\n          cacheRead\n          cacheWrite\n          promptAudio\n          completionAudio\n        }\n        totalTokenCost {\n          input\n          output\n          cacheRead\n          cacheWrite\n          promptAudio\n          completionAudio\n          total\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query modelsLoaderQuery {\n  ...ModelsTable_models\n}\n\nfragment ModelsTable_models on Query {\n  models(first: 100) {\n    edges {\n      model: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        createdAt\n        updatedAt\n        tokenCost {\n          input\n          output\n          cacheRead\n          cacheWrite\n          promptAudio\n          completionAudio\n          reasoning\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

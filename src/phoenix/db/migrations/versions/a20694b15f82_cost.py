@@ -43,7 +43,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column(
-            "is_default",
+            "is_override",
             sa.Boolean,
             nullable=False,
         ),
@@ -124,36 +124,43 @@ def upgrade() -> None:
             "input_token_cost",
             sa.Float,
             nullable=True,
+            index=True,
         ),
         sa.Column(
             "output_token_cost",
             sa.Float,
             nullable=True,
+            index=True,
         ),
         sa.Column(
             "cache_read_token_cost",
             sa.Float,
             nullable=True,
+            index=True,
         ),
         sa.Column(
             "cache_write_token_cost",
             sa.Float,
             nullable=True,
+            index=True,
         ),
         sa.Column(
             "prompt_audio_token_cost",
             sa.Float,
             nullable=True,
+            index=True,
         ),
         sa.Column(
             "completion_audio_token_cost",
             sa.Float,
             nullable=True,
+            index=True,
         ),
         sa.Column(
             "reasoning_token_cost",
             sa.Float,
             nullable=True,
+            index=True,
         ),
         sa.Column(
             "total_token_cost",

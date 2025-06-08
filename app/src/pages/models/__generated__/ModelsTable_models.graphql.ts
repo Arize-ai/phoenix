@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ce9049e2780334054f279eadcda4967e>>
+ * @generated SignedSource<<47a53a299c36f7b81ae3e3b429fdbb9e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -28,15 +28,7 @@ export type ModelsTable_models$data = {
           readonly input: number | null;
           readonly output: number | null;
           readonly promptAudio: number | null;
-        } | null;
-        readonly totalTokenCost: {
-          readonly cacheRead: number | null;
-          readonly cacheWrite: number | null;
-          readonly completionAudio: number | null;
-          readonly input: number | null;
-          readonly output: number | null;
-          readonly promptAudio: number | null;
-          readonly total: number | null;
+          readonly reasoning: number | null;
         } | null;
         readonly updatedAt: string;
       };
@@ -54,49 +46,7 @@ import ModelsTableModelsQuery_graphql from './ModelsTableModelsQuery.graphql';
 const node: ReaderFragment = (function(){
 var v0 = [
   "models"
-],
-v1 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "input",
-  "storageKey": null
-},
-v2 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "output",
-  "storageKey": null
-},
-v3 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "cacheRead",
-  "storageKey": null
-},
-v4 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "cacheWrite",
-  "storageKey": null
-},
-v5 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "promptAudio",
-  "storageKey": null
-},
-v6 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "completionAudio",
-  "storageKey": null
-};
+];
 return {
   "argumentDefinitions": [
     {
@@ -216,34 +166,53 @@ return {
                   "name": "tokenCost",
                   "plural": false,
                   "selections": [
-                    (v1/*: any*/),
-                    (v2/*: any*/),
-                    (v3/*: any*/),
-                    (v4/*: any*/),
-                    (v5/*: any*/),
-                    (v6/*: any*/)
-                  ],
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "concreteType": "TokenCost",
-                  "kind": "LinkedField",
-                  "name": "totalTokenCost",
-                  "plural": false,
-                  "selections": [
-                    (v1/*: any*/),
-                    (v2/*: any*/),
-                    (v3/*: any*/),
-                    (v4/*: any*/),
-                    (v5/*: any*/),
-                    (v6/*: any*/),
                     {
                       "alias": null,
                       "args": null,
                       "kind": "ScalarField",
-                      "name": "total",
+                      "name": "input",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "output",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "cacheRead",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "cacheWrite",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "promptAudio",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "completionAudio",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "reasoning",
                       "storageKey": null
                     }
                   ],
@@ -314,6 +283,6 @@ return {
 };
 })();
 
-(node as any).hash = "79ec1884e05f00ef113d1adad5a79d79";
+(node as any).hash = "7b61aacdc56be02377887a018cf5645e";
 
 export default node;
