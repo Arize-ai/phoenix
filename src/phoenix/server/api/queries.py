@@ -65,7 +65,7 @@ from phoenix.server.api.types.Functionality import Functionality
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
 from phoenix.server.api.types.InferenceModel import InferenceModel
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
-from phoenix.server.api.types.Model import Model
+from phoenix.server.api.types.Model import Model, to_gql_model
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
 from phoenix.server.api.types.PlaygroundModel import PlaygroundModel
@@ -143,21 +143,7 @@ class Query:
             )
             db_models = result.unique().scalars().all()
 
-        models = [
-            Model(
-                id_attr=model.id,
-                name=model.name,
-                provider=model.provider,
-                name_pattern=model.name_pattern,
-                created_at=model.created_at,
-                updated_at=model.updated_at,
-                provider_key=GenerativeProviderKey[model.provider.upper()]
-                if model.provider is not None
-                else None,
-                costs=model.costs,
-            )
-            for model in db_models
-        ]
+        models = [to_gql_model(model) for model in db_models]
         return connection_from_list(data=models, args=args)
 
     @strawberry.field
@@ -692,18 +678,7 @@ class Query:
                 model = await session.scalar(stmt)
                 if not model:
                     raise NotFound(f"Unknown model: {id}")
-            return Model(
-                id_attr=model.id,
-                name=model.name,
-                provider=model.provider,
-                name_pattern=model.name_pattern,
-                created_at=model.created_at,
-                updated_at=model.updated_at,
-                provider_key=GenerativeProviderKey[model.provider.upper()]
-                if model.provider is not None
-                else None,
-                costs=model.costs,
-            )
+            return to_gql_model(model)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field

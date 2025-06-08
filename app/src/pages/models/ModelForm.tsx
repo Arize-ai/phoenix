@@ -35,6 +35,7 @@ export type ModelFormParams = {
     cacheWrite?: number;
     promptAudio?: number;
     completionAudio?: number;
+    reasoning?: number;
   };
 };
 

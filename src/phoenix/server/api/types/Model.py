@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 import strawberry
+from sqlalchemy import inspect
 from strawberry.relay import Node, NodeID
 from strawberry.types import Info
 
@@ -18,6 +19,7 @@ class Model(Node, ModelInterface):
     name: str
     provider: Optional[str]
     name_pattern: str
+    is_default: bool
     created_at: datetime
     updated_at: datetime
     provider_key: Optional[GenerativeProviderKey]
@@ -47,3 +49,18 @@ class Model(Node, ModelInterface):
             reasoning=total_costs.total_reasoning_token_cost,
             total=total_costs.total_token_cost,
         )
+
+
+def to_gql_model(model: models.Model) -> Model:
+    costs_are_loaded = isinstance(inspect(model).attrs.costs.loaded_value, list)
+    return Model(
+        id_attr=model.id,
+        name=model.name,
+        provider=model.provider,
+        name_pattern=model.name_pattern,
+        is_default=model.is_default,
+        created_at=model.created_at,
+        updated_at=model.updated_at,
+        provider_key=GenerativeProviderKey[model.provider.upper()] if model.provider else None,
+        costs=model.costs if costs_are_loaded else None,
+    )
