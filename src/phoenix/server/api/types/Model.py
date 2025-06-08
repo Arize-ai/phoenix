@@ -19,7 +19,7 @@ class Model(Node, ModelInterface):
     name: str
     provider: Optional[str]
     name_pattern: str
-    is_default: bool
+    is_override: bool
     created_at: datetime
     updated_at: datetime
     provider_key: Optional[GenerativeProviderKey]
@@ -58,7 +58,7 @@ def to_gql_model(model: models.Model) -> Model:
         name=model.name,
         provider=model.provider,
         name_pattern=model.name_pattern,
-        is_default=model.is_default,
+        is_override=model.is_override,
         created_at=model.created_at,
         updated_at=model.updated_at,
         provider_key=GenerativeProviderKey[model.provider.upper()] if model.provider else None,
