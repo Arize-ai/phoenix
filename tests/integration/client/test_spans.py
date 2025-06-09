@@ -843,7 +843,7 @@ class TestClientForSpanCreation:
         monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
 
         from phoenix.client import Client
-        from phoenix.client.resources.spans import SpanCreationError
+        from phoenix.client.exceptions import SpanCreationError
 
         client = Client()
 
