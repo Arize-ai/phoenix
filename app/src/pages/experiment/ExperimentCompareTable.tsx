@@ -94,31 +94,19 @@ type ExperimentInfoMap = Record<
   | undefined
 >;
 
-type TableRow = NonNullable<
-  NonNullable<
-    ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]
-  >["comparison"]
-> & {
-  id: string;
-  input: unknown;
-  referenceOutput: unknown;
-  runComparisonMap: Record<
-    string,
-    NonNullable<
-      NonNullable<
-        ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]
-      >["comparison"]["runComparisonItems"][number]
-    >
-  >;
-};
+type TableRow =
+  ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"] & {
+    id: string;
+    input: unknown;
+    referenceOutput: unknown;
+    runComparisonMap: Record<
+      string,
+      ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]
+    >;
+  };
 
-type ExperimentRun = NonNullable<
-  NonNullable<
-    NonNullable<
-      ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]
-    >["comparison"]["runComparisonItems"][number]
-  >["runs"][number]
->;
+type ExperimentRun =
+  ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]["runs"][number];
 
 const defaultCardProps: Partial<CardProps> = {
   backgroundColor: "light",
@@ -258,24 +246,16 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           (
             acc: Record<
               string,
-              NonNullable<
-                ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]
-              >
-            >,
-            item: NonNullable<
               ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]
-            >
+            >,
+            item: ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]
           ) => {
             acc[item.experimentId] = item;
             return acc;
           },
           {} as Record<
             string,
-            NonNullable<
-              NonNullable<
-                ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]
-              >["comparison"]["runComparisonItems"][number]
-            >
+            ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]
           >
         );
         return {
