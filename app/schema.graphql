@@ -594,7 +594,7 @@ type DatasetExampleRevision implements ExampleRevision {
   createdAt: DateTime!
 }
 
-"""The filter key and value for dataset connections"""
+"""A filter for datasets"""
 input DatasetFilter {
   col: DatasetFilterColumn!
   value: String!

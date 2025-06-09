@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b730220e128b2cf48ffe5b84bbb3d1b7>>
+ * @generated SignedSource<<f36a42947770296e21a4591de68628f7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,14 +10,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type DatasetFilterColumn = "name";
-export type DatasetFilter = {
-  col: DatasetFilterColumn;
-  value: string;
-};
-export type DatasetsPageQuery$variables = {
-  filter?: DatasetFilter | null;
-};
+export type DatasetsPageQuery$variables = Record<PropertyKey, never>;
 export type DatasetsPageQuery$data = {
   readonly " $fragmentSpreads": FragmentRefs<"DatasetsTable_datasets">;
 };
@@ -28,19 +21,6 @@ export type DatasetsPageQuery = {
 
 const node: ConcreteRequest = (function(){
 var v0 = [
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "filter"
-  }
-],
-v1 = {
-  "kind": "Variable",
-  "name": "filter",
-  "variableName": "filter"
-},
-v2 = [
-  (v1/*: any*/),
   {
     "kind": "Literal",
     "name": "first",
@@ -57,15 +37,13 @@ v2 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
     "name": "DatasetsPageQuery",
     "selections": [
       {
-        "args": [
-          (v1/*: any*/)
-        ],
+        "args": null,
         "kind": "FragmentSpread",
         "name": "DatasetsTable_datasets"
       }
@@ -75,13 +53,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [],
     "kind": "Operation",
     "name": "DatasetsPageQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v0/*: any*/),
         "concreteType": "DatasetConnection",
         "kind": "LinkedField",
         "name": "datasets",
@@ -198,11 +176,11 @@ return {
             "storageKey": null
           }
         ],
-        "storageKey": null
+        "storageKey": "datasets(first:100,sort:{\"col\":\"createdAt\",\"dir\":\"desc\"})"
       },
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v0/*: any*/),
         "filters": [
           "sort",
           "filter"
@@ -215,16 +193,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "2303c9a69ab97d2e05fc69f3a496754f",
+    "cacheID": "695b221e981c4795492d79faa7d007e4",
     "id": null,
     "metadata": {},
     "name": "DatasetsPageQuery",
     "operationKind": "query",
-    "text": "query DatasetsPageQuery(\n  $filter: DatasetFilter\n) {\n  ...DatasetsTable_datasets_Vt7Yj\n}\n\nfragment DatasetsTable_datasets_Vt7Yj on Query {\n  datasets(first: 100, sort: {col: createdAt, dir: desc}, filter: $filter) {\n    edges {\n      node {\n        id\n        name\n        description\n        metadata\n        createdAt\n        exampleCount\n        experimentCount\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query DatasetsPageQuery {\n  ...DatasetsTable_datasets\n}\n\nfragment DatasetsTable_datasets on Query {\n  datasets(first: 100, sort: {col: createdAt, dir: desc}) {\n    edges {\n      node {\n        id\n        name\n        description\n        metadata\n        createdAt\n        exampleCount\n        experimentCount\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0ba07045de11b207bc6333661946138a";
+(node as any).hash = "985853a7939f44c0cefdd1a91472c67e";
 
 export default node;
