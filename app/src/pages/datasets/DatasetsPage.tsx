@@ -10,6 +10,7 @@ import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { DatasetsPageQuery } from "./__generated__/DatasetsPageQuery.graphql";
+import { DatasetsTable_datasets$key } from "./__generated__/DatasetsTable_datasets.graphql";
 import { DatasetFromCSVForm } from "./DatasetFromCSVForm";
 import { DatasetsSearch } from "./DatasetsSearch";
 import { DatasetsTable } from "./DatasetsTable";
@@ -24,16 +25,13 @@ export function DatasetsPage() {
 
 export function DatasetsPageContent() {
   const [fetchKey, setFetchKey] = useState(0);
-  const [filter, setFilter] = useState<string>("");
   const data = useLazyLoadQuery<DatasetsPageQuery>(
     graphql`
-      query DatasetsPageQuery($filter: DatasetFilter) {
-        ...DatasetsTable_datasets @arguments(filter: $filter)
+      query DatasetsPageQuery {
+        ...DatasetsTable_datasets
       }
     `,
-    {
-      filter: filter ? { col: "name", value: filter } : null,
-    },
+    {},
     {
       fetchKey: fetchKey,
       fetchPolicy: "store-and-network",
@@ -43,6 +41,7 @@ export function DatasetsPageContent() {
   const onDatasetCreated = useCallback(() => {
     setFetchKey((prev) => prev + 1);
   }, [setFetchKey]);
+
   return (
     <Flex direction="column" height="100%">
       <View
@@ -60,11 +59,28 @@ export function DatasetsPageContent() {
             <Heading level={1}>Datasets</Heading>
             <CreateDatasetActionMenu onDatasetCreated={onDatasetCreated} />
           </Flex>
-          <DatasetsSearch onChange={setFilter} />
         </Flex>
       </View>
-      <DatasetsTable query={data} filter={filter} />
+      <DatasetsTableWithSearch query={data} />
     </Flex>
+  );
+}
+
+// New component that manages filter state locally
+function DatasetsTableWithSearch({
+  query,
+}: {
+  query: DatasetsTable_datasets$key;
+}) {
+  const [filter, setFilter] = useState<string>("");
+
+  return (
+    <>
+      <View padding="size-200" flex="none">
+        <DatasetsSearch onChange={setFilter} value={filter} />
+      </View>
+      <DatasetsTable query={query} filter={filter} />
+    </>
   );
 }
 

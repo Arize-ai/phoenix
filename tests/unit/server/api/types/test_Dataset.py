@@ -804,6 +804,18 @@ async def dataset_with_deletion(db: DbSessionFactory) -> None:
         )
 
 
+@pytest.fixture
+async def datasets_for_filtering(db: DbSessionFactory) -> None:
+    """
+    Creates three datasets with specific names for testing filtering functionality.
+    """
+    async with db() as session:
+        for name in ["test_dataset", "dataset_test", "other_name"]:
+            dataset = models.Dataset(name=name)
+            session.add(dataset)
+        await session.commit()
+
+
 @pytest.mark.parametrize(
     "filter_value, expected_names",
     [
@@ -833,16 +845,9 @@ async def test_dataset_filter(
     filter_value: str,
     expected_names: list[str],
     gql_client: AsyncGraphQLClient,
-    db: DbSessionFactory,
+    datasets_for_filtering: None,
 ) -> None:
     """Test dataset filtering capabilities."""
-    # Create test datasets
-    async with db() as session:
-        for name in ["test_dataset", "dataset_test", "other_name"]:
-            dataset = models.Dataset(name=name)
-            session.add(dataset)
-        await session.commit()
-
     query = """
         query ($filter: DatasetFilter) {
             datasets(filter: $filter) {
@@ -886,16 +891,9 @@ async def test_dataset_filter_and_sort(
     filter_value: str,
     expected_names: list[str],
     gql_client: AsyncGraphQLClient,
-    db: DbSessionFactory,
+    datasets_for_filtering: None,
 ) -> None:
     """Test combining dataset filtering and sorting."""
-    # Create test datasets
-    async with db() as session:
-        for name in ["test_dataset", "dataset_test", "other_name"]:
-            dataset = models.Dataset(name=name)
-            session.add(dataset)
-        await session.commit()
-
     query = """
         query ($sort: DatasetSort, $filter: DatasetFilter) {
             datasets(sort: $sort, filter: $filter) {
