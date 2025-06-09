@@ -8,7 +8,7 @@ class DatasetFilterColumn(Enum):
     name = "name"
 
 
-@strawberry.input(description="The filter key and value for dataset connections")
+@strawberry.input(description="A filter for datasets")
 class DatasetFilter:
     col: DatasetFilterColumn
     value: str
