@@ -512,8 +512,12 @@ class Spans:
                             span_dict = cast(dict[str, Any], span)
                             invalid_spans_from_validation.append(
                                 {
-                                    "span_id": span_dict.get("context", {}).get("span_id", "unknown"),
-                                    "trace_id": span_dict.get("context", {}).get("trace_id", "unknown"),
+                                    "span_id": span_dict.get("context", {}).get(
+                                        "span_id", "unknown"
+                                    ),
+                                    "trace_id": span_dict.get("context", {}).get(
+                                        "trace_id", "unknown"
+                                    ),
                                     "error": error.get("msg", "Validation error"),
                                 }
                             )
@@ -1106,8 +1110,12 @@ class AsyncSpans:
                             span_dict = cast(dict[str, Any], span)
                             invalid_spans_from_validation.append(
                                 {
-                                    "span_id": span_dict.get("context", {}).get("span_id", "unknown"),
-                                    "trace_id": span_dict.get("context", {}).get("trace_id", "unknown"),
+                                    "span_id": span_dict.get("context", {}).get(
+                                        "span_id", "unknown"
+                                    ),
+                                    "trace_id": span_dict.get("context", {}).get(
+                                        "trace_id", "unknown"
+                                    ),
                                     "error": error.get("msg", "Validation error"),
                                 }
                             )
