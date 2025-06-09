@@ -98,7 +98,7 @@ html_show_sphinx = False
 
 html_theme_options = {
     "logo": {
-        "text": "Phoenix Client API",
+        "text": "Phoenix Client",
         "image_light": "logo.png",
         "image_dark": "logo.png",
     },
