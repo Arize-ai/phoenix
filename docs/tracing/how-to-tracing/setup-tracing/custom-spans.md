@@ -5,7 +5,7 @@ description: >-
   customize your LLM spans
 ---
 
-# Setup Tracing using Base OTEL
+# Setup using base OTEL
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/Ways-to-collect-data-for-Arize-and-Phoenix.png" alt=""><figcaption></figcaption></figure>
 
@@ -24,6 +24,7 @@ First, ensure you have the API and SDK packages:
 ```shell
 pip install opentelemetry-api
 pip install opentelemetry-sdk
+pip install opentelemetry-exporter-otlp
 ```
 
 Let's next install the [OpenInference Semantic Conventions](https://github.com/Arize-ai/openinference/blob/main/python/openinference-semantic-conventions/README.md) package so that we can construct spans with LLM semantic conventions:
