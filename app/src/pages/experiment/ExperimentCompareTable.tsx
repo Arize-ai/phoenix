@@ -243,13 +243,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       data.compareExperiments.edges.map((edge) => {
         const comparison = edge.comparison;
         const runComparisonMap = comparison.runComparisonItems.reduce(
-          (
-            acc: Record<
-              string,
-              ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]
-            >,
-            item: ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]
-          ) => {
+          (acc, item) => {
             acc[item.experimentId] = item;
             return acc;
           },
