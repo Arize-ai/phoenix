@@ -1022,13 +1022,6 @@ async def create_spans(
             "it cannot contain slash (/), question mark (?), or pound sign (#) characters."
         )
     ),
-    check_duplicates: bool = Query(
-        default=False,
-        description=(
-            "If true, check for existing spans before queuing. Adds latency but provides "
-            "immediate feedback."
-        ),
-    ),
 ) -> CreateSpansResponseBody:
     def convert_api_span_for_insertion(api_span: Span) -> SpanForInsertion:
         """
@@ -1084,13 +1077,12 @@ async def create_spans(
     spans_to_queue: list[tuple[SpanForInsertion, str]] = []
 
     existing_span_ids: set[str] = set()
-    if check_duplicates and request_body.data:
-        span_ids = [span.context.span_id for span in request_body.data]
-        async with request.app.state.db() as session:
-            existing_result = await session.execute(
-                select(models.Span.span_id).where(models.Span.span_id.in_(span_ids))
-            )
-            existing_span_ids = {row[0] for row in existing_result}
+    span_ids = [span.context.span_id for span in request_body.data]
+    async with request.app.state.db() as session:
+        existing_result = await session.execute(
+            select(models.Span.span_id).where(models.Span.span_id.in_(span_ids))
+        )
+        existing_span_ids = {row[0] for row in existing_result}
 
     for api_span in request_body.data:
         # Check if it's a duplicate

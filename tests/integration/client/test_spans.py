@@ -891,7 +891,7 @@ class TestClientForSpanCreation:
         assert result["total_invalid"] == 0
         assert result["total_duplicates"] == 0
 
-        # Test 2: Duplicate checking - wait briefly then try to create same span again
+        # Test 2: Duplicate checking
         import time
 
         time.sleep(1)  # Give the server time to process
@@ -899,7 +899,6 @@ class TestClientForSpanCreation:
         duplicate_result = client.spans.create_spans(
             project_identifier="default",
             spans=[test_spans[0]],  # Try to create parent span again
-            check_duplicates=True,
         )
 
         assert duplicate_result["total_received"] == 1

@@ -50,7 +50,6 @@ class Spans:
             ...     result = client.spans.create_spans(
             ...         project_identifier="my-project",
             ...         spans=spans,
-            ...         check_duplicates=True,
             ...         raise_on_error=True
             ...     )
             ... except SpanCreationError as e:
@@ -452,7 +451,6 @@ class Spans:
         *,
         project_identifier: str,
         spans: Sequence[v1.Span],
-        check_duplicates: bool = False,
         raise_on_error: bool = False,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> v1.CreateSpansResponseBody:
@@ -462,8 +460,6 @@ class Spans:
         Args:
             project_identifier: The project identifier (name or ID) used in the API path.
             spans: A sequence of Span objects to create.
-            check_duplicates: If true, check for existing spans before queuing.
-                Adds latency but provides immediate feedback (default: False).
             raise_on_error: If true, raise SpanCreationError when spans fail to be queued.
                 If false, log warnings instead (default: False).
             timeout: Optional request timeout in seconds.
@@ -481,8 +477,6 @@ class Spans:
         request_body = v1.CreateSpansRequestBody(data=list(spans))
 
         params: dict[str, Union[bool, str]] = {}
-        if check_duplicates:
-            params["check_duplicates"] = check_duplicates
 
         try:
             response = self._client.post(
@@ -576,8 +570,7 @@ class Spans:
                 else:
                     warnings.warn(error_msg, UserWarning)
 
-            # Handle duplicates (only warn, don't error)
-            if check_duplicates and total_duplicates > 0:
+            if total_duplicates > 0:
                 dup_info: list[str] = []
                 for dup_span in duplicate_spans[:5]:  # Show first 5 duplicates
                     span_id = dup_span.get("span_id", "unknown")
@@ -650,7 +643,6 @@ class AsyncSpans:
             ...     result = await client.spans.create_spans(
             ...         project_identifier="my-project",
             ...         spans=spans,
-            ...         check_duplicates=True,
             ...         raise_on_error=True
             ...     )
             ... except SpanCreationError as e:
@@ -1053,7 +1045,6 @@ class AsyncSpans:
         *,
         project_identifier: str,
         spans: Sequence[v1.Span],
-        check_duplicates: bool = False,
         raise_on_error: bool = False,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> v1.CreateSpansResponseBody:
@@ -1063,8 +1054,6 @@ class AsyncSpans:
         Args:
             project_identifier: The project identifier (name or ID) used in the API path.
             spans: A sequence of Span objects to create.
-            check_duplicates: If true, check for existing spans before queuing.
-                Adds latency but provides immediate feedback (default: False).
             raise_on_error: If true, raise SpanCreationError when spans fail to be queued.
                 If false, log warnings instead (default: False).
             timeout: Optional request timeout in seconds.
@@ -1082,8 +1071,6 @@ class AsyncSpans:
         request_body = v1.CreateSpansRequestBody(data=list(spans))
 
         params: dict[str, Union[bool, str]] = {}
-        if check_duplicates:
-            params["check_duplicates"] = check_duplicates
 
         try:
             response = await self._client.post(
@@ -1177,8 +1164,7 @@ class AsyncSpans:
                 else:
                     warnings.warn(error_msg, UserWarning)
 
-            # Handle duplicates (only warn, don't error)
-            if check_duplicates and total_duplicates > 0:
+            if total_duplicates > 0:
                 dup_info: list[str] = []
                 for dup_span in duplicate_spans[:5]:  # Show first 5 duplicates
                     span_id = dup_span.get("span_id", "unknown")
