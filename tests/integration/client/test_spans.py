@@ -523,15 +523,15 @@ class TestClientForSpansRetrieval:
         # Create test spans with known, distinct timestamps
         base_time = datetime.now(timezone.utc)
         trace_id = f"trace_time_filter_{token_hex(16)}"
-        
+
         # Create spans with 10-second intervals to ensure distinct timestamps
         test_spans: list[v1.Span] = []
         span_times: list[datetime] = []
-        
+
         for i in range(5):
             span_time = base_time + timedelta(seconds=i * 10)
             span_times.append(span_time)
-            
+
             span = cast(
                 v1.Span,
                 {
@@ -556,17 +556,18 @@ class TestClientForSpansRetrieval:
                 spans=test_spans,
             )
         )
-        
+
         assert create_result["total_queued"] == 5, f"Failed to create test spans: {create_result}"
-        
+
         # Wait for spans to be processed
         import asyncio
+
         await asyncio.sleep(2)
-        
+
         # Test 1: Filter to get only middle spans (index 1, 2, 3)
         middle_start = span_times[1] - timedelta(seconds=1)  # Just before span 1
-        middle_end = span_times[3] + timedelta(seconds=2)    # Just after span 3
-        
+        middle_end = span_times[3] + timedelta(seconds=2)  # Just after span 3
+
         middle_spans = await _await_or_return(
             Client().spans.get_spans(
                 project_identifier="default",
@@ -575,30 +576,27 @@ class TestClientForSpansRetrieval:
                 limit=100,  # Use higher limit to ensure we get all matching spans
             )
         )
-        
+
         # Filter to only our test spans
-        our_middle_spans = [
-            s for s in middle_spans 
-            if s["context"]["trace_id"] == trace_id
-        ]
-        
+        our_middle_spans = [s for s in middle_spans if s["context"]["trace_id"] == trace_id]
+
         # Should have exactly 3 spans (indices 1, 2, 3)
         assert len(our_middle_spans) == 3, (
             f"Expected 3 spans but got {len(our_middle_spans)}. "
             f"Span names: {[s['name'] for s in our_middle_spans]}"
         )
-        
+
         # Verify they are the correct spans
         found_indices: set[int] = set()
         for span in our_middle_spans:
             if "attributes" in span and "time_index" in span["attributes"]:
                 found_indices.add(span["attributes"]["time_index"])
-        
+
         assert found_indices == {1, 2, 3}, f"Expected indices {{1, 2, 3}} but got {found_indices}"
-        
+
         # Test 2: Filter to get only later spans (index 3, 4)
         later_start = span_times[3] - timedelta(seconds=1)  # Just before span 3
-        
+
         later_spans = await _await_or_return(
             Client().spans.get_spans(
                 project_identifier="default",
@@ -606,22 +604,19 @@ class TestClientForSpansRetrieval:
                 limit=100,
             )
         )
-        
+
         # Filter to only our test spans
-        our_later_spans = [
-            s for s in later_spans 
-            if s["context"]["trace_id"] == trace_id
-        ]
-        
+        our_later_spans = [s for s in later_spans if s["context"]["trace_id"] == trace_id]
+
         # Should have exactly 2 spans (indices 3, 4)
         assert len(our_later_spans) == 2, (
             f"Expected 2 spans but got {len(our_later_spans)}. "
             f"Span names: {[s['name'] for s in our_later_spans]}"
         )
-        
+
         # Test 3: Filter to get only earlier spans (index 0, 1)
         earlier_end = span_times[1] + timedelta(seconds=2)  # Just after span 1
-        
+
         earlier_spans = await _await_or_return(
             Client().spans.get_spans(
                 project_identifier="default",
@@ -629,13 +624,10 @@ class TestClientForSpansRetrieval:
                 limit=100,
             )
         )
-        
+
         # Filter to only our test spans
-        our_earlier_spans = [
-            s for s in earlier_spans 
-            if s["context"]["trace_id"] == trace_id
-        ]
-        
+        our_earlier_spans = [s for s in earlier_spans if s["context"]["trace_id"] == trace_id]
+
         # Should have exactly 2 spans (indices 0, 1)
         assert len(our_earlier_spans) == 2, (
             f"Expected 2 spans but got {len(our_earlier_spans)}. "
