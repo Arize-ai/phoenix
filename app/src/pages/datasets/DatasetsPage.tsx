@@ -10,7 +10,9 @@ import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { DatasetsPageQuery } from "./__generated__/DatasetsPageQuery.graphql";
+import { DatasetsTable_datasets$key } from "./__generated__/DatasetsTable_datasets.graphql";
 import { DatasetFromCSVForm } from "./DatasetFromCSVForm";
+import { DatasetsSearch } from "./DatasetsSearch";
 import { DatasetsTable } from "./DatasetsTable";
 
 export function DatasetsPage() {
@@ -39,6 +41,7 @@ export function DatasetsPageContent() {
   const onDatasetCreated = useCallback(() => {
     setFetchKey((prev) => prev + 1);
   }, [setFetchKey]);
+
   return (
     <Flex direction="column" height="100%">
       <View
@@ -47,13 +50,37 @@ export function DatasetsPageContent() {
         borderBottomColor="dark"
         flex="none"
       >
-        <Flex direction="row" justifyContent="space-between">
-          <Heading level={1}>Datasets</Heading>
-          <CreateDatasetActionMenu onDatasetCreated={onDatasetCreated} />
+        <Flex direction="column" gap="size-200">
+          <Flex
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Heading level={1}>Datasets</Heading>
+            <CreateDatasetActionMenu onDatasetCreated={onDatasetCreated} />
+          </Flex>
         </Flex>
       </View>
-      <DatasetsTable query={data} />
+      <DatasetsTableWithSearch query={data} />
     </Flex>
+  );
+}
+
+// New component that manages filter state locally
+function DatasetsTableWithSearch({
+  query,
+}: {
+  query: DatasetsTable_datasets$key;
+}) {
+  const [filter, setFilter] = useState<string>("");
+
+  return (
+    <>
+      <View padding="size-200" flex="none">
+        <DatasetsSearch onChange={setFilter} value={filter} />
+      </View>
+      <DatasetsTable query={query} filter={filter} />
+    </>
   );
 }
 

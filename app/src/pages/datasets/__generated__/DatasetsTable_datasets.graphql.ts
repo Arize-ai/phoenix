@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e59ce39d300c6dc278700848a4a6706c>>
+ * @generated SignedSource<<cb7eb84798872f704be0e5731b13ff8a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -45,6 +45,11 @@ return {
       "name": "after"
     },
     {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "filter"
+    },
+    {
       "defaultValue": 100,
       "kind": "LocalArgument",
       "name": "first"
@@ -86,6 +91,11 @@ return {
     {
       "alias": "datasets",
       "args": [
+        {
+          "kind": "Variable",
+          "name": "filter",
+          "variableName": "filter"
+        },
         {
           "kind": "Variable",
           "name": "sort",
@@ -216,6 +226,6 @@ return {
 };
 })();
 
-(node as any).hash = "fa378bc7ec26f5e877e6cf90e5ee553d";
+(node as any).hash = "7e2060873b57927f5b7eac64411dbc94";
 
 export default node;
