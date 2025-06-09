@@ -2,10 +2,13 @@ import React, {
   ReactNode,
   startTransition,
   Suspense,
+  useCallback,
+  useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
-import { graphql, useLazyLoadQuery } from "react-relay";
+import { graphql, usePaginationFragment } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useNavigate, useSearchParams } from "react-router";
 import {
@@ -50,6 +53,7 @@ import { resizeHandleCSS } from "@phoenix/components/resize";
 import {
   CellWithControlsWrap,
   CompactJSONCell,
+  LoadMoreRow,
 } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
@@ -62,13 +66,15 @@ import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
 import { TraceDetails } from "../trace";
 
-import {
-  ExperimentCompareTableQuery,
-  ExperimentCompareTableQuery$data,
-} from "./__generated__/ExperimentCompareTableQuery.graphql";
+import type {
+  ExperimentCompareTable_comparisons$data,
+  ExperimentCompareTable_comparisons$key,
+} from "./__generated__/ExperimentCompareTable_comparisons.graphql";
+import type { ExperimentCompareTableQuery } from "./__generated__/ExperimentCompareTableQuery.graphql";
 import { ExperimentRunFilterConditionField } from "./ExperimentRunFilterConditionField";
 
 type ExampleCompareTableProps = {
+  query: ExperimentCompareTable_comparisons$key;
   datasetId: string;
   experimentIds: string[];
   /**
@@ -88,18 +94,19 @@ type ExperimentInfoMap = Record<
   | undefined
 >;
 
-type TableRow = ExperimentCompareTableQuery$data["comparisons"][number] & {
-  id: string;
-  input: unknown;
-  referenceOutput: unknown;
-  runComparisonMap: Record<
-    string,
-    ExperimentCompareTableQuery$data["comparisons"][number]["runComparisonItems"][number]
-  >;
-};
+type TableRow =
+  ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"] & {
+    id: string;
+    input: unknown;
+    referenceOutput: unknown;
+    runComparisonMap: Record<
+      string,
+      ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]
+    >;
+  };
 
 type ExperimentRun =
-  ExperimentCompareTableQuery$data["comparisons"][number]["runComparisonItems"][number]["runs"][number];
+  ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]["runs"][number];
 
 const defaultCardProps: Partial<CardProps> = {
   backgroundColor: "light",
@@ -135,48 +142,81 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const { datasetId, experimentIds, displayFullText } = props;
   const [filterCondition, setFilterCondition] = useState("");
   const [, setSearchParams] = useSearchParams();
-
-  const data = useLazyLoadQuery<ExperimentCompareTableQuery>(
-    graphql`
-      query ExperimentCompareTableQuery(
-        $experimentIds: [ID!]!
-        $datasetId: ID!
-        $filterCondition: String
-      ) {
-        comparisons: compareExperiments(
-          experimentIds: $experimentIds
-          filterCondition: $filterCondition
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const { data, loadNext, hasNext, isLoadingNext, refetch } =
+    usePaginationFragment<
+      ExperimentCompareTableQuery,
+      ExperimentCompareTable_comparisons$key
+    >(
+      graphql`
+        fragment ExperimentCompareTable_comparisons on Query
+        @refetchable(queryName: "ExperimentCompareTableQuery")
+        @argumentDefinitions(
+          first: { type: "Int", defaultValue: 50 }
+          after: { type: "String", defaultValue: null }
+          experimentIds: { type: "[ID!]!" }
+          datasetId: { type: "ID!" }
+          filterCondition: { type: "String", defaultValue: null }
         ) {
-          example {
-            id
-            revision {
-              input
-              referenceOutput: output
-            }
-          }
-          runComparisonItems {
-            experimentId
-            runs {
-              output
-              error
-              startTime
-              endTime
-              trace {
-                traceId
-                projectId
-              }
-              annotations {
-                edges {
-                  annotation: node {
-                    id
-                    name
-                    score
-                    label
-                    annotatorKind
-                    explanation
+          compareExperiments(
+            first: $first
+            after: $after
+            experimentIds: $experimentIds
+            filterCondition: $filterCondition
+          ) @connection(key: "ExperimentCompareTable_compareExperiments") {
+            edges {
+              comparison: node {
+                example {
+                  id
+                  revision {
+                    input
+                    referenceOutput: output
+                  }
+                }
+                runComparisonItems {
+                  experimentId
+                  runs {
+                    output
+                    error
+                    startTime
+                    endTime
                     trace {
                       traceId
                       projectId
+                    }
+                    annotations {
+                      edges {
+                        annotation: node {
+                          id
+                          name
+                          score
+                          label
+                          annotatorKind
+                          explanation
+                          trace {
+                            traceId
+                            projectId
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          dataset: node(id: $datasetId) {
+            id
+            ... on Dataset {
+              experiments {
+                edges {
+                  experiment: node {
+                    id
+                    name
+                    sequenceNumber
+                    metadata
+                    project {
+                      id
                     }
                   }
                 }
@@ -184,32 +224,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
             }
           }
         }
-        dataset: node(id: $datasetId) {
-          id
-          ... on Dataset {
-            experiments {
-              edges {
-                experiment: node {
-                  id
-                  name
-                  sequenceNumber
-                  metadata
-                  project {
-                    id
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    `,
-    {
-      experimentIds,
-      datasetId,
-      filterCondition,
-    }
-  );
+      `,
+      props.query
+    );
   const experimentInfoById = useMemo(() => {
     return (
       data.dataset?.experiments?.edges.reduce((acc, edge) => {
@@ -223,7 +240,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   }, [data]);
   const tableData: TableRow[] = useMemo(
     () =>
-      data.comparisons.map((comparison) => {
+      data.compareExperiments.edges.map((edge) => {
+        const comparison = edge.comparison;
         const runComparisonMap = comparison.runComparisonItems.reduce(
           (acc, item) => {
             acc[item.experimentId] = item;
@@ -231,7 +249,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           },
           {} as Record<
             string,
-            ExperimentCompareTableQuery$data["comparisons"][number]["runComparisonItems"][number]
+            ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"]["runComparisonItems"][number]
           >
         );
         return {
@@ -455,6 +473,39 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
 
   const isEmpty = rows.length === 0;
 
+  const fetchMoreOnBottomReached = useCallback(
+    (containerRefElement?: HTMLDivElement | null) => {
+      if (containerRefElement) {
+        const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
+        //once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
+        if (
+          scrollHeight - scrollTop - clientHeight < 300 &&
+          !isLoadingNext &&
+          hasNext
+        ) {
+          loadNext(50);
+        }
+      }
+    },
+    [hasNext, isLoadingNext, loadNext]
+  );
+
+  useEffect(() => {
+    //if the filter condition changes, we need to reset the pagination
+    startTransition(() => {
+      refetch(
+        {
+          after: null,
+          first: 50,
+          filterCondition,
+          experimentIds,
+          datasetId,
+        },
+        { fetchPolicy: "store-and-network" }
+      );
+    });
+  }, [datasetId, experimentIds, filterCondition, refetch]);
+
   return (
     <View overflow="auto">
       <Flex direction="column" height="100%">
@@ -471,7 +522,11 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
             onValidCondition={setFilterCondition}
           />
         </View>
-        <div css={tableWrapCSS}>
+        <div
+          css={tableWrapCSS}
+          onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+          ref={tableContainerRef}
+        >
           <table
             css={css(tableCSS, borderedTableCSS)}
             style={{
@@ -546,9 +601,19 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               <TableEmpty />
             ) : table.getState().columnSizingInfo.isResizingColumn ? (
               /* When resizing any column we will render this special memoized version of our table body */
-              <MemoizedTableBody table={table} />
+              <MemoizedTableBody
+                table={table}
+                hasNext={hasNext}
+                onLoadNext={() => loadNext(50)}
+                isLoadingNext={isLoadingNext}
+              />
             ) : (
-              <TableBody table={table} />
+              <TableBody
+                table={table}
+                hasNext={hasNext}
+                onLoadNext={() => loadNext(50)}
+                isLoadingNext={isLoadingNext}
+              />
             )}
           </table>
           <DialogContainer
@@ -571,7 +636,17 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
 }
 
 //un-memoized normal table body component - see memoized version below
-function TableBody<T>({ table }: { table: Table<T> }) {
+function TableBody<T>({
+  table,
+  hasNext,
+  onLoadNext,
+  isLoadingNext,
+}: {
+  table: Table<T>;
+  hasNext: boolean;
+  onLoadNext: () => void;
+  isLoadingNext: boolean;
+}) {
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => (
@@ -592,6 +667,13 @@ function TableBody<T>({ table }: { table: Table<T> }) {
           })}
         </tr>
       ))}
+      {hasNext ? (
+        <LoadMoreRow
+          onLoadMore={onLoadNext}
+          key="load-more"
+          isLoadingNext={isLoadingNext}
+        />
+      ) : null}
     </tbody>
   );
 }
