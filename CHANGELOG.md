@@ -1,5 +1,17 @@
 # Changelog
 
+## [10.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.9.2...arize-phoenix-v10.10.0) (2025-06-09)
+
+
+### Features
+
+* Upgrade relay to v19 ([#8003](https://github.com/Arize-ai/phoenix/issues/8003)) ([64c29b1](https://github.com/Arize-ai/phoenix/commit/64c29b1cff519e1902560eda87647362f9a13a52))
+
+
+### Bug Fixes
+
+* **experiments:** paginate experiment comparisons table ([#7994](https://github.com/Arize-ai/phoenix/issues/7994)) ([8527391](https://github.com/Arize-ai/phoenix/commit/85273911e3d2d878348bd58c002bdd961f374c12))
+
 ## [10.9.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.9.1...arize-phoenix-v10.9.2) (2025-06-09)
 
 
