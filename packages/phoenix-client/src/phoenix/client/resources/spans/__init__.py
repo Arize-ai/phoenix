@@ -496,10 +496,12 @@ class Spans:
             # Check if this is a FastAPI validation error (has 'detail' field)
             if response.status_code == 422 and "detail" in response_data:
                 # Convert FastAPI validation errors to our expected format
-                invalid_spans_from_validation = []
+                invalid_spans_from_validation: list[v1.InvalidSpanInfo] = []
                 for error in response_data.get("detail", []):
-                    # Extract span index from validation error location path
-                    loc = error.get("loc", [])
+                    loc_raw = error.get("loc", [])
+                    if not isinstance(loc_raw, list):
+                        continue
+                    loc: list[Any] = loc_raw  # Type annotation to help pyright
                     if (
                         len(loc) >= 3
                         and loc[0] == "body"
@@ -508,19 +510,18 @@ class Spans:
                     ):
                         span_index = loc[2]
                         if span_index < len(spans):
-                            span = spans[span_index]
+                            span: Any = spans[span_index]  # Add type annotation
                             span_dict = cast(dict[str, Any], span)
-                            invalid_spans_from_validation.append(
-                                {
-                                    "span_id": span_dict.get("context", {}).get(
-                                        "span_id", "unknown"
-                                    ),
-                                    "trace_id": span_dict.get("context", {}).get(
-                                        "trace_id", "unknown"
-                                    ),
-                                    "error": error.get("msg", "Validation error"),
-                                }
-                            )
+                            invalid_span_info: v1.InvalidSpanInfo = {
+                                "span_id": span_dict.get("context", {}).get(
+                                    "span_id", "unknown"
+                                ),
+                                "trace_id": span_dict.get("context", {}).get(
+                                    "trace_id", "unknown"
+                                ),
+                                "error": error.get("msg", "Validation error"),
+                            }
+                            invalid_spans_from_validation.append(invalid_span_info)
 
                 # Create a synthetic CreateSpansResponseBody response
                 result = cast(
@@ -1094,10 +1095,12 @@ class AsyncSpans:
             # Check if this is a FastAPI validation error (has 'detail' field)
             if response.status_code == 422 and "detail" in response_data:
                 # Convert FastAPI validation errors to our expected format
-                invalid_spans_from_validation = []
+                invalid_spans_from_validation: list[v1.InvalidSpanInfo] = []
                 for error in response_data.get("detail", []):
-                    # Extract span index from validation error location path
-                    loc = error.get("loc", [])
+                    loc_raw = error.get("loc", [])
+                    if not isinstance(loc_raw, list):
+                        continue
+                    loc: list[Any] = loc_raw  # Type annotation to help pyright
                     if (
                         len(loc) >= 3
                         and loc[0] == "body"
@@ -1106,19 +1109,18 @@ class AsyncSpans:
                     ):
                         span_index = loc[2]
                         if span_index < len(spans):
-                            span = spans[span_index]
+                            span: Any = spans[span_index]  # Add type annotation
                             span_dict = cast(dict[str, Any], span)
-                            invalid_spans_from_validation.append(
-                                {
-                                    "span_id": span_dict.get("context", {}).get(
-                                        "span_id", "unknown"
-                                    ),
-                                    "trace_id": span_dict.get("context", {}).get(
-                                        "trace_id", "unknown"
-                                    ),
-                                    "error": error.get("msg", "Validation error"),
-                                }
-                            )
+                            invalid_span_info: v1.InvalidSpanInfo = {
+                                "span_id": span_dict.get("context", {}).get(
+                                    "span_id", "unknown"
+                                ),
+                                "trace_id": span_dict.get("context", {}).get(
+                                    "trace_id", "unknown"
+                                ),
+                                "error": error.get("msg", "Validation error"),
+                            }
+                            invalid_spans_from_validation.append(invalid_span_info)
 
                 # Create a synthetic CreateSpansResponseBody response
                 result = cast(
