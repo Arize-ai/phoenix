@@ -2,7 +2,7 @@ import logging
 import warnings
 from datetime import datetime, timezone, tzinfo
 from io import StringIO
-from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union, cast
+from typing import TYPE_CHECKING, Any, Iterable, Optional, Sequence, Union, cast
 
 import httpx
 
@@ -515,10 +515,11 @@ class Spans:
                         span_index = loc[2]
                         if span_index < len(spans):
                             span = spans[span_index]
+                            span_dict = cast(dict[str, Any], span)
                             invalid_spans_from_validation.append(
                                 {
-                                    "span_id": span.get("context", {}).get("span_id", "unknown"),
-                                    "trace_id": span.get("context", {}).get("trace_id", "unknown"),
+                                    "span_id": span_dict.get("context", {}).get("span_id", "unknown"),
+                                    "trace_id": span_dict.get("context", {}).get("trace_id", "unknown"),
                                     "error": error.get("msg", "Validation error"),
                                 }
                             )
@@ -1115,10 +1116,11 @@ class AsyncSpans:
                         span_index = loc[2]
                         if span_index < len(spans):
                             span = spans[span_index]
+                            span_dict = cast(dict[str, Any], span)
                             invalid_spans_from_validation.append(
                                 {
-                                    "span_id": span.get("context", {}).get("span_id", "unknown"),
-                                    "trace_id": span.get("context", {}).get("trace_id", "unknown"),
+                                    "span_id": span_dict.get("context", {}).get("span_id", "unknown"),
+                                    "trace_id": span_dict.get("context", {}).get("trace_id", "unknown"),
                                     "error": error.get("msg", "Validation error"),
                                 }
                             )
