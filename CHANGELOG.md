@@ -1,5 +1,12 @@
 # Changelog
 
+## [10.9.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.9.1...arize-phoenix-v10.9.2) (2025-06-09)
+
+
+### Bug Fixes
+
+* Prevent extra mutations when editing Span annotations ([#8001](https://github.com/Arize-ai/phoenix/issues/8001)) ([43a4cf6](https://github.com/Arize-ai/phoenix/commit/43a4cf6c1c097f98a6b919da6da16584da44b7fd))
+
 ## [10.9.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.9.0...arize-phoenix-v10.9.1) (2025-06-07)
 
 
