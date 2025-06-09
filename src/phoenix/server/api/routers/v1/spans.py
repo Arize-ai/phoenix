@@ -1007,7 +1007,10 @@ class CreateSpansResponseBody(V1RoutesBaseModel):
     "/projects/{project_identifier}/spans",
     operation_id="createSpans",
     summary="Create spans",
-    description="Submit spans to be inserted into a project. Returns immediately while processing happens asynchronously.",
+    description=(
+        "Submit spans to be inserted into a project. Returns immediately while processing happens "
+        "asynchronously."
+    ),
     responses=add_errors_to_responses([HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY]),
 )
 async def create_spans(
@@ -1021,7 +1024,10 @@ async def create_spans(
     ),
     check_duplicates: bool = Query(
         default=False,
-        description="If true, check for existing spans before queuing. Adds latency but provides immediate feedback.",
+        description=(
+            "If true, check for existing spans before queuing. Adds latency but provides "
+            "immediate feedback."
+        ),
     ),
 ) -> CreateSpansResponseBody:
     def convert_api_span_for_insertion(api_span: Span) -> SpanForInsertion:
@@ -1109,7 +1115,7 @@ async def create_spans(
             )
 
     for span_for_insertion, project_name in spans_to_queue:
-        await request.app.state.queue_span_for_bulk_insert(span_for_insertion, project_name)
+        await request.state.queue_span_for_bulk_insert(span_for_insertion, project_name)
 
     return CreateSpansResponseBody(
         total_received=total_received,

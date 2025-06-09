@@ -828,3 +828,286 @@ class TestClientForSpansRetrieval:
             assert "context" in span
             assert "span_id" in span["context"]
             assert "trace_id" in span["context"]
+
+
+class TestClientForSpanCreation:
+    """Test the create_spans method with minimal but comprehensive integration tests."""
+
+    async def test_comprehensive_span_creation(
+        self,
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Single comprehensive test covering basic creation, duplicates, and invalid spans."""
+        user = _get_user(_MEMBER).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+
+        from phoenix.client import Client
+        from phoenix.client.resources.spans import SpanCreationError
+
+        client = Client()
+
+        # Test 1: Basic span creation with parent-child relationship
+        trace_id = f"trace_{token_hex(16)}"
+        parent_span_id = f"span_{token_hex(8)}"
+        child_span_id = f"span_{token_hex(8)}"
+
+        test_spans: list[v1.Span] = [
+            cast(
+                v1.Span,
+                {
+                    "name": "parent_span",
+                    "context": {"trace_id": trace_id, "span_id": parent_span_id},
+                    "span_kind": "CHAIN",
+                    "start_time": datetime.now(timezone.utc).isoformat(),
+                    "end_time": (datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat(),
+                    "status_code": "OK",
+                    "attributes": {"test_attr": "value1"},
+                },
+            ),
+            cast(
+                v1.Span,
+                {
+                    "name": "child_span",
+                    "context": {"trace_id": trace_id, "span_id": child_span_id},
+                    "span_kind": "LLM",
+                    "parent_id": parent_span_id,
+                    "start_time": datetime.now(timezone.utc).isoformat(),
+                    "end_time": (datetime.now(timezone.utc) + timedelta(seconds=2)).isoformat(),
+                    "status_code": "OK",
+                    "attributes": {"test_attr": "value2"},
+                },
+            ),
+        ]
+
+        # Create spans
+        result = client.spans.create_spans(
+            project_identifier="default",
+            spans=test_spans,
+        )
+
+        assert result["total_received"] == 2
+        assert result["total_queued"] == 2
+        assert result["total_invalid"] == 0
+        assert result["total_duplicates"] == 0
+
+        # Test 2: Duplicate checking - wait briefly then try to create same span again
+        import time
+
+        time.sleep(1)  # Give the server time to process
+
+        duplicate_result = client.spans.create_spans(
+            project_identifier="default",
+            spans=[test_spans[0]],  # Try to create parent span again
+            check_duplicates=True,
+        )
+
+        assert duplicate_result["total_received"] == 1
+        assert duplicate_result["total_queued"] == 0
+        assert duplicate_result["total_duplicates"] == 1
+        assert len(duplicate_result.get("duplicate_spans", [])) == 1
+
+        # Test 3: Invalid span handling with both valid and invalid spans
+        valid_span = cast(
+            v1.Span,
+            {
+                "name": "valid_span",
+                "context": {
+                    "trace_id": f"trace_{token_hex(16)}",
+                    "span_id": f"span_{token_hex(8)}",
+                },
+                "span_kind": "CHAIN",
+                "start_time": datetime.now(timezone.utc).isoformat(),
+                "end_time": (datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat(),
+                "status_code": "OK",
+            },
+        )
+
+        invalid_span = cast(
+            v1.Span,
+            {
+                "name": "invalid_span",
+                "context": {
+                    "trace_id": f"trace_{token_hex(16)}",
+                    "span_id": f"span_{token_hex(8)}",
+                },
+                "span_kind": "CHAIN",
+                "start_time": "invalid-datetime-format",  # Invalid datetime
+                "end_time": (datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat(),
+                "status_code": "OK",
+            },
+        )
+
+        # Without raise_on_error
+        invalid_result = client.spans.create_spans(
+            project_identifier="default",
+            spans=[valid_span, invalid_span],
+            raise_on_error=False,
+        )
+
+        assert invalid_result["total_received"] == 2
+        assert invalid_result["total_queued"] == 1
+        assert invalid_result["total_invalid"] == 1
+        assert len(invalid_result.get("invalid_spans", [])) == 1
+
+        # With raise_on_error
+        with pytest.raises(SpanCreationError) as exc_info:
+            client.spans.create_spans(
+                project_identifier="default",
+                spans=[valid_span, invalid_span],
+                raise_on_error=True,
+            )
+
+        error = exc_info.value
+        assert error.total_invalid == 1
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_batch_span_creation_and_retrieval(
+        self,
+        is_async: bool,
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test creating a batch of spans and verify they can be retrieved."""
+        user = _get_user(_ADMIN).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        # Create a small batch of spans (10 instead of 50)
+        num_spans = 10
+        base_time = datetime.now(timezone.utc)
+        trace_id = f"trace_{token_hex(16)}"
+        span_ids = [f"span_{token_hex(8)}" for _ in range(num_spans)]
+
+        test_spans: list[v1.Span] = []
+        for i in range(num_spans):
+            span = cast(
+                v1.Span,
+                {
+                    "name": f"batch_span_{i}",
+                    "context": {"trace_id": trace_id, "span_id": span_ids[i]},
+                    "span_kind": "CHAIN",
+                    "start_time": (base_time + timedelta(seconds=i)).isoformat(),
+                    "end_time": (base_time + timedelta(seconds=i + 1)).isoformat(),
+                    "status_code": "OK",
+                    "attributes": {"batch_index": i},
+                },
+            )
+            test_spans.append(span)
+
+        # Create all spans
+        result = await _await_or_return(
+            Client().spans.create_spans(
+                project_identifier="default",
+                spans=test_spans,
+            )
+        )
+
+        assert result["total_received"] == num_spans
+        assert result["total_queued"] == num_spans
+
+        # Verify at least some spans can be retrieved (don't poll, just check once)
+        import asyncio
+
+        await asyncio.sleep(2)  # Give server time to process
+
+        retrieved_spans = await _await_or_return(
+            Client().spans.get_spans(
+                project_identifier="default",
+                limit=100,
+            )
+        )
+
+        retrieved_span_ids = {span["context"]["span_id"] for span in retrieved_spans}
+        # At least some of our spans should be there
+        created_span_ids = set(span_ids)
+        assert len(created_span_ids & retrieved_span_ids) > 0
+
+    async def test_span_creation_error_handling(
+        self,
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test error handling for non-existent project."""
+        user = _get_user(_MEMBER).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+
+        import httpx
+        from phoenix.client import Client
+
+        test_span = cast(
+            v1.Span,
+            {
+                "name": "test_span",
+                "context": {
+                    "trace_id": f"trace_{token_hex(16)}",
+                    "span_id": f"span_{token_hex(8)}",
+                },
+                "span_kind": "CHAIN",
+                "start_time": datetime.now(timezone.utc).isoformat(),
+                "end_time": (datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat(),
+                "status_code": "OK",
+            },
+        )
+
+        # Should raise HTTP error for non-existent project
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            Client().spans.create_spans(
+                project_identifier="non_existent_project_xyz",
+                spans=[test_span],
+            )
+
+        assert exc_info.value.response.status_code == 404
+
+    async def test_uniquify_spans_integration(
+        self,
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test uniquify_spans utility works correctly with span creation."""
+        user = _get_user(_MEMBER).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+
+        from phoenix.client import Client
+        from phoenix.client.helpers.spans import uniquify_spans
+
+        # Create spans with the same IDs
+        shared_trace_id = f"trace_{token_hex(16)}"
+        shared_span_id = f"span_{token_hex(8)}"
+
+        original_spans: list[v1.Span] = [
+            cast(
+                v1.Span,
+                {
+                    "name": "test_span",
+                    "context": {"trace_id": shared_trace_id, "span_id": shared_span_id},
+                    "span_kind": "CHAIN",
+                    "start_time": datetime.now(timezone.utc).isoformat(),
+                    "end_time": (datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat(),
+                    "status_code": "OK",
+                },
+            ),
+        ]
+
+        # Create the original span
+        result1 = Client().spans.create_spans(
+            project_identifier="default",
+            spans=original_spans,
+        )
+        assert result1["total_queued"] == 1
+
+        # Regenerate IDs and create again
+        new_spans = uniquify_spans(original_spans, in_place=False)
+        assert new_spans[0]["context"]["trace_id"] != shared_trace_id
+        assert new_spans[0]["context"]["span_id"] != shared_span_id
+
+        result2 = Client().spans.create_spans(
+            project_identifier="default",
+            spans=new_spans,
+        )
+        assert result2["total_queued"] == 1
+        assert result2["total_duplicates"] == 0
