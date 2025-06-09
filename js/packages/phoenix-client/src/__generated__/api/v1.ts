@@ -3610,10 +3610,7 @@ export interface operations {
     };
     createSpans: {
         parameters: {
-            query?: {
-                /** @description If true, check for existing spans before queuing. Adds latency but provides immediate feedback. */
-                check_duplicates?: boolean;
-            };
+            query?: never;
             header?: never;
             path: {
                 /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */

@@ -2010,18 +2010,6 @@
               "title": "Project Identifier"
             },
             "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
-          },
-          {
-            "name": "check_duplicates",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean",
-              "description": "If true, check for existing spans before queuing. Adds latency but provides immediate feedback.",
-              "default": false,
-              "title": "Check Duplicates"
-            },
-            "description": "If true, check for existing spans before queuing. Adds latency but provides immediate feedback."
           }
         ],
         "requestBody": {
