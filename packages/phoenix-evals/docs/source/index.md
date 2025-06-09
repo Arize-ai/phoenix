@@ -1,11 +1,11 @@
-# Phoenix Evals API Reference
+# Phoenix Evals Reference
 
-Welcome to the Phoenix Evals API Reference documentation. This package provides evaluation tools and utilities for LLM applications.
+Welcome to the Phoenix Evals Reference documentation. This package provides evaluation tools and utilities for LLM applications.
 
 ## External Links
 
 - [Main Phoenix Documentation](https://arize.com/docs/phoenix)
-- [Phoenix API Reference](https://arize-phoenix.readthedocs.io/)
+- [Python Reference](https://arize-phoenix.readthedocs.io/)
 - [GitHub Repository](https://github.com/Arize-ai/phoenix)
 
 ## API Definition

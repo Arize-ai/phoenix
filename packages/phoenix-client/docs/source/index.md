@@ -1,11 +1,11 @@
-# Phoenix Client API Reference
+# Phoenix Client Reference
 
-Welcome to the Phoenix Client API Reference documentation. This package provides a Python client for interacting with the Phoenix platform.
+Welcome to the Phoenix Client Reference documentation. This package provides a Python client for interacting with the Phoenix platform.
 
 ## External Links
 
 - [Main Phoenix Documentation](https://arize.com/docs/phoenix)
-- [Phoenix API Reference](https://arize-phoenix.readthedocs.io/)
+- [Python Reference](https://arize-phoenix.readthedocs.io/)
 - [GitHub Repository](https://github.com/Arize-ai/phoenix)
 
 ## API Definition
