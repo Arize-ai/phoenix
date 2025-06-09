@@ -1048,7 +1048,9 @@ type ExperimentAnnotationSummary {
   errorCount: Int!
 }
 
-type ExperimentComparison {
+type ExperimentComparison implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
   example: DatasetExample!
   runComparisonItems: [RunComparisonItem!]!
 }
