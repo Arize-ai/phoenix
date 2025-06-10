@@ -102,6 +102,7 @@ def llm_classify(
     system_instruction: Optional[str] = None,
     verbose: bool = False,
     use_tool_calling_if_available: bool = True,
+    use_function_calling_if_available: bool = True,
     provide_explanation: bool = False,
     include_prompt: bool = False,
     include_response: bool = False,
@@ -369,6 +370,7 @@ def run_evals(
     evaluators: List[LLMEvaluator],
     provide_explanation: bool = False,
     use_tool_calling_if_available: bool = True,
+    use_function_calling_if_available: bool = True,
     verbose: bool = False,
     concurrency: Optional[int] = None,
 ) -> List[DataFrame]:
