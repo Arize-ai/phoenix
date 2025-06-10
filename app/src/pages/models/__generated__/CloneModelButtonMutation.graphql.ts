@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2087f5dc99e0e90a05ec1d89929d7685>>
+ * @generated SignedSource<<c6eec3855749a92af11d7d42910c7235>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,11 +10,10 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
-export type UpdateModelMutationInput = {
+export type CreateModelMutationInput = {
   cacheReadCostPerToken?: number | null;
   cacheWriteCostPerToken?: number | null;
   completionAudioCostPerToken?: number | null;
-  id: string;
   inputCostPerToken: number;
   name: string;
   namePattern: string;
@@ -23,12 +22,12 @@ export type UpdateModelMutationInput = {
   provider?: string | null;
   reasoningCostPerToken?: number | null;
 };
-export type EditModelButtonMutation$variables = {
-  input: UpdateModelMutationInput;
+export type CloneModelButtonMutation$variables = {
+  input: CreateModelMutationInput;
 };
-export type EditModelButtonMutation$data = {
-  readonly updateModel: {
-    readonly __typename: "UpdateModelMutationPayload";
+export type CloneModelButtonMutation$data = {
+  readonly createModel: {
+    readonly __typename: "CreateModelMutationPayload";
     readonly model: {
       readonly id: string;
       readonly name: string;
@@ -47,9 +46,9 @@ export type EditModelButtonMutation$data = {
     };
   };
 };
-export type EditModelButtonMutation = {
-  response: EditModelButtonMutation$data;
-  variables: EditModelButtonMutation$variables;
+export type CloneModelButtonMutation = {
+  response: CloneModelButtonMutation$data;
+  variables: CloneModelButtonMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -70,9 +69,9 @@ v1 = [
         "variableName": "input"
       }
     ],
-    "concreteType": "UpdateModelMutationPayload",
+    "concreteType": "CreateModelMutationPayload",
     "kind": "LinkedField",
-    "name": "updateModel",
+    "name": "createModel",
     "plural": false,
     "selections": [
       {
@@ -197,7 +196,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "EditModelButtonMutation",
+    "name": "CloneModelButtonMutation",
     "selections": (v1/*: any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -206,20 +205,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "EditModelButtonMutation",
+    "name": "CloneModelButtonMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "e6dca8cc5cc393912d6a49783428ace3",
+    "cacheID": "8f91857a82ea74e93605ea26bfc89ba4",
     "id": null,
     "metadata": {},
-    "name": "EditModelButtonMutation",
+    "name": "CloneModelButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation EditModelButtonMutation(\n  $input: UpdateModelMutationInput!\n) {\n  updateModel(input: $input) {\n    model {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      tokenCost {\n        input\n        output\n        cacheRead\n        cacheWrite\n        promptAudio\n        completionAudio\n        reasoning\n      }\n    }\n    __typename\n  }\n}\n"
+    "text": "mutation CloneModelButtonMutation(\n  $input: CreateModelMutationInput!\n) {\n  createModel(input: $input) {\n    model {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      tokenCost {\n        input\n        output\n        cacheRead\n        cacheWrite\n        promptAudio\n        completionAudio\n        reasoning\n      }\n    }\n    __typename\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "202e64f8f5e7ec16860d3ceaba5e2ff3";
+(node as any).hash = "33404bbe6a73750cefc1d6375eba165e";
 
 export default node;

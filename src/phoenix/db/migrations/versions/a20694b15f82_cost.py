@@ -81,15 +81,6 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column(
-            "cost_type",
-            sa.String,
-            sa.CheckConstraint(
-                "cost_type IN ('DEFAULT', 'OVERRIDE')",
-                name="valid_cost_type",
-            ),
-            nullable=False,
-        ),
-        sa.Column(
             "cost_per_token",
             sa.Float,
             nullable=False,
@@ -97,7 +88,6 @@ def upgrade() -> None:
         sa.UniqueConstraint(
             "model_id",
             "token_type",
-            "cost_type",
         ),
     )
     op.create_table(
