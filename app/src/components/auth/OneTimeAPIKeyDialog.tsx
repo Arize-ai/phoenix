@@ -2,6 +2,7 @@ import { css } from "@emotion/react";
 
 import {
   Alert,
+  Button,
   Dialog,
   ExternalLink,
   Flex,
@@ -23,8 +24,11 @@ import {
 /**
  * Displays the key one time for the user to copy.
  */
-export function OneTimeAPIKeyDialog(props: { jwt: string }) {
-  const { jwt } = props;
+export function OneTimeAPIKeyDialog(props: {
+  jwt: string;
+  onClose: () => void;
+}) {
+  const { jwt, onClose } = props;
   return (
     <Dialog>
       <DialogContent>
@@ -87,6 +91,13 @@ export function OneTimeAPIKeyDialog(props: { jwt: string }) {
             <CodeWrap>
               <PythonBlockWithCopy value={`Authorization: Bearer ${jwt}`} />
             </CodeWrap>
+          </View>
+          <View padding="size-200" borderTopColor="light" borderTopWidth="thin">
+            <Flex direction="row" justifyContent="end">
+              <Button variant="primary" onPress={onClose} aria-label="dismiss">
+                Close
+              </Button>
+            </Flex>
           </View>
         </div>
       </DialogContent>

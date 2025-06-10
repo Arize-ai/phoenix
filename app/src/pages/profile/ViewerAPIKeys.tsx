@@ -53,7 +53,10 @@ export function ViewerAPIKeys({
         },
         onCompleted: (response) => {
           setDialog(
-            <OneTimeAPIKeyDialog jwt={response.createUserApiKey.jwt} />
+            <OneTimeAPIKeyDialog
+              jwt={response.createUserApiKey.jwt}
+              onClose={() => setDialog(null)}
+            />
           );
         },
         onError: (error) => {
