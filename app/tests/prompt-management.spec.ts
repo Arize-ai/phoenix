@@ -19,7 +19,7 @@ test.describe("Prompt Management", () => {
     await page
       .getByText("You are a chatbot")
       .fill("You are a helpful assistant");
-    await await page.getByRole("button", { name: "Save" }).click();
+    await page.getByRole("button", { name: "Save" }).click();
     await page.getByPlaceholder("Select or enter new prompt").click();
     const promptName = `chatbot-${randomUUID()}`;
     await page.getByPlaceholder("Select or enter new prompt").fill(promptName);
