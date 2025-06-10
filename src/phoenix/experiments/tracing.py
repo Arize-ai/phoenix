@@ -6,7 +6,7 @@ from contextvars import ContextVar
 from threading import Lock
 from typing import Any, Optional
 
-from opentelemetry.sdk.resources import Resource  # type: ignore[attr-defined]
+from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.trace import INVALID_TRACE_ID
 from wrapt import apply_patch, resolve_path, wrap_function_wrapper
