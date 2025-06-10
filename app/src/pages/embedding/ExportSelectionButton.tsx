@@ -5,26 +5,7 @@ import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import CodeMirror from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
-import {
-  Dialog,
-  DialogContainer,
-  Download,
-  List,
-  ListItem,
-} from "@arizeai/components";
-
-import {
-  Alert,
-  Button,
-  Disclosure,
-  DisclosureGroup,
-  DisclosurePanel,
-  DisclosureTrigger,
-  Icon,
-  Icons,
-  Loading,
-  View,
-} from "@phoenix/components";
+import { Alert, Button, Dialog, DialogContainer, Disclosure, DisclosureGroup, DisclosurePanel, DisclosureTrigger, Download, Icon, Icons, List, ListItem, Loading, View } from "@phoenix/components";
 import { usePointCloudContext, useTheme } from "@phoenix/contexts";
 
 import { ExportSelectionButtonExportsQuery } from "./__generated__/ExportSelectionButtonExportsQuery.graphql";

@@ -3,9 +3,7 @@ import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import { Dialog, DialogContainer } from "@arizeai/components";
-
-import { Button, Flex, Icon, Icons, Text, View } from "@phoenix/components";
+import { Button, Dialog, DialogContainer, Flex, Icon, Icons, Text, View } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 

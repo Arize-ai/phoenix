@@ -3,23 +3,7 @@ import { Form } from "react-router";
 import { getLocalTimeZone } from "@internationalized/date";
 import { css } from "@emotion/react";
 
-import { Dialog } from "@arizeai/components";
-
-import {
-  Button,
-  DateField,
-  DateInput,
-  DateSegment,
-  DateValue,
-  FieldError,
-  Flex,
-  Input,
-  Label,
-  Text,
-  TextArea,
-  TextField,
-  View,
-} from "@phoenix/components";
+import { Button, DateField, DateInput, DateSegment, DateValue, Dialog, FieldError, Flex, Input, Label, Text, TextArea, TextField, View } from "@phoenix/components";
 
 export type APIKeyFormParams = {
   name: string;

@@ -8,20 +8,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
-import { Card, Dialog, DialogContainer } from "@arizeai/components";
-
-import {
-  Button,
-  CredentialField,
-  CredentialInput,
-  Flex,
-  Form,
-  Icon,
-  Icons,
-  Label,
-  Text,
-  View,
-} from "@phoenix/components";
+import { Button, Card, CredentialField, CredentialInput, Dialog, DialogContainer, Flex, Form, Icon, Icons, Label, Text, View } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { ProviderToCredentialsConfigMap } from "@phoenix/constants/generativeConstants";

@@ -2,19 +2,7 @@ import { useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
-import { CloseOutline, Dialog, DialogContainer } from "@arizeai/components";
-
-import {
-  Button,
-  Icon,
-  Input,
-  SearchField,
-  Tab,
-  TabList,
-  TabPanel,
-  Tabs,
-  Text,
-} from "@phoenix/components";
+import { Button, CloseOutline, Dialog, DialogContainer, Icon, Input, SearchField, Tab, TabList, TabPanel, Tabs, Text } from "@phoenix/components";
 import { Toolbar } from "@phoenix/components/filter";
 import { SelectionDisplayRadioGroup } from "@phoenix/components/pointcloud";
 import { SelectionGridSizeRadioGroup } from "@phoenix/components/pointcloud/SelectionGridSizeRadioGroup";

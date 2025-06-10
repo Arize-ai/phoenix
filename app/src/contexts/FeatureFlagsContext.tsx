@@ -1,9 +1,7 @@
 import React, { createContext, PropsWithChildren, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
-import { Dialog, DialogContainer, Switch } from "@arizeai/components";
-
-import { View } from "@phoenix/components";
+import { Dialog, DialogContainer, Switch, View } from "@phoenix/components";
 
 type FeatureFlag = "dashboards";
 export type FeatureFlagsContextType = {

@@ -1,9 +1,7 @@
 import { ReactNode, useState } from "react";
 import { css } from "@emotion/react";
 
-import { Dialog, DialogContainer } from "@arizeai/components";
-
-import { Button, Flex, Icon, Icons, View } from "@phoenix/components";
+import { Button, Dialog, DialogContainer, Flex, Icon, Icons, View } from "@phoenix/components";
 import { CodeLanguage, CodeLanguageRadioGroup } from "@phoenix/components/code";
 import { PythonProjectGuide } from "@phoenix/components/project/PythonProjectGuide";
 import { TypeScriptProjectGuide } from "@phoenix/components/project/TypeScriptProjectGuide";

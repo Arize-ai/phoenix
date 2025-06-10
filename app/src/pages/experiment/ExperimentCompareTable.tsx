@@ -21,26 +21,7 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import {
-  ActionMenu,
-  Card,
-  CardProps,
-  Dialog,
-  DialogContainer,
-  Item,
-} from "@arizeai/components";
-
-import {
-  Button,
-  CopyToClipboardButton,
-  Flex,
-  Heading,
-  Icon,
-  Icons,
-  Text,
-  View,
-  ViewSummaryAside,
-} from "@phoenix/components";
+import { ActionMenu, Button, Card, CardProps, CopyToClipboardButton, Dialog, DialogContainer, Flex, Heading, Icon, Icons, Item, Text, View, ViewSummaryAside } from "@phoenix/components";
 import {
   AnnotationLabel,
   AnnotationTooltip,

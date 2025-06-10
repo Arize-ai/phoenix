@@ -3,20 +3,7 @@ import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 
-import { Dialog } from "@arizeai/components";
-
-import {
-  Button,
-  FieldError,
-  Flex,
-  Input,
-  Label,
-  Loading,
-  Text,
-  TextArea,
-  TextField,
-  View,
-} from "@phoenix/components";
+import { Button, Dialog, FieldError, Flex, Input, Label, Loading, Text, TextArea, TextField, View } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
 import { ClonePromptDialogMutation } from "@phoenix/pages/prompt/__generated__/ClonePromptDialogMutation.graphql";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";

@@ -2,21 +2,7 @@ import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 
-import { Dialog, DialogContainer } from "@arizeai/components";
-
-import {
-  Alert,
-  Button,
-  FieldError,
-  Flex,
-  Form,
-  Input,
-  Label,
-  Text,
-  TextArea,
-  TextField,
-  View,
-} from "@phoenix/components";
+import { Alert, Button, Dialog, DialogContainer, FieldError, Flex, Form, Input, Label, Text, TextArea, TextField, View } from "@phoenix/components";
 
 import { identifierPattern } from "../../utils/identifierUtils";
 

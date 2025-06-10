@@ -1,16 +1,6 @@
 import { ReactNode, useState } from "react";
 
-import { Dialog, DialogContainer } from "@arizeai/components";
-
-import {
-  Button,
-  ButtonProps,
-  ExternalLink,
-  Icon,
-  Icons,
-  Text,
-  View,
-} from "@phoenix/components";
+import { Button, ButtonProps, Dialog, DialogContainer, ExternalLink, Icon, Icons, Text, View } from "@phoenix/components";
 import { CodeLanguage, CodeLanguageRadioGroup } from "@phoenix/components/code";
 import { TypeScriptProjectGuide } from "@phoenix/components/project/TypeScriptProjectGuide";
 

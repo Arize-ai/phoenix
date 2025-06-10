@@ -1,9 +1,7 @@
 import { ReactNode } from "react";
 import { Blocker } from "react-router";
 
-import { Dialog, DialogContainer } from "@arizeai/components";
-
-import { Button, Flex, Text, View } from "@phoenix/components";
+import { Button, Dialog, DialogContainer, Flex, Text, View } from "@phoenix/components";
 
 function ConfirmNavigationDialogFooter({ blocker }: { blocker: Blocker }) {
   return (

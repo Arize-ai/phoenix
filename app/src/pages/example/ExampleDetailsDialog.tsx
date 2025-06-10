@@ -3,15 +3,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { css } from "@emotion/react";
 
-import { Card, CardProps, Dialog, DialogContainer } from "@arizeai/components";
-
-import {
-  CopyToClipboardButton,
-  Flex,
-  Heading,
-  LinkButton,
-  View,
-} from "@phoenix/components";
+import { Card, CardProps, CopyToClipboardButton, Dialog, DialogContainer, Flex, Heading, LinkButton, View } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";

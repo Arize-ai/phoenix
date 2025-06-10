@@ -4,9 +4,7 @@ import { useLoaderData, useNavigate, useParams } from "react-router";
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
-import { Dialog, DialogContainer } from "@arizeai/components";
-
-import { Flex, Loading, View, ViewSummaryAside } from "@phoenix/components";
+import { Dialog, DialogContainer, Flex, Loading, View, ViewSummaryAside } from "@phoenix/components";
 import { useInferences, useTimeRange } from "@phoenix/contexts";
 import { TimeSliceContextProvider } from "@phoenix/contexts/TimeSliceContext";
 import { dimensionLoader } from "@phoenix/pages/dimension/dimensionLoader";

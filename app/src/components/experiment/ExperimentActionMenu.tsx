@@ -3,15 +3,7 @@ import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 import copy from "copy-to-clipboard";
 
-import {
-  ActionMenu,
-  ActionMenuProps,
-  Dialog,
-  DialogContainer,
-  Item,
-} from "@arizeai/components";
-
-import { Button, Flex, Icon, Icons, Text, View } from "@phoenix/components";
+import { ActionMenu, ActionMenuProps, Button, Dialog, DialogContainer, Flex, Icon, Icons, Item, Text, View } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { assertUnreachable } from "@phoenix/typeUtils";

@@ -1,17 +1,7 @@
 import { ReactNode, Suspense, useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import { ActionMenu, Dialog, DialogContainer, Item } from "@arizeai/components";
-
-import {
-  Button,
-  Flex,
-  Icon,
-  Icons,
-  Loading,
-  Text,
-  View,
-} from "@phoenix/components";
+import { ActionMenu, Button, Dialog, DialogContainer, Flex, Icon, Icons, Item, Loading, Text, View } from "@phoenix/components";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 
 import { EditRetentionPolicy } from "./EditRetentionPolicy";

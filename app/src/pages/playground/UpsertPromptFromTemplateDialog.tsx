@@ -2,9 +2,7 @@ import React, { Suspense, useCallback } from "react";
 import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 
-import { Dialog } from "@arizeai/components";
-
-import { Loading } from "@phoenix/components";
+import { Dialog, Loading } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { UpsertPromptFromTemplateDialogCreateMutation } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";

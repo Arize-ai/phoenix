@@ -2,9 +2,7 @@ import { startTransition, useCallback } from "react";
 import { useMutation } from "react-relay";
 import { graphql } from "relay-runtime";
 
-import { Dialog } from "@arizeai/components";
-
-import { Button, Flex, Icon, Icons, Text, View } from "@phoenix/components";
+import { Button, Dialog, Flex, Icon, Icons, Text, View } from "@phoenix/components";
 
 import { DeleteDatasetDialogMutation } from "./__generated__/DeleteDatasetDialogMutation.graphql";
 

@@ -1,9 +1,7 @@
 import { useCallback } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import { Dialog } from "@arizeai/components";
-
-import { Button, Flex, Text, View } from "@phoenix/components";
+import { Button, Dialog, Flex, Text, View } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 import { DeletePromptDialogMutation } from "./__generated__/DeletePromptDialogMutation.graphql";

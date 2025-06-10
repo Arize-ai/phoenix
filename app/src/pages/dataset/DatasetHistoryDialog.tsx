@@ -1,7 +1,7 @@
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Dialog } from "@arizeai/components";
+import { Dialog  } from "@phoenix/components";
 
 import { DatasetHistoryDialogQuery } from "./__generated__/DatasetHistoryDialogQuery.graphql";
 import { DatasetHistoryTable } from "./DatasetHistoryTable";

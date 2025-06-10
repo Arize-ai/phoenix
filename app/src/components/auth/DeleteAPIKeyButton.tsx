@@ -1,8 +1,6 @@
 import { ReactNode, useState } from "react";
 
-import { Dialog, DialogContainer } from "@arizeai/components";
-
-import { Button, Flex, Icon, Icons, Text, View } from "@phoenix/components";
+import { Button, Dialog, DialogContainer, Flex, Icon, Icons, Text, View } from "@phoenix/components";
 
 export function DeleteAPIKeyButton({
   handleDelete,

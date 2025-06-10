@@ -1,9 +1,7 @@
 import { useLoaderData, useNavigate, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Dialog, DialogContainer } from "@arizeai/components";
-
-import { ErrorBoundary } from "@phoenix/components";
+import { Dialog, DialogContainer, ErrorBoundary } from "@phoenix/components";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { sessionLoader } from "@phoenix/pages/trace/sessionLoader";
 

@@ -1,15 +1,6 @@
 import { ReactNode, useCallback, useMemo, useState } from "react";
 
-import { ButtonProps, Dialog, DialogContainer } from "@arizeai/components";
-
-import {
-  Button,
-  ExternalLink,
-  Icon,
-  Icons,
-  Text,
-  View,
-} from "@phoenix/components";
+import { Button, ButtonProps, Dialog, DialogContainer, ExternalLink, Icon, Icons, Text, View } from "@phoenix/components";
 import { IsAdmin, IsAuthenticated } from "@phoenix/components/auth";
 import { CodeLanguage, CodeLanguageRadioGroup } from "@phoenix/components/code";
 import { CodeWrap } from "@phoenix/components/code/CodeWrap";

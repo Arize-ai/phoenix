@@ -1,5 +1,4 @@
-import { Dialog } from "@arizeai/components";
-
+import { Dialog  } from "@phoenix/components";
 import { EditDatasetForm } from "@phoenix/components/dataset";
 
 export function EditDatasetDialog({
