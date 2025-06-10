@@ -2,6 +2,11 @@ import { useCallback } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import { Button, Dialog, Flex, Text, View } from "@phoenix/components";
+import {
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@phoenix/components/dialog";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 import { DeletePromptDialogMutation } from "./__generated__/DeletePromptDialogMutation.graphql";
@@ -52,35 +57,40 @@ export function DeletePromptDialog({
     });
   }, [commit, notifyError, notifySuccess, onClose, onDeleted, promptId]);
   return (
-    <Dialog title="Delete Prompt" isDismissable onDismiss={onClose}>
-      <View padding="size-200">
-        <Text color="danger">
-          {`Are you sure you want to delete this prompt? This action cannot be undone and all services dependent on this prompt will be affected.`}
-        </Text>
-      </View>
-      <View
-        paddingEnd="size-200"
-        paddingTop="size-100"
-        paddingBottom="size-100"
-        borderTopColor="light"
-        borderTopWidth="thin"
-      >
-        <Flex direction="row" justifyContent="end" gap="size-100">
-          <Button variant="default" onPress={onClose} size="S">
-            Cancel
-          </Button>
-          <Button
-            variant="danger"
-            onPress={() => {
-              handleDelete();
-            }}
-            size="S"
-            isDisabled={isCommitting}
-          >
-            Delete Prompt
-          </Button>
-        </Flex>
-      </View>
+    <Dialog>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Delete Prompt</DialogTitle>
+        </DialogHeader>
+        <View padding="size-200">
+          <Text color="danger">
+            {`Are you sure you want to delete this prompt? This action cannot be undone and all services dependent on this prompt will be affected.`}
+          </Text>
+        </View>
+        <View
+          paddingEnd="size-200"
+          paddingTop="size-100"
+          paddingBottom="size-100"
+          borderTopColor="light"
+          borderTopWidth="thin"
+        >
+          <Flex direction="row" justifyContent="end" gap="size-100">
+            <Button variant="default" onPress={onClose} size="S">
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onPress={() => {
+                handleDelete();
+              }}
+              size="S"
+              isDisabled={isCommitting}
+            >
+              Delete Prompt
+            </Button>
+          </Flex>
+        </View>
+      </DialogContent>
     </Dialog>
   );
 }

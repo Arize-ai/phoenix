@@ -1,5 +1,10 @@
 import { Dialog } from "@phoenix/components";
 import { EditDatasetForm } from "@phoenix/components/dataset";
+import {
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@phoenix/components/dialog";
 
 export function EditDatasetDialog({
   datasetName,
@@ -17,15 +22,20 @@ export function EditDatasetDialog({
   onDatasetEditError: (error: Error) => void;
 }) {
   return (
-    <Dialog title={"Edit Dataset"} size="M">
-      <EditDatasetForm
-        datasetName={datasetName}
-        datasetId={datasetId}
-        datasetDescription={datasetDescription}
-        datasetMetadata={datasetMetadata}
-        onDatasetEdited={onDatasetEdited}
-        onDatasetEditError={onDatasetEditError}
-      />
+    <Dialog>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit Dataset</DialogTitle>
+        </DialogHeader>
+        <EditDatasetForm
+          datasetName={datasetName}
+          datasetId={datasetId}
+          datasetDescription={datasetDescription}
+          datasetMetadata={datasetMetadata}
+          onDatasetEdited={onDatasetEdited}
+          onDatasetEditError={onDatasetEditError}
+        />
+      </DialogContent>
     </Dialog>
   );
 }

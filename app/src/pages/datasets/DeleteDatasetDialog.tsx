@@ -11,6 +11,11 @@ import {
   Text,
   View,
 } from "@phoenix/components";
+import {
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@phoenix/components/dialog";
 
 import { DeleteDatasetDialogMutation } from "./__generated__/DeleteDatasetDialogMutation.graphql";
 
@@ -50,42 +55,47 @@ export function DeleteDatasetDialog({
     });
   }, [commitDelete, datasetId, onDatasetDelete, onDatasetDeleteError]);
   return (
-    <Dialog size="S" title="Delete Dataset">
-      <View padding="size-200">
-        <Text color="danger">
-          {`Are you sure you want to delete dataset ${datasetName}? This will also delete all associated experiments and traces, and it cannot be undone.`}
-        </Text>
-      </View>
-      <View
-        paddingEnd="size-200"
-        paddingTop="size-100"
-        paddingBottom="size-100"
-        borderTopColor="light"
-        borderTopWidth="thin"
-      >
-        <Flex direction="row" justifyContent="end">
-          <Button
-            variant="danger"
-            onPress={() => {
-              handleDelete();
-            }}
-            isDisabled={isCommittingDelete}
-            leadingVisual={
-              <Icon
-                svg={
-                  isCommittingDelete ? (
-                    <Icons.LoadingOutline />
-                  ) : (
-                    <Icons.TrashOutline />
-                  )
-                }
-              />
-            }
-          >
-            Delete Dataset
-          </Button>
-        </Flex>
-      </View>
+    <Dialog>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Delete Dataset</DialogTitle>
+        </DialogHeader>
+        <View padding="size-200">
+          <Text color="danger">
+            {`Are you sure you want to delete dataset ${datasetName}? This will also delete all associated experiments and traces, and it cannot be undone.`}
+          </Text>
+        </View>
+        <View
+          paddingEnd="size-200"
+          paddingTop="size-100"
+          paddingBottom="size-100"
+          borderTopColor="light"
+          borderTopWidth="thin"
+        >
+          <Flex direction="row" justifyContent="end">
+            <Button
+              variant="danger"
+              onPress={() => {
+                handleDelete();
+              }}
+              isDisabled={isCommittingDelete}
+              leadingVisual={
+                <Icon
+                  svg={
+                    isCommittingDelete ? (
+                      <Icons.LoadingOutline />
+                    ) : (
+                      <Icons.TrashOutline />
+                    )
+                  }
+                />
+              }
+            >
+              Delete Dataset
+            </Button>
+          </Flex>
+        </View>
+      </DialogContent>
     </Dialog>
   );
 }

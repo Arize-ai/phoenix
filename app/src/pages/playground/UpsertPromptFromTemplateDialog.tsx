@@ -3,6 +3,11 @@ import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 
 import { Dialog, Loading } from "@phoenix/components";
+import {
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@phoenix/components/dialog";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { UpsertPromptFromTemplateDialogCreateMutation } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
@@ -214,15 +219,20 @@ export const UpsertPromptFromTemplateDialog = ({
     ]
   );
   return (
-    <Dialog title="Create Prompt from Template">
-      <Suspense fallback={<Loading />}>
-        <SavePromptForm
-          onCreate={onCreate}
-          onUpdate={onUpdate}
-          isSubmitting={isCreatePending || isUpdatePending}
-          defaultSelectedPromptId={selectedPromptId}
-        />
-      </Suspense>
+    <Dialog>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create Prompt from Template</DialogTitle>
+        </DialogHeader>
+        <Suspense fallback={<Loading />}>
+          <SavePromptForm
+            onCreate={onCreate}
+            onUpdate={onUpdate}
+            isSubmitting={isCreatePending || isUpdatePending}
+            defaultSelectedPromptId={selectedPromptId}
+          />
+        </Suspense>
+      </DialogContent>
     </Dialog>
   );
 };
