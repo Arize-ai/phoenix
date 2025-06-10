@@ -61,6 +61,11 @@ export const Video: React.FC<VideoProps> = ({
   preload = "none",
   className,
 }) => {
+  // disable video to debug playwright tests
+  // eslint-disable-next-line no-constant-condition
+  if (true) {
+    return null;
+  }
   return (
     <video
       css={videoCSS}
