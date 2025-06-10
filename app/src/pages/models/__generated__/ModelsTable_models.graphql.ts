@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0b7296772da8cbaea38d0b02bcb550d9>>
+ * @generated SignedSource<<25be3fc5972b0466f994d97c2178dec3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,10 +13,12 @@ export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "DEEPSEEK" | 
 import { FragmentRefs } from "relay-runtime";
 export type ModelsTable_models$data = {
   readonly models: {
+    readonly __id: string;
     readonly edges: ReadonlyArray<{
       readonly model: {
         readonly createdAt: string;
         readonly id: string;
+        readonly isOverride: boolean;
         readonly name: string;
         readonly namePattern: string;
         readonly provider: string | null;
@@ -161,6 +163,13 @@ return {
                 {
                   "alias": null,
                   "args": null,
+                  "kind": "ScalarField",
+                  "name": "isOverride",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
                   "concreteType": "TokenCost",
                   "kind": "LinkedField",
                   "name": "tokenCost",
@@ -273,6 +282,18 @@ return {
             }
           ],
           "storageKey": null
+        },
+        {
+          "kind": "ClientExtension",
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "__id",
+              "storageKey": null
+            }
+          ]
         }
       ],
       "storageKey": null
@@ -283,6 +304,6 @@ return {
 };
 })();
 
-(node as any).hash = "7b61aacdc56be02377887a018cf5645e";
+(node as any).hash = "cf177b302511726ace98e39913b0e8f7";
 
 export default node;

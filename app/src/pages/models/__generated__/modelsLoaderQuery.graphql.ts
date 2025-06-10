@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<87f66497621d181064326e406cb7e4e0>>
+ * @generated SignedSource<<4ba3fffd198014524b7a89ca405e83c0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -126,6 +126,13 @@ return {
                   {
                     "alias": null,
                     "args": null,
+                    "kind": "ScalarField",
+                    "name": "isOverride",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
                     "concreteType": "TokenCost",
                     "kind": "LinkedField",
                     "name": "tokenCost",
@@ -239,6 +246,18 @@ return {
               }
             ],
             "storageKey": null
+          },
+          {
+            "kind": "ClientExtension",
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "__id",
+                "storageKey": null
+              }
+            ]
           }
         ],
         "storageKey": "models(first:100)"
@@ -255,12 +274,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f4623176c77b855fbcdc0b1eea586ae7",
+    "cacheID": "ac8d834eb66f473d01c9f7a0c6a5a5cf",
     "id": null,
     "metadata": {},
     "name": "modelsLoaderQuery",
     "operationKind": "query",
-    "text": "query modelsLoaderQuery {\n  ...ModelsTable_models\n}\n\nfragment ModelsTable_models on Query {\n  models(first: 100) {\n    edges {\n      model: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        createdAt\n        updatedAt\n        tokenCost {\n          input\n          output\n          cacheRead\n          cacheWrite\n          promptAudio\n          completionAudio\n          reasoning\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query modelsLoaderQuery {\n  ...ModelsTable_models\n}\n\nfragment ModelsTable_models on Query {\n  models(first: 100) {\n    edges {\n      model: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        createdAt\n        updatedAt\n        isOverride\n        tokenCost {\n          input\n          output\n          cacheRead\n          cacheWrite\n          promptAudio\n          completionAudio\n          reasoning\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

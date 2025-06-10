@@ -304,7 +304,6 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
                     ModelCost(
                         model_id=model.id,
                         token_type="input",
-                        cost_type="DEFAULT",
                         cost_per_token=model_data["input"],
                     )
                 )
@@ -313,7 +312,6 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
                     ModelCost(
                         model_id=model.id,
                         token_type="output",
-                        cost_type="DEFAULT",
                         cost_per_token=model_data["output"],
                     )
                 )
@@ -322,7 +320,6 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
                     ModelCost(
                         model_id=model.id,
                         token_type="cache_write",
-                        cost_type="DEFAULT",
                         cost_per_token=model_data["cache_write"],
                     )
                 )
@@ -331,7 +328,6 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
                     ModelCost(
                         model_id=model.id,
                         token_type="cache_read",
-                        cost_type="DEFAULT",
                         cost_per_token=model_data["cache_read"],
                     )
                 )

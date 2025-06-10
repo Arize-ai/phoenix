@@ -229,7 +229,7 @@ async def _create_cost_table(session: AsyncSession) -> "ModelCostLookup":
         pattern = re.compile(model.name_pattern)
         for cost in model.costs:
             setattr(token_cost, cost.token_type, cost.cost_per_token)
-            if cost.cost_type == "OVERRIDE":
+            if model.is_override:
                 lookup.add_override(model.provider, pattern, token_cost)
             else:
                 lookup.add_pattern(model.provider, pattern, token_cost)
