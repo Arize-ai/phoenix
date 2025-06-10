@@ -46,7 +46,7 @@ from fastapi import FastAPI
 from httpx import Headers, HTTPStatusError
 from jwt import DecodeError
 from openinference.semconv.resource import ResourceAttributes
-from opentelemetry.sdk.resources import Resource  # type: ignore[attr-defined]
+from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExporter, SpanExportResult
 from opentelemetry.sdk.trace.id_generator import IdGenerator
