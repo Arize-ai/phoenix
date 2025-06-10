@@ -12,7 +12,12 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
-from starlette.status import HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
+from starlette.status import (
+    HTTP_202_ACCEPTED,
+    HTTP_400_BAD_REQUEST,
+    HTTP_404_NOT_FOUND,
+    HTTP_422_UNPROCESSABLE_ENTITY,
+)
 from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME
@@ -1008,10 +1013,11 @@ class CreateSpansResponseBody(V1RoutesBaseModel):
     operation_id="createSpans",
     summary="Create spans",
     description=(
-        "Submit spans to be inserted into a project. Returns immediately while processing happens "
-        "asynchronously."
+        "Submit spans to be inserted into a project. If any spans are invalid or "
+        "duplicates, no spans will be inserted."
     ),
-    responses=add_errors_to_responses([HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY]),
+    responses=add_errors_to_responses([HTTP_404_NOT_FOUND, HTTP_400_BAD_REQUEST]),
+    status_code=HTTP_202_ACCEPTED,
 )
 async def create_spans(
     request: Request,
@@ -1106,14 +1112,30 @@ async def create_spans(
                 )
             )
 
+    # If there are any duplicates or invalid spans, reject the entire request
+    if duplicate_spans or invalid_spans:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "Request contains invalid or duplicate spans",
+                "total_received": total_received,
+                "total_queued": 0,
+                "total_duplicates": len(duplicate_spans),
+                "total_invalid": len(invalid_spans),
+                "duplicate_spans": [span.model_dump() for span in duplicate_spans],
+                "invalid_spans": [span.model_dump() for span in invalid_spans],
+            },
+        )
+
+    # All spans are valid, queue them all
     for span_for_insertion, project_name in spans_to_queue:
         await request.state.queue_span_for_bulk_insert(span_for_insertion, project_name)
 
     return CreateSpansResponseBody(
         total_received=total_received,
         total_queued=len(spans_to_queue),
-        total_duplicates=len(duplicate_spans),
-        total_invalid=len(invalid_spans),
-        duplicate_spans=duplicate_spans,
-        invalid_spans=invalid_spans,
+        total_duplicates=0,
+        total_invalid=0,
+        duplicate_spans=[],
+        invalid_spans=[],
     )

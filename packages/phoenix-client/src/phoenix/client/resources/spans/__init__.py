@@ -1,5 +1,4 @@
 import logging
-import warnings
 from datetime import datetime, timezone, tzinfo
 from io import StringIO
 from typing import TYPE_CHECKING, Any, Iterable, Optional, Sequence, Union, cast
@@ -26,13 +25,21 @@ class Spans:
     Provides methods for interacting with span resources.
 
     Example:
-        Basic usage:
+        Non-DataFrame methods:
             >>> from phoenix.client import Client
-            >>> from phoenix.client.types.spans import SpanQuery
             >>> client = Client()
-            >>> query = SpanQuery().select("name", "span_id").where("name == 'my-span'")
-            >>> df = client.spans.get_spans_dataframe(query=query)
-            >>> all_spans_in_project = client.spans.get_spans_dataframe()
+
+            # Get spans as list
+            >>> spans = client.spans.get_spans(
+            ...     project_identifier="my-project",
+            ...     limit=100
+            ... )
+
+            # Get span annotations as list
+            >>> annotations = client.spans.get_span_annotations(
+            ...     span_ids=["span1", "span2"],
+            ...     project_identifier="my-project"
+            ... )
 
             # Create spans
             >>> spans = [
@@ -40,31 +47,26 @@ class Spans:
             ...         "id": "1",
             ...         "name": "test",
             ...         "context": {"trace_id": "123", "span_id": "456"},
-            ...         ...
             ...     }
             ... ]
-            >>> result = client.spans.create_spans(project_identifier="my-project", spans=spans)
-            >>> print(f"Queued {result['total_queued']} spans")
-
-            # Create spans with error handling
-            >>> try:
-            ...     result = client.spans.create_spans(
-            ...         project_identifier="my-project",
-            ...         spans=spans,
-            ...         raise_on_error=True
-            ...     )
-            ... except SpanCreationError as e:
-            ...     print(f"Failed to create spans: {e}")
-            ...     print(f"Invalid spans: {len(e.invalid_spans)}")
-
-            # Create spans with regenerated IDs to guarantee success
-            >>> from phoenix.client.helpers.spans import uniquify_spans
-            >>> new_spans = uniquify_spans(spans)
             >>> result = client.spans.create_spans(
             ...     project_identifier="my-project",
-            ...     spans=new_spans
+            ...     spans=spans
             ... )
-            >>> print(f"All {result['total_queued']} spans queued successfully")
+            >>> print(f"Queued {result['total_queued']} spans")
+
+        DataFrame methods:
+            >>> from phoenix.client.types.spans import SpanQuery
+
+            # Get spans as DataFrame
+            >>> query = SpanQuery().select(annotations["relevance"])
+            >>> df = client.spans.get_spans_dataframe(query=query)
+
+            # Get span annotations as DataFrame
+            >>> annotations_df = client.spans.get_span_annotations_dataframe(
+            ...     span_ids=["span1", "span2"],
+            ...     project_identifier="my-project"
+            ... )
 
     """
 
@@ -436,27 +438,26 @@ class Spans:
         *,
         project_identifier: str,
         spans: Sequence[v1.Span],
-        raise_on_error: bool = False,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> v1.CreateSpansResponseBody:
         """
         Creates spans in a project.
 
+        If any spans are invalid or duplicates, no spans will be created and a
+        SpanCreationError will be raised with details about the failed spans.
+
         Args:
             project_identifier: The project identifier (name or ID) used in the API path.
             spans: A sequence of Span objects to create.
-            raise_on_error: If true, raise SpanCreationError when spans fail to be queued.
-                If false, log warnings instead (default: False).
             timeout: Optional request timeout in seconds.
 
         Returns:
-            A CreateSpansResponseBody with statistics about the operation including
-            total_received, total_queued, total_duplicates, total_invalid, and
-            optionally lists of duplicate_spans and invalid_spans.
+            A CreateSpansResponseBody with statistics about the operation. When successful,
+            total_queued will equal total_received.
 
         Raises:
-            SpanCreationError: If raise_on_error is True and some spans failed to be queued.
-            httpx.HTTPStatusError: If the API returns an error response.
+            SpanCreationError: If any spans failed validation (invalid or duplicates).
+            httpx.HTTPStatusError: If the API returns an unexpected error response.
             httpx.TimeoutException: If the request times out.
         """
         response = self._make_create_spans_request(
@@ -467,7 +468,7 @@ class Spans:
 
         result = self._parse_create_spans_response(response, spans)
 
-        self._handle_create_spans_result(result, raise_on_error)
+        self._handle_create_spans_result(result)
 
         return result
 
@@ -490,9 +491,9 @@ class Spans:
             timeout=timeout,
         )
 
-        # For 422 errors, the server returns structured validation errors in the response body
-        # Don't raise for 422, but do raise for other error status codes
-        if response.status_code != 422:
+        # For 400 and 422 errors, the server returns structured error information
+        # Don't raise for these, but do raise for other error status codes
+        if response.status_code not in (400, 422):
             response.raise_for_status()
 
         return response
@@ -509,7 +510,32 @@ class Spans:
         if response.status_code == 422 and "detail" in response_data:
             return self._parse_validation_error_response(response_data, spans)
 
-        # Normal response
+        if response.status_code == 400 and "detail" in response_data:
+            detail = response_data["detail"]
+            # The server returns error details in the HTTPException detail field
+            if isinstance(detail, dict):
+                return cast(v1.CreateSpansResponseBody, detail)
+            else:
+                # Fallback for unexpected format
+                return cast(
+                    v1.CreateSpansResponseBody,
+                    {
+                        "total_received": len(spans),
+                        "total_queued": 0,
+                        "total_duplicates": 0,
+                        "total_invalid": len(spans),
+                        "duplicate_spans": [],
+                        "invalid_spans": [
+                            {
+                                "span_id": span.get("context", {}).get("span_id", "unknown"),
+                                "trace_id": span.get("context", {}).get("trace_id", "unknown"),
+                                "error": str(detail),
+                            }
+                            for span in spans
+                        ],
+                    },
+                )
+
         return cast(v1.CreateSpansResponseBody, response_data)
 
     def _parse_validation_error_response(
@@ -568,9 +594,8 @@ class Spans:
     def _handle_create_spans_result(
         self,
         result: v1.CreateSpansResponseBody,
-        raise_on_error: bool,
     ) -> None:
-        """Handle any errors or warnings from the create spans result."""
+        """Handle any errors from the create spans result."""
         # Extract statistics
         total_received = result.get("total_received", 0)
         total_queued = result.get("total_queued", 0)
@@ -579,44 +604,14 @@ class Spans:
         invalid_spans = result.get("invalid_spans", [])
         duplicate_spans = result.get("duplicate_spans", [])
 
-        # Handle invalid spans
-        if total_invalid > 0:
-            self._handle_invalid_spans(
+        # If there are any failures, raise an error
+        if total_invalid > 0 or total_duplicates > 0:
+            error_msg = self._format_error_message(
                 total_invalid=total_invalid,
+                total_duplicates=total_duplicates,
                 invalid_spans=invalid_spans,
                 duplicate_spans=duplicate_spans,
-                total_received=total_received,
-                total_queued=total_queued,
-                total_duplicates=total_duplicates,
-                raise_on_error=raise_on_error,
             )
-
-        # Handle duplicate spans
-        if total_duplicates > 0:
-            self._warn_about_duplicates(total_duplicates, duplicate_spans)
-
-        # Log summary if not all spans were queued
-        if total_queued < total_received:
-            logger.info(
-                f"Span creation summary: {total_queued}/{total_received} spans queued "
-                f"({total_invalid} invalid, {total_duplicates} duplicates)"
-            )
-
-    def _handle_invalid_spans(
-        self,
-        *,
-        total_invalid: int,
-        invalid_spans: Sequence[v1.InvalidSpanInfo],
-        duplicate_spans: Sequence[v1.DuplicateSpanInfo],
-        total_received: int,
-        total_queued: int,
-        total_duplicates: int,
-        raise_on_error: bool,
-    ) -> None:
-        """Handle invalid spans by either raising an error or warning."""
-        error_msg = self._format_invalid_spans_message(total_invalid, invalid_spans)
-
-        if raise_on_error:
             raise SpanCreationError(
                 message=error_msg,
                 invalid_spans=list(invalid_spans),
@@ -626,51 +621,43 @@ class Spans:
                 total_invalid=total_invalid,
                 total_duplicates=total_duplicates,
             )
-        else:
-            warnings.warn(error_msg, UserWarning)
 
-    def _format_invalid_spans_message(
+    def _format_error_message(
         self,
+        *,
         total_invalid: int,
-        invalid_spans: Sequence[v1.InvalidSpanInfo],
-    ) -> str:
-        """Format error message for invalid spans."""
-        MAX_ERRORS_TO_SHOW = 5
-        error_details: list[str] = []
-
-        for invalid_span in invalid_spans[:MAX_ERRORS_TO_SHOW]:
-            span_id = invalid_span.get("span_id", "unknown")
-            error = invalid_span.get("error", "unknown error")
-            error_details.append(f"  - Span {span_id}: {error}")
-
-        if len(invalid_spans) > MAX_ERRORS_TO_SHOW:
-            error_details.append(f"  ... and {len(invalid_spans) - MAX_ERRORS_TO_SHOW} more errors")
-
-        return f"Failed to queue {total_invalid} invalid spans:\n" + "\n".join(error_details)
-
-    def _warn_about_duplicates(
-        self,
         total_duplicates: int,
+        invalid_spans: Sequence[v1.InvalidSpanInfo],
         duplicate_spans: Sequence[v1.DuplicateSpanInfo],
-    ) -> None:
-        """Warn about duplicate spans."""
-        MAX_DUPLICATES_TO_SHOW = 5
-        dup_info: list[str] = []
+    ) -> str:
+        """Format error message for failed spans."""
+        MAX_ERRORS_TO_SHOW = 5
+        error_parts: list[str] = []
 
-        for dup_span in duplicate_spans[:MAX_DUPLICATES_TO_SHOW]:
-            span_id = dup_span.get("span_id", "unknown")
-            dup_info.append(f"  - Span {span_id}")
+        if total_invalid > 0:
+            error_parts.append(f"Failed to queue {total_invalid} invalid spans:")
+            for invalid_span in invalid_spans[:MAX_ERRORS_TO_SHOW]:
+                span_id = invalid_span.get("span_id", "unknown")
+                error = invalid_span.get("error", "unknown error")
+                error_parts.append(f"  - Span {span_id}: {error}")
+            if len(invalid_spans) > MAX_ERRORS_TO_SHOW:
+                error_parts.append(
+                    f"  ... and {len(invalid_spans) - MAX_ERRORS_TO_SHOW} more invalid spans"
+                )
 
-        if len(duplicate_spans) > MAX_DUPLICATES_TO_SHOW:
-            dup_info.append(
-                f"  ... and {len(duplicate_spans) - MAX_DUPLICATES_TO_SHOW} more duplicates"
-            )
+        if total_duplicates > 0:
+            if error_parts:
+                error_parts.append("")  # Add blank line
+            error_parts.append(f"Found {total_duplicates} duplicate spans:")
+            for dup_span in duplicate_spans[:MAX_ERRORS_TO_SHOW]:
+                span_id = dup_span.get("span_id", "unknown")
+                error_parts.append(f"  - Span {span_id}")
+            if len(duplicate_spans) > MAX_ERRORS_TO_SHOW:
+                error_parts.append(
+                    f"  ... and {len(duplicate_spans) - MAX_ERRORS_TO_SHOW} more duplicates"
+                )
 
-        warning_msg = (
-            f"Found {total_duplicates} duplicate spans that were not queued:\n"
-            + "\n".join(dup_info)
-        )
-        warnings.warn(warning_msg, UserWarning)
+        return "\n".join(error_parts)
 
 
 class AsyncSpans:
@@ -678,12 +665,21 @@ class AsyncSpans:
     Provides async methods for interacting with span resources.
 
     Example:
-        Basic usage:
+        Non-DataFrame methods:
             >>> from phoenix.client import AsyncClient
-            >>> from phoenix.client.types.spans import SpanQuery
             >>> client = AsyncClient()
-            >>> query = SpanQuery().select("name", "span_id").where("name == 'my-span'")
-            >>> df = await client.spans.get_spans_dataframe(query=query)
+
+            # Get spans as list
+            >>> spans = await client.spans.get_spans(
+            ...     project_identifier="my-project",
+            ...     limit=100
+            ... )
+
+            # Get span annotations as list
+            >>> annotations = await client.spans.get_span_annotations(
+            ...     span_ids=["span1", "span2"],
+            ...     project_identifier="my-project"
+            ... )
 
             # Create spans
             >>> spans = [
@@ -691,34 +687,26 @@ class AsyncSpans:
             ...         "id": "1",
             ...         "name": "test",
             ...         "context": {"trace_id": "123", "span_id": "456"},
-            ...         ...
             ...     }
             ... ]
             >>> result = await client.spans.create_spans(
             ...     project_identifier="my-project",
-            ...     spans=spans,
+            ...     spans=spans
             ... )
             >>> print(f"Queued {result['total_queued']} spans")
 
-            # Create spans with error handling
-            >>> try:
-            ...     result = await client.spans.create_spans(
-            ...         project_identifier="my-project",
-            ...         spans=spans,
-            ...         raise_on_error=True
-            ...     )
-            ... except SpanCreationError as e:
-            ...     print(f"Failed to create spans: {e}")
-            ...     print(f"Invalid spans: {len(e.invalid_spans)}")
+        DataFrame methods:
+            >>> from phoenix.client.types.spans import SpanQuery
 
-            # Create spans with regenerated IDs to guarantee success
-            >>> from phoenix.client.helpers.spans import uniquify_spans
-            >>> new_spans = uniquify_spans(spans)
-            >>> result = await client.spans.create_spans(
-            ...     project_identifier="my-project",
-            ...     spans=new_spans
+            # Get spans as DataFrame
+            >>> query = SpanQuery().select(annotations["relevance"])
+            >>> df = await client.spans.get_spans_dataframe(query=query)
+
+            # Get span annotations as DataFrame
+            >>> annotations_df = await client.spans.get_span_annotations_dataframe(
+            ...     span_ids=["span1", "span2"],
+            ...     project_identifier="my-project"
             ... )
-            >>> print(f"All {result['total_queued']} spans queued successfully")
 
     """
 
@@ -1091,27 +1079,26 @@ class AsyncSpans:
         *,
         project_identifier: str,
         spans: Sequence[v1.Span],
-        raise_on_error: bool = False,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> v1.CreateSpansResponseBody:
         """
         Creates spans in a project.
 
+        If any spans are invalid or duplicates, no spans will be created and a
+        SpanCreationError will be raised with details about the failed spans.
+
         Args:
             project_identifier: The project identifier (name or ID) used in the API path.
             spans: A sequence of Span objects to create.
-            raise_on_error: If true, raise SpanCreationError when spans fail to be queued.
-                If false, log warnings instead (default: False).
             timeout: Optional request timeout in seconds.
 
         Returns:
-            A CreateSpansResponseBody with statistics about the operation including
-            total_received, total_queued, total_duplicates, total_invalid, and
-            optionally lists of duplicate_spans and invalid_spans.
+            A CreateSpansResponseBody with statistics about the operation. When successful,
+            total_queued will equal total_received.
 
         Raises:
-            SpanCreationError: If raise_on_error is True and some spans failed to be queued.
-            httpx.HTTPStatusError: If the API returns an error response.
+            SpanCreationError: If any spans failed validation (invalid or duplicates).
+            httpx.HTTPStatusError: If the API returns an unexpected error response.
             httpx.TimeoutException: If the request times out.
         """
         response = await self._make_create_spans_request(
@@ -1122,7 +1109,7 @@ class AsyncSpans:
 
         result = self._parse_create_spans_response(response, spans)
 
-        self._handle_create_spans_result(result, raise_on_error)
+        self._handle_create_spans_result(result)
 
         return result
 
@@ -1145,9 +1132,7 @@ class AsyncSpans:
             timeout=timeout,
         )
 
-        # For 422 errors, the server returns structured validation errors in the response body
-        # Don't raise for 422, but do raise for other error status codes
-        if response.status_code != 422:
+        if response.status_code not in (400, 422):
             response.raise_for_status()
 
         return response
@@ -1160,11 +1145,33 @@ class AsyncSpans:
         """Parse the response from create spans request."""
         response_data = response.json()
 
-        # Check if this is a FastAPI validation error (has 'detail' field)
         if response.status_code == 422 and "detail" in response_data:
             return self._parse_validation_error_response(response_data, spans)
 
-        # Normal response
+        if response.status_code == 400 and "detail" in response_data:
+            detail = response_data["detail"]
+            if isinstance(detail, dict):
+                return cast(v1.CreateSpansResponseBody, detail)
+            else:
+                return cast(
+                    v1.CreateSpansResponseBody,
+                    {
+                        "total_received": len(spans),
+                        "total_queued": 0,
+                        "total_duplicates": 0,
+                        "total_invalid": len(spans),
+                        "duplicate_spans": [],
+                        "invalid_spans": [
+                            {
+                                "span_id": span.get("context", {}).get("span_id", "unknown"),
+                                "trace_id": span.get("context", {}).get("trace_id", "unknown"),
+                                "error": str(detail),
+                            }
+                            for span in spans
+                        ],
+                    },
+                )
+
         return cast(v1.CreateSpansResponseBody, response_data)
 
     def _parse_validation_error_response(
@@ -1223,9 +1230,8 @@ class AsyncSpans:
     def _handle_create_spans_result(
         self,
         result: v1.CreateSpansResponseBody,
-        raise_on_error: bool,
     ) -> None:
-        """Handle any errors or warnings from the create spans result."""
+        """Handle any errors from the create spans result."""
         # Extract statistics
         total_received = result.get("total_received", 0)
         total_queued = result.get("total_queued", 0)
@@ -1234,44 +1240,14 @@ class AsyncSpans:
         invalid_spans = result.get("invalid_spans", [])
         duplicate_spans = result.get("duplicate_spans", [])
 
-        # Handle invalid spans
-        if total_invalid > 0:
-            self._handle_invalid_spans(
+        # If there are any failures, raise an error
+        if total_invalid > 0 or total_duplicates > 0:
+            error_msg = self._format_error_message(
                 total_invalid=total_invalid,
+                total_duplicates=total_duplicates,
                 invalid_spans=invalid_spans,
                 duplicate_spans=duplicate_spans,
-                total_received=total_received,
-                total_queued=total_queued,
-                total_duplicates=total_duplicates,
-                raise_on_error=raise_on_error,
             )
-
-        # Handle duplicate spans
-        if total_duplicates > 0:
-            self._warn_about_duplicates(total_duplicates, duplicate_spans)
-
-        # Log summary if not all spans were queued
-        if total_queued < total_received:
-            logger.info(
-                f"Span creation summary: {total_queued}/{total_received} spans queued "
-                f"({total_invalid} invalid, {total_duplicates} duplicates)"
-            )
-
-    def _handle_invalid_spans(
-        self,
-        *,
-        total_invalid: int,
-        invalid_spans: Sequence[v1.InvalidSpanInfo],
-        duplicate_spans: Sequence[v1.DuplicateSpanInfo],
-        total_received: int,
-        total_queued: int,
-        total_duplicates: int,
-        raise_on_error: bool,
-    ) -> None:
-        """Handle invalid spans by either raising an error or warning."""
-        error_msg = self._format_invalid_spans_message(total_invalid, invalid_spans)
-
-        if raise_on_error:
             raise SpanCreationError(
                 message=error_msg,
                 invalid_spans=list(invalid_spans),
@@ -1281,51 +1257,43 @@ class AsyncSpans:
                 total_invalid=total_invalid,
                 total_duplicates=total_duplicates,
             )
-        else:
-            warnings.warn(error_msg, UserWarning)
 
-    def _format_invalid_spans_message(
+    def _format_error_message(
         self,
+        *,
         total_invalid: int,
-        invalid_spans: Sequence[v1.InvalidSpanInfo],
-    ) -> str:
-        """Format error message for invalid spans."""
-        MAX_ERRORS_TO_SHOW = 5
-        error_details: list[str] = []
-
-        for invalid_span in invalid_spans[:MAX_ERRORS_TO_SHOW]:
-            span_id = invalid_span.get("span_id", "unknown")
-            error = invalid_span.get("error", "unknown error")
-            error_details.append(f"  - Span {span_id}: {error}")
-
-        if len(invalid_spans) > MAX_ERRORS_TO_SHOW:
-            error_details.append(f"  ... and {len(invalid_spans) - MAX_ERRORS_TO_SHOW} more errors")
-
-        return f"Failed to queue {total_invalid} invalid spans:\n" + "\n".join(error_details)
-
-    def _warn_about_duplicates(
-        self,
         total_duplicates: int,
+        invalid_spans: Sequence[v1.InvalidSpanInfo],
         duplicate_spans: Sequence[v1.DuplicateSpanInfo],
-    ) -> None:
-        """Warn about duplicate spans."""
-        MAX_DUPLICATES_TO_SHOW = 5
-        dup_info: list[str] = []
+    ) -> str:
+        """Format error message for failed spans."""
+        MAX_ERRORS_TO_SHOW = 5
+        error_parts: list[str] = []
 
-        for dup_span in duplicate_spans[:MAX_DUPLICATES_TO_SHOW]:
-            span_id = dup_span.get("span_id", "unknown")
-            dup_info.append(f"  - Span {span_id}")
+        if total_invalid > 0:
+            error_parts.append(f"Failed to queue {total_invalid} invalid spans:")
+            for invalid_span in invalid_spans[:MAX_ERRORS_TO_SHOW]:
+                span_id = invalid_span.get("span_id", "unknown")
+                error = invalid_span.get("error", "unknown error")
+                error_parts.append(f"  - Span {span_id}: {error}")
+            if len(invalid_spans) > MAX_ERRORS_TO_SHOW:
+                error_parts.append(
+                    f"  ... and {len(invalid_spans) - MAX_ERRORS_TO_SHOW} more invalid spans"
+                )
 
-        if len(duplicate_spans) > MAX_DUPLICATES_TO_SHOW:
-            dup_info.append(
-                f"  ... and {len(duplicate_spans) - MAX_DUPLICATES_TO_SHOW} more duplicates"
-            )
+        if total_duplicates > 0:
+            if error_parts:
+                error_parts.append("")  # Add blank line
+            error_parts.append(f"Found {total_duplicates} duplicate spans:")
+            for dup_span in duplicate_spans[:MAX_ERRORS_TO_SHOW]:
+                span_id = dup_span.get("span_id", "unknown")
+                error_parts.append(f"  - Span {span_id}")
+            if len(duplicate_spans) > MAX_ERRORS_TO_SHOW:
+                error_parts.append(
+                    f"  ... and {len(duplicate_spans) - MAX_ERRORS_TO_SHOW} more duplicates"
+                )
 
-        warning_msg = (
-            f"Found {total_duplicates} duplicate spans that were not queued:\n"
-            + "\n".join(dup_info)
-        )
-        warnings.warn(warning_msg, UserWarning)
+        return "\n".join(error_parts)
 
 
 def _to_iso_format(value: Optional[datetime]) -> Optional[str]:
