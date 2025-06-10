@@ -126,8 +126,8 @@ def openai_tool_call_kwargs(rails: List[str], provide_explanation: bool) -> Dict
     """
     openai_function = _default_openai_function(rails, provide_explanation)
     return {
-        "functions": [openai_function],
-        "function_call": {"name": openai_function["name"]},
+        "tools": [openai_function],
+        "tool_choice": {"type": "function", "function": {"name": openai_function["name"]}},
     }
 
 
