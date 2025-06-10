@@ -1,4 +1,3 @@
-import { useCallback } from "react";
 import { Key } from "react-aria-components";
 import { Controller, useForm } from "react-hook-form";
 
@@ -139,15 +138,6 @@ export function ModelForm({
     },
   });
 
-  const validateRegex = useCallback((value: string) => {
-    try {
-      new RegExp(value);
-      return true;
-    } catch {
-      return "Invalid regular expression";
-    }
-  }, []);
-
   return (
     <Form>
       <View padding="size-200">
@@ -205,7 +195,6 @@ export function ModelForm({
             control={control}
             rules={{
               required: "Name pattern is required",
-              validate: validateRegex,
             }}
             render={({
               field: { onChange, onBlur, value },

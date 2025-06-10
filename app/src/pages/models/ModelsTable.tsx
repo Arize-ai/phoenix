@@ -19,6 +19,8 @@ import { getProviderName } from "@phoenix/utils/generativeUtils";
 
 import { ModelsTable_models$key } from "./__generated__/ModelsTable_models.graphql";
 import { ModelsTableModelsQuery } from "./__generated__/ModelsTableModelsQuery.graphql";
+import { CloneModelButton } from "./CloneModelButton";
+import { DeleteModelButton } from "./DeleteModelButton";
 
 const PAGE_SIZE = 100;
 
@@ -42,6 +44,7 @@ export function ModelsTable(props: ModelsTableProps) {
       ) {
         models(first: $first, after: $after)
           @connection(key: "ModelsTable_models") {
+          __id
           edges {
             model: node {
               id
@@ -51,6 +54,7 @@ export function ModelsTable(props: ModelsTableProps) {
               providerKey
               createdAt
               updatedAt
+              isOverride
               tokenCost {
                 input
                 output
@@ -67,6 +71,8 @@ export function ModelsTable(props: ModelsTableProps) {
     `,
     props.query
   );
+
+  const connectionId = data.models.__id;
 
   const tableData = useMemo(
     () =>
@@ -106,7 +112,7 @@ export function ModelsTable(props: ModelsTableProps) {
         cell: ({ row }) => {
           const providerKey = row.original.providerKey;
           if (!providerKey) {
-            return <span>{row.original.provider || "Unknown"}</span>;
+            return <span>{row.original.provider || "--"}</span>;
           }
 
           return (
@@ -194,12 +200,25 @@ export function ModelsTable(props: ModelsTableProps) {
         size: 5,
         accessorKey: "id",
         cell: ({ row }) => {
-          return <EditModelButton modelId={row.original.id} />;
+          const isOverride = row.original.isOverride;
+          return (
+            <Flex direction="row" gap="size-50">
+              {isOverride && <EditModelButton modelId={row.original.id} />}
+              <CloneModelButton modelId={row.original.id} />
+              {isOverride && (
+                <DeleteModelButton
+                  modelId={row.original.id}
+                  modelName={row.original.name}
+                  connectionId={connectionId}
+                />
+              )}
+            </Flex>
+          );
         },
       },
     ];
     return cols;
-  }, []);
+  }, [connectionId]);
 
   const table = useReactTable({
     columns,
