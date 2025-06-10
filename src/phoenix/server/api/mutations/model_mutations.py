@@ -1,7 +1,7 @@
 from typing import Optional
 
 import strawberry
-from sqlalchemy import and_, delete
+from sqlalchemy import delete
 from sqlalchemy.orm import joinedload
 from strawberry.relay import GlobalID
 from strawberry.types import Info
@@ -85,14 +85,12 @@ class ModelMutationMixin:
             model.costs.append(
                 models.ModelCost(
                     token_type="input",
-                    cost_type="OVERRIDE",
                     cost_per_token=input.input_cost_per_token,
                 )
             )
             model.costs.append(
                 models.ModelCost(
                     token_type="output",
-                    cost_type="OVERRIDE",
                     cost_per_token=input.output_cost_per_token,
                 )
             )
@@ -100,7 +98,6 @@ class ModelMutationMixin:
                 model.costs.append(
                     models.ModelCost(
                         token_type="cache_read",
-                        cost_type="OVERRIDE",
                         cost_per_token=input.cache_read_cost_per_token,
                     )
                 )
@@ -108,7 +105,6 @@ class ModelMutationMixin:
                 model.costs.append(
                     models.ModelCost(
                         token_type="cache_write",
-                        cost_type="OVERRIDE",
                         cost_per_token=input.cache_write_cost_per_token,
                     )
                 )
@@ -116,7 +112,6 @@ class ModelMutationMixin:
                 model.costs.append(
                     models.ModelCost(
                         token_type="prompt_audio",
-                        cost_type="OVERRIDE",
                         cost_per_token=input.prompt_audio_cost_per_token,
                     )
                 )
@@ -124,7 +119,6 @@ class ModelMutationMixin:
                 model.costs.append(
                     models.ModelCost(
                         token_type="completion_audio",
-                        cost_type="OVERRIDE",
                         cost_per_token=input.completion_audio_cost_per_token,
                     )
                 )
@@ -132,7 +126,6 @@ class ModelMutationMixin:
                 model.costs.append(
                     models.ModelCost(
                         token_type="reasoning",
-                        cost_type="OVERRIDE",
                         cost_per_token=input.reasoning_cost_per_token,
                     )
                 )
@@ -165,20 +158,10 @@ class ModelMutationMixin:
             if model is None:
                 raise NotFound(f'Model "{input.id}" not found')
             if not model.is_override:
-                if input.name != model.name:
-                    raise BadRequest("Cannot update name of default model")
-                if input.provider != model.provider:
-                    raise BadRequest("Cannot update provider of default model")
-                if input.name_pattern != model.name_pattern:
-                    raise BadRequest("Cannot update name pattern of default model")
+                raise BadRequest("Cannot update default model")
 
             await session.execute(
-                delete(models.ModelCost).where(
-                    and_(
-                        models.ModelCost.model_id == model.id,
-                        models.ModelCost.cost_type == "OVERRIDE",
-                    )
-                )
+                delete(models.ModelCost).where(models.ModelCost.model_id == model.id)
             )
 
             await session.refresh(model)
@@ -190,7 +173,6 @@ class ModelMutationMixin:
                 models.ModelCost(
                     model_id=model.id,
                     token_type="input",
-                    cost_type="OVERRIDE",
                     cost_per_token=input.input_cost_per_token,
                 )
             )
@@ -198,7 +180,6 @@ class ModelMutationMixin:
                 models.ModelCost(
                     model_id=model.id,
                     token_type="output",
-                    cost_type="OVERRIDE",
                     cost_per_token=input.output_cost_per_token,
                 )
             )
@@ -207,7 +188,6 @@ class ModelMutationMixin:
                     models.ModelCost(
                         model_id=model.id,
                         token_type="cache_read",
-                        cost_type="OVERRIDE",
                         cost_per_token=input.cache_read_cost_per_token,
                     )
                 )
@@ -216,7 +196,6 @@ class ModelMutationMixin:
                     models.ModelCost(
                         model_id=model.id,
                         token_type="cache_write",
-                        cost_type="OVERRIDE",
                         cost_per_token=input.cache_write_cost_per_token,
                     )
                 )
@@ -225,7 +204,6 @@ class ModelMutationMixin:
                     models.ModelCost(
                         model_id=model.id,
                         token_type="prompt_audio",
-                        cost_type="OVERRIDE",
                         cost_per_token=input.prompt_audio_cost_per_token,
                     )
                 )
@@ -234,7 +212,6 @@ class ModelMutationMixin:
                     models.ModelCost(
                         model_id=model.id,
                         token_type="completion_audio",
-                        cost_type="OVERRIDE",
                         cost_per_token=input.completion_audio_cost_per_token,
                     )
                 )
@@ -243,7 +220,6 @@ class ModelMutationMixin:
                     models.ModelCost(
                         model_id=model.id,
                         token_type="reasoning",
-                        cost_type="OVERRIDE",
                         cost_per_token=input.reasoning_cost_per_token,
                     )
                 )

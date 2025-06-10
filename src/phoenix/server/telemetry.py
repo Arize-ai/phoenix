@@ -38,7 +38,7 @@ def normalize_http_collector_endpoint(endpoint: str) -> str:
 def initialize_opentelemetry_tracer_provider() -> "TracerProvider":
     logger.info("Initializing OpenTelemetry tracer provider")
     from opentelemetry.sdk import trace as trace_sdk
-    from opentelemetry.sdk.resources import Resource  # type: ignore[attr-defined]
+    from opentelemetry.sdk.resources import Resource
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
     from opentelemetry.semconv.resource import ResourceAttributes
 

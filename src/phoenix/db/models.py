@@ -1338,11 +1338,6 @@ class ModelCost(Base):
         index=True,
     )
     token_type: Mapped[str] = mapped_column(String, nullable=False)
-    cost_type: Mapped[CostType] = mapped_column(
-        String,
-        CheckConstraint("cost_type IN ('DEFAULT', 'OVERRIDE')", name="valid_cost_type"),
-        nullable=False,
-    )
     cost_per_token: Mapped[float] = mapped_column(Float, nullable=False)
 
     model: Mapped["Model"] = relationship("Model", back_populates="costs")
@@ -1351,7 +1346,6 @@ class ModelCost(Base):
         UniqueConstraint(
             "model_id",
             "token_type",
-            "cost_type",
         ),
     )
 

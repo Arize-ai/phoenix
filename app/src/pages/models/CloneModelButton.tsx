@@ -29,12 +29,12 @@ import {
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-import { EditModelButtonMutation } from "./__generated__/EditModelButtonMutation.graphql";
-import { EditModelButtonQuery } from "./__generated__/EditModelButtonQuery.graphql";
+import { CloneModelButtonMutation } from "./__generated__/CloneModelButtonMutation.graphql";
+import type { CloneModelButtonQuery } from "./__generated__/CloneModelButtonQuery.graphql";
 import { ModelForm, ModelFormParams } from "./ModelForm";
 
 const ModelQuery = graphql`
-  query EditModelButtonQuery($id: ID!) {
+  query CloneModelButtonQuery($id: ID!) {
     node(id: $id) {
       ... on Model {
         id
@@ -54,23 +54,23 @@ const ModelQuery = graphql`
   }
 `;
 
-function EditModelDialogContent({
+function CloneModelDialogContent({
   queryReference,
-  onModelEdited,
+  onModelCloned,
   onClose,
 }: {
-  queryReference: PreloadedQuery<EditModelButtonQuery>;
-  onModelEdited?: (model: ModelFormParams) => void;
+  queryReference: PreloadedQuery<CloneModelButtonQuery>;
+  onModelCloned?: (model: ModelFormParams) => void;
   onClose: () => void;
 }) {
-  const data = usePreloadedQuery<EditModelButtonQuery>(
+  const data = usePreloadedQuery<CloneModelButtonQuery>(
     ModelQuery,
     queryReference
   );
-  const [commitUpdateModel, isCommittingUpdateModel] =
-    useMutation<EditModelButtonMutation>(graphql`
-      mutation EditModelButtonMutation($input: UpdateModelMutationInput!) {
-        updateModel(input: $input) {
+  const [commitCloneModel, isCommittingCloneModel] =
+    useMutation<CloneModelButtonMutation>(graphql`
+      mutation CloneModelButtonMutation($input: CreateModelMutationInput!) {
+        createModel(input: $input) {
           model {
             id
             name
@@ -101,15 +101,14 @@ function EditModelDialogContent({
 
   return (
     <ModelForm
-      modelName={modelData.name}
+      modelName={`${modelData.name} (override)`}
       modelProvider={modelData.provider}
       modelNamePattern={modelData.namePattern}
       modelCost={modelData.tokenCost}
       onSubmit={(params) => {
-        commitUpdateModel({
+        commitCloneModel({
           variables: {
             input: {
-              id: modelData.id!,
               name: params.name,
               provider: params.provider,
               namePattern: params.namePattern,
@@ -124,39 +123,39 @@ function EditModelDialogContent({
           },
           onCompleted: () => {
             onClose();
-            onModelEdited && onModelEdited(params);
+            onModelCloned && onModelCloned(params);
             notifySuccess({
-              title: `Model Updated`,
-              message: `Model "${params.name}" updated successfully`,
+              title: `Model Cloned`,
+              message: `Model "${params.name}" cloned successfully`,
             });
           },
           onError: (error) => {
             const formattedError =
               getErrorMessagesFromRelayMutationError(error);
             notifyError({
-              title: "Failed to update model",
-              message: formattedError?.[0] ?? "Failed to update model",
+              title: "Failed to clone model",
+              message: formattedError?.[0] ?? "Failed to clone model",
             });
           },
         });
       }}
-      isSubmitting={isCommittingUpdateModel}
+      isSubmitting={isCommittingCloneModel}
       submitButtonText="Save Changes"
-      formMode="edit"
+      formMode="create"
     />
   );
 }
 
-export function EditModelButton({
+export function CloneModelButton({
   modelId,
-  onModelEdited,
+  onModelCloned,
 }: {
   modelId: string;
-  onModelEdited?: (model: ModelFormParams) => void;
+  onModelCloned?: (model: ModelFormParams) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [queryReference, loadQuery, disposeQuery] =
-    useQueryLoader<EditModelButtonQuery>(ModelQuery);
+    useQueryLoader<CloneModelButtonQuery>(ModelQuery);
 
   const handleOpen = () => {
     loadQuery({ id: modelId }, { fetchPolicy: "network-only" });
@@ -177,12 +176,12 @@ export function EditModelButton({
     >
       <Button
         variant="default"
-        leadingVisual={<Icon svg={<Icons.EditOutline />} />}
-        aria-label="Edit model"
+        leadingVisual={<Icon svg={<Icons.DuplicateIcon />} />}
+        aria-label="Clone model"
         onPress={handleOpen}
         size="S"
       >
-        Edit
+        Clone
       </Button>
       <DialogContainer onDismiss={handleClose}>
         {isOpen && (
@@ -190,16 +189,16 @@ export function EditModelButton({
             <Modal>
               <Dialog>
                 <DialogHeader>
-                  <DialogTitle>Edit Model</DialogTitle>
+                  <DialogTitle>Clone Model</DialogTitle>
                   <DialogTitleExtra>
                     <DialogCloseButton slot="close" />
                   </DialogTitleExtra>
                 </DialogHeader>
                 <Suspense fallback={<Loading />}>
                   {queryReference ? (
-                    <EditModelDialogContent
+                    <CloneModelDialogContent
                       queryReference={queryReference}
-                      onModelEdited={onModelEdited}
+                      onModelCloned={onModelCloned}
                       onClose={handleClose}
                     />
                   ) : (
