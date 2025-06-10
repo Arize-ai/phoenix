@@ -22,7 +22,7 @@ console.log("PHOENIX_WORKING_DIR: ", process.env["PHOENIX_WORKING_DIR"]);
 
 // Execute the server
 const childProcess = exec(
-  "uv tool run --with=arize-phoenix-evals@../packages/phoenix-evals --with=arize-phoenix-otel@../packages/phoenix-otel --project=.. arize-phoenix serve"
+  "uv tool run --with=openai --with=arize-phoenix-evals@../packages/phoenix-evals --with=arize-phoenix-otel@../packages/phoenix-otel --project=.. arize-phoenix serve"
 );
 
 childProcess.stdout?.pipe(process.stdout);
