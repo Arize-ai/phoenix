@@ -21,12 +21,7 @@ console.log("PHOENIX_SECRET: ", process.env["PHOENIX_SECRET"]);
 console.log("PHOENIX_WORKING_DIR: ", process.env["PHOENIX_WORKING_DIR"]);
 
 // Execute the server
-// uv will install the phoenix server in editable mode
-// this keeps the server in sync for local test development
-// as well as ensures we pick up local phoenix changes in CI (like the frontend build)
-const childProcess = exec(
-  "uv tool run --with-editable=arize-phoenix@.. arize-phoenix serve"
-);
+const childProcess = exec("uv run --project=.. arize-phoenix serve");
 
 childProcess.stdout?.pipe(process.stdout);
 childProcess.stderr?.pipe(process.stderr);
