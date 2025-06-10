@@ -73,7 +73,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - run: uv pip install --system uvloop
         if: runner.os != 'Windows'
-      - run: uv sync --all-extras
+      - run: uv sync --extra container
       - name: Run Playwright tests
         run: pnpm exec playwright test
       - uses: actions/upload-artifact@v4
