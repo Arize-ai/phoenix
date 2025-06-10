@@ -794,7 +794,7 @@ def test_llm_classify_prints_to_stdout_with_verbose_flag(
         model=model,
         rails=["relevant", "unrelated"],
         verbose=True,
-        use_function_calling_if_available=False,
+        use_tool_calling_if_available=False,
     )
 
     out, _ = capfd.readouterr()
@@ -1041,7 +1041,7 @@ def test_run_evals_outputs_dataframes_with_labels_scores_and_explanations_with_f
         dataframe=df,
         evaluators=[relevance_evaluator, toxicity_evaluator],
         provide_explanation=True,
-        use_function_calling_if_available=True,
+        use_tool_calling_if_available=True,
     )
     assert len(eval_dfs) == 2
     assert_frame_equal(
@@ -1121,7 +1121,7 @@ def test_run_evals_outputs_dataframes_with_labels_scores_and_explanations(
         dataframe=df,
         evaluators=[relevance_evaluator, toxicity_evaluator],
         provide_explanation=True,
-        use_function_calling_if_available=False,
+        use_tool_calling_if_available=False,
     )
     assert len(eval_dfs) == 2
     assert_frame_equal(
@@ -1212,7 +1212,7 @@ def test_run_evals_outputs_dataframes_with_just_labels_and_scores_when_invoked_w
         dataframe=df,
         evaluators=[relevance_evaluator, toxicity_evaluator],
         provide_explanation=False,
-        use_function_calling_if_available=True,
+        use_tool_calling_if_available=True,
     )
     assert len(eval_dfs) == 2
     assert_frame_equal(
@@ -1278,7 +1278,7 @@ def test_run_evals_outputs_dataframes_with_just_labels_and_scores(
         dataframe=df,
         evaluators=[relevance_evaluator, toxicity_evaluator],
         provide_explanation=False,
-        use_function_calling_if_available=False,
+        use_tool_calling_if_available=False,
     )
     assert len(eval_dfs) == 2
     assert_frame_equal(
@@ -1354,7 +1354,7 @@ def test_run_evals_preserves_index(
         dataframe=df,
         evaluators=[relevance_evaluator],
         provide_explanation=True,
-        use_function_calling_if_available=False,
+        use_tool_calling_if_available=False,
     )
     assert len(eval_dfs) == 1
     assert_frame_equal(
@@ -1416,7 +1416,7 @@ def test_run_evals_succeeds_regardless_of_whether_running_event_loop_exists(
         dataframe=df,
         evaluators=[relevance_evaluator],
         provide_explanation=True,
-        use_function_calling_if_available=False,
+        use_tool_calling_if_available=False,
     )
     assert len(eval_dfs) == 1
     assert_frame_equal(
@@ -1484,7 +1484,7 @@ def test_run_evals_produces_expected_output_when_llm_outputs_unexpected_data(
         dataframe=df,
         evaluators=[relevance_evaluator],
         provide_explanation=True,
-        use_function_calling_if_available=False,
+        use_tool_calling_if_available=False,
     )
     assert len(eval_dfs) == 1
     assert_frame_equal(
@@ -1545,7 +1545,7 @@ def test_run_evals_fails_gracefully_on_error(
         dataframe=df,
         evaluators=[relevance_evaluator],
         provide_explanation=True,
-        use_function_calling_if_available=False,
+        use_tool_calling_if_available=False,
     )
     assert len(eval_dfs) == 1
     assert_frame_equal(
@@ -1595,7 +1595,7 @@ def test_llm_classify_with_response_containing_both_rails(openai_api_key: str) -
             template="Agent Output: {agent_output}\nHuman Selection: {human_selection}\n",
             model=model,
             rails=["correct", "incorrect"],
-            use_function_calling_if_available=False,
+            use_tool_calling_if_available=False,
             provide_explanation=True,
             run_sync=True,
         )
@@ -1623,7 +1623,7 @@ def test_llm_classify_with_response_with_space(openai_api_key: str) -> None:
             template="Agent Output: {agent_output}\nHuman Selection: {human_selection}\n",
             model=model,
             rails=["correct", "not correct"],
-            use_function_calling_if_available=False,
+            use_tool_calling_if_available=False,
             provide_explanation=True,
             run_sync=True,
         )
@@ -1650,7 +1650,7 @@ def test_llm_classify_without_label_prefix(openai_api_key: str) -> None:
             template="Agent Output: {agent_output}\nHuman Selection: {human_selection}\n",
             model=model,
             rails=["correct", "incorrect"],
-            use_function_calling_if_available=False,
+            use_tool_calling_if_available=False,
             provide_explanation=True,
             run_sync=True,
         )
@@ -1678,7 +1678,7 @@ def test_llm_classify_cot(openai_api_key: str) -> None:
             template="Agent Output: {agent_output}\nHuman Selection: {human_selection}\n",
             model=model,
             rails=["correct", "not correct"],
-            use_function_calling_if_available=False,
+            use_tool_calling_if_available=False,
             provide_explanation=True,
             run_sync=True,
         )

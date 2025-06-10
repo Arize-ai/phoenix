@@ -40,7 +40,7 @@ from phoenix.evals.templates import (
 from phoenix.evals.utils import (
     NOT_PARSABLE,
     get_tqdm_progress_bar_formatter,
-    openai_function_call_kwargs,
+    openai_tool_call_kwargs,
     parse_openai_function_call,
     printif,
     snap_to_rail,
@@ -101,7 +101,7 @@ def llm_classify(
     data_processor: Optional[Callable[[PROCESSOR_TYPE], PROCESSOR_TYPE]] = None,
     system_instruction: Optional[str] = None,
     verbose: bool = False,
-    use_function_calling_if_available: bool = True,
+    use_tool_calling_if_available: bool = True,
     provide_explanation: bool = False,
     include_prompt: bool = False,
     include_response: bool = False,
@@ -147,7 +147,7 @@ def llm_classify(
             model invocation parameters and details about retries and snapping to rails.
             Default False.
 
-        use_function_calling_if_available (bool, default=True): If True, use function
+        use_tool_calling_if_available (bool, default=True): If True, use function
             calling (if available) as a means to constrain the LLM outputs.
             With function calling, the LLM is instructed to provide its response as a
             structured JSON object, which is easier to parse.
@@ -197,13 +197,13 @@ def llm_classify(
     model.reload_client()
 
     use_openai_function_call = (
-        use_function_calling_if_available
+        use_tool_calling_if_available
         and isinstance(model, OpenAIModel)
         and model.supports_function_calling
     )
 
     model_kwargs = (
-        openai_function_call_kwargs(rails, provide_explanation) if use_openai_function_call else {}
+        openai_tool_call_kwargs(rails, provide_explanation) if use_openai_function_call else {}
     )
 
     eval_template = normalize_classification_template(rails=rails, template=template)
@@ -368,7 +368,7 @@ def run_evals(
     dataframe: DataFrame,
     evaluators: List[LLMEvaluator],
     provide_explanation: bool = False,
-    use_function_calling_if_available: bool = True,
+    use_tool_calling_if_available: bool = True,
     verbose: bool = False,
     concurrency: Optional[int] = None,
 ) -> List[DataFrame]:
@@ -389,7 +389,7 @@ def run_evals(
             for each evaluation. A column named "explanation" is added to each
             output dataframe.
 
-        use_function_calling_if_available (bool, optional): If True, use
+        use_tool_calling_if_available (bool, optional): If True, use
             function calling (if available) as a means to constrain the LLM outputs.
             With function calling, the LLM is instructed to provide its response as
             a structured JSON object, which is easier to parse.
@@ -433,7 +433,7 @@ def run_evals(
         return await payload.evaluator.aevaluate(
             payload.record,
             provide_explanation=provide_explanation,
-            use_function_calling_if_available=use_function_calling_if_available,
+            use_tool_calling_if_available=use_tool_calling_if_available,
             verbose=verbose,
         )
 
@@ -443,7 +443,7 @@ def run_evals(
         return payload.evaluator.evaluate(
             payload.record,
             provide_explanation=provide_explanation,
-            use_function_calling_if_available=use_function_calling_if_available,
+            use_tool_calling_if_available=use_tool_calling_if_available,
             verbose=verbose,
         )
 

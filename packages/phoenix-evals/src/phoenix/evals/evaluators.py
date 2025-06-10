@@ -9,7 +9,7 @@ from phoenix.evals.templates import (
 )
 from phoenix.evals.utils import (
     NOT_PARSABLE,
-    openai_function_call_kwargs,
+    openai_tool_call_kwargs,
     parse_openai_function_call,
     printif,
     snap_to_rail,
@@ -49,7 +49,7 @@ class LLMEvaluator:
         self,
         record: Record,
         provide_explanation: bool = False,
-        use_function_calling_if_available: bool = True,
+        use_tool_calling_if_available: bool = True,
         verbose: bool = False,
     ) -> Tuple[str, Optional[float], Optional[str]]:
         """
@@ -61,7 +61,7 @@ class LLMEvaluator:
             provide_explanation (bool, optional): Whether to provide an
                 explanation.
 
-            use_function_calling_if_available (bool, optional): If True, use
+            use_tool_calling_if_available (bool, optional): If True, use
                 function calling (if available) as a means to constrain the LLM
                 outputs. With function calling, the LLM is instructed to provide its
                 response as a structured JSON object, which is easier to parse.
@@ -75,7 +75,7 @@ class LLMEvaluator:
                 - explanation (if requested)
         """
         use_openai_function_call = (
-            use_function_calling_if_available
+            use_tool_calling_if_available
             and isinstance(self._model, OpenAIModel)
             and self._model.supports_function_calling
         )
@@ -86,7 +86,7 @@ class LLMEvaluator:
             unparsed_output = verbose_model(
                 prompt,
                 **(
-                    openai_function_call_kwargs(self._template.rails, provide_explanation)
+                    openai_tool_call_kwargs(self._template.rails, provide_explanation)
                     if use_openai_function_call
                     else {}
                 ),
@@ -105,7 +105,7 @@ class LLMEvaluator:
         self,
         record: Record,
         provide_explanation: bool = False,
-        use_function_calling_if_available: bool = True,
+        use_tool_calling_if_available: bool = True,
         verbose: bool = False,
     ) -> Tuple[str, Optional[float], Optional[str]]:
         """
@@ -117,7 +117,7 @@ class LLMEvaluator:
             provide_explanation (bool, optional): Whether to provide an
                 explanation.
 
-            use_function_calling_if_available (bool, optional): If True, use
+            use_tool_calling_if_available (bool, optional): If True, use
                 function calling (if available) as a means to constrain the LLM
                 outputs. With function calling, the LLM is instructed to provide its
                 response as a structured JSON object, which is easier to parse.
@@ -131,7 +131,7 @@ class LLMEvaluator:
                 - explanation (if requested)
         """
         use_openai_function_call = (
-            use_function_calling_if_available
+            use_tool_calling_if_available
             and isinstance(self._model, OpenAIModel)
             and self._model.supports_function_calling
         )
@@ -142,7 +142,7 @@ class LLMEvaluator:
             unparsed_output = await verbose_model._async_generate(
                 prompt,
                 **(
-                    openai_function_call_kwargs(self._template.rails, provide_explanation)
+                    openai_tool_call_kwargs(self._template.rails, provide_explanation)
                     if use_openai_function_call
                     else {}
                 ),
