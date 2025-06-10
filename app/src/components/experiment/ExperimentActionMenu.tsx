@@ -3,8 +3,23 @@ import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 import copy from "copy-to-clipboard";
 
-import { ActionMenu, ActionMenuProps, Button, Dialog, DialogContainer, Flex, Icon, Icons, Item, Text, View } from "@phoenix/components";
+import { ActionMenu, ActionMenuProps, Item } from "@arizeai/components";
+
+import {
+  Button,
+  Dialog,
+  Flex,
+  Icon,
+  Icons,
+  Text,
+  View,
+} from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
+import {
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@phoenix/components/dialog";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -81,37 +96,37 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
   const onDeletePress = useCallback(
     (experimentId: string) => {
       setDialog(
-        <Dialog
-          size="S"
-          title="Delete Experiment"
-          isDismissable
-          onDismiss={() => setDialog(null)}
-        >
-          <View padding="size-200">
-            <Text color="danger">
-              Are you sure you want to delete this experiment and its
-              annotations and traces?
-            </Text>
-          </View>
-          <View
-            paddingEnd="size-200"
-            paddingTop="size-100"
-            paddingBottom="size-100"
-            borderTopColor="light"
-            borderTopWidth="thin"
-          >
-            <Flex direction="row" justifyContent="end">
-              <Button
-                variant="danger"
-                onPress={() => {
-                  onDeleteExperiment(experimentId);
-                  setDialog(null);
-                }}
-              >
-                Delete Experiment
-              </Button>
-            </Flex>
-          </View>
+        <Dialog>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Experiment</DialogTitle>
+            </DialogHeader>
+            <View padding="size-200">
+              <Text color="danger">
+                Are you sure you want to delete this experiment and its
+                annotations and traces?
+              </Text>
+            </View>
+            <View
+              paddingEnd="size-200"
+              paddingTop="size-100"
+              paddingBottom="size-100"
+              borderTopColor="light"
+              borderTopWidth="thin"
+            >
+              <Flex direction="row" justifyContent="end">
+                <Button
+                  variant="danger"
+                  onPress={() => {
+                    onDeleteExperiment(experimentId);
+                    setDialog(null);
+                  }}
+                >
+                  Delete Experiment
+                </Button>
+              </Flex>
+            </View>
+          </DialogContent>
         </Dialog>
       );
     },
@@ -193,8 +208,15 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
             }
             case ExperimentAction.VIEW_METADATA: {
               setDialog(
-                <Dialog title="Metadata" onDismiss={() => setDialog(null)}>
-                  <JSONBlock value={JSON.stringify(props.metadata, null, 2)} />
+                <Dialog>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Metadata</DialogTitle>
+                    </DialogHeader>
+                    <JSONBlock
+                      value={JSON.stringify(props.metadata, null, 2)}
+                    />
+                  </DialogContent>
                 </Dialog>
               );
               break;
@@ -219,15 +241,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
       >
         {menuItems}
       </ActionMenu>
-      <DialogContainer
-        type="modal"
-        isDismissable
-        onDismiss={() => {
-          setDialog(null);
-        }}
-      >
-        {dialog}
-      </DialogContainer>
+      {dialog}
     </div>
   );
 }

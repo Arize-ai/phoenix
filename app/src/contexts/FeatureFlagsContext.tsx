@@ -1,7 +1,14 @@
 import React, { createContext, PropsWithChildren, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
-import { Dialog, DialogContainer, Switch, View } from "@phoenix/components";
+import { Switch } from "@arizeai/components";
+
+import { Dialog, View } from "@phoenix/components";
+import {
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@phoenix/components/dialog";
 
 type FeatureFlag = "dashboards";
 export type FeatureFlagsContextType = {
@@ -75,13 +82,12 @@ function FeatureFlagsControls(props: PropsWithChildren) {
   return (
     <>
       {children}
-      <DialogContainer
-        type="modal"
-        isDismissable
-        onDismiss={() => setShowControls(false)}
-      >
-        {showControls && (
-          <Dialog title="Feature Flags">
+      {showControls && (
+        <Dialog>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Feature Flags</DialogTitle>
+            </DialogHeader>
             <View height="size-1000" padding="size-100">
               {Object.keys(featureFlags).map((featureFlag) => (
                 <Switch
@@ -98,9 +104,9 @@ function FeatureFlagsControls(props: PropsWithChildren) {
                 </Switch>
               ))}
             </View>
-          </Dialog>
-        )}
-      </DialogContainer>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }

@@ -2,7 +2,25 @@ import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 
-import { Alert, Button, Dialog, DialogContainer, FieldError, Flex, Form, Input, Label, Text, TextArea, TextField, View } from "@phoenix/components";
+import {
+  Alert,
+  Button,
+  Dialog,
+  FieldError,
+  Flex,
+  Form,
+  Input,
+  Label,
+  Text,
+  TextArea,
+  TextField,
+  View,
+} from "@phoenix/components";
+import {
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@phoenix/components/dialog";
 
 import { identifierPattern } from "../../utils/identifierUtils";
 
@@ -70,8 +88,11 @@ export function NewPromptVersionDialog({
   };
 
   return (
-    <DialogContainer onDismiss={onDismiss} isDismissable type="modal">
-      <Dialog title="New Prompt Tag">
+    <Dialog>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>New Prompt Tag</DialogTitle>
+        </DialogHeader>
         {error ? (
           <Alert variant="danger" banner>
             {error}
@@ -152,7 +173,7 @@ export function NewPromptVersionDialog({
             </Flex>
           </View>
         </Form>
-      </Dialog>
-    </DialogContainer>
+      </DialogContent>
+    </Dialog>
   );
 }

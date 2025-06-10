@@ -1,7 +1,22 @@
 import { ReactNode, startTransition, useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import { ActionMenu, Button, Dialog, DialogContainer, Flex, Icon, Icons, Item, Text, View } from "@phoenix/components";
+import { ActionMenu, Item } from "@arizeai/components";
+
+import {
+  Button,
+  Dialog,
+  Flex,
+  Icon,
+  Icons,
+  Text,
+  View,
+} from "@phoenix/components";
+import {
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@phoenix/components/dialog";
 
 import { ProjectActionMenuClearMutation } from "./__generated__/ProjectActionMenuClearMutation.graphql";
 import { ProjectActionMenuDeleteMutation } from "./__generated__/ProjectActionMenuDeleteMutation.graphql";
@@ -77,76 +92,91 @@ export function ProjectActionMenu({
 
   const onDelete = useCallback(() => {
     setDialog(
-      <Dialog size="S" title="Delete Project">
-        <View padding="size-200">
-          <Text color="danger">
-            {`Are you sure you want to delete project ${projectName}? This cannot be undone.`}
-          </Text>
-        </View>
-        <View
-          paddingEnd="size-200"
-          paddingTop="size-100"
-          paddingBottom="size-100"
-          borderTopColor="light"
-          borderTopWidth="thin"
-        >
-          <Flex direction="row" justifyContent="end">
-            <Button
-              variant="danger"
-              onPress={() => {
-                handleDelete();
-                setDialog(null);
-              }}
-            >
-              Delete Project
-            </Button>
-          </Flex>
-        </View>
+      <Dialog>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Project</DialogTitle>
+          </DialogHeader>
+          <View padding="size-200">
+            <Text color="danger">
+              {`Are you sure you want to delete project ${projectName}? This cannot be undone.`}
+            </Text>
+          </View>
+          <View
+            paddingEnd="size-200"
+            paddingTop="size-100"
+            paddingBottom="size-100"
+            borderTopColor="light"
+            borderTopWidth="thin"
+          >
+            <Flex direction="row" justifyContent="end">
+              <Button
+                variant="danger"
+                onPress={() => {
+                  handleDelete();
+                  setDialog(null);
+                }}
+              >
+                Delete Project
+              </Button>
+            </Flex>
+          </View>
+        </DialogContent>
       </Dialog>
     );
   }, [handleDelete, projectName]);
 
   const onClear = useCallback(() => {
     setDialog(
-      <Dialog size="S" title="Clear Project">
-        <View padding="size-200">
-          <Text color="danger">
-            {`Are you sure you want to clear project ${projectName}? All traces and evaluations for this project will be deleted. This cannot be undone.`}
-          </Text>
-        </View>
-        <View
-          paddingEnd="size-200"
-          paddingTop="size-100"
-          paddingBottom="size-100"
-          borderTopColor="light"
-          borderTopWidth="thin"
-        >
-          <Flex direction="row" justifyContent="end">
-            <Button
-              variant="danger"
-              onPress={() => {
-                handleClear();
-                setDialog(null);
-              }}
-            >
-              Clear
-            </Button>
-          </Flex>
-        </View>
+      <Dialog>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Clear Project</DialogTitle>
+          </DialogHeader>
+          <View padding="size-200">
+            <Text color="danger">
+              {`Are you sure you want to clear project ${projectName}? All traces and evaluations for this project will be deleted. This cannot be undone.`}
+            </Text>
+          </View>
+          <View
+            paddingEnd="size-200"
+            paddingTop="size-100"
+            paddingBottom="size-100"
+            borderTopColor="light"
+            borderTopWidth="thin"
+          >
+            <Flex direction="row" justifyContent="end">
+              <Button
+                variant="danger"
+                onPress={() => {
+                  handleClear();
+                  setDialog(null);
+                }}
+              >
+                Clear
+              </Button>
+            </Flex>
+          </View>
+        </DialogContent>
       </Dialog>
     );
   }, [handleClear, projectName]);
 
   const onRemoveData = useCallback(() => {
     setDialog(
-      <Dialog size="S" title="Remove Data">
-        <RemoveProjectDataForm
-          projectId={projectId}
-          onComplete={() => {
-            onProjectRemoveData();
-            setDialog(null);
-          }}
-        />
+      <Dialog>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove Data</DialogTitle>
+          </DialogHeader>
+          <RemoveProjectDataForm
+            projectId={projectId}
+            onComplete={() => {
+              onProjectRemoveData();
+              setDialog(null);
+            }}
+          />
+        </DialogContent>
       </Dialog>
     );
   }, [onProjectRemoveData, projectId]);
@@ -233,13 +263,7 @@ export function ProjectActionMenu({
           (null as any)
         )}
       </ActionMenu>
-      <DialogContainer
-        type="modal"
-        isDismissable
-        onDismiss={() => setDialog(null)}
-      >
-        {dialog}
-      </DialogContainer>
+      {dialog}
     </div>
   );
 }

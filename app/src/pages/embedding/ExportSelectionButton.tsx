@@ -5,7 +5,26 @@ import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import CodeMirror from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
-import { Alert, Button, Dialog, DialogContainer, Disclosure, DisclosureGroup, DisclosurePanel, DisclosureTrigger, Download, Icon, Icons, List, ListItem, Loading, View } from "@phoenix/components";
+import { Download, List, ListItem } from "@arizeai/components";
+
+import {
+  Alert,
+  Button,
+  Dialog,
+  Disclosure,
+  DisclosureGroup,
+  DisclosurePanel,
+  DisclosureTrigger,
+  Icon,
+  Icons,
+  Loading,
+  View,
+} from "@phoenix/components";
+import {
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@phoenix/components/dialog";
 import { usePointCloudContext, useTheme } from "@phoenix/contexts";
 
 import { ExportSelectionButtonExportsQuery } from "./__generated__/ExportSelectionButtonExportsQuery.graphql";
@@ -84,13 +103,12 @@ export function ExportSelectionButton() {
       >
         {isInFlight ? "Exporting" : "Export"}
       </Button>
-      <DialogContainer
-        type="slideOver"
-        isDismissable
-        onDismiss={() => setExportInfo(null)}
-      >
-        {exportInfo != null && (
-          <Dialog title="Cluster Exports" size="M">
+      {exportInfo != null && (
+        <Dialog>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Cluster Exports</DialogTitle>
+            </DialogHeader>
             <Alert
               variant="success"
               banner
@@ -146,9 +164,9 @@ export function ExportSelectionButton() {
                 </DisclosurePanel>
               </Disclosure>
             </DisclosureGroup>
-          </Dialog>
-        )}
-      </DialogContainer>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }

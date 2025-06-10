@@ -1,8 +1,13 @@
 import { ReactNode, useState } from "react";
 import { css } from "@emotion/react";
 
-import { Button, Dialog, DialogContainer, Flex, Icon, Icons, View } from "@phoenix/components";
+import { Button, Dialog, Flex, Icon, Icons, View } from "@phoenix/components";
 import { CodeLanguage, CodeLanguageRadioGroup } from "@phoenix/components/code";
+import {
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@phoenix/components/dialog";
 
 import { PythonSessionsGuide } from "./PythonSessionsGuide";
 import { TypeScriptSessionsGuide } from "./TypeScriptSessionsGuide";
@@ -10,17 +15,25 @@ import { TypeScriptSessionsGuide } from "./TypeScriptSessionsGuide";
 function SetupSessionsDialog() {
   const [language, setLanguage] = useState<CodeLanguage>("Python");
   return (
-    <Dialog title="Setup Sessions for this Project" size="L">
-      <View padding="size-400" overflow="auto">
-        <View paddingBottom="size-100">
-          <CodeLanguageRadioGroup language={language} onChange={setLanguage} />
+    <Dialog>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Setup Sessions for this Project</DialogTitle>
+        </DialogHeader>
+        <View padding="size-400" overflow="auto">
+          <View paddingBottom="size-100">
+            <CodeLanguageRadioGroup
+              language={language}
+              onChange={setLanguage}
+            />
+          </View>
+          {language === "Python" ? (
+            <PythonSessionsGuide />
+          ) : (
+            <TypeScriptSessionsGuide />
+          )}
         </View>
-        {language === "Python" ? (
-          <PythonSessionsGuide />
-        ) : (
-          <TypeScriptSessionsGuide />
-        )}
-      </View>
+      </DialogContent>
     </Dialog>
   );
 }
@@ -53,13 +66,7 @@ export function SessionsTableEmpty() {
           </Flex>
         </td>
       </tr>
-      <DialogContainer
-        onDismiss={() => setDialog(null)}
-        isDismissable
-        type="slideOver"
-      >
-        {dialog}
-      </DialogContainer>
+      {dialog}
     </tbody>
   );
 }

@@ -1,10 +1,21 @@
 import { Suspense } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { useLoaderData, useNavigate, useParams } from "react-router";
+import { useLoaderData, useParams } from "react-router";
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
-import { Dialog, DialogContainer, Flex, Loading, View, ViewSummaryAside } from "@phoenix/components";
+import {
+  Dialog,
+  Flex,
+  Loading,
+  View,
+  ViewSummaryAside,
+} from "@phoenix/components";
+import {
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@phoenix/components/dialog";
 import { useInferences, useTimeRange } from "@phoenix/contexts";
 import { TimeSliceContextProvider } from "@phoenix/contexts/TimeSliceContext";
 import { dimensionLoader } from "@phoenix/pages/dimension/dimensionLoader";
@@ -34,7 +45,6 @@ export function DimensionPage() {
   // Only show cardinality if if the shape is non-continuous
   const showCardinality = loaderData.dimension.shape !== "continuous";
   const showQuantiles = loaderData.dimension.dataType === "numeric";
-  const navigate = useNavigate();
 
   const data = useLazyLoadQuery<DimensionPageQuery>(
     graphql`
@@ -77,12 +87,11 @@ export function DimensionPage() {
 
   return (
     <TimeSliceContextProvider initialTimestamp={new Date(timeRange.end)}>
-      <DialogContainer
-        type="slideOver"
-        isDismissable
-        onDismiss={() => navigate(-1)}
-      >
-        <Dialog size="L" title={loaderData.dimension.name}>
+      <Dialog>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{loaderData.dimension.name}</DialogTitle>
+          </DialogHeader>
           <main
             css={css`
               padding: var(--ac-global-dimension-static-size-100);
@@ -212,8 +221,8 @@ export function DimensionPage() {
               </Flex>
             </Suspense>
           </main>
-        </Dialog>
-      </DialogContainer>
+        </DialogContent>
+      </Dialog>
     </TimeSliceContextProvider>
   );
 }

@@ -2,7 +2,24 @@ import { useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Button, CloseOutline, Dialog, DialogContainer, Icon, Input, SearchField, Tab, TabList, TabPanel, Tabs, Text } from "@phoenix/components";
+import {
+  Button,
+  CloseOutline,
+  Dialog,
+  Icon,
+  Input,
+  SearchField,
+  Tab,
+  TabList,
+  TabPanel,
+  Tabs,
+  Text,
+} from "@phoenix/components";
+import {
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@phoenix/components/dialog";
 import { Toolbar } from "@phoenix/components/filter";
 import { SelectionDisplayRadioGroup } from "@phoenix/components/pointcloud";
 import { SelectionGridSizeRadioGroup } from "@phoenix/components/pointcloud/SelectionGridSizeRadioGroup";
@@ -339,17 +356,16 @@ export function PointSelectionPanelContent() {
           )}
         </TabPanel>
       </Tabs>
-      <DialogContainer
-        type="slideOver"
-        isDismissable
-        onDismiss={() => setSelectedDetailPointId(null)}
-      >
-        {eventDetails && (
-          <Dialog title="Embedding Details" size="L">
+      {eventDetails && (
+        <Dialog>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Embedding Details</DialogTitle>
+            </DialogHeader>
             <EventDetails event={eventDetails} />
-          </Dialog>
-        )}
-      </DialogContainer>
+          </DialogContent>
+        </Dialog>
+      )}
     </section>
   );
 }

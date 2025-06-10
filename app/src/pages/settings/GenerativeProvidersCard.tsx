@@ -8,7 +8,26 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
-import { Button, Card, CredentialField, CredentialInput, Dialog, DialogContainer, Flex, Form, Icon, Icons, Label, Text, View } from "@phoenix/components";
+import { Card } from "@arizeai/components";
+
+import {
+  Button,
+  CredentialField,
+  CredentialInput,
+  Dialog,
+  Flex,
+  Form,
+  Icon,
+  Icons,
+  Label,
+  Text,
+  View,
+} from "@phoenix/components";
+import {
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@phoenix/components/dialog";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { ProviderToCredentialsConfigMap } from "@phoenix/constants/generativeConstants";
@@ -179,16 +198,14 @@ export function GenerativeProvidersCard({
           })}
         </tbody>
       </table>
-      <DialogContainer
-        type="modal"
-        isDismissable={true}
-        onDismiss={() => setSelectedProvider(null)}
-      >
-        {selectedProvider && (
-          <Dialog
-            title={`Configure ${selectedProvider.name} Credentials`}
-            size="S"
-          >
+      {selectedProvider && (
+        <Dialog>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                Configure {selectedProvider.name} Credentials
+              </DialogTitle>
+            </DialogHeader>
             <View padding="size-200">
               <View paddingBottom="size-100">
                 <Text size="XS">
@@ -228,9 +245,9 @@ export function GenerativeProvidersCard({
                 </View>
               </Form>
             </View>
-          </Dialog>
-        )}
-      </DialogContainer>
+          </DialogContent>
+        </Dialog>
+      )}
     </Card>
   );
 }

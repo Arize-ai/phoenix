@@ -3,7 +3,20 @@ import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import { Button, Dialog, DialogContainer, Flex, Icon, Icons, Text, View } from "@phoenix/components";
+import {
+  Button,
+  Dialog,
+  Flex,
+  Icon,
+  Icons,
+  Text,
+  View,
+} from "@phoenix/components";
+import {
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@phoenix/components/dialog";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -78,31 +91,36 @@ export function ExperimentSelectionToolbar(
 
   const onPressDelete = useCallback(() => {
     setDialog(
-      <Dialog size="S" title="Delete Experiments">
-        <View padding="size-200">
-          <Text color="danger">
-            {`Are you sure you want to delete these experiments? This will also delete all associated annotations and traces, and it cannot be undone.`}
-          </Text>
-        </View>
-        <View
-          paddingEnd="size-200"
-          paddingTop="size-100"
-          paddingBottom="size-100"
-          borderTopColor="light"
-          borderTopWidth="thin"
-        >
-          <Flex direction="row" justifyContent="end">
-            <Button
-              variant="danger"
-              onPress={() => {
-                handleDelete();
-                setDialog(null);
-              }}
-            >
-              Delete Experiments
-            </Button>
-          </Flex>
-        </View>
+      <Dialog>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Experiments</DialogTitle>
+          </DialogHeader>
+          <View padding="size-200">
+            <Text color="danger">
+              {`Are you sure you want to delete these experiments? This will also delete all associated annotations and traces, and it cannot be undone.`}
+            </Text>
+          </View>
+          <View
+            paddingEnd="size-200"
+            paddingTop="size-100"
+            paddingBottom="size-100"
+            borderTopColor="light"
+            borderTopWidth="thin"
+          >
+            <Flex direction="row" justifyContent="end">
+              <Button
+                variant="danger"
+                onPress={() => {
+                  handleDelete();
+                  setDialog(null);
+                }}
+              >
+                Delete Experiments
+              </Button>
+            </Flex>
+          </View>
+        </DialogContent>
       </Dialog>
     );
   }, [handleDelete]);
@@ -169,13 +187,7 @@ export function ExperimentSelectionToolbar(
           </Flex>
         </Flex>
       </View>
-      <DialogContainer
-        onDismiss={() => {
-          setDialog(null);
-        }}
-      >
-        {dialog}
-      </DialogContainer>
+      {dialog}
     </div>
   );
 }

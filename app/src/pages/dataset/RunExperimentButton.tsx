@@ -1,11 +1,25 @@
 import { ReactNode, useCallback, useMemo, useState } from "react";
 
-import { Button, ButtonProps, Dialog, DialogContainer, ExternalLink, Icon, Icons, Text, View } from "@phoenix/components";
+import {
+  Button,
+  ButtonProps,
+  Dialog,
+  ExternalLink,
+  Icon,
+  Icons,
+  Text,
+  View,
+} from "@phoenix/components";
 import { IsAdmin, IsAuthenticated } from "@phoenix/components/auth";
 import { CodeLanguage, CodeLanguageRadioGroup } from "@phoenix/components/code";
 import { CodeWrap } from "@phoenix/components/code/CodeWrap";
 import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";
 import { TypeScriptBlockWithCopy } from "@phoenix/components/code/TypeScriptBlockWithCopy";
+import {
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@phoenix/components/dialog";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 
 const INSTALL_PHOENIX_PYTHON = `pip install arize-phoenix>=${window.Config.platformVersion}`;
@@ -192,17 +206,25 @@ function RunExperimentTypeScriptExample() {
 function RunExperimentExampleSwitcher() {
   const [language, setLanguage] = useState<CodeLanguage>("Python");
   return (
-    <Dialog title="Run Experiment" size="XL">
-      <View padding="size-400" overflow="auto">
-        <View paddingBottom="size-200">
-          <CodeLanguageRadioGroup language={language} onChange={setLanguage} />
+    <Dialog>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Run Experiment</DialogTitle>
+        </DialogHeader>
+        <View padding="size-400" overflow="auto">
+          <View paddingBottom="size-200">
+            <CodeLanguageRadioGroup
+              language={language}
+              onChange={setLanguage}
+            />
+          </View>
+          {language === "Python" ? (
+            <RunExperimentPythonExample />
+          ) : (
+            <RunExperimentTypeScriptExample />
+          )}
         </View>
-        {language === "Python" ? (
-          <RunExperimentPythonExample />
-        ) : (
-          <RunExperimentTypeScriptExample />
-        )}
-      </View>
+      </DialogContent>
     </Dialog>
   );
 }
@@ -226,15 +248,7 @@ export function RunExperimentButton({
       >
         Run Experiment
       </Button>
-      <DialogContainer
-        isDismissable
-        type="slideOver"
-        onDismiss={() => {
-          setDialog(null);
-        }}
-      >
-        {dialog}
-      </DialogContainer>
+      {dialog}
     </>
   );
 }

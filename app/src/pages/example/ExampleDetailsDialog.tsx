@@ -3,8 +3,23 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { css } from "@emotion/react";
 
-import { Card, CardProps, CopyToClipboardButton, Dialog, DialogContainer, Flex, Heading, LinkButton, View } from "@phoenix/components";
+import { Card, CardProps } from "@arizeai/components";
+
+import {
+  CopyToClipboardButton,
+  Dialog,
+  Flex,
+  Heading,
+  LinkButton,
+  View,
+} from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
+import {
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+} from "@phoenix/components/dialog";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useNotifySuccess } from "@phoenix/contexts";
@@ -18,7 +33,6 @@ import { ExampleExperimentRunsTable } from "./ExampleExperimentRunsTable";
  */
 export function ExampleDetailsDialog({
   exampleId,
-  onDismiss,
 }: {
   exampleId: string;
   onDismiss: () => void;
@@ -75,34 +89,34 @@ export function ExampleDetailsDialog({
   const { input, output, metadata } = revision;
   const notifySuccess = useNotifySuccess();
   return (
-    <DialogContainer type="slideOver" isDismissable onDismiss={onDismiss}>
-      <Dialog
-        size="XL"
-        title={`Example: ${exampleId}`}
-        extra={
-          <Flex direction="row" gap="size-100">
-            {sourceSpanInfo ? (
-              <LinkButton
-                size="S"
-                to={`/projects/${sourceSpanInfo.projectId}/traces/${sourceSpanInfo.traceId}?${SELECTED_SPAN_NODE_ID_PARAM}=${sourceSpanInfo.id}`}
-              >
-                View Source Span
-              </LinkButton>
-            ) : null}
-            <EditExampleButton
-              exampleId={exampleId as string}
-              currentRevision={revision}
-              onCompleted={() => {
-                notifySuccess({
-                  title: "Example updated",
-                  message: `Example ${exampleId} has been updated.`,
-                });
-                setFetchKey((key) => key + 1);
-              }}
-            />
-          </Flex>
-        }
-      >
+    <Dialog>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Example: {exampleId}</DialogTitle>
+          <DialogTitleExtra>
+            <Flex direction="row" gap="size-100">
+              {sourceSpanInfo ? (
+                <LinkButton
+                  size="S"
+                  to={`/projects/${sourceSpanInfo.projectId}/traces/${sourceSpanInfo.traceId}?${SELECTED_SPAN_NODE_ID_PARAM}=${sourceSpanInfo.id}`}
+                >
+                  View Source Span
+                </LinkButton>
+              ) : null}
+              <EditExampleButton
+                exampleId={exampleId as string}
+                currentRevision={revision}
+                onCompleted={() => {
+                  notifySuccess({
+                    title: "Example updated",
+                    message: `Example ${exampleId} has been updated.`,
+                  });
+                  setFetchKey((key) => key + 1);
+                }}
+              />
+            </Flex>
+          </DialogTitleExtra>
+        </DialogHeader>
         <PanelGroup direction="vertical" autoSaveId="example-panel-group">
           <Panel defaultSize={65}>
             <div
@@ -164,8 +178,8 @@ export function ExampleDetailsDialog({
             </Flex>
           </Panel>
         </PanelGroup>
-      </Dialog>
-    </DialogContainer>
+      </DialogContent>
+    </Dialog>
   );
 }
 

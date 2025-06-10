@@ -1,6 +1,17 @@
 import { css } from "@emotion/react";
 
-import { Alert, Dialog, ExternalLink, Flex, Heading, Input, Label, Text, TextField, View } from "@phoenix/components";
+import {
+  Alert,
+  Dialog,
+  ExternalLink,
+  Flex,
+  Heading,
+  Input,
+  Label,
+  Text,
+  TextField,
+  View,
+} from "@phoenix/components";
 import { CodeWrap, PythonBlockWithCopy } from "@phoenix/components/code";
 import { CopyToClipboardButton } from "@phoenix/components/CopyToClipboardButton";
 

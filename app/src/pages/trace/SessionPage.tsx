@@ -1,8 +1,12 @@
-import { useLoaderData, useNavigate, useParams } from "react-router";
+import { useLoaderData, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Dialog, DialogContainer, ErrorBoundary } from "@phoenix/components";
-import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
+import { Dialog, ErrorBoundary } from "@phoenix/components";
+import {
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@phoenix/components/dialog";
 import { sessionLoader } from "@phoenix/pages/trace/sessionLoader";
 
 import { SessionDetails } from "./SessionDetails";
@@ -14,22 +18,18 @@ export function SessionPage() {
   const loaderData = useLoaderData<typeof sessionLoader>();
   invariant(loaderData, "loaderData is required");
   const { sessionId } = useParams();
-  const navigate = useNavigate();
-  const { rootPath } = useProjectRootPath();
   return (
-    <DialogContainer
-      type="slideOver"
-      isDismissable
-      onDismiss={() => navigate(`${rootPath}/sessions`)}
-    >
-      <Dialog
-        size="fullscreen"
-        title={`Session ID: ${loaderData.session?.sessionId ?? "--"}`}
-      >
+    <Dialog>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
+            Session ID: {loaderData.session?.sessionId ?? "--"}
+          </DialogTitle>
+        </DialogHeader>
         <ErrorBoundary>
           <SessionDetails sessionId={sessionId as string} />
         </ErrorBoundary>
-      </Dialog>
-    </DialogContainer>
+      </DialogContent>
+    </Dialog>
   );
 }
