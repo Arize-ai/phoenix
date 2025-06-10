@@ -2,8 +2,6 @@ import { expect, test } from "@playwright/test";
 import { randomUUID } from "crypto";
 
 test.describe("Prompt Management", () => {
-  // CI doesn't have enough resources to run this test
-  test.skip(() => !!process.env.CI);
   test.beforeEach(async ({ page }) => {
     page.goto(`/login`);
 

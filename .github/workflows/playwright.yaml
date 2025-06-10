@@ -28,7 +28,8 @@ jobs:
       fail-fast: true
       matrix:
         py: [3.13]
-        os: [ubuntu-latest, macos-latest]
+        # large runners have more disk space, which we need for our in-runner phoenix db
+        os: [oss-4-core-runner, macos-latest-large]
     steps:
       - uses: actions/checkout@v4
       - name: Install PNPM
