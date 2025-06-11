@@ -1403,7 +1403,7 @@ class TestClientForSpanCreation:
 
             # Verify complex nested object attributes using JSON comparison for order-independence
             import ast
-            
+
             def compare_nested_objects(val1: Any, val2: Any) -> bool:
                 """Compare complex nested objects, handling different key orders."""
                 try:
@@ -1416,19 +1416,17 @@ class TestClientForSpanCreation:
                 except (ValueError, SyntaxError):
                     # If parsing fails, fallback to string comparison
                     return str(val1) == str(val2)
-            
+
             assert compare_nested_objects(row["attributes.url"], orig_row["attributes.url"])
             assert compare_nested_objects(
                 row["attributes.llm.prompt_template.variables"],
-                orig_row["attributes.llm.prompt_template.variables"]
+                orig_row["attributes.llm.prompt_template.variables"],
             )
 
             # Verify list attributes with complex objects using order-independent comparison
             assert compare_nested_objects(
-                row["attributes.llm.input_messages"],
-                orig_row["attributes.llm.input_messages"]
+                row["attributes.llm.input_messages"], orig_row["attributes.llm.input_messages"]
             )
             assert compare_nested_objects(
-                row["attributes.llm.output_messages"],
-                orig_row["attributes.llm.output_messages"]
+                row["attributes.llm.output_messages"], orig_row["attributes.llm.output_messages"]
             )
