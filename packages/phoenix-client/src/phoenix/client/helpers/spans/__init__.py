@@ -350,24 +350,14 @@ def dataframe_to_spans(df: "pd.DataFrame") -> list[v1.Span]:
                 if events is not None and not pd.isna(events):  # pyright: ignore[reportGeneralTypeIssues,reportUnknownMemberType,reportUnknownArgumentType]
                     # Handle various types that events might be
                     if hasattr(events, "__len__"):  # pyright: ignore
-                        # Check if it's a numpy array or similar with size attribute
-                        if hasattr(events, "size"):  # pyright: ignore
-                            # For numpy arrays, check size > 0
-                            if events.size > 0:  # pyright: ignore
-                                span["events"] = list(events)  # pyright: ignore
-                        elif len(events) > 0:  # pyright: ignore
-                            # For regular sequences
+                        if len(events) > 0:  # pyright: ignore
                             if isinstance(events, list):
                                 span["events"] = events
                             else:
-                                # Convert array-like to list
                                 span["events"] = list(events)  # pyright: ignore
-                    # pyright: ignore for pandas Series boolean operations
                     elif events:  # pyright: ignore[reportGeneralTypeIssues]
-                        # Single event, not a sequence
                         span["events"] = [events]
             except (ValueError, TypeError):
-                # If we can't determine the length or convert, skip events
                 pass
 
         # Reconstruct attributes from flattened columns

@@ -503,22 +503,7 @@ class Spans:
         spans: Sequence[v1.Span],
     ) -> v1.CreateSpansResponseBody:
         """Parse the response from create spans request."""
-        response_data = response.json()
-
-        # Check if this is a FastAPI validation error (has 'detail' field)
-        if response.status_code == 422 and "detail" in response_data:
-            error_response = self._parse_validation_error_response(response_data, spans)
-            self._raise_span_creation_error(error_response)
-
-        if response.status_code == 400 and "detail" in response_data:
-            detail = response_data["detail"]
-
-            # For 400 errors, the server now returns properly formatted JSON in the detail field
-            parsed_detail = json.loads(detail)
-            self._raise_span_creation_error(parsed_detail)
-
-        # For successful responses (202), return the response data directly
-        return cast(v1.CreateSpansResponseBody, response_data)
+        return _parse_log_spans_response(response, spans)
 
     def _parse_validation_error_response(
         self,
@@ -526,24 +511,7 @@ class Spans:
         spans: Sequence[v1.Span],
     ) -> v1.CreateSpansResponseBody:
         """Convert FastAPI validation errors to our expected format."""
-        invalid_spans: list[InvalidSpanInfo] = []
-
-        for error in response_data.get("detail", []):
-            invalid_span = self._extract_invalid_span_from_error(error, spans)
-            if invalid_span:
-                invalid_spans.append(invalid_span)
-
-        return cast(
-            v1.CreateSpansResponseBody,
-            {
-                "total_received": len(spans),
-                "total_queued": len(spans) - len(invalid_spans),
-                "total_duplicates": 0,
-                "total_invalid": len(invalid_spans),
-                "duplicate_spans": [],
-                "invalid_spans": invalid_spans,
-            },
-        )
+        return _parse_log_spans_validation_error(response_data, spans)
 
     def _extract_invalid_span_from_error(
         self,
@@ -551,120 +519,20 @@ class Spans:
         spans: Sequence[v1.Span],
     ) -> Optional[InvalidSpanInfo]:
         """Extract invalid span info from a validation error."""
-        loc_raw = error.get("loc", [])
-        if not isinstance(loc_raw, list):
-            return None
-
-        loc: list[Any] = loc_raw  # Type annotation to help pyright
-        if not (
-            len(loc) >= 3 and loc[0] == "body" and loc[1] == "data" and isinstance(loc[2], int)
-        ):
-            return None
-
-        span_index = loc[2]
-        if span_index >= len(spans):
-            return None
-
-        span: Any = spans[span_index]
-        span_dict = cast(dict[str, Any], span)
-        return {
-            "span_id": span_dict.get("context", {}).get("span_id", "unknown"),
-            "trace_id": span_dict.get("context", {}).get("trace_id", "unknown"),
-            "error": error.get("msg", "Validation error"),
-        }
+        return _extract_invalid_span_from_log_spans_error(error, spans)
 
     def _handle_create_spans_result(
         self,
         result: v1.CreateSpansResponseBody,
     ) -> None:
         """Handle any errors from the create spans result."""
-        # Extract statistics
-        total_received = result.get("total_received", 0)
-        total_queued = result.get("total_queued", 0)
-        total_invalid = result.get("total_invalid", 0)
-        total_duplicates = result.get("total_duplicates", 0)
-        invalid_spans = result.get("invalid_spans", [])
-        duplicate_spans = result.get("duplicate_spans", [])
+        _handle_log_spans_result(result)
 
-        # If there are any failures, raise an error
-        if total_invalid > 0 or total_duplicates > 0:
-            error_msg = self._format_error_message(
-                total_invalid=total_invalid,
-                total_duplicates=total_duplicates,
-                invalid_spans=invalid_spans,
-                duplicate_spans=duplicate_spans,
-            )
-            raise SpanCreationError(
-                message=error_msg,
-                invalid_spans=list(invalid_spans),
-                duplicate_spans=list(duplicate_spans),
-                total_received=total_received,
-                total_queued=total_queued,
-                total_invalid=total_invalid,
-                total_duplicates=total_duplicates,
-            )
-
-    def _format_error_message(
-        self,
-        *,
-        total_invalid: int,
-        total_duplicates: int,
-        invalid_spans: Sequence[InvalidSpanInfo],
-        duplicate_spans: Sequence[DuplicateSpanInfo],
-    ) -> str:
-        """Format error message for failed spans."""
-        MAX_ERRORS_TO_SHOW = 5
-        error_parts: list[str] = []
-
-        if total_invalid > 0:
-            error_parts.append(f"Failed to queue {total_invalid} invalid spans:")
-            for invalid_span in invalid_spans[:MAX_ERRORS_TO_SHOW]:
-                span_id = invalid_span.get("span_id", "unknown")
-                error = invalid_span.get("error", "unknown error")
-                error_parts.append(f"  - Span {span_id}: {error}")
-            if len(invalid_spans) > MAX_ERRORS_TO_SHOW:
-                error_parts.append(
-                    f"  ... and {len(invalid_spans) - MAX_ERRORS_TO_SHOW} more invalid spans"
-                )
-
-        if total_duplicates > 0:
-            if error_parts:
-                error_parts.append("")  # Add blank line
-            error_parts.append(f"Found {total_duplicates} duplicate spans:")
-            for dup_span in duplicate_spans[:MAX_ERRORS_TO_SHOW]:
-                span_id = dup_span.get("span_id", "unknown")
-                error_parts.append(f"  - Span {span_id}")
-            if len(duplicate_spans) > MAX_ERRORS_TO_SHOW:
-                error_parts.append(
-                    f"  ... and {len(duplicate_spans) - MAX_ERRORS_TO_SHOW} more duplicates"
-                )
-
-        return "\n".join(error_parts)
-
-    def _raise_span_creation_error(self, error_data: Union[dict[str, Any], v1.CreateSpansResponseBody]) -> None:
+    def _raise_span_creation_error(
+        self, error_data: Union[dict[str, Any], v1.CreateSpansResponseBody]
+    ) -> None:
         """Raise SpanCreationError from error response data."""
-        total_received = error_data.get("total_received", 0)
-        total_queued = error_data.get("total_queued", 0)
-        total_invalid = error_data.get("total_invalid", 0)
-        total_duplicates = error_data.get("total_duplicates", 0)
-        invalid_spans = error_data.get("invalid_spans", [])
-        duplicate_spans = error_data.get("duplicate_spans", [])
-
-        error_msg = self._format_error_message(
-            total_invalid=total_invalid,
-            total_duplicates=total_duplicates,
-            invalid_spans=invalid_spans,
-            duplicate_spans=duplicate_spans,
-        )
-        raise SpanCreationError(
-            message=error_msg,
-            invalid_spans=list(invalid_spans),
-            duplicate_spans=list(duplicate_spans),
-            total_received=total_received,
-            total_queued=total_queued,
-            total_invalid=total_invalid,
-            total_duplicates=total_duplicates,
-        )
+        _raise_log_spans_error(error_data)
 
 
 class AsyncSpans:
@@ -1137,6 +1005,8 @@ class AsyncSpans:
             timeout=timeout,
         )
 
+        # For 400 and 422 errors, the server returns structured error information
+        # Don't raise for these, but do raise for other error status codes
         if response.status_code not in (400, 422):
             response.raise_for_status()
 
@@ -1148,19 +1018,7 @@ class AsyncSpans:
         spans: Sequence[v1.Span],
     ) -> v1.CreateSpansResponseBody:
         """Parse the response from create spans request."""
-        response_data = response.json()
-
-        if response.status_code == 422 and "detail" in response_data:
-            error_response = self._parse_validation_error_response(response_data, spans)
-            self._raise_span_creation_error(error_response)
-
-        if response.status_code == 400 and "detail" in response_data:
-            detail = response_data["detail"]
-            # For 400 errors, the server now returns properly formatted JSON in the detail field
-            parsed_detail = json.loads(detail)
-            self._raise_span_creation_error(parsed_detail)
-
-        return cast(v1.CreateSpansResponseBody, response_data)
+        return _parse_log_spans_response(response, spans)
 
     def _parse_validation_error_response(
         self,
@@ -1168,24 +1026,7 @@ class AsyncSpans:
         spans: Sequence[v1.Span],
     ) -> v1.CreateSpansResponseBody:
         """Convert FastAPI validation errors to our expected format."""
-        invalid_spans: list[InvalidSpanInfo] = []
-
-        for error in response_data.get("detail", []):
-            invalid_span = self._extract_invalid_span_from_error(error, spans)
-            if invalid_span:
-                invalid_spans.append(invalid_span)
-
-        return cast(
-            v1.CreateSpansResponseBody,
-            {
-                "total_received": len(spans),
-                "total_queued": len(spans) - len(invalid_spans),
-                "total_duplicates": 0,
-                "total_invalid": len(invalid_spans),
-                "duplicate_spans": [],
-                "invalid_spans": invalid_spans,
-            },
-        )
+        return _parse_log_spans_validation_error(response_data, spans)
 
     def _extract_invalid_span_from_error(
         self,
@@ -1193,120 +1034,20 @@ class AsyncSpans:
         spans: Sequence[v1.Span],
     ) -> Optional[InvalidSpanInfo]:
         """Extract invalid span info from a validation error."""
-        loc_raw = error.get("loc", [])
-        if not isinstance(loc_raw, list):
-            return None
-
-        loc: list[Any] = loc_raw  # Type annotation to help pyright
-        if not (
-            len(loc) >= 3 and loc[0] == "body" and loc[1] == "data" and isinstance(loc[2], int)
-        ):
-            return None
-
-        span_index = loc[2]
-        if span_index >= len(spans):
-            return None
-
-        span: Any = spans[span_index]
-        span_dict = cast(dict[str, Any], span)
-        return {
-            "span_id": span_dict.get("context", {}).get("span_id", "unknown"),
-            "trace_id": span_dict.get("context", {}).get("trace_id", "unknown"),
-            "error": error.get("msg", "Validation error"),
-        }
+        return _extract_invalid_span_from_log_spans_error(error, spans)
 
     def _handle_create_spans_result(
         self,
         result: v1.CreateSpansResponseBody,
     ) -> None:
         """Handle any errors from the create spans result."""
-        # Extract statistics
-        total_received = result.get("total_received", 0)
-        total_queued = result.get("total_queued", 0)
-        total_invalid = result.get("total_invalid", 0)
-        total_duplicates = result.get("total_duplicates", 0)
-        invalid_spans = result.get("invalid_spans", [])
-        duplicate_spans = result.get("duplicate_spans", [])
+        _handle_log_spans_result(result)
 
-        # If there are any failures, raise an error
-        if total_invalid > 0 or total_duplicates > 0:
-            error_msg = self._format_error_message(
-                total_invalid=total_invalid,
-                total_duplicates=total_duplicates,
-                invalid_spans=invalid_spans,
-                duplicate_spans=duplicate_spans,
-            )
-            raise SpanCreationError(
-                message=error_msg,
-                invalid_spans=list(invalid_spans),
-                duplicate_spans=list(duplicate_spans),
-                total_received=total_received,
-                total_queued=total_queued,
-                total_invalid=total_invalid,
-                total_duplicates=total_duplicates,
-            )
-
-    def _format_error_message(
-        self,
-        *,
-        total_invalid: int,
-        total_duplicates: int,
-        invalid_spans: Sequence[InvalidSpanInfo],
-        duplicate_spans: Sequence[DuplicateSpanInfo],
-    ) -> str:
-        """Format error message for failed spans."""
-        MAX_ERRORS_TO_SHOW = 5
-        error_parts: list[str] = []
-
-        if total_invalid > 0:
-            error_parts.append(f"Failed to queue {total_invalid} invalid spans:")
-            for invalid_span in invalid_spans[:MAX_ERRORS_TO_SHOW]:
-                span_id = invalid_span.get("span_id", "unknown")
-                error = invalid_span.get("error", "unknown error")
-                error_parts.append(f"  - Span {span_id}: {error}")
-            if len(invalid_spans) > MAX_ERRORS_TO_SHOW:
-                error_parts.append(
-                    f"  ... and {len(invalid_spans) - MAX_ERRORS_TO_SHOW} more invalid spans"
-                )
-
-        if total_duplicates > 0:
-            if error_parts:
-                error_parts.append("")  # Add blank line
-            error_parts.append(f"Found {total_duplicates} duplicate spans:")
-            for dup_span in duplicate_spans[:MAX_ERRORS_TO_SHOW]:
-                span_id = dup_span.get("span_id", "unknown")
-                error_parts.append(f"  - Span {span_id}")
-            if len(duplicate_spans) > MAX_ERRORS_TO_SHOW:
-                error_parts.append(
-                    f"  ... and {len(duplicate_spans) - MAX_ERRORS_TO_SHOW} more duplicates"
-                )
-
-        return "\n".join(error_parts)
-
-    def _raise_span_creation_error(self, error_data: Union[dict[str, Any], v1.CreateSpansResponseBody]) -> None:
+    def _raise_span_creation_error(
+        self, error_data: Union[dict[str, Any], v1.CreateSpansResponseBody]
+    ) -> None:
         """Raise SpanCreationError from error response data."""
-        total_received = error_data.get("total_received", 0)
-        total_queued = error_data.get("total_queued", 0)
-        total_invalid = error_data.get("total_invalid", 0)
-        total_duplicates = error_data.get("total_duplicates", 0)
-        invalid_spans = error_data.get("invalid_spans", [])
-        duplicate_spans = error_data.get("duplicate_spans", [])
-
-        error_msg = self._format_error_message(
-            total_invalid=total_invalid,
-            total_duplicates=total_duplicates,
-            invalid_spans=invalid_spans,
-            duplicate_spans=duplicate_spans,
-        )
-        raise SpanCreationError(
-            message=error_msg,
-            invalid_spans=list(invalid_spans),
-            duplicate_spans=list(duplicate_spans),
-            total_received=total_received,
-            total_queued=total_queued,
-            total_invalid=total_invalid,
-            total_duplicates=total_duplicates,
-        )
+        _raise_log_spans_error(error_data)
 
 
 def _to_iso_format(value: Optional[datetime]) -> Optional[str]:
@@ -1379,3 +1120,167 @@ def _flatten_nested_column(df: "pd.DataFrame", column_name: str) -> "pd.DataFram
         )
         df = pd.concat([df.drop(columns=[column_name]), nested_df], axis=1)
     return df
+
+
+def _format_log_spans_error_message(
+    *,
+    total_invalid: int,
+    total_duplicates: int,
+    invalid_spans: Sequence[InvalidSpanInfo],
+    duplicate_spans: Sequence[DuplicateSpanInfo],
+) -> str:
+    MAX_ERRORS_TO_SHOW = 5
+    error_parts: list[str] = []
+
+    if total_invalid > 0:
+        error_parts.append(f"Failed to queue {total_invalid} invalid spans:")
+        for invalid_span in invalid_spans[:MAX_ERRORS_TO_SHOW]:
+            span_id = invalid_span.get("span_id", "unknown")
+            error = invalid_span.get("error", "unknown error")
+            error_parts.append(f"  - Span {span_id}: {error}")
+        if len(invalid_spans) > MAX_ERRORS_TO_SHOW:
+            error_parts.append(
+                f"  ... and {len(invalid_spans) - MAX_ERRORS_TO_SHOW} more invalid spans"
+            )
+
+    if total_duplicates > 0:
+        if error_parts:
+            error_parts.append("")  # Add blank line
+        error_parts.append(f"Found {total_duplicates} duplicate spans:")
+        for dup_span in duplicate_spans[:MAX_ERRORS_TO_SHOW]:
+            span_id = dup_span.get("span_id", "unknown")
+            error_parts.append(f"  - Span {span_id}")
+        if len(duplicate_spans) > MAX_ERRORS_TO_SHOW:
+            error_parts.append(
+                f"  ... and {len(duplicate_spans) - MAX_ERRORS_TO_SHOW} more duplicates"
+            )
+
+    return "\n".join(error_parts)
+
+
+def _parse_log_spans_response(
+    response: httpx.Response,
+    spans: Sequence[v1.Span],
+) -> v1.CreateSpansResponseBody:
+    """Parse the response from create spans request."""
+    response_data = response.json()
+
+    if response.status_code == 422 and "detail" in response_data:
+        error_response = _parse_log_spans_validation_error(response_data, spans)
+        _raise_log_spans_error(error_response)
+
+    if response.status_code == 400 and "detail" in response_data:
+        detail = response_data["detail"]
+        # For 400 errors, the server now returns properly formatted JSON in the detail field
+        parsed_detail = json.loads(detail)
+        _raise_log_spans_error(parsed_detail)
+
+    return cast(v1.CreateSpansResponseBody, response_data)
+
+
+def _parse_log_spans_validation_error(
+    response_data: dict[str, Any],
+    spans: Sequence[v1.Span],
+) -> v1.CreateSpansResponseBody:
+    """Convert FastAPI validation errors to our expected format."""
+    invalid_spans: list[InvalidSpanInfo] = []
+
+    for error in response_data.get("detail", []):
+        invalid_span = _extract_invalid_span_from_log_spans_error(error, spans)
+        if invalid_span:
+            invalid_spans.append(invalid_span)
+
+    return cast(
+        v1.CreateSpansResponseBody,
+        {
+            "total_received": len(spans),
+            "total_queued": len(spans) - len(invalid_spans),
+            "total_duplicates": 0,
+            "total_invalid": len(invalid_spans),
+            "duplicate_spans": [],
+            "invalid_spans": invalid_spans,
+        },
+    )
+
+
+def _extract_invalid_span_from_log_spans_error(
+    error: dict[str, Any],
+    spans: Sequence[v1.Span],
+) -> Optional[InvalidSpanInfo]:
+    """Extract invalid span info from a validation error."""
+    loc_raw = error.get("loc", [])
+    if not isinstance(loc_raw, list):
+        return None
+
+    loc: list[Any] = loc_raw  # Type annotation to help pyright
+    if not (len(loc) >= 3 and loc[0] == "body" and loc[1] == "data" and isinstance(loc[2], int)):
+        return None
+
+    span_index = loc[2]
+    if span_index >= len(spans):
+        return None
+
+    span: Any = spans[span_index]
+    span_dict = cast(dict[str, Any], span)
+    return {
+        "span_id": span_dict.get("context", {}).get("span_id", "unknown"),
+        "trace_id": span_dict.get("context", {}).get("trace_id", "unknown"),
+        "error": error.get("msg", "Validation error"),
+    }
+
+
+def _handle_log_spans_result(
+    result: v1.CreateSpansResponseBody,
+) -> None:
+    """Handle any errors from the create spans result."""
+    total_received = result.get("total_received", 0)
+    total_queued = result.get("total_queued", 0)
+    total_invalid = cast(int, result.get("total_invalid", 0))
+    total_duplicates = cast(int, result.get("total_duplicates", 0))
+    invalid_spans = cast(list[InvalidSpanInfo], result.get("invalid_spans", []))
+    duplicate_spans = cast(list[DuplicateSpanInfo], result.get("duplicate_spans", []))
+
+    if total_invalid > 0 or total_duplicates > 0:
+        error_msg = _format_log_spans_error_message(
+            total_invalid=total_invalid,
+            total_duplicates=total_duplicates,
+            invalid_spans=invalid_spans,
+            duplicate_spans=duplicate_spans,
+        )
+        raise SpanCreationError(
+            message=error_msg,
+            invalid_spans=list(invalid_spans),
+            duplicate_spans=list(duplicate_spans),
+            total_received=total_received,
+            total_queued=total_queued,
+            total_invalid=total_invalid,
+            total_duplicates=total_duplicates,
+        )
+
+
+def _raise_log_spans_error(
+    error_data: Union[dict[str, Any], v1.CreateSpansResponseBody],
+) -> None:
+    """Raise SpanCreationError from error response data."""
+    total_received = error_data.get("total_received", 0)
+    total_queued = error_data.get("total_queued", 0)
+    total_invalid = cast(int, error_data.get("total_invalid", 0))
+    total_duplicates = cast(int, error_data.get("total_duplicates", 0))
+    invalid_spans = cast(list[InvalidSpanInfo], error_data.get("invalid_spans", []))
+    duplicate_spans = cast(list[DuplicateSpanInfo], error_data.get("duplicate_spans", []))
+
+    error_msg = _format_log_spans_error_message(
+        total_invalid=total_invalid,
+        total_duplicates=total_duplicates,
+        invalid_spans=invalid_spans,
+        duplicate_spans=duplicate_spans,
+    )
+    raise SpanCreationError(
+        message=error_msg,
+        invalid_spans=list(invalid_spans),
+        duplicate_spans=list(duplicate_spans),
+        total_received=total_received,
+        total_queued=total_queued,
+        total_invalid=total_invalid,
+        total_duplicates=total_duplicates,
+    )
