@@ -1357,6 +1357,17 @@ class TestProject:
                 res = await self._node(field, project, httpx_client)
                 assert [e["node"]["id"] for e in res["edges"]] == expected
 
+    async def test_filter_by_session_id(
+        self,
+        _data: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        project = _data.projects[0]
+        session = _data.project_sessions[0]
+        field = 'sessions(sessionId:"' + session.session_id + '"){edges{node{id}}}'
+        res = await self._node(field, project, httpx_client)
+        assert [e["node"]["id"] for e in res["edges"]] == [_gid(session)]
+
     async def test_sessions_sort_token_count_total_plus_substring_filter(
         self,
         _data: _Data,

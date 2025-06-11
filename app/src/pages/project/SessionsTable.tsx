@@ -111,6 +111,7 @@ export function SessionsTable(props: SessionsTableProps) {
             defaultValue: { col: startTime, dir: desc }
           }
           filterIoSubstring: { type: "String", defaultValue: null }
+          sessionId: { type: "String", defaultValue: null }
         ) {
           name
           sessions(
@@ -119,6 +120,7 @@ export function SessionsTable(props: SessionsTableProps) {
             sort: $sort
             filterIoSubstring: $filterIoSubstring
             timeRange: $timeRange
+            sessionId: $sessionId
           ) @connection(key: "SessionsTable_sessions") {
             edges {
               session: node {
@@ -246,6 +248,7 @@ export function SessionsTable(props: SessionsTableProps) {
           after: null,
           first: PAGE_SIZE,
           filterIoSubstring: filterIoSubstring,
+          sessionId: filterIoSubstring,
         },
         { fetchPolicy: "store-and-network" }
       );
