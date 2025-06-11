@@ -74,6 +74,8 @@ jobs:
       - run: uv pip install --system uvloop
         if: runner.os != 'Windows'
       - run: uv sync --extra container
+      - run: uv pip install arize-phoenix-evals@../packages/phoenix-evals
+      - run: uv pip install arize-phoenix-otel@../packages/phoenix-otel
       - name: Run Playwright tests
         run: pnpm exec playwright test
       - uses: actions/upload-artifact@v4
