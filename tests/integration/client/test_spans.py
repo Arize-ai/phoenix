@@ -941,22 +941,26 @@ class TestClientForSpanCreation:
         assert result["total_invalid"] == 0
         assert result["total_duplicates"] == 0
 
-        # Test 2: Duplicate checking
+        # Test 2: Duplicate span rejection - entire batch should fail
         import time
 
         time.sleep(1)  # Give the server time to process
 
-        duplicate_result = client.spans.create_spans(
-            project_identifier="default",
-            spans=[test_spans[0]],  # Try to create parent span again
-        )
+        # Try to create duplicate span - should raise SpanCreationError
+        with pytest.raises(SpanCreationError) as exc_info:
+            client.spans.create_spans(
+                project_identifier="default",
+                spans=[test_spans[0]],  # Try to create parent span again
+            )
 
-        assert duplicate_result["total_received"] == 1
-        assert duplicate_result["total_queued"] == 0
-        assert duplicate_result["total_duplicates"] == 1
-        assert len(duplicate_result.get("duplicate_spans", [])) == 1
+        error = exc_info.value
+        assert error.total_received == 1
+        assert error.total_queued == 0
+        assert error.total_duplicates == 1
+        assert error.total_invalid == 0
+        assert len(error.duplicate_spans) == 1
 
-        # Test 3: Invalid span handling with both valid and invalid spans
+        # Test 3: Invalid span handling - entire batch should fail if any span is invalid
         valid_span = cast(
             v1.Span,
             {
@@ -987,28 +991,44 @@ class TestClientForSpanCreation:
             },
         )
 
-        # Without raise_on_error
-        invalid_result = client.spans.create_spans(
-            project_identifier="default",
-            spans=[valid_span, invalid_span],
-            raise_on_error=False,
-        )
-
-        assert invalid_result["total_received"] == 2
-        assert invalid_result["total_queued"] == 1
-        assert invalid_result["total_invalid"] == 1
-        assert len(invalid_result.get("invalid_spans", [])) == 1
-
-        # With raise_on_error
+        # With both valid and invalid spans - entire batch should fail
         with pytest.raises(SpanCreationError) as exc_info:
             client.spans.create_spans(
                 project_identifier="default",
                 spans=[valid_span, invalid_span],
-                raise_on_error=True,
             )
 
         error = exc_info.value
+        assert error.total_received == 2
+        assert error.total_queued == 0
         assert error.total_invalid == 1
+        assert error.total_duplicates == 0
+        assert len(error.invalid_spans) == 1
+
+        # Test 4: Valid spans should succeed when no invalid/duplicate spans are present
+        another_valid_span = cast(
+            v1.Span,
+            {
+                "name": "another_valid_span",
+                "context": {
+                    "trace_id": f"trace_{token_hex(16)}",
+                    "span_id": f"span_{token_hex(8)}",
+                },
+                "span_kind": "CHAIN",
+                "start_time": datetime.now(timezone.utc).isoformat(),
+                "end_time": (datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat(),
+                "status_code": "OK",
+            },
+        )
+
+        result = client.spans.create_spans(
+            project_identifier="default",
+            spans=[another_valid_span],
+        )
+        assert result["total_received"] == 1
+        assert result["total_queued"] == 1
+        assert result["total_invalid"] == 0
+        assert result["total_duplicates"] == 0
 
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_batch_span_creation_and_retrieval(
@@ -1118,45 +1138,323 @@ class TestClientForSpanCreation:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Test uniquify_spans utility works correctly with span creation."""
+        # Override random seed to avoid deterministic collisions with pytest-randomly
+        import random
+
+        original_state = random.getstate()
+        try:
+            random.seed(10)
+
+            user = _get_user(_MEMBER).log_in()
+            monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+
+            from phoenix.client import Client
+            from phoenix.client.helpers.spans import uniquify_spans
+
+            # Create spans with the same IDs
+            shared_trace_id = f"trace_{token_hex(16)}"
+            shared_span_id = f"span_{token_hex(8)}"
+
+            original_spans: list[v1.Span] = [
+                cast(
+                    v1.Span,
+                    {
+                        "name": "test_span",
+                        "context": {"trace_id": shared_trace_id, "span_id": shared_span_id},
+                        "span_kind": "CHAIN",
+                        "start_time": datetime.now(timezone.utc).isoformat(),
+                        "end_time": (datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat(),
+                        "status_code": "OK",
+                    },
+                ),
+            ]
+
+            # Create the original span
+            result1 = Client().spans.create_spans(
+                project_identifier="default",
+                spans=original_spans,
+            )
+            assert result1["total_queued"] == 1
+
+            # Regenerate IDs and create again
+            new_spans = uniquify_spans(original_spans, in_place=False)
+            assert new_spans[0]["context"]["trace_id"] != shared_trace_id
+            assert new_spans[0]["context"]["span_id"] != shared_span_id
+
+            result2 = Client().spans.create_spans(
+                project_identifier="default",
+                spans=new_spans,
+            )
+            assert result2["total_queued"] == 1
+            assert result2["total_duplicates"] == 0
+        finally:
+            random.setstate(original_state)
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_dataframe_to_spans_integration(
+        self,
+        is_async: bool,
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test dataframe_to_spans helper function with real data."""
+        import random
+
+        original_state = random.getstate()
+        try:
+            unique_seed = int(1 + (1 if is_async else 2))
+            random.seed(unique_seed)
+
+            user = _get_user(_MEMBER).log_in()
+            monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+
+            from phoenix.client import AsyncClient
+            from phoenix.client import Client as SyncClient
+            from phoenix.client.helpers.spans import dataframe_to_spans
+
+            Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+            # Create test spans with various attributes and events
+            trace_id = f"trace_{token_hex(16)}"
+            parent_span_id = f"span_{token_hex(8)}"
+            child_span_id = f"span_{token_hex(8)}"
+
+            test_spans: list[v1.Span] = [
+                cast(
+                    v1.Span,
+                    {
+                        "name": "parent_span",
+                        "context": {"trace_id": trace_id, "span_id": parent_span_id},
+                        "span_kind": "CHAIN",
+                        "start_time": datetime.now(timezone.utc).isoformat(),
+                        "end_time": (datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat(),
+                        "status_code": "OK",
+                        "attributes": {
+                            "input.value": "test input",
+                            "output.value": "test output",
+                            "metadata.key": "metadata_value",
+                        },
+                        "events": [
+                            {
+                                "name": "test_event",
+                                "timestamp": datetime.now(timezone.utc).isoformat(),
+                                "attributes": {"event_attr": "event_value"},
+                            }
+                        ],
+                    },
+                ),
+                cast(
+                    v1.Span,
+                    {
+                        "name": "child_span",
+                        "context": {"trace_id": trace_id, "span_id": child_span_id},
+                        "span_kind": "LLM",
+                        "parent_id": parent_span_id,
+                        "start_time": datetime.now(timezone.utc).isoformat(),
+                        "end_time": (datetime.now(timezone.utc) + timedelta(seconds=2)).isoformat(),
+                        "status_code": "OK",
+                        "attributes": {"llm.model": "gpt-4", "llm.temperature": 0.7},
+                    },
+                ),
+            ]
+
+            # Create the spans
+            result = await _await_or_return(
+                Client().spans.create_spans(
+                    project_identifier="default",
+                    spans=test_spans,
+                )
+            )
+            assert result["total_queued"] == 2
+
+            # Wait for spans to be indexed
+            import asyncio
+
+            await asyncio.sleep(2)
+
+            # Get spans as DataFrame
+            df = await _await_or_return(
+                Client().spans.get_spans_dataframe(
+                    project_identifier="default",
+                    limit=100,
+                )
+            )
+
+            # Find our spans in the DataFrame
+            our_spans_mask = df["context.trace_id"] == trace_id
+            our_df = df[our_spans_mask].copy()
+
+            if len(our_df) == 0:
+                pytest.skip("Could not find test spans in DataFrame")
+
+            # Convert DataFrame back to spans - ONLY work with our test spans
+            reconstructed_spans = dataframe_to_spans(our_df)
+
+            # Verify we got the right number of spans
+            assert len(reconstructed_spans) == 2
+
+            # Group by name for easier verification
+            spans_by_name = {span["name"]: span for span in reconstructed_spans}
+
+            # Verify parent span
+            assert "parent_span" in spans_by_name
+            parent_span = spans_by_name["parent_span"]
+            assert parent_span["span_kind"] == "CHAIN"
+            assert parent_span["status_code"] == "OK"
+            assert parent_span["context"]["trace_id"] == trace_id
+            assert parent_span["context"]["span_id"] == parent_span_id
+
+            # Verify attributes were reconstructed
+            if "attributes" in parent_span:
+                attrs = parent_span["attributes"]
+                assert (
+                    "input.value" in attrs or "input_value" in attrs
+                )  # Flattening may change keys
+                assert "output.value" in attrs or "output_value" in attrs
+
+            # Verify child span
+            assert "child_span" in spans_by_name
+            child_span = spans_by_name["child_span"]
+            assert child_span["span_kind"] == "LLM"
+            assert child_span.get("parent_id") == parent_span_id
+            assert child_span["context"]["trace_id"] == trace_id
+            assert child_span["context"]["span_id"] == child_span_id
+
+            # Test that we can create spans from the reconstructed data
+            # Just verify that uniquify_spans works without actually creating them
+            from phoenix.client.helpers.spans import uniquify_spans
+
+            unique_spans = uniquify_spans(reconstructed_spans, in_place=False)
+
+            # Verify that the uniquified spans have different IDs but same structure
+            assert len(unique_spans) == len(reconstructed_spans)
+            for original, unique in zip(reconstructed_spans, unique_spans):
+                # IDs should be different
+                assert unique["context"]["trace_id"] != original["context"]["trace_id"]
+                assert unique["context"]["span_id"] != original["context"]["span_id"]
+                # But names and other attributes should be the same
+                assert unique["name"] == original["name"]
+                assert unique["span_kind"] == original["span_kind"]
+                assert unique["status_code"] == original["status_code"]
+        finally:
+            random.setstate(original_state)
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_uniquify_spans_with_dataframe(
+        self,
+        is_async: bool,
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test uniquify_spans utility works correctly with DataFrames from get_spans_dataframe."""
         user = _get_user(_MEMBER).log_in()
         monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
 
-        from phoenix.client import Client
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
         from phoenix.client.helpers.spans import uniquify_spans
 
-        # Create spans with the same IDs
-        shared_trace_id = f"trace_{token_hex(16)}"
-        shared_span_id = f"span_{token_hex(8)}"
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
-        original_spans: list[v1.Span] = [
+        # First create some test spans with parent-child relationships
+        trace_id = f"trace_{token_hex(16)}"
+        parent_span_id = f"span_{token_hex(8)}"
+        child_span_id = f"span_{token_hex(8)}"
+
+        test_spans: list[v1.Span] = [
             cast(
                 v1.Span,
                 {
-                    "name": "test_span",
-                    "context": {"trace_id": shared_trace_id, "span_id": shared_span_id},
+                    "name": "parent_span",
+                    "context": {"trace_id": trace_id, "span_id": parent_span_id},
                     "span_kind": "CHAIN",
                     "start_time": datetime.now(timezone.utc).isoformat(),
                     "end_time": (datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat(),
                     "status_code": "OK",
                 },
             ),
+            cast(
+                v1.Span,
+                {
+                    "name": "child_span",
+                    "context": {"trace_id": trace_id, "span_id": child_span_id},
+                    "span_kind": "LLM",
+                    "parent_id": parent_span_id,
+                    "start_time": datetime.now(timezone.utc).isoformat(),
+                    "end_time": (datetime.now(timezone.utc) + timedelta(seconds=2)).isoformat(),
+                    "status_code": "OK",
+                },
+            ),
         ]
 
-        # Create the original span
-        result1 = Client().spans.create_spans(
-            project_identifier="default",
-            spans=original_spans,
+        # Create the spans
+        result = await _await_or_return(
+            Client().spans.create_spans(
+                project_identifier="default",
+                spans=test_spans,
+            )
         )
-        assert result1["total_queued"] == 1
+        assert result["total_queued"] == 2
 
-        # Regenerate IDs and create again
-        new_spans = uniquify_spans(original_spans, in_place=False)
-        assert new_spans[0]["context"]["trace_id"] != shared_trace_id
-        assert new_spans[0]["context"]["span_id"] != shared_span_id
+        # Wait for spans to be indexed
+        import asyncio
 
-        result2 = Client().spans.create_spans(
-            project_identifier="default",
-            spans=new_spans,
+        await asyncio.sleep(2)
+
+        # Get spans as DataFrame
+        df = await _await_or_return(
+            Client().spans.get_spans_dataframe(
+                project_identifier="default",
+                limit=100,
+            )
         )
-        assert result2["total_queued"] == 1
-        assert result2["total_duplicates"] == 0
+
+        # Find our spans in the DataFrame
+        our_spans_mask = df["context.trace_id"] == trace_id
+        our_df = df[our_spans_mask].copy()
+
+        if len(our_df) == 0:
+            pytest.skip("Could not find test spans in DataFrame")
+
+        # Store original IDs
+        original_trace_ids = our_df["context.trace_id"].tolist()
+        original_span_ids = our_df["context.span_id"].tolist()
+        original_index = our_df.index.tolist()
+
+        # Test uniquify_spans with DataFrame
+        new_df = uniquify_spans(our_df, in_place=False)
+
+        # Verify IDs were changed
+        assert new_df["context.trace_id"].tolist() != original_trace_ids
+        assert new_df["context.span_id"].tolist() != original_span_ids
+        assert new_df.index.tolist() != original_index
+
+        # Verify uniqueness
+        assert len(new_df["context.trace_id"].unique()) == len(set(new_df["context.trace_id"]))
+        assert len(new_df["context.span_id"].unique()) == len(new_df)
+        assert len(new_df.index.unique()) == len(new_df)
+
+        # Verify parent-child relationships are preserved
+        parent_mask = new_df["name"] == "parent_span"
+        child_mask = new_df["name"] == "child_span"
+
+        if parent_mask.any() and child_mask.any():
+            new_parent_span_id = new_df[parent_mask].index[0]
+            child_parent_id = new_df[child_mask]["parent_id"].iloc[0]
+            assert child_parent_id == new_parent_span_id, "Parent-child relationship not preserved"
+
+        # Test in-place modification
+        in_place_df = our_df.copy()
+        uniquify_spans(in_place_df, in_place=True)
+        assert in_place_df["context.trace_id"].tolist() != original_trace_ids
+
+        # Test that uniquified DataFrame can be converted back to spans
+        from phoenix.client.helpers.spans import dataframe_to_spans
+
+        converted_spans = dataframe_to_spans(new_df)
+        assert len(converted_spans) == len(new_df)
+
+        # Verify converted spans have the new IDs
+        for span in converted_spans:
+            assert span["context"]["span_id"] not in original_span_ids
+            assert span["context"]["trace_id"] not in original_trace_ids

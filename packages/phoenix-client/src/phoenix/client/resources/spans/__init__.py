@@ -1,3 +1,4 @@
+import json
 import logging
 from datetime import datetime, timezone, tzinfo
 from io import StringIO
@@ -512,30 +513,12 @@ class Spans:
 
         if response.status_code == 400 and "detail" in response_data:
             detail = response_data["detail"]
-            # The server returns error details in the HTTPException detail field
-            if isinstance(detail, dict):
-                return cast(v1.CreateSpansResponseBody, detail)
-            else:
-                # Fallback for unexpected format
-                return cast(
-                    v1.CreateSpansResponseBody,
-                    {
-                        "total_received": len(spans),
-                        "total_queued": 0,
-                        "total_duplicates": 0,
-                        "total_invalid": len(spans),
-                        "duplicate_spans": [],
-                        "invalid_spans": [
-                            {
-                                "span_id": span.get("context", {}).get("span_id", "unknown"),
-                                "trace_id": span.get("context", {}).get("trace_id", "unknown"),
-                                "error": str(detail),
-                            }
-                            for span in spans
-                        ],
-                    },
-                )
 
+            # For 400 errors, the server now returns properly formatted JSON in the detail field
+            parsed_detail = json.loads(detail)
+            return cast(v1.CreateSpansResponseBody, parsed_detail)
+
+        # For successful responses (202), return the response data directly
         return cast(v1.CreateSpansResponseBody, response_data)
 
     def _parse_validation_error_response(

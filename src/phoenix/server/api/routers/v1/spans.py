@@ -1,3 +1,4 @@
+import json
 import warnings
 from asyncio import get_running_loop
 from collections.abc import AsyncIterator
@@ -460,7 +461,7 @@ async def query_spans_handler(
     )
     end_time = request_body.end_time or request_body.stop_time
     try:
-        span_queries = [SpanQuery_.from_dict(query.dict()) for query in queries]
+        span_queries = [SpanQuery_.from_dict(query.model_dump()) for query in queries]
     except Exception as e:
         raise HTTPException(
             detail=f"Invalid query: {e}",
@@ -1114,17 +1115,18 @@ async def create_spans(
 
     # If there are any duplicates or invalid spans, reject the entire request
     if duplicate_spans or invalid_spans:
+        error_detail = {
+            "error": "Request contains invalid or duplicate spans",
+            "total_received": total_received,
+            "total_queued": 0,
+            "total_duplicates": len(duplicate_spans),
+            "total_invalid": len(invalid_spans),
+            "duplicate_spans": [span.model_dump() for span in duplicate_spans],
+            "invalid_spans": [span.model_dump() for span in invalid_spans],
+        }
         raise HTTPException(
             status_code=HTTP_400_BAD_REQUEST,
-            detail={
-                "error": "Request contains invalid or duplicate spans",
-                "total_received": total_received,
-                "total_queued": 0,
-                "total_duplicates": len(duplicate_spans),
-                "total_invalid": len(invalid_spans),
-                "duplicate_spans": [span.model_dump() for span in duplicate_spans],
-                "invalid_spans": [span.model_dump() for span in invalid_spans],
-            },
+            detail=json.dumps(error_detail),
         )
 
     # All spans are valid, queue them all
