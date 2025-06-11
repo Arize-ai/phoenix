@@ -342,6 +342,11 @@ class Project(Node):
                     data=[to_gql_project_session(ans)],
                     args=ConnectionArgs(),
                 )
+            elif not filter_io_substring:
+                return connection_from_list(
+                    data=[],
+                    args=ConnectionArgs(),
+                )
         stmt = select(table).filter_by(project_id=self.project_rowid)
         if time_range:
             if time_range.start:
