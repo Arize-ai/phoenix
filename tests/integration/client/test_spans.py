@@ -1377,8 +1377,12 @@ class TestClientForSpanCreation:
 
             # Verify simple string attributes
             assert str(row["attributes.llm.provider"]) == str(orig_row["attributes.llm.provider"])
-            assert str(row["attributes.llm.model_name"]) == str(orig_row["attributes.llm.model_name"])
-            assert str(row["attributes.input.mime_type"]) == str(orig_row["attributes.input.mime_type"])
+            assert str(row["attributes.llm.model_name"]) == str(
+                orig_row["attributes.llm.model_name"]
+            )
+            assert str(row["attributes.input.mime_type"]) == str(
+                orig_row["attributes.input.mime_type"]
+            )
 
             # Verify numeric attributes
             assert (
@@ -1391,22 +1395,22 @@ class TestClientForSpanCreation:
             )
 
             # Verify JSON string attributes
-            assert (
-                str(row["attributes.llm.invocation_parameters"])
-                == str(orig_row["attributes.llm.invocation_parameters"])
+            assert str(row["attributes.llm.invocation_parameters"]) == str(
+                orig_row["attributes.llm.invocation_parameters"]
             )
             assert str(row["attributes.input.value"]) == str(orig_row["attributes.input.value"])
             assert str(row["attributes.output.value"]) == str(orig_row["attributes.output.value"])
 
             # Verify complex nested object attributes
             assert str(row["attributes.url"]) == str(orig_row["attributes.url"])
-            assert (
-                str(row["attributes.llm.prompt_template.variables"])
-                == str(orig_row["attributes.llm.prompt_template.variables"])
+            assert str(row["attributes.llm.prompt_template.variables"]) == str(
+                orig_row["attributes.llm.prompt_template.variables"]
             )
 
             # Verify list attributes with complex objects
-            assert str(row["attributes.llm.input_messages"]) == str(orig_row["attributes.llm.input_messages"])
-            assert (
-                str(row["attributes.llm.output_messages"]) == str(orig_row["attributes.llm.output_messages"])
+            assert str(row["attributes.llm.input_messages"]) == str(
+                orig_row["attributes.llm.input_messages"]
+            )
+            assert str(row["attributes.llm.output_messages"]) == str(
+                orig_row["attributes.llm.output_messages"]
             )
