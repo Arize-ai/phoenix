@@ -1997,7 +1997,7 @@
           "spans"
         ],
         "summary": "Create spans",
-        "description": "Submit spans to be inserted into a project. Returns immediately while processing happens asynchronously.",
+        "description": "Submit spans to be inserted into a project. If any spans are invalid or duplicates, no spans will be inserted.",
         "operationId": "createSpans",
         "parameters": [
           {
@@ -2023,7 +2023,7 @@
           }
         },
         "responses": {
-          "200": {
+          "202": {
             "description": "Successful Response",
             "content": {
               "application/json": {
@@ -2053,7 +2053,7 @@
             },
             "description": "Not Found"
           },
-          "422": {
+          "400": {
             "content": {
               "text/plain": {
                 "schema": {
@@ -2061,7 +2061,17 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Bad Request"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
         }
       }

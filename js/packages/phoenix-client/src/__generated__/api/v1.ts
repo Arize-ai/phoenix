@@ -353,7 +353,7 @@ export interface paths {
         put?: never;
         /**
          * Create spans
-         * @description Submit spans to be inserted into a project. Returns immediately while processing happens asynchronously.
+         * @description Submit spans to be inserted into a project. If any spans are invalid or duplicates, no spans will be inserted.
          */
         post: operations["createSpans"];
         delete?: never;
@@ -3625,12 +3625,21 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["CreateSpansResponseBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
             /** @description Forbidden */
@@ -3651,13 +3660,13 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description Unprocessable Entity */
+            /** @description Validation Error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

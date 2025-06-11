@@ -997,16 +997,6 @@ class InvalidSpanInfo(V1RoutesBaseModel):
 class CreateSpansResponseBody(V1RoutesBaseModel):
     total_received: int = Field(description="Total number of spans received")
     total_queued: int = Field(description="Number of spans successfully queued for insertion")
-    total_duplicates: int = Field(description="Number of duplicate spans found")
-    total_invalid: int = Field(description="Number of invalid spans")
-
-    duplicate_spans: list[DuplicateSpanInfo] = Field(
-        default_factory=list,
-        description="Details of duplicate spans (if check_duplicates was true)",
-    )
-    invalid_spans: list[InvalidSpanInfo] = Field(
-        default_factory=list, description="Details of invalid spans that could not be queued"
-    )
 
 
 @router.post(
@@ -1118,7 +1108,6 @@ async def create_spans(
         error_detail = {
             "error": "Request contains invalid or duplicate spans",
             "total_received": total_received,
-            "total_queued": 0,
             "total_duplicates": len(duplicate_spans),
             "total_invalid": len(invalid_spans),
             "duplicate_spans": [span.model_dump() for span in duplicate_spans],
@@ -1136,8 +1125,4 @@ async def create_spans(
     return CreateSpansResponseBody(
         total_received=total_received,
         total_queued=len(spans_to_queue),
-        total_duplicates=0,
-        total_invalid=0,
-        duplicate_spans=[],
-        invalid_spans=[],
     )
