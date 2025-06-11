@@ -11,6 +11,7 @@ import {
   Icon,
   Icons,
   Modal,
+  ModalOverlay,
   Text,
   View,
 } from "@phoenix/components";
@@ -85,55 +86,57 @@ export const AnnotationConfigSelectionToolbar = ({
                 <Icon svg={<Icons.TrashOutline />} />
                 Delete
               </Button>
-              <Modal>
-                <Dialog
-                  css={css`
-                    border: none;
-                  `}
-                >
-                  {({ close }) => (
-                    <Card
-                      title="Delete Annotation Config"
-                      bodyStyle={{ padding: 0 }}
-                      variant="compact"
-                    >
-                      <View padding="size-200">
-                        <Text>
-                          Are you sure you want to delete this annotation
-                          config? Annotations made with this config will not be
-                          impacted.
-                        </Text>
-                      </View>
-                      <View
-                        paddingX="size-200"
-                        paddingY="size-100"
-                        borderTopColor="dark"
-                        borderTopWidth="thin"
+              <ModalOverlay>
+                <Modal>
+                  <Dialog
+                    css={css`
+                      border: none;
+                    `}
+                  >
+                    {({ close }) => (
+                      <Card
+                        title="Delete Annotation Config"
+                        bodyStyle={{ padding: 0 }}
+                        variant="compact"
                       >
-                        <Flex gap="size-100" justifyContent="end">
-                          <Button variant="quiet" onPress={close}>
-                            Cancel
-                          </Button>
-                          <Button
-                            variant="danger"
-                            onPress={() => {
-                              if (id) {
-                                onDeleteAnnotationConfig(id, {
-                                  onCompleted: () => {
-                                    close();
-                                  },
-                                });
-                              }
-                            }}
-                          >
-                            Delete
-                          </Button>
-                        </Flex>
-                      </View>
-                    </Card>
-                  )}
-                </Dialog>
-              </Modal>
+                        <View padding="size-200">
+                          <Text>
+                            Are you sure you want to delete this annotation
+                            config? Annotations made with this config will not
+                            be impacted.
+                          </Text>
+                        </View>
+                        <View
+                          paddingX="size-200"
+                          paddingY="size-100"
+                          borderTopColor="dark"
+                          borderTopWidth="thin"
+                        >
+                          <Flex gap="size-100" justifyContent="end">
+                            <Button variant="quiet" onPress={close}>
+                              Cancel
+                            </Button>
+                            <Button
+                              variant="danger"
+                              onPress={() => {
+                                if (id) {
+                                  onDeleteAnnotationConfig(id, {
+                                    onCompleted: () => {
+                                      close();
+                                    },
+                                  });
+                                }
+                              }}
+                            >
+                              Delete
+                            </Button>
+                          </Flex>
+                        </View>
+                      </Card>
+                    )}
+                  </Dialog>
+                </Modal>
+              </ModalOverlay>
             </DialogTrigger>
             <DialogTrigger
               onOpenChange={(open) => {
@@ -147,12 +150,14 @@ export const AnnotationConfigSelectionToolbar = ({
                 <Icon svg={<Icons.EditOutline />} />
                 Edit
               </Button>
-              <Modal>
-                <AnnotationConfigDialog
-                  initialAnnotationConfig={selectedConfig}
-                  onAddAnnotationConfig={onEditAnnotationConfig}
-                />
-              </Modal>
+              <ModalOverlay>
+                <Modal>
+                  <AnnotationConfigDialog
+                    initialAnnotationConfig={selectedConfig}
+                    onAddAnnotationConfig={onEditAnnotationConfig}
+                  />
+                </Modal>
+              </ModalOverlay>
             </DialogTrigger>
           </Flex>
         </Flex>

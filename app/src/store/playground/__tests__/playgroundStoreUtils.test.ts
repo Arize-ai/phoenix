@@ -121,6 +121,22 @@ describe("convertMessageToolCallsToProvider", () => {
         [{ test: "test" }],
       ],
     ],
+    XAI: [
+      [
+        "return tools as they are for xai",
+        "XAI",
+        [{ test: "test" }],
+        [{ test: "test" }],
+      ],
+    ],
+    OLLAMA: [
+      [
+        "return tools as they are for ollama",
+        "OLLAMA",
+        [{ test: "test" }],
+        [{ test: "test" }],
+      ],
+    ],
     AZURE_OPENAI: [
       [
         "convert from anthropic to openai",
@@ -380,6 +396,22 @@ describe("convertMessageToolCallsToProvider", () => {
       [
         "return tools as they are for deepseek",
         "DEEPSEEK",
+        [{ id: 1, definition: { test: "test" } }],
+        [{ id: 1, definition: { test: "test" } }],
+      ],
+    ],
+    XAI: [
+      [
+        "return tools as they are for xai",
+        "XAI",
+        [{ id: 1, definition: { test: "test" } }],
+        [{ id: 1, definition: { test: "test" } }],
+      ],
+    ],
+    OLLAMA: [
+      [
+        "return tools as they are for ollama",
+        "OLLAMA",
         [{ id: 1, definition: { test: "test" } }],
         [{ id: 1, definition: { test: "test" } }],
       ],

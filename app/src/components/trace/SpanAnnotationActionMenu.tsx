@@ -14,6 +14,7 @@ import {
   ListBox,
   ListBoxItem,
   Modal,
+  ModalOverlay,
   Popover,
   Text,
   View,
@@ -143,43 +144,45 @@ export function SpanAnnotationActionMenu(props: SpanAnnotationActionMenuProps) {
       {/* Delete confirmation dialog */}
       <DialogTrigger isOpen={deleting} onOpenChange={setDeleting}>
         <Popover>
-          <Modal>
-            <Dialog>
-              {({ close }) => (
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Delete Annotation</DialogTitle>
-                  </DialogHeader>
-                  <View padding="size-200">
-                    <Text color="danger">
-                      {`Are you sure you want to delete annotation ${annotationName}? This cannot be undone.`}
-                    </Text>
-                  </View>
-                  <View
-                    paddingEnd="size-200"
-                    paddingTop="size-100"
-                    paddingBottom="size-100"
-                    borderTopColor="light"
-                    borderTopWidth="thin"
-                  >
-                    <Flex direction="row" justifyContent="end" gap="size-200">
-                      <StopPropagation>
-                        <Button onPress={close}>Cancel</Button>
-                      </StopPropagation>
-                      <Button
-                        variant="danger"
-                        onPress={() => {
-                          handleDelete();
-                        }}
-                      >
-                        Delete Annotation
-                      </Button>
-                    </Flex>
-                  </View>
-                </DialogContent>
-              )}
-            </Dialog>
-          </Modal>
+          <ModalOverlay>
+            <Modal>
+              <Dialog>
+                {({ close }) => (
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Delete Annotation</DialogTitle>
+                    </DialogHeader>
+                    <View padding="size-200">
+                      <Text color="danger">
+                        {`Are you sure you want to delete annotation ${annotationName}? This cannot be undone.`}
+                      </Text>
+                    </View>
+                    <View
+                      paddingEnd="size-200"
+                      paddingTop="size-100"
+                      paddingBottom="size-100"
+                      borderTopColor="light"
+                      borderTopWidth="thin"
+                    >
+                      <Flex direction="row" justifyContent="end" gap="size-200">
+                        <StopPropagation>
+                          <Button onPress={close}>Cancel</Button>
+                        </StopPropagation>
+                        <Button
+                          variant="danger"
+                          onPress={() => {
+                            handleDelete();
+                          }}
+                        >
+                          Delete Annotation
+                        </Button>
+                      </Flex>
+                    </View>
+                  </DialogContent>
+                )}
+              </Dialog>
+            </Modal>
+          </ModalOverlay>
         </Popover>
       </DialogTrigger>
     </>

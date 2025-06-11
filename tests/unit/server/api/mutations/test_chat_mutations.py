@@ -65,7 +65,7 @@ class TestChatCompletionMutationMixin:
                     }
                 ],
                 "templateFormat": "F_STRING",
-                "apiKey": "sk-",
+                "credentials": [{"envVarName": "OPENAI_API_KEY", "value": "sk-"}],
             }
         }
         custom_vcr.register_matcher(

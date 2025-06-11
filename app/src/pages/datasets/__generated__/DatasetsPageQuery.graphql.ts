@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0d521ccb2cd48f0bf9e24fa30e137204>>
+ * @generated SignedSource<<f36a42947770296e21a4591de68628f7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -182,7 +182,8 @@ return {
         "alias": null,
         "args": (v0/*: any*/),
         "filters": [
-          "sort"
+          "sort",
+          "filter"
         ],
         "handle": "connection",
         "key": "DatasetsTable_datasets",

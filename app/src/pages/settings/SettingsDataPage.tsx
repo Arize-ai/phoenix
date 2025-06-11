@@ -6,11 +6,16 @@ import { Card } from "@arizeai/components";
 import {
   Button,
   Dialog,
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
   DialogTrigger,
-  Heading,
   Icon,
   Icons,
   Modal,
+  ModalOverlay,
 } from "@phoenix/components";
 import { CanManageRetentionPolicy } from "@phoenix/components/auth";
 
@@ -36,21 +41,28 @@ export function SettingsDataPage() {
             >
               New Policy
             </Button>
-            <Modal>
-              <Dialog>
-                {({ close }) => (
-                  <>
-                    <Heading slot="title">New Retention Policy</Heading>
-                    <CreateRetentionPolicy
-                      queryId={queryId}
-                      onCreate={() => {
-                        close();
-                      }}
-                    />
-                  </>
-                )}
-              </Dialog>
-            </Modal>
+            <ModalOverlay>
+              <Modal>
+                <Dialog>
+                  {({ close }) => (
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>New Retention Policy</DialogTitle>
+                        <DialogTitleExtra>
+                          <DialogCloseButton slot="close" />
+                        </DialogTitleExtra>
+                      </DialogHeader>
+                      <CreateRetentionPolicy
+                        queryId={queryId}
+                        onCreate={() => {
+                          close();
+                        }}
+                      />
+                    </DialogContent>
+                  )}
+                </Dialog>
+              </Modal>
+            </ModalOverlay>
           </DialogTrigger>
         </CanManageRetentionPolicy>
       }

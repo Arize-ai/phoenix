@@ -6,6 +6,10 @@ metadata:
   labels:
     app: {{ .Release.Name }}
 data:
+  # Authentication configuration
+  PHOENIX_ENABLE_AUTH: {{ .Values.auth.enableAuth | quote }}
+  PHOENIX_USE_SECURE_COOKIES: {{ .Values.auth.useSecureCookies | quote }}
+  PHOENIX_CSRF_TRUSTED_ORIGINS: {{ join "," .Values.auth.csrfTrustedOrigins | quote }}
   # Server configuration
   PHOENIX_HOST: {{ .Values.server.host | quote }}
   PHOENIX_PORT: {{ .Values.server.port | quote }}

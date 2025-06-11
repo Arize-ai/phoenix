@@ -29,6 +29,9 @@ import { assertUnreachable, isObject } from "@phoenix/typeUtils";
 export const DEFAULT_TOOL_CHOICES_BY_PROVIDER = {
   OPENAI: ["required", "auto", "none"] as const,
   AZURE_OPENAI: ["required", "auto", "none"] as const,
+  DEEPSEEK: ["required", "auto", "none"] as const,
+  XAI: ["required", "auto", "none"] as const,
+  OLLAMA: ["required", "auto", "none"] as const,
   ANTHROPIC: ["any", "auto", "none"] as const,
 } satisfies Partial<
   Record<ModelProvider, (string | Record<string, unknown>)[]>
@@ -50,6 +53,8 @@ export const findToolChoiceType = (
   switch (provider) {
     case "AZURE_OPENAI":
     case "DEEPSEEK":
+    case "XAI":
+    case "OLLAMA":
     case "OPENAI":
       if (
         isObject(choice) &&
@@ -150,7 +155,7 @@ export const ChoiceLabel = ({
     case "required":
       return (
         <Flex
-          gap="size-200"
+          gap="size-100"
           alignItems="center"
           justifyContent="space-between"
           width="100%"
@@ -164,7 +169,7 @@ export const ChoiceLabel = ({
     case "none":
       return (
         <Flex
-          gap="size-200"
+          gap="size-100"
           alignItems="center"
           justifyContent="space-between"
           width="100%"
@@ -179,7 +184,7 @@ export const ChoiceLabel = ({
     default:
       return (
         <Flex
-          gap="size-200"
+          gap="size-100"
           alignItems="center"
           justifyContent="space-between"
           width="100%"
@@ -230,6 +235,9 @@ export function ToolChoiceSelector<
         if (choice.startsWith(TOOL_NAME_PREFIX)) {
           switch (provider) {
             case "AZURE_OPENAI":
+            case "DEEPSEEK":
+            case "XAI":
+            case "OLLAMA":
             case "OPENAI":
               onChange(
                 makeOpenAIToolChoice({
@@ -254,6 +262,9 @@ export function ToolChoiceSelector<
         } else if (isDefaultToolChoice(provider, choice)) {
           switch (provider) {
             case "AZURE_OPENAI":
+            case "DEEPSEEK":
+            case "XAI":
+            case "OLLAMA":
             case "OPENAI":
               onChange(
                 makeOpenAIToolChoice(

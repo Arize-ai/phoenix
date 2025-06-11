@@ -15,10 +15,12 @@ import {
   IntegrationSVG,
   LangChainSVG,
   LlamaIndexSVG,
+  MastraSVG,
   McpSVG,
   MistralAISVG,
   NodeJSSVG,
   OpenAISVG,
+  PydanticAISVG,
   VercelSVG,
   VertexAISVG,
 } from "./IntegrationIcons";
@@ -222,9 +224,17 @@ const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
     icon: <CrewAISVG />,
   },
   {
+    name: "Pydantic AI",
+    docsHref:
+      "https://arize.com/docs/phoenix/integrations/pydantic/pydantic-tracing",
+    githubHref:
+      "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-pydantic-ai",
+    icon: <PydanticAISVG />,
+  },
+  {
     name: "LiteLLM",
     docsHref:
-      "https://arize.com/docs/phoenix/tracing/integrations-tracing/litellm",
+      "https://arize.com/docs/phoenix/integrations/llm-providers/litellm",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-litellm",
     icon: <IntegrationSVG />,
@@ -232,7 +242,7 @@ const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
   {
     name: "Model Context Protocol",
     docsHref:
-      "https://arize.com/docs/phoenix/tracing/integrations-tracing/model-context-protocol-mcp",
+      "https://arize.com/docs/phoenix/integrations/model-context-protocol/mcp-tracing",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-mcp",
     icon: <McpSVG />,
@@ -309,6 +319,14 @@ const TYPESCRIPT_INTEGRATIONS: IntegrationLinkProps[] = [
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-vercel",
     icon: <VercelSVG />,
+  },
+  {
+    name: "Mastra",
+    docsHref:
+      "https://arize.com/docs/phoenix/integrations/mastra/mastra-tracing",
+    githubHref:
+      "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-mastra",
+    icon: <MastraSVG />,
   },
   {
     name: "BeeAI",

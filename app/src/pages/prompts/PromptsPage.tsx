@@ -16,6 +16,7 @@ import { PromptsTable } from "./PromptsTable";
 export function PromptsPage() {
   const loaderData = useLoaderData<typeof promptsLoader>();
   invariant(loaderData, "loaderData is required");
+
   return (
     <Flex direction="column" height="100%">
       <View

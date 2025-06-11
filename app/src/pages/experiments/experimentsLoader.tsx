@@ -18,6 +18,13 @@ export async function experimentsLoader(args: LoaderFunctionArgs) {
           id
           ... on Dataset {
             ...ExperimentsTableFragment
+            firstExperiment: experiments(first: 1) {
+              edges {
+                node {
+                  id
+                }
+              }
+            }
           }
         }
       }

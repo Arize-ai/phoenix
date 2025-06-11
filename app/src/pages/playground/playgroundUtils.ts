@@ -9,6 +9,7 @@ import {
   ChatRoleMap,
   DEFAULT_CHAT_ROLE,
   DEFAULT_MODEL_PROVIDER,
+  ProviderToCredentialsConfigMap,
 } from "@phoenix/constants/generativeConstants";
 import {
   createAnthropicToolDefinition,
@@ -49,6 +50,7 @@ import {
   ChatCompletionInput,
   ChatCompletionMessageInput,
   ChatCompletionMessageRole,
+  GenerativeCredentialInput,
   InvocationParameterInput,
 } from "./__generated__/PlaygroundOutputSubscription.graphql";
 import {
@@ -153,6 +155,8 @@ export function processAttributeToolCalls({
         case "OPENAI":
         case "AZURE_OPENAI":
         case "DEEPSEEK":
+        case "XAI":
+        case "OLLAMA":
           return {
             id: tool_call.id ?? "",
             type: "function" as const,
@@ -892,6 +896,8 @@ export const createToolForProvider = ({
   switch (provider) {
     case "OPENAI":
     case "DEEPSEEK":
+    case "XAI":
+    case "OLLAMA":
     case "AZURE_OPENAI":
       return {
         id: generateToolId(),
@@ -925,6 +931,8 @@ export const createToolCallForProvider = (
     case "OPENAI":
     case "AZURE_OPENAI":
     case "DEEPSEEK":
+    case "XAI":
+    case "OLLAMA":
       return createOpenAIToolCall();
     case "ANTHROPIC":
       return createAnthropicToolCall();
@@ -1063,7 +1071,7 @@ const getBaseChatCompletionInput = ({
     tools: instance.tools.length
       ? instance.tools.map((tool) => tool.definition)
       : undefined,
-    apiKey: credentials[instance.model.provider] || null,
+    credentials: getCredentials(credentials, instance.model.provider),
     promptName: instance.prompt?.name,
   } satisfies Partial<ChatCompletionInput>;
 };
@@ -1094,6 +1102,29 @@ export const denormalizePlaygroundInstance = (
   // it cannot be a normalized instance if it is not a chat template
   return instance as PlaygroundInstance;
 };
+
+/**
+ * A function that gets the credentials for a provider
+ */
+function getCredentials(
+  credentials: CredentialsState,
+  provider: ModelProvider
+): GenerativeCredentialInput[] {
+  const providerCredentials = credentials[provider];
+  const providerCredentialsConfig = ProviderToCredentialsConfigMap[provider];
+  if (!providerCredentials) {
+    // This means the credentials are missing, however we don't want to throw here so we return an empty array
+    return [];
+  }
+  if (providerCredentialsConfig.length === 0) {
+    // This means that the provider doesn't require any credentials
+    return [];
+  }
+  return providerCredentialsConfig.map((credential) => ({
+    envVarName: credential.envVarName,
+    value: providerCredentials[credential.envVarName] ?? "",
+  }));
+}
 
 /**
  * Gets chat completion input for running over variables

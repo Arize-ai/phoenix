@@ -4,6 +4,8 @@ import {
   type DialogProps as AriaDialogProps,
 } from "react-aria-components";
 
+import { classNames } from "@arizeai/components";
+
 import { Button, ButtonProps } from "@phoenix/components/button";
 import { Heading, HeadingProps } from "@phoenix/components/content";
 import { Icon, Icons } from "@phoenix/components/icon";
@@ -15,7 +17,12 @@ export type DialogProps = AriaDialogProps;
 export const Dialog = forwardRef<HTMLDialogElement, DialogProps>(
   ({ children, ...props }, ref) => {
     return (
-      <AriaDialog data-testid="dialog" {...props} ref={ref}>
+      <AriaDialog
+        data-testid="dialog"
+        {...props}
+        className={classNames(props.className, "react-aria-Dialog")}
+        ref={ref}
+      >
         {children}
       </AriaDialog>
     );

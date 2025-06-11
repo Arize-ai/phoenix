@@ -14,12 +14,12 @@ import { Flex, Icon, Icons, Link, LinkButton } from "@phoenix/components";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { TextCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
-import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 
 import { PromptsTable_prompts$key } from "./__generated__/PromptsTable_prompts.graphql";
 import { PromptsTablePromptsQuery } from "./__generated__/PromptsTablePromptsQuery.graphql";
 import { PromptActionMenu } from "./PromptActionMenu";
+import { PromptsEmpty } from "./PromptsEmpty";
 
 const PAGE_SIZE = 100;
 
@@ -156,6 +156,11 @@ export function PromptsTable(props: PromptsTableProps) {
 
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
+
+  if (isEmpty) {
+    return <PromptsEmpty />;
+  }
+
   return (
     <div
       css={css`
@@ -174,9 +179,7 @@ export function PromptsTable(props: PromptsTableProps) {
                   {header.isPlaceholder ? null : (
                     <div
                       {...{
-                        className: header.column.getCanSort()
-                          ? "cursor-pointer"
-                          : "",
+                        className: header.column.getCanSort() ? "sort" : "",
                         ["aria-role"]: header.column.getCanSort()
                           ? "button"
                           : null,
@@ -209,34 +212,27 @@ export function PromptsTable(props: PromptsTableProps) {
             </tr>
           ))}
         </thead>
-        {isEmpty ? (
-          <TableEmpty />
-        ) : (
-          <tbody>
-            {rows.map((row) => {
-              return (
-                <tr
-                  key={row.id}
-                  onClick={() => {
-                    navigate(`${row.original.id}`);
-                  }}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <td
-                      key={cell.id}
-                      align={cell.column.columnDef.meta?.textAlign}
-                    >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </td>
-                  ))}
-                </tr>
-              );
-            })}
-          </tbody>
-        )}
+        <tbody>
+          {rows.map((row) => {
+            return (
+              <tr
+                key={row.id}
+                onClick={() => {
+                  navigate(`${row.original.id}`);
+                }}
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <td
+                    key={cell.id}
+                    align={cell.column.columnDef.meta?.textAlign}
+                  >
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
+        </tbody>
       </table>
     </div>
   );

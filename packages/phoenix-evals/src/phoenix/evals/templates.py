@@ -187,11 +187,21 @@ class ClassificationTemplate(PromptTemplate):
 
 
 def parse_label_from_chain_of_thought_response(raw_string: str) -> str:
-    label_delimiter = r"\W*label\W*"
-    parts = re.split(label_delimiter, raw_string, maxsplit=1, flags=re.IGNORECASE)
-    if len(parts) == 2:
-        return parts[1]
-    return raw_string  # Fallback to the whole string if no label delimiter is found
+    match = re.search(r"\blabel\b", raw_string, flags=re.IGNORECASE)
+    if not match:
+        return raw_string
+
+    remainder = raw_string[match.end() :].lstrip(" :.-\t")
+
+    # Remove everything after explanation in case it erroneously comes after the label, violating
+    # chain of thought
+    exp_match = re.search(r"\bexplanation\b", remainder, flags=re.IGNORECASE)
+    if exp_match:
+        label_text = remainder[: exp_match.start()]
+    else:
+        label_text = remainder.split("\n", 1)[0]
+
+    return label_text.strip() or remainder.strip()
 
 
 def normalize_classification_template(

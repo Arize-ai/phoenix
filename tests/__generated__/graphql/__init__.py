@@ -684,17 +684,25 @@ class Functionality(BaseModel):
 class GenerativeModel(BaseModel):
     model_config = ConfigDict(frozen=True)
     name: str
-    providerKey: Literal["ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OPENAI"]
+    providerKey: Literal[
+        "ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"
+    ]
 
 
 class GenerativeProvider(BaseModel):
     model_config = ConfigDict(frozen=True)
-    apiKeyEnvVar: str = Field(...)
-    apiKeySet: bool = Field(...)
+    credentialRequirements: list[GenerativeProviderCredentialConfig] = Field(...)
+    credentialsSet: bool = Field(...)
     dependencies: list[str]
     dependenciesInstalled: bool
-    key: Literal["ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OPENAI"]
+    key: Literal["ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"]
     name: str
+
+
+class GenerativeProviderCredentialConfig(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    envVarName: str
+    isRequired: bool
 
 
 class Inferences(BaseModel):
@@ -1014,7 +1022,9 @@ class PromptVersion(Node):
     invocationParameters: Optional[dict[str, Any]] = None
     metadata: dict[str, Any]
     modelName: str
-    modelProvider: Literal["ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OPENAI"]
+    modelProvider: Literal[
+        "ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"
+    ]
     previousVersion: Optional[PromptVersion] = None
     responseFormat: Optional[ResponseFormat] = None
     sequenceNumber: int = Field(...)
@@ -1554,7 +1564,7 @@ class CategoricalAnnotationConfigValueInput(BaseModel):
 
 class ChatCompletionInput(BaseModel):
     model_config = ConfigDict(frozen=True)
-    apiKey: Optional[str] = None
+    credentials: Optional[list[GenerativeCredentialInput]] = None
     invocationParameters: list[InvocationParameterInput]
     messages: list[ChatCompletionMessageInput]
     model: GenerativeModelInput
@@ -1573,7 +1583,7 @@ class ChatCompletionMessageInput(BaseModel):
 
 class ChatCompletionOverDatasetInput(BaseModel):
     model_config = ConfigDict(frozen=True)
-    apiKey: Optional[str] = None
+    credentials: Optional[list[GenerativeCredentialInput]] = None
     datasetId: str
     datasetVersionId: Optional[str] = None
     experimentDescription: Optional[str] = None
@@ -1592,7 +1602,9 @@ class ChatPromptVersionInput(BaseModel):
     description: Optional[str] = None
     invocationParameters: dict[str, Any]
     modelName: str
-    modelProvider: Literal["ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OPENAI"]
+    modelProvider: Literal[
+        "ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"
+    ]
     responseFormat: Optional[ResponseFormatInput] = None
     template: PromptChatTemplateInput
     templateFormat: Literal["F_STRING", "MUSTACHE", "NONE"]
@@ -1765,6 +1777,12 @@ class DatasetExamplePatch(BaseModel):
     output: Optional[dict[str, Any]] = None
 
 
+class DatasetFilter(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    col: Literal["name",]
+    value: str
+
+
 class DatasetSort(BaseModel):
     model_config = ConfigDict(frozen=True)
     col: Literal["createdAt", "name"]
@@ -1859,13 +1877,21 @@ class FreeformAnnotationConfigInput(BaseModel):
     name: str
 
 
+class GenerativeCredentialInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    envVarName: str
+    value: str
+
+
 class GenerativeModelInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     apiVersion: Optional[str] = None
     baseUrl: Optional[str] = None
     endpoint: Optional[str] = None
     name: str
-    providerKey: Literal["ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OPENAI"]
+    providerKey: Literal[
+        "ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"
+    ]
 
 
 class Granularity(BaseModel):
@@ -1915,9 +1941,9 @@ class InvocationParameterInput(BaseModel):
 class ModelsInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     modelName: Optional[str] = None
-    providerKey: Optional[Literal["ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OPENAI"]] = (
-        None
-    )
+    providerKey: Optional[
+        Literal["ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"]
+    ] = None
 
 
 class PatchAnnotationInput(BaseModel):

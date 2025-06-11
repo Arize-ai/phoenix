@@ -1,4 +1,5 @@
 import { forwardRef } from "react";
+import { css } from "@emotion/react";
 
 import {
   Button,
@@ -37,9 +38,9 @@ export const CategoricalAnnotationInput = forwardRef<
         defaultSelectedKey={annotation?.label ?? undefined}
         size="S"
         {...props}
-        css={{
-          width: "100%",
-        }}
+        css={css`
+          width: 100%;
+        `}
       >
         <AnnotationInputLabel>{annotationConfig.name}</AnnotationInputLabel>
         <Button ref={ref}>

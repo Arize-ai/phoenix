@@ -1,5 +1,121 @@
 # Changelog
 
+## [10.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.9.2...arize-phoenix-v10.10.0) (2025-06-09)
+
+
+### Features
+
+* Upgrade relay to v19 ([#8003](https://github.com/Arize-ai/phoenix/issues/8003)) ([64c29b1](https://github.com/Arize-ai/phoenix/commit/64c29b1cff519e1902560eda87647362f9a13a52))
+
+
+### Bug Fixes
+
+* **experiments:** paginate experiment comparisons table ([#7994](https://github.com/Arize-ai/phoenix/issues/7994)) ([8527391](https://github.com/Arize-ai/phoenix/commit/85273911e3d2d878348bd58c002bdd961f374c12))
+
+## [10.9.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.9.1...arize-phoenix-v10.9.2) (2025-06-09)
+
+
+### Bug Fixes
+
+* Prevent extra mutations when editing Span annotations ([#8001](https://github.com/Arize-ai/phoenix/issues/8001)) ([43a4cf6](https://github.com/Arize-ai/phoenix/commit/43a4cf6c1c097f98a6b919da6da16584da44b7fd))
+
+## [10.9.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.9.0...arize-phoenix-v10.9.1) (2025-06-07)
+
+
+### Documentation
+
+* fix js readme ([#7987](https://github.com/Arize-ai/phoenix/issues/7987)) ([a6112aa](https://github.com/Arize-ai/phoenix/commit/a6112aa891e6fc0f2b8060024cda90ce415e92c0))
+
+## [10.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.8.0...arize-phoenix-v10.9.0) (2025-06-06)
+
+
+### Features
+
+* Composable ModalOverlay component ([#7969](https://github.com/Arize-ai/phoenix/issues/7969)) ([4bc2824](https://github.com/Arize-ai/phoenix/commit/4bc28244812641df84c9b2d6d9c8c15d559a7937))
+* **experiments:** experiment progress chart ([#7978](https://github.com/Arize-ai/phoenix/issues/7978)) ([ef697eb](https://github.com/Arize-ai/phoenix/commit/ef697ebf473a204e8521a7440d49c05d8a1698a8))
+
+## [10.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.7.1...arize-phoenix-v10.8.0) (2025-06-06)
+
+
+### Features
+
+* Add dataset methods to phoenix client ([#7931](https://github.com/Arize-ai/phoenix/issues/7931)) ([4a5aa39](https://github.com/Arize-ai/phoenix/commit/4a5aa39b90adfb9896f336db7998bcde7c481bf8))
+* **experiments:** make experiments table resizable ([#7964](https://github.com/Arize-ai/phoenix/issues/7964)) ([93d9c52](https://github.com/Arize-ai/phoenix/commit/93d9c5270e4bead667953475d195f543b59bdede))
+* separate docs phoenix client evals ([#7948](https://github.com/Arize-ai/phoenix/issues/7948)) ([e569b68](https://github.com/Arize-ai/phoenix/commit/e569b6802ab9e31cb230a30dbc08f60d7e28e993))
+
+
+### Bug Fixes
+
+* provider tab ([#7972](https://github.com/Arize-ai/phoenix/issues/7972)) ([82ce450](https://github.com/Arize-ai/phoenix/commit/82ce450c815f077368dc9d70b6638467f565765f))
+* **tables:** sort ([#7963](https://github.com/Arize-ai/phoenix/issues/7963)) ([6b18c35](https://github.com/Arize-ai/phoenix/commit/6b18c356eeb0a4ffc25d366e9964778031db3d34))
+
+## [10.7.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.7.0...arize-phoenix-v10.7.1) (2025-06-05)
+
+
+### Bug Fixes
+
+* **datasets:** allow large field sizes for csv dataset upload ([#7943](https://github.com/Arize-ai/phoenix/issues/7943)) ([566a8b0](https://github.com/Arize-ai/phoenix/commit/566a8b0bfa67a4683aa97e47349fc0a9c18593fa))
+
+
+### Documentation
+
+* phoenix-otel documentation header styling - Update conf.py header… ([#7936](https://github.com/Arize-ai/phoenix/issues/7936)) ([0173e7f](https://github.com/Arize-ai/phoenix/commit/0173e7f5e187fe0f4f1c15311a56b878117803a9))
+
+## [10.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.6.2...arize-phoenix-v10.7.0) (2025-06-04)
+
+
+### Features
+
+* ollama ([#7846](https://github.com/Arize-ai/phoenix/issues/7846)) ([4c52db4](https://github.com/Arize-ai/phoenix/commit/4c52db40da6b7772487cc6d288cf69d5944812a1))
+* **playground:** add support for multiple credential kv pairs - frontend only ([#7894](https://github.com/Arize-ai/phoenix/issues/7894)) ([2e657eb](https://github.com/Arize-ai/phoenix/commit/2e657ebc9f0088282e7de4af421a52006bdc72f3))
+* server side playground credentials ([#7913](https://github.com/Arize-ai/phoenix/issues/7913)) ([9855d4b](https://github.com/Arize-ai/phoenix/commit/9855d4b656e921f558d1b4c36065bc1b7d6824c7))
+
+
+### Bug Fixes
+
+* Ensure "load next" button works on projects page ([#7915](https://github.com/Arize-ai/phoenix/issues/7915)) ([20f9e3f](https://github.com/Arize-ai/phoenix/commit/20f9e3f5b0f426e3f1b607eaede3a74f66c3be83))
+* set Uvicorn logger level with PHOENIX_LOGGING_LEVEL ([#7927](https://github.com/Arize-ai/phoenix/issues/7927)) ([9cb5294](https://github.com/Arize-ai/phoenix/commit/9cb5294fbdcd13f720150f629013a16521ce577d))
+* Sets a lower pin on phoenix-otel to support latest Otel ([#7924](https://github.com/Arize-ai/phoenix/issues/7924)) ([0b59bc7](https://github.com/Arize-ai/phoenix/commit/0b59bc795955e5097e912b22cad8d947ae4ff8ed))
+
+## [10.6.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.6.1...arize-phoenix-v10.6.2) (2025-06-03)
+
+
+### Bug Fixes
+
+* **helm:** update Chart.lock and ensure chart dependencies are installed before packaging ([#7907](https://github.com/Arize-ai/phoenix/issues/7907)) ([b279fed](https://github.com/Arize-ai/phoenix/commit/b279fed0a6802c3a82be51d31d8ac6f0483eb052))
+
+## [10.6.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.6.0...arize-phoenix-v10.6.1) (2025-06-03)
+
+
+### Bug Fixes
+
+* **helm:** helm cleanup ([#7879](https://github.com/Arize-ai/phoenix/issues/7879)) ([df91c7e](https://github.com/Arize-ai/phoenix/commit/df91c7ee4a1ce84576a11227949b1881aa368c9e))
+
+## [10.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.5.0...arize-phoenix-v10.6.0) (2025-06-03)
+
+
+### Features
+
+* Add `get_spans` to phoenix client ([#7688](https://github.com/Arize-ai/phoenix/issues/7688)) ([8b48176](https://github.com/Arize-ai/phoenix/commit/8b481762c188e3191a8e0bb2ffd295a7ee3fdfb8))
+* bump table, add more integrations ([#7863](https://github.com/Arize-ai/phoenix/issues/7863)) ([c71480a](https://github.com/Arize-ai/phoenix/commit/c71480a42eeea485c92061593a6b4480b82b4da3))
+* empty state for prompts and experiments ([#7865](https://github.com/Arize-ai/phoenix/issues/7865)) ([f571c7b](https://github.com/Arize-ai/phoenix/commit/f571c7b05ed85cc0491a4444a807eb6630ffa919))
+* **ui:** credentials field ([#7889](https://github.com/Arize-ai/phoenix/issues/7889)) ([92d9058](https://github.com/Arize-ai/phoenix/commit/92d9058bb676bdadddee3eb2b5ab4aa9b6e4ea8a))
+
+
+### Bug Fixes
+
+* deprecate compact search field ([#7860](https://github.com/Arize-ai/phoenix/issues/7860)) ([2cf49b9](https://github.com/Arize-ai/phoenix/commit/2cf49b94933000a75a87456ac99275f5d6d9f3bd))
+* Do not return notes from GET /span_annotations ([#7830](https://github.com/Arize-ai/phoenix/issues/7830)) ([52c2c06](https://github.com/Arize-ai/phoenix/commit/52c2c06028815d0982172925e2d31705f49e0fe3))
+* properly use semantic colors for latency ([#7853](https://github.com/Arize-ai/phoenix/issues/7853)) ([d8c705e](https://github.com/Arize-ai/phoenix/commit/d8c705e7a7b89d952039f73f0c159418728ad97b))
+* upgrade lower version pin on openinference-instrumentation and openinference-instrumentation-semantic-conventions ([#7900](https://github.com/Arize-ai/phoenix/issues/7900)) ([5d9b3d5](https://github.com/Arize-ai/phoenix/commit/5d9b3d5fd174eceae88ae344391c3c16765dc3ff))
+
+## [10.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.4.0...arize-phoenix-v10.5.0) (2025-05-30)
+
+
+### Features
+
+* xai to playground ([#7808](https://github.com/Arize-ai/phoenix/issues/7808)) ([5dd53be](https://github.com/Arize-ai/phoenix/commit/5dd53be2ee697dd1b2c482df58d718d00ae892eb))
+
 ## [10.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.3.1...arize-phoenix-v10.4.0) (2025-05-30)
 
 

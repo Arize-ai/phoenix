@@ -336,6 +336,14 @@ class PromptDeepSeekInvocationParametersContent(PromptOpenAIInvocationParameters
     pass
 
 
+class PromptXAIInvocationParametersContent(PromptOpenAIInvocationParametersContent):
+    pass
+
+
+class PromptOllamaInvocationParametersContent(PromptOpenAIInvocationParametersContent):
+    pass
+
+
 class PromptAzureOpenAIInvocationParameters(DBBaseModel):
     type: Literal["azure_openai"]
     azure_openai: PromptAzureOpenAIInvocationParametersContent
@@ -344,6 +352,16 @@ class PromptAzureOpenAIInvocationParameters(DBBaseModel):
 class PromptDeepSeekInvocationParameters(DBBaseModel):
     type: Literal["deepseek"]
     deepseek: PromptDeepSeekInvocationParametersContent
+
+
+class PromptXAIInvocationParameters(DBBaseModel):
+    type: Literal["xai"]
+    xai: PromptXAIInvocationParametersContent
+
+
+class PromptOllamaInvocationParameters(DBBaseModel):
+    type: Literal["ollama"]
+    ollama: PromptOllamaInvocationParametersContent
 
 
 class PromptAnthropicThinkingConfigDisabled(DBBaseModel):
@@ -401,6 +419,8 @@ PromptInvocationParameters: TypeAlias = Annotated[
         PromptAnthropicInvocationParameters,
         PromptGoogleInvocationParameters,
         PromptDeepSeekInvocationParameters,
+        PromptXAIInvocationParameters,
+        PromptOllamaInvocationParameters,
     ],
     Field(..., discriminator="type"),
 ]
@@ -419,6 +439,10 @@ def get_raw_invocation_parameters(
         return invocation_parameters.google.model_dump()
     if isinstance(invocation_parameters, PromptDeepSeekInvocationParameters):
         return invocation_parameters.deepseek.model_dump()
+    if isinstance(invocation_parameters, PromptXAIInvocationParameters):
+        return invocation_parameters.xai.model_dump()
+    if isinstance(invocation_parameters, PromptOllamaInvocationParameters):
+        return invocation_parameters.ollama.model_dump()
     assert_never(invocation_parameters)
 
 
@@ -433,6 +457,8 @@ def is_prompt_invocation_parameters(
             PromptAnthropicInvocationParameters,
             PromptGoogleInvocationParameters,
             PromptDeepSeekInvocationParameters,
+            PromptXAIInvocationParameters,
+            PromptOllamaInvocationParameters,
         ),
     )
 
@@ -476,6 +502,16 @@ def validate_invocation_parameters(
             type="google",
             google=PromptGoogleInvocationParametersContent.model_validate(invocation_parameters),
         )
+    elif model_provider is ModelProvider.XAI:
+        return PromptXAIInvocationParameters(
+            type="xai",
+            xai=PromptXAIInvocationParametersContent.model_validate(invocation_parameters),
+        )
+    elif model_provider is ModelProvider.OLLAMA:
+        return PromptOllamaInvocationParameters(
+            type="ollama",
+            ollama=PromptOllamaInvocationParametersContent.model_validate(invocation_parameters),
+        )
     assert_never(model_provider)
 
 
@@ -485,7 +521,13 @@ def normalize_tools(
     tool_choice: Optional[Union[str, Mapping[str, Any]]] = None,
 ) -> PromptTools:
     tools: list[PromptToolFunction]
-    if model_provider is ModelProvider.OPENAI or model_provider is ModelProvider.AZURE_OPENAI:
+    if (
+        model_provider is ModelProvider.OPENAI
+        or model_provider is ModelProvider.AZURE_OPENAI
+        or model_provider is ModelProvider.DEEPSEEK
+        or model_provider is ModelProvider.XAI
+        or model_provider is ModelProvider.OLLAMA
+    ):
         openai_tools = [OpenAIToolDefinition.model_validate(schema) for schema in schemas]
         tools = [_openai_to_prompt_tool(openai_tool) for openai_tool in openai_tools]
     elif model_provider is ModelProvider.ANTHROPIC:
@@ -495,7 +537,13 @@ def normalize_tools(
         raise ValueError(f"Unsupported model provider: {model_provider}")
     ans = PromptTools(type="tools", tools=tools)
     if tool_choice is not None:
-        if model_provider is ModelProvider.OPENAI or model_provider is ModelProvider.AZURE_OPENAI:
+        if (
+            model_provider is ModelProvider.OPENAI
+            or model_provider is ModelProvider.AZURE_OPENAI
+            or model_provider is ModelProvider.DEEPSEEK
+            or model_provider is ModelProvider.XAI
+            or model_provider is ModelProvider.OLLAMA
+        ):
             ans.tool_choice = OpenAIToolChoiceConversion.from_openai(tool_choice)  # type: ignore[arg-type]
         elif model_provider is ModelProvider.ANTHROPIC:
             choice, disable_parallel_tool_calls = AnthropicToolChoiceConversion.from_anthropic(
@@ -513,7 +561,13 @@ def denormalize_tools(
     assert tools.type == "tools"
     denormalized_tools: list[DBBaseModel]
     tool_choice: Optional[Any] = None
-    if model_provider is ModelProvider.OPENAI or model_provider is ModelProvider.AZURE_OPENAI:
+    if (
+        model_provider is ModelProvider.OPENAI
+        or model_provider is ModelProvider.AZURE_OPENAI
+        or model_provider is ModelProvider.DEEPSEEK
+        or model_provider is ModelProvider.XAI
+        or model_provider is ModelProvider.OLLAMA
+    ):
         denormalized_tools = [_prompt_to_openai_tool(tool) for tool in tools.tools]
         if tools.tool_choice:
             tool_choice = OpenAIToolChoiceConversion.to_openai(tools.tool_choice)

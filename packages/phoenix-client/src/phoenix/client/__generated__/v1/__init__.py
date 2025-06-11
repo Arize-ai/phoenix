@@ -259,6 +259,17 @@ class PromptOpenAIInvocationParametersContent(TypedDict):
     reasoning_effort: NotRequired[Literal["low", "medium", "high"]]
 
 
+class PromptOllamaInvocationParametersContent(TypedDict):
+    temperature: NotRequired[float]
+    max_tokens: NotRequired[int]
+    max_completion_tokens: NotRequired[int]
+    frequency_penalty: NotRequired[float]
+    presence_penalty: NotRequired[float]
+    top_p: NotRequired[float]
+    seed: NotRequired[int]
+    reasoning_effort: NotRequired[Literal["low", "medium", "high"]]
+
+
 class PromptResponseFormatJSONSchemaDefinition(TypedDict):
     name: str
     description: NotRequired[str]
@@ -306,10 +317,32 @@ class PromptVersionTagData(TypedDict):
     description: NotRequired[str]
 
 
+class PromptXAIInvocationParametersContent(TypedDict):
+    temperature: NotRequired[float]
+    max_tokens: NotRequired[int]
+    max_completion_tokens: NotRequired[int]
+    frequency_penalty: NotRequired[float]
+    presence_penalty: NotRequired[float]
+    top_p: NotRequired[float]
+    seed: NotRequired[int]
+    reasoning_effort: NotRequired[Literal["low", "medium", "high"]]
+
+
 class SpanAnnotationResult(TypedDict):
     label: NotRequired[str]
     score: NotRequired[float]
     explanation: NotRequired[str]
+
+
+class SpanContext(TypedDict):
+    trace_id: str
+    span_id: str
+
+
+class SpanEvent(TypedDict):
+    name: str
+    timestamp: str
+    attributes: NotRequired[Mapping[str, Any]]
 
 
 class TextContentPart(TypedDict):
@@ -506,6 +539,11 @@ class PromptOpenAIInvocationParameters(TypedDict):
     openai: PromptOpenAIInvocationParametersContent
 
 
+class PromptOllamaInvocationParameters(TypedDict):
+    type: Literal["ollama"]
+    ollama: PromptOllamaInvocationParametersContent
+
+
 class PromptResponseFormatJSONSchema(TypedDict):
     type: Literal["json_schema"]
     json_schema: PromptResponseFormatJSONSchemaDefinition
@@ -530,6 +568,25 @@ class PromptTools(TypedDict):
     disable_parallel_tool_calls: NotRequired[bool]
 
 
+class PromptXAIInvocationParameters(TypedDict):
+    type: Literal["xai"]
+    xai: PromptXAIInvocationParametersContent
+
+
+class Span(TypedDict):
+    id: str
+    name: str
+    context: SpanContext
+    span_kind: str
+    start_time: str
+    end_time: str
+    status_code: str
+    parent_id: NotRequired[str]
+    status_message: NotRequired[str]
+    attributes: NotRequired[Mapping[str, Any]]
+    events: NotRequired[Sequence[SpanEvent]]
+
+
 class SpanAnnotationData(TypedDict):
     span_id: str
     name: str
@@ -549,6 +606,11 @@ class SpanAnnotation(SpanAnnotationData):
 
 class SpanAnnotationsResponseBody(TypedDict):
     data: Sequence[SpanAnnotation]
+    next_cursor: Optional[str]
+
+
+class SpanSearchResponseBody(TypedDict):
+    data: Sequence[Span]
     next_cursor: Optional[str]
 
 
@@ -588,7 +650,9 @@ class PromptChatTemplate(TypedDict):
 
 
 class PromptVersionData(TypedDict):
-    model_provider: Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE", "DEEPSEEK"]
+    model_provider: Literal[
+        "OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE", "DEEPSEEK", "XAI", "OLLAMA"
+    ]
     model_name: str
     template: Union[PromptChatTemplate, PromptStringTemplate]
     template_type: Literal["STR", "CHAT"]
@@ -599,6 +663,8 @@ class PromptVersionData(TypedDict):
         PromptAnthropicInvocationParameters,
         PromptGoogleInvocationParameters,
         PromptDeepSeekInvocationParameters,
+        PromptXAIInvocationParameters,
+        PromptOllamaInvocationParameters,
     ]
     description: NotRequired[str]
     tools: NotRequired[PromptTools]
@@ -684,6 +750,6 @@ class OtlpSpan(TypedDict):
     trace_state: NotRequired[str]
 
 
-class SpanSearchResponseBody(TypedDict):
+class OtlpSpanSearchResponseBody(TypedDict):
     data: Sequence[OtlpSpan]
     next_cursor: Optional[str]
