@@ -65,7 +65,7 @@ df = df.rename(
 
 # Use the language model to classify each example in the dataset
 rails_map = RAG_RELEVANCY_PROMPT_RAILS_MAP
-class_names = list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values())
+class_names = list(rails_map.values())
 result_df = llm_classify(df, model, RAG_RELEVANCY_PROMPT_TEMPLATE, class_names)
 
 # Map the true labels to the class names for comparison
