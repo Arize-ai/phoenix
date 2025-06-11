@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c6eec3855749a92af11d7d42910c7235>>
+ * @generated SignedSource<<feb9c8ac82afe8b892265f3af9d5e804>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,7 +19,7 @@ export type CreateModelMutationInput = {
   namePattern: string;
   outputCostPerToken: number;
   promptAudioCostPerToken?: number | null;
-  provider?: string | null;
+  providerKey?: GenerativeProviderKey | null;
   reasoningCostPerToken?: number | null;
 };
 export type CloneModelButtonMutation$variables = {

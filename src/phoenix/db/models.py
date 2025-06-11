@@ -1538,6 +1538,16 @@ class SpanCost(Base):
         nullable=False,
         index=True,
     )
+    prompt_token_cost: Mapped[Optional[float]] = mapped_column(
+        Float,
+        nullable=True,
+        index=True,
+    )
+    completion_token_cost: Mapped[Optional[float]] = mapped_column(
+        Float,
+        nullable=True,
+        index=True,
+    )
     input_token_cost: Mapped[Optional[float]] = mapped_column(
         Float,
         nullable=True,

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<331ed96d3cd6b6f3b96989b873d21113>>
+ * @generated SignedSource<<c53a651c6c19d54d4c33f1d4e8e07d0b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,6 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
 export type CloneModelButtonQuery$variables = {
   id: string;
 };
@@ -18,6 +19,7 @@ export type CloneModelButtonQuery$data = {
     readonly name?: string;
     readonly namePattern?: string;
     readonly provider?: string | null;
+    readonly providerKey?: GenerativeProviderKey | null;
     readonly tokenCost?: {
       readonly cacheRead: number | null;
       readonly cacheWrite: number | null;
@@ -77,6 +79,13 @@ v5 = {
   "storageKey": null
 },
 v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "providerKey",
+  "storageKey": null
+},
+v7 = {
   "alias": null,
   "args": null,
   "concreteType": "TokenCost",
@@ -151,7 +160,8 @@ return {
               (v3/*: any*/),
               (v4/*: any*/),
               (v5/*: any*/),
-              (v6/*: any*/)
+              (v6/*: any*/),
+              (v7/*: any*/)
             ],
             "type": "Model",
             "abstractKey": null
@@ -191,7 +201,8 @@ return {
               (v3/*: any*/),
               (v4/*: any*/),
               (v5/*: any*/),
-              (v6/*: any*/)
+              (v6/*: any*/),
+              (v7/*: any*/)
             ],
             "type": "Model",
             "abstractKey": null
@@ -202,16 +213,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "4ede1c06ebede2498798726f59be417b",
+    "cacheID": "059ccf96a0f838c8b2311925cbae1c70",
     "id": null,
     "metadata": {},
     "name": "CloneModelButtonQuery",
     "operationKind": "query",
-    "text": "query CloneModelButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on Model {\n      id\n      name\n      provider\n      namePattern\n      tokenCost {\n        input\n        output\n        cacheRead\n        cacheWrite\n        promptAudio\n        completionAudio\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query CloneModelButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on Model {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      tokenCost {\n        input\n        output\n        cacheRead\n        cacheWrite\n        promptAudio\n        completionAudio\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f6781d9dc37c47ac9caae4592947d942";
+(node as any).hash = "b44d8a0c682a7f2e0bf275a6262f2e9c";
 
 export default node;
