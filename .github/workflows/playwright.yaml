@@ -61,7 +61,7 @@ jobs:
         if: ${{ env.CI_PLAYWRIGHT_SKIP_WEBKIT != 'true' && steps.playwright-cache.outputs.cache-hit == 'true' }}
         run: pnpm exec playwright install-deps webkit
       - name: Build the app
-        run: pnpm run build
+        run: NODE_ENV=test pnpm run build
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py }}
