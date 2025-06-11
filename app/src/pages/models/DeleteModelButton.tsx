@@ -1,10 +1,14 @@
 import { useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import { DialogContainer } from "@arizeai/components";
-
 import {
   Button,
+  Dialog,
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
   DialogTrigger,
   Flex,
   Icon,
@@ -14,13 +18,6 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import {
-  Dialog,
-  DialogCloseButton,
-  DialogHeader,
-  DialogTitle,
-  DialogTitleExtra,
-} from "@phoenix/components/dialog/Dialog";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -159,28 +156,26 @@ export function DeleteModelButton({
       >
         Delete
       </Button>
-      <DialogContainer onDismiss={handleClose}>
-        {isOpen && (
-          <ModalOverlay>
-            <Modal>
-              <Dialog>
-                <DialogHeader>
-                  <DialogTitle>Delete Model</DialogTitle>
-                  <DialogTitleExtra>
-                    <DialogCloseButton slot="close" />
-                  </DialogTitleExtra>
-                </DialogHeader>
-                <DeleteModelDialogContent
-                  modelId={modelId}
-                  modelName={modelName}
-                  onClose={handleClose}
-                  connectionId={connectionId}
-                />
-              </Dialog>
-            </Modal>
-          </ModalOverlay>
-        )}
-      </DialogContainer>
+      <ModalOverlay>
+        <Modal>
+          <Dialog>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Delete Model</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton slot="close" />
+                </DialogTitleExtra>
+              </DialogHeader>
+              <DeleteModelDialogContent
+                modelId={modelId}
+                modelName={modelName}
+                onClose={handleClose}
+                connectionId={connectionId}
+              />
+            </DialogContent>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
     </DialogTrigger>
   );
 }

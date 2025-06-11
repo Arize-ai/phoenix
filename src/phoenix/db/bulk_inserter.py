@@ -408,6 +408,29 @@ def _calculate_span_cost(span: Span, span_id: int) -> Optional[SpanCost]:
         if llm_completion_audio_tokens is not None and cost_per_completion_audio_token is not None
         else None
     )
+    prompt_token_cost_components = [
+        cost
+        for cost in [
+            input_token_cost,
+            cache_read_token_cost,
+            cache_write_token_cost,
+            prompt_audio_token_cost,
+        ]
+        if cost is not None
+    ]
+    prompt_token_cost = sum(prompt_token_cost_components) if prompt_token_cost_components else None
+    completion_token_cost_components = [
+        cost
+        for cost in [
+            output_token_cost,
+            reasoning_token_cost,
+            completion_audio_token_cost,
+        ]
+        if cost is not None
+    ]
+    completion_token_cost = (
+        sum(completion_token_cost_components) if completion_token_cost_components else None
+    )
     costs = [
         cost
         for cost in [
@@ -429,6 +452,8 @@ def _calculate_span_cost(span: Span, span_id: int) -> Optional[SpanCost]:
     return SpanCost(
         span_id=span_id,
         model_id=model_id,
+        prompt_token_cost=prompt_token_cost,
+        completion_token_cost=completion_token_cost,
         input_token_cost=input_token_cost,
         output_token_cost=output_token_cost,
         cache_read_token_cost=cache_read_token_cost,
