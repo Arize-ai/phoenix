@@ -1364,7 +1364,7 @@ class TestProject:
     ) -> None:
         project = _data.projects[0]
         session = _data.project_sessions[0]
-        field = 'sessions(sessionId:"' + session.session_id + '"){edges{node{id}}}'
+        field = f'sessions(sessionId:"{session.session_id}")' + "{edges{node{id}}}"
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == [_gid(session)]
 
