@@ -11,16 +11,21 @@ from phoenix.client.__generated__ import v1
 from typing_extensions import TypeAlias
 
 from .._helpers import (
-    _ADMIN,
-    _MEMBER,
-    _await_or_return,
-    _GetUser,
-    _RoleOrUser,
+    _ADMIN,  # pyright: ignore[reportPrivateUsage]
+    _MEMBER,  # pyright: ignore[reportPrivateUsage]
+    _await_or_return,  # pyright: ignore[reportPrivateUsage]
+    _GetUser,  # pyright: ignore[reportPrivateUsage]
+    _RoleOrUser,  # pyright: ignore[reportPrivateUsage]
 )
 
 # Type aliases for better readability
 SpanId: TypeAlias = str
 SpanGlobalId: TypeAlias = str
+
+# Type ignore for pandas operations that work correctly at runtime
+# pyright: reportUnknownMemberType=false
+# pyright: reportUnknownVariableType=false
+# pyright: reportUnknownArgumentType=false
 
 
 class TestClientForSpanAnnotationsRetrieval:
@@ -551,7 +556,7 @@ class TestClientForSpansRetrieval:
 
         # Create the test spans
         create_result = await _await_or_return(
-            Client().spans.log_spans(
+            Client().spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
                 project_identifier="default",
                 spans=test_spans,
             )
@@ -936,7 +941,7 @@ class TestClientForSpanCreation:
         )
 
         # Create spans successfully
-        result = client.spans.log_spans(
+        result = client.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
             project_identifier="default",
             spans=[parent_span, child_span],
         )
@@ -949,7 +954,7 @@ class TestClientForSpanCreation:
         time.sleep(1)  # Give server time to process
 
         with pytest.raises(SpanCreationError) as exc_info:
-            client.spans.log_spans(
+            client.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
                 project_identifier="default",
                 spans=[parent_span],  # Duplicate
             )
@@ -964,7 +969,7 @@ class TestClientForSpanCreation:
         )
 
         with pytest.raises(SpanCreationError) as exc_info:
-            client.spans.log_spans(
+            client.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
                 project_identifier="default",
                 spans=[invalid_span],
             )
@@ -976,7 +981,7 @@ class TestClientForSpanCreation:
         import httpx
 
         with pytest.raises(httpx.HTTPStatusError) as http_exc_info:
-            client.spans.log_spans(
+            client.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
                 project_identifier="non_existent_project_xyz",
                 spans=[self._create_test_span("test")],
             )
@@ -1045,7 +1050,7 @@ class TestClientForSpanCreation:
 
             # Create original spans
             result = await _await_or_return(
-                Client().spans.log_spans(
+                Client().spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
                     project_identifier="default",
                     spans=test_spans,
                 )
@@ -1168,7 +1173,7 @@ class TestClientForSpanCreation:
 
         # Create batch
         result = await _await_or_return(
-            Client().spans.log_spans(
+            Client().spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
                 project_identifier="default",
                 spans=batch_spans,
             )
@@ -1217,7 +1222,7 @@ class TestClientForSpanCreation:
         base_time = datetime.now(timezone.utc)
 
         # Create comprehensive test data with nested attributes and complex types
-        test_data = {
+        test_data: dict[str, Any] = {
             "name": ["ChatCompletion", "ChatCompletion"],
             "span_kind": ["LLM", "LLM"],
             "parent_id": [None, None],
@@ -1331,7 +1336,7 @@ class TestClientForSpanCreation:
 
         # Log spans using DataFrame
         result = await _await_or_return(
-            Client().spans.log_spans_dataframe(
+            Client().spans.log_spans_dataframe(  # pyright: ignore[reportAttributeAccessIssue]
                 project_identifier="default",
                 spans_dataframe=input_df,
             )
@@ -1362,46 +1367,46 @@ class TestClientForSpanCreation:
         for _, row in our_spans.iterrows():
             # Find matching original span by trace_id to handle identical names
             original_span = input_df[input_df["context.trace_id"] == row["context.trace_id"]]
-            assert not original_span.empty
+            assert len(original_span) > 0  # Use len() instead of .empty for type safety
             orig_row = original_span.iloc[0]
 
             # Verify basic fields
-            assert row["span_kind"] == orig_row["span_kind"]
-            assert row["name"] == orig_row["name"]
-            assert row["status_code"] == orig_row["status_code"]
+            assert str(row["span_kind"]) == str(orig_row["span_kind"])
+            assert str(row["name"]) == str(orig_row["name"])
+            assert str(row["status_code"]) == str(orig_row["status_code"])
 
             # Verify simple string attributes
-            assert row["attributes.llm.provider"] == orig_row["attributes.llm.provider"]
-            assert row["attributes.llm.model_name"] == orig_row["attributes.llm.model_name"]
-            assert row["attributes.input.mime_type"] == orig_row["attributes.input.mime_type"]
+            assert str(row["attributes.llm.provider"]) == str(orig_row["attributes.llm.provider"])
+            assert str(row["attributes.llm.model_name"]) == str(orig_row["attributes.llm.model_name"])
+            assert str(row["attributes.input.mime_type"]) == str(orig_row["attributes.input.mime_type"])
 
             # Verify numeric attributes
             assert (
-                row["attributes.llm.token_count.total"]
-                == orig_row["attributes.llm.token_count.total"]
+                int(row["attributes.llm.token_count.total"])  # pyright: ignore[reportArgumentType]
+                == int(orig_row["attributes.llm.token_count.total"])  # pyright: ignore[reportArgumentType]
             )
             assert (
-                row["attributes.llm.token_count.prompt"]
-                == orig_row["attributes.llm.token_count.prompt"]
+                int(row["attributes.llm.token_count.prompt"])  # pyright: ignore[reportArgumentType]
+                == int(orig_row["attributes.llm.token_count.prompt"])  # pyright: ignore[reportArgumentType]
             )
 
             # Verify JSON string attributes
             assert (
-                row["attributes.llm.invocation_parameters"]
-                == orig_row["attributes.llm.invocation_parameters"]
+                str(row["attributes.llm.invocation_parameters"])
+                == str(orig_row["attributes.llm.invocation_parameters"])
             )
-            assert row["attributes.input.value"] == orig_row["attributes.input.value"]
-            assert row["attributes.output.value"] == orig_row["attributes.output.value"]
+            assert str(row["attributes.input.value"]) == str(orig_row["attributes.input.value"])
+            assert str(row["attributes.output.value"]) == str(orig_row["attributes.output.value"])
 
             # Verify complex nested object attributes
-            assert row["attributes.url"] == orig_row["attributes.url"]
+            assert str(row["attributes.url"]) == str(orig_row["attributes.url"])
             assert (
-                row["attributes.llm.prompt_template.variables"]
-                == orig_row["attributes.llm.prompt_template.variables"]
+                str(row["attributes.llm.prompt_template.variables"])
+                == str(orig_row["attributes.llm.prompt_template.variables"])
             )
 
             # Verify list attributes with complex objects
-            assert row["attributes.llm.input_messages"] == orig_row["attributes.llm.input_messages"]
+            assert str(row["attributes.llm.input_messages"]) == str(orig_row["attributes.llm.input_messages"])
             assert (
-                row["attributes.llm.output_messages"] == orig_row["attributes.llm.output_messages"]
+                str(row["attributes.llm.output_messages"]) == str(orig_row["attributes.llm.output_messages"])
             )
