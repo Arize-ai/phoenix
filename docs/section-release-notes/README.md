@@ -17,6 +17,14 @@ layout:
 
 {% embed url="https://github.com/Arize-ai/phoenix/releases" %}
 
+## [05.30.2025: xAI and Deepseek Support in Playground](05.30.2025-xai-and-deepseek-support-in-playground.md)
+
+**Available in Phoenix v10.5.0+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/deepseek.mp4" %}
+
+Deepseek and xAI models are now available in Prompt Playground!
+
 ## [05.20.2025: Datasets and Experiment Evaluations in the JS Client](05.20.2025-datasets-and-experiment-evaluations-in-the-js-client.md)
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/TS-experiments.png" %}
@@ -68,7 +76,7 @@ Phoenix's v9.0.0 release brings with it:
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/genai.mp4" %}
 
-We’ve added a Python auto-instrumentation library for the Google GenAI SDK. This enables seamless tracing of GenAI workflows with full OpenTelemetry compatibility. Additionally, the Google GenAI instrumentor is now supported and works seamlessly with Span Replay in Phoenix.&#x20;
+We’ve added a Python auto-instrumentation library for the Google GenAI SDK. This enables seamless tracing of GenAI workflows with full OpenTelemetry compatibility. Additionally, the Google GenAI instrumentor is now supported and works seamlessly with Span Replay in Phoenix.
 
 ***
 
@@ -114,7 +122,7 @@ Improved trace navigation by automatically scrolling the selected span into view
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/MCP%20tracing.png" %}
 
-We’ve released `openinference-instrumentation-mcp`, a new package in the OpenInference OSS library that enables seamless OpenTelemetry context propagation across MCP clients and servers. It automatically creates spans, injects and extracts context, and connects the full trace across services to give you complete visibility into your MCP-based AI systems.&#x20;
+We’ve released `openinference-instrumentation-mcp`, a new package in the OpenInference OSS library that enables seamless OpenTelemetry context propagation across MCP clients and servers. It automatically creates spans, injects and extracts context, and connects the full trace across services to give you complete visibility into your MCP-based AI systems.
 
 Big thanks to Adrian Cole and Anuraag Agrawal for their contributions to this feature.
 
@@ -142,17 +150,17 @@ Tool call and result IDs are now shown in the span details view. Each ID is plac
 
 **Available in Phoenix 8.24+**
 
-This update enhances the Project Management API with more flexible project identification We've added support for identifying projects by both ID and hex-encoded name and introduced a new `_get_project_by_identifier` helper function.&#x20;
+This update enhances the Project Management API with more flexible project identification We've added support for identifying projects by both ID and hex-encoded name and introduced a new `_get_project_by_identifier` helper function.
 
 ***
 
-## [04.09.2025: New REST API for Projects with RBAC 📽️ ](04.09.2025-new-rest-api-for-projects-with-rbac.md)
+## [04.09.2025: New REST API for Projects with RBAC 📽️](04.09.2025-new-rest-api-for-projects-with-rbac.md)
 
 **Available in Phoenix 8.23+**
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/project_management_REST_API.mp4" %}
 
-This release introduces a REST API for managing projects, complete with full CRUD functionality and  access control. Key features include CRUD Operations and Role-Based Access Control. Check out our [new documentation ](https://arize.com/docs/phoenix/sdk-api-reference/projects)to test these features.&#x20;
+This release introduces a REST API for managing projects, complete with full CRUD functionality and access control. Key features include CRUD Operations and Role-Based Access Control. Check out our [new documentation ](https://arize.com/docs/phoenix/sdk-api-reference/projects)to test these features.
 
 ***
 
@@ -162,7 +170,7 @@ This release introduces a REST API for managing projects, complete with full CRU
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/prompt_tagging.gif" %}
 
-We’ve added support for Prompt Tagging in the Phoenix client. This new feature gives you more control and visibility over your prompts throughout the development lifecycle. Tag prompts directly in code, label prompt versions, and add tag descriptions. Check out documentation on [prompt tags](https://arize.com/docs/phoenix/prompt-engineering/how-to-prompts/tag-a-prompt).&#x20;
+We’ve added support for Prompt Tagging in the Phoenix client. This new feature gives you more control and visibility over your prompts throughout the development lifecycle. Tag prompts directly in code, label prompt versions, and add tag descriptions. Check out documentation on [prompt tags](https://arize.com/docs/phoenix/prompt-engineering/how-to-prompts/tag-a-prompt).
 
 ***
 
@@ -330,7 +338,7 @@ register(auto_instrument=True)
 
 In addition to using our automatic instrumentors and tracing directly using OTEL, we've now added our own layer to let you have the granularity of manual instrumentation without as much boilerplate code.
 
-You can now access a tracer object with streamlined options to trace functions and code blocks. The main two options are using the **decorator** `@tracer.chain` and using the tracer in a `with` clause.&#x20;
+You can now access a tracer object with streamlined options to trace functions and code blocks. The main two options are using the **decorator** `@tracer.chain` and using the tracer in a `with` clause.
 
 Check out the [docs](https://arize.com/docs/phoenix/tracing/how-to-tracing/instrument-python#using-your-tracer) for more on how to use tracer objects.
 

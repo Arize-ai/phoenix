@@ -56,7 +56,7 @@ pip install arize-phoenix-otel
 ```python
 import os
 
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006/v1/traces"
 ```
 
 See [Terminal](../../environments.md#terminal) for more details
