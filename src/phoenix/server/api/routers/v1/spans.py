@@ -983,9 +983,6 @@ class CreateSpansRequestBody(RequestBody[list[Span]]):
     data: list[Span]
 
 
-
-
-
 class CreateSpansResponseBody(V1RoutesBaseModel):
     total_received: int = Field(description="Total number of spans received")
     total_queued: int = Field(description="Number of spans successfully queued for insertion")
@@ -1076,21 +1073,25 @@ async def create_spans(
     for api_span in request_body.data:
         # Check if it's a duplicate
         if api_span.context.span_id in existing_span_ids:
-            duplicate_spans.append({
-                "span_id": api_span.context.span_id,
-                "trace_id": api_span.context.trace_id,
-            })
+            duplicate_spans.append(
+                {
+                    "span_id": api_span.context.span_id,
+                    "trace_id": api_span.context.trace_id,
+                }
+            )
             continue
 
         try:
             span_for_insertion = convert_api_span_for_insertion(api_span)
             spans_to_queue.append((span_for_insertion, project.name))
         except Exception as e:
-            invalid_spans.append({
-                "span_id": api_span.context.span_id,
-                "trace_id": api_span.context.trace_id,
-                "error": str(e),
-            })
+            invalid_spans.append(
+                {
+                    "span_id": api_span.context.span_id,
+                    "trace_id": api_span.context.trace_id,
+                    "error": str(e),
+                }
+            )
 
     # If there are any duplicates or invalid spans, reject the entire request
     if duplicate_spans or invalid_spans:

@@ -1175,6 +1175,7 @@ class TestClientForSpanCreation:
         assert result["total_queued"] == 5
 
         import asyncio
+
         await asyncio.sleep(1)
 
         retrieved_spans = await _await_or_return(
@@ -1186,6 +1187,4 @@ class TestClientForSpanCreation:
 
         created_span_ids = {s["context"]["span_id"] for s in batch_spans}
         retrieved_span_ids = {s["context"]["span_id"] for s in retrieved_spans}
-        assert (
-            len(created_span_ids & retrieved_span_ids) >= 0
-        )
+        assert len(created_span_ids & retrieved_span_ids) >= 0

@@ -3,6 +3,7 @@ from typing import Optional, Sequence, TypedDict
 
 class InvalidSpanInfo(TypedDict):
     """Information about an invalid span."""
+
     span_id: str
     trace_id: str
     error: str
@@ -10,6 +11,7 @@ class InvalidSpanInfo(TypedDict):
 
 class DuplicateSpanInfo(TypedDict):
     """Information about a duplicate span."""
+
     span_id: str
     trace_id: str
 
