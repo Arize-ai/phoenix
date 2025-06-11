@@ -67,13 +67,12 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@v6
         with:
-          version: 0.6.3
+          version: 0.7.12
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - run: uv pip install --system uvloop
         if: runner.os != 'Windows'
-      - run: uv sync --extra container
       - name: Run Playwright tests
         run: pnpm exec playwright test
       - uses: actions/upload-artifact@v4
