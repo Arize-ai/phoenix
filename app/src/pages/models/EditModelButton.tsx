@@ -7,11 +7,15 @@ import {
   useQueryLoader,
 } from "react-relay";
 
-import { DialogContainer } from "@arizeai/components";
-
 import {
   Alert,
   Button,
+  Dialog,
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
   DialogTrigger,
   Icon,
   Icons,
@@ -19,13 +23,6 @@ import {
   Modal,
   ModalOverlay,
 } from "@phoenix/components";
-import {
-  Dialog,
-  DialogCloseButton,
-  DialogHeader,
-  DialogTitle,
-  DialogTitleExtra,
-} from "@phoenix/components/dialog/Dialog";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -41,6 +38,7 @@ const ModelQuery = graphql`
         name
         provider
         namePattern
+        providerKey
         tokenCost {
           input
           output
@@ -102,7 +100,7 @@ function EditModelDialogContent({
   return (
     <ModelForm
       modelName={modelData.name}
-      modelProvider={modelData.provider}
+      modelProviderKey={modelData.providerKey}
       modelNamePattern={modelData.namePattern}
       modelCost={modelData.tokenCost}
       onSubmit={(params) => {
@@ -111,7 +109,7 @@ function EditModelDialogContent({
             input: {
               id: modelData.id!,
               name: params.name,
-              provider: params.provider,
+              providerKey: params.providerKey,
               namePattern: params.namePattern,
               inputCostPerToken: params.cost.input,
               outputCostPerToken: params.cost.output,
@@ -184,33 +182,31 @@ export function EditModelButton({
       >
         Edit
       </Button>
-      <DialogContainer onDismiss={handleClose}>
-        {isOpen && (
-          <ModalOverlay>
-            <Modal>
-              <Dialog>
-                <DialogHeader>
-                  <DialogTitle>Edit Model</DialogTitle>
-                  <DialogTitleExtra>
-                    <DialogCloseButton slot="close" />
-                  </DialogTitleExtra>
-                </DialogHeader>
-                <Suspense fallback={<Loading />}>
-                  {queryReference ? (
-                    <EditModelDialogContent
-                      queryReference={queryReference}
-                      onModelEdited={onModelEdited}
-                      onClose={handleClose}
-                    />
-                  ) : (
-                    <Loading />
-                  )}
-                </Suspense>
-              </Dialog>
-            </Modal>
-          </ModalOverlay>
-        )}
-      </DialogContainer>
+      <ModalOverlay>
+        <Modal>
+          <Dialog>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Edit Model</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton slot="close" />
+                </DialogTitleExtra>
+              </DialogHeader>
+              <Suspense fallback={<Loading />}>
+                {queryReference ? (
+                  <EditModelDialogContent
+                    queryReference={queryReference}
+                    onModelEdited={onModelEdited}
+                    onClose={handleClose}
+                  />
+                ) : (
+                  <Loading />
+                )}
+              </Suspense>
+            </DialogContent>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
     </DialogTrigger>
   );
 }

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<35be1889d3e9854a3440c9e847c78a4b>>
+ * @generated SignedSource<<330c4969a20ca9e64ea521b9a93dba6e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,6 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
 export type EditModelButtonQuery$variables = {
   id: string;
 };
@@ -18,6 +19,7 @@ export type EditModelButtonQuery$data = {
     readonly name?: string;
     readonly namePattern?: string;
     readonly provider?: string | null;
+    readonly providerKey?: GenerativeProviderKey | null;
     readonly tokenCost?: {
       readonly cacheRead: number | null;
       readonly cacheWrite: number | null;
@@ -77,6 +79,13 @@ v5 = {
   "storageKey": null
 },
 v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "providerKey",
+  "storageKey": null
+},
+v7 = {
   "alias": null,
   "args": null,
   "concreteType": "TokenCost",
@@ -151,7 +160,8 @@ return {
               (v3/*: any*/),
               (v4/*: any*/),
               (v5/*: any*/),
-              (v6/*: any*/)
+              (v6/*: any*/),
+              (v7/*: any*/)
             ],
             "type": "Model",
             "abstractKey": null
@@ -191,7 +201,8 @@ return {
               (v3/*: any*/),
               (v4/*: any*/),
               (v5/*: any*/),
-              (v6/*: any*/)
+              (v6/*: any*/),
+              (v7/*: any*/)
             ],
             "type": "Model",
             "abstractKey": null
@@ -202,16 +213,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "db90e7804666676e88551ae70a9be899",
+    "cacheID": "54660f6e6faa58e9c892e44faf02c052",
     "id": null,
     "metadata": {},
     "name": "EditModelButtonQuery",
     "operationKind": "query",
-    "text": "query EditModelButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on Model {\n      id\n      name\n      provider\n      namePattern\n      tokenCost {\n        input\n        output\n        cacheRead\n        cacheWrite\n        promptAudio\n        completionAudio\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query EditModelButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on Model {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      tokenCost {\n        input\n        output\n        cacheRead\n        cacheWrite\n        promptAudio\n        completionAudio\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2702fa9ebf7a0e966c6b2a261a0ccb75";
+(node as any).hash = "87ff065b0579d9d3d4b11f8392d454c5";
 
 export default node;

@@ -1,16 +1,19 @@
 from typing import Optional
 
 import strawberry
+from openinference.semconv.trace import OpenInferenceLLMProviderValues
 from sqlalchemy import delete
 from sqlalchemy.orm import joinedload
 from strawberry.relay import GlobalID
 from strawberry.types import Info
+from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.server.api.auth import IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.queries import Query
+from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.Model import Model, to_gql_model
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
@@ -18,7 +21,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 @strawberry.input
 class CreateModelMutationInput:
     name: str
-    provider: Optional[str]
+    provider_key: Optional[GenerativeProviderKey] = None
     name_pattern: str
     input_cost_per_token: float
     output_cost_per_token: float
@@ -39,7 +42,7 @@ class CreateModelMutationPayload:
 class UpdateModelMutationInput:
     id: GlobalID
     name: str
-    provider: Optional[str]
+    provider_key: Optional[GenerativeProviderKey]
     name_pattern: str
     input_cost_per_token: float
     output_cost_per_token: float
@@ -75,10 +78,13 @@ class ModelMutationMixin:
         info: Info[Context, None],
         input: CreateModelMutationInput,
     ) -> CreateModelMutationPayload:
+        semconv_provider: Optional[str] = None
+        if input.provider_key:
+            semconv_provider = _gql_to_semconv_provider(input.provider_key).value
         async with info.context.db() as session:
             model = models.Model(
                 name=input.name,
-                provider=input.provider,
+                provider=semconv_provider,
                 name_pattern=input.name_pattern,
                 is_override=True,
             )
@@ -144,6 +150,9 @@ class ModelMutationMixin:
         info: Info[Context, None],
         input: UpdateModelMutationInput,
     ) -> UpdateModelMutationPayload:
+        semconv_provider: Optional[str] = None
+        if input.provider_key:
+            semconv_provider = _gql_to_semconv_provider(input.provider_key).value
         try:
             model_id = from_global_id_with_expected_type(input.id, Model.__name__)
         except ValueError:
@@ -167,7 +176,7 @@ class ModelMutationMixin:
             await session.refresh(model)
 
             model.name = input.name
-            model.provider = input.provider
+            model.provider = semconv_provider
             model.name_pattern = input.name_pattern
             model.costs.append(
                 models.ModelCost(
@@ -256,3 +265,24 @@ class ModelMutationMixin:
             model=to_gql_model(model),
             query=Query(),
         )
+
+
+def _gql_to_semconv_provider(provider: GenerativeProviderKey) -> OpenInferenceLLMProviderValues:
+    """
+    Translates a GQL provider key to a semconv provider.
+    """
+    if provider == GenerativeProviderKey.OPENAI:
+        return OpenInferenceLLMProviderValues.OPENAI
+    elif provider == GenerativeProviderKey.ANTHROPIC:
+        return OpenInferenceLLMProviderValues.ANTHROPIC
+    elif provider == GenerativeProviderKey.AZURE_OPENAI:
+        return OpenInferenceLLMProviderValues.AZURE
+    elif provider == GenerativeProviderKey.GOOGLE:
+        return OpenInferenceLLMProviderValues.GOOGLE
+    elif provider == GenerativeProviderKey.DEEPSEEK:
+        return OpenInferenceLLMProviderValues.DEEPSEEK
+    elif provider == GenerativeProviderKey.XAI:
+        return OpenInferenceLLMProviderValues.XAI
+    elif provider == GenerativeProviderKey.OLLAMA:
+        raise BadRequest("Model cost is not supported for Ollama since it is self-hosted")
+    assert_never(provider)
