@@ -71,7 +71,50 @@ def uniquify_spans(
         ...     spans=new_spans
         ... )
     """
-    return _uniquify_spans_list(spans, in_place=in_place)
+    if in_place:
+        mutable_spans = spans if isinstance(spans, list) else list(spans)
+    else:
+        mutable_spans = list(deepcopy(spans))
+
+    trace_id_mapping: dict[str, str] = {}
+    span_id_mapping: dict[str, str] = {}
+
+    generated_trace_ids: set[str] = set()
+    generated_span_ids: set[str] = set()
+
+    for span in mutable_spans:
+        if span.get("context"):
+            old_trace_id = span["context"].get("trace_id", "")
+            if old_trace_id and old_trace_id not in trace_id_mapping:
+                new_trace_id = _generate_trace_id()
+                while new_trace_id in generated_trace_ids:
+                    new_trace_id = _generate_trace_id()
+                generated_trace_ids.add(new_trace_id)
+                trace_id_mapping[old_trace_id] = new_trace_id
+
+            old_span_id = span["context"].get("span_id", "")
+            if old_span_id and old_span_id not in span_id_mapping:
+                new_span_id = _generate_span_id()
+                while new_span_id in generated_span_ids:
+                    new_span_id = _generate_span_id()
+                generated_span_ids.add(new_span_id)
+                span_id_mapping[old_span_id] = new_span_id
+
+    for span in mutable_spans:
+        if span.get("context"):
+            old_trace_id = span["context"].get("trace_id", "")
+            if old_trace_id in trace_id_mapping:
+                span["context"]["trace_id"] = trace_id_mapping[old_trace_id]
+
+            old_span_id = span["context"].get("span_id", "")
+            if old_span_id in span_id_mapping:
+                span["context"]["span_id"] = span_id_mapping[old_span_id]
+
+        old_parent_id = span.get("parent_id")
+        if old_parent_id and old_parent_id in span_id_mapping:
+            span["parent_id"] = span_id_mapping[old_parent_id]
+
+    return mutable_spans
 
 
 def uniquify_spans_dataframe(
@@ -111,86 +154,14 @@ def uniquify_spans_dataframe(
         >>> # Generate new IDs for the DataFrame
         >>> new_df = uniquify_spans_dataframe(df)
     """
-    return _uniquify_spans_dataframe(df, in_place=in_place)
-
-
-def _uniquify_spans_list(
-    spans: Sequence[v1.Span],
-    *,
-    in_place: bool = False,
-) -> list[v1.Span]:
-    """Original implementation for list of Span objects."""
-    if in_place:
-        mutable_spans = spans if isinstance(spans, list) else list(spans)
-    else:
-        mutable_spans = list(deepcopy(spans))
-
-    # Create mappings for old to new IDs
-    trace_id_mapping: dict[str, str] = {}
-    span_id_mapping: dict[str, str] = {}
-
-    # Keep track of generated IDs to ensure uniqueness
-    generated_trace_ids: set[str] = set()
-    generated_span_ids: set[str] = set()
-
-    # Generate new IDs and build mappings
-    for span in mutable_spans:
-        if span.get("context"):
-            old_trace_id = span["context"].get("trace_id", "")
-            if old_trace_id and old_trace_id not in trace_id_mapping:
-                # Generate unique trace ID
-                new_trace_id = _generate_trace_id()
-                while new_trace_id in generated_trace_ids:
-                    new_trace_id = _generate_trace_id()
-                generated_trace_ids.add(new_trace_id)
-                trace_id_mapping[old_trace_id] = new_trace_id
-
-            old_span_id = span["context"].get("span_id", "")
-            if old_span_id and old_span_id not in span_id_mapping:
-                # Generate unique span ID
-                new_span_id = _generate_span_id()
-                while new_span_id in generated_span_ids:
-                    new_span_id = _generate_span_id()
-                generated_span_ids.add(new_span_id)
-                span_id_mapping[old_span_id] = new_span_id
-
-    # Apply new IDs and update parent references
-    for span in mutable_spans:
-        if span.get("context"):
-            # Update trace_id
-            old_trace_id = span["context"].get("trace_id", "")
-            if old_trace_id in trace_id_mapping:
-                span["context"]["trace_id"] = trace_id_mapping[old_trace_id]
-
-            # Update span_id
-            old_span_id = span["context"].get("span_id", "")
-            if old_span_id in span_id_mapping:
-                span["context"]["span_id"] = span_id_mapping[old_span_id]
-
-        # Update parent_id if it exists
-        old_parent_id = span.get("parent_id")
-        if old_parent_id and old_parent_id in span_id_mapping:
-            span["parent_id"] = span_id_mapping[old_parent_id]
-
-    return mutable_spans
-
-
-def _uniquify_spans_dataframe(
-    df: "pd.DataFrame",
-    *,
-    in_place: bool = False,
-) -> "pd.DataFrame":
-    """Implementation for pandas DataFrame."""
     import pandas as pd
 
     if not in_place:
         df = df.copy(deep=True)
 
-    # Create mappings for old to new IDs
     trace_id_mapping: dict[str, str] = {}
     span_id_mapping: dict[str, str] = {}
 
-    # Generate new IDs from DataFrame columns and index
     if "context.trace_id" in df.columns:
         unique_trace_ids = df["context.trace_id"].dropna().unique()  # pyright: ignore
         for old_trace_id in unique_trace_ids:  # pyright: ignore
@@ -198,7 +169,6 @@ def _uniquify_spans_dataframe(
             if old_trace_id_str and old_trace_id_str not in trace_id_mapping:
                 trace_id_mapping[old_trace_id_str] = _generate_trace_id()
 
-    # Get span IDs from both index and column
     span_ids_to_map: set[str] = set()
 
     # Add span IDs from index - check if index contains span IDs
@@ -209,36 +179,28 @@ def _uniquify_spans_dataframe(
         index_has_span_ids = True
         span_ids_to_map.update(str(idx) for idx in df.index if pd.notna(idx))  # pyright: ignore
 
-    # Add span IDs from column if it exists
     if "context.span_id" in df.columns:
         span_ids_to_map.update(str(sid) for sid in df["context.span_id"].dropna() if pd.notna(sid))  # pyright: ignore
 
-    # Generate mappings for all unique span IDs
     for old_span_id in span_ids_to_map:
         if old_span_id and old_span_id not in span_id_mapping:
             span_id_mapping[old_span_id] = _generate_span_id()
 
-    # Apply new IDs to DataFrame
-
-    # Update trace_id column
     if "context.trace_id" in df.columns:
         df["context.trace_id"] = df["context.trace_id"].map(  # pyright: ignore
             lambda x: trace_id_mapping.get(str(x), x) if pd.notna(x) else x  # pyright: ignore
         )
 
-    # Update span_id column
     if "context.span_id" in df.columns:
         df["context.span_id"] = df["context.span_id"].map(  # pyright: ignore
             lambda x: span_id_mapping.get(str(x), x) if pd.notna(x) else x  # pyright: ignore
         )
 
-    # Update parent_id column
     if "parent_id" in df.columns:
         df["parent_id"] = df["parent_id"].map(  # pyright: ignore
             lambda x: span_id_mapping.get(str(x), x) if pd.notna(x) else x  # pyright: ignore
         )
 
-    # Update the index if it contains span IDs
     if index_has_span_ids and span_id_mapping:
         new_index_values: list[Any] = []
         for idx in df.index:  # pyright: ignore
@@ -299,11 +261,9 @@ def dataframe_to_spans(df: "pd.DataFrame") -> list[v1.Span]:
     for idx, row in df.iterrows():  # pyright: ignore
         span: dict[str, Any] = {}
 
-        # Handle span_id from index
         if df.index.name == "span_id" or df.index.name is None:  # pyright: ignore
             span_id = str(idx)
         else:
-            # If index is not span_id, try to get it from context.span_id column
             span_id = str(row.get("context.span_id", ""))  # pyright: ignore
 
         # Build context
@@ -332,7 +292,6 @@ def dataframe_to_spans(df: "pd.DataFrame") -> list[v1.Span]:
             # pyright: ignore for pandas Series boolean operations
             if field in row and pd.notna(row[field]):  # pyright: ignore[reportGeneralTypeIssues,reportUnknownMemberType,reportUnknownArgumentType]
                 value = row[field]  # pyright: ignore
-                # Convert timestamps to ISO format strings if they're datetime objects
                 if field in ["start_time", "end_time"]:
                     if hasattr(value, "isoformat"):  # pyright: ignore
                         value = value.isoformat()  # pyright: ignore
@@ -340,14 +299,12 @@ def dataframe_to_spans(df: "pd.DataFrame") -> list[v1.Span]:
                         value = str(value)  # pyright: ignore
                 span[field] = value
 
-        # Handle events (usually a list)
         if "events" in row:
             try:
                 events = row["events"]  # pyright: ignore
                 # Check if events is not null/nan using pandas-safe method
                 # pyright: ignore for pandas Series boolean operations
                 if events is not None and not pd.isna(events):  # pyright: ignore[reportGeneralTypeIssues,reportUnknownMemberType,reportUnknownArgumentType]
-                    # Handle various types that events might be
                     if hasattr(events, "__len__"):  # pyright: ignore
                         if len(events) > 0:  # pyright: ignore
                             if isinstance(events, list):
@@ -374,17 +331,14 @@ def dataframe_to_spans(df: "pd.DataFrame") -> list[v1.Span]:
                         if len(value) > 0:  # pyright: ignore
                             attributes[attr_name] = value
                     elif pd.notna(value):  # pyright: ignore[reportGeneralTypeIssues,reportUnknownMemberType,reportUnknownArgumentType]
-                        # For scalar values, use pd.notna() safely
                         attributes[attr_name] = value
                 except (ValueError, TypeError):
-                    # If we can't determine the value safely, check if it's not None
                     if value is not None:
                         attributes[attr_name] = value
 
         if attributes:
             span["attributes"] = attributes
 
-        # Ensure we have required fields
         if "name" not in span:
             span["name"] = "unknown"
         if "span_kind" not in span:
@@ -392,7 +346,6 @@ def dataframe_to_spans(df: "pd.DataFrame") -> list[v1.Span]:
         if "status_code" not in span:
             span["status_code"] = "UNSET"
 
-        # Only add span if it has valid context
         if span.get("context", {}).get("span_id") and span.get("context", {}).get("trace_id"):
             spans.append(cast(v1.Span, span))
 
