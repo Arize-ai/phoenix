@@ -20,9 +20,11 @@ import {
   View,
 } from "@phoenix/components";
 import {
+  DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTitleExtra,
 } from "@phoenix/components/dialog";
 
 export type APIKeyFormParams = {
@@ -38,8 +40,9 @@ export function CreateAPIKeyDialog(props: {
   isCommitting: boolean;
   onSubmit: (data: APIKeyFormParams) => void;
   defaultName?: APIKeyFormParams["name"];
+  onClose?: () => void;
 }) {
-  const { isCommitting, onSubmit, defaultName } = props;
+  const { isCommitting, onSubmit, defaultName, onClose } = props;
   const {
     control,
     handleSubmit,
@@ -57,6 +60,9 @@ export function CreateAPIKeyDialog(props: {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Create an API Key</DialogTitle>
+          <DialogTitleExtra>
+            <DialogCloseButton close={onClose} />
+          </DialogTitleExtra>
         </DialogHeader>
         <Form onSubmit={handleSubmit(onSubmit)}>
           <View padding="size-200">

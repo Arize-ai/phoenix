@@ -83,6 +83,7 @@ export function ViewerAPIKeys({
               <CreateAPIKeyDialog
                 onSubmit={onSubmit}
                 isCommitting={isCommitting}
+                onClose={() => setDialog(null)}
               />
             )
           }

@@ -1,11 +1,22 @@
 import { ReactNode } from "react";
 import { Blocker } from "react-router";
 
-import { Button, Dialog, Flex, Text, View } from "@phoenix/components";
 import {
+  Button,
+  Dialog,
+  DialogTrigger,
+  Flex,
+  Modal,
+  ModalOverlay,
+  Text,
+  View,
+} from "@phoenix/components";
+import {
+  DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTitleExtra,
 } from "@phoenix/components/dialog";
 
 function ConfirmNavigationDialogFooter({ blocker }: { blocker: Blocker }) {
@@ -36,17 +47,26 @@ export function ConfirmNavigationDialog({
 }) {
   if (blocker.state === "blocked") {
     return (
-      <Dialog>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm Navigation</DialogTitle>
-          </DialogHeader>
-          <View padding="size-200">
-            <Text>{message}</Text>
-          </View>
-          <ConfirmNavigationDialogFooter blocker={blocker} />
-        </DialogContent>
-      </Dialog>
+      <DialogTrigger isOpen>
+        <ModalOverlay isDismissable={false}>
+          <Modal>
+            <Dialog>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Confirm Navigation</DialogTitle>
+                  <DialogTitleExtra>
+                    <DialogCloseButton close={() => blocker.reset?.()} />
+                  </DialogTitleExtra>
+                </DialogHeader>
+                <View padding="size-200">
+                  <Text>{message}</Text>
+                </View>
+                <ConfirmNavigationDialogFooter blocker={blocker} />
+              </DialogContent>
+            </Dialog>
+          </Modal>
+        </ModalOverlay>
+      </DialogTrigger>
     );
   }
 }

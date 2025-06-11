@@ -116,6 +116,7 @@ export function APIKeysCard() {
         onSubmit={onSubmit}
         isCommitting={isCommitting}
         defaultName="System"
+        onClose={() => setDialog(null)}
       />
     );
   };
