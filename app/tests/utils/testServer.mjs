@@ -14,14 +14,31 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), appPrefix));
 process.env["PHOENIX_WORKING_DIR"] = tmpDir;
 process.env["PHOENIX_ENABLE_AUTH"] = "True";
 process.env["PHOENIX_SECRET"] = crypto.randomBytes(32).toString("hex");
+process.env["PHOENIX_SQL_DATABASE_URL"] = "sqlite:///:memory:";
 
 console.log("Phoenix test server starting...");
 console.log("PHOENIX_SECRET: ", process.env["PHOENIX_SECRET"]);
 console.log("PHOENIX_WORKING_DIR: ", process.env["PHOENIX_WORKING_DIR"]);
+console.log(
+  "PHOENIX_SQL_DATABASE_URL: ",
+  process.env["PHOENIX_SQL_DATABASE_URL"]
+);
 
 // Execute the server
-// TODO: Might have to force install the phoenix server
-const childProcess = exec("python -m phoenix.server.main serve");
+// uv will:
+// - install the phoenix server in editable mode
+// - install the phoenix evals and otel packages from the local packages directory
+// - install openai (necessary for playground)
+// - run the arize-phoenix serve command
+const childProcess = exec(
+  `uv tool run\
+  --with=openai\
+  --with=arize-phoenix-evals@../packages/phoenix-evals\
+  --with=arize-phoenix-otel@../packages/phoenix-otel\
+  --project=..\
+  arize-phoenix serve
+`
+);
 
-childProcess.stdout.pipe(process.stdout);
-childProcess.stderr.pipe(process.stderr);
+childProcess.stdout?.pipe(process.stdout);
+childProcess.stderr?.pipe(process.stderr);
