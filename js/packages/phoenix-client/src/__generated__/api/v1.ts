@@ -844,26 +844,6 @@ export interface components {
              * @description Number of spans successfully queued for insertion
              */
             total_queued: number;
-            /**
-             * Total Duplicates
-             * @description Number of duplicate spans found
-             */
-            total_duplicates: number;
-            /**
-             * Total Invalid
-             * @description Number of invalid spans
-             */
-            total_invalid: number;
-            /**
-             * Duplicate Spans
-             * @description Details of duplicate spans (if check_duplicates was true)
-             */
-            duplicate_spans?: components["schemas"]["DuplicateSpanInfo"][];
-            /**
-             * Invalid Spans
-             * @description Details of invalid spans that could not be queued
-             */
-            invalid_spans?: components["schemas"]["InvalidSpanInfo"][];
         };
         /** CreateUserRequestBody */
         CreateUserRequestBody: {
@@ -970,19 +950,6 @@ export interface components {
         DeleteAnnotationConfigResponseBody: {
             /** Data */
             data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
-        };
-        /** DuplicateSpanInfo */
-        DuplicateSpanInfo: {
-            /**
-             * Span Id
-             * @description OpenTelemetry span ID
-             */
-            span_id: string;
-            /**
-             * Trace Id
-             * @description OpenTelemetry trace ID
-             */
-            trace_id: string;
         };
         /** Experiment */
         Experiment: {
@@ -1202,24 +1169,6 @@ export interface components {
              * @description The ID of the inserted span annotation
              */
             id: string;
-        };
-        /** InvalidSpanInfo */
-        InvalidSpanInfo: {
-            /**
-             * Span Id
-             * @description OpenTelemetry span ID
-             */
-            span_id: string;
-            /**
-             * Trace Id
-             * @description OpenTelemetry trace ID
-             */
-            trace_id: string;
-            /**
-             * Error
-             * @description Error message explaining why the span is invalid
-             */
-            error: string;
         };
         /** ListDatasetExamplesData */
         ListDatasetExamplesData: {

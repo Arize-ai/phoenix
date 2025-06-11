@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     import pandas as pd
 
 from phoenix.client.__generated__ import v1
-from phoenix.client.exceptions import SpanCreationError
+from phoenix.client.exceptions import DuplicateSpanInfo, InvalidSpanInfo, SpanCreationError
 from phoenix.client.types.spans import SpanQuery
 from phoenix.client.utils.id_handling import is_node_id
 
@@ -469,8 +469,6 @@ class Spans:
 
         result = self._parse_create_spans_response(response, spans)
 
-        self._handle_create_spans_result(result)
-
         return result
 
     def _make_create_spans_request(
@@ -509,14 +507,15 @@ class Spans:
 
         # Check if this is a FastAPI validation error (has 'detail' field)
         if response.status_code == 422 and "detail" in response_data:
-            return self._parse_validation_error_response(response_data, spans)
+            error_response = self._parse_validation_error_response(response_data, spans)
+            self._raise_span_creation_error(error_response)
 
         if response.status_code == 400 and "detail" in response_data:
             detail = response_data["detail"]
 
             # For 400 errors, the server now returns properly formatted JSON in the detail field
             parsed_detail = json.loads(detail)
-            return cast(v1.CreateSpansResponseBody, parsed_detail)
+            self._raise_span_creation_error(parsed_detail)
 
         # For successful responses (202), return the response data directly
         return cast(v1.CreateSpansResponseBody, response_data)
@@ -527,7 +526,7 @@ class Spans:
         spans: Sequence[v1.Span],
     ) -> v1.CreateSpansResponseBody:
         """Convert FastAPI validation errors to our expected format."""
-        invalid_spans: list[v1.InvalidSpanInfo] = []
+        invalid_spans: list[InvalidSpanInfo] = []
 
         for error in response_data.get("detail", []):
             invalid_span = self._extract_invalid_span_from_error(error, spans)
@@ -550,7 +549,7 @@ class Spans:
         self,
         error: dict[str, Any],
         spans: Sequence[v1.Span],
-    ) -> Optional[v1.InvalidSpanInfo]:
+    ) -> Optional[InvalidSpanInfo]:
         """Extract invalid span info from a validation error."""
         loc_raw = error.get("loc", [])
         if not isinstance(loc_raw, list):
@@ -610,8 +609,8 @@ class Spans:
         *,
         total_invalid: int,
         total_duplicates: int,
-        invalid_spans: Sequence[v1.InvalidSpanInfo],
-        duplicate_spans: Sequence[v1.DuplicateSpanInfo],
+        invalid_spans: Sequence[InvalidSpanInfo],
+        duplicate_spans: Sequence[DuplicateSpanInfo],
     ) -> str:
         """Format error message for failed spans."""
         MAX_ERRORS_TO_SHOW = 5
@@ -641,6 +640,31 @@ class Spans:
                 )
 
         return "\n".join(error_parts)
+
+    def _raise_span_creation_error(self, error_data: Union[dict[str, Any], v1.CreateSpansResponseBody]) -> None:
+        """Raise SpanCreationError from error response data."""
+        total_received = error_data.get("total_received", 0)
+        total_queued = error_data.get("total_queued", 0)
+        total_invalid = error_data.get("total_invalid", 0)
+        total_duplicates = error_data.get("total_duplicates", 0)
+        invalid_spans = error_data.get("invalid_spans", [])
+        duplicate_spans = error_data.get("duplicate_spans", [])
+
+        error_msg = self._format_error_message(
+            total_invalid=total_invalid,
+            total_duplicates=total_duplicates,
+            invalid_spans=invalid_spans,
+            duplicate_spans=duplicate_spans,
+        )
+        raise SpanCreationError(
+            message=error_msg,
+            invalid_spans=list(invalid_spans),
+            duplicate_spans=list(duplicate_spans),
+            total_received=total_received,
+            total_queued=total_queued,
+            total_invalid=total_invalid,
+            total_duplicates=total_duplicates,
+        )
 
 
 class AsyncSpans:
@@ -1092,8 +1116,6 @@ class AsyncSpans:
 
         result = self._parse_create_spans_response(response, spans)
 
-        self._handle_create_spans_result(result)
-
         return result
 
     async def _make_create_spans_request(
@@ -1129,31 +1151,14 @@ class AsyncSpans:
         response_data = response.json()
 
         if response.status_code == 422 and "detail" in response_data:
-            return self._parse_validation_error_response(response_data, spans)
+            error_response = self._parse_validation_error_response(response_data, spans)
+            self._raise_span_creation_error(error_response)
 
         if response.status_code == 400 and "detail" in response_data:
             detail = response_data["detail"]
-            if isinstance(detail, dict):
-                return cast(v1.CreateSpansResponseBody, detail)
-            else:
-                return cast(
-                    v1.CreateSpansResponseBody,
-                    {
-                        "total_received": len(spans),
-                        "total_queued": 0,
-                        "total_duplicates": 0,
-                        "total_invalid": len(spans),
-                        "duplicate_spans": [],
-                        "invalid_spans": [
-                            {
-                                "span_id": span.get("context", {}).get("span_id", "unknown"),
-                                "trace_id": span.get("context", {}).get("trace_id", "unknown"),
-                                "error": str(detail),
-                            }
-                            for span in spans
-                        ],
-                    },
-                )
+            # For 400 errors, the server now returns properly formatted JSON in the detail field
+            parsed_detail = json.loads(detail)
+            self._raise_span_creation_error(parsed_detail)
 
         return cast(v1.CreateSpansResponseBody, response_data)
 
@@ -1163,7 +1168,7 @@ class AsyncSpans:
         spans: Sequence[v1.Span],
     ) -> v1.CreateSpansResponseBody:
         """Convert FastAPI validation errors to our expected format."""
-        invalid_spans: list[v1.InvalidSpanInfo] = []
+        invalid_spans: list[InvalidSpanInfo] = []
 
         for error in response_data.get("detail", []):
             invalid_span = self._extract_invalid_span_from_error(error, spans)
@@ -1186,7 +1191,7 @@ class AsyncSpans:
         self,
         error: dict[str, Any],
         spans: Sequence[v1.Span],
-    ) -> Optional[v1.InvalidSpanInfo]:
+    ) -> Optional[InvalidSpanInfo]:
         """Extract invalid span info from a validation error."""
         loc_raw = error.get("loc", [])
         if not isinstance(loc_raw, list):
@@ -1246,8 +1251,8 @@ class AsyncSpans:
         *,
         total_invalid: int,
         total_duplicates: int,
-        invalid_spans: Sequence[v1.InvalidSpanInfo],
-        duplicate_spans: Sequence[v1.DuplicateSpanInfo],
+        invalid_spans: Sequence[InvalidSpanInfo],
+        duplicate_spans: Sequence[DuplicateSpanInfo],
     ) -> str:
         """Format error message for failed spans."""
         MAX_ERRORS_TO_SHOW = 5
@@ -1277,6 +1282,31 @@ class AsyncSpans:
                 )
 
         return "\n".join(error_parts)
+
+    def _raise_span_creation_error(self, error_data: Union[dict[str, Any], v1.CreateSpansResponseBody]) -> None:
+        """Raise SpanCreationError from error response data."""
+        total_received = error_data.get("total_received", 0)
+        total_queued = error_data.get("total_queued", 0)
+        total_invalid = error_data.get("total_invalid", 0)
+        total_duplicates = error_data.get("total_duplicates", 0)
+        invalid_spans = error_data.get("invalid_spans", [])
+        duplicate_spans = error_data.get("duplicate_spans", [])
+
+        error_msg = self._format_error_message(
+            total_invalid=total_invalid,
+            total_duplicates=total_duplicates,
+            invalid_spans=invalid_spans,
+            duplicate_spans=duplicate_spans,
+        )
+        raise SpanCreationError(
+            message=error_msg,
+            invalid_spans=list(invalid_spans),
+            duplicate_spans=list(duplicate_spans),
+            total_received=total_received,
+            total_queued=total_queued,
+            total_invalid=total_invalid,
+            total_duplicates=total_duplicates,
+        )
 
 
 def _to_iso_format(value: Optional[datetime]) -> Optional[str]:

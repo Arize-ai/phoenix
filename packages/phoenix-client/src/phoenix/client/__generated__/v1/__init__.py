@@ -39,6 +39,11 @@ class CreateProjectRequestBody(TypedDict):
     description: NotRequired[str]
 
 
+class CreateSpansResponseBody(TypedDict):
+    total_received: int
+    total_queued: int
+
+
 class Dataset(TypedDict):
     id: str
     name: str
@@ -71,11 +76,6 @@ class DatasetWithExampleCount(TypedDict):
     created_at: str
     updated_at: str
     example_count: int
-
-
-class DuplicateSpanInfo(TypedDict):
-    span_id: str
-    trace_id: str
 
 
 class Experiment(TypedDict):
@@ -130,12 +130,6 @@ class GetExperimentResponseBody(TypedDict):
 
 class InsertedSpanAnnotation(TypedDict):
     id: str
-
-
-class InvalidSpanInfo(TypedDict):
-    span_id: str
-    trace_id: str
-    error: str
 
 
 class ListDatasetExamplesData(TypedDict):
@@ -466,15 +460,6 @@ class CreateExperimentRunResponseBody(TypedDict):
 
 class CreateProjectResponseBody(TypedDict):
     data: Project
-
-
-class CreateSpansResponseBody(TypedDict):
-    total_received: int
-    total_queued: int
-    total_duplicates: int
-    total_invalid: int
-    duplicate_spans: NotRequired[Sequence[DuplicateSpanInfo]]
-    invalid_spans: NotRequired[Sequence[InvalidSpanInfo]]
 
 
 class CreateUserRequestBody(TypedDict):

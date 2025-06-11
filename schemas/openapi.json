@@ -4002,40 +4002,12 @@
             "type": "integer",
             "title": "Total Queued",
             "description": "Number of spans successfully queued for insertion"
-          },
-          "total_duplicates": {
-            "type": "integer",
-            "title": "Total Duplicates",
-            "description": "Number of duplicate spans found"
-          },
-          "total_invalid": {
-            "type": "integer",
-            "title": "Total Invalid",
-            "description": "Number of invalid spans"
-          },
-          "duplicate_spans": {
-            "items": {
-              "$ref": "#/components/schemas/DuplicateSpanInfo"
-            },
-            "type": "array",
-            "title": "Duplicate Spans",
-            "description": "Details of duplicate spans (if check_duplicates was true)"
-          },
-          "invalid_spans": {
-            "items": {
-              "$ref": "#/components/schemas/InvalidSpanInfo"
-            },
-            "type": "array",
-            "title": "Invalid Spans",
-            "description": "Details of invalid spans that could not be queued"
           }
         },
         "type": "object",
         "required": [
           "total_received",
-          "total_queued",
-          "total_duplicates",
-          "total_invalid"
+          "total_queued"
         ],
         "title": "CreateSpansResponseBody"
       },
@@ -4303,26 +4275,6 @@
           "data"
         ],
         "title": "DeleteAnnotationConfigResponseBody"
-      },
-      "DuplicateSpanInfo": {
-        "properties": {
-          "span_id": {
-            "type": "string",
-            "title": "Span Id",
-            "description": "OpenTelemetry span ID"
-          },
-          "trace_id": {
-            "type": "string",
-            "title": "Trace Id",
-            "description": "OpenTelemetry trace ID"
-          }
-        },
-        "type": "object",
-        "required": [
-          "span_id",
-          "trace_id"
-        ],
-        "title": "DuplicateSpanInfo"
       },
       "Experiment": {
         "properties": {
@@ -4882,32 +4834,6 @@
           "id"
         ],
         "title": "InsertedSpanAnnotation"
-      },
-      "InvalidSpanInfo": {
-        "properties": {
-          "span_id": {
-            "type": "string",
-            "title": "Span Id",
-            "description": "OpenTelemetry span ID"
-          },
-          "trace_id": {
-            "type": "string",
-            "title": "Trace Id",
-            "description": "OpenTelemetry trace ID"
-          },
-          "error": {
-            "type": "string",
-            "title": "Error",
-            "description": "Error message explaining why the span is invalid"
-          }
-        },
-        "type": "object",
-        "required": [
-          "span_id",
-          "trace_id",
-          "error"
-        ],
-        "title": "InvalidSpanInfo"
       },
       "ListDatasetExamplesData": {
         "properties": {

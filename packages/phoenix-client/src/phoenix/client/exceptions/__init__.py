@@ -1,6 +1,17 @@
-from typing import Optional, Sequence
+from typing import Optional, Sequence, TypedDict
 
-from phoenix.client.__generated__ import v1
+
+class InvalidSpanInfo(TypedDict):
+    """Information about an invalid span."""
+    span_id: str
+    trace_id: str
+    error: str
+
+
+class DuplicateSpanInfo(TypedDict):
+    """Information about a duplicate span."""
+    span_id: str
+    trace_id: str
 
 
 class SpanCreationError(Exception):
@@ -9,8 +20,8 @@ class SpanCreationError(Exception):
     def __init__(
         self,
         message: str,
-        invalid_spans: Optional[Sequence[v1.InvalidSpanInfo]] = None,
-        duplicate_spans: Optional[Sequence[v1.DuplicateSpanInfo]] = None,
+        invalid_spans: Optional[Sequence[InvalidSpanInfo]] = None,
+        duplicate_spans: Optional[Sequence[DuplicateSpanInfo]] = None,
         total_received: int = 0,
         total_queued: int = 0,
         total_invalid: int = 0,
