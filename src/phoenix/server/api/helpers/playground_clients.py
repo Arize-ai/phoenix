@@ -608,23 +608,6 @@ class OllamaStreamingClient(OpenAIBaseStreamingClient):
         "anthropic.claude-3-5-haiku-20241022-v1:0",
         "anthropic.claude-opus-4-20250514-v1:0",
         "anthropic.claude-sonnet-4-20250514-v1:0",
-        "amazon.titan-embed-text-v2:0",
-        "amazon.nova-pro-v1:0",
-        "amazon.nova-premier-v1:0",
-        "amazon.nova-lite-v1:0",
-        "amazon.nova-micro-v1:0",
-        "deepseek.r1-v1:0",
-        "mistral.pixtral-large-2502-v1:0",
-        "meta.llama3-1-8b-instruct-v1:0",
-        "meta.llama3-1-70b-instruct-v1:0",
-        "meta.llama3-1-405b-instruct-v1:0",
-        "meta.llama3-2-11b-instruct-v1:0",
-        "meta.llama3-2-90b-instruct-v1:0",
-        "meta.llama3-2-1b-instruct-v1:0",
-        "meta.llama3-2-3b-instruct-v1:0",
-        "meta.llama3-3-70b-instruct-v1:0",
-        "meta.llama4-scout-17b-instruct-v1:0",
-        "meta.llama4-maverick-17b-instruct-v1:0",
     ],
 )
 class BedrockStreamingClient(PlaygroundStreamingClient):
@@ -712,7 +695,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
                                        aws_access_key_id=self.aws_access_key_id,
                                        aws_secret_access_key=self.aws_secret_access_key,
                                        aws_session_token=self.aws_session_token)
-
+        print(f"Using tools: {tools}")
         bedrock_messages, system_prompt = self._build_bedrock_messages(messages)
         bedrock_params = {
             "anthropic_version": "bedrock-2023-05-31",
@@ -721,35 +704,79 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
             "system": system_prompt,
             "temperature": invocation_parameters["temperature"],
             "top_p": invocation_parameters["top_p"],
+            "tools": tools,
         }
+
+        print(f"Bedrock params: {bedrock_params}")
 
         response = self.client.invoke_model_with_response_stream(
             modelId=f"us.{self.model_name}",  # or another Claude model
             contentType="application/json",
             accept="application/json",
-            body=json.dumps(bedrock_params)
+            body=json.dumps(bedrock_params),
+            trace='ENABLED_FULL'
         )
 
         # The response['body'] is an EventStream object
         event_stream = response['body']
 
-        # Iterate over the EventStream
+        # Track active tool calls and their accumulating arguments
+        active_tool_calls = {}  # index -> {id, name, arguments_buffer}
+
         for event in event_stream:
-            # Check if this is a 'chunk' event (PayloadPart)
             if 'chunk' in event:
                 chunk_data = json.loads(event['chunk']['bytes'].decode('utf-8'))
+                print(f"Chunk data: {chunk_data}")
 
-                # Handle different event types from Claude
+                # Handle text content
                 if chunk_data.get('type') == 'content_block_delta':
                     delta = chunk_data.get('delta', {})
-                    if 'text' in delta:
+                    index = chunk_data.get('index', 0)
+
+                    if delta.get('type') == 'text_delta' and 'text' in delta:
                         yield TextChunk(content=delta['text'])
 
+                    elif delta.get('type') == 'input_json_delta':
+                        # Accumulate tool arguments
+                        if index in active_tool_calls:
+                            active_tool_calls[index]['arguments_buffer'] += delta.get('partial_json', '')
+                            # Yield incremental argument update
+                            yield ToolCallChunk(
+                                id=active_tool_calls[index]['id'],
+                                function=FunctionCallChunk(
+                                    name=active_tool_calls[index]['name'],
+                                    arguments=delta.get('partial_json', ''),
+                                ),
+                            )
+
+                # Handle tool call start
                 elif chunk_data.get('type') == 'content_block_start':
                     content_block = chunk_data.get('content_block', {})
+                    index = chunk_data.get('index', 0)
+
                     if content_block.get('type') == 'tool_use':
-                        # Initialize tool handling if needed
-                        pass
+                        # Initialize tool call tracking
+                        active_tool_calls[index] = {
+                            'id': content_block.get('id'),
+                            'name': content_block.get('name'),
+                            'arguments_buffer': ''
+                        }
+
+                        # Yield initial tool call chunk
+                        yield ToolCallChunk(
+                            id=content_block.get('id'),
+                            function=FunctionCallChunk(
+                                name=content_block.get('name'),
+                                arguments='',  # Start with empty, will be filled by deltas
+                            ),
+                        )
+
+                # Handle content block stop (tool call complete)
+                elif chunk_data.get('type') == 'content_block_stop':
+                    index = chunk_data.get('index', 0)
+                    if index in active_tool_calls:
+                        # Tool call is complete, clean up
+                        del active_tool_calls[index]
 
     def _build_bedrock_messages(self, messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]]) -> tuple[list[dict], str]:
         bedrock_messages = []

@@ -425,5 +425,5 @@ def _to_sdk(
     if model_provider == "OLLAMA":
         return "openai"
     if model_provider == "BEDROCK":
-        return "openai"
+        return "anthropic"
     assert_never(model_provider)
