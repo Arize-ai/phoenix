@@ -1401,16 +1401,34 @@ class TestClientForSpanCreation:
             assert str(row["attributes.input.value"]) == str(orig_row["attributes.input.value"])
             assert str(row["attributes.output.value"]) == str(orig_row["attributes.output.value"])
 
-            # Verify complex nested object attributes
-            assert str(row["attributes.url"]) == str(orig_row["attributes.url"])
-            assert str(row["attributes.llm.prompt_template.variables"]) == str(
+            # Verify complex nested object attributes using JSON comparison for order-independence
+            import ast
+            
+            def compare_nested_objects(val1: Any, val2: Any) -> bool:
+                """Compare complex nested objects, handling different key orders."""
+                try:
+                    # Convert to strings and parse as Python literals if possible
+                    if isinstance(val1, str) and isinstance(val2, str):
+                        parsed1 = ast.literal_eval(val1)
+                        parsed2 = ast.literal_eval(val2)
+                        return bool(parsed1 == parsed2)
+                    return bool(val1 == val2)
+                except (ValueError, SyntaxError):
+                    # If parsing fails, fallback to string comparison
+                    return str(val1) == str(val2)
+            
+            assert compare_nested_objects(row["attributes.url"], orig_row["attributes.url"])
+            assert compare_nested_objects(
+                row["attributes.llm.prompt_template.variables"],
                 orig_row["attributes.llm.prompt_template.variables"]
             )
 
-            # Verify list attributes with complex objects
-            assert str(row["attributes.llm.input_messages"]) == str(
+            # Verify list attributes with complex objects using order-independent comparison
+            assert compare_nested_objects(
+                row["attributes.llm.input_messages"],
                 orig_row["attributes.llm.input_messages"]
             )
-            assert str(row["attributes.llm.output_messages"]) == str(
+            assert compare_nested_objects(
+                row["attributes.llm.output_messages"],
                 orig_row["attributes.llm.output_messages"]
             )
