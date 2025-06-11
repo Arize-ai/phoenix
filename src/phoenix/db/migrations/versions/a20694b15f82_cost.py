@@ -111,6 +111,18 @@ def upgrade() -> None:
             index=True,
         ),
         sa.Column(
+            "prompt_token_cost",
+            sa.Float,
+            nullable=True,
+            index=True,
+        ),
+        sa.Column(
+            "completion_token_cost",
+            sa.Float,
+            nullable=True,
+            index=True,
+        ),
+        sa.Column(
             "input_token_cost",
             sa.Float,
             nullable=True,

@@ -405,7 +405,7 @@ input CreateDatasetInput {
 
 input CreateModelMutationInput {
   name: String!
-  provider: String
+  providerKey: GenerativeProviderKey = null
   namePattern: String!
   inputCostPerToken: Float!
   outputCostPerToken: Float!
@@ -2636,7 +2636,7 @@ type UpdateAnnotationConfigPayload {
 input UpdateModelMutationInput {
   id: ID!
   name: String!
-  provider: String
+  providerKey: GenerativeProviderKey
   namePattern: String!
   inputCostPerToken: Float!
   outputCostPerToken: Float!

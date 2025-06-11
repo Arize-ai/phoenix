@@ -2,9 +2,11 @@ from datetime import datetime
 from typing import Optional
 
 import strawberry
+from openinference.semconv.trace import OpenInferenceLLMProviderValues
 from sqlalchemy import inspect
 from strawberry.relay import Node, NodeID
 from strawberry.types import Info
+from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
@@ -61,6 +63,40 @@ def to_gql_model(model: models.Model) -> Model:
         is_override=model.is_override,
         created_at=model.created_at,
         updated_at=model.updated_at,
-        provider_key=GenerativeProviderKey[model.provider.upper()] if model.provider else None,
+        provider_key=_semconv_provider_to_gql_generative_provider_key(model.provider)
+        if model.provider
+        else None,
         costs=model.costs if costs_are_loaded else None,
     )
+
+
+def _semconv_provider_to_gql_generative_provider_key(
+    semconv_provider_str: str,
+) -> Optional[GenerativeProviderKey]:
+    """
+    Translates a semconv provider string to a GQL GenerativeProviderKey.
+    """
+
+    try:
+        semconv_provider = OpenInferenceLLMProviderValues(semconv_provider_str)
+    except Exception:
+        return None
+    if semconv_provider == OpenInferenceLLMProviderValues.OPENAI:
+        return GenerativeProviderKey.OPENAI
+    if semconv_provider == OpenInferenceLLMProviderValues.ANTHROPIC:
+        return GenerativeProviderKey.ANTHROPIC
+    if semconv_provider == OpenInferenceLLMProviderValues.AZURE:
+        return GenerativeProviderKey.AZURE_OPENAI
+    if semconv_provider == OpenInferenceLLMProviderValues.GOOGLE:
+        return GenerativeProviderKey.GOOGLE
+    if semconv_provider == OpenInferenceLLMProviderValues.DEEPSEEK:
+        return GenerativeProviderKey.DEEPSEEK
+    if semconv_provider == OpenInferenceLLMProviderValues.XAI:
+        return GenerativeProviderKey.XAI
+    if semconv_provider == OpenInferenceLLMProviderValues.AWS:
+        raise NotImplementedError("AWS models are not yet supported")
+    if semconv_provider == OpenInferenceLLMProviderValues.COHERE:
+        raise NotImplementedError("Cohere models are not yet supported")
+    if semconv_provider == OpenInferenceLLMProviderValues.MISTRALAI:
+        raise NotImplementedError("Mistral AI models are not yet supported")
+    assert_never(semconv_provider)

@@ -23,9 +23,11 @@ import {
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { getProviderName } from "@phoenix/utils/generativeUtils";
 
+import { GenerativeProviderKey } from "./__generated__/ModelsTable_models.graphql";
+
 export type ModelFormParams = {
   name: string;
-  provider?: string;
+  providerKey?: GenerativeProviderKey;
   namePattern: string;
   cost: {
     input: number;
@@ -94,7 +96,7 @@ function ModelProviderSelect({
 
 export function ModelForm({
   modelName,
-  modelProvider,
+  modelProviderKey,
   modelNamePattern,
   modelCost,
   onSubmit,
@@ -103,7 +105,7 @@ export function ModelForm({
   formMode,
 }: {
   modelName?: string | null;
-  modelProvider?: string | null;
+  modelProviderKey?: GenerativeProviderKey | null;
   modelNamePattern?: string | null;
   modelCost?: {
     input?: number | null;
@@ -125,7 +127,7 @@ export function ModelForm({
   } = useForm<ModelFormParams>({
     defaultValues: {
       name: modelName ?? "",
-      provider: modelProvider ?? "",
+      providerKey: modelProviderKey ?? undefined,
       namePattern: modelNamePattern ?? "",
       cost: {
         input: modelCost?.input ?? 0,
@@ -175,7 +177,7 @@ export function ModelForm({
           />
 
           <Controller
-            name="provider"
+            name="providerKey"
             control={control}
             render={({
               field: { onChange, onBlur, value },
