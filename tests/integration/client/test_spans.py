@@ -551,7 +551,7 @@ class TestClientForSpansRetrieval:
 
         # Create the test spans
         create_result = await _await_or_return(
-            Client().spans.create_spans(
+            Client().spans.log_spans(
                 project_identifier="default",
                 spans=test_spans,
             )
@@ -936,7 +936,7 @@ class TestClientForSpanCreation:
         )
 
         # Create spans successfully
-        result = client.spans.create_spans(
+        result = client.spans.log_spans(
             project_identifier="default",
             spans=[parent_span, child_span],
         )
@@ -949,7 +949,7 @@ class TestClientForSpanCreation:
         time.sleep(1)  # Give server time to process
 
         with pytest.raises(SpanCreationError) as exc_info:
-            client.spans.create_spans(
+            client.spans.log_spans(
                 project_identifier="default",
                 spans=[parent_span],  # Duplicate
             )
@@ -964,7 +964,7 @@ class TestClientForSpanCreation:
         )
 
         with pytest.raises(SpanCreationError) as exc_info:
-            client.spans.create_spans(
+            client.spans.log_spans(
                 project_identifier="default",
                 spans=[invalid_span],
             )
@@ -976,7 +976,7 @@ class TestClientForSpanCreation:
         import httpx
 
         with pytest.raises(httpx.HTTPStatusError) as http_exc_info:
-            client.spans.create_spans(
+            client.spans.log_spans(
                 project_identifier="non_existent_project_xyz",
                 spans=[self._create_test_span("test")],
             )
@@ -1045,7 +1045,7 @@ class TestClientForSpanCreation:
 
             # Create original spans
             result = await _await_or_return(
-                Client().spans.create_spans(
+                Client().spans.log_spans(
                     project_identifier="default",
                     spans=test_spans,
                 )
@@ -1168,7 +1168,7 @@ class TestClientForSpanCreation:
 
         # Create batch
         result = await _await_or_return(
-            Client().spans.create_spans(
+            Client().spans.log_spans(
                 project_identifier="default",
                 spans=batch_spans,
             )

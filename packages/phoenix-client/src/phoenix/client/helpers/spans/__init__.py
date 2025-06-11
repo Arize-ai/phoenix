@@ -85,7 +85,7 @@ def uniquify_spans_dataframe(
 
     This utility generates new valid OpenTelemetry-compliant span_ids and trace_ids
     for a DataFrame of spans (typically from get_spans_dataframe). The parent-child
-    relationships within the span collection are preserved by mapping old IDs to new IDs
+    relationships within the span collection ared preserved by mapping old IDs to new IDs
     consistently.
 
     Args:

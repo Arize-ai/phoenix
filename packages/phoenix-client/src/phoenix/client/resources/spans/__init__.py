@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.exceptions import DuplicateSpanInfo, InvalidSpanInfo, SpanCreationError
+from phoenix.client.helpers.spans import dataframe_to_spans as _dataframe_to_spans
 from phoenix.client.types.spans import SpanQuery
 from phoenix.client.utils.id_handling import is_node_id
 
@@ -461,41 +462,41 @@ class Spans:
             httpx.HTTPStatusError: If the API returns an unexpected error response.
             httpx.TimeoutException: If the request times out.
         """
-        response = self._make_log_spans_request(
-            project_identifier=project_identifier,
-            spans=spans,
-            timeout=timeout,
-        )
-
-        result = _parse_log_spans_response(response, spans)
-
-        return result
-
-    def _make_log_spans_request(
-        self,
-        *,
-        project_identifier: str,
-        spans: Sequence[v1.Span],
-        timeout: Optional[int],
-    ) -> httpx.Response:
-        """Make the HTTP request to log spans."""
         request_body = v1.CreateSpansRequestBody(data=list(spans))
-        params: dict[str, Union[bool, str]] = {}
 
         response = self._client.post(
             url=f"v1/projects/{project_identifier}/spans",
             json=request_body,
-            params=params,
             headers={"accept": "application/json"},
             timeout=timeout,
         )
 
-        # For 400 and 422 errors, the server returns structured error information
-        # Don't raise for these, but do raise for other error status codes
         if response.status_code not in (400, 422):
             response.raise_for_status()
 
-        return response
+        result = _parse_log_spans_response(response, spans)
+        return result
+
+    def log_spans_dataframe(
+        self,
+        *,
+        project_identifier: str,
+        spans_dataframe: "pd.DataFrame",
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> v1.CreateSpansResponseBody:
+        """
+        Logs spans to a project from a pandas DataFrame.
+
+        If any spans are invalid or duplicates, no spans will be logged and a
+        SpanCreationError will be raised with details about the failed spans.
+
+        Args:
+            project_identifier: The project identifier (name or ID) used in the API path.
+            spans_dataframe: A pandas DataFrame with a `context.span_id` or `span_id` column.
+            timeout: Optional request timeout in seconds.
+        """
+        spans = _dataframe_to_spans(spans_dataframe)
+        return self.log_spans(project_identifier=project_identifier, spans=spans, timeout=timeout)
 
 
 class AsyncSpans:
@@ -939,41 +940,45 @@ class AsyncSpans:
             httpx.HTTPStatusError: If the API returns an unexpected error response.
             httpx.TimeoutException: If the request times out.
         """
-        response = await self._make_log_spans_request(
-            project_identifier=project_identifier,
-            spans=spans,
-            timeout=timeout,
-        )
-
-        result = _parse_log_spans_response(response, spans)
-
-        return result
-
-    async def _make_log_spans_request(
-        self,
-        *,
-        project_identifier: str,
-        spans: Sequence[v1.Span],
-        timeout: Optional[int],
-    ) -> httpx.Response:
-        """Make the HTTP request to log spans."""
         request_body = v1.CreateSpansRequestBody(data=list(spans))
-        params: dict[str, Union[bool, str]] = {}
 
         response = await self._client.post(
             url=f"v1/projects/{project_identifier}/spans",
             json=request_body,
-            params=params,
             headers={"accept": "application/json"},
             timeout=timeout,
         )
+        result = _parse_log_spans_response(response, spans)
 
-        # For 400 and 422 errors, the server returns structured error information
-        # Don't raise for these, but do raise for other error status codes
-        if response.status_code not in (400, 422):
-            response.raise_for_status()
+        return result
 
-        return response
+    async def log_spans_dataframe(
+        self,
+        *,
+        project_identifier: str,
+        spans_dataframe: "pd.DataFrame",
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> v1.CreateSpansResponseBody:
+        """
+        Logs spans to a project from a pandas DataFrame.
+
+        If any spans are invalid or duplicates, no spans will be logged and a
+        SpanCreationError will be raised with details about the failed spans.
+
+        Args:
+            project_identifier: The project identifier (name or ID) used in the API path.
+            spans_dataframe: A pandas DataFrame with a `context.span_id` or `span_id` column.
+            timeout: Optional request timeout in seconds.
+
+        Returns:
+            A CreateSpansResponseBody with statistics about the operation. When successful,
+            total_queued will equal total_received.
+        """
+
+        spans = _dataframe_to_spans(spans_dataframe)
+        return await self.log_spans(
+            project_identifier=project_identifier, spans=spans, timeout=timeout
+        )
 
 
 def _to_iso_format(value: Optional[datetime]) -> Optional[str]:
