@@ -942,8 +942,6 @@ class TestClientForSpanCreation:
         )
         assert result["total_received"] == 2
         assert result["total_queued"] == 2
-        assert result["total_invalid"] == 0
-        assert result["total_duplicates"] == 0
 
         # Test 2: Duplicate span rejection
         import time

@@ -1098,6 +1098,7 @@ async def create_spans(
         error_detail = {
             "error": "Request contains invalid or duplicate spans",
             "total_received": total_received,
+            "total_queued": 0,  # No spans are queued when there are validation errors
             "total_duplicates": len(duplicate_spans),
             "total_invalid": len(invalid_spans),
             "duplicate_spans": duplicate_spans,

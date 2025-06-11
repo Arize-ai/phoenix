@@ -1169,11 +1169,15 @@ def _parse_log_spans_response(
         error_response = _parse_log_spans_validation_error(response_data, spans)
         _raise_log_spans_error(error_response)
 
-    if response.status_code == 400 and "detail" in response_data:
-        detail = response_data["detail"]
-        # For 400 errors, the server now returns properly formatted JSON in the detail field
-        parsed_detail = json.loads(detail)
-        _raise_log_spans_error(parsed_detail)
+    if response.status_code == 400:
+        if "detail" in response_data:
+            detail = response_data["detail"]
+            # For 400 errors, the server now returns properly formatted JSON in the detail field
+            parsed_detail = json.loads(detail)
+            _raise_log_spans_error(parsed_detail)
+        elif "error" in response_data:
+            # Handle case where error data is returned directly (not wrapped in detail)
+            _raise_log_spans_error(response_data)
 
     return cast(v1.CreateSpansResponseBody, response_data)
 
