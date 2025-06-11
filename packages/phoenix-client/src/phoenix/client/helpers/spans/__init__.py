@@ -364,9 +364,22 @@ def dataframe_to_spans(df: "pd.DataFrame") -> list[v1.Span]:
         for col in df.columns:
             if col.startswith("attributes."):
                 attr_name = col[len("attributes.") :]
-                # pyright: ignore for pandas Series boolean operations
-                if pd.notna(row[col]):  # pyright: ignore[reportGeneralTypeIssues,reportUnknownMemberType,reportUnknownArgumentType]
-                    attributes[attr_name] = row[col]
+                value = row[col]  # pyright: ignore
+
+                # Handle different data types that might cause issues with pd.notna()
+                try:
+                    if isinstance(value, (list, tuple)):
+                        attributes[attr_name] = value
+                    elif hasattr(value, "__len__") and not isinstance(value, str):  # pyright: ignore[reportUnknownArgumentType]
+                        if len(value) > 0:  # pyright: ignore
+                            attributes[attr_name] = value
+                    elif pd.notna(value):  # pyright: ignore[reportGeneralTypeIssues,reportUnknownMemberType,reportUnknownArgumentType]
+                        # For scalar values, use pd.notna() safely
+                        attributes[attr_name] = value
+                except (ValueError, TypeError):
+                    # If we can't determine the value safely, check if it's not None
+                    if value is not None:
+                        attributes[attr_name] = value
 
         if attributes:
             span["attributes"] = attributes

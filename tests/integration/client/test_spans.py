@@ -1190,3 +1190,218 @@ class TestClientForSpanCreation:
         created_span_ids = {s["context"]["span_id"] for s in batch_spans}
         retrieved_span_ids = {s["context"]["span_id"] for s in retrieved_spans}
         assert len(created_span_ids & retrieved_span_ids) >= 0
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_log_spans_dataframe_roundtrip(
+        self,
+        is_async: bool,
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        user = _get_user(_ADMIN).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        # Create comprehensive test DataFrame with nested attributes
+        import pandas as pd
+
+        trace_id_1 = f"df_roundtrip_{token_hex(16)}"
+        trace_id_2 = f"df_roundtrip_{token_hex(16)}"
+        span_id_1 = f"span_{token_hex(8)}"
+        span_id_2 = f"span_{token_hex(8)}"
+
+        base_time = datetime.now(timezone.utc)
+
+        # Create comprehensive test data with nested attributes and complex types
+        test_data = {
+            "name": ["ChatCompletion", "ChatCompletion"],
+            "span_kind": ["LLM", "LLM"],
+            "parent_id": [None, None],
+            "start_time": [
+                base_time.isoformat(),
+                (base_time + timedelta(milliseconds=100)).isoformat(),
+            ],
+            "end_time": [
+                (base_time + timedelta(seconds=3, milliseconds=500)).isoformat(),
+                (base_time + timedelta(seconds=3, milliseconds=600)).isoformat(),
+            ],
+            "status_code": ["OK", "OK"],
+            "status_message": ["", ""],
+            "events": [[], []],
+            "context.span_id": [span_id_1, span_id_2],
+            "context.trace_id": [trace_id_1, trace_id_2],
+            # Complex nested attributes
+            "attributes.openinference.span.kind": ["LLM", "LLM"],
+            "attributes.llm.provider": ["openai", "openai"],
+            "attributes.llm.model_name": ["gpt-4o", "gpt-4o"],
+            "attributes.llm.system": ["openai", "openai"],
+            # JSON string attributes
+            "attributes.llm.invocation_parameters": [
+                (
+                    '{"temperature": 1.0, "frequency_penalty": 0.0, "presence_penalty": 0.0, '
+                    '"top_p": 1.0}'
+                ),
+                (
+                    '{"temperature": 1.0, "frequency_penalty": 0.0, "presence_penalty": 0.0, '
+                    '"top_p": 1.0}'
+                ),
+            ],
+            # Numeric attributes
+            "attributes.llm.token_count.total": [34, 64],
+            "attributes.llm.token_count.prompt": [22, 21],
+            "attributes.llm.token_count.completion": [12, 43],
+            # List attributes with complex objects
+            "attributes.llm.input_messages": [
+                [
+                    {"message.content": "You are a helpful assistant", "message.role": "system"},
+                    {"message.content": "What is the capital of France?", "message.role": "user"},
+                ],
+                [
+                    {"message.content": "You are a helpful assistant", "message.role": "system"},
+                    {
+                        "message.content": "Explain the concept of machine learning",
+                        "message.role": "user",
+                    },
+                ],
+            ],
+            "attributes.llm.output_messages": [
+                [
+                    {
+                        "message.content": "The capital of France is Paris.",
+                        "message.role": "assistant",
+                    }
+                ],
+                [
+                    {
+                        "message.content": (
+                            "Machine learning is a subset of artificial intelligence that "
+                            "enables computers to learn and improve from experience without "
+                            "being explicitly programmed."
+                        ),
+                        "message.role": "assistant",
+                    }
+                ],
+            ],
+            # Nested object attributes
+            "attributes.url": [
+                {"full": "https://api.openai.com/v1/chat/completions", "path": "chat/completions"},
+                {"full": "https://api.openai.com/v1/chat/completions", "path": "chat/completions"},
+            ],
+            "attributes.llm.prompt_template.variables": [
+                {"question": "What is the capital of France?"},
+                {"question": "Explain the concept of machine learning"},
+            ],
+            # MIME type attributes
+            "attributes.input.mime_type": ["application/json", "application/json"],
+            "attributes.output.mime_type": ["text/plain", "text/plain"],
+            # Complex JSON input/output values
+            "attributes.input.value": [
+                (
+                    '{"messages": [{"role": "SYSTEM", "content": "You are a helpful assistant"}, '
+                    '{"role": "USER", "content": "{{question}}"}], "model": {"provider_key": '
+                    '"OpenAI", "name": "gpt-4o"}, "template": {"variables": {"question": "What is '
+                    'the capital of France?"}, "format": "MUSTACHE"}, "prompt_name": null}'
+                ),
+                (
+                    '{"messages": [{"role": "SYSTEM", "content": "You are a helpful assistant"}, '
+                    '{"role": "USER", "content": "{{question}}"}], "model": {"provider_key": '
+                    '"OpenAI", "name": "gpt-4o"}, "template": {"variables": {"question": '
+                    '"Explain the concept of machine learning"}, "format": "MUSTACHE"}, '
+                    '"prompt_name": null}'
+                ),
+            ],
+            "attributes.output.value": [
+                "The capital of France is Paris.",
+                (
+                    "Machine learning is a subset of artificial intelligence that enables "
+                    "computers to learn and improve from experience without being explicitly "
+                    "programmed."
+                ),
+            ],
+        }
+
+        input_df = pd.DataFrame(test_data)
+        # Set index to span_id so dataframe_to_spans uses the right span IDs
+        input_df.set_index("context.span_id", inplace=True, drop=False)
+        input_df.index.name = "span_id"
+
+        # Log spans using DataFrame
+        result = await _await_or_return(
+            Client().spans.log_spans_dataframe(
+                project_identifier="default",
+                spans_dataframe=input_df,
+            )
+        )
+        assert result["total_queued"] == 2
+
+        import asyncio
+
+        await asyncio.sleep(1)
+
+        # Retrieve spans as DataFrame
+        output_df = await _await_or_return(
+            Client().spans.get_spans_dataframe(
+                project_identifier="default",
+                limit=50,
+            )
+        )
+
+        # Filter to our test spans (check both trace IDs since we have different ones)
+        our_spans = output_df[output_df["context.trace_id"].isin([trace_id_1, trace_id_2])]
+        assert len(our_spans) == 2
+
+        # Verify roundtrip data by matching on name (spans may get new IDs)
+        span_names = set(our_spans["name"].tolist())
+        expected_names = set(input_df["name"].tolist())
+        assert span_names == expected_names
+
+        for _, row in our_spans.iterrows():
+            # Find matching original span by trace_id to handle identical names
+            original_span = input_df[input_df["context.trace_id"] == row["context.trace_id"]]
+            assert not original_span.empty
+            orig_row = original_span.iloc[0]
+
+            # Verify basic fields
+            assert row["span_kind"] == orig_row["span_kind"]
+            assert row["name"] == orig_row["name"]
+            assert row["status_code"] == orig_row["status_code"]
+
+            # Verify simple string attributes
+            assert row["attributes.llm.provider"] == orig_row["attributes.llm.provider"]
+            assert row["attributes.llm.model_name"] == orig_row["attributes.llm.model_name"]
+            assert row["attributes.input.mime_type"] == orig_row["attributes.input.mime_type"]
+
+            # Verify numeric attributes
+            assert (
+                row["attributes.llm.token_count.total"]
+                == orig_row["attributes.llm.token_count.total"]
+            )
+            assert (
+                row["attributes.llm.token_count.prompt"]
+                == orig_row["attributes.llm.token_count.prompt"]
+            )
+
+            # Verify JSON string attributes
+            assert (
+                row["attributes.llm.invocation_parameters"]
+                == orig_row["attributes.llm.invocation_parameters"]
+            )
+            assert row["attributes.input.value"] == orig_row["attributes.input.value"]
+            assert row["attributes.output.value"] == orig_row["attributes.output.value"]
+
+            # Verify complex nested object attributes
+            assert row["attributes.url"] == orig_row["attributes.url"]
+            assert (
+                row["attributes.llm.prompt_template.variables"]
+                == orig_row["attributes.llm.prompt_template.variables"]
+            )
+
+            # Verify list attributes with complex objects
+            assert row["attributes.llm.input_messages"] == orig_row["attributes.llm.input_messages"]
+            assert (
+                row["attributes.llm.output_messages"] == orig_row["attributes.llm.output_messages"]
+            )
