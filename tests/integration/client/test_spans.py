@@ -1002,7 +1002,11 @@ class TestClientForSpanCreation:
 
             from phoenix.client import AsyncClient
             from phoenix.client import Client as SyncClient
-            from phoenix.client.helpers.spans import dataframe_to_spans, uniquify_spans
+            from phoenix.client.helpers.spans import (
+                dataframe_to_spans,
+                uniquify_spans,
+                uniquify_spans_dataframe,
+            )
 
             Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -1104,7 +1108,7 @@ class TestClientForSpanCreation:
             original_df_trace_ids = our_df["context.trace_id"].tolist()  # pyright: ignore[reportUnknownVariableType]
             original_df_span_ids = our_df["context.span_id"].tolist()  # pyright: ignore[reportUnknownVariableType]
 
-            unique_df = uniquify_spans(our_df, in_place=False)
+            unique_df = uniquify_spans_dataframe(our_df, in_place=False)
 
             # Verify DataFrame uniquification
             assert unique_df["context.trace_id"].tolist() != original_df_trace_ids

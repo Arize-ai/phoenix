@@ -42,7 +42,7 @@ class Spans:
             ...     project_identifier="my-project"
             ... )
 
-            # Create spans
+            # Log spans
             >>> spans = [
             ...     {
             ...         "id": "1",
@@ -50,7 +50,7 @@ class Spans:
             ...         "context": {"trace_id": "123", "span_id": "456"},
             ...     }
             ... ]
-            >>> result = client.spans.create_spans(
+            >>> result = client.spans.log_spans(
             ...     project_identifier="my-project",
             ...     spans=spans
             ... )
@@ -434,7 +434,7 @@ class Spans:
 
         return all_spans[:limit]
 
-    def create_spans(
+    def log_spans(
         self,
         *,
         project_identifier: str,
@@ -442,14 +442,14 @@ class Spans:
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> v1.CreateSpansResponseBody:
         """
-        Creates spans in a project.
+        Logs spans to a project.
 
-        If any spans are invalid or duplicates, no spans will be created and a
+        If any spans are invalid or duplicates, no spans will be logged and a
         SpanCreationError will be raised with details about the failed spans.
 
         Args:
             project_identifier: The project identifier (name or ID) used in the API path.
-            spans: A sequence of Span objects to create.
+            spans: A sequence of Span objects to log.
             timeout: Optional request timeout in seconds.
 
         Returns:
@@ -461,24 +461,24 @@ class Spans:
             httpx.HTTPStatusError: If the API returns an unexpected error response.
             httpx.TimeoutException: If the request times out.
         """
-        response = self._make_create_spans_request(
+        response = self._make_log_spans_request(
             project_identifier=project_identifier,
             spans=spans,
             timeout=timeout,
         )
 
-        result = self._parse_create_spans_response(response, spans)
+        result = _parse_log_spans_response(response, spans)
 
         return result
 
-    def _make_create_spans_request(
+    def _make_log_spans_request(
         self,
         *,
         project_identifier: str,
         spans: Sequence[v1.Span],
         timeout: Optional[int],
     ) -> httpx.Response:
-        """Make the HTTP request to create spans."""
+        """Make the HTTP request to log spans."""
         request_body = v1.CreateSpansRequestBody(data=list(spans))
         params: dict[str, Union[bool, str]] = {}
 
@@ -496,43 +496,6 @@ class Spans:
             response.raise_for_status()
 
         return response
-
-    def _parse_create_spans_response(
-        self,
-        response: httpx.Response,
-        spans: Sequence[v1.Span],
-    ) -> v1.CreateSpansResponseBody:
-        """Parse the response from create spans request."""
-        return _parse_log_spans_response(response, spans)
-
-    def _parse_validation_error_response(
-        self,
-        response_data: dict[str, Any],
-        spans: Sequence[v1.Span],
-    ) -> v1.CreateSpansResponseBody:
-        """Convert FastAPI validation errors to our expected format."""
-        return _parse_log_spans_validation_error(response_data, spans)
-
-    def _extract_invalid_span_from_error(
-        self,
-        error: dict[str, Any],
-        spans: Sequence[v1.Span],
-    ) -> Optional[InvalidSpanInfo]:
-        """Extract invalid span info from a validation error."""
-        return _extract_invalid_span_from_log_spans_error(error, spans)
-
-    def _handle_create_spans_result(
-        self,
-        result: v1.CreateSpansResponseBody,
-    ) -> None:
-        """Handle any errors from the create spans result."""
-        _handle_log_spans_result(result)
-
-    def _raise_span_creation_error(
-        self, error_data: Union[dict[str, Any], v1.CreateSpansResponseBody]
-    ) -> None:
-        """Raise SpanCreationError from error response data."""
-        _raise_log_spans_error(error_data)
 
 
 class AsyncSpans:
@@ -556,7 +519,7 @@ class AsyncSpans:
             ...     project_identifier="my-project"
             ... )
 
-            # Create spans
+            # Log spans
             >>> spans = [
             ...     {
             ...         "id": "1",
@@ -564,7 +527,7 @@ class AsyncSpans:
             ...         "context": {"trace_id": "123", "span_id": "456"},
             ...     }
             ... ]
-            >>> result = await client.spans.create_spans(
+            >>> result = await client.spans.log_spans(
             ...     project_identifier="my-project",
             ...     spans=spans
             ... )
@@ -949,7 +912,7 @@ class AsyncSpans:
 
         return all_spans[:limit]
 
-    async def create_spans(
+    async def log_spans(
         self,
         *,
         project_identifier: str,
@@ -957,14 +920,14 @@ class AsyncSpans:
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> v1.CreateSpansResponseBody:
         """
-        Creates spans in a project.
+        Logs spans to a project.
 
-        If any spans are invalid or duplicates, no spans will be created and a
+        If any spans are invalid or duplicates, no spans will be logged and a
         SpanCreationError will be raised with details about the failed spans.
 
         Args:
             project_identifier: The project identifier (name or ID) used in the API path.
-            spans: A sequence of Span objects to create.
+            spans: A sequence of Span objects to log.
             timeout: Optional request timeout in seconds.
 
         Returns:
@@ -976,24 +939,24 @@ class AsyncSpans:
             httpx.HTTPStatusError: If the API returns an unexpected error response.
             httpx.TimeoutException: If the request times out.
         """
-        response = await self._make_create_spans_request(
+        response = await self._make_log_spans_request(
             project_identifier=project_identifier,
             spans=spans,
             timeout=timeout,
         )
 
-        result = self._parse_create_spans_response(response, spans)
+        result = _parse_log_spans_response(response, spans)
 
         return result
 
-    async def _make_create_spans_request(
+    async def _make_log_spans_request(
         self,
         *,
         project_identifier: str,
         spans: Sequence[v1.Span],
         timeout: Optional[int],
     ) -> httpx.Response:
-        """Make the HTTP request to create spans."""
+        """Make the HTTP request to log spans."""
         request_body = v1.CreateSpansRequestBody(data=list(spans))
         params: dict[str, Union[bool, str]] = {}
 
@@ -1011,43 +974,6 @@ class AsyncSpans:
             response.raise_for_status()
 
         return response
-
-    def _parse_create_spans_response(
-        self,
-        response: httpx.Response,
-        spans: Sequence[v1.Span],
-    ) -> v1.CreateSpansResponseBody:
-        """Parse the response from create spans request."""
-        return _parse_log_spans_response(response, spans)
-
-    def _parse_validation_error_response(
-        self,
-        response_data: dict[str, Any],
-        spans: Sequence[v1.Span],
-    ) -> v1.CreateSpansResponseBody:
-        """Convert FastAPI validation errors to our expected format."""
-        return _parse_log_spans_validation_error(response_data, spans)
-
-    def _extract_invalid_span_from_error(
-        self,
-        error: dict[str, Any],
-        spans: Sequence[v1.Span],
-    ) -> Optional[InvalidSpanInfo]:
-        """Extract invalid span info from a validation error."""
-        return _extract_invalid_span_from_log_spans_error(error, spans)
-
-    def _handle_create_spans_result(
-        self,
-        result: v1.CreateSpansResponseBody,
-    ) -> None:
-        """Handle any errors from the create spans result."""
-        _handle_log_spans_result(result)
-
-    def _raise_span_creation_error(
-        self, error_data: Union[dict[str, Any], v1.CreateSpansResponseBody]
-    ) -> None:
-        """Raise SpanCreationError from error response data."""
-        _raise_log_spans_error(error_data)
 
 
 def _to_iso_format(value: Optional[datetime]) -> Optional[str]:
@@ -1162,7 +1088,7 @@ def _parse_log_spans_response(
     response: httpx.Response,
     spans: Sequence[v1.Span],
 ) -> v1.CreateSpansResponseBody:
-    """Parse the response from create spans request."""
+    """Parse the response from log spans request."""
     response_data = response.json()
 
     if response.status_code == 422 and "detail" in response_data:
@@ -1231,35 +1157,6 @@ def _extract_invalid_span_from_log_spans_error(
         "trace_id": span_dict.get("context", {}).get("trace_id", "unknown"),
         "error": error.get("msg", "Validation error"),
     }
-
-
-def _handle_log_spans_result(
-    result: v1.CreateSpansResponseBody,
-) -> None:
-    """Handle any errors from the create spans result."""
-    total_received = result.get("total_received", 0)
-    total_queued = result.get("total_queued", 0)
-    total_invalid = cast(int, result.get("total_invalid", 0))
-    total_duplicates = cast(int, result.get("total_duplicates", 0))
-    invalid_spans = cast(list[InvalidSpanInfo], result.get("invalid_spans", []))
-    duplicate_spans = cast(list[DuplicateSpanInfo], result.get("duplicate_spans", []))
-
-    if total_invalid > 0 or total_duplicates > 0:
-        error_msg = _format_log_spans_error_message(
-            total_invalid=total_invalid,
-            total_duplicates=total_duplicates,
-            invalid_spans=invalid_spans,
-            duplicate_spans=duplicate_spans,
-        )
-        raise SpanCreationError(
-            message=error_msg,
-            invalid_spans=list(invalid_spans),
-            duplicate_spans=list(duplicate_spans),
-            total_received=total_received,
-            total_queued=total_queued,
-            total_invalid=total_invalid,
-            total_duplicates=total_duplicates,
-        )
 
 
 def _raise_log_spans_error(

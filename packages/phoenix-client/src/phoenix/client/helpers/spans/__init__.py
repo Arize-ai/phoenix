@@ -2,14 +2,14 @@
 
 import random
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Sequence, Union, cast, overload
+from typing import TYPE_CHECKING, Any, Sequence, cast
 
 from phoenix.client.__generated__ import v1
 
 if TYPE_CHECKING:
     import pandas as pd
 
-__all__ = ["uniquify_spans", "dataframe_to_spans"]
+__all__ = ["uniquify_spans", "uniquify_spans_dataframe", "dataframe_to_spans"]
 
 # Source implementation:opentelemetry.sdk.trace.id_generator.RandomIdGenerator
 
@@ -31,88 +31,87 @@ def _generate_span_id() -> str:
     return hex(span_id)[2:].zfill(16)
 
 
-@overload
 def uniquify_spans(
     spans: Sequence[v1.Span],
     *,
     in_place: bool = False,
-) -> list[v1.Span]: ...
-
-
-@overload
-def uniquify_spans(
-    spans: "pd.DataFrame",
-    *,
-    in_place: bool = False,
-) -> "pd.DataFrame": ...
-
-
-def uniquify_spans(
-    spans: Union[Sequence[v1.Span], "pd.DataFrame"],
-    *,
-    in_place: bool = False,
-) -> Union[list[v1.Span], "pd.DataFrame"]:
+) -> list[v1.Span]:
     """
-    Regenerates span and trace IDs while maintaining parent-child relationships.
+    Regenerates span and trace IDs for a sequence of Span objects while maintaining parent-child
+    relationships.
 
     This utility generates new valid OpenTelemetry-compliant span_ids and trace_ids
     for a collection of spans. The parent-child relationships within the span
     collection are preserved by mapping old IDs to new IDs consistently.
 
     Args:
-        spans: A sequence of Span objects or a pandas DataFrame (typically from
-            get_spans_dataframe) to regenerate IDs for.
+        spans: A sequence of Span objects to regenerate IDs for.
         in_place: If True, modifies the original spans. If False (default),
             creates deep copies of the spans before modification.
 
     Returns:
-        If input is a list of Span objects: A list of Span objects with regenerated IDs.
-        If input is a DataFrame: A DataFrame with regenerated IDs in the index and columns.
-
+        A list of Span objects with regenerated IDs.
         If in_place=True, returns the modified input. If in_place=False, returns
         a deep copy with modifications.
 
     Example:
-        With Span objects:
-            >>> from phoenix.client import Client
-            >>> client = Client()
-            >>>
-            >>> # Original spans that may have duplicate IDs
-            >>> spans = [...]
-            >>>
-            >>> # Generate new IDs to ensure uniqueness
-            >>> from phoenix.client.helpers.spans import uniquify_spans
-            >>> new_spans = uniquify_spans(spans)
-            >>>
-            >>> # Now create the spans with guaranteed unique IDs
-            >>> result = client.spans.create_spans(
-            ...     project_identifier="my-project",
-            ...     spans=new_spans
-            ... )
-
-        With DataFrame:
-            >>> # Get spans as DataFrame
-            >>> df = client.spans.get_spans_dataframe(
-            ...     project_identifier="my-project"
-            ... )
-            >>>
-            >>> # Generate new IDs for the DataFrame
-            >>> new_df = uniquify_spans(df)
+        >>> from phoenix.client import Client
+        >>> from phoenix.client.helpers.spans import uniquify_spans
+        >>> client = Client()
+        >>>
+        >>> # Original spans that may have duplicate IDs
+        >>> spans = [...]
+        >>>
+        >>> # Generate new IDs to ensure uniqueness
+        >>> new_spans = uniquify_spans(spans)
+        >>>
+        >>> # Now create the spans with guaranteed unique IDs
+        >>> result = client.spans.create_spans(
+        ...     project_identifier="my-project",
+        ...     spans=new_spans
+        ... )
     """
-    # Check if input is a DataFrame
-    try:
-        import pandas as pd
+    return _uniquify_spans_list(spans, in_place=in_place)
 
-        if isinstance(spans, pd.DataFrame):
-            # Type assertion for type checker
-            df_spans: pd.DataFrame = spans
-            return _uniquify_spans_dataframe(df_spans, in_place=in_place)
-    except ImportError:
-        pass
 
-    # Type assertion for type checker
-    list_spans: Sequence[v1.Span] = spans  # type: ignore[assignment]
-    return _uniquify_spans_list(list_spans, in_place=in_place)
+def uniquify_spans_dataframe(
+    df: "pd.DataFrame",
+    *,
+    in_place: bool = False,
+) -> "pd.DataFrame":
+    """
+    Regenerates span and trace IDs for a pandas DataFrame while maintaining parent-child
+    relationships.
+
+    This utility generates new valid OpenTelemetry-compliant span_ids and trace_ids
+    for a DataFrame of spans (typically from get_spans_dataframe). The parent-child
+    relationships within the span collection are preserved by mapping old IDs to new IDs
+    consistently.
+
+    Args:
+        df: A pandas DataFrame (typically from get_spans_dataframe) to regenerate IDs for.
+        in_place: If True, modifies the original DataFrame. If False (default),
+            creates a deep copy of the DataFrame before modification.
+
+    Returns:
+        A DataFrame with regenerated IDs in the index and columns.
+        If in_place=True, returns the modified input. If in_place=False, returns
+        a deep copy with modifications.
+
+    Example:
+        >>> from phoenix.client import Client
+        >>> from phoenix.client.helpers.spans import uniquify_spans_dataframe
+        >>> client = Client()
+        >>>
+        >>> # Get spans as DataFrame
+        >>> df = client.spans.get_spans_dataframe(
+        ...     project_identifier="my-project"
+        ... )
+        >>>
+        >>> # Generate new IDs for the DataFrame
+        >>> new_df = uniquify_spans_dataframe(df)
+    """
+    return _uniquify_spans_dataframe(df, in_place=in_place)
 
 
 def _uniquify_spans_list(
