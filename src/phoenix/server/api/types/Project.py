@@ -746,7 +746,6 @@ class SpanCountTimeSeries(TimeSeries):
 
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE.split(".")
-SESSION_ID = SpanAttributes.SESSION_ID.split(".")
 
 
 def _as_datetime(value: Any) -> datetime:
