@@ -335,12 +335,13 @@ export function openInferenceModelProviderToPhoenixModelProvider(
   if (provider == null) {
     return null;
   }
-  const maybeProvider = provider.toLowerCase() as LLMProvider;
+  const maybeProvider = provider.toLowerCase();
   switch (maybeProvider) {
     case "openai":
       return "OPENAI";
     case "anthropic":
       return "ANTHROPIC";
+    case "bedrock":
     case "aws":
       return "BEDROCK";
     case "google":
@@ -384,6 +385,7 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
 } {
   const { success, data } = modelConfigSchema.safeParse(parsedAttributes);
   if (success) {
+    debugger;
     const provider =
       openInferenceModelProviderToPhoenixModelProvider(data.llm.provider) ||
       getModelProviderFromModelName(data.llm.model_name);
