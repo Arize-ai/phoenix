@@ -6,8 +6,11 @@ import {
   Button,
   CloseOutline,
   Dialog,
+  DialogTrigger,
   Icon,
   Input,
+  Modal,
+  ModalOverlay,
   SearchField,
   Tab,
   TabList,
@@ -16,9 +19,11 @@ import {
   Text,
 } from "@phoenix/components";
 import {
+  DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTitleExtra,
 } from "@phoenix/components/dialog";
 import { Toolbar } from "@phoenix/components/filter";
 import { SelectionDisplayRadioGroup } from "@phoenix/components/pointcloud";
@@ -305,6 +310,12 @@ export function PointSelectionPanelContent() {
   const numSelectedEvents = allSelectedEvents.length;
   const numMatchingEvents = filteredEvents.length;
 
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      setSelectedDetailPointId(null);
+    }
+  };
+
   return (
     <section css={pointSelectionPanelCSS}>
       <div
@@ -356,16 +367,26 @@ export function PointSelectionPanelContent() {
           )}
         </TabPanel>
       </Tabs>
-      {eventDetails && (
-        <Dialog>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Embedding Details</DialogTitle>
-            </DialogHeader>
-            <EventDetails event={eventDetails} />
-          </DialogContent>
-        </Dialog>
-      )}
+      <DialogTrigger
+        isOpen={eventDetails !== null}
+        onOpenChange={handleOpenChange}
+      >
+        <ModalOverlay isDismissable>
+          <Modal variant="slideover" size="S">
+            <Dialog>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Embedding Details</DialogTitle>
+                  <DialogTitleExtra>
+                    <DialogCloseButton />
+                  </DialogTitleExtra>
+                </DialogHeader>
+                {eventDetails && <EventDetails event={eventDetails} />}
+              </DialogContent>
+            </Dialog>
+          </Modal>
+        </ModalOverlay>
+      </DialogTrigger>
     </section>
   );
 }

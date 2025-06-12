@@ -11,6 +11,7 @@ import {
   Alert,
   Button,
   Dialog,
+  DialogTrigger,
   Disclosure,
   DisclosureGroup,
   DisclosurePanel,
@@ -18,12 +19,16 @@ import {
   Icon,
   Icons,
   Loading,
+  Modal,
+  ModalOverlay,
   View,
 } from "@phoenix/components";
 import {
+  DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTitleExtra,
 } from "@phoenix/components/dialog";
 import { usePointCloudContext, useTheme } from "@phoenix/contexts";
 
@@ -75,6 +80,8 @@ export function ExportSelectionButton() {
     `
   );
   const [exportInfo, setExportInfo] = useState<ExportInfo | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
   const onPress = useCallback(() => {
     commit({
       variables: {
@@ -82,9 +89,17 @@ export function ExportSelectionButton() {
       },
       onCompleted: (data) => {
         setExportInfo(data.exportEvents);
+        setIsDialogOpen(true);
       },
     });
   }, [commit, selectedEventIds]);
+
+  const handleOpenChange = (isOpen: boolean) => {
+    setIsDialogOpen(isOpen);
+    if (!isOpen && !exportInfo) {
+      setExportInfo(null);
+    }
+  };
 
   return (
     <>
@@ -103,70 +118,85 @@ export function ExportSelectionButton() {
       >
         {isInFlight ? "Exporting" : "Export"}
       </Button>
-      {exportInfo != null && (
-        <Dialog>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Cluster Exports</DialogTitle>
-            </DialogHeader>
-            <Alert
-              variant="success"
-              banner
-              title="Export succeeded"
-              extra={
-                <Button
-                  variant="success"
-                  size="S"
-                  onPress={() => {
-                    window.open(
-                      `/exports?filename=${exportInfo.fileName}`,
-                      "_self"
-                    );
-                  }}
-                >
-                  Download
-                </Button>
-              }
-            ></Alert>
-            <div
-              css={css`
-                display: flex;
-                flex-direction: column;
-                justify-content: space-between;
-                align-items: flex-start;
-                padding: 16px;
-                gap: 16px;
-              `}
-            >
-              <p
-                css={css`
-                  margin: 0;
-                  flex: 1 1 auto;
-                `}
-              >
-                You can retrieve your export in your notebook via
-              </p>
-              <View
-                borderColor="light"
-                borderWidth="thin"
-                borderRadius="medium"
-              >
-                <CodeBlock value={EXPORTS_CODE_SNIPPET} />
-              </View>
-            </div>
-            <DisclosureGroup defaultExpandedKeys={["all-exports"]}>
-              <Disclosure id="all-exports">
-                <DisclosureTrigger>Latest Exports</DisclosureTrigger>
-                <DisclosurePanel>
-                  <Suspense fallback={<Loading />}>
-                    <ExportsList />
-                  </Suspense>
-                </DisclosurePanel>
-              </Disclosure>
-            </DisclosureGroup>
-          </DialogContent>
-        </Dialog>
-      )}
+
+      <DialogTrigger
+        isOpen={isDialogOpen && exportInfo !== null}
+        onOpenChange={handleOpenChange}
+      >
+        <ModalOverlay isDismissable>
+          <Modal variant="slideover" size="S">
+            <Dialog>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Cluster Exports</DialogTitle>
+                  <DialogTitleExtra>
+                    <DialogCloseButton />
+                  </DialogTitleExtra>
+                </DialogHeader>
+                {exportInfo && (
+                  <>
+                    <Alert
+                      variant="success"
+                      banner
+                      title="Export succeeded"
+                      extra={
+                        <Button
+                          variant="success"
+                          size="S"
+                          onPress={() => {
+                            window.open(
+                              `/exports?filename=${exportInfo.fileName}`,
+                              "_self"
+                            );
+                          }}
+                        >
+                          Download
+                        </Button>
+                      }
+                    ></Alert>
+                    <div
+                      css={css`
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: space-between;
+                        align-items: flex-start;
+                        padding: 16px;
+                        gap: 16px;
+                      `}
+                    >
+                      <p
+                        css={css`
+                          margin: 0;
+                          flex: 1 1 auto;
+                        `}
+                      >
+                        You can retrieve your export in your notebook via
+                      </p>
+                      <View
+                        borderColor="light"
+                        borderWidth="thin"
+                        borderRadius="medium"
+                      >
+                        <CodeBlock value={EXPORTS_CODE_SNIPPET} />
+                      </View>
+                    </div>
+                    <DisclosureGroup defaultExpandedKeys={["all-exports"]}>
+                      <Disclosure id="all-exports">
+                        <DisclosureTrigger>Latest Exports</DisclosureTrigger>
+                        <DisclosurePanel>
+                          <Suspense fallback={<Loading />}>
+                            <ExportsList />
+                          </Suspense>
+                        </DisclosurePanel>
+                      </Disclosure>
+                    </DisclosureGroup>
+                  </>
+                )}
+              </DialogContent>
+            </Dialog>
+          </Modal>
+        </ModalOverlay>
+      </DialogTrigger>
     </>
   );
 }

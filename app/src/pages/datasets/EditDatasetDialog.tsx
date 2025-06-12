@@ -44,13 +44,13 @@ export function EditDatasetDialog({
   return (
     <DialogTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
       <ModalOverlay isDismissable>
-        <Modal>
+        <Modal variant="slideover" size="S">
           <Dialog>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Edit Dataset</DialogTitle>
                 <DialogTitleExtra>
-                  <DialogCloseButton slot="close" />
+                  <DialogCloseButton />
                 </DialogTitleExtra>
               </DialogHeader>
               <EditDatasetForm

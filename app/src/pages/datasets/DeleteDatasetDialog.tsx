@@ -78,13 +78,13 @@ export function DeleteDatasetDialog({
   return (
     <DialogTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
       <ModalOverlay isDismissable>
-        <Modal>
+        <Modal variant="slideover" size="S">
           <Dialog>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Delete Dataset</DialogTitle>
                 <DialogTitleExtra>
-                  <DialogCloseButton slot="close" />
+                  <DialogCloseButton />
                 </DialogTitleExtra>
               </DialogHeader>
               <View padding="size-200">
