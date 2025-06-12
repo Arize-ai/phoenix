@@ -403,3 +403,12 @@ securityContext:
       type: RuntimeDefault
     # -- Windows-specific settings for the container
     windowsOptions: {}
+    
+    # -- ServiceAccount configuration
+    serviceAccount:
+      # -- Create a ServiceAccount for Phoenix
+      create: false
+      # -- Name of the ServiceAccount to use (generated if not specified)
+      name: ""
+      # -- Annotations to add to the ServiceAccount
+      annotations: {}
