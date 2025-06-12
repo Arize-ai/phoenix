@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bfc723f5fdb15f87548d8cc12c902fc6>>
+ * @generated SignedSource<<018ca327b01f855a753c71de32dad759>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -34,6 +34,7 @@ export type GenerativeModelInput = {
   endpoint?: string | null;
   name: string;
   providerKey: GenerativeProviderKey;
+  region?: string | null;
 };
 export type InvocationParameterInput = {
   canonicalName?: CanonicalParameterName | null;

@@ -1231,6 +1231,7 @@ input GenerativeModelInput {
   baseUrl: String
   endpoint: String
   apiVersion: String
+  region: String
 }
 
 type GenerativeProvider {

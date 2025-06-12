@@ -641,7 +641,9 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
     ) -> None:
         import boto3
         super().__init__(model=model, credentials=credentials)
-
+        print(f"Model: {model}")
+        self.region = model.region or "us-east-1"
+        self.api = "converse"
         self.aws_access_key_id = _get_credential_value(credentials, "AWS_ACCESS_KEY_ID") or getenv("AWS_ACCESS_KEY_ID")
         self.aws_secret_access_key = _get_credential_value(credentials, "AWS_SECRET_ACCESS_KEY") or getenv("AWS_SECRET_ACCESS_KEY")
         self.aws_session_token = _get_credential_value(credentials, "AWS_SESSION_TOKEN") or getenv("AWS_SESSION_TOKEN")
@@ -663,16 +665,6 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
     @classmethod
     def supported_invocation_parameters(cls) -> list[InvocationParameter]:
         return [
-            StringListInvocationParameter(
-                invocation_name="region",
-                label="Region",
-                default_value=["us-east-1"],
-            ),
-            StringListInvocationParameter(
-                invocation_name="api",
-                label="API",
-                default_value=["converse"],
-            ),
             IntInvocationParameter(
                 invocation_name="max_tokens",
                 canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
@@ -713,13 +705,13 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
     ) -> AsyncIterator[ChatCompletionChunk]:
         import boto3
 
-        if self.client.meta.region_name != invocation_parameters["region"][0]: # override the region if it's different from the default
+        if self.client.meta.region_name != self.region: # override the region if it's different from the default
             self.client = boto3.client("bedrock-runtime",
-                                       region_name=invocation_parameters["region"][0],
+                                       region_name=self.region,
                                        aws_access_key_id=self.aws_access_key_id,
                                        aws_secret_access_key=self.aws_secret_access_key,
                                        aws_session_token=self.aws_session_token)
-        if invocation_parameters["api"][0] == "invoke":
+        if self.api == "invoke":
             async for chunk in self._handle_invoke_api(messages, tools, invocation_parameters):
                 yield chunk
         else:
@@ -738,7 +730,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         - messageStop
         - metadata
 
-        currently, we are not handling the messageStop and metadata events.
+        currently, we are not handling the messageStop events.
         """
         # Build messages in Converse API format
         converse_messages = self._build_converse_messages(messages)

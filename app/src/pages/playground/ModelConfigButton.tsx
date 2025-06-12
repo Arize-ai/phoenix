@@ -279,11 +279,11 @@ function BedrockModelConfigFormField({
         size="L"
         label="Region"
         data-testid="bedrock-region-combobox"
-        selectedKey={instance.model.region ?? undefined}
+        selectedKey={instance.model.region ?? "us-east-1"}
         aria-label="region picker"
         isRequired
         placeholder="Select an Amazon Region"
-        inputValue={instance.model.region ?? ""}
+        inputValue={instance.model.region ?? "us-east-1"}
         onInputChange={(value) => {
           updateModelConfig({
             configKey: "region",
