@@ -1,6 +1,6 @@
 # phoenix-helm
 
-![Version: 1.0.7](https://img.shields.io/badge/Version-1.0.7-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.10.0](https://img.shields.io/badge/AppVersion-10.10.0-informational?style=flat-square)
+![Version: 0.1.3](https://img.shields.io/badge/Version-0.1.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.5.0](https://img.shields.io/badge/AppVersion-10.5.0-informational?style=flat-square)
 
 Phoenix is an open-source AI observability platform designed for experimentation, evaluation, and troubleshooting. For instructions on how to deploy this Helm chart, see the [self-hosting docs](https://arize.com/docs/phoenix/self-hosting).
   - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Trace your LLM application's runtime using OpenTelemetry-based instrumentation.
