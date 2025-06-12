@@ -1,21 +1,24 @@
-import { ReactNode, useState } from "react";
+import { useState } from "react";
+import { css } from "@emotion/react";
 
 import {
   Button,
   ButtonProps,
   Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+  DialogTrigger,
   ExternalLink,
   Icon,
   Icons,
+  Modal,
+  ModalOverlay,
   Text,
   View,
 } from "@phoenix/components";
 import { CodeLanguage, CodeLanguageRadioGroup } from "@phoenix/components/code";
-import {
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@phoenix/components/dialog";
 import { TypeScriptProjectGuide } from "@phoenix/components/project/TypeScriptProjectGuide";
 
 import { PythonProjectGuide } from "../../components/project/PythonProjectGuide";
@@ -27,31 +30,51 @@ type NewProjectButtonProps = {
   variant?: ButtonProps["variant"];
 };
 export function NewProjectButton({ variant }: NewProjectButtonProps) {
-  const [dialog, setDialog] = useState<ReactNode>(null);
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
     <div>
-      <Button
-        leadingVisual={<Icon svg={<Icons.GridOutline />} />}
-        size="S"
-        variant={variant}
-        onPress={() => {
-          setDialog(<NewProjectDialog />);
-        }}
-      >
-        New Project
-      </Button>
-      {dialog}
+      <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
+        <Button
+          leadingVisual={<Icon svg={<Icons.GridOutline />} />}
+          size="S"
+          variant={variant}
+        >
+          New Project
+        </Button>
+        <ModalOverlay>
+          <Modal
+            variant="slideover"
+            size="L"
+            css={css`
+              width: 70vw !important;
+            `}
+          >
+            <NewProjectDialog onDismiss={() => setIsOpen(false)} />
+          </Modal>
+        </ModalOverlay>
+      </DialogTrigger>
     </div>
   );
 }
 
-function NewProjectDialog() {
+function NewProjectDialog({ onDismiss }: { onDismiss: () => void }) {
   const [language, setLanguage] = useState<CodeLanguage>("Python");
   return (
     <Dialog>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Create a New Project</DialogTitle>
+          <DialogTitleExtra>
+            <Button
+              size="S"
+              data-testid="dialog-close-button"
+              leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
+              onPress={onDismiss}
+              type="button"
+              variant="default"
+            />
+          </DialogTitleExtra>
         </DialogHeader>
         <View padding="size-400" overflow="auto">
           <View paddingBottom="size-200">

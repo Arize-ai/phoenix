@@ -1,12 +1,14 @@
 import React, { Suspense, useCallback } from "react";
 import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
+import { css } from "@emotion/react";
 
-import { Dialog, Loading } from "@phoenix/components";
+import { Button, Dialog, Icon, Icons, Loading } from "@phoenix/components";
 import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTitleExtra,
 } from "@phoenix/components/dialog";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
@@ -219,10 +221,25 @@ export const UpsertPromptFromTemplateDialog = ({
     ]
   );
   return (
-    <Dialog>
+    <Dialog
+      css={css`
+        width: 600px;
+        max-width: 90vw;
+      `}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Create Prompt from Template</DialogTitle>
+          <DialogTitleExtra>
+            <Button
+              size="S"
+              data-testid="dialog-close-button"
+              leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
+              onPress={() => setDialog(null)}
+              type="button"
+              variant="default"
+            />
+          </DialogTitleExtra>
         </DialogHeader>
         <Suspense fallback={<Loading />}>
           <SavePromptForm

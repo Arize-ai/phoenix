@@ -1,23 +1,48 @@
-import { ReactNode, useState } from "react";
+import { useState } from "react";
 import { css } from "@emotion/react";
 
-import { Button, Dialog, Flex, Icon, Icons, View } from "@phoenix/components";
-import { CodeLanguage, CodeLanguageRadioGroup } from "@phoenix/components/code";
 import {
+  Button,
+  Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@phoenix/components/dialog";
+  DialogTitleExtra,
+  DialogTrigger,
+  Flex,
+  Icon,
+  Icons,
+  Modal,
+  ModalOverlay,
+  View,
+} from "@phoenix/components";
+import { CodeLanguage, CodeLanguageRadioGroup } from "@phoenix/components/code";
 import { PythonProjectGuide } from "@phoenix/components/project/PythonProjectGuide";
 import { TypeScriptProjectGuide } from "@phoenix/components/project/TypeScriptProjectGuide";
 
-function SetupProjectDialog({ projectName }: { projectName: string }) {
+function SetupProjectDialog({
+  projectName,
+  onDismiss,
+}: {
+  projectName: string;
+  onDismiss: () => void;
+}) {
   const [language, setLanguage] = useState<CodeLanguage>("Python");
   return (
     <Dialog>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Send Traces to this Project</DialogTitle>
+          <DialogTitleExtra>
+            <Button
+              size="S"
+              data-testid="dialog-close-button"
+              leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
+              onPress={onDismiss}
+              type="button"
+              variant="default"
+            />
+          </DialogTitleExtra>
         </DialogHeader>
         <View padding="size-400" overflow="auto">
           <View paddingBottom="size-100">
@@ -38,34 +63,48 @@ function SetupProjectDialog({ projectName }: { projectName: string }) {
 }
 
 export function ProjectTableEmpty({ projectName }: { projectName: string }) {
-  const [dialog, setDialog] = useState<ReactNode>(null);
-  const onGettingStartedPress = () => {
-    setDialog(<SetupProjectDialog projectName={projectName} />);
-  };
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
-    <tbody className="is-empty">
-      <tr>
-        <td
-          colSpan={100}
-          css={css`
-            text-align: center;
-            padding: var(--ac-global-dimension-size-300)
-              var(--ac-global-dimension-size-300) !important;
-          `}
-        >
-          <Flex direction="column" gap="size-200" alignItems="center">
-            No traces found that match the selected filters
-            <Button
-              variant="default"
-              leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
-              onPress={onGettingStartedPress}
-            >
-              Get Started
-            </Button>
-          </Flex>
-        </td>
-      </tr>
-      {dialog}
-    </tbody>
+    <>
+      <tbody className="is-empty">
+        <tr>
+          <td
+            colSpan={100}
+            css={css`
+              text-align: center;
+              padding: var(--ac-global-dimension-size-300)
+                var(--ac-global-dimension-size-300) !important;
+            `}
+          >
+            <Flex direction="column" gap="size-200" alignItems="center">
+              No traces found that match the selected filters
+              <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
+                <Button
+                  variant="default"
+                  leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+                >
+                  Get Started
+                </Button>
+                <ModalOverlay>
+                  <Modal
+                    variant="slideover"
+                    size="L"
+                    css={css`
+                      width: 70vw !important;
+                    `}
+                  >
+                    <SetupProjectDialog
+                      projectName={projectName}
+                      onDismiss={() => setIsOpen(false)}
+                    />
+                  </Modal>
+                </ModalOverlay>
+              </DialogTrigger>
+            </Flex>
+          </td>
+        </tr>
+      </tbody>
+    </>
   );
 }

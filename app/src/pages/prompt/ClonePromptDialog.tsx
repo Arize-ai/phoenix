@@ -2,12 +2,15 @@ import React, { Suspense } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
+import { css } from "@emotion/react";
 
 import {
   Button,
   Dialog,
   FieldError,
   Flex,
+  Icon,
+  Icons,
   Input,
   Label,
   Loading,
@@ -20,6 +23,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTitleExtra,
 } from "@phoenix/components/dialog";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
 import { ClonePromptDialogMutation } from "@phoenix/pages/prompt/__generated__/ClonePromptDialogMutation.graphql";
@@ -98,10 +102,25 @@ export const ClonePromptDialog = ({
     });
   });
   return (
-    <Dialog>
+    <Dialog
+      css={css`
+        width: 700px;
+        max-width: 90vw;
+      `}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Clone Prompt</DialogTitle>
+          <DialogTitleExtra>
+            <Button
+              size="S"
+              data-testid="dialog-close-button"
+              leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
+              onPress={() => setDialog(null)}
+              type="button"
+              variant="default"
+            />
+          </DialogTitleExtra>
         </DialogHeader>
         <Suspense fallback={<Loading />}>
           <View padding="size-200">
