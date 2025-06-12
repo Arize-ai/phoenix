@@ -14,7 +14,6 @@ data:
   PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES: {{ .Values.auth.accessTokenExpiryMinutes | quote }}
   PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES: {{ .Values.auth.passwordResetTokenExpiryMinutes | quote }}
   PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES: {{ .Values.auth.refreshTokenExpiryMinutes | quote }}
-  PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD: {{ .Values.auth.defaultAdminPassword | quote }}
   
   # Server configuration
   PHOENIX_HOST: {{ .Values.server.host | quote }}

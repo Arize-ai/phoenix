@@ -82,3 +82,6 @@ uv.lock
 packages/phoenix-otel/docs/build/
 packages/phoenix-client/docs/build/
 packages/phoenix-evals/docs/build/
+
+# Deployment
+helm/charts/*.tgz
