@@ -1,18 +1,31 @@
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Dialog } from "@phoenix/components";
 import {
+  Dialog,
+  DialogTrigger,
+  Modal,
+  ModalOverlay,
+} from "@phoenix/components";
+import {
+  DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTitleExtra,
 } from "@phoenix/components/dialog";
 
 import { DatasetHistoryDialogQuery } from "./__generated__/DatasetHistoryDialogQuery.graphql";
 import { DatasetHistoryTable } from "./DatasetHistoryTable";
 
-export function DatasetHistoryDialog(props: { datasetId: string }) {
-  const { datasetId } = props;
+export type DatasetHistoryDialogProps = {
+  datasetId: string;
+  isOpen?: boolean;
+  onOpenChange?: (isOpen: boolean) => void;
+};
+
+export function DatasetHistoryDialog(props: DatasetHistoryDialogProps) {
+  const { datasetId, isOpen, onOpenChange } = props;
   const data = useLazyLoadQuery<DatasetHistoryDialogQuery>(
     graphql`
       query DatasetHistoryDialogQuery($datasetId: ID!) {
@@ -29,19 +42,28 @@ export function DatasetHistoryDialog(props: { datasetId: string }) {
     }
   );
   return (
-    <Dialog>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Dataset History</DialogTitle>
-        </DialogHeader>
-        <div
-          css={css`
-            height: 500px;
-          `}
-        >
-          <DatasetHistoryTable dataset={data.dataset} />
-        </div>
-      </DialogContent>
-    </Dialog>
+    <DialogTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
+      <ModalOverlay isDismissable>
+        <Modal>
+          <Dialog>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Dataset History</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton slot="close" />
+                </DialogTitleExtra>
+              </DialogHeader>
+              <div
+                css={css`
+                  height: 500px;
+                `}
+              >
+                <DatasetHistoryTable dataset={data.dataset} />
+              </div>
+            </DialogContent>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+    </DialogTrigger>
   );
 }
