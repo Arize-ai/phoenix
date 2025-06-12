@@ -117,7 +117,8 @@ def _get_stmt(
             completion_cost.label("completion_cost"),
             total_cost.label("total_cost"),
         )
-        .join_from(models.Trace, models.Span)
+        .select_from(models.Trace)
+        .join(models.Span, models.Span.trace_rowid == models.Trace.id)
         .join(models.SpanCost, models.Span.id == models.SpanCost.span_id, isouter=True)
         .group_by(pid)
     )

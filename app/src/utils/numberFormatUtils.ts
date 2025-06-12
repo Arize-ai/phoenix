@@ -51,7 +51,6 @@ export function formatNumber(number: number): string {
 /**
  * Formats a cost value in dollars with appropriate precision.
  * Provides special handling for small and zero costs.
- * Otherwise, displays with 3 significant digits.
  * @param cost The cost value in dollars
  * @returns {string} The formatted cost string with dollar sign
  */
