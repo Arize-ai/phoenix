@@ -110,6 +110,10 @@ spec:
               {{- toYaml .Values.securityContext.container.windowsOptions | nindent 14 }}
             {{- end }}
           {{- end }}
+          {{- if .Values.resources }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- end }}
           ports:
             - containerPort: {{ .Values.server.port | default 6006 }}
             - containerPort: 9090

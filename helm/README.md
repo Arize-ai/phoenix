@@ -100,6 +100,10 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | postgresql.primary.persistentVolumeClaimRetentionPolicy.whenScaled | string | `"Retain"` | Volume retention behavior when the replica count of the StatefulSet is reduced |
 | postgresql.primary.service.ports.postgresql | string | `"5432"` | Port to run postgres service on |
 | replicaCount | int | `1` | Replica count for Phoenix deployment |
+| resources.limits.cpu | string | `"1000m"` | CPU limit for Phoenix container |
+| resources.limits.memory | string | `"2Gi"` | Memory limit for Phoenix container |
+| resources.requests.cpu | string | `"500m"` | CPU request for Phoenix container |
+| resources.requests.memory | string | `"1Gi"` | Memory request for Phoenix container |
 | securityContext.container.allowPrivilegeEscalation | bool | `false` | Allow privilege escalation |
 | securityContext.container.capabilities.add | list | `[]` | Linux capabilities to add |
 | securityContext.container.capabilities.drop | list | `["ALL"]` | Linux capabilities to drop |

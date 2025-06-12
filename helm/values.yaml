@@ -329,6 +329,21 @@ image:
 # -- Replica count for Phoenix deployment
 replicaCount: 1
 
+# Resource configuration
+resources:
+  # -- Resource limits for Phoenix container
+  limits:
+    # -- CPU limit for Phoenix container
+    cpu: "1000m"
+    # -- Memory limit for Phoenix container
+    memory: "2Gi"
+  # -- Resource requests for Phoenix container
+  requests:
+    # -- CPU request for Phoenix container
+    cpu: "500m"
+    # -- Memory request for Phoenix container
+    memory: "1Gi"
+
 # Security context configuration
 securityContext:
   # -- Pod-level security context settings
