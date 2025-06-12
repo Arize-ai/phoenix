@@ -41,6 +41,7 @@ from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_proje
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.TimeSeries import TimeSeries, TimeSeriesDataPoint
+from phoenix.server.api.types.TokenCost import TokenCost
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.trace.dsl import SpanFilter
@@ -173,6 +174,22 @@ class Project(Node):
     ) -> float:
         return await info.context.data_loaders.token_counts.load(
             ("completion", self.project_rowid, time_range, filter_condition),
+        )
+
+    @strawberry.field
+    async def token_cost(
+        self,
+        info: Info[Context, None],
+        time_range: Optional[TimeRange] = UNSET,
+        filter_condition: Optional[str] = UNSET,
+    ) -> TokenCost:
+        token_cost = await info.context.data_loaders.token_costs.load(
+            (self.project_rowid, time_range, filter_condition),
+        )
+        return TokenCost(
+            prompt=token_cost.prompt,
+            completion=token_cost.completion,
+            total=token_cost.total,
         )
 
     @strawberry.field
