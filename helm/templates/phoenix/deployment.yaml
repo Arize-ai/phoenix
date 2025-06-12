@@ -18,6 +18,9 @@ spec:
       labels:
         app: {{ .Release.Name }}
     spec:
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ .Values.serviceAccount.name | default .Release.Name }}
+      {{- end }}
       {{- if .Values.securityContext.pod.enabled }}
       securityContext:
         {{- if .Values.securityContext.pod.runAsNonRoot }}
