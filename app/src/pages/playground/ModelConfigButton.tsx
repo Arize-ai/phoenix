@@ -245,6 +245,83 @@ function AzureOpenAiModelConfigFormField({
   );
 }
 
+function BedrockModelConfigFormField({
+  instance,
+  container,
+}: {
+  instance: PlaygroundNormalizedInstance;
+  container: HTMLElement | null;
+}) {
+  const updateModel = usePlaygroundContext((state) => state.updateModel);
+  const updateModelConfig = useCallback(
+    ({
+      configKey,
+      value,
+    }: {
+      configKey: keyof PlaygroundInstance["model"];
+      value: string;
+    }) => {
+      updateModel({
+        instanceId: instance.id,
+        patch: {
+          ...instance.model,
+          [configKey]: value,
+        },
+      });
+    },
+    [instance.id, instance.model, updateModel]
+  );
+
+  return (
+    <>
+      <ComboBox
+        container={container ?? undefined}
+        size="L"
+        label="API"
+        data-testid="bedrock-api-combobox"
+        selectedKey={instance.model.apiVersion ?? undefined}
+        aria-label="api picker"
+        isDisabled
+        placeholder="Select an Bedrock API"
+        inputValue={"converse"}
+      >
+        <ComboBoxItem key="converse" textValue="converse" id="converse">
+          Converse
+        </ComboBoxItem>
+      </ComboBox>
+      <ComboBox
+        container={container ?? undefined}
+        size="L"
+        label="Region"
+        data-testid="bedrock-region-combobox"
+        selectedKey={instance.model.apiVersion ?? undefined}
+        aria-label="region picker"
+        placeholder="Select an Amazon Region"
+        inputValue={"us-east-1"}
+        onInputChange={(value) => {
+          updateModelConfig({
+            configKey: "region",
+            value,
+          });
+        }}
+        onSelectionChange={(key) => {
+          if (typeof key === "string") {
+            updateModelConfig({
+              configKey: "region",
+              value: key,
+            });
+          }
+        }}
+        allowsCustomValue
+      >
+        <ComboBoxItem key="us-east-1" textValue="us-east-1" id="us-east-1">
+          US East (N. Virginia)
+        </ComboBoxItem>
+      </ComboBox>
+    </>
+  );
+}
+
 interface ModelConfigButtonProps extends PlaygroundInstanceProps {}
 export function ModelConfigButton(props: ModelConfigButtonProps) {
   const instance = usePlaygroundContext((state) =>
@@ -470,6 +547,12 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
           container={container ?? undefined}
         />
       )}
+      {instance.model.provider === "BEDROCK" ? (
+        <BedrockModelConfigFormField
+          instance={instance}
+          container={container ?? null}
+        />
+      ) : null}
       <Suspense>
         <InvocationParametersFormFields instanceId={playgroundInstanceId} />
       </Suspense>
