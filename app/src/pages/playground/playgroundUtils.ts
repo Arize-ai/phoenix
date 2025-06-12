@@ -1060,6 +1060,13 @@ const getBaseChatCompletionInput = ({
         }
       : {};
 
+  const bedrockModelParams =
+    instance.model.provider === "BEDROCK"
+      ? {
+          region: instance.model.region,
+        }
+      : {};
+
   return {
     messages: instanceMessages.map(toGqlChatCompletionMessage),
     model: {
@@ -1067,6 +1074,7 @@ const getBaseChatCompletionInput = ({
       name: instance.model.modelName || "",
       baseUrl: instance.model.baseUrl,
       ...azureModelParams,
+      ...bedrockModelParams,
     },
     invocationParameters: applyProviderInvocationParameterConstraints(
       invocationParameters,
