@@ -608,6 +608,29 @@ class OllamaStreamingClient(OpenAIBaseStreamingClient):
         "anthropic.claude-3-5-haiku-20241022-v1:0",
         "anthropic.claude-opus-4-20250514-v1:0",
         "anthropic.claude-sonnet-4-20250514-v1:0",
+        "amazon.titan-embed-text-v2:0",
+        "amazon.nova-pro-v1:0",
+        "amazon.nova-premier-v1:0:8k",
+        "amazon.nova-premier-v1:0:20k",
+        "amazon.nova-premier-v1:0:1000k",
+        "amazon.nova-premier-v1:0:mm",
+        "amazon.nova-premier-v1:0",
+        "amazon.nova-lite-v1:0",
+        "amazon.nova-micro-v1:0",
+        "deepseek.r1-v1:0",
+        "mistral.pixtral-large-2502-v1:0",
+        "meta.llama3-1-8b-instruct-v1:0:128k",
+        "meta.llama3-1-8b-instruct-v1:0",
+        "meta.llama3-1-70b-instruct-v1:0:128k",
+        "meta.llama3-1-70b-instruct-v1:0",
+        "meta.llama3-1-405b-instruct-v1:0",
+        "meta.llama3-2-11b-instruct-v1:0",
+        "meta.llama3-2-90b-instruct-v1:0",
+        "meta.llama3-2-1b-instruct-v1:0",
+        "meta.llama3-2-3b-instruct-v1:0",
+        "meta.llama3-3-70b-instruct-v1:0",
+        "meta.llama4-scout-17b-instruct-v1:0",
+        "meta.llama4-maverick-17b-instruct-v1:0",
     ],
 )
 class BedrockStreamingClient(PlaygroundStreamingClient):
@@ -618,8 +641,6 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
     ) -> None:
         import boto3
         super().__init__(model=model, credentials=credentials)
-        # self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.GOOGLE.value
-        # self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.VERTEXAI.value
 
         self.aws_access_key_id = _get_credential_value(credentials, "AWS_ACCESS_KEY_ID") or getenv("AWS_ACCESS_KEY_ID")
         self.aws_secret_access_key = _get_credential_value(credentials, "AWS_SECRET_ACCESS_KEY") or getenv("AWS_SECRET_ACCESS_KEY")
@@ -631,6 +652,9 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
                                    aws_secret_access_key=self.aws_secret_access_key, 
                                    aws_session_token=self.aws_session_token)
         self.client._client = _HttpxClient({}, self._attributes)
+
+        self._attributes[LLM_PROVIDER] = "bedrock"
+        self._attributes[LLM_SYSTEM] = "bedrock"
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
@@ -647,7 +671,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
             StringListInvocationParameter(
                 invocation_name="api",
                 label="API",
-                default_value=["conservation"],
+                default_value=["converse"],
             ),
             IntInvocationParameter(
                 invocation_name="max_tokens",
@@ -695,7 +719,122 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
                                        aws_access_key_id=self.aws_access_key_id,
                                        aws_secret_access_key=self.aws_secret_access_key,
                                        aws_session_token=self.aws_session_token)
-        print(f"Using tools: {tools}")
+        if invocation_parameters["api"][0] == "invoke":
+            async for chunk in self._handle_invoke_api(messages, tools, invocation_parameters):
+                yield chunk
+        else:
+            async for chunk in self._handle_converse_api(messages, tools, invocation_parameters):
+                yield chunk
+
+
+    async def _handle_converse_api(self, messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]], tools: list[JSONScalarType], invocation_parameters: dict):
+        """
+        Handle the converse API.
+
+        NOTE: there are 5 important events that we need to handle:
+        - contentBlockStart
+        - contentBlockDelta
+        - contentBlockStop
+        - messageStop
+        - metadata
+
+        currently, we are not handling the messageStop and metadata events.
+        """
+        # Build messages in Converse API format
+        converse_messages = self._build_converse_messages(messages)
+
+        # Build the request parameters for Converse API
+        converse_params = {
+            "modelId": f"us.{self.model_name}",
+            "messages": converse_messages,
+            "inferenceConfig": {
+                "maxTokens": invocation_parameters["max_tokens"],
+                "temperature": invocation_parameters["temperature"],
+                "topP": invocation_parameters["top_p"],
+            }
+        }
+
+        # Add system prompt if available
+        system_prompt = self._extract_system_prompt(messages)
+        if system_prompt:
+            converse_params["system"] = [{"text": system_prompt}]
+
+        # Add tools if provided
+        if tools:
+            converse_params["toolConfig"] = {
+                "tools": self._convert_tools_to_converse_format(tools)
+            }
+
+        # Make the streaming API call
+        response = self.client.converse_stream(**converse_params)
+
+        # Track active tool calls
+        active_tool_calls = {}  # index -> {id, name, arguments_buffer}
+        current_index = 0
+
+        # Process the event stream
+        event_stream = response.get('stream')
+        for event in event_stream:
+            # Handle content block start events
+            if 'contentBlockStart' in event:
+                content_block_start = event['contentBlockStart']
+                start_event = content_block_start.get('start', {})
+
+                if 'toolUse' in start_event:
+                    tool_use = start_event['toolUse']
+                    active_tool_calls[current_index] = {
+                        'id': tool_use.get('toolUseId'),
+                        'name': tool_use.get('name'),
+                        'arguments_buffer': ''
+                    }
+
+                    # Yield initial tool call chunk
+                    yield ToolCallChunk(
+                        id=tool_use.get('toolUseId'),
+                        function=FunctionCallChunk(
+                            name=tool_use.get('name'),
+                            arguments='',
+                        ),
+                    )
+                    current_index += 1
+
+            # Handle content block delta events
+            elif 'contentBlockDelta' in event:
+                content_delta = event['contentBlockDelta']
+                delta = content_delta.get('delta', {})
+                delta_index = content_delta.get('contentBlockIndex', 0)
+
+                # Handle text delta
+                if 'text' in delta:
+                    yield TextChunk(content=delta['text'])
+
+                # Handle tool use delta
+                elif 'toolUse' in delta:
+                    tool_delta = delta['toolUse']
+                    if 'input' in tool_delta and delta_index in active_tool_calls:
+                        # Accumulate tool arguments
+                        json_chunk = tool_delta['input']
+                        active_tool_calls[delta_index]['arguments_buffer'] += json_chunk
+
+                        # Yield incremental argument update
+                        yield ToolCallChunk(
+                            id=active_tool_calls[delta_index]['id'],
+                            function=FunctionCallChunk(
+                                name=active_tool_calls[delta_index]['name'],
+                                arguments=json_chunk,
+                            ),
+                        )
+
+            # Handle content block stop events
+            elif 'contentBlockStop' in event:
+                stop_index = event['contentBlockStop'].get('contentBlockIndex', 0)
+                if stop_index in active_tool_calls:
+                    del active_tool_calls[stop_index]
+
+    async def _handle_invoke_api(self, messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]], tools: list[JSONScalarType], invocation_parameters: dict):
+        if 'anthropic' not in self.model_name:
+            raise ValueError("Invoke API is only supported for Anthropic models")
+
         bedrock_messages, system_prompt = self._build_bedrock_messages(messages)
         bedrock_params = {
             "anthropic_version": "bedrock-2023-05-31",
@@ -706,8 +845,6 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
             "top_p": invocation_parameters["top_p"],
             "tools": tools,
         }
-
-        print(f"Bedrock params: {bedrock_params}")
 
         response = self.client.invoke_model_with_response_stream(
             modelId=f"us.{self.model_name}",  # or another Claude model
@@ -795,6 +932,60 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
             elif role == ChatCompletionMessageRole.SYSTEM:
                 system_prompt += content + "\n"
         return bedrock_messages, system_prompt
+
+    def _extract_system_prompt(self, messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]]) -> str:
+        """Extract system prompt from messages."""
+        system_prompts = []
+        for role, content, _, _ in messages:
+            if role == ChatCompletionMessageRole.SYSTEM:
+                system_prompts.append(content)
+        return "\n".join(system_prompts)
+
+    def _convert_tools_to_converse_format(self, tools: list[JSONScalarType]) -> list[dict]:
+        """Convert tools from OpenAI format to Converse API format."""
+        converse_tools = []
+        for tool in tools:
+            if tool.get("type") == "function":
+                function = tool.get("function", {})
+                converse_tool = {
+                    "toolSpec": {
+                        "name": function.get("name"),
+                        "description": function.get("description"),
+                        "inputSchema": {
+                            "json": function.get("parameters", {})
+                        }
+                    }
+                }
+                converse_tools.append(converse_tool)
+        return converse_tools
+
+    def _build_converse_messages(self, messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]]) -> list[dict]:
+        """Convert messages to Converse API format."""
+        converse_messages = []
+        for role, content, name, tool_calls in messages:
+            if role == ChatCompletionMessageRole.USER:
+                converse_messages.append({
+                    "role": "user",
+                    "content": [{"text": content}]
+                })
+            elif role == ChatCompletionMessageRole.AI:
+                # Handle assistant messages with potential tool calls
+                message = {"role": "assistant", "content": []}
+                if content:
+                    message["content"].append({"text": content})
+                if tool_calls:
+                    for tool_call in tool_calls:
+                        message["content"].append({
+                            "toolUse": {
+                                "toolUseId": tool_call.get("id"),
+                                "name": tool_call.get("function", {}).get("name"),
+                                "input": json.loads(tool_call.get("function", {}).get("arguments", "{}"))
+                            }
+                        })
+                if message["content"]:  # Only add if there's content
+                    converse_messages.append(message)
+        return converse_messages
+
 
 
 @register_llm_client(
