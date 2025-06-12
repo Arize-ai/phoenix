@@ -29,29 +29,29 @@ ingress:
     # -- Enable TLS/HTTPS for ingress
     enabled: false
 
-
 postgresql:
-  # -- Enable postgres deployment, if you have your own postgres instance set this to false
+  # -- Enable postgres deployment. Set to false if you have your own postgres instance (e.g., RDS, CloudSQL)
+  # When disabled, you must configure database.url or database.postgres settings to point to your external database
   enabled: true
 
   auth:
-      # -- Password for the "postgres" admin user. Ignored if `postgresql.auth.existingSecret` is provided
-      postgresPassword: "postgres"
-      # -- Name for a custom user to create
-      username: ""
-      # -- Password for the custom user to create. Ignored if `postgresql.auth.existingSecret` is provided
-      password: ""
-      # -- Name for a custom database to create
-      database: "phoenix"
-      # -- Name of existing secret to use for PostgreSQL credentials. `postgresql.auth.postgresPassword`, `postgresql.auth.password`, and `postgresql.auth.replicationPassword` will be ignored and picked up from this secret.
-      existingSecret: ""
-      secretKeys:
-        # --  Name of key in existing secret to use for PostgreSQL credentials. Only used when `postgresql.auth.existingSecret` is set.
-        adminPasswordKey: ""
-        # -- Name of key in existing secret to use for PostgreSQL credentials. Only used when `postgresql.auth.existingSecret` is set.
-        userPasswordKey: ""
-        # -- Name of key in existing secret to use for PostgreSQL credentials. Only used when `postgresql.auth.existingSecret` is set.
-        replicationPasswordKey: ""
+    # -- Password for the "postgres" admin user. Ignored if `postgresql.auth.existingSecret` is provided
+    postgresPassword: "postgres"
+    # -- Name for a custom user to create
+    username: ""
+    # -- Password for the custom user to create. Ignored if `postgresql.auth.existingSecret` is provided
+    password: ""
+    # -- Name for a custom database to create
+    database: "phoenix"
+    # -- Name of existing secret to use for PostgreSQL credentials. `postgresql.auth.postgresPassword`, `postgresql.auth.password`, and `postgresql.auth.replicationPassword` will be ignored and picked up from this secret.
+    existingSecret: ""
+    secretKeys:
+      # --  Name of key in existing secret to use for PostgreSQL credentials. Only used when `postgresql.auth.existingSecret` is set.
+      adminPasswordKey: ""
+      # -- Name of key in existing secret to use for PostgreSQL credentials. Only used when `postgresql.auth.existingSecret` is set.
+      userPasswordKey: ""
+      # -- Name of key in existing secret to use for PostgreSQL credentials. Only used when `postgresql.auth.existingSecret` is set.
+      replicationPasswordKey: ""
   primary:
     persistence:
       # -- Enable persistent storage for PostgreSQL data
@@ -71,7 +71,6 @@ postgresql:
       ports:
         # -- Port to run postgres service on
         postgresql: "5432"
-
 
 ## DEPRECATED
 postgres:
@@ -131,9 +130,35 @@ server:
   # -- The working directory for saving, loading, and exporting datasets (PHOENIX_WORKING_DIR)
   workingDir: ""
 
+# Service configuration
+service:
+  # -- Service type for Phoenix service (ClusterIP, NodePort, LoadBalancer, or ExternalName)
+  # Use ClusterIP for service mesh deployments (Istio, Linkerd, etc.)
+  # Use NodePort for direct external access without ingress
+  type: "NodePort"
+
+  # -- Annotations to add to the Phoenix service (useful for service mesh configurations)
+  annotations:
+    {}
+    # For Istio service mesh, you might want:
+    # service.istio.io/canonical-name: phoenix
+    # service.istio.io/canonical-revision: stable
+
+  # -- Labels to add to the Phoenix service
+  labels:
+    {}
+    # For service mesh deployments, you might want:
+    # app: phoenix
+    # version: stable
+
 # Database configuration
 # You can use either a full SQL database URL or individual Postgres settings
 # If using SQLite, the database will be stored in the working directory
+#
+# For external databases (RDS, CloudSQL, etc.):
+# 1. Set postgresql.enabled=false to disable the built-in PostgreSQL
+# 2. Either set database.url with full connection string, or configure database.postgres settings
+# 3. Ensure the external database is accessible from the cluster
 #
 database:
   # -- Storage allocation in GiB for the database persistent volume
@@ -143,7 +168,9 @@ database:
     # -- Name of the PostgreSQL database (PHOENIX_POSTGRES_DB)
     db: "phoenix"
 
-    # -- Postgres Host (currently points to provided postgres deployment, PHOENIX_POSTGRES_HOST)
+    # -- Postgres Host (PHOENIX_POSTGRES_HOST)
+    # Default points to the built-in PostgreSQL service when postgresql.enabled=true
+    # Change this to your external database host when using RDS, CloudSQL, etc.
     host: "phoenix-postgresql"
 
     # -- PostgreSQL password (should match auth.secret."PHOENIX_POSTGRES_PASSWORD", PHOENIX_POSTGRES_PASSWORD)
@@ -158,7 +185,10 @@ database:
     # -- PostgreSQL username (PHOENIX_POSTGRES_USER)
     user: "postgres"
 
-  # -- Full database connection URL (overrides postgres settings if provided), recommend to disable postgres if using own
+  # -- Full database connection URL (overrides postgres settings if provided)
+  # Use this for external databases like RDS. Example:
+  # url: "postgresql://username:password@your-rds-endpoint.region.rds.amazonaws.com:5432/phoenix"
+  # When using this, ensure postgresql.enabled=false
   url: ""
 
 # Authentication and security
@@ -225,7 +255,7 @@ smtp:
   # -- SMTP server port (typically 587 for TLS, PHOENIX_SMTP_PORT)
   port: 587
 
-  # -- SMTP authentication username (PHOENIX_SMTP_USERNAME_
+  # -- SMTP authentication username (PHOENIX_SMTP_USERNAME)
   username: ""
 
   # -- Validate SMTP server TLS certificates (PHOENIX_SMTP_VALIDATE_CERTS)
@@ -261,7 +291,7 @@ tls:
 
 # Logging
 logging:
-  # -- Database logging level (debug, info, warning, error) PHOENIX_LOGGING_MODE
+  # -- Database logging level (debug, info, warning, error) PHOENIX_DB_LOGGING_LEVEL
   dbLevel: "warning"
 
   # -- Application logging level (debug, info, warning, error) PHOENIX_LOGGING_LEVEL
@@ -290,3 +320,66 @@ image:
 
   # -- Docker image tag/version to deploy
   tag: version-10.10.0-nonroot
+
+# -- Replica count for Phoenix deployment
+replicaCount: 1
+
+# Security context configuration
+securityContext:
+  # -- Pod-level security context settings
+  pod:
+    # -- Enable Pod security context
+    enabled: true
+    # -- Group ID for the Pod (fsGroup)
+    fsGroup: 65532
+    # -- User ID for volumes owned by fsGroup
+    fsGroupChangePolicy: "OnRootMismatch"
+    # -- Run Pod as non-root user
+    runAsNonRoot: true
+    # -- User ID to run the Pod as
+    runAsUser: 65532
+    # -- Group ID to run the Pod as
+    runAsGroup: 65532
+    # -- SELinux context for the Pod
+    seLinuxOptions: {}
+    # -- Seccomp profile for the Pod
+    seccompProfile:
+      type: RuntimeDefault
+    # -- Supplemental groups for the Pod
+    supplementalGroups: []
+    # -- Sysctls for the Pod
+    sysctls: []
+    # -- Windows-specific settings for the Pod
+    windowsOptions: {}
+
+  # -- Container-level security context settings
+  container:
+    # -- Enable Container security context
+    enabled: true
+    # -- Allow privilege escalation
+    allowPrivilegeEscalation: false
+    # -- Linux capabilities to add
+    capabilities:
+      add: []
+      # -- Linux capabilities to drop
+      drop:
+        - ALL
+    # -- Run container as privileged
+    privileged: false
+    # -- Proc mount type for the container
+    procMount: "Default"
+    # -- Read-only root filesystem
+    readOnlyRootFilesystem: true
+    # -- Run container as non-root user
+    runAsNonRoot: true
+    # -- User ID to run the container as
+    runAsUser: 65532
+    # -- Group ID to run the container as
+    runAsGroup: 65532
+    # -- SELinux context for the container
+    seLinuxOptions: {}
+    # -- Seccomp profile for the container
+    seccompProfile:
+      type: RuntimeDefault
+    # -- Windows-specific settings for the container
+    windowsOptions: {}

@@ -1,6 +1,6 @@
 # phoenix-helm
 
-![Version: 0.1.3](https://img.shields.io/badge/Version-0.1.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.5.0](https://img.shields.io/badge/AppVersion-10.5.0-informational?style=flat-square)
+![Version: 1.0.7](https://img.shields.io/badge/Version-1.0.7-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.10.0](https://img.shields.io/badge/AppVersion-10.10.0-informational?style=flat-square)
 
 Phoenix is an open-source AI observability platform designed for experimentation, evaluation, and troubleshooting. For instructions on how to deploy this Helm chart, see the [self-hosting docs](https://arize.com/docs/phoenix/self-hosting).
   - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Trace your LLM application's runtime using OpenTelemetry-based instrumentation.
@@ -51,15 +51,15 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | auth.useSecureCookies | bool | `false` | Enable secure cookies (should be true when using HTTPS) |
 | database.allocatedStorageGiB | int | `10` | Storage allocation in GiB for the database persistent volume |
 | database.postgres.db | string | `"phoenix"` | Name of the PostgreSQL database (PHOENIX_POSTGRES_DB) |
-| database.postgres.host | string | `"phoenix-postgresql"` | Postgres Host (currently points to provided postgres deployment, PHOENIX_POSTGRES_HOST) |
+| database.postgres.host | string | `"phoenix-postgresql"` | Postgres Host (PHOENIX_POSTGRES_HOST). Default points to the built-in PostgreSQL service when postgresql.enabled=true. Change this to your external database host when using RDS, CloudSQL, etc. |
 | database.postgres.password | string | `"postgres"` | PostgreSQL password (should match auth.secret."PHOENIX_POSTGRES_PASSWORD", PHOENIX_POSTGRES_PASSWORD) |
 | database.postgres.port | int | `5432` | Port number for PostgreSQL connections (PHOENIX_POSTGRES_PORT) |
 | database.postgres.schema | string | `""` | PostgreSQL schema to use (PHOENIX_SQL_DATABASE_SCHEMA) |
 | database.postgres.user | string | `"postgres"` | PostgreSQL username (PHOENIX_POSTGRES_USER) |
-| database.url | string | `""` | Full database connection URL (overrides postgres settings if provided), recommend to disable postgres if using own |
+| database.url | string | `""` | Full database connection URL (overrides postgres settings if provided). Use this for external databases like RDS. Example: postgresql://username:password@your-rds-endpoint.region.rds.amazonaws.com:5432/phoenix. When using this, ensure postgresql.enabled=false |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy for Phoenix container (Always, IfNotPresent, or Never) |
 | image.repository | string | `"arizephoenix/phoenix"` | Docker image repository for Phoenix |
-| image.tag | string | `"version-10.5.0-nonroot"` | Docker image tag/version to deploy |
+| image.tag | string | `"version-10.10.0-nonroot"` | Docker image tag/version to deploy |
 | ingress.annotations | object | `{}` | Annotations to add to the ingress resource |
 | ingress.apiPath | string | `"/"` | Path prefix for the Phoenix API |
 | ingress.enabled | bool | `true` | Enable ingress controller for external access |
@@ -69,7 +69,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | ingress.tls.enabled | bool | `false` | Enable TLS/HTTPS for ingress |
 | instrumentation.otlpTraceCollectorGrpcEndpoint | string | `""` | OpenTelemetry collector gRPC endpoint for sending traces (PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT) |
 | instrumentation.otlpTraceCollectorHttpEndpoint | string | `""` | OpenTelemetry collector HTTP endpoint for sending traces (PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT) |
-| logging.dbLevel | string | `"warning"` | Database logging level (debug, info, warning, error) PHOENIX_LOGGING_MODE |
+| logging.dbLevel | string | `"warning"` | Database logging level (debug, info, warning, error) PHOENIX_DB_LOGGING_LEVEL |
 | logging.level | string | `"info"` | Application logging level (debug, info, warning, error) PHOENIX_LOGGING_LEVEL |
 | logging.logMigrations | bool | `true` | Enable logging of database migration operations (PHOENIX_LOG_MIGRATIONS) |
 | logging.mode | string | `"default"` | Logging mode configuration - PHOENIX_LOGGING_MODE (default|structured) |
@@ -89,7 +89,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | postgresql.auth.secretKeys.replicationPasswordKey | string | `""` | Name of key in existing secret to use for PostgreSQL credentials. Only used when `postgresql.auth.existingSecret` is set. |
 | postgresql.auth.secretKeys.userPasswordKey | string | `""` | Name of key in existing secret to use for PostgreSQL credentials. Only used when `postgresql.auth.existingSecret` is set. |
 | postgresql.auth.username | string | `""` | Name for a custom user to create |
-| postgresql.enabled | bool | `true` | Enable postgres deployment, if you have your own postgres instance set this to false |
+| postgresql.enabled | bool | `true` | Enable postgres deployment. Set to false if you have your own postgres instance (e.g., RDS, CloudSQL). When disabled, you must configure database.url or database.postgres settings to point to your external database |
 | postgresql.primary.persistence.enabled | bool | `true` | Enable persistent storage for PostgreSQL data |
 | postgresql.primary.persistence.size | string | `"10Gi"` | Size of the persistent volume for PostgreSQL |
 | postgresql.primary.persistence.storageClass | string | `""` | Kubernetes storage class for PostgreSQL volume |
@@ -97,6 +97,31 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | postgresql.primary.persistentVolumeClaimRetentionPolicy.whenDeleted | string | `"Retain"` | Volume retention behavior that applies when the StatefulSet is deleted |
 | postgresql.primary.persistentVolumeClaimRetentionPolicy.whenScaled | string | `"Retain"` | Volume retention behavior when the replica count of the StatefulSet is reduced |
 | postgresql.primary.service.ports.postgresql | string | `"5432"` | Port to run postgres service on |
+| replicaCount | int | `1` | Replica count for Phoenix deployment |
+| securityContext.container.allowPrivilegeEscalation | bool | `false` | Allow privilege escalation |
+| securityContext.container.capabilities.add | list | `[]` | Linux capabilities to add |
+| securityContext.container.capabilities.drop | list | `["ALL"]` | Linux capabilities to drop |
+| securityContext.container.enabled | bool | `true` | Enable Container security context |
+| securityContext.container.privileged | bool | `false` | Run container as privileged |
+| securityContext.container.procMount | string | `"Default"` | Proc mount type for the container |
+| securityContext.container.readOnlyRootFilesystem | bool | `true` | Read-only root filesystem |
+| securityContext.container.runAsGroup | int | `65532` | Group ID to run the container as |
+| securityContext.container.runAsNonRoot | bool | `true` | Run container as non-root user |
+| securityContext.container.runAsUser | int | `65532` | User ID to run the container as |
+| securityContext.container.seccompProfile | object | `{"type":"RuntimeDefault"}` | Seccomp profile for the container |
+| securityContext.container.seLinuxOptions | object | `{}` | SELinux context for the container |
+| securityContext.container.windowsOptions | object | `{}` | Windows-specific settings for the container |
+| securityContext.pod.enabled | bool | `true` | Enable Pod security context |
+| securityContext.pod.fsGroup | int | `65532` | Group ID for the Pod (fsGroup) |
+| securityContext.pod.fsGroupChangePolicy | string | `"OnRootMismatch"` | User ID for volumes owned by fsGroup |
+| securityContext.pod.runAsGroup | int | `65532` | Group ID to run the Pod as |
+| securityContext.pod.runAsNonRoot | bool | `true` | Run Pod as non-root user |
+| securityContext.pod.runAsUser | int | `65532` | User ID to run the Pod as |
+| securityContext.pod.seccompProfile | object | `{"type":"RuntimeDefault"}` | Seccomp profile for the Pod |
+| securityContext.pod.seLinuxOptions | object | `{}` | SELinux context for the Pod |
+| securityContext.pod.supplementalGroups | list | `[]` | Supplemental groups for the Pod |
+| securityContext.pod.sysctls | list | `[]` | Sysctls for the Pod |
+| securityContext.pod.windowsOptions | object | `{}` | Windows-specific settings for the Pod |
 | server.annotations | object | `{}` | Annotations to add to the Phoenix service |
 | server.enablePrometheus | bool | `false` | Enable Prometheus metrics endpoint on port 9090 |
 | server.grpcPort | int | `4317` | Port for OpenTelemetry gRPC collector (PHOENIX_GRPC_PORT) |
@@ -106,11 +131,14 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | server.port | int | `6006` | Port for Phoenix web UI and HTTP API (PHOENIX_PORT) |
 | server.rootUrl | string | `""` | External root URL for Phoenix (PHOENIX_ROOT_URL) |
 | server.workingDir | string | `""` | The working directory for saving, loading, and exporting datasets (PHOENIX_WORKING_DIR) |
+| service.annotations | object | `{}` | Annotations to add to the Phoenix service (useful for service mesh configurations) |
+| service.labels | object | `{}` | Labels to add to the Phoenix service |
+| service.type | string | `"NodePort"` | Service type for Phoenix service (ClusterIP, NodePort, LoadBalancer, or ExternalName). Use ClusterIP for service mesh deployments (Istio, Linkerd, etc.). Use NodePort for direct external access without ingress |
 | smtp.hostname | string | `""` | SMTP server hostname for sending emails (PHOENIX_SMTP_HOSTNAME) |
 | smtp.mailFrom | string | `"noreply@arize.com"` | Email address to use as sender for system emails (PHOENIX_SMTP_MAIL_FROM) |
 | smtp.password | string | `""` | SMTP authentication password (PHOENIX_SMTP_PASSWORD) |
 | smtp.port | int | `587` | SMTP server port (typically 587 for TLS, PHOENIX_SMTP_PORT) |
-| smtp.username | string | `""` | SMTP authentication username (PHOENIX_SMTP_USERNAME_ |
+| smtp.username | string | `""` | SMTP authentication username (PHOENIX_SMTP_USERNAME) |
 | smtp.validateCerts | bool | `true` | Validate SMTP server TLS certificates (PHOENIX_SMTP_VALIDATE_CERTS) |
 | tls.caFile | string | `""` | Path to CA certificate file for TLS (PHOENIX_TLS_CA_FILE) |
 | tls.certFile | string | `""` | Path to TLS certificate file (PHOENIX_TLS_CERT_FILE) |
