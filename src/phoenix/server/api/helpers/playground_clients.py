@@ -774,6 +774,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
 
         # Process the event stream
         event_stream = response.get('stream')
+
         for event in event_stream:
             # Handle content block start events
             if 'contentBlockStart' in event:
@@ -831,6 +832,25 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
                 if stop_index in active_tool_calls:
                     del active_tool_calls[stop_index]
 
+            elif 'metadata' in event:
+                self._attributes.update(
+                    {LLM_TOKEN_COUNT_PROMPT: event.get('metadata')
+                     .get('usage', {})
+                     .get('inputTokens', 0)}
+                )
+
+                self._attributes.update(
+                    {LLM_TOKEN_COUNT_COMPLETION: event.get('metadata')
+                     .get('usage', {})
+                     .get('outputTokens', 0)}
+                )
+
+                self._attributes.update(
+                    {LLM_TOKEN_COUNT_TOTAL: event.get('metadata')
+                     .get('usage', {})
+                     .get('totalTokens', 0)}
+                )
+
     async def _handle_invoke_api(self, messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]], tools: list[JSONScalarType], invocation_parameters: dict):
         if 'anthropic' not in self.model_name:
             raise ValueError("Invoke API is only supported for Anthropic models")
@@ -863,7 +883,6 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         for event in event_stream:
             if 'chunk' in event:
                 chunk_data = json.loads(event['chunk']['bytes'].decode('utf-8'))
-                print(f"Chunk data: {chunk_data}")
 
                 # Handle text content
                 if chunk_data.get('type') == 'content_block_delta':
@@ -914,6 +933,19 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
                     if index in active_tool_calls:
                         # Tool call is complete, clean up
                         del active_tool_calls[index]
+
+                elif chunk_data.get('type') == 'message_stop':
+                    self._attributes.update(
+                        {LLM_TOKEN_COUNT_COMPLETION: chunk_data
+                         .get('amazon-bedrock-invocationMetrics', {})
+                         .get('outputTokenCount', 0)}
+                    )
+
+                    self._attributes.update(
+                        {LLM_TOKEN_COUNT_PROMPT: chunk_data
+                         .get('amazon-bedrock-invocationMetrics', {})
+                         .get('inputTokenCount', 0)}
+                    )
 
     def _build_bedrock_messages(self, messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]]) -> tuple[list[dict], str]:
         bedrock_messages = []
