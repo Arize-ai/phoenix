@@ -3,7 +3,7 @@ Thank you for installing {{ .Chart.Name }}.
 Your release is named {{ .Release.Name }}.
 
 {{- if not .Values.postgresql.enabled }}
-{{- if and (not .Values.database.url) (not .Values.database.postgres.host) }}
+{{- if and (not .Values.database.url) (or (not .Values.database.postgres.host) (and (eq .Values.database.postgres.host "phoenix-postgresql") (not .Values.postgresql.enabled))) }}
 
 WARNING: PostgreSQL is disabled but no external database is configured!
 Please configure either:
