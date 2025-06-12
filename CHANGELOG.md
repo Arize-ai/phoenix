@@ -1,5 +1,66 @@
 # Changelog
 
+## [10.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.10.0...arize-phoenix-v10.11.0) (2025-06-12)
+
+
+### Features
+
+* dataset-filter ([#7982](https://github.com/Arize-ai/phoenix/issues/7982)) ([d576f73](https://github.com/Arize-ai/phoenix/commit/d576f7342d8f48bb51cc09010d936579a7242c3a))
+
+
+### Bug Fixes
+
+* change session filter query to remove the join to `project_sessions` table ([#8028](https://github.com/Arize-ai/phoenix/issues/8028)) ([9132b80](https://github.com/Arize-ai/phoenix/commit/9132b8091266e89f19d0f71c45b19f3e25deaf6e))
+
+## [10.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.9.2...arize-phoenix-v10.10.0) (2025-06-09)
+
+
+### Features
+
+* Upgrade relay to v19 ([#8003](https://github.com/Arize-ai/phoenix/issues/8003)) ([64c29b1](https://github.com/Arize-ai/phoenix/commit/64c29b1cff519e1902560eda87647362f9a13a52))
+
+
+### Bug Fixes
+
+* **experiments:** paginate experiment comparisons table ([#7994](https://github.com/Arize-ai/phoenix/issues/7994)) ([8527391](https://github.com/Arize-ai/phoenix/commit/85273911e3d2d878348bd58c002bdd961f374c12))
+
+## [10.9.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.9.1...arize-phoenix-v10.9.2) (2025-06-09)
+
+
+### Bug Fixes
+
+* Prevent extra mutations when editing Span annotations ([#8001](https://github.com/Arize-ai/phoenix/issues/8001)) ([43a4cf6](https://github.com/Arize-ai/phoenix/commit/43a4cf6c1c097f98a6b919da6da16584da44b7fd))
+
+## [10.9.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.9.0...arize-phoenix-v10.9.1) (2025-06-07)
+
+
+### Documentation
+
+* fix js readme ([#7987](https://github.com/Arize-ai/phoenix/issues/7987)) ([a6112aa](https://github.com/Arize-ai/phoenix/commit/a6112aa891e6fc0f2b8060024cda90ce415e92c0))
+
+## [10.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.8.0...arize-phoenix-v10.9.0) (2025-06-06)
+
+
+### Features
+
+* Composable ModalOverlay component ([#7969](https://github.com/Arize-ai/phoenix/issues/7969)) ([4bc2824](https://github.com/Arize-ai/phoenix/commit/4bc28244812641df84c9b2d6d9c8c15d559a7937))
+* **experiments:** experiment progress chart ([#7978](https://github.com/Arize-ai/phoenix/issues/7978)) ([ef697eb](https://github.com/Arize-ai/phoenix/commit/ef697ebf473a204e8521a7440d49c05d8a1698a8))
+
+## [10.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.7.1...arize-phoenix-v10.8.0) (2025-06-06)
+
+
+### Features
+
+* Add dataset methods to phoenix client ([#7931](https://github.com/Arize-ai/phoenix/issues/7931)) ([4a5aa39](https://github.com/Arize-ai/phoenix/commit/4a5aa39b90adfb9896f336db7998bcde7c481bf8))
+* **experiments:** make experiments table resizable ([#7964](https://github.com/Arize-ai/phoenix/issues/7964)) ([93d9c52](https://github.com/Arize-ai/phoenix/commit/93d9c5270e4bead667953475d195f543b59bdede))
+* separate docs phoenix client evals ([#7948](https://github.com/Arize-ai/phoenix/issues/7948)) ([e569b68](https://github.com/Arize-ai/phoenix/commit/e569b6802ab9e31cb230a30dbc08f60d7e28e993))
+
+
+### Bug Fixes
+
+* provider tab ([#7972](https://github.com/Arize-ai/phoenix/issues/7972)) ([82ce450](https://github.com/Arize-ai/phoenix/commit/82ce450c815f077368dc9d70b6638467f565765f))
+* **tables:** sort ([#7963](https://github.com/Arize-ai/phoenix/issues/7963)) ([6b18c35](https://github.com/Arize-ai/phoenix/commit/6b18c356eeb0a4ffc25d366e9964778031db3d34))
+
 ## [10.7.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.7.0...arize-phoenix-v10.7.1) (2025-06-05)
 
 

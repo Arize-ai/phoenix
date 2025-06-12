@@ -73,12 +73,14 @@ jobs:
           sbom: true
           provenance: mode=max
           tags: |
+            ${{ matrix.variant == 'root' && format('{0}/{1}:version-{2}', env.REGISTRY, env.IMAGE_NAME, split(env.VERSION, '.')[0]) || '' }}
+            ${{ matrix.variant == 'root' && format('{0}/{1}:version-{2}.{3}', env.REGISTRY, env.IMAGE_NAME, split(env.VERSION, '.')[0], split(env.VERSION, '.')[1]) || '' }}
             ${{ matrix.variant == 'root' && format('{0}/{1}:version-{2}', env.REGISTRY, env.IMAGE_NAME, env.VERSION) || '' }}
-            ${{ matrix.variant == 'nonroot' && format('{0}/{1}:version-{2}-{3}', env.REGISTRY, env.IMAGE_NAME, env.VERSION, matrix.variant) || '' }}
-            ${{ matrix.variant == 'debug' && format('{0}/{1}:version-{2}-{3}', env.REGISTRY, env.IMAGE_NAME, env.VERSION, matrix.variant) || '' }}
             ${{ matrix.variant == 'root' && format('{0}/{1}:latest', env.REGISTRY, env.IMAGE_NAME) || '' }}
-            ${{ matrix.variant == 'nonroot' && format('{0}/{1}:latest-nonroot', env.REGISTRY, env.IMAGE_NAME) || '' }}
-            ${{ matrix.variant == 'debug' && format('{0}/{1}:latest-debug', env.REGISTRY, env.IMAGE_NAME) || '' }}
+            ${{ matrix.variant != 'root' && format('{0}/{1}:version-{2}-{3}', env.REGISTRY, env.IMAGE_NAME, split(env.VERSION, '.')[0], matrix.variant) || '' }}
+            ${{ matrix.variant != 'root' && format('{0}/{1}:version-{2}.{3}-{4}', env.REGISTRY, env.IMAGE_NAME, split(env.VERSION, '.')[0], split(env.VERSION, '.')[1], matrix.variant) || '' }}
+            ${{ matrix.variant != 'root' && format('{0}/{1}:version-{2}-{3}', env.REGISTRY, env.IMAGE_NAME, env.VERSION, matrix.variant) || '' }}
+            ${{ matrix.variant != 'root' && format('{0}/{1}:latest-{2}', env.REGISTRY, env.IMAGE_NAME, matrix.variant) || '' }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             BASE_IMAGE=${{ env.BASE_IMAGE }}

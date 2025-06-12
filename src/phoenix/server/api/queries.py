@@ -41,6 +41,7 @@ from phoenix.server.api.helpers.playground_clients import initialize_playground_
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.input_types.Coordinates import InputCoordinate2D, InputCoordinate3D
+from phoenix.server.api.input_types.DatasetFilter import DatasetFilter
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
 from phoenix.server.api.input_types.ProjectFilter import ProjectFilter
@@ -285,6 +286,7 @@ class Query:
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
         sort: Optional[DatasetSort] = UNSET,
+        filter: Optional[DatasetFilter] = UNSET,
     ) -> Connection[Dataset]:
         args = ConnectionArgs(
             first=first,
@@ -296,6 +298,8 @@ class Query:
         if sort:
             sort_col = getattr(models.Dataset, sort.col.value)
             stmt = stmt.order_by(sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc())
+        if filter:
+            stmt = stmt.where(getattr(models.Dataset, filter.col.value).ilike(f"%{filter.value}%"))
         async with info.context.db() as session:
             datasets = await session.scalars(stmt)
         return connection_from_list(
@@ -311,8 +315,10 @@ class Query:
         self,
         info: Info[Context, None],
         experiment_ids: list[GlobalID],
+        first: Optional[int] = 50,
+        after: Optional[CursorString] = UNSET,
         filter_condition: Optional[str] = UNSET,
-    ) -> list[ExperimentComparison]:
+    ) -> Connection[ExperimentComparison]:
         experiment_ids_ = [
             from_global_id_with_expected_type(experiment_id, OrmExperiment.__name__)
             for experiment_id in experiment_ids
@@ -417,6 +423,7 @@ class Query:
                 )
             experiment_comparisons.append(
                 ExperimentComparison(
+                    id_attr=example.id,
                     example=DatasetExample(
                         id_attr=example.id,
                         created_at=example.created_at,
@@ -425,7 +432,13 @@ class Query:
                     run_comparison_items=run_comparison_items,
                 )
             )
-        return experiment_comparisons
+        return connection_from_list(
+            data=experiment_comparisons,
+            args=ConnectionArgs(
+                first=first,
+                after=after if isinstance(after, CursorString) else None,
+            ),
+        )
 
     @strawberry.field
     async def validate_experiment_run_filter_condition(

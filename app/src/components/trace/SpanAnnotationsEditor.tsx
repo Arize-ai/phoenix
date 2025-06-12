@@ -290,6 +290,7 @@ function SpanAnnotationsList(props: {
         $annotationIds: [ID!]!
         $timeRange: TimeRange!
         $projectId: ID!
+        $filterUserIds: [ID]
       ) {
         deleteSpanAnnotations(input: { annotationIds: $annotationIds }) {
           query {
@@ -303,6 +304,7 @@ function SpanAnnotationsList(props: {
                 ...AnnotationSummaryGroup
                 ...TraceHeaderRootSpanAnnotationsFragment
                 ...SpanAnnotationsEditor_spanAnnotations
+                  @arguments(filterUserIds: $filterUserIds)
                 ...SpanAsideAnnotationList_span
                 ...SpanFeedback_annotations
               }
@@ -324,6 +326,7 @@ function SpanAnnotationsList(props: {
                 end: timeRange?.end?.toISOString(),
               },
               projectId,
+              filterUserIds: userFilter,
             },
             onCompleted: () => {
               resolve({
@@ -347,7 +350,14 @@ function SpanAnnotationsList(props: {
           });
         }
       }),
-    [commitDeleteAnnotation, spanNodeId, timeRange, projectId, notifyError]
+    [
+      commitDeleteAnnotation,
+      spanNodeId,
+      timeRange,
+      projectId,
+      notifyError,
+      userFilter,
+    ]
   );
 
   const [commitEdit] = useMutation<SpanAnnotationsEditorEditAnnotationMutation>(

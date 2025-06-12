@@ -35,3 +35,4 @@
 * [Traces](traces.md)
 * [Prompts](prompts.md)
 * [Projects](projects.md)
+* [Users](users.md)

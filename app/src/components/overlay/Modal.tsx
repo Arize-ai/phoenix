@@ -1,9 +1,12 @@
 import { forwardRef, Ref } from "react";
 import {
   Modal as AriaModal,
+  ModalOverlay as AriaModalOverlay,
   ModalOverlayProps as AriaModalOverlayProps,
 } from "react-aria-components";
 import { css, keyframes } from "@emotion/react";
+
+import { classNames } from "@arizeai/components";
 
 import { SizingProps } from "../types";
 
@@ -32,21 +35,7 @@ const modalZoom = keyframes`
   }
   `;
 const modalCSS = css`
-  --visual-viewport-height: 100vh;
   --modal-width: var(--ac-global-modal-width-M);
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: var(--visual-viewport-height);
-  // TODO(apowell): refactor into ModalOverlay with default styles
-  // The modal itself should not render a background/overlay unless you compose
-  // it with ModalOverlay
-  background: rgba(0 0 0 / 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
 
   &[data-size="S"] {
     --modal-width: var(--ac-global-modal-width-S);
@@ -65,14 +54,19 @@ const modalCSS = css`
   }
 
   &[data-variant="slideover"] {
+    --visual-viewport-height: 100vh;
     width: var(--modal-width);
     height: var(--visual-viewport-height);
+    position: fixed;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
     top: 0;
     right: 0;
     left: auto;
     align-items: flex-start;
     justify-content: flex-end;
-    background: transparent;
 
     &[data-entering] {
       animation: ${modalSlideover} 300ms;
@@ -98,7 +92,19 @@ const modalCSS = css`
     }
 
     &[data-exiting] {
-      animation: ${modalFade} 150ms reverse ease-in;
+      animation: ${modalFade} 200ms reverse ease-in;
+    }
+
+    .react-aria-Dialog {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 1001;
+
+      &[data-entering] {
+        animation: ${modalZoom} 300ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
     }
   }
 
@@ -110,10 +116,6 @@ const modalCSS = css`
     color: var(--ac-global-text-color-900);
     border: 1px solid var(--ac-global-border-color-light);
     outline: none;
-
-    &[data-entering] {
-      animation: ${modalZoom} 300ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    }
 
     .ac-Heading[slot="title"] {
       padding: var(--ac-global-dimension-size-100)
@@ -142,4 +144,38 @@ function Modal(props: ModalProps, ref: Ref<HTMLDivElement>) {
 }
 
 const _Modal = forwardRef(Modal);
-export { _Modal as Modal };
+
+const modalOverlayCSS = css`
+  position: fixed;
+  inset: 0;
+  background: rgba(0 0 0 / 0.5);
+  z-index: 1000;
+
+  &[data-entering] {
+    // ensure overlay animation is longer than child animations
+    animation: ${modalFade} 300ms;
+  }
+
+  &[data-exiting] {
+    // ensure overlay animation is longer than child animations
+    animation: ${modalFade} 300ms reverse ease-in;
+  }
+`;
+
+function ModalOverlay(props: AriaModalOverlayProps, ref: Ref<HTMLDivElement>) {
+  return (
+    <AriaModalOverlay
+      {...props}
+      data-testid="modal-overlay"
+      css={modalOverlayCSS}
+      className={classNames(props.className, "react-aria-ModalOverlay")}
+      // default to true, but allow for override
+      isDismissable={props.isDismissable ?? true}
+      ref={ref}
+    />
+  );
+}
+
+const _ModalOverlay = forwardRef(ModalOverlay);
+
+export { _Modal as Modal, _ModalOverlay as ModalOverlay };

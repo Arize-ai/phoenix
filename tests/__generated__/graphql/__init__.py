@@ -691,12 +691,18 @@ class GenerativeModel(BaseModel):
 
 class GenerativeProvider(BaseModel):
     model_config = ConfigDict(frozen=True)
-    apiKeyEnvVar: str = Field(...)
-    apiKeySet: bool = Field(...)
+    credentialRequirements: list[GenerativeProviderCredentialConfig] = Field(...)
+    credentialsSet: bool = Field(...)
     dependencies: list[str]
     dependenciesInstalled: bool
     key: Literal["ANTHROPIC", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"]
     name: str
+
+
+class GenerativeProviderCredentialConfig(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    envVarName: str
+    isRequired: bool
 
 
 class Inferences(BaseModel):
@@ -1558,7 +1564,7 @@ class CategoricalAnnotationConfigValueInput(BaseModel):
 
 class ChatCompletionInput(BaseModel):
     model_config = ConfigDict(frozen=True)
-    apiKey: Optional[str] = None
+    credentials: Optional[list[GenerativeCredentialInput]] = None
     invocationParameters: list[InvocationParameterInput]
     messages: list[ChatCompletionMessageInput]
     model: GenerativeModelInput
@@ -1577,7 +1583,7 @@ class ChatCompletionMessageInput(BaseModel):
 
 class ChatCompletionOverDatasetInput(BaseModel):
     model_config = ConfigDict(frozen=True)
-    apiKey: Optional[str] = None
+    credentials: Optional[list[GenerativeCredentialInput]] = None
     datasetId: str
     datasetVersionId: Optional[str] = None
     experimentDescription: Optional[str] = None
@@ -1771,6 +1777,12 @@ class DatasetExamplePatch(BaseModel):
     output: Optional[dict[str, Any]] = None
 
 
+class DatasetFilter(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    col: Literal["name",]
+    value: str
+
+
 class DatasetSort(BaseModel):
     model_config = ConfigDict(frozen=True)
     col: Literal["createdAt", "name"]
@@ -1863,6 +1875,12 @@ class FreeformAnnotationConfigInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     description: Optional[str] = None
     name: str
+
+
+class GenerativeCredentialInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    envVarName: str
+    value: str
 
 
 class GenerativeModelInput(BaseModel):

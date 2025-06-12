@@ -11,6 +11,7 @@ import {
   Icon,
   Icons,
   Modal,
+  ModalOverlay,
   Popover,
   Text,
   View,
@@ -216,45 +217,47 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
               onOpenChange={setIsCreatingDataset}
             >
               <Popover>
-                <Modal>
-                  <Dialog>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>New Dataset</DialogTitle>
-                        <DialogTitleExtra>
-                          <Button
-                            variant="default"
-                            size="S"
-                            onPress={() => {
-                              setIsCreatingDataset(false);
-                            }}
-                            leadingVisual={
-                              <Icon svg={<Icons.CloseOutline />} />
-                            }
-                          ></Button>
-                        </DialogTitleExtra>
-                      </DialogHeader>
-                      <CreateDatasetForm
-                        onDatasetCreateError={(error) => {
-                          const formattedError =
-                            getErrorMessagesFromRelayMutationError(error);
-                          notifyError({
-                            title: "Dataset creation failed",
-                            message: `Failed to create dataset: ${formattedError?.[0] ?? error.message}`,
-                          });
-                        }}
-                        onDatasetCreated={(dataset) => {
-                          setIsCreatingDataset(false);
-                          notifySuccess({
-                            title: "Dataset created",
-                            message: `${dataset.name} has been successfully created.`,
-                          });
-                          setIsDatasetPopoverOpen(true);
-                        }}
-                      />
-                    </DialogContent>
-                  </Dialog>
-                </Modal>
+                <ModalOverlay>
+                  <Modal>
+                    <Dialog>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>New Dataset</DialogTitle>
+                          <DialogTitleExtra>
+                            <Button
+                              variant="default"
+                              size="S"
+                              onPress={() => {
+                                setIsCreatingDataset(false);
+                              }}
+                              leadingVisual={
+                                <Icon svg={<Icons.CloseOutline />} />
+                              }
+                            ></Button>
+                          </DialogTitleExtra>
+                        </DialogHeader>
+                        <CreateDatasetForm
+                          onDatasetCreateError={(error) => {
+                            const formattedError =
+                              getErrorMessagesFromRelayMutationError(error);
+                            notifyError({
+                              title: "Dataset creation failed",
+                              message: `Failed to create dataset: ${formattedError?.[0] ?? error.message}`,
+                            });
+                          }}
+                          onDatasetCreated={(dataset) => {
+                            setIsCreatingDataset(false);
+                            notifySuccess({
+                              title: "Dataset created",
+                              message: `${dataset.name} has been successfully created.`,
+                            });
+                            setIsDatasetPopoverOpen(true);
+                          }}
+                        />
+                      </DialogContent>
+                    </Dialog>
+                  </Modal>
+                </ModalOverlay>
               </Popover>
             </DialogTrigger>
             <Button
@@ -281,48 +284,54 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
               isOpen={isDeletingTracesDialogOpen}
               onOpenChange={setIsDeletingTracesDialogOpen}
             >
-              <Modal>
-                <Dialog>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Delete Traces</DialogTitle>
-                    </DialogHeader>
-                    <View padding="size-200">
-                      <Text color="danger">
-                        Are you sure you want to delete the selected spans and
-                        their traces?
-                      </Text>
-                    </View>
-                    <View
-                      paddingEnd="size-200"
-                      paddingTop="size-100"
-                      paddingBottom="size-100"
-                      borderTopColor="light"
-                      borderTopWidth="thin"
-                    >
-                      <Flex direction="row" justifyContent="end" gap="size-100">
-                        <Button
-                          variant="default"
-                          onPress={() => {
-                            setIsDeletingTracesDialogOpen(false);
-                          }}
+              <ModalOverlay>
+                <Modal>
+                  <Dialog>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Delete Traces</DialogTitle>
+                      </DialogHeader>
+                      <View padding="size-200">
+                        <Text color="danger">
+                          Are you sure you want to delete the selected spans and
+                          their traces?
+                        </Text>
+                      </View>
+                      <View
+                        paddingEnd="size-200"
+                        paddingTop="size-100"
+                        paddingBottom="size-100"
+                        borderTopColor="light"
+                        borderTopWidth="thin"
+                      >
+                        <Flex
+                          direction="row"
+                          justifyContent="end"
+                          gap="size-100"
                         >
-                          Cancel
-                        </Button>
-                        <Button
-                          variant="danger"
-                          onPress={() => {
-                            onDeleteTraces();
-                            setIsDeletingTracesDialogOpen(false);
-                          }}
-                        >
-                          Delete Traces
-                        </Button>
-                      </Flex>
-                    </View>
-                  </DialogContent>
-                </Dialog>
-              </Modal>
+                          <Button
+                            variant="default"
+                            onPress={() => {
+                              setIsDeletingTracesDialogOpen(false);
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            variant="danger"
+                            onPress={() => {
+                              onDeleteTraces();
+                              setIsDeletingTracesDialogOpen(false);
+                            }}
+                          >
+                            Delete Traces
+                          </Button>
+                        </Flex>
+                      </View>
+                    </DialogContent>
+                  </Dialog>
+                </Modal>
+              </ModalOverlay>
             </DialogTrigger>
           </Flex>
         </Flex>
