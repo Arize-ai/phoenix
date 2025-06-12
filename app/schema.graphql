@@ -2084,6 +2084,7 @@ type Project implements Node {
   tokenCountTotal(timeRange: TimeRange, filterCondition: String): Float!
   tokenCountPrompt(timeRange: TimeRange, filterCondition: String): Float!
   tokenCountCompletion(timeRange: TimeRange, filterCondition: String): Float!
+  tokenCost(timeRange: TimeRange, filterCondition: String): TokenCost!
   latencyMsQuantile(probability: Float!, timeRange: TimeRange): Float
   spanLatencyMsQuantile(
     probability: Float!
@@ -3159,6 +3160,8 @@ type TimeSeriesDataPoint {
 type TokenCost {
   input: Float
   output: Float
+  prompt: Float
+  completion: Float
   cacheRead: Float
   cacheWrite: Float
   promptAudio: Float
