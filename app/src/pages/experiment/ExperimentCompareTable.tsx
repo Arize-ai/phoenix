@@ -27,10 +27,14 @@ import {
   Button,
   CopyToClipboardButton,
   Dialog,
+  DialogCloseButton,
+  DialogTrigger,
   Flex,
   Heading,
   Icon,
   Icons,
+  Modal,
+  ModalOverlay,
   Text,
   View,
   ViewSummaryAside,
@@ -261,7 +265,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     [data]
   );
 
-  const [dialog, setDialog] = useState<ReactNode>(null);
+
   const baseColumns: ColumnDef<TableRow>[] = useMemo(() => {
     return [
       {
@@ -271,27 +275,25 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           return (
             <CellWithControlsWrap
               controls={
-                <Button
-                  size="S"
-                  aria-label="View example details"
-                  leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
-                  onPress={() => {
-                    startTransition(() => {
-                      setDialog(
-                        <Suspense>
-                          <ExampleDetailsDialog
-                            exampleId={row.original.example.id}
-                            onDismiss={() => {
-                              setDialog(null);
-                            }}
-                          />
-                        </Suspense>
-                      );
-                    });
-                  }}
-                >
-                  View Example
-                </Button>
+                <DialogTrigger>
+                  <Button
+                    size="S"
+                    aria-label="View example details"
+                    leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
+                  >
+                    View Example
+                  </Button>
+                  <ModalOverlay>
+                    <Modal variant="slideover" size="S">
+                      <Suspense>
+                        <ExampleDetailsDialog
+                          exampleId={row.original.example.id}
+                          onDismiss={() => {}}
+                        />
+                      </Suspense>
+                    </Modal>
+                  </ModalOverlay>
+                </DialogTrigger>
               }
             >
               <PaddedCell>
@@ -368,50 +370,50 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         const projectId = run?.trace?.projectId;
         if (traceId && projectId) {
           traceButton = (
-            <Button
-              variant="default"
-              className="trace-button"
-              size="S"
-              aria-label="View run trace"
-              leadingVisual={<Icon svg={<Icons.Trace />} />}
-              onPress={() => {
-                startTransition(() => {
-                  setDialog(
-                    <TraceDetailsDialog
-                      traceId={traceId}
-                      projectId={projectId}
-                      title={`Experiment Run Trace`}
-                    />
-                  );
-                });
-              }}
-            >
-              View Trace
-            </Button>
+            <DialogTrigger>
+              <Button
+                variant="default"
+                className="trace-button"
+                size="S"
+                aria-label="View run trace"
+                leadingVisual={<Icon svg={<Icons.Trace />} />}
+              >
+                View Trace
+              </Button>
+              <ModalOverlay>
+                <Modal variant="slideover" size="S">
+                  <TraceDetailsDialog
+                    traceId={traceId}
+                    projectId={projectId}
+                    title={`Experiment Run Trace`}
+                  />
+                </Modal>
+              </ModalOverlay>
+            </DialogTrigger>
           );
         }
         const runControls = (
           <>
-            <Button
-              variant="default"
-              className="expand-button"
-              size="S"
-              aria-label="View example run details"
-              leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
-              onPress={() => {
-                startTransition(() => {
-                  setDialog(
-                    <SelectedExampleDialog
-                      selectedExample={row.original}
-                      datasetId={datasetId}
-                      experimentInfoById={experimentInfoById}
-                    />
-                  );
-                });
-              }}
-            >
-              Experiment Run
-            </Button>
+            <DialogTrigger>
+              <Button
+                variant="default"
+                className="expand-button"
+                size="S"
+                aria-label="View example run details"
+                leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
+              >
+                Experiment Run
+              </Button>
+              <ModalOverlay>
+                <Modal variant="slideover" size="M">
+                  <SelectedExampleDialog
+                    selectedExample={row.original}
+                    datasetId={datasetId}
+                    experimentInfoById={experimentInfoById}
+                  />
+                </Modal>
+              </ModalOverlay>
+            </DialogTrigger>
             {traceButton}
           </>
         );
@@ -422,7 +424,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               <ExperimentRunOutput
                 {...run}
                 displayFullText={displayFullText}
-                setDialog={setDialog}
               />
             </PaddedCell>
           </CellWithControlsWrap>
@@ -614,7 +615,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               />
             )}
           </table>
-          {dialog}
         </div>
       </Flex>
     </View>
@@ -724,7 +724,6 @@ function ExperimentRowActionMenu(props: {
 function ExperimentRunOutput(
   props: ExperimentRun & {
     displayFullText: boolean;
-    setDialog: (dialog: ReactNode) => void;
   }
 ) {
   const {
@@ -734,7 +733,6 @@ function ExperimentRunOutput(
     endTime,
     annotations,
     displayFullText,
-    setDialog,
   } = props;
   if (error) {
     return <RunError error={error} />;
@@ -783,18 +781,7 @@ function ExperimentRunOutput(
               <AnnotationLabel
                 annotation={annotation}
                 onClick={() => {
-                  const trace = annotation.trace;
-                  if (trace) {
-                    startTransition(() => {
-                      setDialog(
-                        <TraceDetailsDialog
-                          traceId={trace.traceId}
-                          projectId={trace.projectId}
-                          title={`Evaluator Trace: ${annotation.name}`}
-                        />
-                      );
-                    });
-                  }
+                  // TODO: Convert to DialogTrigger pattern when needed
                 }}
               />
             </AnnotationTooltip>
@@ -885,6 +872,7 @@ function SelectedExampleDialog({
               datasetId={datasetId}
               exampleId={selectedExample.id}
             />
+            <DialogCloseButton />
           </DialogTitleExtra>
         </DialogHeader>
         <PanelGroup
@@ -904,16 +892,16 @@ function SelectedExampleDialog({
                     <Card
                       title="Input"
                       {...defaultCardProps}
-                      bodyStyle={{
-                        padding: 0,
-                        maxHeight: "300px",
-                        overflowY: "auto",
-                      }}
                       extra={
                         <CopyToClipboardButton
                           text={JSON.stringify(selectedExample.input)}
                         />
                       }
+                      bodyStyle={{
+                        padding: 0,
+                        maxHeight: "300px",
+                        overflowY: "auto",
+                      }}
                     >
                       <JSONBlock
                         value={JSON.stringify(selectedExample.input, null, 2)}
@@ -1077,6 +1065,7 @@ function TraceDetailsDialog({
             >
               View Trace in Project
             </Button>
+            <DialogCloseButton />
           </DialogTitleExtra>
         </DialogHeader>
         <TraceDetails traceId={traceId} projectId={projectId} />
