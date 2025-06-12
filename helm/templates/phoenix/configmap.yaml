@@ -52,7 +52,7 @@ data:
   PHOENIX_TLS_ENABLED_FOR_HTTP: {{ .Values.tls.enabledForHttp | quote }}
   PHOENIX_TLS_CERT_FILE: {{ .Values.tls.certFile | quote }}
   PHOENIX_TLS_KEY_FILE: {{ .Values.tls.keyFile | quote }}
-  PHOENIX_TLS_KEY_FILE_PASSWORD: {{ .Values.tls.keyFilePassword | quote }}
+  PHOENIX_TLS_KEY_FILE_PASSWORD: {{ .Values.tls.keyFilePassword | default "" | quote }}
   PHOENIX_TLS_CA_FILE: {{ .Values.tls.caFile | quote }}
   PHOENIX_TLS_VERIFY_CLIENT: {{ .Values.tls.verifyClient | quote }}
 
