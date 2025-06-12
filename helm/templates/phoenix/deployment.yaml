@@ -71,7 +71,7 @@ spec:
             {{- if .Values.securityContext.container.runAsGroup }}
             runAsGroup: {{ .Values.securityContext.container.runAsGroup }}
             {{- end }}
-            {{- if .Values.securityContext.container.allowPrivilegeEscalation }}
+            {{- if hasKey .Values.securityContext.container "allowPrivilegeEscalation" }}
             allowPrivilegeEscalation: {{ .Values.securityContext.container.allowPrivilegeEscalation }}
             {{- end }}
             {{- if .Values.securityContext.container.privileged }}
