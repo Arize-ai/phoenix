@@ -284,7 +284,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                     View Example
                   </Button>
                   <ModalOverlay>
-                    <Modal variant="slideover" size="S">
+                    <Modal variant="slideover" size="fullscreen">
                       <Suspense>
                         <ExampleDetailsDialog
                           exampleId={row.original.example.id}
@@ -381,7 +381,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 View Trace
               </Button>
               <ModalOverlay>
-                <Modal variant="slideover" size="S">
+                <Modal variant="slideover" size="fullscreen">
                   <TraceDetailsDialog
                     traceId={traceId}
                     projectId={projectId}
@@ -405,7 +405,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 Experiment Run
               </Button>
               <ModalOverlay>
-                <Modal variant="slideover" size="M">
+                <Modal variant="slideover" size="fullscreen">
                   <SelectedExampleDialog
                     selectedExample={row.original}
                     datasetId={datasetId}
