@@ -36,6 +36,7 @@ from .span_dataset_examples import SpanDatasetExamplesDataLoader
 from .span_descendants import SpanDescendantsDataLoader
 from .span_projects import SpanProjectsDataLoader
 from .table_fields import TableFieldsDataLoader
+from .token_costs import TokenCostCache, TokenCostDataLoader
 from .token_counts import TokenCountCache, TokenCountDataLoader
 from .trace_by_trace_ids import TraceByTraceIdsDataLoader
 from .trace_retention_policy_id_by_project_id import TraceRetentionPolicyIdByProjectIdDataLoader
@@ -75,6 +76,7 @@ __all__ = [
     "SpanDescendantsDataLoader",
     "SpanProjectsDataLoader",
     "TableFieldsDataLoader",
+    "TokenCostDataLoader",
     "TokenCountDataLoader",
     "TraceByTraceIdsDataLoader",
     "TraceRetentionPolicyIdByProjectIdDataLoader",
@@ -106,4 +108,7 @@ class CacheForDataLoaders:
     )
     token_count: TokenCountCache = field(
         default_factory=TokenCountCache,
+    )
+    token_cost: TokenCostCache = field(
+        default_factory=TokenCostCache,
     )
