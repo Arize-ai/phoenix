@@ -277,27 +277,13 @@ function BedrockModelConfigFormField({
       <ComboBox
         container={container ?? undefined}
         size="L"
-        label="API"
-        data-testid="bedrock-api-combobox"
-        selectedKey={instance.model.apiVersion ?? undefined}
-        aria-label="api picker"
-        isDisabled
-        placeholder="Select an Bedrock API"
-        inputValue={"converse"}
-      >
-        <ComboBoxItem key="converse" textValue="converse" id="converse">
-          Converse
-        </ComboBoxItem>
-      </ComboBox>
-      <ComboBox
-        container={container ?? undefined}
-        size="L"
         label="Region"
         data-testid="bedrock-region-combobox"
-        selectedKey={instance.model.apiVersion ?? undefined}
+        selectedKey={instance.model.region ?? undefined}
         aria-label="region picker"
+        isRequired
         placeholder="Select an Amazon Region"
-        inputValue={"us-east-1"}
+        inputValue={instance.model.region ?? ""}
         onInputChange={(value) => {
           updateModelConfig({
             configKey: "region",
@@ -395,6 +381,21 @@ function BedrockModelConfigFormField({
         </ComboBoxItem>
         <ComboBoxItem key="sa-east-1" textValue="sa-east-1" id="sa-east-1">
           South America (São Paulo) (sa-east-1)
+        </ComboBoxItem>
+      </ComboBox>
+      <ComboBox
+        container={container ?? undefined}
+        size="L"
+        label="API"
+        data-testid="bedrock-api-combobox"
+        selectedKey={instance.model.apiVersion ?? undefined}
+        aria-label="api picker"
+        isDisabled
+        placeholder="Select an Bedrock API"
+        inputValue={"converse"}
+      >
+        <ComboBoxItem key="converse" textValue="converse" id="converse">
+          Converse
         </ComboBoxItem>
       </ComboBox>
     </>
