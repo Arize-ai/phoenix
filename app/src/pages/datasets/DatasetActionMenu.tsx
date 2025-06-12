@@ -1,6 +1,6 @@
-import { ReactNode, useCallback, useState } from "react";
+import { useState } from "react";
 
-import { ActionMenu, DialogContainer, Item } from "@arizeai/components";
+import { ActionMenu, Item } from "@arizeai/components";
 
 import { Flex, Icon, Icons, Text } from "@phoenix/components";
 
@@ -33,44 +33,9 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
     onDatasetEdit,
     onDatasetEditError,
   } = props;
-  const [dialog, setDialog] = useState<ReactNode>(null);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
-  const onDelete = useCallback(() => {
-    setDialog(
-      <DeleteDatasetDialog
-        datasetId={datasetId}
-        datasetName={datasetName}
-        onDatasetDelete={() => {
-          onDatasetDelete();
-          setDialog(null);
-        }}
-        onDatasetDeleteError={onDatasetDeleteError}
-      />
-    );
-  }, [datasetId, datasetName, onDatasetDelete, onDatasetDeleteError]);
-
-  const onEdit = useCallback(() => {
-    setDialog(
-      <EditDatasetDialog
-        datasetId={datasetId}
-        datasetName={datasetName}
-        datasetDescription={datasetDescription}
-        datasetMetadata={datasetMetadata}
-        onDatasetEdited={() => {
-          onDatasetEdit();
-          setDialog(null);
-        }}
-        onDatasetEditError={onDatasetEditError}
-      />
-    );
-  }, [
-    datasetDescription,
-    datasetId,
-    datasetMetadata,
-    datasetName,
-    onDatasetEdit,
-    onDatasetEditError,
-  ]);
   return (
     <div
       // TODO: add this logic to the ActionMenu component
@@ -86,10 +51,10 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
         onAction={(action) => {
           switch (action) {
             case DatasetAction.DELETE:
-              onDelete();
+              setIsDeleteOpen(true);
               break;
             case DatasetAction.EDIT:
-              onEdit();
+              setIsEditOpen(true);
               break;
           }
         }}
@@ -117,13 +82,28 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
           </Flex>
         </Item>
       </ActionMenu>
-      <DialogContainer
-        type="modal"
-        isDismissable
-        onDismiss={() => setDialog(null)}
-      >
-        {dialog}
-      </DialogContainer>
+
+      {/* Delete Dataset Dialog */}
+      <DeleteDatasetDialog
+        datasetId={datasetId}
+        datasetName={datasetName}
+        onDatasetDelete={onDatasetDelete}
+        onDatasetDeleteError={onDatasetDeleteError}
+        isOpen={isDeleteOpen}
+        onOpenChange={setIsDeleteOpen}
+      />
+
+      {/* Edit Dataset Dialog */}
+      <EditDatasetDialog
+        datasetId={datasetId}
+        datasetName={datasetName}
+        datasetDescription={datasetDescription}
+        datasetMetadata={datasetMetadata}
+        onDatasetEdited={onDatasetEdit}
+        onDatasetEditError={onDatasetEditError}
+        isOpen={isEditOpen}
+        onOpenChange={setIsEditOpen}
+      />
     </div>
   );
 }
