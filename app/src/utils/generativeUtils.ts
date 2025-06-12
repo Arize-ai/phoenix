@@ -12,7 +12,8 @@ export function isModelProvider(provider: string): provider is ModelProvider {
     provider === "DEEPSEEK" ||
     provider === "XAI" ||
     provider === "OLLAMA" ||
-    provider === "BEDROCK"
+    provider === "BEDROCK" ||
+    provider === "AWS"
   );
 }
 
@@ -34,6 +35,8 @@ export function getProviderName(provider: ModelProvider): string {
       return "Ollama";
     case "BEDROCK":
       return "Bedrock";
+    case "AWS":
+      return "AWS";
     default:
       assertUnreachable(provider);
   }
