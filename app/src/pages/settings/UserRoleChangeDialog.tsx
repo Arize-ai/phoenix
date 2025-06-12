@@ -1,11 +1,20 @@
 import { useCallback } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import { Button, Dialog, Flex, Text, View } from "@phoenix/components";
+import {
+  Button,
+  Dialog,
+  Flex,
+  Icon,
+  Icons,
+  Text,
+  View,
+} from "@phoenix/components";
 import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTitleExtra,
 } from "@phoenix/components/dialog";
 import { normalizeUserRole } from "@phoenix/constants";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
@@ -80,6 +89,17 @@ export function UserRoleChangeDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Confirm role change</DialogTitle>
+          <DialogTitleExtra>
+            <Button
+              size="S"
+              data-testid="dialog-close-button"
+              leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
+              onPress={onClose}
+              type="button"
+              variant="default"
+              slot="close"
+            />
+          </DialogTitleExtra>
         </DialogHeader>
         <View padding="size-200">
           <Text>

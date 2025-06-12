@@ -1,24 +1,26 @@
 import { useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
+import { css } from "@emotion/react";
 
 import {
   Button,
   Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
   FieldError,
   Flex,
   Form,
+  Icon,
+  Icons,
   Input,
   Label,
   Text,
   TextField,
   View,
 } from "@phoenix/components";
-import {
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@phoenix/components/dialog";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 import { ResetPasswordDialogMutation } from "./__generated__/ResetPasswordDialogMutation.graphql";
@@ -85,11 +87,27 @@ export function ResetPasswordDialog({
     },
     [commit, notifyError, notifySuccess, onClose, userId]
   );
+
   return (
-    <Dialog>
+    <Dialog
+      css={css`
+        width: 500px;
+        max-width: 90vw;
+      `}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Reset Password</DialogTitle>
+          <DialogTitleExtra>
+            <Button
+              size="S"
+              data-testid="dialog-close-button"
+              leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
+              onPress={onClose}
+              type="button"
+              variant="default"
+            />
+          </DialogTitleExtra>
         </DialogHeader>
         <Form>
           <View padding="size-200">
@@ -171,6 +189,14 @@ export function ResetPasswordDialog({
             </Flex>
             <View paddingTop="size-200">
               <Flex direction="row" gap="size-100" justifyContent="end">
+                <Button
+                  variant="default"
+                  size="S"
+                  onPress={onClose}
+                  isDisabled={isCommitting}
+                >
+                  Cancel
+                </Button>
                 <Button
                   variant={isDirty ? "primary" : "default"}
                   type="submit"

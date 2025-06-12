@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 import {
   ColumnDef,
@@ -7,6 +7,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { css } from "@emotion/react";
 
 import { Card } from "@arizeai/components";
 
@@ -15,19 +16,21 @@ import {
   CredentialField,
   CredentialInput,
   Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+  DialogTrigger,
   Flex,
   Form,
   Icon,
   Icons,
   Label,
+  Modal,
+  ModalOverlay,
   Text,
   View,
 } from "@phoenix/components";
-import {
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@phoenix/components/dialog";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { ProviderToCredentialsConfigMap } from "@phoenix/constants/generativeConstants";
@@ -43,9 +46,6 @@ export function GenerativeProvidersCard({
 }: {
   query: GenerativeProvidersCard_data$key;
 }) {
-  const [selectedProvider, setSelectedProvider] = useState<
-    GenerativeProvidersCard_data$data["modelProviders"][number] | null
-  >(null);
   const credentials = useCredentialsContext((state) => state);
   const data = useFragment<GenerativeProvidersCard_data$key>(
     graphql`
@@ -135,13 +135,23 @@ export function GenerativeProvidersCard({
               gap="size-100"
               width="100%"
             >
-              <Button
-                size="S"
-                leadingVisual={<Icon svg={<Icons.EditOutline />} />}
-                onPress={() => {
-                  setSelectedProvider(row.original);
-                }}
-              />
+              <DialogTrigger>
+                <Button
+                  size="S"
+                  leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+                />
+                <ModalOverlay isDismissable>
+                  <Modal
+                    variant="default"
+                    css={css`
+                      width: 600px;
+                      max-width: 90vw;
+                    `}
+                  >
+                    <ProviderCredentialsDialog provider={row.original} />
+                  </Modal>
+                </ModalOverlay>
+              </DialogTrigger>
             </Flex>
           );
         },
@@ -198,57 +208,55 @@ export function GenerativeProvidersCard({
           })}
         </tbody>
       </table>
-      {selectedProvider && (
-        <Dialog>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                Configure {selectedProvider.name} Credentials
-              </DialogTitle>
-            </DialogHeader>
-            <View padding="size-200">
-              <View paddingBottom="size-100">
-                <Text size="XS">
-                  Set the credentials for the {selectedProvider.name} API. These
-                  credentials will be stored entirely in your browser and will
-                  only be sent to the server during API requests.
-                </Text>
-              </View>
-              <Form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  setSelectedProvider(null);
-                }}
-              >
-                <ProviderCredentials provider={selectedProvider.key} />
-                <View paddingTop="size-200">
-                  <Flex direction="row" justifyContent="end" gap="size-100">
-                    <Button
-                      variant="default"
-                      size="S"
-                      onPress={() => {
-                        setSelectedProvider(null);
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="primary"
-                      size="S"
-                      onPress={() => {
-                        setSelectedProvider(null);
-                      }}
-                    >
-                      Save Credentials
-                    </Button>
-                  </Flex>
-                </View>
-              </Form>
-            </View>
-          </DialogContent>
-        </Dialog>
-      )}
     </Card>
+  );
+}
+
+function ProviderCredentialsDialog({
+  provider,
+}: {
+  provider: GenerativeProvidersCard_data$data["modelProviders"][number];
+}) {
+  return (
+    <Dialog>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Configure {provider.name} Credentials</DialogTitle>
+          <DialogTitleExtra>
+            <Button
+              size="S"
+              data-testid="dialog-close-button"
+              leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
+              type="button"
+              variant="default"
+              slot="close"
+            />
+          </DialogTitleExtra>
+        </DialogHeader>
+        <View padding="size-200">
+          <View paddingBottom="size-100">
+            <Text size="XS">
+              Set the credentials for the {provider.name} API. These credentials
+              will be stored entirely in your browser and will only be sent to
+              the server during API requests.
+            </Text>
+          </View>
+          <Form>
+            <ProviderCredentials provider={provider.key} />
+            <View paddingTop="size-200">
+              <Flex direction="row" justifyContent="end" gap="size-100">
+                <Button variant="default" size="S" slot="close">
+                  Cancel
+                </Button>
+                <Button variant="primary" size="S" slot="close">
+                  Save Credentials
+                </Button>
+              </Flex>
+            </View>
+          </Form>
+        </View>
+      </DialogContent>
+    </Dialog>
   );
 }
 
