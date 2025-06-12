@@ -265,7 +265,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     [data]
   );
 
-
   const baseColumns: ColumnDef<TableRow>[] = useMemo(() => {
     return [
       {
@@ -421,10 +420,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         return run ? (
           <CellWithControlsWrap controls={runControls}>
             <PaddedCell>
-              <ExperimentRunOutput
-                {...run}
-                displayFullText={displayFullText}
-              />
+              <ExperimentRunOutput {...run} displayFullText={displayFullText} />
             </PaddedCell>
           </CellWithControlsWrap>
         ) : (
@@ -726,14 +722,8 @@ function ExperimentRunOutput(
     displayFullText: boolean;
   }
 ) {
-  const {
-    output,
-    error,
-    startTime,
-    endTime,
-    annotations,
-    displayFullText,
-  } = props;
+  const { output, error, startTime, endTime, annotations, displayFullText } =
+    props;
   if (error) {
     return <RunError error={error} />;
   }
