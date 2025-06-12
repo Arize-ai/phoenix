@@ -8,6 +8,7 @@ import { Card, CardProps } from "@arizeai/components";
 import {
   CopyToClipboardButton,
   Dialog,
+  DialogCloseButton,
   Flex,
   Heading,
   Icon,
@@ -22,6 +23,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTitleExtra,
 } from "@phoenix/components/dialog";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -80,6 +82,9 @@ export function PlaygroundExperimentRunDetailsDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Experiment Run for Example: {exampleId}</DialogTitle>
+          <DialogTitleExtra>
+            <DialogCloseButton />
+          </DialogTitleExtra>
         </DialogHeader>
         <PanelGroup
           direction="vertical"
