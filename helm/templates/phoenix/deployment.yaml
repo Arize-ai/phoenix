@@ -146,6 +146,7 @@ spec:
               mountPath: {{ .Values.server.workingDir }}
             {{- end }}
           {{- end }}
+
       {{- if and .Values.securityContext.container.enabled .Values.securityContext.container.readOnlyRootFilesystem }}
       volumes:
         - name: tmp-volume
@@ -156,4 +157,7 @@ spec:
           emptyDir: {}
         - name: home-volume
           emptyDir: {}
+        - name: working-dir-volume
+          emptyDir: {}
       {{- end }}
+
