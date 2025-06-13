@@ -2,6 +2,18 @@
 # This file contains configuration values for deploying Phoenix via Helm.
 # Each value corresponds to an environment variable described in https://arize.com/docs/phoenix/self-hosting/configuration.
 
+# Replica count
+# -- Number of Phoenix pod replicas
+replicaCount: 1
+
+# Deployment strategy
+deployment:
+  strategy:
+    # -- Maximum number of pods that can be unavailable during update (can be absolute number or percentage)
+    maxUnavailable: "25%"
+    # -- Maximum number of pods that can be created above desired replica count during update
+    maxSurge: "25%"
+
 # ADDONS
 # - Ingress
 # - Postgres
@@ -290,3 +302,41 @@ image:
 
   # -- Docker image tag/version to deploy
   tag: version-10.11.0-nonroot
+
+# Health check configuration
+healthChecks:
+  livenessProbe:
+    # -- Initial delay before liveness probe starts
+    initialDelaySeconds: 0
+    # -- How often to perform the liveness probe
+    periodSeconds: 10
+    # -- Timeout for liveness probe
+    timeoutSeconds: 5
+    # -- Number of failures before container is restarted
+    failureThreshold: 3
+    # -- Number of consecutive successes for the probe to be considered successful
+    successThreshold: 1
+  readinessProbe:
+    # -- Initial delay before readiness probe starts
+    initialDelaySeconds: 0
+    # -- How often to perform the readiness probe
+    periodSeconds: 5
+    # -- Timeout for readiness probe
+    timeoutSeconds: 3
+    # -- Number of failures before pod is marked unready
+    failureThreshold: 3
+    # -- Number of consecutive successes for the probe to be considered successful
+    successThreshold: 1
+  startupProbe:
+    # -- Enable startup probe
+    enabled: true
+    # -- Initial delay before startup probe starts
+    initialDelaySeconds: 1
+    # -- How often to perform the startup probe
+    periodSeconds: 1
+    # -- Timeout for startup probe
+    timeoutSeconds: 1
+    # -- Number of failures before container is considered failed to start
+    failureThreshold: 30
+    # -- Number of consecutive successes for the probe to be considered successful
+    successThreshold: 1
