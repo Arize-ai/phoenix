@@ -59,7 +59,7 @@ Query and analyze trace spans:
 spans = client.spans.list(project_name="my-project")
 ```
 
-### Annotations Resource  
+### Annotations Resource
 Work with human feedback and evaluations:
 ```python
 # Add annotations to spans
