@@ -93,6 +93,12 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | logging.level | string | `"info"` | Application logging level (debug, info, warning, error) PHOENIX_LOGGING_LEVEL |
 | logging.logMigrations | bool | `true` | Enable logging of database migration operations (PHOENIX_LOG_MIGRATIONS) |
 | logging.mode | string | `"default"` | Logging mode configuration - PHOENIX_LOGGING_MODE (default or structured) |
+| persistence.accessModes | list | `["ReadWriteOnce"]` | Access modes for the persistent volume |
+| persistence.annotations | object | `{}` | Annotations to add to the PVC |
+| persistence.enabled | bool | `false` | Enable persistent storage for Phoenix home directory |
+| persistence.labels | object | `{}` | Labels to add to the PVC |
+| persistence.size | string | `"20Gi"` | Size of the persistent volume for Phoenix home directory |
+| persistence.storageClass | string | `""` | Kubernetes storage class for Phoenix home volume |
 | postgres.image | string | `"postgres:14.5"` | Docker image for PostgreSQL (DEPRECATED for new postgresql.image) |
 | postgres.persistence.enabled | bool | `true` | Enable persistent storage for PostgreSQL data (DEPRECATED for new postgresql.primary.persistence) |
 | postgres.persistence.size | string | `"10Gi"` | Size of the persistent volume for PostgreSQL  (DEPRECATED for new postgresql.primary.persistence) |

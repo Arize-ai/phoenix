@@ -11,10 +11,14 @@ metadata:
 spec:
   replicas: {{ .Values.replicaCount | default 1 }}
   strategy:
+    {{- if .Values.persistence.enabled }}
+    type: Recreate
+    {{- else }}
     type: RollingUpdate
     rollingUpdate:
       maxUnavailable: {{ .Values.deployment.strategy.maxUnavailable | default "25%" }}
       maxSurge: {{ .Values.deployment.strategy.maxSurge | default "25%" }}
+    {{- end }}
   selector:
     matchLabels:
       app: {{ .Release.Name }}
@@ -111,7 +115,12 @@ spec:
         - name: var-log-volume
           emptyDir: {}
         - name: home-volume
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-data-pvc
+          {{- else }}
           emptyDir: {}
+          {{- end }}
         {{- if .Values.server.workingDir }}
         - name: working-dir-volume
           emptyDir: {}

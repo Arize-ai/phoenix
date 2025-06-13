@@ -44,6 +44,7 @@ ingress:
 postgresql:
   # -- Enable postgres deployment. Set to false if you have your own postgres instance (e.g., RDS, CloudSQL)
   # When disabled, you must configure database.url or database.postgres settings to point to your external database
+  # NOTE: When persistence.enabled=true, you typically want to set this to false and use SQLite for local storage
   enabled: true
 
   auth:
@@ -163,9 +164,37 @@ service:
     # app: phoenix
     # version: stable
 
+# Persistence configuration for Phoenix home directory
+persistence:
+  # -- Enable persistent storage for Phoenix home directory
+  # When enabled, Phoenix can use SQLite for local storage instead of requiring PostgreSQL
+  # Consider setting postgresql.enabled=false when using local persistence
+  enabled: false
+  
+  # -- Kubernetes storage class for Phoenix home volume
+  storageClass: ""
+  
+  # -- Access modes for the persistent volume
+  accessModes:
+    - ReadWriteOnce
+  
+  # -- Size of the persistent volume for Phoenix home directory
+  size: 20Gi
+  
+  # -- Annotations to add to the PVC
+  annotations: {}
+  
+  # -- Labels to add to the PVC
+  labels: {}
+
 # Database configuration
 # You can use either a full SQL database URL or individual Postgres settings
-# If using SQLite, the database will be stored in the working directory
+# If using SQLite, the database will be stored in the working directory (requires persistence.enabled=true)
+#
+# For local development with persistence:
+# 1. Set persistence.enabled=true to enable persistent storage
+# 2. Set postgresql.enabled=false to disable PostgreSQL (Phoenix will use SQLite)
+# 3. Leave database.url empty (Phoenix will automatically use SQLite)
 #
 # For external databases (RDS, CloudSQL, etc.):
 # 1. Set postgresql.enabled=false to disable the built-in PostgreSQL
