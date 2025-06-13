@@ -61,56 +61,35 @@ The main evaluation functions that power the package:
 
 ## Usage Examples
 
-### RAG Relevance Evaluation
+### Hallucination and QA Evaluation
 ```python
-from phoenix.evals import RelevanceEvaluator, OpenAIModel
+from phoenix.evals import HallucinationEvaluator, QAEvaluator, OpenAIModel, run_evals
 
-model = OpenAIModel(model="gpt-4")
-evaluator = RelevanceEvaluator(model=model)
+# Prepare columns as required by evaluators
+# for `hallucination_evaluator` the input df needs to have columns 'output', 'input', 'context'
+# for `qa_evaluator` the input df needs to have columns 'output', 'input', 'reference'
+df["context"] = df["reference"]
+df.rename(columns={"query": "input", "response": "output"}, inplace=True)
 
-# Example queries and documents
-queries = [
-    "What are the health benefits of green tea?",
-    "How does photosynthesis work?"
-]
-documents = [
-    "Green tea contains antioxidants that may improve health.",
-    "Photosynthesis is the process by which plants convert sunlight into energy."
-]
+# Set up evaluators
+eval_model = OpenAIModel(model="gpt-4o")
+hallucination_evaluator = HallucinationEvaluator(eval_model)
+qa_evaluator = QAEvaluator(eval_model)
 
-# Evaluate relevance of documents to queries
-results = evaluator.evaluate(
-    input=queries,
-    reference=documents
+# Run evaluations
+hallucination_eval_df, qa_eval_df = run_evals(
+    dataframe=df,
+    evaluators=[hallucination_evaluator, qa_evaluator],
+    provide_explanation=True
 )
 
-### Hallucination Detection
-```python
-from phoenix.evals import HallucinationEvaluator, OpenAIModel
-
-model = OpenAIModel(model="gpt-4")
-evaluator = HallucinationEvaluator(model=model)
-
-# Example input data
-questions = [
-    "What is the capital of France?",
-    "Who wrote 'Pride and Prejudice'?"
-]
-responses = [
-    "The capital of France is Paris.",
-    "Pride and Prejudice was written by Jane Austen."
-]
-contexts = [
-    "France's capital city is Paris.",
-    "'Pride and Prejudice' is a novel by Jane Austen."
-]
-
-# Check for hallucinations in responses
-results = evaluator.evaluate(
-    input=questions,
-    output=responses,
-    reference=contexts
-)
+# Combine results to analyze your evaluations 
+results_df = df.copy()
+results_df["hallucination_eval"] = hallucination_eval_df["label"]
+results_df["hallucination_explanation"] = hallucination_eval_df["explanation"]
+results_df["qa_eval"] = qa_eval_df["label"]
+results_df["qa_explanation"] = qa_eval_df["explanation"]
+results_df.head()
 ```
 
 ## External Links
