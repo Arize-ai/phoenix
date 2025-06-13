@@ -3,7 +3,7 @@
 # Each value corresponds to an environment variable described in https://arize.com/docs/phoenix/self-hosting/configuration.
 
 # Replica count
-# -- Number of Phoenix pod replicas (set to 2+ for zero downtime updates)
+# -- Number of Phoenix pod replicas
 replicaCount: 1
 
 # Deployment strategy
