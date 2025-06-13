@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { ModelForm } from "../src/pages/models/ModelForm";
+import { ModelForm } from "../src/pages/settings/ModelForm";
 
 const meta: Meta<typeof ModelForm> = {
   title: "Forms/ModelForm",
