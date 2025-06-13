@@ -39,7 +39,7 @@ Phoenix Evals organizes its functionality into several key components:
 ### Core Functions
 The main evaluation functions that power the package:
 - **`llm_classify`**: Classify data using LLM-based evaluation
-- **`llm_generate`**: Generate text-based evaluations  
+- **`llm_generate`**: Generate text-based evaluations
 - **`run_evals`**: Run comprehensive evaluation suites
 
 ### Evaluators
