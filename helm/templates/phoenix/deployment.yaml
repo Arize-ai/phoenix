@@ -100,10 +100,12 @@ spec:
               mountPath: /var/log
             - name: home-volume
               mountPath: /home/phoenix
-            {{- if .Values.server.workingDir }}
+
+            {{- if and .Values.server.workingDir (ne .Values.server.workingDir "") }}
             - name: working-dir-volume
               mountPath: {{ .Values.server.workingDir }}
             {{- end }}
+
           {{- end }}
 
       {{- if and .Values.securityContext.container.enabled .Values.securityContext.container.readOnlyRootFilesystem }}
