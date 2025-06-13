@@ -417,7 +417,7 @@ securityContext:
 serviceAccount:
   # -- Create a ServiceAccount for Phoenix
   create: false
-  # -- Name of the ServiceAccount to use (generated if not specified)
+  # -- Name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name. If not set and create is false, uses default ServiceAccount
   name: ""
   # -- Annotations to add to the ServiceAccount
   annotations: {}

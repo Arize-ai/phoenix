@@ -23,97 +23,18 @@ spec:
       labels:
         app: {{ .Release.Name }}
     spec:
-      {{- if .Values.serviceAccount.create }}
+      {{- if or .Values.serviceAccount.create .Values.serviceAccount.name }}
       serviceAccountName: {{ .Values.serviceAccount.name | default .Release.Name }}
       {{- end }}
       {{- if .Values.securityContext.pod.enabled }}
-      securityContext:
-        {{- if .Values.securityContext.pod.runAsNonRoot }}
-        runAsNonRoot: {{ .Values.securityContext.pod.runAsNonRoot }}
-        {{- end }}
-        {{- if .Values.securityContext.pod.runAsUser }}
-        runAsUser: {{ .Values.securityContext.pod.runAsUser }}
-        {{- end }}
-        {{- if .Values.securityContext.pod.runAsGroup }}
-        runAsGroup: {{ .Values.securityContext.pod.runAsGroup }}
-        {{- end }}
-        {{- if .Values.securityContext.pod.fsGroup }}
-        fsGroup: {{ .Values.securityContext.pod.fsGroup }}
-        {{- end }}
-        {{- if .Values.securityContext.pod.fsGroupChangePolicy }}
-        fsGroupChangePolicy: {{ .Values.securityContext.pod.fsGroupChangePolicy }}
-        {{- end }}
-        {{- if .Values.securityContext.pod.seccompProfile }}
-        seccompProfile:
-          {{- toYaml .Values.securityContext.pod.seccompProfile | nindent 10 }}
-        {{- end }}
-        {{- if .Values.securityContext.pod.seLinuxOptions }}
-        seLinuxOptions:
-          {{- toYaml .Values.securityContext.pod.seLinuxOptions | nindent 10 }}
-        {{- end }}
-        {{- if .Values.securityContext.pod.supplementalGroups }}
-        supplementalGroups:
-          {{- toYaml .Values.securityContext.pod.supplementalGroups | nindent 10 }}
-        {{- end }}
-        {{- if .Values.securityContext.pod.sysctls }}
-        sysctls:
-          {{- toYaml .Values.securityContext.pod.sysctls | nindent 10 }}
-        {{- end }}
-        {{- if .Values.securityContext.pod.windowsOptions }}
-        windowsOptions:
-          {{- toYaml .Values.securityContext.pod.windowsOptions | nindent 10 }}
-        {{- end }}
+      securityContext: {{- omit .Values.securityContext.pod "enabled" | toYaml | nindent 8 }}
       {{- end }}
       containers:
         - name: phoenix
           image: {{ .Values.image.repository | default "arizephoenix/phoenix" }}:{{ .Values.image.tag | default "latest" }}
           imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
           {{- if .Values.securityContext.container.enabled }}
-          securityContext:
-            {{- if .Values.securityContext.container.runAsNonRoot }}
-            runAsNonRoot: {{ .Values.securityContext.container.runAsNonRoot }}
-            {{- end }}
-            {{- if .Values.securityContext.container.runAsUser }}
-            runAsUser: {{ .Values.securityContext.container.runAsUser }}
-            {{- end }}
-            {{- if .Values.securityContext.container.runAsGroup }}
-            runAsGroup: {{ .Values.securityContext.container.runAsGroup }}
-            {{- end }}
-            {{- if hasKey .Values.securityContext.container "allowPrivilegeEscalation" }}
-            allowPrivilegeEscalation: {{ .Values.securityContext.container.allowPrivilegeEscalation }}
-            {{- end }}
-            {{- if .Values.securityContext.container.privileged }}
-            privileged: {{ .Values.securityContext.container.privileged }}
-            {{- end }}
-            {{- if .Values.securityContext.container.readOnlyRootFilesystem }}
-            readOnlyRootFilesystem: {{ .Values.securityContext.container.readOnlyRootFilesystem }}
-            {{- end }}
-            {{- if .Values.securityContext.container.procMount }}
-            procMount: {{ .Values.securityContext.container.procMount }}
-            {{- end }}
-            {{- if .Values.securityContext.container.capabilities }}
-            capabilities:
-              {{- if .Values.securityContext.container.capabilities.add }}
-              add:
-                {{- toYaml .Values.securityContext.container.capabilities.add | nindent 16 }}
-              {{- end }}
-              {{- if .Values.securityContext.container.capabilities.drop }}
-              drop:
-                {{- toYaml .Values.securityContext.container.capabilities.drop | nindent 16 }}
-              {{- end }}
-            {{- end }}
-            {{- if .Values.securityContext.container.seccompProfile }}
-            seccompProfile:
-              {{- toYaml .Values.securityContext.container.seccompProfile | nindent 14 }}
-            {{- end }}
-            {{- if .Values.securityContext.container.seLinuxOptions }}
-            seLinuxOptions:
-              {{- toYaml .Values.securityContext.container.seLinuxOptions | nindent 14 }}
-            {{- end }}
-            {{- if .Values.securityContext.container.windowsOptions }}
-            windowsOptions:
-              {{- toYaml .Values.securityContext.container.windowsOptions | nindent 14 }}
-            {{- end }}
+          securityContext: {{- omit .Values.securityContext.container "enabled" | toYaml | nindent 12 }}
           {{- end }}
           {{- if .Values.resources }}
           resources:

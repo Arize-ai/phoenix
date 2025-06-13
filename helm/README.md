@@ -1,6 +1,6 @@
 # phoenix-helm
 
-![Version: 0.1.3](https://img.shields.io/badge/Version-0.1.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.5.0](https://img.shields.io/badge/AppVersion-10.5.0-informational?style=flat-square)
+![Version: 1.0.8](https://img.shields.io/badge/Version-0.1.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 10.11.0](https://img.shields.io/badge/AppVersion-10.5.0-informational?style=flat-square)
 
 Phoenix is an open-source AI observability platform designed for experimentation, evaluation, and troubleshooting. For instructions on how to deploy this Helm chart, see the [self-hosting docs](https://arize.com/docs/phoenix/self-hosting).
   - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Trace your LLM application's runtime using OpenTelemetry-based instrumentation.
@@ -61,8 +61,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | database.url | string | `""` | Full database connection URL (overrides postgres settings if provided). Use this for external databases like RDS. Example: postgresql://username:password@your-rds-endpoint.region.rds.amazonaws.com:5432/phoenix. When using this, ensure postgresql.enabled=false |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy for Phoenix container (Always, IfNotPresent, or Never) |
 | image.repository | string | `"arizephoenix/phoenix"` | Docker image repository for Phoenix |
-| image.tag | string | `"version-10.10.0-nonroot"` | Docker image tag/version to deploy |
-| database.url | string | `""` | Full database connection URL (overrides postgres settings if provided), recommend to disable postgres if using own |
+| image.tag | string | `"version-10.11.0-nonroot"` | Docker image tag/version to deploy |
 | deployment.strategy.maxSurge | string | `"25%"` | Maximum number of pods that can be created above desired replica count during update (can be absolute number or percentage) |
 | deployment.strategy.maxUnavailable | string | `"25%"` | Maximum number of pods that can be unavailable during update (can be absolute number or percentage) |
 | healthChecks.livenessProbe.failureThreshold | int | `3` | Number of failures before container is restarted |
@@ -81,9 +80,6 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | healthChecks.startupProbe.periodSeconds | int | `1` | How often to perform the startup probe |
 | healthChecks.startupProbe.successThreshold | int | `1` | Number of consecutive successes for the probe to be considered successful |
 | healthChecks.startupProbe.timeoutSeconds | int | `1` | Timeout for startup probe |
-| image.pullPolicy | string | `"IfNotPresent"` | Image pull policy for Phoenix container (Always, IfNotPresent, or Never) |
-| image.repository | string | `"arizephoenix/phoenix"` | Docker image repository for Phoenix |
-| image.tag | string | `"version-10.11.0-nonroot"` | Docker image tag/version to deploy |
 | ingress.annotations | object | `{}` | Annotations to add to the ingress resource |
 | ingress.apiPath | string | `"/"` | Path prefix for the Phoenix API |
 | ingress.enabled | bool | `true` | Enable ingress controller for external access |
@@ -96,7 +92,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | logging.dbLevel | string | `"warning"` | Database logging level (debug, info, warning, error) PHOENIX_DB_LOGGING_LEVEL |
 | logging.level | string | `"info"` | Application logging level (debug, info, warning, error) PHOENIX_LOGGING_LEVEL |
 | logging.logMigrations | bool | `true` | Enable logging of database migration operations (PHOENIX_LOG_MIGRATIONS) |
-| logging.mode | string | `"default"` | Logging mode configuration - PHOENIX_LOGGING_MODE (default|structured) |
+| logging.mode | string | `"default"` | Logging mode configuration - PHOENIX_LOGGING_MODE (default or structured) |
 | postgres.image | string | `"postgres:14.5"` | Docker image for PostgreSQL (DEPRECATED for new postgresql.image) |
 | postgres.persistence.enabled | bool | `true` | Enable persistent storage for PostgreSQL data (DEPRECATED for new postgresql.primary.persistence) |
 | postgres.persistence.size | string | `"10Gi"` | Size of the persistent volume for PostgreSQL  (DEPRECATED for new postgresql.primary.persistence) |
@@ -126,30 +122,11 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | resources.limits.memory | string | `"2Gi"` | Memory limit for Phoenix container |
 | resources.requests.cpu | string | `"500m"` | CPU request for Phoenix container |
 | resources.requests.memory | string | `"1Gi"` | Memory request for Phoenix container |
-| securityContext.container.allowPrivilegeEscalation | bool | `false` | Allow privilege escalation |
-| securityContext.container.capabilities.add | list | `[]` | Linux capabilities to add |
-| securityContext.container.capabilities.drop | list | `["ALL"]` | Linux capabilities to drop |
-| securityContext.container.enabled | bool | `true` | Enable Container security context |
-| securityContext.container.privileged | bool | `false` | Run container as privileged |
-| securityContext.container.procMount | string | `"Default"` | Proc mount type for the container |
-| securityContext.container.readOnlyRootFilesystem | bool | `true` | Read-only root filesystem |
-| securityContext.container.runAsGroup | int | `65532` | Group ID to run the container as |
-| securityContext.container.runAsNonRoot | bool | `true` | Run container as non-root user |
-| securityContext.container.runAsUser | int | `65532` | User ID to run the container as |
-| securityContext.container.seccompProfile | object | `{"type":"RuntimeDefault"}` | Seccomp profile for the container |
-| securityContext.container.seLinuxOptions | object | `{}` | SELinux context for the container |
-| securityContext.container.windowsOptions | object | `{}` | Windows-specific settings for the container |
-| securityContext.pod.enabled | bool | `true` | Enable Pod security context |
-| securityContext.pod.fsGroup | int | `65532` | Group ID for the Pod (fsGroup) |
-| securityContext.pod.fsGroupChangePolicy | string | `"OnRootMismatch"` | Specifies how volume ownership and permissions are changed (Always, OnRootMismatch) |
-| securityContext.pod.runAsGroup | int | `65532` | Group ID to run the Pod as |
-| securityContext.pod.runAsNonRoot | bool | `true` | Run Pod as non-root user |
-| securityContext.pod.runAsUser | int | `65532` | User ID to run the Pod as |
-| securityContext.pod.seccompProfile | object | `{"type":"RuntimeDefault"}` | Seccomp profile for the Pod |
-| securityContext.pod.seLinuxOptions | object | `{}` | SELinux context for the Pod |
-| securityContext.pod.supplementalGroups | list | `[]` | Supplemental groups for the Pod |
-| securityContext.pod.sysctls | list | `[]` | Sysctls for the Pod |
-| securityContext.pod.windowsOptions | object | `{}` | Windows-specific settings for the Pod |
+| securityContext.container | object | `{"allowPrivilegeEscalation":false,"capabilities":{"add":[],"drop":["ALL"]},"enabled":true,"privileged":false,"procMount":"Default","readOnlyRootFilesystem":true,"runAsGroup":65532,"runAsNonRoot":true,"runAsUser":65532,"seccompProfile":{"type":"RuntimeDefault"},"seLinuxOptions":{},"windowsOptions":{}}` | Container-level security context settings. When enabled=true, the entire object (excluding 'enabled') is rendered directly as the container securityContext |
+| securityContext.pod | object | `{"enabled":true,"fsGroup":65532,"fsGroupChangePolicy":"OnRootMismatch","runAsGroup":65532,"runAsNonRoot":true,"runAsUser":65532,"seccompProfile":{"type":"RuntimeDefault"},"seLinuxOptions":{},"supplementalGroups":[],"sysctls":[],"windowsOptions":{}}` | Pod-level security context settings. When enabled=true, the entire object (excluding 'enabled') is rendered directly as the pod securityContext |
+| serviceAccount.annotations | object | `{}` | Annotations to add to the ServiceAccount |
+| serviceAccount.create | bool | `false` | Create a ServiceAccount for Phoenix |
+| serviceAccount.name | string | `""` | Name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name. If not set and create is false, uses default ServiceAccount |
 | server.annotations | object | `{}` | Annotations to add to the Phoenix service |
 | server.enablePrometheus | bool | `false` | Enable Prometheus metrics endpoint on port 9090 |
 | server.grpcPort | int | `4317` | Port for OpenTelemetry gRPC collector (PHOENIX_GRPC_PORT) |
