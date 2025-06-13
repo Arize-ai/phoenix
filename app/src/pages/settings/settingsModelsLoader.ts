@@ -3,16 +3,16 @@ import { LoaderFunctionArgs } from "react-router";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import { modelsLoaderQuery } from "./__generated__/modelsLoaderQuery.graphql";
+import { settingsModelsLoaderQuery } from "./__generated__/settingsModelsLoaderQuery.graphql";
 
 /**
  * Loads in the necessary page data for the models page
  */
-export async function modelsLoader(_args: LoaderFunctionArgs) {
-  const data = await fetchQuery<modelsLoaderQuery>(
+export async function settingsModelsLoader(_args: LoaderFunctionArgs) {
+  const data = await fetchQuery<settingsModelsLoaderQuery>(
     RelayEnvironment,
     graphql`
-      query modelsLoaderQuery {
+      query settingsModelsLoaderQuery {
         ...ModelsTable_models
       }
     `,
