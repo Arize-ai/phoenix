@@ -11,4 +11,5 @@ export const PromptModelProviders: Record<PromptModelProvider, string> = {
   DEEPSEEK: "DeepSeek",
   XAI: "xAI",
   OLLAMA: "Ollama",
+  BEDROCK: "Bedrock",
 };

@@ -155,6 +155,7 @@ export function processAttributeToolCalls({
         case "OPENAI":
         case "AZURE_OPENAI":
         case "DEEPSEEK":
+        case "BEDROCK":
         case "XAI":
         case "OLLAMA":
           return {
@@ -334,12 +335,15 @@ export function openInferenceModelProviderToPhoenixModelProvider(
   if (provider == null) {
     return null;
   }
-  const maybeProvider = provider.toLowerCase() as LLMProvider;
+  const maybeProvider = provider.toLowerCase();
   switch (maybeProvider) {
     case "openai":
       return "OPENAI";
     case "anthropic":
       return "ANTHROPIC";
+    case "bedrock":
+    case "aws":
+      return "BEDROCK";
     case "google":
       return "GOOGLE";
     case "azure":
@@ -381,6 +385,7 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
 } {
   const { success, data } = modelConfigSchema.safeParse(parsedAttributes);
   if (success) {
+    debugger;
     const provider =
       openInferenceModelProviderToPhoenixModelProvider(data.llm.provider) ||
       getModelProviderFromModelName(data.llm.model_name);
@@ -898,6 +903,7 @@ export const createToolForProvider = ({
     case "DEEPSEEK":
     case "XAI":
     case "OLLAMA":
+    case "BEDROCK":
     case "AZURE_OPENAI":
       return {
         id: generateToolId(),
@@ -933,6 +939,7 @@ export const createToolCallForProvider = (
     case "DEEPSEEK":
     case "XAI":
     case "OLLAMA":
+    case "BEDROCK":
       return createOpenAIToolCall();
     case "ANTHROPIC":
       return createAnthropicToolCall();
@@ -1055,6 +1062,13 @@ const getBaseChatCompletionInput = ({
         }
       : {};
 
+  const bedrockModelParams =
+    instance.model.provider === "BEDROCK"
+      ? {
+          region: instance.model.region,
+        }
+      : {};
+
   return {
     messages: instanceMessages.map(toGqlChatCompletionMessage),
     model: {
@@ -1062,6 +1076,7 @@ const getBaseChatCompletionInput = ({
       name: instance.model.modelName || "",
       baseUrl: instance.model.baseUrl,
       ...azureModelParams,
+      ...bedrockModelParams,
     },
     invocationParameters: applyProviderInvocationParameterConstraints(
       invocationParameters,

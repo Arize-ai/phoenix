@@ -322,11 +322,9 @@ class PromptOpenAIInvocationParametersContent(DBBaseModel):
     seed: int = UNDEFINED
     reasoning_effort: Literal["low", "medium", "high"] = UNDEFINED
 
-
 class PromptOpenAIInvocationParameters(DBBaseModel):
     type: Literal["openai"]
     openai: PromptOpenAIInvocationParametersContent
-
 
 class PromptAzureOpenAIInvocationParametersContent(PromptOpenAIInvocationParametersContent):
     pass
@@ -396,6 +394,17 @@ class PromptAnthropicInvocationParameters(DBBaseModel):
     type: Literal["anthropic"]
     anthropic: PromptAnthropicInvocationParametersContent
 
+class PromptBedrockInvocationParametersContent(DBBaseModel):
+    region: str = UNDEFINED
+    api: str = UNDEFINED
+    max_tokens: int
+    temperature: float = UNDEFINED
+    top_p: float = UNDEFINED
+
+class PromptBedrockInvocationParameters(DBBaseModel):
+    type: Literal["bedrock"]
+    bedrock: PromptBedrockInvocationParametersContent
+
 
 class PromptGoogleInvocationParametersContent(DBBaseModel):
     temperature: float = UNDEFINED
@@ -421,6 +430,7 @@ PromptInvocationParameters: TypeAlias = Annotated[
         PromptDeepSeekInvocationParameters,
         PromptXAIInvocationParameters,
         PromptOllamaInvocationParameters,
+        PromptBedrockInvocationParameters,
     ],
     Field(..., discriminator="type"),
 ]
@@ -443,6 +453,8 @@ def get_raw_invocation_parameters(
         return invocation_parameters.xai.model_dump()
     if isinstance(invocation_parameters, PromptOllamaInvocationParameters):
         return invocation_parameters.ollama.model_dump()
+    if isinstance(invocation_parameters, PromptBedrockInvocationParameters):
+        return invocation_parameters.bedrock.model_dump()
     assert_never(invocation_parameters)
 
 
@@ -459,6 +471,7 @@ def is_prompt_invocation_parameters(
             PromptDeepSeekInvocationParameters,
             PromptXAIInvocationParameters,
             PromptOllamaInvocationParameters,
+            PromptBedrockInvocationParameters,
         ),
     )
 
@@ -512,6 +525,11 @@ def validate_invocation_parameters(
             type="ollama",
             ollama=PromptOllamaInvocationParametersContent.model_validate(invocation_parameters),
         )
+    elif model_provider is ModelProvider.BEDROCK:
+        return PromptBedrockInvocationParameters(
+            type="bedrock",
+            bedrock=PromptBedrockInvocationParametersContent.model_validate(invocation_parameters),
+        )
     assert_never(model_provider)
 
 
@@ -527,6 +545,7 @@ def normalize_tools(
         or model_provider is ModelProvider.DEEPSEEK
         or model_provider is ModelProvider.XAI
         or model_provider is ModelProvider.OLLAMA
+        or model_provider is ModelProvider.BEDROCK
     ):
         openai_tools = [OpenAIToolDefinition.model_validate(schema) for schema in schemas]
         tools = [_openai_to_prompt_tool(openai_tool) for openai_tool in openai_tools]
@@ -543,6 +562,7 @@ def normalize_tools(
             or model_provider is ModelProvider.DEEPSEEK
             or model_provider is ModelProvider.XAI
             or model_provider is ModelProvider.OLLAMA
+            or model_provider is ModelProvider.BEDROCK
         ):
             ans.tool_choice = OpenAIToolChoiceConversion.from_openai(tool_choice)  # type: ignore[arg-type]
         elif model_provider is ModelProvider.ANTHROPIC:
@@ -567,6 +587,7 @@ def denormalize_tools(
         or model_provider is ModelProvider.DEEPSEEK
         or model_provider is ModelProvider.XAI
         or model_provider is ModelProvider.OLLAMA
+        or model_provider is ModelProvider.BEDROCK
     ):
         denormalized_tools = [_prompt_to_openai_tool(tool) for tool in tools.tools]
         if tools.tool_choice:
