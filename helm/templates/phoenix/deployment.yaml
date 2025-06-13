@@ -10,6 +10,11 @@ metadata:
     "helm.sh/hook-weight": "2"
 spec:
   replicas: {{ .Values.replicaCount | default 1 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: {{ .Values.deployment.strategy.maxUnavailable | default "25%" }}
+      maxSurge: {{ .Values.deployment.strategy.maxSurge | default "25%" }}
   selector:
     matchLabels:
       app: {{ .Release.Name }}
@@ -118,6 +123,35 @@ spec:
             - containerPort: {{ .Values.server.port | default 6006 }}
             - containerPort: 9090
             - containerPort: {{ .Values.server.grpcPort | default 4317 }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.server.port | default 6006 }}
+            initialDelaySeconds: {{ .Values.healthChecks.livenessProbe.initialDelaySeconds | default 0 }}
+            periodSeconds: {{ .Values.healthChecks.livenessProbe.periodSeconds | default 10 }}
+            timeoutSeconds: {{ .Values.healthChecks.livenessProbe.timeoutSeconds | default 5 }}
+            failureThreshold: {{ .Values.healthChecks.livenessProbe.failureThreshold | default 3 }}
+            successThreshold: {{ .Values.healthChecks.livenessProbe.successThreshold | default 1 }}
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: {{ .Values.server.port | default 6006 }}
+            initialDelaySeconds: {{ .Values.healthChecks.readinessProbe.initialDelaySeconds | default 0 }}
+            periodSeconds: {{ .Values.healthChecks.readinessProbe.periodSeconds | default 5 }}
+            timeoutSeconds: {{ .Values.healthChecks.readinessProbe.timeoutSeconds | default 3 }}
+            failureThreshold: {{ .Values.healthChecks.readinessProbe.failureThreshold | default 3 }}
+            successThreshold: {{ .Values.healthChecks.readinessProbe.successThreshold | default 1 }}
+          {{- if .Values.healthChecks.startupProbe.enabled }}
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.server.port | default 6006 }}
+            initialDelaySeconds: {{ .Values.healthChecks.startupProbe.initialDelaySeconds | default 1 }}
+            periodSeconds: {{ .Values.healthChecks.startupProbe.periodSeconds | default 1 }}
+            timeoutSeconds: {{ .Values.healthChecks.startupProbe.timeoutSeconds | default 1 }}
+            failureThreshold: {{ .Values.healthChecks.startupProbe.failureThreshold | default 30 }}
+            successThreshold: {{ .Values.healthChecks.startupProbe.successThreshold | default 1 }}
+          {{- end }}
           envFrom:
             - configMapRef:
                 name: {{ .Release.Name }}-configmap
@@ -160,4 +194,3 @@ spec:
         - name: working-dir-volume
           emptyDir: {}
       {{- end }}
-

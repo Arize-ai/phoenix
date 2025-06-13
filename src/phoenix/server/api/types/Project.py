@@ -326,8 +326,27 @@ class Project(Node):
         after: Optional[CursorString] = UNSET,
         sort: Optional[ProjectSessionSort] = UNSET,
         filter_io_substring: Optional[str] = UNSET,
+        session_id: Optional[str] = UNSET,
     ) -> Connection[ProjectSession]:
         table = models.ProjectSession
+        if session_id:
+            async with info.context.db() as session:
+                ans = await session.scalar(
+                    select(table).filter_by(
+                        session_id=session_id,
+                        project_id=self.project_rowid,
+                    )
+                )
+            if ans:
+                return connection_from_list(
+                    data=[to_gql_project_session(ans)],
+                    args=ConnectionArgs(),
+                )
+            elif not filter_io_substring:
+                return connection_from_list(
+                    data=[],
+                    args=ConnectionArgs(),
+                )
         stmt = select(table).filter_by(project_id=self.project_rowid)
         if time_range:
             if time_range.start:

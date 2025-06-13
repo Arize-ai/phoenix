@@ -160,16 +160,11 @@ from smolagents import (
 
 model = InferenceClientModel()
 
-search_agent = ToolCallingAgent(
-    tools=[WebSearchTool(), VisitWebpageTool()],
+managed_agent = ToolCallingAgent(
+    tools=[DuckDuckGoSearchTool(), VisitWebpageTool()],
     model=model,
-    name="search_agent",
+    name="managed_agent",
     description="This is an agent that can do web search.",
-)
-manager_agent = CodeAgent(
-    tools=[],
-    model=model,
-    managed_agents=[search_agent],
 )
 manager_agent.run("Based on the latest news, what is happening in extraterrestrial life?")
 ```
