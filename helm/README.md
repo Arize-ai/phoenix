@@ -57,9 +57,27 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | database.postgres.schema | string | `""` | PostgreSQL schema to use (PHOENIX_SQL_DATABASE_SCHEMA) |
 | database.postgres.user | string | `"postgres"` | PostgreSQL username (PHOENIX_POSTGRES_USER) |
 | database.url | string | `""` | Full database connection URL (overrides postgres settings if provided), recommend to disable postgres if using own |
+| deployment.strategy.maxSurge | string | `"25%"` | Maximum number of pods that can be created above desired replica count during update (can be absolute number or percentage) |
+| deployment.strategy.maxUnavailable | string | `"25%"` | Maximum number of pods that can be unavailable during update (can be absolute number or percentage) |
+| healthChecks.livenessProbe.failureThreshold | int | `3` | Number of failures before container is restarted |
+| healthChecks.livenessProbe.initialDelaySeconds | int | `0` | Initial delay before liveness probe starts |
+| healthChecks.livenessProbe.periodSeconds | int | `10` | How often to perform the liveness probe |
+| healthChecks.livenessProbe.successThreshold | int | `1` | Number of consecutive successes for the probe to be considered successful |
+| healthChecks.livenessProbe.timeoutSeconds | int | `5` | Timeout for liveness probe |
+| healthChecks.readinessProbe.failureThreshold | int | `3` | Number of failures before pod is marked unready |
+| healthChecks.readinessProbe.initialDelaySeconds | int | `0` | Initial delay before readiness probe starts |
+| healthChecks.readinessProbe.periodSeconds | int | `5` | How often to perform the readiness probe |
+| healthChecks.readinessProbe.successThreshold | int | `1` | Number of consecutive successes for the probe to be considered successful |
+| healthChecks.readinessProbe.timeoutSeconds | int | `3` | Timeout for readiness probe |
+| healthChecks.startupProbe.enabled | bool | `true` | Enable startup probe |
+| healthChecks.startupProbe.failureThreshold | int | `30` | Number of failures before container is considered failed to start |
+| healthChecks.startupProbe.initialDelaySeconds | int | `1` | Initial delay before startup probe starts |
+| healthChecks.startupProbe.periodSeconds | int | `1` | How often to perform the startup probe |
+| healthChecks.startupProbe.successThreshold | int | `1` | Number of consecutive successes for the probe to be considered successful |
+| healthChecks.startupProbe.timeoutSeconds | int | `1` | Timeout for startup probe |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy for Phoenix container (Always, IfNotPresent, or Never) |
 | image.repository | string | `"arizephoenix/phoenix"` | Docker image repository for Phoenix |
-| image.tag | string | `"version-10.5.0-nonroot"` | Docker image tag/version to deploy |
+| image.tag | string | `"version-10.11.0-nonroot"` | Docker image tag/version to deploy |
 | ingress.annotations | object | `{}` | Annotations to add to the ingress resource |
 | ingress.apiPath | string | `"/"` | Path prefix for the Phoenix API |
 | ingress.enabled | bool | `true` | Enable ingress controller for external access |
@@ -97,6 +115,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | postgresql.primary.persistentVolumeClaimRetentionPolicy.whenDeleted | string | `"Retain"` | Volume retention behavior that applies when the StatefulSet is deleted |
 | postgresql.primary.persistentVolumeClaimRetentionPolicy.whenScaled | string | `"Retain"` | Volume retention behavior when the replica count of the StatefulSet is reduced |
 | postgresql.primary.service.ports.postgresql | string | `"5432"` | Port to run postgres service on |
+| replicaCount | int | `2` | Number of Phoenix pod replicas (set to 2+ for zero downtime updates) |
 | server.annotations | object | `{}` | Annotations to add to the Phoenix service |
 | server.enablePrometheus | bool | `false` | Enable Prometheus metrics endpoint on port 9090 |
 | server.grpcPort | int | `4317` | Port for OpenTelemetry gRPC collector (PHOENIX_GRPC_PORT) |
