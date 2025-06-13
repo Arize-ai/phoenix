@@ -48,7 +48,7 @@ type SessionsSubstringFieldProps = {
   placeholder?: string;
 };
 export function SessionSearchField(props: SessionsSubstringFieldProps) {
-  const { placeholder = "Search messages" } = props;
+  const { placeholder = "Search messages or session ID" } = props;
   const [isFocused, setIsFocused] = useState<boolean>(false);
   const { filterIoSubstringOrSessionId, setFilterIoSubstringOrSessionId } =
     useSessionSearchContext();
