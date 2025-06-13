@@ -5,7 +5,7 @@ import { Dialog, DialogContainer, Switch } from "@arizeai/components";
 
 import { View } from "@phoenix/components";
 
-type FeatureFlag = "dashboards";
+type FeatureFlag = "dashboards" | "projectMetricsTab";
 export type FeatureFlagsContextType = {
   featureFlags: Record<FeatureFlag, boolean>;
   setFeatureFlags: (featureFlags: Record<FeatureFlag, boolean>) => void;
@@ -15,6 +15,7 @@ export const LOCAL_STORAGE_FEATURE_FLAGS_KEY = "arize-phoenix-feature-flags";
 
 const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {
   dashboards: false,
+  projectMetricsTab: false,
 };
 
 function getFeatureFlags(): Record<FeatureFlag, boolean> {
