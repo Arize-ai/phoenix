@@ -81,12 +81,21 @@ from phoenix.evals import RelevanceEvaluator, OpenAIModel
 model = OpenAIModel(model="gpt-4")
 evaluator = RelevanceEvaluator(model=model)
 
+# Example queries and documents
+queries = [
+    "What are the health benefits of green tea?",
+    "How does photosynthesis work?"
+]
+documents = [
+    "Green tea contains antioxidants that may improve health.",
+    "Photosynthesis is the process by which plants convert sunlight into energy."
+]
+
 # Evaluate relevance of documents to queries
 results = evaluator.evaluate(
     input=queries,
     reference=documents
 )
-```
 
 ### Hallucination Detection
 ```python
