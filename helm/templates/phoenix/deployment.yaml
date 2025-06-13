@@ -112,6 +112,8 @@ spec:
           emptyDir: {}
         - name: home-volume
           emptyDir: {}
+        {{- if .Values.server.workingDir }}
         - name: working-dir-volume
           emptyDir: {}
+        {{- end }}
       {{- end }}
