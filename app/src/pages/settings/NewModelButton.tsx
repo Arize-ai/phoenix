@@ -56,6 +56,7 @@ export function NewModelButton({
     >
       <Button
         variant="primary"
+        size="S"
         leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
         aria-label="Create a new model"
         onPress={() => {

@@ -12,9 +12,12 @@ import { css } from "@emotion/react";
 import { Flex, Icon, Icons } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { TextCell } from "@phoenix/components/table";
-import { selectableTableCSS } from "@phoenix/components/table/styles";
+import {
+  getCommonPinningStyles,
+  selectableTableCSS,
+} from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
-import { EditModelButton } from "@phoenix/pages/models/EditModelButton";
+import { EditModelButton } from "@phoenix/pages/settings/EditModelButton";
 import { getProviderName } from "@phoenix/utils/generativeUtils";
 
 import { ModelsTable_models$key } from "./__generated__/ModelsTable_models.graphql";
@@ -105,6 +108,7 @@ export function ModelsTable(props: ModelsTableProps) {
       {
         header: "name",
         accessorKey: "name",
+        size: 200,
       },
       {
         header: "provider",
@@ -127,6 +131,7 @@ export function ModelsTable(props: ModelsTableProps) {
         header: "name pattern",
         accessorKey: "namePattern",
         cell: TextCell,
+        size: 800,
       },
       {
         header: "input cost",
@@ -223,6 +228,12 @@ export function ModelsTable(props: ModelsTableProps) {
   const table = useReactTable({
     columns,
     data: tableData,
+    initialState: {
+      columnPinning: {
+        left: ["name", "provider"],
+        right: ["actions"],
+      },
+    },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
   });
@@ -247,12 +258,22 @@ export function ModelsTable(props: ModelsTableProps) {
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
       ref={tableContainerRef}
     >
-      <table css={selectableTableCSS}>
+      <table
+        css={selectableTableCSS}
+        style={{ width: table.getTotalSize(), minWidth: "100%" }}
+      >
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <th colSpan={header.colSpan} key={header.id}>
+                <th
+                  colSpan={header.colSpan}
+                  key={header.id}
+                  style={{
+                    ...getCommonPinningStyles(header.column),
+                    width: header.column.getSize(),
+                  }}
+                >
                   {header.isPlaceholder ? null : (
                     <div
                       {...{
@@ -299,6 +320,10 @@ export function ModelsTable(props: ModelsTableProps) {
                   <td
                     key={cell.id}
                     align={cell.column.columnDef.meta?.textAlign}
+                    style={{
+                      ...getCommonPinningStyles(cell.column),
+                      width: cell.column.getSize(),
+                    }}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>

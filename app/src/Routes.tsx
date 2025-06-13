@@ -6,14 +6,14 @@ import {
 } from "react-router";
 import { RouterProvider } from "react-router/dom";
 
-import { modelsLoader } from "@phoenix/pages/models/modelsLoader";
-import { ModelsPage } from "@phoenix/pages/models/ModelsPage";
 import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvidersPage";
 import { settingsAIProvidersPageLoader } from "@phoenix/pages/settings/settingsAIProvidersPageLoader";
 import { SettingsAnnotationsPage } from "@phoenix/pages/settings/SettingsAnnotationsPage";
 import { settingsAnnotationsPageLoader } from "@phoenix/pages/settings/settingsAnnotationsPageLoader";
 import { SettingsDataPage } from "@phoenix/pages/settings/SettingsDataPage";
 import { SettingsGeneralPage } from "@phoenix/pages/settings/SettingsGeneralPage";
+import { settingsModelsLoader } from "@phoenix/pages/settings/settingsModelsLoader";
+import { SettingsModelsPage } from "@phoenix/pages/settings/SettingsModelsPage";
 
 import {
   DashboardPage,
@@ -329,14 +329,6 @@ const router = createBrowserRouter(
             </Route>
           </Route>
           <Route
-            path="/models"
-            element={<ModelsPage />}
-            loader={modelsLoader}
-            handle={{
-              crumb: () => "models",
-            }}
-          />
-          <Route
             path="/apis"
             element={<APIsPage />}
             handle={{
@@ -374,6 +366,14 @@ const router = createBrowserRouter(
               }}
             />
             <Route
+              path="models"
+              loader={settingsModelsLoader}
+              element={<SettingsModelsPage />}
+              handle={{
+                crumb: () => "models",
+              }}
+            />
+            <Route
               path="annotations"
               loader={settingsAnnotationsPageLoader}
               element={<SettingsAnnotationsPage />}
@@ -381,6 +381,7 @@ const router = createBrowserRouter(
                 crumb: () => "annotations",
               }}
             />
+
             <Route
               path="data"
               element={<SettingsDataPage />}
