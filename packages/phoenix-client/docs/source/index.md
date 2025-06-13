@@ -52,9 +52,23 @@ project = client.projects.get(project_name="my-project")
 Manage prompt templates and versions:
 ```python
 # Create a new prompt
+from phoenix.client import Client
+from phoenix.client.types import PromptVersion
+
+content = """
+You're an expert educator in {{ topic }}. Summarize the following article
+in a few concise bullet points that are easy for beginners to understand.
+
+{{ article }}
+"""
+
 prompt = client.prompts.create(
-    name="my-prompt",
-    version=PromptVersion(...)
+    name="article-bullet-summarizer",
+    version=PromptVersion(
+        messages=[{"role": "user", "content": content}],
+        model_name="gpt-4o-mini",
+    ),
+    prompt_description="Summarize an article in a few bullet points",
 )
 
 # Retrieve and use prompts
