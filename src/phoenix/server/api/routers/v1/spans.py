@@ -1,3 +1,4 @@
+import json
 import warnings
 from asyncio import get_running_loop
 from collections.abc import AsyncIterator
@@ -12,7 +13,12 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
-from starlette.status import HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
+from starlette.status import (
+    HTTP_202_ACCEPTED,
+    HTTP_400_BAD_REQUEST,
+    HTTP_404_NOT_FOUND,
+    HTTP_422_UNPROCESSABLE_ENTITY,
+)
 from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME
@@ -26,6 +32,19 @@ from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanAnnotationInsertEvent
 from phoenix.trace.attributes import flatten
 from phoenix.trace.dsl import SpanQuery as SpanQuery_
+from phoenix.trace.schemas import (
+    Span as SpanForInsertion,
+)
+from phoenix.trace.schemas import (
+    SpanContext as InsertionSpanContext,
+)
+from phoenix.trace.schemas import (
+    SpanEvent as InternalSpanEvent,
+)
+from phoenix.trace.schemas import (
+    SpanKind,
+    SpanStatusCode,
+)
 from phoenix.utilities.json import encode_df_as_json_string
 
 from .models import V1RoutesBaseModel
@@ -393,7 +412,9 @@ class SpanEvent(V1RoutesBaseModel):
 
 
 class Span(V1RoutesBaseModel):
-    id: str = Field(description="Span Global ID, distinct from the OpenTelemetry span ID")
+    id: str = Field(
+        default="", description="Span Global ID, distinct from the OpenTelemetry span ID"
+    )
     name: str = Field(description="Name of the span operation")
     context: SpanContext = Field(description="Span context containing trace_id and span_id")
     span_kind: str = Field(description="Type of work that the span encapsulates")
@@ -440,7 +461,7 @@ async def query_spans_handler(
     )
     end_time = request_body.end_time or request_body.stop_time
     try:
-        span_queries = [SpanQuery_.from_dict(query.dict()) for query in queries]
+        span_queries = [SpanQuery_.from_dict(query.model_dump()) for query in queries]
     except Exception as e:
         raise HTTPException(
             detail=f"Invalid query: {e}",
@@ -955,4 +976,144 @@ async def annotate_spans(
             InsertedSpanAnnotation(id=str(GlobalID("SpanAnnotation", str(id_))))
             for id_ in inserted_ids
         ]
+    )
+
+
+class CreateSpansRequestBody(RequestBody[list[Span]]):
+    data: list[Span]
+
+
+class CreateSpansResponseBody(V1RoutesBaseModel):
+    total_received: int = Field(description="Total number of spans received")
+    total_queued: int = Field(description="Number of spans successfully queued for insertion")
+
+
+@router.post(
+    "/projects/{project_identifier}/spans",
+    operation_id="createSpans",
+    summary="Create spans",
+    description=(
+        "Submit spans to be inserted into a project. If any spans are invalid or "
+        "duplicates, no spans will be inserted."
+    ),
+    responses=add_errors_to_responses([HTTP_404_NOT_FOUND, HTTP_400_BAD_REQUEST]),
+    status_code=HTTP_202_ACCEPTED,
+)
+async def create_spans(
+    request: Request,
+    request_body: CreateSpansRequestBody,
+    project_identifier: str = Path(
+        description=(
+            "The project identifier: either project ID or project name. If using a project name, "
+            "it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+        )
+    ),
+) -> CreateSpansResponseBody:
+    def convert_api_span_for_insertion(api_span: Span) -> SpanForInsertion:
+        """
+        Convert from API Span to phoenix.trace.schemas.Span
+        Note: The 'id' field has a default empty string and is ignored during insertion.
+        """
+        try:
+            span_kind = SpanKind(api_span.span_kind.upper())
+        except ValueError:
+            span_kind = SpanKind.UNKNOWN
+
+        try:
+            status_code = SpanStatusCode(api_span.status_code.upper())
+        except ValueError:
+            status_code = SpanStatusCode.UNSET
+
+        internal_events: list[InternalSpanEvent] = []
+        for event in api_span.events:
+            if event.timestamp:
+                internal_events.append(
+                    InternalSpanEvent(
+                        name=event.name, timestamp=event.timestamp, attributes=event.attributes
+                    )
+                )
+
+        # Add back the openinference.span.kind attribute since it's stored separately in the API
+        attributes = dict(api_span.attributes)
+        attributes["openinference.span.kind"] = api_span.span_kind
+
+        # Create span for insertion - note we ignore the 'id' field as it's server-generated
+        return SpanForInsertion(
+            name=api_span.name,
+            context=InsertionSpanContext(
+                trace_id=api_span.context.trace_id, span_id=api_span.context.span_id
+            ),
+            span_kind=span_kind,
+            parent_id=api_span.parent_id,
+            start_time=api_span.start_time,
+            end_time=api_span.end_time,
+            status_code=status_code,
+            status_message=api_span.status_message,
+            attributes=attributes,
+            events=internal_events,
+            conversation=None,  # Unused
+        )
+
+    async with request.app.state.db() as session:
+        project = await _get_project_by_identifier(session, project_identifier)
+
+    total_received = len(request_body.data)
+    duplicate_spans: list[dict[str, str]] = []
+    invalid_spans: list[dict[str, str]] = []
+    spans_to_queue: list[tuple[SpanForInsertion, str]] = []
+
+    existing_span_ids: set[str] = set()
+    span_ids = [span.context.span_id for span in request_body.data]
+    async with request.app.state.db() as session:
+        existing_result = await session.execute(
+            select(models.Span.span_id).where(models.Span.span_id.in_(span_ids))
+        )
+        existing_span_ids = {row[0] for row in existing_result}
+
+    for api_span in request_body.data:
+        # Check if it's a duplicate
+        if api_span.context.span_id in existing_span_ids:
+            duplicate_spans.append(
+                {
+                    "span_id": api_span.context.span_id,
+                    "trace_id": api_span.context.trace_id,
+                }
+            )
+            continue
+
+        try:
+            span_for_insertion = convert_api_span_for_insertion(api_span)
+            spans_to_queue.append((span_for_insertion, project.name))
+        except Exception as e:
+            invalid_spans.append(
+                {
+                    "span_id": api_span.context.span_id,
+                    "trace_id": api_span.context.trace_id,
+                    "error": str(e),
+                }
+            )
+
+    # If there are any duplicates or invalid spans, reject the entire request
+    if duplicate_spans or invalid_spans:
+        error_detail = {
+            "error": "Request contains invalid or duplicate spans",
+            "total_received": total_received,
+            "total_queued": 0,  # No spans are queued when there are validation errors
+            "total_duplicates": len(duplicate_spans),
+            "total_invalid": len(invalid_spans),
+            "duplicate_spans": duplicate_spans,
+            "invalid_spans": invalid_spans,
+        }
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail=json.dumps(error_detail),
+        )
+
+    # All spans are valid, queue them all
+    for span_for_insertion, project_name in spans_to_queue:
+        await request.state.queue_span_for_bulk_insert(span_for_insertion, project_name)
+
+    return CreateSpansResponseBody(
+        total_received=total_received,
+        total_queued=len(spans_to_queue),
     )
