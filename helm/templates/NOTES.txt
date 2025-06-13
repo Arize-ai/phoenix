@@ -34,6 +34,17 @@ To access Phoenix:
 
 {{- end }}
 
+{{- if .Values.auth.enableAuth }}
+
+Admin credentials:
+{{- if .Values.auth.secret }}
+  Username: admin
+  Password: To get the admin password run:
+    kubectl get secret --namespace {{ .Release.Namespace }} {{ .Values.auth.name }} -o jsonpath="{.data.PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD}" | base64 -d
+
+{{- end }}
+{{- end }}
+
 To learn more about the release, try:
   $ helm status {{ .Release.Name }}
   $ helm get all {{ .Release.Name }}
