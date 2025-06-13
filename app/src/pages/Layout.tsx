@@ -134,13 +134,6 @@ function SideNav() {
               leadingVisual={<Icon svg={<Icons.MessageSquareOutline />} />}
             />
           </li>
-          <li key="models">
-            <NavLink
-              to="/models"
-              text="Models"
-              leadingVisual={<Icon svg={<Icons.CubeOutline />} />}
-            />
-          </li>
           <li key="apis">
             <NavLink
               to="/apis"

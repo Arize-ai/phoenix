@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4ba3fffd198014524b7a89ca405e83c0>>
+ * @generated SignedSource<<cbf309acd70cd44657b933fcefd34b12>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,13 +10,13 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type modelsLoaderQuery$variables = Record<PropertyKey, never>;
-export type modelsLoaderQuery$data = {
+export type settingsModelsLoaderQuery$variables = Record<PropertyKey, never>;
+export type settingsModelsLoaderQuery$data = {
   readonly " $fragmentSpreads": FragmentRefs<"ModelsTable_models">;
 };
-export type modelsLoaderQuery = {
-  response: modelsLoaderQuery$data;
-  variables: modelsLoaderQuery$variables;
+export type settingsModelsLoaderQuery = {
+  response: settingsModelsLoaderQuery$data;
+  variables: settingsModelsLoaderQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -39,7 +39,7 @@ return {
     "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
-    "name": "modelsLoaderQuery",
+    "name": "settingsModelsLoaderQuery",
     "selections": [
       {
         "args": null,
@@ -54,7 +54,7 @@ return {
   "operation": {
     "argumentDefinitions": [],
     "kind": "Operation",
-    "name": "modelsLoaderQuery",
+    "name": "settingsModelsLoaderQuery",
     "selections": [
       {
         "alias": null,
@@ -274,16 +274,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ac8d834eb66f473d01c9f7a0c6a5a5cf",
+    "cacheID": "ed3f19228c461e89fdc8a21dae70033b",
     "id": null,
     "metadata": {},
-    "name": "modelsLoaderQuery",
+    "name": "settingsModelsLoaderQuery",
     "operationKind": "query",
-    "text": "query modelsLoaderQuery {\n  ...ModelsTable_models\n}\n\nfragment ModelsTable_models on Query {\n  models(first: 100) {\n    edges {\n      model: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        createdAt\n        updatedAt\n        isOverride\n        tokenCost {\n          input\n          output\n          cacheRead\n          cacheWrite\n          promptAudio\n          completionAudio\n          reasoning\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query settingsModelsLoaderQuery {\n  ...ModelsTable_models\n}\n\nfragment ModelsTable_models on Query {\n  models(first: 100) {\n    edges {\n      model: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        createdAt\n        updatedAt\n        isOverride\n        tokenCost {\n          input\n          output\n          cacheRead\n          cacheWrite\n          promptAudio\n          completionAudio\n          reasoning\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f04f33c07ced7a01765ae6b7568b9e39";
+(node as any).hash = "e1f0eedfcf294ab23c95d3aa6eeb5b6a";
 
 export default node;
