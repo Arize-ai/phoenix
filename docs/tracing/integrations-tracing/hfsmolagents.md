@@ -156,20 +156,16 @@ Create your Hugging Face Model, and at every run, traces will be sent to Phoenix
 from smolagents import (
     CodeAgent,
     ToolCallingAgent,
-    ManagedAgent,
     DuckDuckGoSearchTool,
     VisitWebpageTool,
-    HfApiModel,
+    InferenceClientModel,
 )
 
-model = HfApiModel()
+model = InferenceClientModel()
 
-agent = ToolCallingAgent(
+managed_agent = ToolCallingAgent(
     tools=[DuckDuckGoSearchTool(), VisitWebpageTool()],
     model=model,
-)
-managed_agent = ManagedAgent(
-    agent=agent,
     name="managed_agent",
     description="This is an agent that can do web search.",
 )
