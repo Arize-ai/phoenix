@@ -62,24 +62,10 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy for Phoenix container (Always, IfNotPresent, or Never) |
 | image.repository | string | `"arizephoenix/phoenix"` | Docker image repository for Phoenix |
 | image.tag | string | `"version-10.11.0-nonroot"` | Docker image tag/version to deploy |
-| deployment.strategy.maxSurge | string | `"25%"` | Maximum number of pods that can be created above desired replica count during update (can be absolute number or percentage) |
-| deployment.strategy.maxUnavailable | string | `"25%"` | Maximum number of pods that can be unavailable during update (can be absolute number or percentage) |
-| healthChecks.livenessProbe.failureThreshold | int | `3` | Number of failures before container is restarted |
-| healthChecks.livenessProbe.initialDelaySeconds | int | `0` | Initial delay before liveness probe starts |
-| healthChecks.livenessProbe.periodSeconds | int | `10` | How often to perform the liveness probe |
-| healthChecks.livenessProbe.successThreshold | int | `1` | Number of consecutive successes for the probe to be considered successful |
-| healthChecks.livenessProbe.timeoutSeconds | int | `5` | Timeout for liveness probe |
-| healthChecks.readinessProbe.failureThreshold | int | `3` | Number of failures before pod is marked unready |
-| healthChecks.readinessProbe.initialDelaySeconds | int | `0` | Initial delay before readiness probe starts |
-| healthChecks.readinessProbe.periodSeconds | int | `5` | How often to perform the readiness probe |
-| healthChecks.readinessProbe.successThreshold | int | `1` | Number of consecutive successes for the probe to be considered successful |
-| healthChecks.readinessProbe.timeoutSeconds | int | `3` | Timeout for readiness probe |
-| healthChecks.startupProbe.enabled | bool | `true` | Enable startup probe |
-| healthChecks.startupProbe.failureThreshold | int | `30` | Number of failures before container is considered failed to start |
-| healthChecks.startupProbe.initialDelaySeconds | int | `1` | Initial delay before startup probe starts |
-| healthChecks.startupProbe.periodSeconds | int | `1` | How often to perform the startup probe |
-| healthChecks.startupProbe.successThreshold | int | `1` | Number of consecutive successes for the probe to be considered successful |
-| healthChecks.startupProbe.timeoutSeconds | int | `1` | Timeout for startup probe |
+| deployment.strategy | object | `{"type":"RollingUpdate","rollingUpdate":{"maxUnavailable":"25%","maxSurge":"25%"}}` | Deployment strategy |
+| healthChecks.livenessProbe | object | `{"initialDelaySeconds":0,"periodSeconds":10,"timeoutSeconds":5,"failureThreshold":3,"successThreshold":1}` | Liveness probe configuration |
+| healthChecks.readinessProbe | object | `{"initialDelaySeconds":0,"periodSeconds":5,"timeoutSeconds":3,"failureThreshold":3,"successThreshold":1}` | Readiness probe configuration |
+| healthChecks.startupProbe | object | `{"enabled":true,"initialDelaySeconds":1,"periodSeconds":1,"timeoutSeconds":1,"failureThreshold":30,"successThreshold":1}` | Startup probe configuration |
 | ingress.annotations | object | `{}` | Annotations to add to the ingress resource |
 | ingress.apiPath | string | `"/"` | Path prefix for the Phoenix API |
 | ingress.enabled | bool | `true` | Enable ingress controller for external access |
@@ -124,10 +110,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | postgresql.primary.persistentVolumeClaimRetentionPolicy.whenScaled | string | `"Retain"` | Volume retention behavior when the replica count of the StatefulSet is reduced |
 | postgresql.primary.service.ports.postgresql | string | `"5432"` | Port to run postgres service on |
 | replicaCount | int | `1` | Number of Phoenix pod replicas |
-| resources.limits.cpu | string | `"1000m"` | CPU limit for Phoenix container |
-| resources.limits.memory | string | `"2Gi"` | Memory limit for Phoenix container |
-| resources.requests.cpu | string | `"500m"` | CPU request for Phoenix container |
-| resources.requests.memory | string | `"1Gi"` | Memory request for Phoenix container |
+| resources | object | `{"limits":{"cpu":"1000m","memory":"2Gi"},"requests":{"cpu":"500m","memory":"1Gi"}}` | Resource configuration |
 | securityContext.container | object | `{"allowPrivilegeEscalation":false,"capabilities":{"add":[],"drop":["ALL"]},"enabled":true,"privileged":false,"procMount":"Default","readOnlyRootFilesystem":true,"runAsGroup":65532,"runAsNonRoot":true,"runAsUser":65532,"seccompProfile":{"type":"RuntimeDefault"},"seLinuxOptions":{},"windowsOptions":{}}` | Container-level security context settings. When enabled=true, the entire object (excluding 'enabled') is rendered directly as the container securityContext |
 | securityContext.pod | object | `{"enabled":true,"fsGroup":65532,"fsGroupChangePolicy":"OnRootMismatch","runAsGroup":65532,"runAsNonRoot":true,"runAsUser":65532,"seccompProfile":{"type":"RuntimeDefault"},"seLinuxOptions":{},"supplementalGroups":[],"sysctls":[],"windowsOptions":{}}` | Pod-level security context settings. When enabled=true, the entire object (excluding 'enabled') is rendered directly as the pod securityContext |
 | serviceAccount.annotations | object | `{}` | Annotations to add to the ServiceAccount |

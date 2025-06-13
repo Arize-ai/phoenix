@@ -8,11 +8,12 @@ replicaCount: 1
 
 # Deployment strategy
 deployment:
+  # -- Deployment strategy
   strategy:
-    # -- Maximum number of pods that can be unavailable during update (can be absolute number or percentage)
-    maxUnavailable: "25%"
-    # -- Maximum number of pods that can be created above desired replica count during update
-    maxSurge: "25%"
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: "25%"
+      maxSurge: "25%"
 
 # ADDONS
 # - Ingress
@@ -170,20 +171,20 @@ persistence:
   # When enabled, Phoenix can use SQLite for local storage instead of requiring PostgreSQL
   # Consider setting postgresql.enabled=false when using local persistence
   enabled: false
-  
+
   # -- Kubernetes storage class for Phoenix home volume
   storageClass: ""
-  
+
   # -- Access modes for the persistent volume
   accessModes:
     - ReadWriteOnce
-  
+
   # -- Size of the persistent volume for Phoenix home directory
   size: 20Gi
-  
+
   # -- Annotations to add to the PVC
   annotations: {}
-  
+
   # -- Labels to add to the PVC
   labels: {}
 
@@ -367,81 +368,51 @@ image:
   # -- Docker image tag/version to deploy
   tag: version-10.11.0-nonroot
 
-# Resource configuration
+# -- Resource configuration
 resources:
-  # -- Resource limits for Phoenix container
   limits:
-    # -- CPU limit for Phoenix container
     cpu: "1000m"
-    # -- Memory limit for Phoenix container
     memory: "2Gi"
-  # -- Resource requests for Phoenix container
   requests:
-    # -- CPU request for Phoenix container
     cpu: "500m"
-    # -- Memory request for Phoenix container
     memory: "1Gi"
 
-# Security context configuration
+# -- Security context configuration
 securityContext:
   # -- Pod-level security context settings
   pod:
-    # -- Enable Pod security context
     enabled: true
-    # -- Group ID for the Pod (fsGroup)
     fsGroup: 65532
-    # -- Specifies how volume ownership and permissions are changed (Always, OnRootMismatch)
     fsGroupChangePolicy: "OnRootMismatch"
-    # -- Run Pod as non-root user
     runAsNonRoot: true
-    # -- User ID to run the Pod as
     runAsUser: 65532
-    # -- Group ID to run the Pod as
     runAsGroup: 65532
-    # -- SELinux context for the Pod
     seLinuxOptions: {}
-    # -- Seccomp profile for the Pod
     seccompProfile:
       type: RuntimeDefault
-    # -- Supplemental groups for the Pod
     supplementalGroups: []
-    # -- Sysctls for the Pod
     sysctls: []
-    # -- Windows-specific settings for the Pod
     windowsOptions: {}
 
   # -- Container-level security context settings
   container:
-    # -- Enable Container security context
     enabled: true
-    # -- Allow privilege escalation
     allowPrivilegeEscalation: false
-    # -- Linux capabilities to add
     capabilities:
       add: []
-      # -- Linux capabilities to drop
       drop:
         - ALL
-    # -- Run container as privileged
     privileged: false
-    # -- Proc mount type for the container
     procMount: "Default"
-    # -- Read-only root filesystem
     readOnlyRootFilesystem: true
-    # -- Run container as non-root user
     runAsNonRoot: true
-    # -- User ID to run the container as
     runAsUser: 65532
-    # -- Group ID to run the container as
     runAsGroup: 65532
-    # -- SELinux context for the container
     seLinuxOptions: {}
-    # -- Seccomp profile for the container
     seccompProfile:
       type: RuntimeDefault
-    # -- Windows-specific settings for the container
     windowsOptions: {}
-    
+
 # -- ServiceAccount configuration
 serviceAccount:
   # -- Create a ServiceAccount for Phoenix
@@ -451,8 +422,9 @@ serviceAccount:
   # -- Annotations to add to the ServiceAccount
   annotations: {}
 
-# Health check configuration
+# -- Health check configuration
 healthChecks:
+  # -- Liveness probe configuration
   livenessProbe:
     # -- Initial delay before liveness probe starts
     initialDelaySeconds: 0
@@ -464,6 +436,7 @@ healthChecks:
     failureThreshold: 3
     # -- Number of consecutive successes for the probe to be considered successful
     successThreshold: 1
+  # -- Readiness probe configuration
   readinessProbe:
     # -- Initial delay before readiness probe starts
     initialDelaySeconds: 0
@@ -475,6 +448,7 @@ healthChecks:
     failureThreshold: 3
     # -- Number of consecutive successes for the probe to be considered successful
     successThreshold: 1
+  # -- Startup probe configuration
   startupProbe:
     # -- Enable startup probe
     enabled: true

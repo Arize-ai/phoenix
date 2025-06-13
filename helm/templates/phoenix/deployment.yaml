@@ -10,15 +10,10 @@ metadata:
     "helm.sh/hook-weight": "2"
 spec:
   replicas: {{ .Values.replicaCount | default 1 }}
+  {{- if .Values.deployment.strategy }}
   strategy:
-    {{- if .Values.persistence.enabled }}
-    type: Recreate
-    {{- else }}
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: {{ .Values.deployment.strategy.maxUnavailable | default "25%" }}
-      maxSurge: {{ .Values.deployment.strategy.maxSurge | default "25%" }}
-    {{- end }}
+    {{- toYaml .Values.deployment.strategy | nindent 4 }}
+  {{- end }}
   selector:
     matchLabels:
       app: {{ .Release.Name }}
@@ -117,7 +112,7 @@ spec:
         - name: var-log-volume
           emptyDir: {}
         - name: home-volume
-          {{- if .Values.persistence.enabled }}
+          {{- if or (eq .Values.persistence.enabled true) (eq .Values.persistence.enabled "true") }}
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-data-pvc
           {{- else }}
