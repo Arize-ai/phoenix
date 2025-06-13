@@ -36,7 +36,7 @@ results = llm_classify(df, model, RAG_RELEVANCY_PROMPT_TEMPLATE, rails)
 The main evaluation functions that power the package:
 - **`llm_classify`**: Classify data using LLM-based evaluation
 - **`llm_generate`**: Generate synthetic data or prompt an LLM over a dataframe of variables
-- **`run_evals`**: Run comprehensive evaluation suites
+- **`run_evals`**: Run evaluation suites
 
 ## Usage Examples
 
@@ -90,6 +90,7 @@ results = evaluator.evaluate(
     output=responses,
     reference=contexts
 )
+```
 
 ## External Links
 
