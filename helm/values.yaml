@@ -4,7 +4,7 @@
 
 # Replica count
 # -- Number of Phoenix pod replicas (set to 2+ for zero downtime updates)
-replicaCount: 2
+replicaCount: 1
 
 # Deployment strategy
 deployment:
