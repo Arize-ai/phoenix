@@ -9,7 +9,7 @@ metadata:
     "helm.sh/hook": pre-install,pre-upgrade
     "helm.sh/hook-weight": "2"
 spec:
-  replicas: {{ .Values.replicaCount | default 2 }}
+  replicas: {{ .Values.replicaCount | default 1 }}
   strategy:
     type: RollingUpdate
     rollingUpdate:
