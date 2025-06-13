@@ -112,7 +112,7 @@ spec:
         - name: var-log-volume
           emptyDir: {}
         - name: home-volume
-          {{- if or (eq .Values.persistence.enabled true) (eq .Values.persistence.enabled "true") }}
+          {{- if .Values.persistence.enabled | toString | eq "true" }}
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-data-pvc
           {{- else }}
