@@ -10,6 +10,15 @@ Install the Phoenix Client using pip:
 pip install arize-phoenix-client
 ```
 
+## API Reference
+
+```{toctree}
+:maxdepth: 2
+:caption: API Reference
+
+api/client
+```
+
 ## Quick Start
 
 ```python
@@ -95,15 +104,6 @@ client = Client(headers={"api-key": "your-api-key"})
 - [Main Phoenix Documentation](https://arize.com/docs/phoenix)
 - [Python Reference](https://arize-phoenix.readthedocs.io/)
 - [GitHub Repository](https://github.com/Arize-ai/phoenix)
-
-## API Reference
-
-```{toctree}
-:maxdepth: 2
-:caption: API Reference
-
-api/client
-```
 
 ## Indices and tables
 
