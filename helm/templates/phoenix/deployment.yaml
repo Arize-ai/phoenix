@@ -10,11 +10,10 @@ metadata:
     "helm.sh/hook-weight": "2"
 spec:
   replicas: {{ .Values.replicaCount | default 1 }}
+  {{- if .Values.deployment.strategy }}
   strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: {{ .Values.deployment.strategy.maxUnavailable | default "25%" }}
-      maxSurge: {{ .Values.deployment.strategy.maxSurge | default "25%" }}
+    {{- toYaml .Values.deployment.strategy | nindent 4 }}
+  {{- end }}
   selector:
     matchLabels:
       app: {{ .Release.Name }}
@@ -23,10 +22,23 @@ spec:
       labels:
         app: {{ .Release.Name }}
     spec:
+      {{- if or .Values.serviceAccount.create .Values.serviceAccount.name }}
+      serviceAccountName: {{ .Values.serviceAccount.name | default .Release.Name }}
+      {{- end }}
+      {{- if .Values.securityContext.pod.enabled }}
+      securityContext: {{- omit .Values.securityContext.pod "enabled" | toYaml | nindent 8 }}
+      {{- end }}
       containers:
         - name: phoenix
           image: {{ .Values.image.repository | default "arizephoenix/phoenix" }}:{{ .Values.image.tag | default "latest" }}
           imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
+          {{- if .Values.securityContext.container.enabled }}
+          securityContext: {{- omit .Values.securityContext.container "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          {{- if .Values.resources }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- end }}
           ports:
             - containerPort: {{ .Values.server.port | default 6006 }}
             - containerPort: 9090
@@ -73,3 +85,41 @@ spec:
                   key: {{ $authSecrets.key }}
           {{- end }}
           {{- end }}
+          {{- if and .Values.securityContext.container.enabled .Values.securityContext.container.readOnlyRootFilesystem }}
+          volumeMounts:
+            - name: tmp-volume
+              mountPath: /tmp
+            - name: var-tmp-volume
+              mountPath: /var/tmp
+            - name: var-log-volume
+              mountPath: /var/log
+            - name: home-volume
+              mountPath: /home/phoenix
+
+            {{- if and .Values.server.workingDir (ne .Values.server.workingDir "") }}
+            - name: working-dir-volume
+              mountPath: {{ .Values.server.workingDir }}
+            {{- end }}
+
+          {{- end }}
+
+      {{- if and .Values.securityContext.container.enabled .Values.securityContext.container.readOnlyRootFilesystem }}
+      volumes:
+        - name: tmp-volume
+          emptyDir: {}
+        - name: var-tmp-volume
+          emptyDir: {}
+        - name: var-log-volume
+          emptyDir: {}
+        - name: home-volume
+          {{- if .Values.persistence.enabled | toString | eq "true" }}
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-data-pvc
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        {{- if .Values.server.workingDir }}
+        - name: working-dir-volume
+          emptyDir: {}
+        {{- end }}
+      {{- end }}
