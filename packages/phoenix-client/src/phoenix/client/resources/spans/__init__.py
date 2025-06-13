@@ -948,6 +948,8 @@ class AsyncSpans:
             headers={"accept": "application/json"},
             timeout=timeout,
         )
+        if response.status_code not in (400, 422):
+            response.raise_for_status()
         result = _parse_log_spans_response(response, spans)
 
         return result

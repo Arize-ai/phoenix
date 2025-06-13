@@ -38,7 +38,8 @@ def uniquify_spans(
 ) -> list[v1.Span]:
     """
     Regenerates span and trace IDs for a sequence of Span objects while maintaining parent-child
-    relationships.
+    relationships. Typically used when creating spans with the client to ensure that the spans
+    have unique OpenTelemetry IDs to avoid collisions and guarantee that the spans can be inserted.
 
     This utility generates new valid OpenTelemetry-compliant span_ids and trace_ids
     for a collection of spans. The parent-child relationships within the span
@@ -124,11 +125,12 @@ def uniquify_spans_dataframe(
 ) -> "pd.DataFrame":
     """
     Regenerates span and trace IDs for a pandas DataFrame while maintaining parent-child
-    relationships.
+    relationships. Typically used when creating spans with the client to ensure that the spans
+    have unique OpenTelemetry IDs to avoid collisions and guarantee that the spans can be inserted.
 
     This utility generates new valid OpenTelemetry-compliant span_ids and trace_ids
     for a DataFrame of spans (typically from get_spans_dataframe). The parent-child
-    relationships within the span collection ared preserved by mapping old IDs to new IDs
+    relationships within the span collection are preserved by mapping old IDs to new IDs
     consistently.
 
     Args:
