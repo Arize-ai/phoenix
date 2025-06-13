@@ -1,9 +1,21 @@
 import { useLoaderData, useNavigate, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Dialog, DialogContainer } from "@arizeai/components";
-
-import { ErrorBoundary } from "@phoenix/components";
+import {
+  Button,
+  Dialog,
+  ErrorBoundary,
+  Icon,
+  Icons,
+  Modal,
+  ModalOverlay,
+} from "@phoenix/components";
+import {
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+} from "@phoenix/components/dialog";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { sessionLoader } from "@phoenix/pages/trace/sessionLoader";
 
@@ -17,21 +29,42 @@ export function SessionPage() {
   invariant(loaderData, "loaderData is required");
   const { sessionId } = useParams();
   const navigate = useNavigate();
-  const { rootPath } = useProjectRootPath();
+  const { rootPath, tab } = useProjectRootPath();
+
   return (
-    <DialogContainer
-      type="slideOver"
-      isDismissable
-      onDismiss={() => navigate(`${rootPath}/sessions`)}
+    <ModalOverlay
+      isOpen
+      onOpenChange={(isOpen) => {
+        if (!isOpen) {
+          navigate(`${rootPath}/${tab}`);
+        }
+      }}
     >
-      <Dialog
-        size="fullscreen"
-        title={`Session ID: ${loaderData.session?.sessionId ?? "--"}`}
-      >
-        <ErrorBoundary>
-          <SessionDetails sessionId={sessionId as string} />
-        </ErrorBoundary>
-      </Dialog>
-    </DialogContainer>
+      <Modal variant="slideover" size="L">
+        <Dialog>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                Session ID: {loaderData.session?.sessionId ?? "--"}
+              </DialogTitle>
+              <DialogTitleExtra>
+                <Button
+                  size="S"
+                  data-testid="dialog-close-button"
+                  leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
+                  onPress={() => navigate(`${rootPath}/${tab}`)}
+                  type="button"
+                  variant="default"
+                  slot="close"
+                />
+              </DialogTitleExtra>
+            </DialogHeader>
+            <ErrorBoundary>
+              <SessionDetails sessionId={sessionId as string} />
+            </ErrorBoundary>
+          </DialogContent>
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
   );
 }

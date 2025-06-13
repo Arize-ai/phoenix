@@ -59,7 +59,9 @@ export function APIKeysCard() {
   const [dialog, setDialog] = useState<ReactNode>(null);
   const notifyError = useNotifyError();
   const showOneTimeAPIKeyDialog = (jwt: string) => {
-    setDialog(<OneTimeAPIKeyDialog jwt={jwt} />);
+    setDialog(
+      <OneTimeAPIKeyDialog jwt={jwt} onClose={() => setDialog(null)} />
+    );
   };
 
   const [commit, isCommitting] =
@@ -114,6 +116,7 @@ export function APIKeysCard() {
         onSubmit={onSubmit}
         isCommitting={isCommitting}
         defaultName="System"
+        onClose={() => setDialog(null)}
       />
     );
   };

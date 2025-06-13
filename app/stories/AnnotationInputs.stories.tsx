@@ -1,4 +1,3 @@
-import React from "react";
 import { FocusScope } from "react-aria";
 import { Form } from "react-aria-components";
 import type { Meta, StoryObj } from "@storybook/react";

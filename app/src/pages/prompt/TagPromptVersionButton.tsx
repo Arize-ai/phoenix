@@ -20,6 +20,7 @@ import { useNotifySuccess } from "@phoenix/contexts";
 
 import { TagPromptVersionButtonTagsQuery } from "./__generated__/TagPromptVersionButtonTagsQuery.graphql";
 import { NewPromptVersionDialog } from "./NewPromptVersionTagDialog";
+
 export function TagPromptVersionButton() {
   const [showNewTagDialog, setShowNewTagDialog] = useState<boolean>(false);
   const [fetchKey, setFetchKey] = useState<number>(0);
@@ -65,33 +66,35 @@ export function TagPromptVersionButton() {
               />
             </Suspense>
             <View padding="size-100" width="250px">
-              <Button
-                leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
-                size="S"
-                css={css`
-                  width: 100%;
-                `}
-                onPress={() => setShowNewTagDialog(true)}
+              <DialogTrigger
+                isOpen={showNewTagDialog}
+                onOpenChange={setShowNewTagDialog}
               >
-                New Tag
-              </Button>
+                <Button
+                  leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+                  size="S"
+                  css={css`
+                    width: 100%;
+                  `}
+                >
+                  New Tag
+                </Button>
+                <NewPromptVersionDialog
+                  promptVersionId={versionId}
+                  onDismiss={() => setShowNewTagDialog(false)}
+                  onNewTagCreated={(newTag) => {
+                    setFetchKey((prev) => prev + 1);
+                    notifySuccess({
+                      title: "Tag Created",
+                      message: `The tag ${newTag.name} has been created and been set on the version`,
+                    });
+                  }}
+                />
+              </DialogTrigger>
             </View>
           </Dialog>
         </Popover>
       </DialogTrigger>
-      {showNewTagDialog && (
-        <NewPromptVersionDialog
-          promptVersionId={versionId}
-          onDismiss={() => setShowNewTagDialog(false)}
-          onNewTagCreated={(newTag) => {
-            setFetchKey((prev) => prev + 1);
-            notifySuccess({
-              title: "Tag Created",
-              message: `The tag ${newTag.name} has been created and been set on the version`,
-            });
-          }}
-        />
-      )}
     </div>
   );
 }
