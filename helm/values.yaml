@@ -381,7 +381,7 @@ resources:
 securityContext:
   # -- Pod-level security context settings
   pod:
-    enabled: true
+    enabled: false
     fsGroup: 65532
     fsGroupChangePolicy: "OnRootMismatch"
     runAsNonRoot: true
@@ -396,7 +396,7 @@ securityContext:
 
   # -- Container-level security context settings
   container:
-    enabled: true
+    enabled: false
     allowPrivilegeEscalation: false
     capabilities:
       add: []
