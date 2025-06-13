@@ -104,13 +104,26 @@ from phoenix.evals import HallucinationEvaluator, OpenAIModel
 model = OpenAIModel(model="gpt-4")
 evaluator = HallucinationEvaluator(model=model)
 
+# Example input data
+questions = [
+    "What is the capital of France?",
+    "Who wrote 'Pride and Prejudice'?"
+]
+responses = [
+    "The capital of France is Paris.",
+    "Pride and Prejudice was written by Jane Austen."
+]
+contexts = [
+    "France's capital city is Paris.",
+    "'Pride and Prejudice' is a novel by Jane Austen."
+]
+
 # Check for hallucinations in responses
 results = evaluator.evaluate(
     input=questions,
     output=responses,
     reference=contexts
 )
-```
 
 ## External Links
 
