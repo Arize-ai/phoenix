@@ -1,221 +1,102 @@
-import asyncio
+from datetime import datetime
 from typing import Optional
 
 import strawberry
-from strawberry import UNSET, Info
-from strawberry.relay import Connection
-from typing_extensions import Annotated
+from openinference.semconv.trace import OpenInferenceLLMProviderValues
+from sqlalchemy import inspect
+from strawberry.relay import Node, NodeID
+from strawberry.types import Info
+from typing_extensions import assert_never
 
-from phoenix.config import get_exported_files
-from phoenix.core.model_schema import PRIMARY, REFERENCE
+from phoenix.db import models
 from phoenix.server.api.context import Context
-
-from ..input_types.DimensionFilter import DimensionFilter
-from ..input_types.Granularity import Granularity
-from ..input_types.PerformanceMetricInput import PerformanceMetricInput
-from ..input_types.TimeRange import TimeRange
-from .Dimension import Dimension, to_gql_dimension
-from .EmbeddingDimension import EmbeddingDimension, to_gql_embedding_dimension
-from .ExportedFile import ExportedFile
-from .Inferences import Inferences
-from .InferencesRole import AncillaryInferencesRole, InferencesRole
-from .pagination import ConnectionArgs, CursorString, connection_from_list
-from .TimeSeries import (
-    PerformanceTimeSeries,
-    ensure_timeseries_parameters,
-    get_timeseries_data,
-)
+from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
+from phoenix.server.api.types.ModelInterface import ModelInterface
+from phoenix.server.api.types.TokenCost import TokenCost
 
 
 @strawberry.type
-class Model:
-    @strawberry.field
-    def dimensions(
-        self,
-        info: Info[Context, None],
-        first: Optional[int] = 50,
-        last: Optional[int] = UNSET,
-        after: Optional[CursorString] = UNSET,
-        before: Optional[CursorString] = UNSET,
-        include: Optional[DimensionFilter] = UNSET,
-        exclude: Optional[DimensionFilter] = UNSET,
-    ) -> Connection[Dimension]:
-        model = info.context.model
-        return connection_from_list(
-            [
-                to_gql_dimension(index, dimension)
-                for index, dimension in enumerate(model.scalar_dimensions)
-                if (not isinstance(include, DimensionFilter) or include.matches(dimension))
-                and (not isinstance(exclude, DimensionFilter) or not exclude.matches(dimension))
-            ],
-            args=ConnectionArgs(
-                first=first,
-                after=after if isinstance(after, CursorString) else None,
-                last=last,
-                before=before if isinstance(before, CursorString) else None,
-            ),
-        )
+class Model(Node, ModelInterface):
+    id_attr: NodeID[int]
+    name: str
+    provider: Optional[str]
+    name_pattern: str
+    is_override: bool
+    created_at: datetime
+    updated_at: datetime
+    provider_key: Optional[GenerativeProviderKey]
+    costs: strawberry.Private[Optional[list[models.ModelCost]]] = None
 
     @strawberry.field
-    def primary_inferences(self, info: Info[Context, None]) -> Inferences:
-        inferences = info.context.model[PRIMARY]
-        start, stop = inferences.time_range
-        return Inferences(
-            start_time=start,
-            end_time=stop,
-            record_count=len(inferences),
-            inferences=inferences,
-            inferences_role=InferencesRole.primary,
-            model=info.context.model,
-        )
+    async def token_cost(self, info: Info[Context, None]) -> Optional[TokenCost]:
+        if self.costs is None:
+            raise NotImplementedError
+        token_cost = TokenCost()
+        for cost in self.costs:
+            setattr(token_cost, cost.token_type, cost.cost_per_token)
+        return token_cost
 
     @strawberry.field
-    def reference_inferences(self, info: Info[Context, None]) -> Optional[Inferences]:
-        if (inferences := info.context.model[REFERENCE]).empty:
+    async def total_token_cost(self, info: Info[Context, None]) -> Optional[TokenCost]:
+        total_costs = await info.context.data_loaders.model_total_costs.load(self.id_attr)
+        if total_costs is None:
             return None
-        start, stop = inferences.time_range
-        return Inferences(
-            start_time=start,
-            end_time=stop,
-            record_count=len(inferences),
-            inferences=inferences,
-            inferences_role=InferencesRole.reference,
-            model=info.context.model,
+        return TokenCost(
+            input=total_costs.total_input_token_cost,
+            output=total_costs.total_output_token_cost,
+            cache_read=total_costs.total_cache_read_token_cost,
+            cache_write=total_costs.total_cache_write_token_cost,
+            prompt_audio=total_costs.total_prompt_audio_token_cost,
+            completion_audio=total_costs.total_completion_audio_token_cost,
+            reasoning=total_costs.total_reasoning_token_cost,
+            total=total_costs.total_token_cost,
         )
 
-    @strawberry.field
-    def corpus_inferences(self, info: Info[Context, None]) -> Optional[Inferences]:
-        if info.context.corpus is None:
-            return None
-        if (inferences := info.context.corpus[PRIMARY]).empty:
-            return None
-        start, stop = inferences.time_range
-        return Inferences(
-            start_time=start,
-            end_time=stop,
-            record_count=len(inferences),
-            inferences=inferences,
-            inferences_role=AncillaryInferencesRole.corpus,
-            model=info.context.corpus,
-        )
 
-    @strawberry.field
-    def embedding_dimensions(
-        self,
-        info: Info[Context, None],
-        first: Optional[int] = 50,
-        last: Optional[int] = UNSET,
-        after: Optional[CursorString] = UNSET,
-        before: Optional[CursorString] = UNSET,
-    ) -> Connection[EmbeddingDimension]:
-        """
-        A non-trivial implementation should efficiently fetch only
-        the necessary books after the offset.
-        For simplicity, here we build the list and then slice it accordingly
-        """
-        model = info.context.model
-        return connection_from_list(
-            [
-                to_gql_embedding_dimension(index, embedding_dimension)
-                for index, embedding_dimension in enumerate(
-                    model.embedding_dimensions,
-                )
-            ],
-            args=ConnectionArgs(
-                first=first,
-                after=after if isinstance(after, CursorString) else None,
-                last=last,
-                before=before if isinstance(before, CursorString) else None,
-            ),
-        )
+def to_gql_model(model: models.Model) -> Model:
+    costs_are_loaded = isinstance(inspect(model).attrs.costs.loaded_value, list)
+    return Model(
+        id_attr=model.id,
+        name=model.name,
+        provider=model.provider,
+        name_pattern=model.name_pattern,
+        is_override=model.is_override,
+        created_at=model.created_at,
+        updated_at=model.updated_at,
+        provider_key=_semconv_provider_to_gql_generative_provider_key(model.provider)
+        if model.provider
+        else None,
+        costs=model.costs if costs_are_loaded else None,
+    )
 
-    @strawberry.field(
-        description="Returns exported file names sorted by descending modification time.",
-    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
-    async def exported_files(
-        self,
-        info: Info[Context, None],
-    ) -> list[ExportedFile]:
-        loop = asyncio.get_running_loop()
-        return [
-            ExportedFile(file_name=path.stem)
-            for path in sorted(
-                await loop.run_in_executor(
-                    None,
-                    get_exported_files,
-                    info.context.export_path,
-                ),
-                key=lambda p: p.stat().st_mtime,
-                reverse=True,
-            )
-        ]
 
-    @strawberry.field
-    def performance_metric(
-        self,
-        info: Info[Context, None],
-        metric: PerformanceMetricInput,
-        time_range: Optional[TimeRange] = UNSET,
-        inferences_role: Annotated[
-            Optional[InferencesRole],
-            strawberry.argument(
-                description="The inferences (primary or reference) to query",
-            ),
-        ] = InferencesRole.primary,
-    ) -> Optional[float]:
-        if not isinstance(inferences_role, InferencesRole):
-            inferences_role = InferencesRole.primary
-        model = info.context.model
-        inferences = model[inferences_role.value]
-        resolved_time_range, granularity = ensure_timeseries_parameters(
-            inferences,
-            time_range,
-        )
-        metric_instance = metric.metric_instance(model)
-        data = get_timeseries_data(
-            inferences,
-            metric_instance,
-            resolved_time_range,
-            granularity,
-        )
-        return data[0].value if len(data) else None
+def _semconv_provider_to_gql_generative_provider_key(
+    semconv_provider_str: str,
+) -> Optional[GenerativeProviderKey]:
+    """
+    Translates a semconv provider string to a GQL GenerativeProviderKey.
+    """
 
-    @strawberry.field(
-        description=(
-            "Returns the time series of the specified metric for data within a time range. Data"
-            " points are generated starting at the end time and are separated by the sampling"
-            " interval. Each data point is labeled by the end instant and contains data from their"
-            " respective evaluation windows."
-        )
-    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
-    def performance_time_series(
-        self,
-        info: Info[Context, None],
-        metric: PerformanceMetricInput,
-        time_range: TimeRange,
-        granularity: Granularity,
-        inferences_role: Annotated[
-            Optional[InferencesRole],
-            strawberry.argument(
-                description="The inferences (primary or reference) to query",
-            ),
-        ] = InferencesRole.primary,
-    ) -> PerformanceTimeSeries:
-        if not isinstance(inferences_role, InferencesRole):
-            inferences_role = InferencesRole.primary
-        model = info.context.model
-        inferences = model[inferences_role.value]
-        resolved_time_range, granularity = ensure_timeseries_parameters(
-            inferences,
-            time_range,
-            granularity,
-        )
-        metric_instance = metric.metric_instance(model)
-        return PerformanceTimeSeries(
-            data=get_timeseries_data(
-                inferences,
-                metric_instance,
-                resolved_time_range,
-                granularity,
-            )
-        )
+    try:
+        semconv_provider = OpenInferenceLLMProviderValues(semconv_provider_str)
+    except Exception:
+        return None
+    if semconv_provider == OpenInferenceLLMProviderValues.OPENAI:
+        return GenerativeProviderKey.OPENAI
+    if semconv_provider == OpenInferenceLLMProviderValues.ANTHROPIC:
+        return GenerativeProviderKey.ANTHROPIC
+    if semconv_provider == OpenInferenceLLMProviderValues.AZURE:
+        return GenerativeProviderKey.AZURE_OPENAI
+    if semconv_provider == OpenInferenceLLMProviderValues.GOOGLE:
+        return GenerativeProviderKey.GOOGLE
+    if semconv_provider == OpenInferenceLLMProviderValues.DEEPSEEK:
+        return GenerativeProviderKey.DEEPSEEK
+    if semconv_provider == OpenInferenceLLMProviderValues.XAI:
+        return GenerativeProviderKey.XAI
+    if semconv_provider == OpenInferenceLLMProviderValues.AWS:
+        raise NotImplementedError("AWS models are not yet supported")
+    if semconv_provider == OpenInferenceLLMProviderValues.COHERE:
+        raise NotImplementedError("Cohere models are not yet supported")
+    if semconv_provider == OpenInferenceLLMProviderValues.MISTRALAI:
+        raise NotImplementedError("Mistral AI models are not yet supported")
+    assert_never(semconv_provider)

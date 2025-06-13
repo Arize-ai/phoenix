@@ -26,6 +26,7 @@ from phoenix.db.models import DatasetExampleRevision as OrmRevision
 from phoenix.db.models import DatasetVersion as OrmVersion
 from phoenix.db.models import Experiment as OrmExperiment
 from phoenix.db.models import ExperimentRun as OrmExperimentRun
+from phoenix.db.models import Model as OrmModel
 from phoenix.db.models import Trace as OrmTrace
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
@@ -62,12 +63,13 @@ from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.ExperimentComparison import ExperimentComparison, RunComparisonItem
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.Functionality import Functionality
-from phoenix.server.api.types.GenerativeModel import GenerativeModel
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
+from phoenix.server.api.types.InferenceModel import InferenceModel
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
-from phoenix.server.api.types.Model import Model
+from phoenix.server.api.types.Model import Model, to_gql_model
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
+from phoenix.server.api.types.PlaygroundModel import PlaygroundModel
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
 from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
@@ -115,20 +117,51 @@ class Query:
         ]
 
     @strawberry.field
-    async def models(self, input: Optional[ModelsInput] = None) -> list[GenerativeModel]:
+    async def models(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[Model]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+
+        async with info.context.db() as session:
+            result = await session.execute(
+                select(OrmModel)
+                .order_by(
+                    OrmModel.provider.is_(None),  # null providers last
+                    OrmModel.provider,
+                    OrmModel.name,
+                )
+                .options(joinedload(OrmModel.costs))
+            )
+            db_models = result.unique().scalars().all()
+
+        models = [to_gql_model(model) for model in db_models]
+        return connection_from_list(data=models, args=args)
+
+    @strawberry.field
+    async def playground_models(self, input: Optional[ModelsInput] = None) -> list[PlaygroundModel]:
         if input is not None and input.provider_key is not None:
             supported_model_names = PLAYGROUND_CLIENT_REGISTRY.list_models(input.provider_key)
             supported_models = [
-                GenerativeModel(name=model_name, provider_key=input.provider_key)
+                PlaygroundModel(name=model_name, provider_key=input.provider_key)
                 for model_name in supported_model_names
             ]
             return supported_models
 
         registered_models = PLAYGROUND_CLIENT_REGISTRY.list_all_models()
-        all_models: list[GenerativeModel] = []
+        all_models: list[PlaygroundModel] = []
         for provider_key, model_name in registered_models:
             if model_name is not None and provider_key is not None:
-                all_models.append(GenerativeModel(name=model_name, provider_key=provider_key))
+                all_models.append(PlaygroundModel(name=model_name, provider_key=provider_key))
         return all_models
 
     @strawberry.field
@@ -472,8 +505,8 @@ class Query:
         )
 
     @strawberry.field
-    def model(self) -> Model:
-        return Model()
+    def model(self) -> InferenceModel:
+        return InferenceModel()
 
     @strawberry.field
     async def node(self, id: GlobalID, info: Info[Context, None]) -> Node:
@@ -648,6 +681,17 @@ class Query:
                 if not trace_annotation:
                     raise NotFound(f"Unknown trace annotation: {id}")
             return to_gql_trace_annotation(trace_annotation)
+        elif type_name == Model.__name__:
+            async with info.context.db() as session:
+                stmt = (
+                    select(models.Model)
+                    .where(models.Model.id == node_id)
+                    .options(joinedload(models.Model.costs))
+                )
+                model = await session.scalar(stmt)
+                if not model:
+                    raise NotFound(f"Unknown model: {id}")
+            return to_gql_model(model)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field

@@ -27,6 +27,7 @@ class SpanColumn(Enum):
     cumulativeTokenCountTotal = auto()
     cumulativeTokenCountPrompt = auto()
     cumulativeTokenCountCompletion = auto()
+    tokenCostTotal = auto()
 
     @property
     def column_name(self) -> str:
@@ -56,6 +57,8 @@ class SpanColumn(Enum):
             expr = models.Span.cumulative_llm_token_count_prompt
         elif self is SpanColumn.cumulativeTokenCountCompletion:
             expr = models.Span.cumulative_llm_token_count_completion
+        elif self is SpanColumn.tokenCostTotal:
+            expr = models.SpanCost.total_token_cost
         else:
             assert_never(self)
         return expr.label(self.column_name)
@@ -73,11 +76,23 @@ class SpanColumn(Enum):
             or self is SpanColumn.tokenCountTotal
             or self is SpanColumn.tokenCountPrompt
             or self is SpanColumn.tokenCountCompletion
+            or self is SpanColumn.tokenCostTotal
         ):
             return CursorSortColumnDataType.FLOAT
         if self is SpanColumn.startTime or self is SpanColumn.endTime:
             return CursorSortColumnDataType.DATETIME
         assert_never(self)
+
+    def join_tables(self, stmt: Select[Any]) -> Select[Any]:
+        """
+        If needed, joins tables required for the sort column.
+        """
+        if self is SpanColumn.tokenCostTotal:
+            return stmt.join(
+                models.SpanCost,
+                onclause=models.SpanCost.span_id == models.Span.id,
+            )
+        return stmt
 
 
 @strawberry.enum
@@ -140,6 +155,7 @@ class SpanSort:
     def update_orm_expr(self, stmt: Select[Any]) -> SpanSortConfig:
         if (col := self.col) and not self.eval_result_key:
             expr = col.orm_expression
+            stmt = col.join_tables(stmt)
             stmt = stmt.add_columns(expr)
             if self.dir == SortDir.desc:
                 expr = desc(expr)

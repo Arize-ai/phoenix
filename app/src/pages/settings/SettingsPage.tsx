@@ -12,7 +12,7 @@ const settingsPageCSS = css`
 
 const settingsPageInnerCSS = css`
   padding: var(--ac-global-dimension-size-100);
-  max-width: 1000px;
+  max-width: 1300px;
   min-width: 500px;
   box-sizing: border-box;
   width: 100%;
@@ -42,6 +42,7 @@ export function SettingsPage() {
           <TabList>
             <Tab id="general">General</Tab>
             <Tab id="providers">AI Providers</Tab>
+            <Tab id="models">Models</Tab>
             <Tab id="annotations">Annotations</Tab>
             <Tab id="data">Data Retention</Tab>
           </TabList>
@@ -49,6 +50,9 @@ export function SettingsPage() {
             <Outlet />
           </LazyTabPanel>
           <LazyTabPanel id="providers" padded>
+            <Outlet />
+          </LazyTabPanel>
+          <LazyTabPanel id="models" padded>
             <Outlet />
           </LazyTabPanel>
           <LazyTabPanel id="annotations" padded>

@@ -1,0 +1,338 @@
+import { useCallback, useMemo, useRef } from "react";
+import { graphql, usePaginationFragment } from "react-relay";
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
+import { css } from "@emotion/react";
+
+import { Flex, Icon, Icons } from "@phoenix/components";
+import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
+import { TextCell } from "@phoenix/components/table";
+import {
+  getCommonPinningStyles,
+  selectableTableCSS,
+} from "@phoenix/components/table/styles";
+import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { EditModelButton } from "@phoenix/pages/settings/EditModelButton";
+import { getProviderName } from "@phoenix/utils/generativeUtils";
+
+import { ModelsTable_models$key } from "./__generated__/ModelsTable_models.graphql";
+import { ModelsTableModelsQuery } from "./__generated__/ModelsTableModelsQuery.graphql";
+import { CloneModelButton } from "./CloneModelButton";
+import { DeleteModelButton } from "./DeleteModelButton";
+
+const PAGE_SIZE = 100;
+
+type ModelsTableProps = {
+  query: ModelsTable_models$key;
+};
+
+export function ModelsTable(props: ModelsTableProps) {
+  //we need a reference to the scrolling element for logic down below
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
+    ModelsTableModelsQuery,
+    ModelsTable_models$key
+  >(
+    graphql`
+      fragment ModelsTable_models on Query
+      @refetchable(queryName: "ModelsTableModelsQuery")
+      @argumentDefinitions(
+        after: { type: "String", defaultValue: null }
+        first: { type: "Int", defaultValue: 100 }
+      ) {
+        models(first: $first, after: $after)
+          @connection(key: "ModelsTable_models") {
+          __id
+          edges {
+            model: node {
+              id
+              name
+              provider
+              namePattern
+              providerKey
+              createdAt
+              updatedAt
+              isOverride
+              tokenCost {
+                input
+                output
+                cacheRead
+                cacheWrite
+                promptAudio
+                completionAudio
+                reasoning
+              }
+            }
+          }
+        }
+      }
+    `,
+    props.query
+  );
+
+  const connectionId = data.models.__id;
+
+  const tableData = useMemo(
+    () =>
+      data.models.edges.map((edge) => {
+        return edge.model;
+      }),
+    [data]
+  );
+
+  const fetchMoreOnBottomReached = useCallback(
+    (containerRefElement?: HTMLDivElement | null) => {
+      if (containerRefElement) {
+        const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
+        //once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
+        if (
+          scrollHeight - scrollTop - clientHeight < 300 &&
+          !isLoadingNext &&
+          hasNext
+        ) {
+          loadNext(PAGE_SIZE);
+        }
+      }
+    },
+    [hasNext, isLoadingNext, loadNext]
+  );
+
+  type TableRow = (typeof tableData)[number];
+  const columns = useMemo(() => {
+    const cols: ColumnDef<TableRow>[] = [
+      {
+        header: "name",
+        accessorKey: "name",
+        size: 200,
+      },
+      {
+        header: "provider",
+        accessorKey: "providerKey",
+        cell: ({ row }) => {
+          const providerKey = row.original.providerKey;
+          if (!providerKey) {
+            return <span>{row.original.provider || "--"}</span>;
+          }
+
+          return (
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <GenerativeProviderIcon provider={providerKey} height={18} />
+              <span>{getProviderName(providerKey as ModelProvider)}</span>
+            </Flex>
+          );
+        },
+      },
+      {
+        header: "name pattern",
+        accessorKey: "namePattern",
+        cell: TextCell,
+        size: 800,
+      },
+      {
+        header: "input cost",
+        accessorKey: "tokenCost.input",
+        cell: ({ row }) => {
+          const cost = row.original.tokenCost?.input;
+          return cost != null ? `$${cost.toPrecision(3)}` : "--";
+        },
+      },
+      {
+        header: "output cost",
+        accessorKey: "tokenCost.output",
+        cell: ({ row }) => {
+          const cost = row.original.tokenCost?.output;
+          return cost != null ? `$${cost.toPrecision(3)}` : "--";
+        },
+      },
+      {
+        header: "cache read cost",
+        accessorKey: "tokenCost.cacheRead",
+        cell: ({ row }) => {
+          const cost = row.original.tokenCost?.cacheRead;
+          return cost != null ? `$${cost.toPrecision(3)}` : "--";
+        },
+      },
+      {
+        header: "cache write cost",
+        accessorKey: "tokenCost.cacheWrite",
+        cell: ({ row }) => {
+          const cost = row.original.tokenCost?.cacheWrite;
+          return cost != null ? `$${cost.toPrecision(3)}` : "--";
+        },
+      },
+      {
+        header: "prompt audio cost",
+        accessorKey: "tokenCost.promptAudio",
+        cell: ({ row }) => {
+          const cost = row.original.tokenCost?.promptAudio;
+          return cost != null ? `$${cost.toPrecision(3)}` : "--";
+        },
+      },
+      {
+        header: "completion audio cost",
+        accessorKey: "tokenCost.completionAudio",
+        cell: ({ row }) => {
+          const cost = row.original.tokenCost?.completionAudio;
+          return cost != null ? `$${cost.toPrecision(3)}` : "--";
+        },
+      },
+      {
+        header: "reasoning cost",
+        accessorKey: "tokenCost.reasoning",
+        cell: ({ row }) => {
+          const cost = row.original.tokenCost?.reasoning;
+          return cost != null ? `$${cost.toPrecision(3)}` : "--";
+        },
+      },
+      {
+        header: "created at",
+        accessorKey: "createdAt",
+        cell: TimestampCell,
+      },
+      {
+        header: "updated at",
+        accessorKey: "updatedAt",
+        cell: TimestampCell,
+      },
+      {
+        id: "actions",
+        header: "",
+        size: 5,
+        accessorKey: "id",
+        cell: ({ row }) => {
+          const isOverride = row.original.isOverride;
+          return (
+            <Flex direction="row" gap="size-50">
+              {isOverride && <EditModelButton modelId={row.original.id} />}
+              <CloneModelButton modelId={row.original.id} />
+              {isOverride && (
+                <DeleteModelButton
+                  modelId={row.original.id}
+                  modelName={row.original.name}
+                  connectionId={connectionId}
+                />
+              )}
+            </Flex>
+          );
+        },
+      },
+    ];
+    return cols;
+  }, [connectionId]);
+
+  const table = useReactTable({
+    columns,
+    data: tableData,
+    initialState: {
+      columnPinning: {
+        left: ["name", "provider"],
+        right: ["actions"],
+      },
+    },
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
+
+  const rows = table.getRowModel().rows;
+  const isEmpty = rows.length === 0;
+
+  if (isEmpty) {
+    return (
+      <div>
+        <p>No models found.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      css={css`
+        flex: 1 1 auto;
+        overflow: auto;
+      `}
+      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+      ref={tableContainerRef}
+    >
+      <table
+        css={selectableTableCSS}
+        style={{ width: table.getTotalSize(), minWidth: "100%" }}
+      >
+        <thead>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <tr key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <th
+                  colSpan={header.colSpan}
+                  key={header.id}
+                  style={{
+                    ...getCommonPinningStyles(header.column),
+                    width: header.column.getSize(),
+                  }}
+                >
+                  {header.isPlaceholder ? null : (
+                    <div
+                      {...{
+                        className: header.column.getCanSort()
+                          ? "cursor-pointer"
+                          : "",
+                        ["aria-role"]: header.column.getCanSort()
+                          ? "button"
+                          : null,
+                        onClick: header.column.getToggleSortingHandler(),
+                        style: {
+                          textAlign: header.column.columnDef.meta?.textAlign,
+                        },
+                      }}
+                    >
+                      {flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                      {header.column.getIsSorted() ? (
+                        <Icon
+                          className="sort-icon"
+                          svg={
+                            header.column.getIsSorted() === "asc" ? (
+                              <Icons.ArrowUpFilled />
+                            ) : (
+                              <Icons.ArrowDownFilled />
+                            )
+                          }
+                        />
+                      ) : null}
+                    </div>
+                  )}
+                </th>
+              ))}
+            </tr>
+          ))}
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            return (
+              <tr key={row.id}>
+                {row.getVisibleCells().map((cell) => (
+                  <td
+                    key={cell.id}
+                    align={cell.column.columnDef.meta?.textAlign}
+                    style={{
+                      ...getCommonPinningStyles(cell.column),
+                      width: cell.column.getSize(),
+                    }}
+                  >
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}

@@ -14,6 +14,7 @@ from phoenix.trace.schemas import Span, SpanStatusCode
 
 class SpanInsertionEvent(NamedTuple):
     project_rowid: int
+    span_rowid: int
 
 
 class ClearProjectSpansEvent(NamedTuple):
@@ -190,4 +191,4 @@ async def insert_span(
             + cumulative_llm_token_count_completion,
         )
     )
-    return SpanInsertionEvent(project_rowid)
+    return SpanInsertionEvent(project_rowid, span_rowid)

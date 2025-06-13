@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bbcb7bd2a35dccc26420a83a2331f935>>
+ * @generated SignedSource<<37800451ee4973c46b43e532447181c1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,6 +16,11 @@ export type ProjectPageHeader_stats$data = {
   readonly latencyMsP50: number | null;
   readonly latencyMsP99: number | null;
   readonly spanAnnotationNames: ReadonlyArray<string>;
+  readonly tokenCost: {
+    readonly completion: number | null;
+    readonly prompt: number | null;
+    readonly total: number | null;
+  };
   readonly tokenCountCompletion: number;
   readonly tokenCountPrompt: number;
   readonly tokenCountTotal: number;
@@ -90,6 +95,38 @@ return {
       "storageKey": null
     },
     {
+      "alias": null,
+      "args": (v1/*: any*/),
+      "concreteType": "TokenCost",
+      "kind": "LinkedField",
+      "name": "tokenCost",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "total",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "prompt",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "completion",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    },
+    {
       "alias": "latencyMsP50",
       "args": [
         {
@@ -144,6 +181,6 @@ return {
 };
 })();
 
-(node as any).hash = "e110b84031cc6bfa6bb37751b9c69765";
+(node as any).hash = "5f0616b6454b92daf384c1b769ebbbdc";
 
 export default node;

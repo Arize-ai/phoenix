@@ -17,6 +17,7 @@ from .experiment_run_counts import ExperimentRunCountsDataLoader
 from .experiment_sequence_number import ExperimentSequenceNumberDataLoader
 from .latency_ms_quantile import LatencyMsQuantileCache, LatencyMsQuantileDataLoader
 from .min_start_or_max_end_times import MinStartOrMaxEndTimeCache, MinStartOrMaxEndTimeDataLoader
+from .model_total_costs import ModelTotalCostsDataLoader
 from .num_child_spans import NumChildSpansDataLoader
 from .num_spans_per_trace import NumSpansPerTraceDataLoader
 from .project_by_name import ProjectByNameDataLoader
@@ -30,10 +31,12 @@ from .session_token_usages import SessionTokenUsagesDataLoader
 from .session_trace_latency_ms_quantile import SessionTraceLatencyMsQuantileDataLoader
 from .span_annotations import SpanAnnotationsDataLoader
 from .span_by_id import SpanByIdDataLoader
+from .span_costs import SpanCostsDataLoader
 from .span_dataset_examples import SpanDatasetExamplesDataLoader
 from .span_descendants import SpanDescendantsDataLoader
 from .span_projects import SpanProjectsDataLoader
 from .table_fields import TableFieldsDataLoader
+from .token_costs import TokenCostCache, TokenCostDataLoader
 from .token_counts import TokenCountCache, TokenCountDataLoader
 from .trace_by_trace_ids import TraceByTraceIdsDataLoader
 from .trace_retention_policy_id_by_project_id import TraceRetentionPolicyIdByProjectIdDataLoader
@@ -57,6 +60,7 @@ __all__ = [
     "ExperimentSequenceNumberDataLoader",
     "LatencyMsQuantileDataLoader",
     "MinStartOrMaxEndTimeDataLoader",
+    "ModelTotalCostsDataLoader",
     "NumChildSpansDataLoader",
     "NumSpansPerTraceDataLoader",
     "ProjectIdsByTraceRetentionPolicyIdDataLoader",
@@ -72,12 +76,14 @@ __all__ = [
     "SpanDescendantsDataLoader",
     "SpanProjectsDataLoader",
     "TableFieldsDataLoader",
+    "TokenCostDataLoader",
     "TokenCountDataLoader",
     "TraceByTraceIdsDataLoader",
     "TraceRetentionPolicyIdByProjectIdDataLoader",
     "TraceRootSpansDataLoader",
     "ProjectByNameDataLoader",
     "SpanAnnotationsDataLoader",
+    "SpanCostsDataLoader",
     "UsersDataLoader",
     "UserRolesDataLoader",
 ]
@@ -102,4 +108,7 @@ class CacheForDataLoaders:
     )
     token_count: TokenCountCache = field(
         default_factory=TokenCountCache,
+    )
+    token_cost: TokenCostCache = field(
+        default_factory=TokenCostCache,
     )

@@ -30,6 +30,7 @@ from phoenix.server.api.dataloaders import (
     ExperimentSequenceNumberDataLoader,
     LatencyMsQuantileDataLoader,
     MinStartOrMaxEndTimeDataLoader,
+    ModelTotalCostsDataLoader,
     NumChildSpansDataLoader,
     NumSpansPerTraceDataLoader,
     ProjectByNameDataLoader,
@@ -43,10 +44,12 @@ from phoenix.server.api.dataloaders import (
     SessionTraceLatencyMsQuantileDataLoader,
     SpanAnnotationsDataLoader,
     SpanByIdDataLoader,
+    SpanCostsDataLoader,
     SpanDatasetExamplesDataLoader,
     SpanDescendantsDataLoader,
     SpanProjectsDataLoader,
     TableFieldsDataLoader,
+    TokenCostDataLoader,
     TokenCountDataLoader,
     TraceByTraceIdsDataLoader,
     TraceRetentionPolicyIdByProjectIdDataLoader,
@@ -82,6 +85,7 @@ class DataLoaders:
     experiment_sequence_number: ExperimentSequenceNumberDataLoader
     latency_ms_quantile: LatencyMsQuantileDataLoader
     min_start_or_max_end_times: MinStartOrMaxEndTimeDataLoader
+    model_total_costs: ModelTotalCostsDataLoader
     num_child_spans: NumChildSpansDataLoader
     num_spans_per_trace: NumSpansPerTraceDataLoader
     project_fields: TableFieldsDataLoader
@@ -96,10 +100,12 @@ class DataLoaders:
     session_trace_latency_ms_quantile: SessionTraceLatencyMsQuantileDataLoader
     span_annotations: SpanAnnotationsDataLoader
     span_by_id: SpanByIdDataLoader
+    span_costs: SpanCostsDataLoader
     span_dataset_examples: SpanDatasetExamplesDataLoader
     span_descendants: SpanDescendantsDataLoader
     span_fields: TableFieldsDataLoader
     span_projects: SpanProjectsDataLoader
+    token_costs: TokenCostDataLoader
     token_counts: TokenCountDataLoader
     trace_by_trace_ids: TraceByTraceIdsDataLoader
     trace_fields: TableFieldsDataLoader

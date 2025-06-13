@@ -87,6 +87,7 @@ from phoenix.server.api.dataloaders import (
     ExperimentSequenceNumberDataLoader,
     LatencyMsQuantileDataLoader,
     MinStartOrMaxEndTimeDataLoader,
+    ModelTotalCostsDataLoader,
     NumChildSpansDataLoader,
     NumSpansPerTraceDataLoader,
     ProjectByNameDataLoader,
@@ -100,10 +101,12 @@ from phoenix.server.api.dataloaders import (
     SessionTraceLatencyMsQuantileDataLoader,
     SpanAnnotationsDataLoader,
     SpanByIdDataLoader,
+    SpanCostsDataLoader,
     SpanDatasetExamplesDataLoader,
     SpanDescendantsDataLoader,
     SpanProjectsDataLoader,
     TableFieldsDataLoader,
+    TokenCostDataLoader,
     TokenCountDataLoader,
     TraceByTraceIdsDataLoader,
     TraceRetentionPolicyIdByProjectIdDataLoader,
@@ -658,6 +661,7 @@ def create_graphql_router(
                 ),
                 num_child_spans=NumChildSpansDataLoader(db),
                 num_spans_per_trace=NumSpansPerTraceDataLoader(db),
+                model_total_costs=ModelTotalCostsDataLoader(db),
                 project_fields=TableFieldsDataLoader(db, models.Project),
                 projects_by_trace_retention_policy_id=ProjectIdsByTraceRetentionPolicyIdDataLoader(
                     db
@@ -676,9 +680,14 @@ def create_graphql_router(
                 span_annotations=SpanAnnotationsDataLoader(db),
                 span_fields=TableFieldsDataLoader(db, models.Span),
                 span_by_id=SpanByIdDataLoader(db),
+                span_costs=SpanCostsDataLoader(db),
                 span_dataset_examples=SpanDatasetExamplesDataLoader(db),
                 span_descendants=SpanDescendantsDataLoader(db),
                 span_projects=SpanProjectsDataLoader(db),
+                token_costs=TokenCostDataLoader(
+                    db,
+                    cache_map=cache_for_dataloaders.token_cost if cache_for_dataloaders else None,
+                ),
                 token_counts=TokenCountDataLoader(
                     db,
                     cache_map=cache_for_dataloaders.token_count if cache_for_dataloaders else None,

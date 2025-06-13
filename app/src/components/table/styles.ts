@@ -149,5 +149,6 @@ export function getCommonPinningStyles<Row>(
     position: isPinned ? "sticky" : "relative",
     width: column.getSize(),
     zIndex: isPinned ? 1 : 0,
+    backgroundColor: isPinned ? "var(--ac-global-color-grey-100)" : undefined,
   };
 }

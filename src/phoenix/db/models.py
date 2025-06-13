@@ -7,6 +7,7 @@ from sqlalchemy import (
     JSON,
     NUMERIC,
     TIMESTAMP,
+    Boolean,
     CheckConstraint,
     ColumnElement,
     Dialect,
@@ -685,6 +686,7 @@ class Span(Base):
     span_annotations: Mapped[list["SpanAnnotation"]] = relationship(back_populates="span")
     document_annotations: Mapped[list["DocumentAnnotation"]] = relationship(back_populates="span")
     dataset_examples: Mapped[list["DatasetExample"]] = relationship(back_populates="span")
+    span_cost: Mapped[Optional["SpanCost"]] = relationship(back_populates="span")
 
     __table_args__ = (
         UniqueConstraint(
@@ -1303,6 +1305,51 @@ class ApiKey(Base):
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
+CostType: TypeAlias = Literal["DEFAULT", "OVERRIDE"]
+
+
+class Model(Base):
+    __tablename__ = "models"
+    name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    provider: Mapped[Optional[str]]
+    name_pattern: Mapped[str] = mapped_column(String, nullable=False)
+    is_override: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    costs: Mapped[list["ModelCost"]] = relationship(
+        "ModelCost",
+        back_populates="model",
+    )
+
+
+class ModelCost(Base):
+    __tablename__ = "model_costs"
+    model_id: Mapped[int] = mapped_column(
+        ForeignKey("models.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    token_type: Mapped[str] = mapped_column(String, nullable=False)
+    cost_per_token: Mapped[float] = mapped_column(Float, nullable=False)
+
+    model: Mapped["Model"] = relationship("Model", back_populates="costs")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "model_id",
+            "token_type",
+        ),
+    )
+
+
 class PromptLabel(Base):
     __tablename__ = "prompt_labels"
 
@@ -1476,3 +1523,70 @@ class ProjectAnnotationConfig(Base):
     )
 
     __table_args__ = (UniqueConstraint("project_id", "annotation_config_id"),)
+
+
+class SpanCost(Base):
+    __tablename__ = "span_costs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    span_id: Mapped[int] = mapped_column(
+        ForeignKey("spans.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    model_id: Mapped[int] = mapped_column(
+        ForeignKey("models.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    prompt_token_cost: Mapped[Optional[float]] = mapped_column(
+        Float,
+        nullable=True,
+        index=True,
+    )
+    completion_token_cost: Mapped[Optional[float]] = mapped_column(
+        Float,
+        nullable=True,
+        index=True,
+    )
+    input_token_cost: Mapped[Optional[float]] = mapped_column(
+        Float,
+        nullable=True,
+        index=True,
+    )
+    output_token_cost: Mapped[Optional[float]] = mapped_column(
+        Float,
+        nullable=True,
+        index=True,
+    )
+    cache_read_token_cost: Mapped[Optional[float]] = mapped_column(
+        Float,
+        nullable=True,
+        index=True,
+    )
+    cache_write_token_cost: Mapped[Optional[float]] = mapped_column(
+        Float,
+        nullable=True,
+        index=True,
+    )
+    prompt_audio_token_cost: Mapped[Optional[float]] = mapped_column(
+        Float,
+        nullable=True,
+        index=True,
+    )
+    completion_audio_token_cost: Mapped[Optional[float]] = mapped_column(
+        Float,
+        nullable=True,
+        index=True,
+    )
+    reasoning_token_cost: Mapped[Optional[float]] = mapped_column(
+        Float,
+        nullable=True,
+        index=True,
+    )
+    total_token_cost: Mapped[float] = mapped_column(
+        Float,
+        nullable=False,
+        index=True,
+    )
+
+    span: Mapped["Span"] = relationship("Span", back_populates="span_cost")

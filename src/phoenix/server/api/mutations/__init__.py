@@ -8,6 +8,7 @@ from phoenix.server.api.mutations.chat_mutations import (
 from phoenix.server.api.mutations.dataset_mutations import DatasetMutationMixin
 from phoenix.server.api.mutations.experiment_mutations import ExperimentMutationMixin
 from phoenix.server.api.mutations.export_events_mutations import ExportEventsMutationMixin
+from phoenix.server.api.mutations.model_mutations import ModelMutationMixin
 from phoenix.server.api.mutations.project_mutations import ProjectMutationMixin
 from phoenix.server.api.mutations.project_trace_retention_policy_mutations import (
     ProjectTraceRetentionPolicyMutationMixin,
@@ -29,6 +30,7 @@ class Mutation(
     DatasetMutationMixin,
     ExperimentMutationMixin,
     ExportEventsMutationMixin,
+    ModelMutationMixin,
     ProjectMutationMixin,
     ProjectTraceRetentionPolicyMutationMixin,
     PromptMutationMixin,

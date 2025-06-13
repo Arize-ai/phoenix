@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<51de0999cfddf167080b939dc6c1769e>>
+ * @generated SignedSource<<9af3c5a6f1cdc56bac251edb82a66852>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -147,6 +147,38 @@ return {
                 "storageKey": null
               },
               {
+                "alias": null,
+                "args": (v4/*: any*/),
+                "concreteType": "TokenCost",
+                "kind": "LinkedField",
+                "name": "tokenCost",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "total",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "prompt",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "completion",
+                    "storageKey": null
+                  }
+                ],
+                "storageKey": null
+              },
+              {
                 "alias": "latencyMsP50",
                 "args": [
                   {
@@ -198,16 +230,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "07dd4c3e5140047af720772d246e2f4c",
+    "cacheID": "34a13d5674e884247015bf661c37d36b",
     "id": null,
     "metadata": {},
     "name": "ProjectPageHeaderQuery",
     "operationKind": "query",
-    "text": "query ProjectPageHeaderQuery(\n  $timeRange: TimeRange\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectPageHeader_stats\n    id\n  }\n}\n\nfragment ProjectPageHeader_stats on Project {\n  traceCount(timeRange: $timeRange)\n  tokenCountTotal(timeRange: $timeRange)\n  tokenCountPrompt(timeRange: $timeRange)\n  tokenCountCompletion(timeRange: $timeRange)\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n  spanAnnotationNames\n  documentEvaluationNames\n  id\n}\n"
+    "text": "query ProjectPageHeaderQuery(\n  $timeRange: TimeRange\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectPageHeader_stats\n    id\n  }\n}\n\nfragment ProjectPageHeader_stats on Project {\n  traceCount(timeRange: $timeRange)\n  tokenCountTotal(timeRange: $timeRange)\n  tokenCountPrompt(timeRange: $timeRange)\n  tokenCountCompletion(timeRange: $timeRange)\n  tokenCost(timeRange: $timeRange) {\n    total\n    prompt\n    completion\n  }\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n  spanAnnotationNames\n  documentEvaluationNames\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e110b84031cc6bfa6bb37751b9c69765";
+(node as any).hash = "5f0616b6454b92daf384c1b769ebbbdc";
 
 export default node;
