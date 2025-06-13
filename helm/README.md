@@ -115,7 +115,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | postgresql.primary.persistentVolumeClaimRetentionPolicy.whenDeleted | string | `"Retain"` | Volume retention behavior that applies when the StatefulSet is deleted |
 | postgresql.primary.persistentVolumeClaimRetentionPolicy.whenScaled | string | `"Retain"` | Volume retention behavior when the replica count of the StatefulSet is reduced |
 | postgresql.primary.service.ports.postgresql | string | `"5432"` | Port to run postgres service on |
-| replicaCount | int | `2` | Number of Phoenix pod replicas (set to 2+ for zero downtime updates) |
+| replicaCount | int | `1` | Number of Phoenix pod replicas |
 | server.annotations | object | `{}` | Annotations to add to the Phoenix service |
 | server.enablePrometheus | bool | `false` | Enable Prometheus metrics endpoint on port 9090 |
 | server.grpcPort | int | `4317` | Port for OpenTelemetry gRPC collector (PHOENIX_GRPC_PORT) |
