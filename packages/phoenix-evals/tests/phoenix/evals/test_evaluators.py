@@ -33,7 +33,7 @@ def test_llm_evaluator_evaluate_outputs_label_when_model_produces_expected_outpu
             "input": "What is the capital of California?",
             "reference": "Sacramento is the capital of California.",
         },
-        use_function_calling_if_available=False,
+        use_tool_calling_if_available=False,
     )
     assert label == "relevant"
     assert math.isclose(score, 1.0)
@@ -50,7 +50,7 @@ def test_llm_evaluator_evaluate_outputs_not_parseable_when_model_produces_unexpe
             "input": "What is the capital of California?",
             "reference": "Sacramento is the capital of California.",
         },
-        use_function_calling_if_available=False,
+        use_tool_calling_if_available=False,
     )
     assert label == NOT_PARSABLE
     assert math.isclose(score, 0.0)
@@ -69,7 +69,7 @@ def test_llm_evaluator_evaluate_outputs_label_and_explanation_when_model_produce
             "reference": "Sacramento is the capital of California.",
         },
         provide_explanation=True,
-        use_function_calling_if_available=False,
+        use_tool_calling_if_available=False,
     )
     assert label == "relevant"
     assert math.isclose(score, 1.0)
@@ -88,7 +88,7 @@ def test_llm_evaluator_evaluate_outputs_not_parseable_and_raw_response_when_outp
             "reference": "Sacramento is the capital of California.",
         },
         provide_explanation=True,
-        use_function_calling_if_available=False,
+        use_tool_calling_if_available=False,
     )
     assert label == NOT_PARSABLE
     assert math.isclose(score, 0.0)
@@ -107,7 +107,7 @@ def test_llm_evaluator_evaluate_outputs_not_parseable_and_raw_response_for_unpar
             "reference": "Sacramento is the capital of California.",
         },
         provide_explanation=True,
-        use_function_calling_if_available=False,
+        use_tool_calling_if_available=False,
     )
     assert label == NOT_PARSABLE
     assert math.isclose(score, 0.0)
@@ -124,7 +124,7 @@ def test_llm_evaluator_evaluate_outputs_label_when_called_with_function_call(
             "input": "What is the capital of California?",
             "reference": "Sacramento is the capital of California.",
         },
-        use_function_calling_if_available=True,
+        use_tool_calling_if_available=True,
     )
     assert label == "relevant"
     assert math.isclose(score, 1.0)
@@ -160,7 +160,7 @@ def test_llm_evaluator_evaluate_makes_best_effort_attempt_to_parse_invalid_funct
             "input": "What is the capital of California?",
             "reference": "Sacramento is the capital of California.",
         },
-        use_function_calling_if_available=True,
+        use_tool_calling_if_available=True,
     )
     assert label == "relevant"
     assert math.isclose(score, 1.0)
@@ -210,7 +210,7 @@ def test_evaluator_evaluate_outputs_expected_label_when_model_produces_expected_
             "reference": "reference-text",
             "output": "output-text",
         },
-        use_function_calling_if_available=False,
+        use_tool_calling_if_available=False,
     )
     assert label == expected_label
     assert math.isclose(score, 1.0)
@@ -232,7 +232,7 @@ def test_llm_evaluator_evaluate_outputs_score_as_zero_with_custom_template_witho
             "input": "What is the capital of California?",
             "reference": "Sacramento is the capital of California.",
         },
-        use_function_calling_if_available=False,
+        use_tool_calling_if_available=False,
     )
     assert label == "relevant"
     assert math.isclose(score, 0.0)
