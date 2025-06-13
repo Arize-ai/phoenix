@@ -72,7 +72,20 @@ prompt = client.prompts.create(
 )
 
 # Retrieve and use prompts
-prompt = client.prompts.get(prompt_identifier="my-prompt")
+prompt = client.prompts.get(prompt_identifier="article-bullet-summarizer")
+
+# Format the prompt with variables
+prompt_vars = {
+    "topic": "Sports",
+    "article": "Moises Henriques, the Australian all-rounder, has signed to play for Surrey in this summer's NatWest T20 Blast. He will join after the IPL and is expected to strengthen the squad throughout the campaign."
+}
+formatted_prompt = prompt.format(variables=prompt_vars)
+
+# Make a request with your Prompt using OpenAI
+from openai import OpenAI
+oai_client = OpenAI()
+resp = oai_client.chat.completions.create(**formatted_prompt)
+print(resp.choices[0].message.content)
 ```
 
 ### Spans Resource
