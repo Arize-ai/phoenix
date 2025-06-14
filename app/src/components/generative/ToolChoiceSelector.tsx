@@ -33,6 +33,7 @@ export const DEFAULT_TOOL_CHOICES_BY_PROVIDER = {
   XAI: ["required", "auto", "none"] as const,
   OLLAMA: ["required", "auto", "none"] as const,
   ANTHROPIC: ["any", "auto", "none"] as const,
+  BEDROCK: ["required", "auto", "none"] as const,
 } satisfies Partial<
   Record<ModelProvider, (string | Record<string, unknown>)[]>
 >;
@@ -55,6 +56,7 @@ export const findToolChoiceType = (
     case "DEEPSEEK":
     case "XAI":
     case "OLLAMA":
+    case "BEDROCK":
     case "OPENAI":
       if (
         isObject(choice) &&
@@ -238,6 +240,7 @@ export function ToolChoiceSelector<
             case "DEEPSEEK":
             case "XAI":
             case "OLLAMA":
+            case "BEDROCK":
             case "OPENAI":
               onChange(
                 makeOpenAIToolChoice({
@@ -265,6 +268,7 @@ export function ToolChoiceSelector<
             case "DEEPSEEK":
             case "XAI":
             case "OLLAMA":
+            case "BEDROCK":
             case "OPENAI":
               onChange(
                 makeOpenAIToolChoice(

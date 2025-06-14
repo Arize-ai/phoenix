@@ -142,6 +142,7 @@ container = [
   "fast-hdbscan>=0.2.0",
   "numba>=0.60.0",  # https://github.com/astral-sh/uv/issues/6281
   "umap-learn",
+  "boto3",
 ]
 test = [
 ]
