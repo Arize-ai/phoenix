@@ -1,5 +1,12 @@
 # Changelog
 
+## [10.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.12.0...arize-phoenix-v10.13.0) (2025-06-14)
+
+
+### Features
+
+* **helm:** enhanced service configurability and docs ([#8063](https://github.com/Arize-ai/phoenix/issues/8063)) ([15dfe28](https://github.com/Arize-ai/phoenix/commit/15dfe2828ac8df69c09b646fc7ce9a8cadb65f52))
+
 ## [10.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.11.0...arize-phoenix-v10.12.0) (2025-06-13)
 
 
