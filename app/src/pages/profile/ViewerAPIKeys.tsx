@@ -53,7 +53,10 @@ export function ViewerAPIKeys({
         },
         onCompleted: (response) => {
           setDialog(
-            <OneTimeAPIKeyDialog jwt={response.createUserApiKey.jwt} />
+            <OneTimeAPIKeyDialog
+              jwt={response.createUserApiKey.jwt}
+              onClose={() => setDialog(null)}
+            />
           );
         },
         onError: (error) => {
@@ -80,6 +83,7 @@ export function ViewerAPIKeys({
               <CreateAPIKeyDialog
                 onSubmit={onSubmit}
                 isCommitting={isCommitting}
+                onClose={() => setDialog(null)}
               />
             )
           }

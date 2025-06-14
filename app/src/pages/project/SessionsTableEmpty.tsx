@@ -1,37 +1,64 @@
-import { ReactNode, useState } from "react";
+import { useState } from "react";
 import { css } from "@emotion/react";
 
-import { Dialog, DialogContainer } from "@arizeai/components";
-
-import { Button, Flex, Icon, Icons, View } from "@phoenix/components";
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+  DialogTrigger,
+  Flex,
+  Icon,
+  Icons,
+  Modal,
+  ModalOverlay,
+  View,
+} from "@phoenix/components";
 import { CodeLanguage, CodeLanguageRadioGroup } from "@phoenix/components/code";
 
 import { PythonSessionsGuide } from "./PythonSessionsGuide";
 import { TypeScriptSessionsGuide } from "./TypeScriptSessionsGuide";
 
-function SetupSessionsDialog() {
+function SetupSessionsDialog({ onDismiss }: { onDismiss: () => void }) {
   const [language, setLanguage] = useState<CodeLanguage>("Python");
   return (
-    <Dialog title="Setup Sessions for this Project" size="L">
-      <View padding="size-400" overflow="auto">
-        <View paddingBottom="size-100">
-          <CodeLanguageRadioGroup language={language} onChange={setLanguage} />
+    <Dialog>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Setup Sessions for this Project</DialogTitle>
+          <DialogTitleExtra>
+            <Button
+              size="S"
+              data-testid="dialog-close-button"
+              leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
+              onPress={onDismiss}
+              type="button"
+              variant="default"
+            />
+          </DialogTitleExtra>
+        </DialogHeader>
+        <View padding="size-400" overflow="auto">
+          <View paddingBottom="size-100">
+            <CodeLanguageRadioGroup
+              language={language}
+              onChange={setLanguage}
+            />
+          </View>
+          {language === "Python" ? (
+            <PythonSessionsGuide />
+          ) : (
+            <TypeScriptSessionsGuide />
+          )}
         </View>
-        {language === "Python" ? (
-          <PythonSessionsGuide />
-        ) : (
-          <TypeScriptSessionsGuide />
-        )}
-      </View>
+      </DialogContent>
     </Dialog>
   );
 }
-export function SessionsTableEmpty() {
-  const [dialog, setDialog] = useState<ReactNode | null>(null);
 
-  const onGettingStartedPress = () => {
-    setDialog(<SetupSessionsDialog />);
-  };
+export function SessionsTableEmpty() {
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
     <tbody className="is-empty">
@@ -46,22 +73,27 @@ export function SessionsTableEmpty() {
         >
           <Flex direction="column" gap="size-200" alignItems="center">
             No sessions found for this project
-            <Button
-              leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
-              onPress={onGettingStartedPress}
-            >
-              Setup Sessions
-            </Button>
+            <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
+              <Button
+                leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+              >
+                Setup Sessions
+              </Button>
+              <ModalOverlay>
+                <Modal
+                  variant="slideover"
+                  size="L"
+                  css={css`
+                    width: 70vw !important;
+                  `}
+                >
+                  <SetupSessionsDialog onDismiss={() => setIsOpen(false)} />
+                </Modal>
+              </ModalOverlay>
+            </DialogTrigger>
           </Flex>
         </td>
       </tr>
-      <DialogContainer
-        onDismiss={() => setDialog(null)}
-        isDismissable
-        type="slideOver"
-      >
-        {dialog}
-      </DialogContainer>
     </tbody>
   );
 }

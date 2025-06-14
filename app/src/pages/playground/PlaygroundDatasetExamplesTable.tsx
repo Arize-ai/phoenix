@@ -285,6 +285,7 @@ function ExampleOutputContent({
                     setDialog(
                       <PlaygroundExperimentRunDetailsDialog
                         runId={experimentRunId}
+                        onDismiss={() => setDialog(null)}
                       />
                     );
                   });

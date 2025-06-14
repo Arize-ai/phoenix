@@ -1,6 +1,6 @@
-import { ReactNode, Suspense, useState } from "react";
+import { Suspense, useState } from "react";
 
-import { DialogContainer, Tooltip, TooltipTrigger } from "@arizeai/components";
+import { Tooltip, TooltipTrigger } from "@arizeai/components";
 
 import { Button, Icon, Icons } from "@phoenix/components";
 
@@ -8,7 +8,8 @@ import { DatasetHistoryDialog } from "./DatasetHistoryDialog";
 
 export function DatasetHistoryButton(props: { datasetId: string }) {
   const { datasetId } = props;
-  const [dialog, setDialog] = useState<ReactNode>(null);
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
     <>
       <TooltipTrigger>
@@ -16,22 +17,16 @@ export function DatasetHistoryButton(props: { datasetId: string }) {
           size="S"
           leadingVisual={<Icon svg={<Icons.ClockOutline />} />}
           aria-label="Version History"
-          onPress={() => {
-            setDialog(<DatasetHistoryDialog datasetId={datasetId} />);
-          }}
+          onPress={() => setIsOpen(true)}
         />
         <Tooltip>Dataset Version History</Tooltip>
       </TooltipTrigger>
       <Suspense fallback={null}>
-        <DialogContainer
-          type="modal"
-          isDismissable
-          onDismiss={() => {
-            setDialog(null);
-          }}
-        >
-          {dialog}
-        </DialogContainer>
+        <DatasetHistoryDialog
+          datasetId={datasetId}
+          isOpen={isOpen}
+          onOpenChange={setIsOpen}
+        />
       </Suspense>
     </>
   );
