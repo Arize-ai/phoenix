@@ -113,7 +113,7 @@ def _span_ids(
     # Use more retries and longer timeouts for CI environments, especially with PostgreSQL
     is_ci = os.environ.get("CI") == "true"
     is_postgresql = os.environ.get("CI_TEST_DB_BACKEND") == "postgresql"
-    
+
     if is_ci and is_postgresql:
         # CI with PostgreSQL needs more time, but not excessive
         retries = 30  # About 30 seconds max
