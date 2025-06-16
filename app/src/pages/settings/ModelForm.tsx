@@ -21,7 +21,6 @@ import {
   getProviderName,
   getSemConvProvider,
 } from "@phoenix/utils/generativeUtils";
-import { GenerativeProviderKey } from "./__generated__/ModelsTable_models.graphql";
 
 export type ModelFormParams = {
   name: string;

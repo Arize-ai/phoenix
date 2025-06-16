@@ -1,5 +1,6 @@
-import { assertUnreachable } from "@phoenix/typeUtils";
 import { LLMProvider } from "@arizeai/openinference-semantic-conventions";
+
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 /**
  * A TypeGuard to ensure that a string is a valid ModelProvider

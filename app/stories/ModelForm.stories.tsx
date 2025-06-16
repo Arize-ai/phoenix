@@ -28,7 +28,7 @@ const meta: Meta<typeof ModelForm> = {
       control: "text",
       description: "The name of the model",
     },
-    modelProviderKey: {
+    modelProvider: {
       control: "text",
       description: "The provider that offers this model",
     },
@@ -57,7 +57,7 @@ export const CreateEmpty: Story = {
     formMode: "create",
     submitButtonText: "Create Model",
     modelName: null,
-    modelProviderKey: null,
+    modelProvider: null,
     modelNamePattern: null,
     modelCost: null,
   },
@@ -72,7 +72,7 @@ export const CreateWithDefaults: Story = {
     formMode: "create",
     submitButtonText: "Create Model",
     modelName: "gpt-4-turbo",
-    modelProviderKey: "OPENAI",
+    modelProvider: "openai",
     modelNamePattern: "^gpt-4-turbo.*",
     modelCost: {
       input: 0.00001,
@@ -94,7 +94,7 @@ export const EditExistingModel: Story = {
     formMode: "edit",
     submitButtonText: "Update Model",
     modelName: "claude-3-sonnet",
-    modelProviderKey: "ANTHROPIC",
+    modelProvider: "anthropic",
     modelNamePattern: "^claude-3-sonnet.*",
     modelCost: {
       input: 0.000003,
@@ -116,7 +116,7 @@ export const EditWithAllCosts: Story = {
     formMode: "edit",
     submitButtonText: "Update Model",
     modelName: "gpt-4o-audio-preview",
-    modelProviderKey: "OPENAI",
+    modelProvider: "openai",
     modelNamePattern: "^gpt-4o-audio.*",
     modelCost: {
       input: 0.0025,
@@ -139,7 +139,7 @@ export const SubmittingState: Story = {
     submitButtonText: "Updating...",
     isSubmitting: true,
     modelName: "gemini-pro",
-    modelProviderKey: "GOOGLE",
+    modelProvider: "google",
     modelNamePattern: "^gemini-pro.*",
     modelCost: {
       input: 0.000125,
@@ -161,11 +161,33 @@ export const MinimalRequired: Story = {
     formMode: "create",
     submitButtonText: "Create Model",
     modelName: "mistral-7b",
-    modelProviderKey: null,
+    modelProvider: null,
     modelNamePattern: "mistral.*",
     modelCost: {
       input: 0.00000025,
       output: 0.00000025,
+      cacheRead: null,
+      cacheWrite: null,
+      promptAudio: null,
+      completionAudio: null,
+    },
+  },
+};
+
+/**
+ * Form with a custom provider not in the standard list.
+ */
+export const CustomProvider: Story = {
+  name: "Custom Provider",
+  args: {
+    formMode: "create",
+    submitButtonText: "Create Model",
+    modelName: "llama-3-70b",
+    modelProvider: "together_ai",
+    modelNamePattern: "^llama-3-70b.*",
+    modelCost: {
+      input: 0.0009,
+      output: 0.0009,
       cacheRead: null,
       cacheWrite: null,
       promptAudio: null,
