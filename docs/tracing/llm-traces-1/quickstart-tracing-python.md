@@ -41,7 +41,7 @@ Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](
 import os
 
 # Update this with your self-hosted endpoint
-PHOENIX_ENDPOINT = "http://0.0.0.0:6006/v1/traces"
+PHOENIX_ENDPOINT = "http://localhost:6006"
 ```
 
 {% hint style="warning" %}
@@ -52,7 +52,7 @@ Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](
 
 ## Connect to Phoenix <a href="#connect-your-app" id="connect-your-app"></a>
 
-To collect traces from your application, you must configure an OpenTelemetry TracerProvider to send traces to Phoenix.&#x20;
+To collect traces from your application, you must configure an OpenTelemetry TracerProvider to send traces to Phoenix.
 
 ```bash
 pip install arize-phoenix-otel
