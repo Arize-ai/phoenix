@@ -326,8 +326,27 @@ class Project(Node):
         after: Optional[CursorString] = UNSET,
         sort: Optional[ProjectSessionSort] = UNSET,
         filter_io_substring: Optional[str] = UNSET,
+        session_id: Optional[str] = UNSET,
     ) -> Connection[ProjectSession]:
         table = models.ProjectSession
+        if session_id:
+            async with info.context.db() as session:
+                ans = await session.scalar(
+                    select(table).filter_by(
+                        session_id=session_id,
+                        project_id=self.project_rowid,
+                    )
+                )
+            if ans:
+                return connection_from_list(
+                    data=[to_gql_project_session(ans)],
+                    args=ConnectionArgs(),
+                )
+            elif not filter_io_substring:
+                return connection_from_list(
+                    data=[],
+                    args=ConnectionArgs(),
+                )
         stmt = select(table).filter_by(project_id=self.project_rowid)
         if time_range:
             if time_range.start:
@@ -335,9 +354,9 @@ class Project(Node):
             if time_range.end:
                 stmt = stmt.where(table.start_time < time_range.end)
         if filter_io_substring:
-            filter_subq = (
-                stmt.with_only_columns(distinct(table.id).label("id"))
-                .join_from(table, models.Trace)
+            filter_stmt = (
+                select(distinct(models.Trace.project_session_rowid).label("id"))
+                .filter_by(project_rowid=self.project_rowid)
                 .join_from(models.Trace, models.Span)
                 .where(models.Span.parent_id.is_(None))
                 .where(
@@ -352,7 +371,13 @@ class Project(Node):
                         ),
                     )
                 )
-            ).subquery()
+            )
+            if time_range:
+                if time_range.start:
+                    filter_stmt = filter_stmt.where(time_range.start <= models.Trace.start_time)
+                if time_range.end:
+                    filter_stmt = filter_stmt.where(models.Trace.start_time < time_range.end)
+            filter_subq = filter_stmt.subquery()
             stmt = stmt.join(filter_subq, table.id == filter_subq.c.id)
         if sort:
             key: ColumnElement[Any]

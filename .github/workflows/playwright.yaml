@@ -28,7 +28,8 @@ jobs:
       fail-fast: true
       matrix:
         py: [3.13]
-        os: [ubuntu-latest, macos-latest]
+        # large runners have more disk space, which we need for our in-runner phoenix db
+        os: [oss-4-core-runner, macos-latest-large]
     steps:
       - uses: actions/checkout@v4
       - name: Install PNPM
@@ -60,20 +61,19 @@ jobs:
         if: ${{ env.CI_PLAYWRIGHT_SKIP_WEBKIT != 'true' && steps.playwright-cache.outputs.cache-hit == 'true' }}
         run: pnpm exec playwright install-deps webkit
       - name: Build the app
-        run: pnpm run build
+        run: NODE_ENV=test pnpm run build
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py }}
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@v6
         with:
-          version: 0.6.3
+          version: 0.7.12
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - run: uv pip install --system uvloop
         if: runner.os != 'Windows'
-      - run: uv pip install --system ../.
-      - run: uv pip list
+      - run: uv sync --extra container
       - name: Run Playwright tests
         run: pnpm exec playwright test
       - uses: actions/upload-artifact@v4

@@ -4,7 +4,7 @@ from typing import Any, Optional
 
 from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.sdk import trace
-from opentelemetry.sdk.resources import Resource  # type: ignore[attr-defined]
+from opentelemetry.sdk.resources import Resource
 from wrapt import wrap_function_wrapper
 
 

@@ -94,7 +94,12 @@ function DatasetsTableWithSearch({
 
   return (
     <>
-      <View padding="size-200" flex="none">
+      <View
+        padding="size-200"
+        flex="none"
+        borderBottomWidth="thin"
+        borderBottomColor="dark"
+      >
         <DatasetsSearch onChange={setFilter} value={filter} />
       </View>
       <DatasetsTable query={query} filter={filter} />

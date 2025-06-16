@@ -8,7 +8,7 @@ smolagents is a minimalist AI agent framework developed by Hugging Face, designe
 
 Phoenix provides auto-instrumentation, allowing you to track and visualize every step and call made by your agent.
 
-{% embed url="https://colab.research.google.com/drive/1nXcsy-u2qX8OEWk2SElXIgHgLqMttE9_?usp=sharing" %}
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/smolagents_tracing_tutorial.ipynb" %}
 
 ## Launch Phoenix
 
@@ -152,32 +152,21 @@ Create your Hugging Face Model, and at every run, traces will be sent to Phoenix
 ```python
 from smolagents import (
     CodeAgent,
+    InferenceClientModel,
     ToolCallingAgent,
-    ManagedAgent,
-    DuckDuckGoSearchTool,
     VisitWebpageTool,
-    HfApiModel,
+    WebSearchTool,
 )
 
-model = HfApiModel()
+model = InferenceClientModel()
 
-agent = ToolCallingAgent(
+managed_agent = ToolCallingAgent(
     tools=[DuckDuckGoSearchTool(), VisitWebpageTool()],
     model=model,
-)
-managed_agent = ManagedAgent(
-    agent=agent,
     name="managed_agent",
     description="This is an agent that can do web search.",
 )
-manager_agent = CodeAgent(
-    tools=[],
-    model=model,
-    managed_agents=[managed_agent],
-)
-manager_agent.run(
-    "If the US keeps its 2024 growth rate, how many years will it take for the GDP to double?"
-)
+manager_agent.run("Based on the latest news, what is happening in extraterrestrial life?")
 ```
 
 ## Observe

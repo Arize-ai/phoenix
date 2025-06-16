@@ -39,6 +39,11 @@ class CreateProjectRequestBody(TypedDict):
     description: NotRequired[str]
 
 
+class CreateSpansResponseBody(TypedDict):
+    total_received: int
+    total_queued: int
+
+
 class Dataset(TypedDict):
     id: str
     name: str
@@ -248,7 +253,7 @@ class PromptGoogleInvocationParametersContent(TypedDict):
     top_k: NotRequired[int]
 
 
-class PromptOpenAIInvocationParametersContent(TypedDict):
+class PromptOllamaInvocationParametersContent(TypedDict):
     temperature: NotRequired[float]
     max_tokens: NotRequired[int]
     max_completion_tokens: NotRequired[int]
@@ -259,7 +264,7 @@ class PromptOpenAIInvocationParametersContent(TypedDict):
     reasoning_effort: NotRequired[Literal["low", "medium", "high"]]
 
 
-class PromptOllamaInvocationParametersContent(TypedDict):
+class PromptOpenAIInvocationParametersContent(TypedDict):
     temperature: NotRequired[float]
     max_tokens: NotRequired[int]
     max_completion_tokens: NotRequired[int]
@@ -534,14 +539,14 @@ class PromptGoogleInvocationParameters(TypedDict):
     google: PromptGoogleInvocationParametersContent
 
 
-class PromptOpenAIInvocationParameters(TypedDict):
-    type: Literal["openai"]
-    openai: PromptOpenAIInvocationParametersContent
-
-
 class PromptOllamaInvocationParameters(TypedDict):
     type: Literal["ollama"]
     ollama: PromptOllamaInvocationParametersContent
+
+
+class PromptOpenAIInvocationParameters(TypedDict):
+    type: Literal["openai"]
+    openai: PromptOpenAIInvocationParametersContent
 
 
 class PromptResponseFormatJSONSchema(TypedDict):
@@ -574,13 +579,13 @@ class PromptXAIInvocationParameters(TypedDict):
 
 
 class Span(TypedDict):
-    id: str
     name: str
     context: SpanContext
     span_kind: str
     start_time: str
     end_time: str
     status_code: str
+    id: NotRequired[str]
     parent_id: NotRequired[str]
     status_message: NotRequired[str]
     attributes: NotRequired[Mapping[str, Any]]
@@ -609,7 +614,7 @@ class SpanAnnotationsResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
-class SpanSearchResponseBody(TypedDict):
+class SpansResponseBody(TypedDict):
     data: Sequence[Span]
     next_cursor: Optional[str]
 
@@ -630,6 +635,10 @@ class UpsertExperimentEvaluationResponseBody(TypedDict):
 
 class AnnotateSpansRequestBody(TypedDict):
     data: Sequence[SpanAnnotationData]
+
+
+class CreateSpansRequestBody(TypedDict):
+    data: Sequence[Span]
 
 
 class PromptAnthropicInvocationParameters(TypedDict):
@@ -750,6 +759,6 @@ class OtlpSpan(TypedDict):
     trace_state: NotRequired[str]
 
 
-class OtlpSpanSearchResponseBody(TypedDict):
+class OtlpSpansResponseBody(TypedDict):
     data: Sequence[OtlpSpan]
     next_cursor: Optional[str]

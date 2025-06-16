@@ -1,5 +1,31 @@
 # Changelog
 
+## [10.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.11.0...arize-phoenix-v10.12.0) (2025-06-13)
+
+
+### Features
+
+* Add `log_spans` to client and REST API ([#8005](https://github.com/Arize-ai/phoenix/issues/8005)) ([5a838ab](https://github.com/Arize-ai/phoenix/commit/5a838abf587db2ae707e39b1eca9d93c0c83323d))
+* allow filtering of sessions by session_id ([#8038](https://github.com/Arize-ai/phoenix/issues/8038)) ([565ab78](https://github.com/Arize-ai/phoenix/commit/565ab788cdafe600aeb3f4ea8cd0cdf513f7250c))
+* **helm:** enable zero downtime rollouts ([#8072](https://github.com/Arize-ai/phoenix/issues/8072)) ([ca3547c](https://github.com/Arize-ai/phoenix/commit/ca3547cf294bd027eeea0031f50b54f3480aa2d8))
+
+
+### Bug Fixes
+
+* **playground:** stream processing should not skip the rest of a chunk if usage is present ([#8090](https://github.com/Arize-ai/phoenix/issues/8090)) ([f588ce5](https://github.com/Arize-ai/phoenix/commit/f588ce54ca665e7f310d760099ce69b3a4bf238b))
+
+## [10.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.10.0...arize-phoenix-v10.11.0) (2025-06-12)
+
+
+### Features
+
+* dataset-filter ([#7982](https://github.com/Arize-ai/phoenix/issues/7982)) ([d576f73](https://github.com/Arize-ai/phoenix/commit/d576f7342d8f48bb51cc09010d936579a7242c3a))
+
+
+### Bug Fixes
+
+* change session filter query to remove the join to `project_sessions` table ([#8028](https://github.com/Arize-ai/phoenix/issues/8028)) ([9132b80](https://github.com/Arize-ai/phoenix/commit/9132b8091266e89f19d0f71c45b19f3e25deaf6e))
+
 ## [10.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.9.2...arize-phoenix-v10.10.0) (2025-06-09)
 
 

@@ -1,7 +1,8 @@
+import json
 import logging
 from datetime import datetime, timezone, tzinfo
 from io import StringIO
-from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union, cast
+from typing import TYPE_CHECKING, Any, Iterable, Optional, Sequence, Union, cast
 
 import httpx
 
@@ -9,6 +10,8 @@ if TYPE_CHECKING:
     import pandas as pd
 
 from phoenix.client.__generated__ import v1
+from phoenix.client.exceptions import DuplicateSpanInfo, InvalidSpanInfo, SpanCreationError
+from phoenix.client.helpers.spans import dataframe_to_spans as _dataframe_to_spans
 from phoenix.client.types.spans import SpanQuery
 from phoenix.client.utils.id_handling import is_node_id
 
@@ -24,13 +27,48 @@ class Spans:
     Provides methods for interacting with span resources.
 
     Example:
-        Basic usage:
+        Non-DataFrame methods:
             >>> from phoenix.client import Client
-            >>> from phoenix.client.types.spans import SpanQuery
             >>> client = Client()
-            >>> query = SpanQuery().select("name", "span_id").where("name == 'my-span'")
+
+            # Get spans as list
+            >>> spans = client.spans.get_spans(
+            ...     project_identifier="my-project",
+            ...     limit=100
+            ... )
+
+            # Get span annotations as list
+            >>> annotations = client.spans.get_span_annotations(
+            ...     span_ids=["span1", "span2"],
+            ...     project_identifier="my-project"
+            ... )
+
+            # Log spans
+            >>> spans = [
+            ...     {
+            ...         "id": "1",
+            ...         "name": "test",
+            ...         "context": {"trace_id": "123", "span_id": "456"},
+            ...     }
+            ... ]
+            >>> result = client.spans.log_spans(
+            ...     project_identifier="my-project",
+            ...     spans=spans
+            ... )
+            >>> print(f"Queued {result['total_queued']} spans")
+
+        DataFrame methods:
+            >>> from phoenix.client.types.spans import SpanQuery
+
+            # Get spans as DataFrame
+            >>> query = SpanQuery().select(annotations["relevance"])
             >>> df = client.spans.get_spans_dataframe(query=query)
-            >>> all_spans_in_project = client.spans.get_spans_dataframe()
+
+            # Get span annotations as DataFrame
+            >>> annotations_df = client.spans.get_span_annotations_dataframe(
+            ...     span_ids=["span1", "span2"],
+            ...     project_identifier="my-project"
+            ... )
 
     """
 
@@ -68,7 +106,6 @@ class Spans:
 
         Raises:
             ImportError: If pandas is not installed
-            TimeoutError: If the request times out.
         """
         project_name = project_name
         query = query if query else SpanQuery()
@@ -111,21 +148,6 @@ class Spans:
                 timeout=timeout,
             )
             return _process_span_dataframe(response)
-        except httpx.TimeoutException as error:
-            error_message = (
-                (
-                    f"The request timed out after {timeout} seconds. The timeout can be increased "
-                    "by passing a larger value to the `timeout` parameter "
-                    "and can be disabled altogether by passing `None`."
-                )
-                if timeout is not None
-                else (
-                    "The request timed out. The timeout can be adjusted by "
-                    "passing a number of seconds to the `timeout` parameter "
-                    "and can be disabled altogether by passing `None`."
-                )
-            )
-            raise TimeoutError(error_message) from error
         except ImportError:
             raise ImportError(
                 "pandas is required to use get_spans_dataframe. "
@@ -402,7 +424,7 @@ class Spans:
             )
             response.raise_for_status()
             payload = response.json()
-            payload = cast(v1.SpanSearchResponseBody, payload)
+            payload = cast(v1.SpansResponseBody, payload)
 
             spans = payload["data"]
             all_spans.extend(spans)
@@ -413,18 +435,117 @@ class Spans:
 
         return all_spans[:limit]
 
+    def log_spans(
+        self,
+        *,
+        project_identifier: str,
+        spans: Sequence[v1.Span],
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> v1.CreateSpansResponseBody:
+        """
+        Logs spans to a project.
+
+        If any spans are invalid or duplicates, no spans will be logged and a
+        SpanCreationError will be raised with details about the failed spans.
+
+        Args:
+            project_identifier: The project identifier (name or ID) used in the API path.
+            spans: A sequence of Span objects to log.
+            timeout: Optional request timeout in seconds.
+
+        Returns:
+            A CreateSpansResponseBody with statistics about the operation. When successful,
+            total_queued will equal total_received.
+
+        Raises:
+            SpanCreationError: If any spans failed validation (invalid or duplicates).
+            httpx.HTTPStatusError: If the API returns an unexpected error response.
+            httpx.TimeoutException: If the request times out.
+        """
+        request_body = v1.CreateSpansRequestBody(data=list(spans))
+
+        response = self._client.post(
+            url=f"v1/projects/{project_identifier}/spans",
+            json=request_body,
+            headers={"accept": "application/json"},
+            timeout=timeout,
+        )
+
+        if response.status_code not in (400, 422):
+            response.raise_for_status()
+
+        result = _parse_log_spans_response(response, spans)
+        return result
+
+    def log_spans_dataframe(
+        self,
+        *,
+        project_identifier: str,
+        spans_dataframe: "pd.DataFrame",
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> v1.CreateSpansResponseBody:
+        """
+        Logs spans to a project from a pandas DataFrame.
+
+        If any spans are invalid or duplicates, no spans will be logged and a
+        SpanCreationError will be raised with details about the failed spans.
+
+        Args:
+            project_identifier: The project identifier (name or ID) used in the API path.
+            spans_dataframe: A pandas DataFrame with a `context.span_id` or `span_id` column.
+            timeout: Optional request timeout in seconds.
+        """
+        spans = _dataframe_to_spans(spans_dataframe)
+        return self.log_spans(project_identifier=project_identifier, spans=spans, timeout=timeout)
+
 
 class AsyncSpans:
     """
     Provides async methods for interacting with span resources.
 
     Example:
-        Basic usage:
+        Non-DataFrame methods:
             >>> from phoenix.client import AsyncClient
-            >>> from phoenix.client.types.spans import SpanQuery
             >>> client = AsyncClient()
-            >>> query = SpanQuery().select("name", "span_id").where("name == 'my-span'")
+
+            # Get spans as list
+            >>> spans = await client.spans.get_spans(
+            ...     project_identifier="my-project",
+            ...     limit=100
+            ... )
+
+            # Get span annotations as list
+            >>> annotations = await client.spans.get_span_annotations(
+            ...     span_ids=["span1", "span2"],
+            ...     project_identifier="my-project"
+            ... )
+
+            # Log spans
+            >>> spans = [
+            ...     {
+            ...         "id": "1",
+            ...         "name": "test",
+            ...         "context": {"trace_id": "123", "span_id": "456"},
+            ...     }
+            ... ]
+            >>> result = await client.spans.log_spans(
+            ...     project_identifier="my-project",
+            ...     spans=spans
+            ... )
+            >>> print(f"Queued {result['total_queued']} spans")
+
+        DataFrame methods:
+            >>> from phoenix.client.types.spans import SpanQuery
+
+            # Get spans as DataFrame
+            >>> query = SpanQuery().select(annotations["relevance"])
             >>> df = await client.spans.get_spans_dataframe(query=query)
+
+            # Get span annotations as DataFrame
+            >>> annotations_df = await client.spans.get_span_annotations_dataframe(
+            ...     span_ids=["span1", "span2"],
+            ...     project_identifier="my-project"
+            ... )
 
     """
 
@@ -462,7 +583,6 @@ class AsyncSpans:
 
         Raises:
             ImportError: If pandas is not installed
-            TimeoutError: If the request times out.
         """
         project_name = project_name
         query = query if query else SpanQuery()
@@ -506,21 +626,6 @@ class AsyncSpans:
             )
             await response.aread()
             return _process_span_dataframe(response)
-        except httpx.TimeoutException as error:
-            error_message = (
-                (
-                    f"The request timed out after {timeout} seconds. The timeout can be increased "
-                    "by passing a larger value to the `timeout` parameter "
-                    "and can be disabled altogether by passing `None`."
-                )
-                if timeout is not None
-                else (
-                    "The request timed out. The timeout can be adjusted by "
-                    "passing a number of seconds to the `timeout` parameter "
-                    "and can be disabled altogether by passing `None`."
-                )
-            )
-            raise TimeoutError(error_message) from error
         except ImportError:
             raise ImportError(
                 "pandas is required to use get_spans_dataframe. "
@@ -797,7 +902,7 @@ class AsyncSpans:
             )
             response.raise_for_status()
             payload = response.json()
-            payload = cast(v1.SpanSearchResponseBody, payload)
+            payload = cast(v1.SpansResponseBody, payload)
 
             spans = payload["data"]
             all_spans.extend(spans)
@@ -807,6 +912,75 @@ class AsyncSpans:
                 break
 
         return all_spans[:limit]
+
+    async def log_spans(
+        self,
+        *,
+        project_identifier: str,
+        spans: Sequence[v1.Span],
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> v1.CreateSpansResponseBody:
+        """
+        Logs spans to a project.
+
+        If any spans are invalid or duplicates, no spans will be logged and a
+        SpanCreationError will be raised with details about the failed spans.
+
+        Args:
+            project_identifier: The project identifier (name or ID) used in the API path.
+            spans: A sequence of Span objects to log.
+            timeout: Optional request timeout in seconds.
+
+        Returns:
+            A CreateSpansResponseBody with statistics about the operation. When successful,
+            total_queued will equal total_received.
+
+        Raises:
+            SpanCreationError: If any spans failed validation (invalid or duplicates).
+            httpx.HTTPStatusError: If the API returns an unexpected error response.
+            httpx.TimeoutException: If the request times out.
+        """
+        request_body = v1.CreateSpansRequestBody(data=list(spans))
+
+        response = await self._client.post(
+            url=f"v1/projects/{project_identifier}/spans",
+            json=request_body,
+            headers={"accept": "application/json"},
+            timeout=timeout,
+        )
+        if response.status_code not in (400, 422):
+            response.raise_for_status()
+        result = _parse_log_spans_response(response, spans)
+
+        return result
+
+    async def log_spans_dataframe(
+        self,
+        *,
+        project_identifier: str,
+        spans_dataframe: "pd.DataFrame",
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> v1.CreateSpansResponseBody:
+        """
+        Logs spans to a project from a pandas DataFrame.
+
+        If any spans are invalid or duplicates, no spans will be logged and a
+        SpanCreationError will be raised with details about the failed spans.
+
+        Args:
+            project_identifier: The project identifier (name or ID) used in the API path.
+            spans_dataframe: A pandas DataFrame with a `context.span_id` or `span_id` column.
+            timeout: Optional request timeout in seconds.
+
+        Returns:
+            A CreateSpansResponseBody with statistics about the operation. When successful,
+            total_queued will equal total_received.
+        """
+
+        spans = _dataframe_to_spans(spans_dataframe)
+        return await self.log_spans(
+            project_identifier=project_identifier, spans=spans, timeout=timeout
+        )
 
 
 def _to_iso_format(value: Optional[datetime]) -> Optional[str]:
@@ -881,4 +1055,140 @@ def _flatten_nested_column(df: "pd.DataFrame", column_name: str) -> "pd.DataFram
     return df
 
 
-class TimeoutError(Exception): ...
+def _format_log_spans_error_message(
+    *,
+    total_invalid: int,
+    total_duplicates: int,
+    invalid_spans: Sequence[InvalidSpanInfo],
+    duplicate_spans: Sequence[DuplicateSpanInfo],
+) -> str:
+    MAX_ERRORS_TO_SHOW = 5
+    error_parts: list[str] = []
+
+    if total_invalid > 0:
+        error_parts.append(f"Failed to queue {total_invalid} invalid spans:")
+        for invalid_span in invalid_spans[:MAX_ERRORS_TO_SHOW]:
+            span_id = invalid_span.get("span_id", "unknown")
+            error = invalid_span.get("error", "unknown error")
+            error_parts.append(f"  - Span {span_id}: {error}")
+        if len(invalid_spans) > MAX_ERRORS_TO_SHOW:
+            error_parts.append(
+                f"  ... and {len(invalid_spans) - MAX_ERRORS_TO_SHOW} more invalid spans"
+            )
+
+    if total_duplicates > 0:
+        if error_parts:
+            error_parts.append("")  # Add blank line
+        error_parts.append(f"Found {total_duplicates} duplicate spans:")
+        for dup_span in duplicate_spans[:MAX_ERRORS_TO_SHOW]:
+            span_id = dup_span.get("span_id", "unknown")
+            error_parts.append(f"  - Span {span_id}")
+        if len(duplicate_spans) > MAX_ERRORS_TO_SHOW:
+            error_parts.append(
+                f"  ... and {len(duplicate_spans) - MAX_ERRORS_TO_SHOW} more duplicates"
+            )
+
+    return "\n".join(error_parts)
+
+
+def _parse_log_spans_response(
+    response: httpx.Response,
+    spans: Sequence[v1.Span],
+) -> v1.CreateSpansResponseBody:
+    """Parse the response from log spans request."""
+    response_data = response.json()
+
+    if response.status_code == 422 and "detail" in response_data:
+        error_response = _parse_log_spans_validation_error(response_data, spans)
+        _raise_log_spans_error(error_response)
+
+    if response.status_code == 400:
+        if "detail" in response_data:
+            detail = response_data["detail"]
+            # For 400 errors, the server now returns properly formatted JSON in the detail field
+            parsed_detail = json.loads(detail)
+            _raise_log_spans_error(parsed_detail)
+        elif "error" in response_data:
+            # Handle case where error data is returned directly (not wrapped in detail)
+            _raise_log_spans_error(response_data)
+
+    return cast(v1.CreateSpansResponseBody, response_data)
+
+
+def _parse_log_spans_validation_error(
+    response_data: dict[str, Any],
+    spans: Sequence[v1.Span],
+) -> v1.CreateSpansResponseBody:
+    """Convert FastAPI validation errors to our expected format."""
+    invalid_spans: list[InvalidSpanInfo] = []
+
+    for error in response_data.get("detail", []):
+        invalid_span = _extract_invalid_span_from_log_spans_error(error, spans)
+        if invalid_span:
+            invalid_spans.append(invalid_span)
+
+    return cast(
+        v1.CreateSpansResponseBody,
+        {
+            "total_received": len(spans),
+            "total_queued": len(spans) - len(invalid_spans),
+            "total_duplicates": 0,
+            "total_invalid": len(invalid_spans),
+            "duplicate_spans": [],
+            "invalid_spans": invalid_spans,
+        },
+    )
+
+
+def _extract_invalid_span_from_log_spans_error(
+    error: dict[str, Any],
+    spans: Sequence[v1.Span],
+) -> Optional[InvalidSpanInfo]:
+    """Extract invalid span info from a validation error."""
+    loc_raw = error.get("loc", [])
+    if not isinstance(loc_raw, list):
+        return None
+
+    loc: list[Any] = loc_raw  # Type annotation to help pyright
+    if not (len(loc) >= 3 and loc[0] == "body" and loc[1] == "data" and isinstance(loc[2], int)):
+        return None
+
+    span_index = loc[2]
+    if span_index >= len(spans):
+        return None
+
+    span: Any = spans[span_index]
+    span_dict = cast(dict[str, Any], span)
+    return {
+        "span_id": span_dict.get("context", {}).get("span_id", "unknown"),
+        "trace_id": span_dict.get("context", {}).get("trace_id", "unknown"),
+        "error": error.get("msg", "Validation error"),
+    }
+
+
+def _raise_log_spans_error(
+    error_data: Union[dict[str, Any], v1.CreateSpansResponseBody],
+) -> None:
+    """Raise SpanCreationError from error response data."""
+    total_received = error_data.get("total_received", 0)
+    total_queued = error_data.get("total_queued", 0)
+    total_invalid = cast(int, error_data.get("total_invalid", 0))
+    total_duplicates = cast(int, error_data.get("total_duplicates", 0))
+    invalid_spans = cast(list[InvalidSpanInfo], error_data.get("invalid_spans", []))
+    duplicate_spans = cast(list[DuplicateSpanInfo], error_data.get("duplicate_spans", []))
+
+    error_msg = _format_log_spans_error_message(
+        total_invalid=total_invalid,
+        total_duplicates=total_duplicates,
+        invalid_spans=invalid_spans,
+        duplicate_spans=duplicate_spans,
+    )
+    raise SpanCreationError(
+        message=error_msg,
+        invalid_spans=list(invalid_spans),
+        duplicate_spans=list(duplicate_spans),
+        total_received=total_received,
+        total_queued=total_queued,
+        total_invalid=total_invalid,
+        total_duplicates=total_duplicates,
+    )

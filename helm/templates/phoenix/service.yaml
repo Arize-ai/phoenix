@@ -3,16 +3,26 @@ kind: Service
 metadata:
   name: {{ template "phoenix.service" . }}
   namespace: {{ .Release.Namespace | quote }}
-{{- if .Values.server.annotations}}
+{{- if or .Values.server.annotations .Values.service.annotations }}
   annotations:
+{{- if .Values.server.annotations }}
 {{ toYaml .Values.server.annotations | indent 4 }}
 {{- end }}
-{{- if .Values.server.labels }}
+{{- if .Values.service.annotations }}
+{{ toYaml .Values.service.annotations | indent 4 }}
+{{- end }}
+{{- end }}
+{{- if or .Values.server.labels .Values.service.labels }}
   labels:
+{{- if .Values.server.labels }}
 {{ toYaml .Values.server.labels | indent 4 }}
 {{- end }}
+{{- if .Values.service.labels }}
+{{ toYaml .Values.service.labels | indent 4 }}
+{{- end }}
+{{- end }}
 spec:
-  type: NodePort
+  type: {{ .Values.service.type | default "NodePort" }}
   ports:
     - name: {{ template "phoenix.grpcPortName" . }}
       port: {{ template "phoenix.grpcPort" . }}

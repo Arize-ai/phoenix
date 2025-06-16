@@ -2,8 +2,6 @@ import { expect, test } from "@playwright/test";
 import { randomUUID } from "crypto";
 
 test.describe("Prompt Management", () => {
-  // CI doesn't have enough resources to run this test
-  test.skip(() => !!process.env.CI);
   test.beforeEach(async ({ page }) => {
     page.goto(`/login`);
 
@@ -21,7 +19,7 @@ test.describe("Prompt Management", () => {
     await page
       .getByText("You are a chatbot")
       .fill("You are a helpful assistant");
-    await await page.getByRole("button", { name: "Save" }).click();
+    await page.getByRole("button", { name: "Save" }).click();
     await page.getByPlaceholder("Select or enter new prompt").click();
     const promptName = `chatbot-${randomUUID()}`;
     await page.getByPlaceholder("Select or enter new prompt").fill(promptName);

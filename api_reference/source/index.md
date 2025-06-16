@@ -7,7 +7,7 @@ myst:
 html_theme.sidebar_secondary.remove: true
 ---
 
-# Arize Phoenix API Reference
+# Arize Phoenix Python Reference
 
 <a target="_blank" href="https://phoenix.arize.com" style="background:none">
     <img alt="phoenix banner" src="_static/github-large-banner-phoenix.jpg" width="auto" height="auto"></img>
@@ -38,7 +38,7 @@ html_theme.sidebar_secondary.remove: true
 </div>
 <br/>
 
-Welcome to Arize Phoenix's API reference. This reference details Phoenix's API and how to use its various features. To get a complete guide on how to use Phoenix, including tutorials, quickstarts, and concept explanations, see the [complete documentation](https://arize.com/docs/phoenix).
+Welcome to Arize Phoenix's Python reference. This reference details Phoenix's Python API and how to use its various features. To get a complete guide on how to use Phoenix, including tutorials, quickstarts, and concept explanations, see the [complete documentation](https://arize.com/docs/phoenix).
 
 ## Sub-Packages
 
