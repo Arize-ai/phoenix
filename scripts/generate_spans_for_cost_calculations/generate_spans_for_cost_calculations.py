@@ -288,7 +288,8 @@ def llm_span() -> None:
             "prompt_details": (prompt, ["audio", "cached_read", "cache_write"]),
             "completion_details": (completion, ["audio", "reasoning"]),
         }.items():
-            keys = sample(subtotals, k=randint(0, len(subtotals)))
+            if not (keys := sample(subtotals, k=randint(0, len(subtotals)))):
+                continue
             for key, value in zip(keys, random_split(total, n=len(keys) + 1)):
                 span.set_attribute(f"llm.token_count.{prefix}.{key}", value)
         row = df.sample(1).iloc[0]
