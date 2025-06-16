@@ -2,40 +2,42 @@ import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import {
-  Dropdown,
-  DropdownProps,
-  Field,
-  FieldProps,
-  Item,
+  Button,
+  Flex,
+  Label,
   ListBox,
-} from "@arizeai/components";
-
-import { Flex, Text } from "@phoenix/components";
+  Popover,
+  Select,
+  SelectChevronUpDownIcon,
+  SelectItem,
+  SelectValue,
+  Text,
+} from "@phoenix/components";
 import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
 
 import { ExperimentMultiSelector__experiments$key } from "./__generated__/ExperimentMultiSelector__experiments.graphql";
 
-export function ExperimentMultiSelector(
-  props: Omit<DropdownProps, "menu" | "children"> &
-    Pick<
-      FieldProps,
-      "label" | "validationState" | "description" | "errorMessage"
-    > & {
-      label: string;
-      selectedExperimentIds: string[];
-      onChange: (selectedExperimentIds: string[]) => void;
-      dataset: ExperimentMultiSelector__experiments$key;
-    }
-) {
+export function ExperimentMultiSelector(props: {
+  label: string;
+  selectedExperimentIds: string[];
+  onChange: (selectedExperimentIds: string[]) => void;
+  dataset: ExperimentMultiSelector__experiments$key;
+  size?: "S" | "M";
+  isDisabled?: boolean;
+  validationState?: "valid" | "invalid";
+  description?: string;
+  errorMessage?: string;
+}) {
   const {
     dataset,
     selectedExperimentIds,
     onChange,
     label,
+    size = "M",
+    isDisabled,
     validationState,
     description,
     errorMessage,
-    ...restProps
   } = props;
   const data = useFragment(
     graphql`
@@ -61,59 +63,59 @@ export function ExperimentMultiSelector(
       }),
     [data]
   );
-  const noColumns = experiments.length === 0;
+  const noExperiments = experiments.length === 0;
   const displayText = useMemo(() => {
-    if (noColumns) {
+    if (noExperiments) {
       return "No experiments";
     }
     const numExperiments = selectedExperimentIds.length;
     return numExperiments > 0
       ? `${numExperiments} experiment${numExperiments > 1 ? "s" : ""}`
       : "No experiments selected";
-  }, [selectedExperimentIds, noColumns]);
-  return (
-    <Field
-      label={label}
-      isDisabled={noColumns}
-      validationState={validationState}
-      description={description}
-      errorMessage={errorMessage}
-    >
-      <Dropdown
-        isDisabled={noColumns}
-        {...restProps}
-        menu={
-          <ListBox
-            selectionMode="multiple"
-            onSelectionChange={(keys) => {
-              onChange(Array.from(keys) as string[]);
-            }}
-            selectedKeys={new Set(selectedExperimentIds)}
-          >
-            {experiments.map((experiment) => (
-              <Item key={experiment.id} textValue={experiment.name}>
-                <Flex direction="column" gap="size-50">
-                  <Flex direction="row" gap="size-100">
-                    <SequenceNumberToken
-                      sequenceNumber={experiment.sequenceNumber}
-                    />
+  }, [selectedExperimentIds, noExperiments]);
 
-                    <Text>{experiment.name}</Text>
-                  </Flex>
-                  <Text size="XS" color="text-700">
-                    {new Date(experiment.createdAt).toLocaleString()}
-                  </Text>
+  return (
+    <Select
+      aria-label={label}
+      isDisabled={noExperiments || isDisabled}
+      size={size}
+      // For multi-select, we don't use selectedKey, the selection is managed by the ListBox
+      placeholder={displayText}
+    >
+      <Label>{label}</Label>
+      <Button>
+        <SelectValue />
+        <SelectChevronUpDownIcon />
+      </Button>
+      {description && <Text slot="description">{description}</Text>}
+      {errorMessage && validationState === "invalid" && (
+        <Text slot="errorMessage">{errorMessage}</Text>
+      )}
+      <Popover placement="bottom start">
+        <ListBox
+          selectionMode="multiple"
+          onSelectionChange={(keys) => {
+            onChange(Array.from(keys) as string[]);
+          }}
+          selectedKeys={new Set(selectedExperimentIds)}
+        >
+          {experiments.map((experiment) => (
+            <SelectItem key={experiment.id} id={experiment.id}>
+              <Flex direction="column" gap="size-50">
+                <Flex direction="row" gap="size-100">
+                  <SequenceNumberToken
+                    sequenceNumber={experiment.sequenceNumber}
+                  />
+                  <Text>{experiment.name}</Text>
                 </Flex>
-              </Item>
-            ))}
-          </ListBox>
-        }
-        triggerProps={{
-          placement: "bottom start",
-        }}
-      >
-        {displayText}
-      </Dropdown>
-    </Field>
+                <Text size="XS" color="text-700">
+                  {new Date(experiment.createdAt).toLocaleString()}
+                </Text>
+              </Flex>
+            </SelectItem>
+          ))}
+        </ListBox>
+      </Popover>
+    </Select>
   );
 }
