@@ -329,16 +329,14 @@ function PlaygroundContent() {
           )}
         </Panel>
       </PanelGroup>
-      {blocker != null && (
-        <ConfirmNavigationDialog
-          blocker={blocker}
-          message={
-            isRunning
-              ? "Playground run is still in progress, leaving the page may result in incomplete runs. Are you sure you want to leave?"
-              : "You have unsaved changes. Are you sure you want to leave?"
-          }
-        />
-      )}
+      <ConfirmNavigationDialog
+        blocker={blocker}
+        message={
+          isRunning
+            ? "Playground run is still in progress, leaving the page may result in incomplete runs. Are you sure you want to leave?"
+            : "You have unsaved changes. Are you sure you want to leave?"
+        }
+      />
     </Fragment>
   );
 }

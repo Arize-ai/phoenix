@@ -45,28 +45,26 @@ export function ConfirmNavigationDialog({
   blocker: Blocker;
   message?: ReactNode;
 }) {
-  if (blocker.state === "blocked") {
-    return (
-      <DialogTrigger isOpen>
-        <ModalOverlay isDismissable={false}>
-          <Modal>
-            <Dialog>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Confirm Navigation</DialogTitle>
-                  <DialogTitleExtra>
-                    <DialogCloseButton close={() => blocker.reset?.()} />
-                  </DialogTitleExtra>
-                </DialogHeader>
-                <View padding="size-200">
-                  <Text>{message}</Text>
-                </View>
-                <ConfirmNavigationDialogFooter blocker={blocker} />
-              </DialogContent>
-            </Dialog>
-          </Modal>
-        </ModalOverlay>
-      </DialogTrigger>
-    );
-  }
+  return (
+    <DialogTrigger isOpen={blocker.state === "blocked"}>
+      <ModalOverlay isDismissable={false}>
+        <Modal>
+          <Dialog>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Confirm Navigation</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton close={() => blocker.reset?.()} />
+                </DialogTitleExtra>
+              </DialogHeader>
+              <View padding="size-200">
+                <Text>{message}</Text>
+              </View>
+              <ConfirmNavigationDialogFooter blocker={blocker} />
+            </DialogContent>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+    </DialogTrigger>
+  );
 }

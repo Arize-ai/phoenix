@@ -59,6 +59,7 @@ import {
   LinkButton,
   Loading,
   Modal,
+  ModalOverlay,
   Tab,
   TabList,
   Tabs,
@@ -451,7 +452,7 @@ function AddSpanToDatasetButton({
       >
         {buttonText}
       </Button>
-      <NonAnimatedPopover>
+      <ModalOverlay>
         <Modal variant="slideover" size="L">
           <Suspense fallback={<Loading />}>
             <SpanToDatasetExampleDialog
@@ -471,7 +472,7 @@ function AddSpanToDatasetButton({
             />
           </Suspense>
         </Modal>
-      </NonAnimatedPopover>
+      </ModalOverlay>
     </DialogTrigger>
   );
 }
