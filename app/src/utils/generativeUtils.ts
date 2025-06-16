@@ -1,4 +1,5 @@
 import { assertUnreachable } from "@phoenix/typeUtils";
+import { LLMProvider } from "@arizeai/openinference-semantic-conventions";
 
 /**
  * A TypeGuard to ensure that a string is a valid ModelProvider
@@ -31,6 +32,32 @@ export function getProviderName(provider: ModelProvider): string {
       return "XAI";
     case "OLLAMA":
       return "Ollama";
+    default:
+      assertUnreachable(provider);
+  }
+}
+
+/**
+ * Translates the model provider to the semantic convention LLM provider
+ * @param provider - The provider key
+ * @returns The equivalent LLM provider in semantic conventions
+ */
+export function getSemConvProvider(provider: ModelProvider): string {
+  switch (provider) {
+    case "OPENAI":
+      return LLMProvider.OPENAI.toString();
+    case "AZURE_OPENAI":
+      return LLMProvider.AZURE.toString();
+    case "ANTHROPIC":
+      return LLMProvider.ANTHROPIC.toString();
+    case "GOOGLE":
+      return LLMProvider.GOOGLE.toString();
+    case "DEEPSEEK":
+      return "deepseek"; // TODO: Add support for DeepSeek to semantic conventions
+    case "XAI":
+      return "xai"; // TODO: Add support for XAI to semantic conventions
+    case "OLLAMA":
+      throw new Error(`Ollama is not supported`);
     default:
       assertUnreachable(provider);
   }
