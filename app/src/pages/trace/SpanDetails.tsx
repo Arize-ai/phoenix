@@ -1,5 +1,4 @@
 import { PropsWithChildren, ReactNode, Suspense, useMemo, useRef } from "react";
-import { Popover as NonAnimatedPopover } from "react-aria-components";
 import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
