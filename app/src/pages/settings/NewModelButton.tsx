@@ -86,7 +86,7 @@ export function NewModelButton({
                     variables: {
                       input: {
                         name: params.name,
-                        providerKey: params.providerKey,
+                        provider: params.provider,
                         namePattern: params.namePattern,
                         inputCostPerToken: params.cost.input,
                         outputCostPerToken: params.cost.output,

@@ -100,7 +100,7 @@ function EditModelDialogContent({
   return (
     <ModelForm
       modelName={modelData.name}
-      modelProviderKey={modelData.providerKey}
+      modelProvider={modelData.provider}
       modelNamePattern={modelData.namePattern}
       modelCost={modelData.tokenCost}
       onSubmit={(params) => {
@@ -109,7 +109,7 @@ function EditModelDialogContent({
             input: {
               id: modelData.id!,
               name: params.name,
-              providerKey: params.providerKey,
+              provider: params.provider,
               namePattern: params.namePattern,
               inputCostPerToken: params.cost.input,
               outputCostPerToken: params.cost.output,
