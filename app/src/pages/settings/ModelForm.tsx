@@ -38,14 +38,39 @@ export type ModelFormParams = {
   };
 };
 
-const PROVIDER_OPTIONS: { key: ModelProvider; value: string; label: string }[] = [
-  { key: "OPENAI", value: getSemConvProvider("OPENAI"), label: getProviderName("OPENAI") },
-  { key: "AZURE_OPENAI", value: getSemConvProvider("AZURE_OPENAI"), label: getProviderName("AZURE_OPENAI") },
-  { key: "ANTHROPIC", value: getSemConvProvider("ANTHROPIC"), label: getProviderName("ANTHROPIC") },
-  { key: "GOOGLE", value: getSemConvProvider("GOOGLE"), label: getProviderName("GOOGLE") },
-  { key: "DEEPSEEK", value: getSemConvProvider("DEEPSEEK"), label: getProviderName("DEEPSEEK") },
-  { key: "XAI", value: getSemConvProvider("XAI"), label: getProviderName("XAI") },
-];
+const PROVIDER_OPTIONS: { key: ModelProvider; value: string; label: string }[] =
+  [
+    {
+      key: "OPENAI",
+      value: getSemConvProvider("OPENAI"),
+      label: getProviderName("OPENAI"),
+    },
+    {
+      key: "AZURE_OPENAI",
+      value: getSemConvProvider("AZURE_OPENAI"),
+      label: getProviderName("AZURE_OPENAI"),
+    },
+    {
+      key: "ANTHROPIC",
+      value: getSemConvProvider("ANTHROPIC"),
+      label: getProviderName("ANTHROPIC"),
+    },
+    {
+      key: "GOOGLE",
+      value: getSemConvProvider("GOOGLE"),
+      label: getProviderName("GOOGLE"),
+    },
+    {
+      key: "DEEPSEEK",
+      value: getSemConvProvider("DEEPSEEK"),
+      label: getProviderName("DEEPSEEK"),
+    },
+    {
+      key: "XAI",
+      value: getSemConvProvider("XAI"),
+      label: getProviderName("XAI"),
+    },
+  ];
 
 function ModelProviderComboBox({
   value,
@@ -63,7 +88,9 @@ function ModelProviderComboBox({
     <ComboBox
       label="Model Provider"
       placeholder="Select a provider"
-      selectedKey={PROVIDER_OPTIONS.find((option) => option.value === value)?.key || ""}
+      selectedKey={
+        PROVIDER_OPTIONS.find((option) => option.value === value)?.key || ""
+      }
       inputValue={value}
       onSelectionChange={(key) => {
         const provider = PROVIDER_OPTIONS.find((option) => option.key === key);
@@ -81,11 +108,7 @@ function ModelProviderComboBox({
       allowsCustomValue
     >
       {PROVIDER_OPTIONS.map((item) => (
-        <ComboBoxItem
-          key={item.key}
-          textValue={item.key}
-          id={item.key}
-        >
+        <ComboBoxItem key={item.key} textValue={item.key} id={item.key}>
           <Flex alignItems="center" gap="size-50">
             <GenerativeProviderIcon provider={item.key} height={18} />
             {item.label}
