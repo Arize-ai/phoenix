@@ -3,6 +3,8 @@ import { graphql, useFragment } from "react-relay";
 
 import {
   Button,
+  Dialog,
+  DialogTrigger,
   Flex,
   Icon,
   Icons,
@@ -10,9 +12,7 @@ import {
   ListBox,
   ListBoxItem,
   Popover,
-  Select,
   SelectChevronUpDownIcon,
-  SelectValue,
   Text,
 } from "@phoenix/components";
 import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
@@ -41,6 +41,7 @@ export function ExperimentMultiSelector(props: {
     description,
     errorMessage,
   } = props;
+
   const data = useFragment(
     graphql`
       fragment ExperimentMultiSelector__experiments on Dataset {
@@ -77,60 +78,68 @@ export function ExperimentMultiSelector(props: {
   }, [selectedExperimentIds, noExperiments]);
 
   return (
-    <Select
-      aria-label={label}
-      isDisabled={noExperiments || isDisabled}
-      size={size}
-      // For multi-select, we don't use selectedKey, the selection is managed by the ListBox
-      placeholder={displayText}
-    >
+    <div className="ac-field">
       <Label>{label}</Label>
-      <Button>
-        <SelectValue>
-          {({ isPlaceholder: _isPlaceholder }) => {
-            return displayText;
+      <DialogTrigger>
+        <Button
+          isDisabled={noExperiments || isDisabled}
+          size={size}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            minWidth: "150px",
+            width: "fit-content",
           }}
-        </SelectValue>
-        <SelectChevronUpDownIcon />
-      </Button>
+        >
+          <span>{displayText}</span>
+          <SelectChevronUpDownIcon />
+        </Button>
+        <Popover placement="bottom start">
+          <Dialog>
+            <ListBox
+              selectionMode="multiple"
+              selectedKeys={new Set(selectedExperimentIds)}
+              onSelectionChange={(keys) => {
+                if (keys === "all") {
+                  onChange(experiments.map((exp) => exp.id));
+                } else {
+                  onChange(Array.from(keys) as string[]);
+                }
+              }}
+            >
+              {experiments.map((experiment) => (
+                <ListBoxItem key={experiment.id} id={experiment.id}>
+                  {({ isSelected }) => (
+                    <Flex
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                    >
+                      <Flex direction="column" gap="size-50">
+                        <Flex direction="row" gap="size-100">
+                          <SequenceNumberToken
+                            sequenceNumber={experiment.sequenceNumber}
+                          />
+                          <Text>{experiment.name}</Text>
+                        </Flex>
+                        <Text size="XS" color="text-700">
+                          {new Date(experiment.createdAt).toLocaleString()}
+                        </Text>
+                      </Flex>
+                      {isSelected && <Icon svg={<Icons.Checkmark />} />}
+                    </Flex>
+                  )}
+                </ListBoxItem>
+              ))}
+            </ListBox>
+          </Dialog>
+        </Popover>
+      </DialogTrigger>
       {description && <Text slot="description">{description}</Text>}
       {errorMessage && validationState === "invalid" && (
         <Text slot="errorMessage">{errorMessage}</Text>
       )}
-      <Popover placement="bottom start">
-        <ListBox
-          selectionMode="multiple"
-          onSelectionChange={(keys) => {
-            onChange(Array.from(keys) as string[]);
-          }}
-          selectedKeys={new Set(selectedExperimentIds)}
-        >
-          {experiments.map((experiment) => (
-            <ListBoxItem key={experiment.id} id={experiment.id}>
-              {({ isSelected }) => (
-                <Flex
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="center"
-                >
-                  <Flex direction="column" gap="size-50">
-                    <Flex direction="row" gap="size-100">
-                      <SequenceNumberToken
-                        sequenceNumber={experiment.sequenceNumber}
-                      />
-                      <Text>{experiment.name}</Text>
-                    </Flex>
-                    <Text size="XS" color="text-700">
-                      {new Date(experiment.createdAt).toLocaleString()}
-                    </Text>
-                  </Flex>
-                  {isSelected && <Icon svg={<Icons.Checkmark />} />}
-                </Flex>
-              )}
-            </ListBoxItem>
-          ))}
-        </ListBox>
-      </Popover>
-    </Select>
+    </div>
   );
 }
