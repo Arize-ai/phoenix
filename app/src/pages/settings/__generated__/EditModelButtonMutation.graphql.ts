@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<745b562bc647b7ab58753f0ec221c22c>>
+ * @generated SignedSource<<2087f5dc99e0e90a05ec1d89929d7685>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,7 +20,7 @@ export type UpdateModelMutationInput = {
   namePattern: string;
   outputCostPerToken: number;
   promptAudioCostPerToken?: number | null;
-  providerKey?: GenerativeProviderKey | null;
+  provider?: string | null;
   reasoningCostPerToken?: number | null;
 };
 export type EditModelButtonMutation$variables = {

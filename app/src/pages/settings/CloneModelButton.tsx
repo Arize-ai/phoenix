@@ -100,7 +100,7 @@ function CloneModelDialogContent({
   return (
     <ModelForm
       modelName={`${modelData.name} (override)`}
-      modelProviderKey={modelData.providerKey}
+      modelProvider={modelData.provider}
       modelNamePattern={modelData.namePattern}
       modelCost={modelData.tokenCost}
       onSubmit={(params) => {
@@ -108,7 +108,7 @@ function CloneModelDialogContent({
           variables: {
             input: {
               name: params.name,
-              providerKey: params.providerKey,
+              provider: params.provider,
               namePattern: params.namePattern,
               inputCostPerToken: params.cost.input,
               outputCostPerToken: params.cost.output,

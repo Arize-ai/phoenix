@@ -21,7 +21,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 @strawberry.input
 class CreateModelMutationInput:
     name: str
-    provider_key: Optional[GenerativeProviderKey] = None
+    provider: Optional[str] = None
     name_pattern: str
     input_cost_per_token: float
     output_cost_per_token: float
@@ -42,7 +42,7 @@ class CreateModelMutationPayload:
 class UpdateModelMutationInput:
     id: GlobalID
     name: str
-    provider_key: Optional[GenerativeProviderKey]
+    provider: Optional[str]
     name_pattern: str
     input_cost_per_token: float
     output_cost_per_token: float
@@ -78,13 +78,10 @@ class ModelMutationMixin:
         info: Info[Context, None],
         input: CreateModelMutationInput,
     ) -> CreateModelMutationPayload:
-        semconv_provider: Optional[str] = None
-        if input.provider_key:
-            semconv_provider = _gql_to_semconv_provider(input.provider_key).value
         async with info.context.db() as session:
             model = models.Model(
                 name=input.name,
-                provider=semconv_provider,
+                provider=input.provider,
                 name_pattern=input.name_pattern,
                 is_override=True,
             )
@@ -150,9 +147,6 @@ class ModelMutationMixin:
         info: Info[Context, None],
         input: UpdateModelMutationInput,
     ) -> UpdateModelMutationPayload:
-        semconv_provider: Optional[str] = None
-        if input.provider_key:
-            semconv_provider = _gql_to_semconv_provider(input.provider_key).value
         try:
             model_id = from_global_id_with_expected_type(input.id, Model.__name__)
         except ValueError:
@@ -176,7 +170,7 @@ class ModelMutationMixin:
             await session.refresh(model)
 
             model.name = input.name
-            model.provider = semconv_provider
+            model.provider = input.provider
             model.name_pattern = input.name_pattern
             model.costs.append(
                 models.ModelCost(

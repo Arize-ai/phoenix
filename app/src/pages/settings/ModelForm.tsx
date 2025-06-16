@@ -3,31 +3,28 @@ import { Controller, useForm } from "react-hook-form";
 
 import {
   Button,
+  ComboBox,
+  ComboBoxItem,
   FieldError,
   Flex,
   Form,
   Heading,
   Input,
   Label,
-  ListBox,
   NumberField,
-  Popover,
-  Select,
-  SelectChevronUpDownIcon,
-  SelectItem,
-  SelectValue,
   Text,
   TextField,
   View,
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
-import { getProviderName } from "@phoenix/utils/generativeUtils";
-
-import { GenerativeProviderKey } from "./__generated__/ModelsTable_models.graphql";
+import {
+  getProviderName,
+  getSemConvProvider,
+} from "@phoenix/utils/generativeUtils";
 
 export type ModelFormParams = {
   name: string;
-  providerKey?: GenerativeProviderKey;
+  provider?: string;
   namePattern: string;
   cost: {
     input: number;
@@ -40,16 +37,41 @@ export type ModelFormParams = {
   };
 };
 
-const PROVIDER_OPTIONS: { key: ModelProvider; label: string }[] = [
-  { key: "OPENAI", label: getProviderName("OPENAI") },
-  { key: "AZURE_OPENAI", label: getProviderName("AZURE_OPENAI") },
-  { key: "ANTHROPIC", label: getProviderName("ANTHROPIC") },
-  { key: "GOOGLE", label: getProviderName("GOOGLE") },
-  { key: "DEEPSEEK", label: getProviderName("DEEPSEEK") },
-  { key: "XAI", label: getProviderName("XAI") },
-];
+const PROVIDER_OPTIONS: { key: ModelProvider; value: string; label: string }[] =
+  [
+    {
+      key: "OPENAI",
+      value: getSemConvProvider("OPENAI"),
+      label: getProviderName("OPENAI"),
+    },
+    {
+      key: "AZURE_OPENAI",
+      value: getSemConvProvider("AZURE_OPENAI"),
+      label: getProviderName("AZURE_OPENAI"),
+    },
+    {
+      key: "ANTHROPIC",
+      value: getSemConvProvider("ANTHROPIC"),
+      label: getProviderName("ANTHROPIC"),
+    },
+    {
+      key: "GOOGLE",
+      value: getSemConvProvider("GOOGLE"),
+      label: getProviderName("GOOGLE"),
+    },
+    {
+      key: "DEEPSEEK",
+      value: getSemConvProvider("DEEPSEEK"),
+      label: getProviderName("DEEPSEEK"),
+    },
+    {
+      key: "XAI",
+      value: getSemConvProvider("XAI"),
+      label: getProviderName("XAI"),
+    },
+  ];
 
-function ModelProviderSelect({
+function ModelProviderComboBox({
   value,
   onChange,
   onBlur,
@@ -62,41 +84,43 @@ function ModelProviderSelect({
   invalid: boolean;
 }) {
   return (
-    <Select
+    <ComboBox
+      label="Model Provider"
       placeholder="Select a provider"
-      selectedKey={value || undefined}
-      onSelectionChange={onChange}
+      selectedKey={
+        PROVIDER_OPTIONS.find((option) => option.value === value)?.key || ""
+      }
+      inputValue={value}
+      onSelectionChange={(key) => {
+        const provider = PROVIDER_OPTIONS.find((option) => option.key === key);
+        if (provider) {
+          onChange(provider.value);
+        }
+      }}
+      onInputChange={(value) => {
+        onChange(value?.toLowerCase());
+      }}
       onBlur={onBlur}
       isInvalid={invalid}
-      size="S"
+      size="M"
+      description="The provider that offers this model. Optional"
+      allowsCustomValue
     >
-      <Label>Provider</Label>
-      <Button>
-        <SelectValue />
-        <SelectChevronUpDownIcon />
-      </Button>
-      <Popover>
-        <ListBox>
-          {PROVIDER_OPTIONS.map((item) => (
-            <SelectItem key={item.key} textValue={item.label} id={item.key}>
-              <Flex alignItems="center" gap="size-50">
-                <GenerativeProviderIcon provider={item.key} height={18} />
-                {item.label}
-              </Flex>
-            </SelectItem>
-          ))}
-        </ListBox>
-      </Popover>
-      <Text slot="description">
-        The provider that offers this model. Optional
-      </Text>
-    </Select>
+      {PROVIDER_OPTIONS.map((item) => (
+        <ComboBoxItem key={item.key} textValue={item.key} id={item.key}>
+          <Flex alignItems="center" gap="size-50">
+            <GenerativeProviderIcon provider={item.key} height={18} />
+            {item.label}
+          </Flex>
+        </ComboBoxItem>
+      ))}
+    </ComboBox>
   );
 }
 
 export function ModelForm({
   modelName,
-  modelProviderKey,
+  modelProvider,
   modelNamePattern,
   modelCost,
   onSubmit,
@@ -105,7 +129,7 @@ export function ModelForm({
   formMode,
 }: {
   modelName?: string | null;
-  modelProviderKey?: GenerativeProviderKey | null;
+  modelProvider?: string | null;
   modelNamePattern?: string | null;
   modelCost?: {
     input?: number | null;
@@ -127,7 +151,7 @@ export function ModelForm({
   } = useForm<ModelFormParams>({
     defaultValues: {
       name: modelName ?? "",
-      providerKey: modelProviderKey ?? undefined,
+      provider: modelProvider || "",
       namePattern: modelNamePattern ?? "",
       cost: {
         input: modelCost?.input ?? 0,
@@ -177,20 +201,22 @@ export function ModelForm({
           />
 
           <Controller
-            name="providerKey"
+            name="provider"
             control={control}
             render={({
               field: { onChange, onBlur, value },
               fieldState: { invalid, error },
-            }) => (
-              <ModelProviderSelect
-                value={value ?? ""}
-                onChange={onChange}
-                onBlur={onBlur}
-                error={error?.message}
-                invalid={invalid}
-              />
-            )}
+            }) => {
+              return (
+                <ModelProviderComboBox
+                  value={value ?? ""}
+                  onChange={onChange}
+                  onBlur={onBlur}
+                  error={error?.message}
+                  invalid={invalid}
+                />
+              );
+            }}
           />
           <Controller
             name="namePattern"
