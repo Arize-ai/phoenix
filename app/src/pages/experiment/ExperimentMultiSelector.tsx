@@ -4,12 +4,14 @@ import { graphql, useFragment } from "react-relay";
 import {
   Button,
   Flex,
+  Icon,
+  Icons,
   Label,
   ListBox,
+  ListBoxItem,
   Popover,
   Select,
   SelectChevronUpDownIcon,
-  SelectItem,
   SelectValue,
   Text,
 } from "@phoenix/components";
@@ -84,7 +86,11 @@ export function ExperimentMultiSelector(props: {
     >
       <Label>{label}</Label>
       <Button>
-        <SelectValue />
+        <SelectValue>
+          {({ isPlaceholder: _isPlaceholder }) => {
+            return displayText;
+          }}
+        </SelectValue>
         <SelectChevronUpDownIcon />
       </Button>
       {description && <Text slot="description">{description}</Text>}
@@ -100,19 +106,28 @@ export function ExperimentMultiSelector(props: {
           selectedKeys={new Set(selectedExperimentIds)}
         >
           {experiments.map((experiment) => (
-            <SelectItem key={experiment.id} id={experiment.id}>
-              <Flex direction="column" gap="size-50">
-                <Flex direction="row" gap="size-100">
-                  <SequenceNumberToken
-                    sequenceNumber={experiment.sequenceNumber}
-                  />
-                  <Text>{experiment.name}</Text>
+            <ListBoxItem key={experiment.id} id={experiment.id}>
+              {({ isSelected }) => (
+                <Flex
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="center"
+                >
+                  <Flex direction="column" gap="size-50">
+                    <Flex direction="row" gap="size-100">
+                      <SequenceNumberToken
+                        sequenceNumber={experiment.sequenceNumber}
+                      />
+                      <Text>{experiment.name}</Text>
+                    </Flex>
+                    <Text size="XS" color="text-700">
+                      {new Date(experiment.createdAt).toLocaleString()}
+                    </Text>
+                  </Flex>
+                  {isSelected && <Icon svg={<Icons.Checkmark />} />}
                 </Flex>
-                <Text size="XS" color="text-700">
-                  {new Date(experiment.createdAt).toLocaleString()}
-                </Text>
-              </Flex>
-            </SelectItem>
+              )}
+            </ListBoxItem>
           ))}
         </ListBox>
       </Popover>
