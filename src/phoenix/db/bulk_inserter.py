@@ -203,10 +203,13 @@ class BulkInserter:
                         if result is not None:
                             project_ids.add(result.project_rowid)
 
-                            span_cost = _calculate_span_cost(span, result.span_rowid)
-                            if span_cost is not None:
-                                session.add(span_cost)
-                                await session.flush()
+                            try:
+                                span_cost = _calculate_span_cost(span, result.span_rowid)
+                                if span_cost is not None:
+                                    session.add(span_cost)
+                                    await session.flush()
+                            except Exception:
+                                pass
 
                 if self._enable_prometheus:
                     from phoenix.server.prometheus import BULK_LOADER_INSERTION_TIME
