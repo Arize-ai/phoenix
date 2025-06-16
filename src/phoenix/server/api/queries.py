@@ -319,6 +319,16 @@ class Query:
         after: Optional[CursorString] = UNSET,
         filter_condition: Optional[str] = UNSET,
     ) -> Connection[ExperimentComparison]:
+        # Handle empty experiment_ids gracefully
+        if not experiment_ids:
+            return connection_from_list(
+                data=[],
+                args=ConnectionArgs(
+                    first=first,
+                    after=after if isinstance(after, CursorString) else None,
+                ),
+            )
+
         experiment_ids_ = [
             from_global_id_with_expected_type(experiment_id, OrmExperiment.__name__)
             for experiment_id in experiment_ids
