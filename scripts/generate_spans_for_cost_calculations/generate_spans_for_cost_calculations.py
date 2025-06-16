@@ -232,7 +232,7 @@ grok-vision-beta,xai
 df = pd.read_csv(StringIO(model_provider_data.strip()), names=["model_name", "provider"])
 
 
-def random_split(total, n=5, alpha=1.0):
+def random_split(total: int, n: int = 5, alpha: float = 1.0) -> list[int]:
     """
     Generate n random numbers that sum to total using Dirichlet distribution.
 
@@ -260,10 +260,10 @@ def random_split(total, n=5, alpha=1.0):
     indices = np.argsort(fractional_parts)[-remainder:]
     numbers[indices] += 1
 
-    return numbers
+    return numbers.tolist()
 
 
-def llm_span():
+def llm_span() -> None:
     """
     Generate a synthetic LLM span with random token counts and model information.
 
@@ -289,8 +289,8 @@ def llm_span():
             "completion_details": (completion, ["audio", "reasoning"]),
         }.items():
             keys = sample(subtotals, k=randint(0, len(subtotals)))
-            for key, value in zip(keys, random_split(total, n=len(keys) + 1)):
-                span.set_attribute(f"llm.token_count.{prefix}.{key}", int(value))
+            for key, value in zip(keys, random_split(total, n=len(keys) + 1, alpha=1.0)):
+                span.set_attribute(f"llm.token_count.{prefix}.{key}", value)
         row = df.sample(1).iloc[0]
         span.set_attribute("llm.provider", row.provider)
         span.set_attribute("llm.model_name", row.model_name)
