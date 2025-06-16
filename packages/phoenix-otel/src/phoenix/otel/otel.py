@@ -400,11 +400,11 @@ class HTTPSpanExporter(_HTTPSpanExporter):
         if not bound_args.arguments.get("headers"):
             env_headers = get_env_client_headers()
             auth_header = get_env_phoenix_auth_header()
-            headers = {
+            inferred_headers = {
                 **(env_headers or dict()),
                 **(auth_header or dict()),
             }
-            bound_args.arguments["headers"] = headers if headers else None
+            bound_args.arguments["headers"] = inferred_headers if inferred_headers else None
         else:
             headers: Dict[str, str] = dict()
             for header_field, value in bound_args.arguments["headers"].items():
@@ -453,11 +453,11 @@ class GRPCSpanExporter(_GRPCSpanExporter):
         if not bound_args.arguments.get("headers"):
             env_headers = get_env_client_headers()
             auth_header = get_env_phoenix_auth_header()
-            headers = {
+            inferred_headers = {
                 **(env_headers or dict()),
                 **(auth_header or dict()),
             }
-            bound_args.arguments["headers"] = headers if headers else None
+            bound_args.arguments["headers"] = inferred_headers if inferred_headers else None
         else:
             headers: Dict[str, str] = dict()
             for header_field, value in bound_args.arguments["headers"].items():
