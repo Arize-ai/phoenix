@@ -150,4 +150,4 @@ if __name__ == "__main__":
     # Create and save the token type version
     df_token_type = create_token_type_df(df)
     df_token_type.to_csv("litellm_model_prices_by_token_type.csv", index=False)
-    print("\nToken type data has been saved to 'model_prices_by_token_type.csv'")
+    print("\nToken type data has been saved to 'litellm_model_prices_by_token_type.csv'")
