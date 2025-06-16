@@ -284,12 +284,12 @@ def llm_span():
         span.set_attribute("llm.token_count.prompt", prompt)
         span.set_attribute("llm.token_count.completion", completion)
         span.set_attribute("llm.token_count.total", prompt + completion)
-        for prefix, keys in {
-            "prompt_details": ["audio", "cached_read", "cache_write"],
-            "completion_details": ["audio", "reasoning"],
+        for prefix, (total, subtotals) in {
+            "prompt_details": (prompt, ["audio", "cached_read", "cache_write"]),
+            "completion_details": (completion, ["audio", "reasoning"]),
         }.items():
-            keys = sample(keys, k=randint(0, len(keys)))
-            for key, value in zip(keys, random_split(prompt, n=len(keys) + 1)):
+            keys = sample(subtotals, k=randint(0, len(subtotals)))
+            for key, value in zip(keys, random_split(total, n=len(keys) + 1)):
                 span.set_attribute(f"llm.token_count.{prefix}.{key}", int(value))
         row = df.sample(1).iloc[0]
         span.set_attribute("llm.provider", row.provider)
