@@ -2,15 +2,13 @@ import { useLoaderData, useNavigate, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import {
-  Button,
   Dialog,
   ErrorBoundary,
-  Icon,
-  Icons,
   Modal,
   ModalOverlay,
 } from "@phoenix/components";
 import {
+  DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -40,7 +38,15 @@ export function SessionPage() {
         }
       }}
     >
-      <Modal variant="slideover" size="L">
+      <Modal
+        variant="slideover"
+        size="fullscreen"
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            navigate(`${rootPath}/${tab}`);
+          }
+        }}
+      >
         <Dialog>
           <DialogContent>
             <DialogHeader>
@@ -48,15 +54,7 @@ export function SessionPage() {
                 Session ID: {loaderData.session?.sessionId ?? "--"}
               </DialogTitle>
               <DialogTitleExtra>
-                <Button
-                  size="S"
-                  data-testid="dialog-close-button"
-                  leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
-                  onPress={() => navigate(`${rootPath}/${tab}`)}
-                  type="button"
-                  variant="default"
-                  slot="close"
-                />
+                <DialogCloseButton slot="close" />
               </DialogTitleExtra>
             </DialogHeader>
             <ErrorBoundary>
