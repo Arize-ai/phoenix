@@ -136,6 +136,7 @@
     "dev:server:embeddings": "pnpm dev:server --with-fixture=fashion_mnist",
     "dev:server:test": "node ./tests/utils/testServer.mjs",
     "dev:server:init": "pnpm dev:server --with-trace-fixtures=llama_index_rag --with-projects=SESSIONS-DEMO --force-fixture-ingestion",
+    "predev:server": "uv tool run --with=tox-uv tox r -e add_symlinks",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ./src",
     "lint:fix": "eslint --fix ./src",
