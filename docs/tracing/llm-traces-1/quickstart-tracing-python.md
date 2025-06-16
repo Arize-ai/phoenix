@@ -34,7 +34,7 @@ Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](
 {% endtab %}
 
 {% tab title="Using Self-hosted Phoenix" %}
-1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, [see self-hosting](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/0gWR4qoGzdz04iSgPlsU/).
+1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, [see self-hosting](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/6Krto6imCQRafqHLjCjO/).
 2. In your code, set your endpoint:
 
 ```python
