@@ -110,22 +110,7 @@ def _span_ids(
             return (span_id1, gids[span_id1]), (span_id2, gids[span_id2])
         return None
 
-    # Use more retries and longer timeouts for CI environments, especially with PostgreSQL
-    is_ci = os.environ.get("CI") == "true"
-    is_postgresql = os.environ.get("CI_TEST_DB_BACKEND") == "postgresql"
-
-    if is_ci and is_postgresql:
-        # CI with PostgreSQL needs more time, but not excessive
-        retries = 30  # About 30 seconds max
-        max_wait_time = 2.0  # Longer max wait time
-    else:
-        # Default values for local testing
-        retries = 20  # About 20 seconds max
-        max_wait_time = 1.0
-
-    return asyncio.run(
-        _get(query_fn, error_msg="spans not found", retries=retries, max_wait_time=max_wait_time)
-    )
+    return asyncio.run(_get(query_fn, error_msg="spans not found"))
 
 
 QUERY = """
