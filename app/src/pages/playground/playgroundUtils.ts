@@ -667,16 +667,24 @@ export function transformSpanAttributesToPlaygroundInstance(
 
     processedMessages = messages.map((message) => {
       if (message.content && typeof message.content === "string") {
-        return {
-          ...message,
-          content: utils.format({
-            text: message.content,
-            variables: variables as Record<
-              string,
-              string | number | boolean | undefined
-            >,
-          }),
-        };
+        try {
+          return {
+            ...message,
+            content: utils.format({
+              text: message.content,
+              variables: variables as Record<
+                string,
+                string | number | boolean | undefined
+              >,
+            }),
+          };
+        } catch (error) {
+          // Return original content if formatting fails
+          return {
+            ...message,
+            content: message.content,
+          };
+        }
       }
       return message;
     });
