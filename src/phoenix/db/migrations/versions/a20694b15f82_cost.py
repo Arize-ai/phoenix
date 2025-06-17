@@ -98,7 +98,7 @@ def upgrade() -> None:
             primary_key=True,
         ),
         sa.Column(
-            "span_id",
+            "span_rowid",
             sa.Integer,
             sa.ForeignKey("spans.id", ondelete="CASCADE"),
             nullable=False,
