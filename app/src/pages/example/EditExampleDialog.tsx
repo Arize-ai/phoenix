@@ -69,7 +69,7 @@ export function EditExampleDialog(props: EditExampleDialogProps) {
   });
 
   const onSubmit = useCallback(
-    (updatedExample: ExamplePatch) => {
+    (updatedExample: ExamplePatch, close: () => void) => {
       setSubmitError(null);
       if (!isJSONObjectString(updatedExample?.input)) {
         return setError("input", {
@@ -103,6 +103,7 @@ export function EditExampleDialog(props: EditExampleDialogProps) {
         },
         onCompleted: () => {
           onCompleted();
+          close();
         },
         onError: (error) => {
           setSubmitError(error.message);
@@ -133,11 +134,15 @@ export function EditExampleDialog(props: EditExampleDialogProps) {
                     }
                   />
                 }
-                onPress={() => handleSubmit(onSubmit)()}
+                onPress={() =>
+                  handleSubmit((updatedExample) =>
+                    onSubmit(updatedExample, close)
+                  )()
+                }
               >
                 Save Changes
               </Button>
-              <DialogCloseButton close={close} />
+              <DialogCloseButton />
             </DialogTitleExtra>
           </DialogHeader>
           <div

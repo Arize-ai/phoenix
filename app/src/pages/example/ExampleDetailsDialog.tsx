@@ -8,18 +8,19 @@ import { Card, CardProps } from "@arizeai/components";
 import {
   CopyToClipboardButton,
   Dialog,
-  Flex,
-  Heading,
-  LinkButton,
-  View,
-} from "@phoenix/components";
-import { JSONBlock } from "@phoenix/components/code";
-import {
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-} from "@phoenix/components/dialog";
+  DialogTrigger,
+  Flex,
+  Heading,
+  LinkButton,
+  Modal,
+  ModalOverlay,
+  View,
+} from "@phoenix/components";
+import { JSONBlock } from "@phoenix/components/code";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useNotifySuccess } from "@phoenix/contexts";
@@ -33,6 +34,7 @@ import { ExampleExperimentRunsTable } from "./ExampleExperimentRunsTable";
  */
 export function ExampleDetailsDialog({
   exampleId,
+  onDismiss,
 }: {
   exampleId: string;
   onDismiss: () => void;
@@ -89,97 +91,110 @@ export function ExampleDetailsDialog({
   const { input, output, metadata } = revision;
   const notifySuccess = useNotifySuccess();
   return (
-    <Dialog>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Example: {exampleId}</DialogTitle>
-          <DialogTitleExtra>
-            <Flex direction="row" gap="size-100">
-              {sourceSpanInfo ? (
-                <LinkButton
-                  size="S"
-                  to={`/projects/${sourceSpanInfo.projectId}/traces/${sourceSpanInfo.traceId}?${SELECTED_SPAN_NODE_ID_PARAM}=${sourceSpanInfo.id}`}
-                >
-                  View Source Span
-                </LinkButton>
-              ) : null}
-              <EditExampleButton
-                exampleId={exampleId as string}
-                currentRevision={revision}
-                onCompleted={() => {
-                  notifySuccess({
-                    title: "Example updated",
-                    message: `Example ${exampleId} has been updated.`,
-                  });
-                  setFetchKey((key) => key + 1);
-                }}
-              />
-            </Flex>
-          </DialogTitleExtra>
-        </DialogHeader>
-        <PanelGroup direction="vertical" autoSaveId="example-panel-group">
-          <Panel defaultSize={65}>
-            <div
-              css={css`
-                overflow-y: auto;
-                height: 100%;
-              `}
-            >
-              <Flex direction="row" justifyContent="center">
-                <View
-                  width="900px"
-                  paddingStart="auto"
-                  paddingEnd="auto"
-                  paddingTop="size-200"
-                  paddingBottom="size-200"
-                >
-                  <Flex direction="column" gap="size-200">
-                    <Card
-                      title="Input"
-                      {...defaultCardProps}
-                      extra={<CopyToClipboardButton text={input} />}
-                    >
-                      <JSONBlock value={input} />
-                    </Card>
-                    <Card
-                      title="Output"
-                      {...defaultCardProps}
-                      extra={<CopyToClipboardButton text={output} />}
-                    >
-                      <JSONBlock value={output} />
-                    </Card>
-                    <Card
-                      title="Metadata"
-                      {...defaultCardProps}
-                      extra={<CopyToClipboardButton text={metadata} />}
-                    >
-                      <JSONBlock value={metadata} />
-                    </Card>
+    <DialogTrigger
+      isOpen
+      onOpenChange={(isOpen) => {
+        if (!isOpen) {
+          onDismiss();
+        }
+      }}
+    >
+      <ModalOverlay>
+        <Modal size="L" variant="slideover">
+          <Dialog>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Example: {exampleId}</DialogTitle>
+                <DialogTitleExtra>
+                  <Flex direction="row" gap="size-100">
+                    {sourceSpanInfo ? (
+                      <LinkButton
+                        size="S"
+                        to={`/projects/${sourceSpanInfo.projectId}/traces/${sourceSpanInfo.traceId}?${SELECTED_SPAN_NODE_ID_PARAM}=${sourceSpanInfo.id}`}
+                      >
+                        View Source Span
+                      </LinkButton>
+                    ) : null}
+                    <EditExampleButton
+                      exampleId={exampleId as string}
+                      currentRevision={revision}
+                      onCompleted={() => {
+                        notifySuccess({
+                          title: "Example updated",
+                          message: `Example ${exampleId} has been updated.`,
+                        });
+                        setFetchKey((key) => key + 1);
+                      }}
+                    />
                   </Flex>
-                </View>
-              </Flex>
-            </div>
-          </Panel>
-          <PanelResizeHandle css={resizeHandleCSS} />
-          <Panel defaultSize={35}>
-            <Flex direction="column" height="100%">
-              <View
-                paddingStart="size-200"
-                paddingEnd="size-200"
-                paddingTop="size-100"
-                paddingBottom="size-100"
-                borderBottomColor="dark"
-                borderBottomWidth="thin"
-                flex="none"
-              >
-                <Heading level={3}>Experiment Runs</Heading>
-              </View>
-              <ExampleExperimentRunsTable example={data.example} />
-            </Flex>
-          </Panel>
-        </PanelGroup>
-      </DialogContent>
-    </Dialog>
+                </DialogTitleExtra>
+              </DialogHeader>
+              <PanelGroup direction="vertical" autoSaveId="example-panel-group">
+                <Panel defaultSize={65}>
+                  <div
+                    css={css`
+                      overflow-y: auto;
+                      height: 100%;
+                    `}
+                  >
+                    <Flex direction="row" justifyContent="center">
+                      <View
+                        width="900px"
+                        paddingStart="auto"
+                        paddingEnd="auto"
+                        paddingTop="size-200"
+                        paddingBottom="size-200"
+                      >
+                        <Flex direction="column" gap="size-200">
+                          <Card
+                            title="Input"
+                            {...defaultCardProps}
+                            extra={<CopyToClipboardButton text={input} />}
+                          >
+                            <JSONBlock value={input} />
+                          </Card>
+                          <Card
+                            title="Output"
+                            {...defaultCardProps}
+                            extra={<CopyToClipboardButton text={output} />}
+                          >
+                            <JSONBlock value={output} />
+                          </Card>
+                          <Card
+                            title="Metadata"
+                            {...defaultCardProps}
+                            extra={<CopyToClipboardButton text={metadata} />}
+                          >
+                            <JSONBlock value={metadata} />
+                          </Card>
+                        </Flex>
+                      </View>
+                    </Flex>
+                  </div>
+                </Panel>
+                <PanelResizeHandle css={resizeHandleCSS} />
+                <Panel defaultSize={35}>
+                  <Flex direction="column" height="100%">
+                    <View
+                      paddingStart="size-200"
+                      paddingEnd="size-200"
+                      paddingTop="size-100"
+                      paddingBottom="size-100"
+                      borderBottomColor="dark"
+                      borderBottomWidth="thin"
+                      flex="none"
+                    >
+                      <Heading level={3}>Experiment Runs</Heading>
+                    </View>
+                    <ExampleExperimentRunsTable example={data.example} />
+                  </Flex>
+                </Panel>
+              </PanelGroup>
+            </DialogContent>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+    </DialogTrigger>
   );
 }
 
