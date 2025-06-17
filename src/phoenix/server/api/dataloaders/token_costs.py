@@ -119,7 +119,7 @@ def _get_stmt(
         )
         .select_from(models.Trace)
         .join(models.Span, models.Span.trace_rowid == models.Trace.id)
-        .join(models.SpanCost, models.Span.id == models.SpanCost.span_id, isouter=True)
+        .join(models.SpanCost, models.Span.id == models.SpanCost.span_rowid, isouter=True)
         .group_by(pid)
     )
 

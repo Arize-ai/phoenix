@@ -90,7 +90,7 @@ class SpanColumn(Enum):
         if self is SpanColumn.tokenCostTotal:
             return stmt.join(
                 models.SpanCost,
-                onclause=models.SpanCost.span_id == models.Span.id,
+                onclause=models.SpanCost.span_rowid == models.Span.id,
             )
         return stmt
 
