@@ -1,32 +1,5 @@
 [
   {
-    "model":"babbage-002",
-    "provider":"openai",
-    "input":0.0000004,
-    "output":0.0000016,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(babbage-002)$"
-  },
-  {
-    "model":"chat-bison",
-    "provider":null,
-    "input":0.00000025,
-    "output":0.0000005,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(chat-bison)(@[a-zA-Z0-9]+)?$"
-  },
-  {
-    "model":"chat-bison-32k",
-    "provider":null,
-    "input":0.00000025,
-    "output":0.0000005,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(chat-bison-32k)(@[a-zA-Z0-9]+)?$"
-  },
-  {
     "model":"chatgpt-4o-latest",
     "provider":"openai",
     "input":0.000005,
@@ -189,98 +162,8 @@
     "regex":"(?i)^(claude-instant-1.2)$"
   },
   {
-    "model":"code-bison",
-    "provider":null,
-    "input":0.00000025,
-    "output":0.0000005,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(code-bison)(@[a-zA-Z0-9]+)?$"
-  },
-  {
-    "model":"code-bison-32k",
-    "provider":null,
-    "input":0.00000025,
-    "output":0.0000005,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(code-bison-32k)(@[a-zA-Z0-9]+)?$"
-  },
-  {
-    "model":"code-gecko",
-    "provider":null,
-    "input":0.00000025,
-    "output":0.0000005,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(code-gecko)(@[a-zA-Z0-9]+)?$"
-  },
-  {
-    "model":"codechat-bison",
-    "provider":null,
-    "input":0.00000025,
-    "output":0.0000005,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(codechat-bison)(@[a-zA-Z0-9]+)?$"
-  },
-  {
-    "model":"codechat-bison-32k",
-    "provider":null,
-    "input":0.00000025,
-    "output":0.0000005,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(codechat-bison-32k)(@[a-zA-Z0-9]+)?$"
-  },
-  {
-    "model":"davinci-002",
-    "provider":"openai",
-    "input":0.000006,
-    "output":0.000012,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(davinci-002)$"
-  },
-  {
-    "model":"ft:babbage-002",
-    "provider":"openai",
-    "input":0.0000016,
-    "output":0.0000016,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(ft:)(babbage-002:)(.+)(:)(.*)(:)(.+)$$"
-  },
-  {
-    "model":"ft:davinci-002",
-    "provider":"openai",
-    "input":0.000012,
-    "output":0.000012,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(ft:)(davinci-002:)(.+)(:)(.*)(:)(.+)$$"
-  },
-  {
-    "model":"ft:gpt-3.5-turbo-0613",
-    "provider":"openai",
-    "input":0.000012,
-    "output":0.000016,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(ft:)(gpt-3.5-turbo-0613:)(.+)(:)(.*)(:)(.+)$"
-  },
-  {
-    "model":"ft:gpt-3.5-turbo-1106",
-    "provider":"openai",
-    "input":0.000003,
-    "output":0.000006,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(ft:)(gpt-3.5-turbo-1106:)(.+)(:)(.*)(:)(.+)$"
-  },
-  {
     "model":"gemini-1.0-pro",
-    "provider":null,
+    "provider":"google",
     "input":0.000000125,
     "output":0.000000375,
     "cache_write":null,
@@ -289,7 +172,7 @@
   },
   {
     "model":"gemini-1.0-pro-001",
-    "provider":null,
+    "provider":"google",
     "input":0.000000125,
     "output":0.000000375,
     "cache_write":null,
@@ -298,7 +181,7 @@
   },
   {
     "model":"gemini-1.0-pro-latest",
-    "provider":null,
+    "provider":"google",
     "input":0.00000025,
     "output":0.0000005,
     "cache_write":null,
@@ -307,7 +190,7 @@
   },
   {
     "model":"gemini-1.5-pro-latest",
-    "provider":null,
+    "provider":"google",
     "input":0.0000025,
     "output":0.0000075,
     "cache_write":null,
@@ -316,7 +199,7 @@
   },
   {
     "model":"gemini-2.0-flash",
-    "provider":null,
+    "provider":"google",
     "input":0.0000001,
     "output":0.0000004,
     "cache_write":null,
@@ -325,7 +208,7 @@
   },
   {
     "model":"gemini-2.0-flash-001",
-    "provider":null,
+    "provider":"google",
     "input":0.0000001,
     "output":0.0000004,
     "cache_write":null,
@@ -334,7 +217,7 @@
   },
   {
     "model":"gemini-2.0-flash-lite-preview",
-    "provider":null,
+    "provider":"google",
     "input":0.000000075,
     "output":0.0000003,
     "cache_write":null,
@@ -343,7 +226,7 @@
   },
   {
     "model":"gemini-2.0-flash-lite-preview-02-05",
-    "provider":null,
+    "provider":"google",
     "input":0.000000075,
     "output":0.0000003,
     "cache_write":null,
@@ -352,7 +235,7 @@
   },
   {
     "model":"gemini-pro",
-    "provider":null,
+    "provider":"google",
     "input":0.000000125,
     "output":0.000000375,
     "cache_write":null,
@@ -604,7 +487,7 @@
   },
   {
     "model":"gpt-4.5-preview",
-    "provider":null,
+    "provider":"openai",
     "input":0.000075,
     "output":0.00015,
     "cache_write":0.0000375,
@@ -613,7 +496,7 @@
   },
   {
     "model":"gpt-4.5-preview-2025-02-27",
-    "provider":null,
+    "provider":"openai",
     "input":0.000075,
     "output":0.00015,
     "cache_write":0.0000375,
@@ -676,7 +559,7 @@
   },
   {
     "model":"gpt-4o-realtime-preview",
-    "provider":null,
+    "provider":"openai",
     "input":null,
     "output":null,
     "cache_write":0.00002,
@@ -685,7 +568,7 @@
   },
   {
     "model":"gpt-4o-realtime-preview-2024-10-01",
-    "provider":null,
+    "provider":"openai",
     "input":null,
     "output":null,
     "cache_write":0.00002,
@@ -694,7 +577,7 @@
   },
   {
     "model":"o1",
-    "provider":null,
+    "provider":"openai",
     "input":0.000015,
     "output":0.00006,
     "cache_write":0.0000075,
@@ -703,7 +586,7 @@
   },
   {
     "model":"o1-2024-12-17",
-    "provider":null,
+    "provider":"openai",
     "input":0.000015,
     "output":0.00006,
     "cache_write":0.0000075,
@@ -712,7 +595,7 @@
   },
   {
     "model":"o1-mini",
-    "provider":null,
+    "provider":"openai",
     "input":0.0000011,
     "output":0.0000044,
     "cache_write":0.00000055,
@@ -721,7 +604,7 @@
   },
   {
     "model":"o1-mini-2024-09-12",
-    "provider":null,
+    "provider":"openai",
     "input":0.0000011,
     "output":0.0000044,
     "cache_write":0.00000055,
@@ -730,7 +613,7 @@
   },
   {
     "model":"o1-preview",
-    "provider":null,
+    "provider":"openai",
     "input":0.000015,
     "output":0.00006,
     "cache_write":0.0000075,
@@ -739,7 +622,7 @@
   },
   {
     "model":"o1-preview-2024-09-12",
-    "provider":null,
+    "provider":"openai",
     "input":0.000015,
     "output":0.00006,
     "cache_write":0.0000075,
@@ -748,7 +631,7 @@
   },
   {
     "model":"o3",
-    "provider":null,
+    "provider":"openai",
     "input":0.00001,
     "output":0.00004,
     "cache_write":0.0000025,
@@ -757,7 +640,7 @@
   },
   {
     "model":"o3-2025-04-16",
-    "provider":null,
+    "provider":"openai",
     "input":0.00001,
     "output":0.00004,
     "cache_write":0.0000025,
@@ -766,7 +649,7 @@
   },
   {
     "model":"o3-mini",
-    "provider":null,
+    "provider":"openai",
     "input":0.0000011,
     "output":0.0000044,
     "cache_write":0.00000055,
@@ -784,7 +667,7 @@
   },
   {
     "model":"o4-mini",
-    "provider":null,
+    "provider":"openai",
     "input":0.0000011,
     "output":0.0000044,
     "cache_write":0.000000275,
@@ -793,38 +676,11 @@
   },
   {
     "model":"o4-mini-2025-04-16",
-    "provider":null,
+    "provider":"openai",
     "input":0.0000011,
     "output":0.0000044,
     "cache_write":0.000000275,
     "cache_read":null,
     "regex":"(?i)^(o4-mini-2025-04-16)$"
-  },
-  {
-    "model":"text-bison",
-    "provider":null,
-    "input":0.00000025,
-    "output":0.0000005,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(text-bison)(@[a-zA-Z0-9]+)?$"
-  },
-  {
-    "model":"text-bison-32k",
-    "provider":null,
-    "input":0.00000025,
-    "output":0.0000005,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(text-bison-32k)(@[a-zA-Z0-9]+)?$"
-  },
-  {
-    "model":"text-unicorn",
-    "provider":null,
-    "input":0.0000025,
-    "output":0.0000075,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(text-unicorn)(@[a-zA-Z0-9]+)?$"
   }
 ]
