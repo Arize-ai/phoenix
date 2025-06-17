@@ -26,7 +26,7 @@ console.log(
 
 // Execute the server
 const childProcess = exec(
-  `uv run --compile --with-requirements ../requirements/dev.txt phoenix serve`
+  `uv run --active --compile --with-requirements ../requirements/dev.txt phoenix serve`
 );
 
 childProcess.stdout?.pipe(process.stdout);

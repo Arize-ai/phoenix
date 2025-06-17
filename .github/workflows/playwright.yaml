@@ -75,7 +75,7 @@ jobs:
         if: runner.os != 'Windows'
       - name: Pre-sync dependencies
         # prevent a timeout when starting the server via playwright
-        run: uv sync --with-requirements ../requirements/dev.txt
+        run: uv pip install -r ../requirements/dev.txt
       - name: Run Playwright tests
         run: pnpm test:e2e
       - uses: actions/upload-artifact@v4
