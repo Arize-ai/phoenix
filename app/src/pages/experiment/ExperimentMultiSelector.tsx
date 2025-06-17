@@ -65,6 +65,7 @@ export function ExperimentMultiSelector(props: {
       : "No experiments selected";
   }, [selectedExperimentIds, noExperiments]);
 
+  // TODO: refactor to a multi-select component. See #8139
   return (
     <div css={css(fieldBaseCSS, selectCSS)}>
       <Label>{label}</Label>
