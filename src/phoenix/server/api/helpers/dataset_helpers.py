@@ -91,7 +91,9 @@ def _get_llm_span_input(
     if not input:
         input = _get_generic_io_value(io_value=input_value, mime_type=input_mime_type, kind="input")
     if prompt_template_variables_data := _safely_json_decode(prompt_template_variables):
-        input["prompt_template_variables"] = prompt_template_variables_data
+        # Hoist template variables to top level as individual key-value pairs
+        input.update(prompt_template_variables_data)
+        # Keep the original nested structure for compatibility
     if tool_definitions_data := [_safely_json_decode(tool_definition) for tool_definition in tools]:
         input["tools"] = tool_definitions_data
     return input
@@ -193,6 +195,8 @@ def _safely_json_decode(value: Any) -> Any:
     """
     Safely decodes a JSON-encoded value.
     """
+    if isinstance(value, dict):
+        return value
     if not isinstance(value, str):
         return None
     try:
