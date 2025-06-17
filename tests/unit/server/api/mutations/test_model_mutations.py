@@ -317,6 +317,44 @@ class TestModelMutations:
         assert result.errors[0].message == "Cannot update default model"
         assert result.data is None
 
+    @pytest.mark.parametrize(
+        "variables,expected_error_message",
+        [
+            pytest.param(
+                {
+                    "input": {
+                        "id": str(GlobalID(Model.__name__, str(999))),
+                    }
+                },
+                f'Model "{str(GlobalID(Model.__name__, str(999)))}" not found',
+                id="non-existent-model",
+            ),
+            pytest.param(
+                {
+                    "input": {
+                        "id": str(GlobalID("Project", str(1))),
+                    }
+                },
+                f'Invalid model id: "{str(GlobalID("Project", str(1)))}"',
+                id="invalid-global-id",
+            ),
+        ],
+    )
+    async def test_deleting_model_with_invalid_input_fails_with_expected_error(
+        self,
+        gql_client: AsyncGraphQLClient,
+        variables: dict[str, Any],
+        expected_error_message: str,
+    ) -> None:
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="DeleteModelMutation",
+        )
+        assert len(result.errors) == 1
+        assert result.errors[0].message == expected_error_message
+        assert result.data is None
+
 
 @pytest.fixture
 async def default_model(db: DbSessionFactory) -> models.Model:
