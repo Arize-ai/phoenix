@@ -657,15 +657,40 @@ export function transformSpanAttributesToPlaygroundInstance(
 
   // TODO(parker): add support for prompt template variables
   // https://github.com/Arize-ai/phoenix/issues/4886
+
+  // Apply template variables to messages if they exist
+  let processedMessages = messages;
+  if (variables && messages && Object.keys(variables).length > 0) {
+    // Get the template format utils for the default format (Mustache)
+    // This is just for initial rendering - the actual template format will be used when sending the request
+    const utils = getTemplateFormatUtils(TemplateFormats.Mustache);
+
+    processedMessages = messages.map((message) => {
+      if (message.content && typeof message.content === "string") {
+        return {
+          ...message,
+          content: utils.format({
+            text: message.content,
+            variables: variables as Record<
+              string,
+              string | number | boolean | undefined
+            >,
+          }),
+        };
+      }
+      return message;
+    });
+  }
+
   return {
     playgroundInstance: {
       ...basePlaygroundInstance,
       model: modelConfig ?? basePlaygroundInstance.model,
       template:
-        messages != null
+        processedMessages != null
           ? {
               __type: "chat",
-              messages,
+              messages: processedMessages,
             }
           : basePlaygroundInstance.template,
       output,
