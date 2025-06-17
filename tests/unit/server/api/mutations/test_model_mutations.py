@@ -62,7 +62,7 @@ class TestModelMutations:
         create_variables = {
             "input": {
                 "name": "test-model",
-                "provider": "OPENAI",
+                "provider": "openai",
                 "namePattern": "gpt-*",
                 "costs": [
                     {"tokenType": "input", "costPerToken": 0.001},
@@ -81,7 +81,7 @@ class TestModelMutations:
         created_model = create_result.data["createModel"]["model"]
         model_id = created_model.pop("id")
         assert created_model.pop("name") == "test-model"
-        assert created_model.pop("provider") == "OPENAI"
+        assert created_model.pop("provider") == "openai"
         assert created_model.pop("namePattern") == "gpt-*"
         assert created_model.pop("isOverride") is True
         assert isinstance(created_model.pop("createdAt"), str)
