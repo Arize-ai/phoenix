@@ -41,9 +41,6 @@ export function ViewerAPIKeys({
         $input: CreateUserApiKeyInput!
       ) {
         createUserApiKey(input: $input) {
-          query {
-            ...SystemAPIKeysTableFragment
-          }
           jwt
           apiKey {
             id
