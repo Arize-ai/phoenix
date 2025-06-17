@@ -2,7 +2,7 @@ from tests.unit.graphql import AsyncGraphQLClient
 
 
 class TestModelMutations:
-    CREATE_MODEL_MUTATION = """
+    QUERY = """
       mutation CreateModelMutation($input: CreateModelMutationInput!) {
         createModel(input: $input) {
           model {
@@ -20,9 +20,7 @@ class TestModelMutations:
           }
         }
       }
-    """
 
-    UPDATE_MODEL_MUTATION = """
       mutation UpdateModelMutation($input: UpdateModelMutationInput!) {
         updateModel(input: $input) {
           model {
@@ -40,9 +38,7 @@ class TestModelMutations:
           }
         }
       }
-    """
 
-    DELETE_MODEL_MUTATION = """
       mutation DeleteModelMutation($input: DeleteModelMutationInput!) {
         deleteModel(input: $input) {
           model {
@@ -74,7 +70,11 @@ class TestModelMutations:
                 ],
             }
         }
-        create_result = await gql_client.execute(self.CREATE_MODEL_MUTATION, create_variables)
+        create_result = await gql_client.execute(
+            query=self.QUERY,
+            variables=create_variables,
+            operation_name="CreateModelMutation",
+        )
         assert not create_result.errors
         assert create_result.data is not None
 
@@ -105,7 +105,11 @@ class TestModelMutations:
                 ],
             }
         }
-        update_result = await gql_client.execute(self.UPDATE_MODEL_MUTATION, update_variables)
+        update_result = await gql_client.execute(
+            query=self.QUERY,
+            variables=update_variables,
+            operation_name="UpdateModelMutation",
+        )
         assert not update_result.errors
         assert update_result.data is not None
 
@@ -129,7 +133,11 @@ class TestModelMutations:
                 "id": model_id,
             }
         }
-        delete_result = await gql_client.execute(self.DELETE_MODEL_MUTATION, delete_variables)
+        delete_result = await gql_client.execute(
+            query=self.QUERY,
+            variables=delete_variables,
+            operation_name="DeleteModelMutation",
+        )
         assert not delete_result.errors
         assert delete_result.data is not None
 
