@@ -1,8 +1,8 @@
-import { ReactNode, useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 
-import { ActionMenu, DialogContainer, Item } from "@arizeai/components";
+import { ActionMenu, Item } from "@arizeai/components";
 
-import { Flex, Icon, Icons } from "@phoenix/components";
+import { DialogTrigger, Flex, Icon, Icons, Modal } from "@phoenix/components";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 
 import { DeletePromptDialog } from "./DeletePromptDialog";
@@ -18,20 +18,11 @@ export function PromptActionMenu({
   promptId: string;
   onDeleted: () => void;
 }) {
-  const [dialog, setDialog] = useState<ReactNode>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const onDelete = useCallback(() => {
-    setDialog(
-      <DeletePromptDialog
-        promptId={promptId}
-        onClose={() => setDialog(null)}
-        onDeleted={() => {
-          onDeleted();
-          setDialog(null);
-        }}
-      />
-    );
-  }, [promptId, onDeleted]);
+    setShowDeleteDialog(true);
+  }, []);
 
   return (
     <StopPropagation>
@@ -59,13 +50,20 @@ export function PromptActionMenu({
           </Flex>
         </Item>
       </ActionMenu>
-      <DialogContainer
-        type="modal"
-        isDismissable
-        onDismiss={() => setDialog(null)}
+      <DialogTrigger
+        isOpen={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
       >
-        {dialog}
-      </DialogContainer>
+        <Modal>
+          <DeletePromptDialog
+            promptId={promptId}
+            onDeleted={() => {
+              onDeleted();
+              setShowDeleteDialog(false);
+            }}
+          />
+        </Modal>
+      </DialogTrigger>
     </StopPropagation>
   );
 }

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8ae58e33cf86f753b27da51b4c5951bb>>
+ * @generated SignedSource<<66e06ab5b425f5a05097a974c54127be>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -54,7 +54,14 @@ v4 = {
   "kind": "ScalarField",
   "name": "expiresAt",
   "storageKey": null
-};
+},
+v5 = [
+  (v0/*: any*/),
+  (v1/*: any*/),
+  (v2/*: any*/),
+  (v3/*: any*/),
+  (v4/*: any*/)
+];
 return {
   "fragment": {
     "argumentDefinitions": [],
@@ -89,12 +96,28 @@ return {
         "kind": "LinkedField",
         "name": "systemApiKeys",
         "plural": true,
+        "selections": (v5/*: any*/),
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "User",
+        "kind": "LinkedField",
+        "name": "viewer",
+        "plural": false,
         "selections": [
-          (v0/*: any*/),
-          (v1/*: any*/),
-          (v2/*: any*/),
-          (v3/*: any*/),
-          (v4/*: any*/)
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "UserApiKey",
+            "kind": "LinkedField",
+            "name": "apiKeys",
+            "plural": true,
+            "selections": (v5/*: any*/),
+            "storageKey": null
+          },
+          (v0/*: any*/)
         ],
         "storageKey": null
       },
@@ -136,12 +159,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "002d6c72a80b294266c909bd743a881c",
+    "cacheID": "57789e2e81fd3f8d26137adcc2e77c8c",
     "id": null,
     "metadata": {},
     "name": "APIKeysCardQuery",
     "operationKind": "query",
-    "text": "query APIKeysCardQuery {\n  ...SystemAPIKeysTableFragment\n  ...UserAPIKeysTableFragment\n}\n\nfragment SystemAPIKeysTableFragment on Query {\n  systemApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n}\n\nfragment UserAPIKeysTableFragment on Query {\n  userApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n    user {\n      email\n      id\n    }\n  }\n}\n"
+    "text": "query APIKeysCardQuery {\n  ...SystemAPIKeysTableFragment\n  ...UserAPIKeysTableFragment\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n\nfragment SystemAPIKeysTableFragment on Query {\n  systemApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  viewer {\n    ...APIKeysTableFragment\n    id\n  }\n}\n\nfragment UserAPIKeysTableFragment on Query {\n  userApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n    user {\n      email\n      id\n    }\n  }\n}\n"
   }
 };
 })();
