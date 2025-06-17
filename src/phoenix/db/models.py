@@ -1530,7 +1530,7 @@ class SpanCost(Base):
     __tablename__ = "span_costs"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    span_id: Mapped[int] = mapped_column(
+    span_rowid: Mapped[int] = mapped_column(
         ForeignKey("spans.id", ondelete="CASCADE"),
         nullable=False,
     )
