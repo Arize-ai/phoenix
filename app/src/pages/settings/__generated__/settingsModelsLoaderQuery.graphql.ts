@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cbf309acd70cd44657b933fcefd34b12>>
+ * @generated SignedSource<<90f3d73805e40a3a64ac86918da9120f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,7 +12,7 @@ import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type settingsModelsLoaderQuery$variables = Record<PropertyKey, never>;
 export type settingsModelsLoaderQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"ModelsTable_models">;
+  readonly " $fragmentSpreads": FragmentRefs<"ModelsTable_generativeModels">;
 };
 export type settingsModelsLoaderQuery = {
   response: settingsModelsLoaderQuery$data;
@@ -44,7 +44,7 @@ return {
       {
         "args": null,
         "kind": "FragmentSpread",
-        "name": "ModelsTable_models"
+        "name": "ModelsTable_generativeModels"
       }
     ],
     "type": "Query",
@@ -59,15 +59,15 @@ return {
       {
         "alias": null,
         "args": (v0/*: any*/),
-        "concreteType": "ModelConnection",
+        "concreteType": "GenerativeModelConnection",
         "kind": "LinkedField",
-        "name": "models",
+        "name": "generativeModels",
         "plural": false,
         "selections": [
           {
             "alias": null,
             "args": null,
-            "concreteType": "ModelEdge",
+            "concreteType": "GenerativeModelEdge",
             "kind": "LinkedField",
             "name": "edges",
             "plural": true,
@@ -75,7 +75,7 @@ return {
               {
                 "alias": "model",
                 "args": null,
-                "concreteType": "Model",
+                "concreteType": "GenerativeModel",
                 "kind": "LinkedField",
                 "name": "node",
                 "plural": false,
@@ -203,7 +203,7 @@ return {
               {
                 "alias": null,
                 "args": null,
-                "concreteType": "Model",
+                "concreteType": "GenerativeModel",
                 "kind": "LinkedField",
                 "name": "node",
                 "plural": false,
@@ -260,30 +260,30 @@ return {
             ]
           }
         ],
-        "storageKey": "models(first:100)"
+        "storageKey": "generativeModels(first:100)"
       },
       {
         "alias": null,
         "args": (v0/*: any*/),
         "filters": null,
         "handle": "connection",
-        "key": "ModelsTable_models",
+        "key": "ModelsTable_generativeModels",
         "kind": "LinkedHandle",
-        "name": "models"
+        "name": "generativeModels"
       }
     ]
   },
   "params": {
-    "cacheID": "ed3f19228c461e89fdc8a21dae70033b",
+    "cacheID": "702c528afb583a8304eb4d0c17eb1c76",
     "id": null,
     "metadata": {},
     "name": "settingsModelsLoaderQuery",
     "operationKind": "query",
-    "text": "query settingsModelsLoaderQuery {\n  ...ModelsTable_models\n}\n\nfragment ModelsTable_models on Query {\n  models(first: 100) {\n    edges {\n      model: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        createdAt\n        updatedAt\n        isOverride\n        tokenCost {\n          input\n          output\n          cacheRead\n          cacheWrite\n          promptAudio\n          completionAudio\n          reasoning\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query settingsModelsLoaderQuery {\n  ...ModelsTable_generativeModels\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels(first: 100) {\n    edges {\n      model: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        createdAt\n        updatedAt\n        isOverride\n        tokenCost {\n          input\n          output\n          cacheRead\n          cacheWrite\n          promptAudio\n          completionAudio\n          reasoning\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e1f0eedfcf294ab23c95d3aa6eeb5b6a";
+(node as any).hash = "a0f3a13e85b11b62ee06f77c3efabae7";
 
 export default node;

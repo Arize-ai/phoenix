@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4d01ad78d03e43db31ef54d646e733b0>>
+ * @generated SignedSource<<20d02a27fae4fded1b9c464681251307>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -163,7 +163,7 @@ return {
               (v6/*: any*/),
               (v7/*: any*/)
             ],
-            "type": "Model",
+            "type": "GenerativeModel",
             "abstractKey": null
           }
         ],
@@ -204,7 +204,7 @@ return {
               (v6/*: any*/),
               (v7/*: any*/)
             ],
-            "type": "Model",
+            "type": "GenerativeModel",
             "abstractKey": null
           }
         ],
@@ -213,16 +213,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "059ccf96a0f838c8b2311925cbae1c70",
+    "cacheID": "98566158c3cc37d02a9df65db766f1a8",
     "id": null,
     "metadata": {},
     "name": "CloneModelButtonQuery",
     "operationKind": "query",
-    "text": "query CloneModelButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on Model {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      tokenCost {\n        input\n        output\n        cacheRead\n        cacheWrite\n        promptAudio\n        completionAudio\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query CloneModelButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on GenerativeModel {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      tokenCost {\n        input\n        output\n        cacheRead\n        cacheWrite\n        promptAudio\n        completionAudio\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b44d8a0c682a7f2e0bf275a6262f2e9c";
+(node as any).hash = "ddcf8ded3bed5d52331f731644ebe5ef";
 
 export default node;

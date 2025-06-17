@@ -37,7 +37,7 @@ class ModelTotalCostsDataLoader(DataLoader[Key, Result]):
         async with self._db() as session:
             stmt = (
                 select(
-                    models.SpanCost.model_id,
+                    models.SpanCost.generative_model_id,
                     func.sum(models.SpanCost.input_token_cost).label("total_input_token_cost"),
                     func.sum(models.SpanCost.output_token_cost).label("total_output_token_cost"),
                     func.sum(models.SpanCost.cache_read_token_cost).label(
@@ -57,8 +57,8 @@ class ModelTotalCostsDataLoader(DataLoader[Key, Result]):
                     ),
                     func.sum(models.SpanCost.total_token_cost).label("total_token_cost"),
                 )
-                .where(models.SpanCost.model_id.in_(model_ids))
-                .group_by(models.SpanCost.model_id)
+                .where(models.SpanCost.generative_model_id.in_(model_ids))
+                .group_by(models.SpanCost.generative_model_id)
             )
             costs_by_model_id = {
                 row.model_id: ModelTotalCost(**row._asdict())

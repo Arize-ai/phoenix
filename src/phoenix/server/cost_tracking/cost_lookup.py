@@ -220,7 +220,9 @@ async def _create_cost_table(session: AsyncSession) -> "ModelCostLookup":
     lookup = ModelCostLookup()
 
     result = await session.execute(
-        select(models.Model).options(joinedload(models.Model.costs)).order_by(models.Model.id)
+        select(models.GenerativeModel)
+        .options(joinedload(models.GenerativeModel.costs))
+        .order_by(models.GenerativeModel.id)
     )
     db_models = result.unique().scalars().all()
 

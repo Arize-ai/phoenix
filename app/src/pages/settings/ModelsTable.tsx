@@ -20,7 +20,7 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { EditModelButton } from "@phoenix/pages/settings/EditModelButton";
 import { getProviderName } from "@phoenix/utils/generativeUtils";
 
-import { ModelsTable_models$key } from "./__generated__/ModelsTable_models.graphql";
+import { ModelsTable_generativeModels$key } from "./__generated__/ModelsTable_generativeModels.graphql";
 import { ModelsTableModelsQuery } from "./__generated__/ModelsTableModelsQuery.graphql";
 import { CloneModelButton } from "./CloneModelButton";
 import { DeleteModelButton } from "./DeleteModelButton";
@@ -28,7 +28,7 @@ import { DeleteModelButton } from "./DeleteModelButton";
 const PAGE_SIZE = 100;
 
 type ModelsTableProps = {
-  query: ModelsTable_models$key;
+  query: ModelsTable_generativeModels$key;
 };
 
 export function ModelsTable(props: ModelsTableProps) {
@@ -36,17 +36,17 @@ export function ModelsTable(props: ModelsTableProps) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
     ModelsTableModelsQuery,
-    ModelsTable_models$key
+    ModelsTable_generativeModels$key
   >(
     graphql`
-      fragment ModelsTable_models on Query
+      fragment ModelsTable_generativeModels on Query
       @refetchable(queryName: "ModelsTableModelsQuery")
       @argumentDefinitions(
         after: { type: "String", defaultValue: null }
         first: { type: "Int", defaultValue: 100 }
       ) {
-        models(first: $first, after: $after)
-          @connection(key: "ModelsTable_models") {
+        generativeModels(first: $first, after: $after)
+          @connection(key: "ModelsTable_generativeModels") {
           __id
           edges {
             model: node {
@@ -75,11 +75,11 @@ export function ModelsTable(props: ModelsTableProps) {
     props.query
   );
 
-  const connectionId = data.models.__id;
+  const connectionId = data.generativeModels.__id;
 
   const tableData = useMemo(
     () =>
-      data.models.edges.map((edge) => {
+      data.generativeModels.edges.map((edge) => {
         return edge.model;
       }),
     [data]
