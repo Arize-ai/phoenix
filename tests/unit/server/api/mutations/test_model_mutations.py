@@ -1,7 +1,9 @@
 from typing import Any
 
 import pytest
+from strawberry.relay import GlobalID
 
+from phoenix.server.api.types.Model import Model
 from tests.unit.graphql import AsyncGraphQLClient
 
 
@@ -198,6 +200,88 @@ class TestModelMutations:
             query=self.QUERY,
             variables=variables,
             operation_name="CreateModelMutation",
+        )
+        assert len(result.errors) == 1
+        assert result.errors[0].message == expected_error_message
+        assert result.data is None
+
+    @pytest.mark.parametrize(
+        "variables,expected_error_message",
+        [
+            pytest.param(
+                {
+                    "input": {
+                        "id": str(GlobalID(Model.__name__, str(999))),
+                        "name": "updated-model",
+                        "provider": "openai",
+                        "namePattern": "gpt-*",
+                        "costs": [
+                            {"tokenType": "input", "costPerToken": 0.001},
+                            {"tokenType": "output", "costPerToken": 0.002},
+                        ],
+                    }
+                },
+                f'Model "{str(GlobalID(Model.__name__, str(999)))}" not found',
+                id="non-existent-model",
+            ),
+            pytest.param(
+                {
+                    "input": {
+                        "id": str(GlobalID("Project", str(1))),
+                        "name": "updated-model",
+                        "provider": "openai",
+                        "namePattern": "gpt-*",
+                        "costs": [
+                            {"tokenType": "input", "costPerToken": 0.001},
+                            {"tokenType": "output", "costPerToken": 0.002},
+                        ],
+                    }
+                },
+                f'Invalid model id: "{str(GlobalID("Project", str(1)))}"',
+                id="invalid-global-id",
+            ),
+            pytest.param(
+                {
+                    "input": {
+                        "id": str(GlobalID(Model.__name__, str(1))),
+                        "name": "updated-model",
+                        "provider": "openai",
+                        "namePattern": "gpt-*",
+                        "costs": [
+                            {"tokenType": "output", "costPerToken": 0.002},
+                        ],
+                    }
+                },
+                "input cost is required",
+                id="missing-input-cost",
+            ),
+            pytest.param(
+                {
+                    "input": {
+                        "id": str(GlobalID(Model.__name__, str(1))),
+                        "name": "updated-model",
+                        "provider": "openai",
+                        "namePattern": "gpt-*",
+                        "costs": [
+                            {"tokenType": "input", "costPerToken": 0.001},
+                        ],
+                    }
+                },
+                "output cost is required",
+                id="missing-output-cost",
+            ),
+        ],
+    )
+    async def test_update_model_with_invalid_input_raises_expected_error(
+        self,
+        gql_client: AsyncGraphQLClient,
+        variables: dict[str, Any],
+        expected_error_message: str,
+    ) -> None:
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="UpdateModelMutation",
         )
         assert len(result.errors) == 1
         assert result.errors[0].message == expected_error_message
