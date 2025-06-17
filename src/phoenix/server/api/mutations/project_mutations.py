@@ -50,13 +50,12 @@ class ProjectMutationMixin:
             session_ids_to_delete = [
                 id_ for id_ in set(deleted_trace_project_session_ids) if id_ is not None
             ]
-            if session_ids_to_delete:
-                # Process deletions in chunks of 10000 to avoid PostgreSQL argument limit
-                chunk_size = 10000
-                for i in range(0, len(session_ids_to_delete), chunk_size):
-                    chunk = session_ids_to_delete[i : i + chunk_size]
-                    await session.execute(
-                        delete(models.ProjectSession).where(models.ProjectSession.id.in_(chunk))
-                    )
+            # Process deletions in chunks of 10000 to avoid PostgreSQL argument limit
+            chunk_size = 10000
+            for i in range(0, len(session_ids_to_delete), chunk_size):
+                chunk = session_ids_to_delete[i : i + chunk_size]
+                await session.execute(
+                    delete(models.ProjectSession).where(models.ProjectSession.id.in_(chunk))
+                )
         info.context.event_queue.put(SpanDeleteEvent((project_id,)))
         return Query()
