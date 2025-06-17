@@ -27,7 +27,6 @@ export function setItentity(identity: FullStoryIdentity) {
   }
 
   try {
-    console.log("Setting FullStory identity", identity);
     // @ts-expect-error - FS is not typed, it's a global function
     FS("setIdentity", {
       uid: getUniqueUserId(identity.uid),
