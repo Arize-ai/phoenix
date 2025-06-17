@@ -11,7 +11,7 @@ from phoenix.server.api.auth import IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.queries import Query
-from phoenix.server.api.types.Model import Model, to_gql_model
+from phoenix.server.api.types.GenerativeModel import GenerativeModel, to_gql_generative_model
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
@@ -31,7 +31,7 @@ class CreateModelMutationInput:
 
 @strawberry.type
 class CreateModelMutationPayload:
-    model: Model
+    model: GenerativeModel
     query: Query
 
 
@@ -46,7 +46,7 @@ class UpdateModelMutationInput:
 
 @strawberry.type
 class UpdateModelMutationPayload:
-    model: Model
+    model: GenerativeModel
     query: Query
 
 
@@ -57,7 +57,7 @@ class DeleteModelMutationInput:
 
 @strawberry.type
 class DeleteModelMutationPayload:
-    model: Model
+    model: GenerativeModel
     query: Query
 
 
@@ -81,7 +81,7 @@ class ModelMutationMixin:
             )
             for cost in input.costs
         ]
-        model = models.Model(
+        model = models.GenerativeModel(
             name=input.name,
             provider=input.provider,
             name_pattern=input.name_pattern,
@@ -93,7 +93,7 @@ class ModelMutationMixin:
             await session.commit()
 
         return CreateModelMutationPayload(
-            model=to_gql_model(model),
+            model=to_gql_generative_model(model),
             query=Query(),
         )
 
@@ -104,7 +104,7 @@ class ModelMutationMixin:
         input: UpdateModelMutationInput,
     ) -> UpdateModelMutationPayload:
         try:
-            model_id = from_global_id_with_expected_type(input.id, Model.__name__)
+            model_id = from_global_id_with_expected_type(input.id, GenerativeModel.__name__)
         except ValueError:
             raise BadRequest(f'Invalid model id: "{input.id}"')
 
@@ -122,9 +122,9 @@ class ModelMutationMixin:
         ]
         async with info.context.db() as session:
             model = await session.get(
-                models.Model,
+                models.GenerativeModel,
                 model_id,
-                options=[joinedload(models.Model.costs)],
+                options=[joinedload(models.GenerativeModel.costs)],
             )
             if model is None:
                 raise NotFound(f'Model "{input.id}" not found')
@@ -146,7 +146,7 @@ class ModelMutationMixin:
             await session.refresh(model)
 
         return UpdateModelMutationPayload(
-            model=to_gql_model(model),
+            model=to_gql_generative_model(model),
             query=Query(),
         )
 
@@ -157,13 +157,15 @@ class ModelMutationMixin:
         input: DeleteModelMutationInput,
     ) -> DeleteModelMutationPayload:
         try:
-            model_id = from_global_id_with_expected_type(input.id, Model.__name__)
+            model_id = from_global_id_with_expected_type(input.id, GenerativeModel.__name__)
         except ValueError:
             raise BadRequest(f'Invalid model id: "{input.id}"')
 
         async with info.context.db() as session:
             model = await session.scalar(
-                delete(models.Model).where(models.Model.id == model_id).returning(models.Model)
+                delete(models.GenerativeModel)
+                .where(models.GenerativeModel.id == model_id)
+                .returning(models.GenerativeModel)
             )
             if model is None:
                 raise NotFound(f'Model "{input.id}" not found')
@@ -171,6 +173,6 @@ class ModelMutationMixin:
                 await session.rollback()
                 raise BadRequest("Cannot delete default model")
         return DeleteModelMutationPayload(
-            model=to_gql_model(model),
+            model=to_gql_generative_model(model),
             query=Query(),
         )

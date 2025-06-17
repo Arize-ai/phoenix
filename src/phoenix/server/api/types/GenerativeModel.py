@@ -16,7 +16,7 @@ from phoenix.server.api.types.TokenCost import TokenCost
 
 
 @strawberry.type
-class Model(Node, ModelInterface):
+class GenerativeModel(Node, ModelInterface):
     id_attr: NodeID[int]
     name: str
     provider: Optional[str]
@@ -53,9 +53,9 @@ class Model(Node, ModelInterface):
         )
 
 
-def to_gql_model(model: models.Model) -> Model:
+def to_gql_generative_model(model: models.GenerativeModel) -> GenerativeModel:
     costs_are_loaded = isinstance(inspect(model).attrs.costs.loaded_value, list)
-    return Model(
+    return GenerativeModel(
         id_attr=model.id,
         name=model.name,
         provider=model.provider,

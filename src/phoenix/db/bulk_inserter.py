@@ -454,7 +454,7 @@ def _calculate_span_cost(span: Span, span_id: int) -> Optional[SpanCost]:
 
     return SpanCost(
         span_id=span_id,
-        model_id=model_id,
+        generative_model_id=model_id,
         prompt_token_cost=prompt_token_cost,
         completion_token_cost=completion_token_cost,
         input_token_cost=input_token_cost,

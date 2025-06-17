@@ -29,11 +29,6 @@ from phoenix.config import (
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.enums import ENUM_COLUMNS
-from phoenix.db.models import (
-    Model,
-    ModelCost,
-    UserRoleName,
-)
 from phoenix.db.types.trace_retention import (
     MaxDaysRule,
     TraceRetentionCronExpression,
@@ -101,13 +96,13 @@ async def _ensure_user_roles(db: DbSessionFactory) -> None:
     the email "admin@localhost".
     """
     async with db() as session:
-        role_ids: dict[UserRoleName, int] = {
+        role_ids: dict[models.UserRoleName, int] = {
             name: id_
             async for name, id_ in await session.stream(
                 sa.select(models.UserRole.name, models.UserRole.id)
             )
         }
-        existing_roles: list[UserRoleName] = [
+        existing_roles: list[models.UserRoleName] = [
             name
             async for name in await session.stream_scalars(
                 sa.select(sa.distinct(models.UserRole.name)).join_from(models.User, models.UserRole)
@@ -280,11 +275,15 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
             manifest = json.load(f)
 
         for model_data in manifest:
-            result = await session.execute(select(Model).where(Model.name == model_data["model"]))
+            result = await session.execute(
+                select(models.GenerativeModel).where(
+                    models.GenerativeModel.name == model_data["model"]
+                )
+            )
             existing_model = result.scalar_one_or_none()
 
             if existing_model is None:
-                model = Model(
+                model = models.GenerativeModel(
                     name=model_data["model"],
                     provider=model_data["provider"],
                     name_pattern=model_data["regex"],
@@ -296,12 +295,14 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
                 existing_model.provider = model_data["provider"]
                 existing_model.name_pattern = model_data["regex"]
                 model = existing_model
-                await session.execute(delete(ModelCost).where(ModelCost.model_id == model.id))
+                await session.execute(
+                    delete(models.ModelCost).where(models.ModelCost.model_id == model.id)
+                )
 
             costs = []
             if model_data["input"] is not None:
                 costs.append(
-                    ModelCost(
+                    models.ModelCost(
                         model_id=model.id,
                         token_type="input",
                         cost_per_token=model_data["input"],
@@ -309,7 +310,7 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
                 )
             if model_data["output"] is not None:
                 costs.append(
-                    ModelCost(
+                    models.ModelCost(
                         model_id=model.id,
                         token_type="output",
                         cost_per_token=model_data["output"],
@@ -317,7 +318,7 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
                 )
             if model_data["cache_write"] is not None:
                 costs.append(
-                    ModelCost(
+                    models.ModelCost(
                         model_id=model.id,
                         token_type="cache_write",
                         cost_per_token=model_data["cache_write"],
@@ -325,7 +326,7 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
                 )
             if model_data["cache_read"] is not None:
                 costs.append(
-                    ModelCost(
+                    models.ModelCost(
                         model_id=model.id,
                         token_type="cache_read",
                         cost_per_token=model_data["cache_read"],

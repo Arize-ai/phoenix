@@ -20,7 +20,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.create_table(
-        "models",
+        "generative_models",
         sa.Column(
             "id",
             sa.Integer,
@@ -71,7 +71,7 @@ def upgrade() -> None:
         sa.Column(
             "model_id",
             sa.Integer,
-            sa.ForeignKey("models.id", ondelete="CASCADE"),
+            sa.ForeignKey("generative_models.id", ondelete="CASCADE"),
             nullable=False,
             index=True,
         ),
@@ -104,9 +104,9 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column(
-            "model_id",
+            "generative_model_id",
             sa.Integer,
-            sa.ForeignKey("models.id", ondelete="CASCADE"),
+            sa.ForeignKey("generative_models.id", ondelete="CASCADE"),
             nullable=False,
             index=True,
         ),
@@ -176,4 +176,4 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_table("span_costs")
     op.drop_table("model_costs")
-    op.drop_table("models")
+    op.drop_table("generative_models")

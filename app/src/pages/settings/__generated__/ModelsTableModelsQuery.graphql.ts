@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f9e6c06513f271d9612ff15b12014449>>
+ * @generated SignedSource<<abb18b2c4aade425ffaa3e06713ccbce>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,7 +15,7 @@ export type ModelsTableModelsQuery$variables = {
   first?: number | null;
 };
 export type ModelsTableModelsQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"ModelsTable_models">;
+  readonly " $fragmentSpreads": FragmentRefs<"ModelsTable_generativeModels">;
 };
 export type ModelsTableModelsQuery = {
   response: ModelsTableModelsQuery$data;
@@ -64,7 +64,7 @@ return {
       {
         "args": (v1/*: any*/),
         "kind": "FragmentSpread",
-        "name": "ModelsTable_models"
+        "name": "ModelsTable_generativeModels"
       }
     ],
     "type": "Query",
@@ -79,15 +79,15 @@ return {
       {
         "alias": null,
         "args": (v1/*: any*/),
-        "concreteType": "ModelConnection",
+        "concreteType": "GenerativeModelConnection",
         "kind": "LinkedField",
-        "name": "models",
+        "name": "generativeModels",
         "plural": false,
         "selections": [
           {
             "alias": null,
             "args": null,
-            "concreteType": "ModelEdge",
+            "concreteType": "GenerativeModelEdge",
             "kind": "LinkedField",
             "name": "edges",
             "plural": true,
@@ -95,7 +95,7 @@ return {
               {
                 "alias": "model",
                 "args": null,
-                "concreteType": "Model",
+                "concreteType": "GenerativeModel",
                 "kind": "LinkedField",
                 "name": "node",
                 "plural": false,
@@ -223,7 +223,7 @@ return {
               {
                 "alias": null,
                 "args": null,
-                "concreteType": "Model",
+                "concreteType": "GenerativeModel",
                 "kind": "LinkedField",
                 "name": "node",
                 "plural": false,
@@ -287,23 +287,23 @@ return {
         "args": (v1/*: any*/),
         "filters": null,
         "handle": "connection",
-        "key": "ModelsTable_models",
+        "key": "ModelsTable_generativeModels",
         "kind": "LinkedHandle",
-        "name": "models"
+        "name": "generativeModels"
       }
     ]
   },
   "params": {
-    "cacheID": "662b74796046b9e9c9b0bea262282ab0",
+    "cacheID": "b43bd54383d3bcfbd7a13e8c81c7b1cd",
     "id": null,
     "metadata": {},
     "name": "ModelsTableModelsQuery",
     "operationKind": "query",
-    "text": "query ModelsTableModelsQuery(\n  $after: String = null\n  $first: Int = 100\n) {\n  ...ModelsTable_models_2HEEH6\n}\n\nfragment ModelsTable_models_2HEEH6 on Query {\n  models(first: $first, after: $after) {\n    edges {\n      model: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        createdAt\n        updatedAt\n        isOverride\n        tokenCost {\n          input\n          output\n          cacheRead\n          cacheWrite\n          promptAudio\n          completionAudio\n          reasoning\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ModelsTableModelsQuery(\n  $after: String = null\n  $first: Int = 100\n) {\n  ...ModelsTable_generativeModels_2HEEH6\n}\n\nfragment ModelsTable_generativeModels_2HEEH6 on Query {\n  generativeModels(first: $first, after: $after) {\n    edges {\n      model: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        createdAt\n        updatedAt\n        isOverride\n        tokenCost {\n          input\n          output\n          cacheRead\n          cacheWrite\n          promptAudio\n          completionAudio\n          reasoning\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "cf177b302511726ace98e39913b0e8f7";
+(node as any).hash = "b2c1c41f9ba92b585c216d3d76bae502";
 
 export default node;
