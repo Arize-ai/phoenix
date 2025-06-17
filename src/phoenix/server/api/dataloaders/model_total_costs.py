@@ -61,7 +61,7 @@ class ModelTotalCostsDataLoader(DataLoader[Key, Result]):
                 .group_by(models.SpanCost.generative_model_id)
             )
             costs_by_model_id = {
-                row.model_id: ModelTotalCost(**row._asdict())
+                row.generative_model_id: ModelTotalCost(**row._asdict())
                 async for row in await session.stream(stmt)
             }
         return [costs_by_model_id.get(model_id) for model_id in keys]
