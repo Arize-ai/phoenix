@@ -94,7 +94,6 @@ def _get_llm_span_input(
         # Hoist template variables to top level as individual key-value pairs
         input.update(prompt_template_variables_data)
         # Keep the original nested structure for compatibility
-        input["prompt_template_variables"] = prompt_template_variables_data
     if tool_definitions_data := [_safely_json_decode(tool_definition) for tool_definition in tools]:
         input["tools"] = tool_definitions_data
     return input
