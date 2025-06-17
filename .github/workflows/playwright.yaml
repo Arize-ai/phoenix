@@ -71,12 +71,8 @@ jobs:
             "**/requirements/**/*.txt"
             "**/pyproject.toml"
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - run: uv venv ../.venv
-      - run: uv pip install uvloop
-        if: runner.os != 'Windows'
-      - name: Pre-sync dependencies
-        # prevent a timeout when starting the server via playwright
-        run: uv pip install -r ../requirements/dev.txt
+      - name: Install dependencies
+        run: uv sync --extra container
       - name: Run Playwright tests
         run: pnpm test:e2e
       - uses: actions/upload-artifact@v4
