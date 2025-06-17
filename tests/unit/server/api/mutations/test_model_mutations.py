@@ -1,3 +1,7 @@
+from typing import Any
+
+import pytest
+
 from tests.unit.graphql import AsyncGraphQLClient
 
 
@@ -150,3 +154,51 @@ class TestModelMutations:
         assert isinstance(deleted_model.pop("createdAt"), str)
         assert isinstance(deleted_model.pop("updatedAt"), str)
         assert not deleted_model
+
+    @pytest.mark.parametrize(
+        "variables,expected_error_message",
+        [
+            pytest.param(
+                {
+                    "input": {
+                        "name": "test-model",
+                        "provider": "openai",
+                        "namePattern": "gpt-*",
+                        "costs": [
+                            {"tokenType": "output", "costPerToken": 0.002},
+                        ],
+                    }
+                },
+                "input cost is required",
+                id="missing-input-cost",
+            ),
+            pytest.param(
+                {
+                    "input": {
+                        "name": "test-model",
+                        "provider": "openai",
+                        "namePattern": "gpt-*",
+                        "costs": [
+                            {"tokenType": "input", "costPerToken": 0.001},
+                        ],
+                    }
+                },
+                "output cost is required",
+                id="missing-output-cost",
+            ),
+        ],
+    )
+    async def test_create_model_with_invalid_input_raises_expected_error(
+        self,
+        gql_client: AsyncGraphQLClient,
+        variables: dict[str, Any],
+        expected_error_message: str,
+    ) -> None:
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="CreateModelMutation",
+        )
+        assert len(result.errors) == 1
+        assert result.errors[0].message == expected_error_message
+        assert result.data is None
