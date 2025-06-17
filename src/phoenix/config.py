@@ -1531,7 +1531,6 @@ def get_env_fullstory_org() -> Optional[str]:
     Returns:
         Optional[str]: The FullStory organization ID if set, None otherwise.
     """
-    print(f"PHOENIX_FULLSTORY_ORG: {getenv(ENV_PHOENIX_FULLSTORY_ORG)}")
     return getenv(ENV_PHOENIX_FULLSTORY_ORG)
 
 
