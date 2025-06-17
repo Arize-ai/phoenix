@@ -1,5 +1,6 @@
 import inspect
 import os
+import re
 import sys
 import warnings
 from enum import Enum
@@ -399,13 +400,13 @@ class HTTPSpanExporter(_HTTPSpanExporter):
         if not bound_args.arguments.get("headers"):
             env_headers = get_env_client_headers()
             auth_header = get_env_phoenix_auth_header()
-            headers = {
+            inferred_headers = {
                 **(env_headers or dict()),
                 **(auth_header or dict()),
             }
-            bound_args.arguments["headers"] = headers if headers else None
+            bound_args.arguments["headers"] = inferred_headers if inferred_headers else None
         else:
-            headers = dict()
+            headers: Dict[str, str] = dict()
             for header_field, value in bound_args.arguments["headers"].items():
                 headers[header_field.lower()] = value
 
@@ -452,13 +453,13 @@ class GRPCSpanExporter(_GRPCSpanExporter):
         if not bound_args.arguments.get("headers"):
             env_headers = get_env_client_headers()
             auth_header = get_env_phoenix_auth_header()
-            headers = {
+            inferred_headers = {
                 **(env_headers or dict()),
                 **(auth_header or dict()),
             }
-            bound_args.arguments["headers"] = headers if headers else None
+            bound_args.arguments["headers"] = inferred_headers if inferred_headers else None
         else:
-            headers = dict()
+            headers: Dict[str, str] = dict()
             for header_field, value in bound_args.arguments["headers"].items():
                 headers[header_field.lower()] = value
 
@@ -509,12 +510,24 @@ def _construct_http_endpoint(parsed_endpoint: ParseResult) -> ParseResult:
     return parsed_endpoint._replace(path="/v1/traces")
 
 
+def _construct_phoenix_cloud_endpoint(parsed_endpoint: ParseResult) -> ParseResult:
+    space_pattern = r"^/s/([a-zA-Z0-9_-]+)"
+
+    match = re.match(space_pattern, parsed_endpoint.path)
+    if match:
+        space_id = match.group(1)
+        new_path = f"/s/{space_id}/v1/traces"
+        return parsed_endpoint._replace(path=new_path)
+    else:
+        return parsed_endpoint._replace(path="/v1/traces")
+
+
 def _construct_grpc_endpoint(parsed_endpoint: ParseResult) -> ParseResult:
     return parsed_endpoint._replace(netloc=f"{parsed_endpoint.hostname}:{get_env_grpc_port()}")
 
 
 _KNOWN_PROVIDERS = {
-    "app.phoenix.arize.com": _construct_http_endpoint,
+    "app.phoenix.arize.com": _construct_phoenix_cloud_endpoint,
 }
 
 
