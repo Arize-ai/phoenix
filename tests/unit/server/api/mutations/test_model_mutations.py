@@ -3,7 +3,9 @@ from typing import Any
 import pytest
 from strawberry.relay import GlobalID
 
+from phoenix.db import models
 from phoenix.server.api.types.Model import Model
+from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
 
@@ -272,7 +274,7 @@ class TestModelMutations:
             ),
         ],
     )
-    async def test_update_model_with_invalid_input_raises_expected_error(
+    async def test_updating_model_with_invalid_input_fails_with_expected_error(
         self,
         gql_client: AsyncGraphQLClient,
         variables: dict[str, Any],
@@ -286,3 +288,58 @@ class TestModelMutations:
         assert len(result.errors) == 1
         assert result.errors[0].message == expected_error_message
         assert result.data is None
+
+    async def test_updating_default_model_fails_with_expected_error(
+        self,
+        gql_client: AsyncGraphQLClient,
+        default_model: models.Model,
+    ) -> None:
+        model_id = str(GlobalID(Model.__name__, str(default_model.id)))
+        variables = {
+            "input": {
+                "id": model_id,
+                "name": "updated-default-model",
+                "provider": "anthropic",
+                "namePattern": "claude-*",
+                "costs": [
+                    {"tokenType": "input", "costPerToken": 0.003},
+                    {"tokenType": "output", "costPerToken": 0.004},
+                ],
+            }
+        }
+
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="UpdateModelMutation",
+        )
+        assert len(result.errors) == 1
+        assert result.errors[0].message == "Cannot update default model"
+        assert result.data is None
+
+
+@pytest.fixture
+async def default_model(db: DbSessionFactory) -> models.Model:
+    """
+    Inserts a default model with input and output costs.
+    """
+    async with db() as session:
+        model = models.Model(
+            name="default-model",
+            provider="openai",
+            name_pattern="gpt-*",
+            is_override=False,
+            costs=[
+                models.ModelCost(
+                    token_type="input",
+                    cost_per_token=0.001,
+                ),
+                models.ModelCost(
+                    token_type="output",
+                    cost_per_token=0.002,
+                ),
+            ],
+        )
+        session.add(model)
+        await session.flush()
+    return model
