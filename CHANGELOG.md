@@ -1,5 +1,12 @@
 # Changelog
 
+## [10.13.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.13.0...arize-phoenix-v10.13.1) (2025-06-17)
+
+
+### Documentation
+
+* add google adk ([#8127](https://github.com/Arize-ai/phoenix/issues/8127)) ([993f324](https://github.com/Arize-ai/phoenix/commit/993f324ce5961e3cda74528f9ef1ab1571d45d12))
+
 ## [10.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.12.0...arize-phoenix-v10.13.0) (2025-06-17)
 
 
