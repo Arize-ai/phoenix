@@ -71,7 +71,8 @@ jobs:
             "**/requirements/**/*.txt"
             "**/pyproject.toml"
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - run: uv pip install --system uvloop
+      - run: uv venv ../.venv
+      - run: uv pip install uvloop
         if: runner.os != 'Windows'
       - name: Pre-sync dependencies
         # prevent a timeout when starting the server via playwright
