@@ -527,7 +527,12 @@ class TestLogOut:
     ) -> None:
         u = _get_user(role_or_user)
         refresh_token = u.log_in().tokens.refresh_token
-        refresh_token.log_out()
+        # Explicitly check for 302 response from logout
+        client = _httpx_client(refresh_token)
+        response = client.get("auth/logout", follow_redirects=False)
+        assert response.status_code == 302
+        # Optionally, check the redirect location
+        assert response.headers["location"] in ("/login", "/logout")
 
     def test_log_out_does_not_raise_exception(self) -> None:
         _log_out()

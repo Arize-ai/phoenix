@@ -53,7 +53,11 @@ export function DatasetSelect(props: DatasetSelectProps) {
       size={props.size}
       className="dataset-picker"
       aria-label={`select a dataset`}
-      onSelectionChange={(key) => props.onSelectionChange?.(key.toString())}
+      onSelectionChange={(key) => {
+        if (key) {
+          props.onSelectionChange?.(key.toString());
+        }
+      }}
       placeholder={props.placeholder ?? "Select a dataset"}
       onBlur={props.onBlur}
       isRequired={props.isRequired}

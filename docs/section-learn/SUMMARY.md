@@ -65,7 +65,8 @@
   * [Can I use gRPC for trace collection?](resources/faqs/can-i-use-grpc-for-trace-collection.md)
   * [How do I resolve Phoenix Evals showing NOT\_PARSABLE?](resources/faqs/how-do-i-resolve-phoenix-evals-showing-not_parsable.md)
   * [Langfuse alternative? Arize Phoenix vs Langfuse: key differences](resources/faqs/langfuse-alternatives.md)
-  * [Langsmith alternatives? Arize Phoenix vs LangSmith: key differences](resources/faqs/langsmith-alternatives.md)
+  * [Open Source LangSmith Alternative: Arize Phoenix vs. LangSmith](resources/faqs/langsmith-alternatives.md)
+  * [Braintrust Open Source Alternative? LLM Evaluation Platform Comparison](resources/faqs/braintrust-open-source-alternative-llm-evaluation-platform-comparison.md)
 * [Contribute to Phoenix](resources/contribute-to-phoenix.md)
 * [Github](https://github.com/Arize-ai/phoenix)
 

@@ -15,6 +15,14 @@ class GenerativeProviderKey(Enum):
     AZURE_OPENAI = "Azure OpenAI"
     GOOGLE = "Google AI Studio"
     DEEPSEEK = "DeepSeek"
+    XAI = "xAI"
+    OLLAMA = "Ollama"
+
+
+@strawberry.type
+class GenerativeProviderCredentialConfig:
+    env_var_name: str
+    is_required: bool
 
 
 @strawberry.type
@@ -28,6 +36,8 @@ class GenerativeProvider:
         GenerativeProviderKey.OPENAI: ["gpt", "o1"],
         GenerativeProviderKey.GOOGLE: ["gemini"],
         GenerativeProviderKey.DEEPSEEK: ["deepseek"],
+        GenerativeProviderKey.XAI: ["grok"],
+        GenerativeProviderKey.OLLAMA: ["llama", "mistral", "codellama", "phi", "qwen", "gemma"],
     }
 
     attribute_provider_to_generative_provider_map: ClassVar[dict[str, GenerativeProviderKey]] = {
@@ -37,14 +47,37 @@ class GenerativeProvider:
         OpenInferenceLLMProviderValues.GOOGLE.value: GenerativeProviderKey.GOOGLE,
         # Note: DeepSeek uses OpenAI compatibility but we can't duplicate the key in the dict
         # The provider will be determined through model name prefix matching instead
+        # Note: xAI uses OpenAI compatibility but we can't duplicate the key in the dict
+        # The provider will be determined through model name prefix matching instead
+        # Note: Ollama uses OpenAI compatibility but we can't duplicate the key in the dict
+        # The provider will be determined through model name prefix matching instead
     }
 
-    model_provider_to_api_key_env_var_map: ClassVar[dict[GenerativeProviderKey, str]] = {
-        GenerativeProviderKey.AZURE_OPENAI: "AZURE_OPENAI_API_KEY",
-        GenerativeProviderKey.ANTHROPIC: "ANTHROPIC_API_KEY",
-        GenerativeProviderKey.OPENAI: "OPENAI_API_KEY",
-        GenerativeProviderKey.GOOGLE: "GEMINI_API_KEY",
-        GenerativeProviderKey.DEEPSEEK: "DEEPSEEK_API_KEY",
+    """
+    A map of model provider keys to their credential requirements.
+    E.x. OpenAI requires a single API key
+    """
+    model_provider_to_credential_requirements_map: ClassVar[
+        dict[GenerativeProviderKey, GenerativeProviderCredentialConfig]
+    ] = {
+        GenerativeProviderKey.AZURE_OPENAI: GenerativeProviderCredentialConfig(
+            env_var_name="AZURE_OPENAI_API_KEY", is_required=True
+        ),
+        GenerativeProviderKey.ANTHROPIC: GenerativeProviderCredentialConfig(
+            env_var_name="ANTHROPIC_API_KEY", is_required=True
+        ),
+        GenerativeProviderKey.OPENAI: GenerativeProviderCredentialConfig(
+            env_var_name="OPENAI_API_KEY", is_required=True
+        ),
+        GenerativeProviderKey.GOOGLE: GenerativeProviderCredentialConfig(
+            env_var_name="GEMINI_API_KEY", is_required=True
+        ),
+        GenerativeProviderKey.DEEPSEEK: GenerativeProviderCredentialConfig(
+            env_var_name="DEEPSEEK_API_KEY", is_required=True
+        ),
+        GenerativeProviderKey.XAI: GenerativeProviderCredentialConfig(
+            env_var_name="XAI_API_KEY", is_required=True
+        ),
     }
 
     @strawberry.field
@@ -71,13 +104,21 @@ class GenerativeProvider:
             return default_client.dependencies_are_installed()
         return False
 
-    @strawberry.field(description="The API key for the provider")  # type: ignore
-    async def api_key_env_var(self) -> str:
-        return self.model_provider_to_api_key_env_var_map[self.key]
+    @strawberry.field(description="The credential requirements for the provider")  # type: ignore
+    async def credential_requirements(self) -> list[GenerativeProviderCredentialConfig]:
+        # Handle providers that don't require credentials
+        credential_requirements = self.model_provider_to_credential_requirements_map.get(self.key)
+        if credential_requirements is None:
+            return []
+        return [credential_requirements]
 
     @strawberry.field(description="Whether the credentials are set on the server for the provider")  # type: ignore
-    async def api_key_set(self) -> bool:
-        return getenv(self.model_provider_to_api_key_env_var_map[self.key]) is not None
+    async def credentials_set(self) -> bool:
+        # Check if every required credential is set
+        return all(
+            getenv(credential_config.env_var_name) is not None or not credential_config.is_required
+            for credential_config in await self.credential_requirements()
+        )
 
     @classmethod
     def _infer_model_provider_from_model_name(

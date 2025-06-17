@@ -34,7 +34,7 @@ Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](
 {% endtab %}
 
 {% tab title="Using Self-hosted Phoenix" %}
-1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, [see self-hosting](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/0gWR4qoGzdz04iSgPlsU/).
+1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, [see self-hosting](https://arize.com/docs/phoenix/self-hosting).
 2. In your code, set your endpoint:
 
 ```python
@@ -52,7 +52,7 @@ Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](
 
 ## Connect to Phoenix <a href="#connect-your-app" id="connect-your-app"></a>
 
-To collect traces from your application, you must configure an OpenTelemetry TracerProvider to send traces to Phoenix.&#x20;
+To collect traces from your application, you must configure an OpenTelemetry TracerProvider to send traces to Phoenix.
 
 ```bash
 pip install arize-phoenix-otel

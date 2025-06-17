@@ -27,7 +27,7 @@
   * [OpenAI Tracing](llm-providers/openai/openai-tracing.md)
   * [OpenAI Evals](llm-providers/openai/openai-evals.md)
   * [OpenAI Agents SDK Tracing](llm-providers/openai/openai-agents-sdk-tracing.md)
-  * [OpenAI Node.js SDK ](llm-providers/openai/openai-node.js-sdk.md)
+  * [OpenAI Node.js SDK](llm-providers/openai/openai-node.js-sdk.md)
 * [VertexAI](llm-providers/vertexai/README.md)
   * [VertexAI Tracing](llm-providers/vertexai/vertexai-tracing.md)
   * [VertexAI Evals](llm-providers/vertexai/vertexai-evals.md)

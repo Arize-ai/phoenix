@@ -120,6 +120,8 @@ export function PlaygroundTool({
       case "OPENAI":
       case "AZURE_OPENAI":
       case "DEEPSEEK":
+      case "XAI":
+      case "OLLAMA":
         return openAIToolDefinitionJSONSchema as JSONSchema7;
       case "ANTHROPIC":
         return anthropicToolDefinitionJSONSchema as JSONSchema7;

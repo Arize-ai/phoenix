@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 from starlette.status import (
     HTTP_204_NO_CONTENT,
+    HTTP_302_FOUND,
     HTTP_401_UNAUTHORIZED,
     HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
@@ -120,7 +121,7 @@ async def login(request: Request) -> Response:
     return response
 
 
-@router.post("/logout")
+@router.get("/logout")
 async def logout(
     request: Request,
 ) -> Response:
@@ -138,7 +139,8 @@ async def logout(
         user_id = subject
     if user_id:
         await token_store.log_out(user_id)
-    response = Response(status_code=HTTP_204_NO_CONTENT)
+    redirect_url = "/logout" if get_env_disable_basic_auth() else "/login"
+    response = Response(status_code=HTTP_302_FOUND, headers={"Location": redirect_url})
     response = delete_access_token_cookie(response)
     response = delete_refresh_token_cookie(response)
     response = delete_oauth2_state_cookie(response)

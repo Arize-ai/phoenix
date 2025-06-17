@@ -382,6 +382,8 @@ export const fromOpenAIMessage = <T extends ModelProvider>({
     case "AZURE_OPENAI":
     case "OPENAI":
     case "DEEPSEEK":
+    case "XAI":
+    case "OLLAMA":
       return message as ProviderToMessageMap[T];
     case "ANTHROPIC":
       return openAIMessageToAnthropic.parse(message) as ProviderToMessageMap[T];
@@ -409,6 +411,8 @@ type ProviderToMessageMap = {
   OPENAI: OpenAIMessage;
   AZURE_OPENAI: OpenAIMessage;
   DEEPSEEK: OpenAIMessage;
+  XAI: OpenAIMessage;
+  OLLAMA: OpenAIMessage;
   ANTHROPIC: AnthropicMessage;
   // Use generic JSON type for unknown message formats / new providers
   GOOGLE: JSONLiteral;

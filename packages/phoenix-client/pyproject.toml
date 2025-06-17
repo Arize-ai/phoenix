@@ -21,7 +21,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
 ]
-version = "1.8.0"
+version = "1.10.0"
 dependencies = [
   "httpx",
   "typing-extensions",
@@ -101,6 +101,7 @@ exclude = [
   "tests/canary/",
   "scripts/",
   "src/phoenix/client/helpers/sdk/",
+   "**/.venv", 
 ]
 
 

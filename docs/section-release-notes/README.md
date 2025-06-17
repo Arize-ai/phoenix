@@ -17,15 +17,17 @@ layout:
 
 {% embed url="https://github.com/Arize-ai/phoenix/releases" %}
 
-## [05.30.2025: xAI and Deepseek Support in Playground](05.30.2025-xai-and-deepseek-support-in-playground.md)
+## [05.30.2025: xAI and Deepseek Support in Playground](05.30.2025-xai-and-deepseek-support-in-playground.md) 🛝
 
-**Available in Phoenix v10.5.0+**
+**Available in Phoenix 10.5+**
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/deepseek.mp4" %}
 
 Deepseek and xAI models are now available in Prompt Playground!
 
-## [05.20.2025: Datasets and Experiment Evaluations in the JS Client](05.20.2025-datasets-and-experiment-evaluations-in-the-js-client.md)
+***
+
+## [05.20.2025: Datasets and Experiment Evaluations in the JS Client](05.20.2025-datasets-and-experiment-evaluations-in-the-js-client.md) 🧪
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/TS-experiments.png" %}
 
@@ -36,15 +38,15 @@ We've added a host of new methods to the JS client:
 * [createDataset](https://arize-ai.github.io/phoenix/functions/datasets.createDataset.html) - allows you to create Datasets in Phoenix using the client
 * [appendDatasetExamples](https://arize-ai.github.io/phoenix/functions/datasets.appendDatasetExamples.html) - allows you to append additional examples to a Dataset
 
-## [05.14.2025: Experiments in the JS Client](./#id-05.14.2025-experiments-in-the-js-client)
+***
+
+## [05.14.2025: Experiments in the JS Client](./#id-05.14.2025-experiments-in-the-js-client) **🔬**
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/ts-experiments-results.png" %}
 Experiments CLI output
 {% endembed %}
 
-You can now run Experiments using the Phoenix JS client! Use Experiments to test different iterations of your applications over a set of test cases, then evaluate the results.
-
-This release includes:
+You can now run Experiments using the Phoenix JS client! Use Experiments to test different iterations of your applications over a set of test cases, then evaluate the results. This release includes:
 
 * Native tracing of tasks and evaluators
 * Async concurrency queues
@@ -52,7 +54,9 @@ This release includes:
 
 ***
 
-## [05.09.2025: Annotations, Data Retention Policies, Hotkeys](./#id-05.09.2025-annotations-data-retention-policies-hotkeys)
+## [05.09.2025: Annotations, Data Retention Policies, Hotkeys](./#id-05.09.2025-annotations-data-retention-policies-hotkeys) 📓
+
+**Available in Phoenix 9.0+**
 
 {% hint style="success" %}
 **Major Release:** Phoenix v9.0.0
@@ -62,8 +66,6 @@ This release includes:
 Annotation Improvements
 {% endembed %}
 
-**Available in Phoenix 9.0.0+**
-
 Phoenix's v9.0.0 release brings with it:
 
 * A host of improvements to [Annotations](https://arize.com/docs/phoenix/tracing/features-tracing/how-to-annotate-traces), including one-to-many support, API access, annotation configs, and custom metadata
@@ -72,7 +74,7 @@ Phoenix's v9.0.0 release brings with it:
 
 ***
 
-## [05.05.2025: OpenInference Google GenAI Instrumentation](./#id-05.05.2025-openinference-google-genai-instrumentation)
+## [05.05.2025: OpenInference Google GenAI Instrumentation](./#id-05.05.2025-openinference-google-genai-instrumentation) 🧩
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/genai.mp4" %}
 

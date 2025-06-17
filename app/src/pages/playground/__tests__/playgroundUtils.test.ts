@@ -742,6 +742,8 @@ describe("processAttributeToolCalls", () => {
     ANTHROPIC: ["ANTHROPIC", testSpanToolCall, expectedAnthropicToolCall],
     OPENAI: ["OPENAI", testSpanToolCall, expectedTestOpenAIToolCall],
     DEEPSEEK: ["DEEPSEEK", testSpanToolCall, expectedTestOpenAIToolCall],
+    XAI: ["XAI", testSpanToolCall, expectedTestOpenAIToolCall],
+    OLLAMA: ["OLLAMA", testSpanToolCall, expectedTestOpenAIToolCall],
     AZURE_OPENAI: [
       "AZURE_OPENAI",
       testSpanToolCall,
@@ -1273,6 +1275,8 @@ describe("getToolsFromAttributes", () => {
     ],
     OPENAI: ["OPENAI", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
     DEEPSEEK: ["DEEPSEEK", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
+    XAI: ["XAI", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
+    OLLAMA: ["OLLAMA", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
     AZURE_OPENAI: [
       "AZURE_OPENAI",
       testSpanOpenAITool,

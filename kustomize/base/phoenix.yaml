@@ -28,24 +28,14 @@ spec:
                         value: /mnt/data
                       - name: PHOENIX_PORT
                         value: "6006"
-                  image: arizephoenix/phoenix:version-10.4.0
+                      - name: PHOENIX_SQL_DATABASE_URL
+                        value: "postgresql://postgres:postgres123@postgres:5432/postgres"
+                  image: arizephoenix/phoenix:version-10.10.0
                   name: phoenix
                   ports:
                       - containerPort: 6006
                       - containerPort: 9090
                       - containerPort: 4317
-                  volumeMounts:
-                      - mountPath: /mnt/data
-                        name: phoenix
                   readinessProbe:
                       httpGet:
                           port: 6006 # readiness probe on root of application port to guarantee app is really serving before becoming ready in kubernetes
-    volumeClaimTemplates:
-        - metadata:
-              name: phoenix
-          spec:
-              accessModes:
-                  - ReadWriteOnce
-              resources:
-                  requests:
-                      storage: 8Gi

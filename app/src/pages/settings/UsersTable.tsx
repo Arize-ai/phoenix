@@ -138,6 +138,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
           return (
             <RoleSelect
               includeLabel={false}
+              size="S"
               onChange={(key) => {
                 if (key === row.original.role) {
                   return;
@@ -208,9 +209,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
                 {header.isPlaceholder ? null : (
                   <div
                     {...{
-                      className: header.column.getCanSort()
-                        ? "cursor-pointer"
-                        : "",
+                      className: header.column.getCanSort() ? "sort" : "",
                       onClick: header.column.getToggleSortingHandler(),
                       style: {
                         left: header.getStart(),

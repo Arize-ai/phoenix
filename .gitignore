@@ -32,6 +32,8 @@ pyrightconfig.json
 !/packages/phoenix-client/tests/canary/sdk/pyrightconfig.json
 !/tests/integration/pyrightconfig.json
 
+.cursorrules
+
 # Demo data
 tutorials/internal/demo_llama_index/*.json
 examples/agent_framework_comparison/utils/saved_traces/*.parquet
@@ -77,3 +79,6 @@ js/examples/notebooks/**/deno.lock
 
 # uv
 uv.lock
+packages/phoenix-otel/docs/build/
+packages/phoenix-client/docs/build/
+packages/phoenix-evals/docs/build/

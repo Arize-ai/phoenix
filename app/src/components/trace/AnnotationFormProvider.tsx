@@ -5,7 +5,7 @@ import {
   useMemo,
   useRef,
 } from "react";
-import { FormProvider, useForm } from "react-hook-form";
+import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { debounce } from "lodash";
 import invariant from "tiny-invariant";
 
@@ -52,6 +52,7 @@ export const AnnotationFormProvider = ({
 }: PropsWithChildren<AnnotationFormProviderProps>) => {
   const annotationConfigName = annotationConfig.name;
   invariant(annotationConfigName, "annotation config must have a name");
+  const annotationConfigType = annotationConfig.annotationType;
   const defaultValue = useMemo(() => {
     return (
       annotation || {
@@ -69,14 +70,25 @@ export const AnnotationFormProvider = ({
     },
   });
 
+  const setError = form.setError;
   const submit = useCallback(
     async (payload: Record<string, Annotation>) => {
       const data = { ...payload[annotationConfigName], id: annotation?.id };
       if (!data) return;
       let action: "create" | "update" | "delete" | undefined;
       if (
-        (data.id && data.score == null && !data.label) ||
-        (data.id && isNaN(data.score as number) && !data.label)
+        // if the annotation has an id and is not a freeform annotation and has no score or label, delete it
+        (data.id &&
+          annotationConfigType !== "FREEFORM" &&
+          data.score == null &&
+          !data.label) ||
+        // if the annotation has an id and is not a freeform annotation and has a score that is not a number and has no label, delete it
+        (data.id &&
+          annotationConfigType !== "FREEFORM" &&
+          isNaN(data.score as number) &&
+          !data.label) ||
+        // if the annotation has an id and is a freeform annotation and has no explanation, delete it
+        (data.id && annotationConfigType === "FREEFORM" && !data.explanation)
       ) {
         action = "delete";
       } else if (data.id && currentAnnotationIDs.has(data.id)) {
@@ -104,15 +116,16 @@ export const AnnotationFormProvider = ({
       if (result.success) {
         onSuccess?.(data);
       } else {
-        form.setError("root", { message: result.error });
+        setError("root", { message: result.error });
         onError?.(data, result.error);
       }
     },
     [
       annotation,
       annotationConfigName,
+      annotationConfigType,
       currentAnnotationIDs,
-      form,
+      setError,
       onCreate,
       onDelete,
       onError,
@@ -132,15 +145,25 @@ export const AnnotationFormProvider = ({
     debouncedSubmitRef.current = debouncedSubmit;
   }, [debouncedSubmit]);
   // watch the form for changes and call the debounced submit handler
-  const watch = form.watch;
+  const initialized = useRef<Annotation | null>(null);
+  const value = useWatch({
+    control: form.control,
+    name: annotationConfigName,
+    exact: true,
+  });
   useEffect(() => {
-    const { unsubscribe } = watch((value) => {
-      if (value) {
-        debouncedSubmitRef.current();
-      }
-    });
-    return () => unsubscribe();
-  }, [watch]);
+    // do not submit on initial render
+    if (!initialized.current) {
+      initialized.current = value;
+      return;
+    }
+    // only submit if the value has changed
+    // this protects against hot-reloading triggering an extra submit in development
+    if (value !== initialized.current) {
+      initialized.current = value;
+      debouncedSubmitRef.current();
+    }
+  }, [value]);
 
   return <FormProvider {...form}>{children}</FormProvider>;
 };

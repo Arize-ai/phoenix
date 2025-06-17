@@ -130,6 +130,8 @@ type ProviderToToolChoiceMap = {
   // TODO(apowell): #5348 Add Google tool choice schema
   GOOGLE: OpenaiToolChoice;
   DEEPSEEK: OpenaiToolChoice;
+  XAI: OpenaiToolChoice;
+  OLLAMA: OpenaiToolChoice;
 };
 
 /**
@@ -171,6 +173,8 @@ export const fromOpenAIToolChoice = <T extends ModelProvider>({
     case "AZURE_OPENAI":
     case "OPENAI":
     case "DEEPSEEK":
+    case "XAI":
+    case "OLLAMA":
       return toolChoice as ProviderToToolChoiceMap[T];
     case "ANTHROPIC":
       return openAIToolChoiceToAnthropicToolChoice.parse(

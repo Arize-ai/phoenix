@@ -101,4 +101,8 @@ async for event in runner.run_async(
 
 {% hint style="info" %}
 This instrumentation will support additional features as the Google ADK SDK evolves. Refer to [this page](https://pypi.org/project/openinference-instrumentation-google-adk/#description) for the latest status.
-{% endhint %} 
+{% endhint %}
+
+### Resources:
+
+* [OpenInference Package](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-google-adk)

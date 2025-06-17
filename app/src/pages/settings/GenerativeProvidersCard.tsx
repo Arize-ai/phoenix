@@ -12,17 +12,19 @@ import { Card, Dialog, DialogContainer } from "@arizeai/components";
 
 import {
   Button,
+  CredentialField,
+  CredentialInput,
   Flex,
+  Form,
   Icon,
   Icons,
-  Input,
   Label,
   Text,
-  TextField,
   View,
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { tableCSS } from "@phoenix/components/table/styles";
+import { ProviderToCredentialsConfigMap } from "@phoenix/constants/generativeConstants";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 
 import {
@@ -39,7 +41,6 @@ export function GenerativeProvidersCard({
     GenerativeProvidersCard_data$data["modelProviders"][number] | null
   >(null);
   const credentials = useCredentialsContext((state) => state);
-  const setCredential = useCredentialsContext((state) => state.setCredential);
   const data = useFragment<GenerativeProvidersCard_data$key>(
     graphql`
       fragment GenerativeProvidersCard_data on Query {
@@ -48,8 +49,11 @@ export function GenerativeProvidersCard({
           key
           dependenciesInstalled
           dependencies
-          apiKeyEnvVar
-          apiKeySet
+          credentialRequirements {
+            envVarName
+            isRequired
+          }
+          credentialsSet
         }
       }
     `,
@@ -73,23 +77,42 @@ export function GenerativeProvidersCard({
         },
       },
       {
-        header: "Environment Variable",
+        header: "Environment Variables",
         accessorKey: "apiKeyEnvVar",
         cell: ({ row }) => {
-          return <Text>{row.original.apiKeyEnvVar}</Text>;
+          const credentialsConfig =
+            ProviderToCredentialsConfigMap[row.original.key];
+          const envVars =
+            credentialsConfig?.map((config) => config.envVarName).join(", ") ||
+            row.original.credentialRequirements
+              .map((config) => config.envVarName)
+              .join(", ") ||
+            "--";
+          return <Text>{envVars}</Text>;
         },
       },
       {
         header: "configuration",
-        accessorKey: "apiKeySet",
+        accessorKey: "credentialsSet",
         cell: ({ row }) => {
           if (!row.original.dependenciesInstalled) {
             return <Text color="warning">missing dependencies</Text>;
           }
-          if (credentials[row.original.key]) {
+
+          // Check if any credentials are set locally
+          const credentialRequirements = row.original.credentialRequirements;
+          const providerCredentials = credentials[row.original.key];
+          const hasLocalCredentials = credentialRequirements.every(
+            ({ envVarName, isRequired }) => {
+              const envVarSet = providerCredentials?.[envVarName] !== undefined;
+              return envVarSet || !isRequired;
+            }
+          );
+
+          if (hasLocalCredentials) {
             return <Text color="success">local</Text>;
           }
-          if (row.original.apiKeySet) {
+          if (row.original.credentialsSet) {
             return <Text color="success">configured on the server</Text>;
           }
           return <Text color="text-700">not configured</Text>;
@@ -175,7 +198,10 @@ export function GenerativeProvidersCard({
         onDismiss={() => setSelectedProvider(null)}
       >
         {selectedProvider && (
-          <Dialog title={`Set ${selectedProvider.name} API Key`} size="S">
+          <Dialog
+            title={`Configure ${selectedProvider.name} Credentials`}
+            size="S"
+          >
             <View padding="size-200">
               <View paddingBottom="size-100">
                 <Text size="XS">
@@ -184,45 +210,68 @@ export function GenerativeProvidersCard({
                   only be sent to the server during API requests.
                 </Text>
               </View>
-              <TextField
-                onChange={(value) => {
-                  setCredential({
-                    provider: selectedProvider.key,
-                    value,
-                  });
+              <Form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setSelectedProvider(null);
                 }}
-                value={credentials[selectedProvider.key]}
-                type="password"
               >
-                <Label>{`${selectedProvider.name} API Key`}</Label>
-                <Input placeholder={`e.g. ${selectedProvider.apiKeyEnvVar}`} />
-
-                <Text slot="description">
-                  The API key will be stored locally in your browser
-                </Text>
-              </TextField>
-            </View>
-            <View
-              paddingX="size-200"
-              paddingY="size-100"
-              borderTopWidth="thin"
-              borderColor="light"
-            >
-              <Flex direction="row" justifyContent="end" gap="size-100">
-                <Button
-                  variant="primary"
-                  size="S"
-                  onPress={() => {
-                    setSelectedProvider(null);
-                  }}
-                >
-                  Set API Key
-                </Button>
-              </Flex>
+                <ProviderCredentials provider={selectedProvider.key} />
+                <View paddingTop="size-200">
+                  <Flex direction="row" justifyContent="end" gap="size-100">
+                    <Button
+                      variant="default"
+                      size="S"
+                      onPress={() => {
+                        setSelectedProvider(null);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="S"
+                      onPress={() => {
+                        setSelectedProvider(null);
+                      }}
+                    >
+                      Save Credentials
+                    </Button>
+                  </Flex>
+                </View>
+              </Form>
             </View>
           </Dialog>
         )}
       </DialogContainer>
     </Card>
+  );
+}
+
+function ProviderCredentials({ provider }: { provider: ModelProvider }) {
+  const setCredential = useCredentialsContext((state) => state.setCredential);
+  const credentialsConfig = ProviderToCredentialsConfigMap[provider];
+  const credentials = useCredentialsContext((state) => state[provider]);
+
+  return (
+    <Flex direction="column" gap="size-100">
+      {credentialsConfig.map((credentialConfig) => (
+        <CredentialField
+          key={credentialConfig.envVarName}
+          isRequired={credentialConfig.isRequired}
+          onChange={(value) => {
+            setCredential({
+              provider,
+              envVarName: credentialConfig.envVarName,
+              value,
+            });
+          }}
+          value={credentials?.[credentialConfig.envVarName] ?? undefined}
+        >
+          <Label>{credentialConfig.envVarName}</Label>
+          <CredentialInput />
+        </CredentialField>
+      ))}
+    </Flex>
   );
 }

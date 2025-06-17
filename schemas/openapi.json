@@ -335,6 +335,48 @@
             "description": "One or more span id to fetch annotations for"
           },
           {
+            "name": "include_annotation_names",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of annotation names to include. If provided, only annotations with these names will be returned. 'note' annotations are excluded by default unless explicitly included in this list.",
+              "title": "Include Annotation Names"
+            },
+            "description": "Optional list of annotation names to include. If provided, only annotations with these names will be returned. 'note' annotations are excluded by default unless explicitly included in this list."
+          },
+          {
+            "name": "exclude_annotation_names",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of annotation names to exclude from results.",
+              "title": "Exclude Annotation Names"
+            },
+            "description": "Optional list of annotation names to exclude from results."
+          },
+          {
             "name": "cursor",
             "in": "query",
             "required": false,
@@ -1687,7 +1729,7 @@
           "spans"
         ],
         "summary": "Search spans with simple filters (no DSL)",
-        "description": "Return spans within a project filtered by time range, annotation names, and ordered by start_time. Supports cursor-based pagination.",
+        "description": "Return spans within a project filtered by time range. Supports cursor-based pagination.",
         "operationId": "spanSearch",
         "parameters": [
           {
@@ -1714,10 +1756,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Pagination cursor (GlobalID of Span)",
+              "description": "Pagination cursor (Span Global ID)",
               "title": "Cursor"
             },
-            "description": "Pagination cursor (GlobalID of Span)"
+            "description": "Pagination cursor (Span Global ID)"
           },
           {
             "name": "limit",
@@ -1732,22 +1774,6 @@
               "title": "Limit"
             },
             "description": "Maximum number of spans to return"
-          },
-          {
-            "name": "sort_direction",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "enum": [
-                "asc",
-                "desc"
-              ],
-              "type": "string",
-              "description": "Sort direction for the sort field",
-              "default": "desc",
-              "title": "Sort Direction"
-            },
-            "description": "Sort direction for the sort field"
           },
           {
             "name": "start_time",
@@ -1786,27 +1812,6 @@
               "title": "End Time"
             },
             "description": "Exclusive upper bound time"
-          },
-          {
-            "name": "annotationNames",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "If provided, only include spans that have at least one annotation with one of these names.",
-              "title": "Annotationnames"
-            },
-            "description": "If provided, only include spans that have at least one annotation with one of these names."
           }
         ],
         "responses": {
@@ -1815,7 +1820,142 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SpanSearchResponseBody"
+                  "$ref": "#/components/schemas/OtlpSpansResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/projects/{project_identifier}/spans": {
+      "get": {
+        "tags": [
+          "spans"
+        ],
+        "summary": "List spans with simple filters (no DSL)",
+        "description": "Return spans within a project filtered by time range. Supports cursor-based pagination.",
+        "operationId": "getSpans",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Pagination cursor (Span Global ID)",
+              "title": "Cursor"
+            },
+            "description": "Pagination cursor (Span Global ID)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "exclusiveMinimum": 0,
+              "description": "Maximum number of spans to return",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "Maximum number of spans to return"
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive lower bound time",
+              "title": "Start Time"
+            },
+            "description": "Inclusive lower bound time"
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Exclusive upper bound time",
+              "title": "End Time"
+            },
+            "description": "Exclusive upper bound time"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpansResponseBody"
                 }
               }
             }
@@ -4807,7 +4947,9 @@
           "AZURE_OPENAI",
           "ANTHROPIC",
           "GOOGLE",
-          "DEEPSEEK"
+          "DEEPSEEK",
+          "XAI",
+          "OLLAMA"
         ],
         "title": "ModelProvider"
       },
@@ -5376,6 +5518,35 @@
         "type": "object",
         "title": "OtlpSpan"
       },
+      "OtlpSpansResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/OtlpSpan"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "OtlpSpansResponseBody",
+        "description": "Paginated response where each span follows OTLP JSON structure."
+      },
       "OtlpStatus": {
         "properties": {
           "code": {
@@ -5877,6 +6048,69 @@
         ],
         "title": "PromptMessage"
       },
+      "PromptOllamaInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "ollama",
+            "title": "Type"
+          },
+          "ollama": {
+            "$ref": "#/components/schemas/PromptOllamaInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "ollama"
+        ],
+        "title": "PromptOllamaInvocationParameters"
+      },
+      "PromptOllamaInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "title": "Max Completion Tokens"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Reasoning Effort"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptOllamaInvocationParametersContent"
+      },
       "PromptOpenAIInvocationParameters": {
         "properties": {
           "type": {
@@ -6258,6 +6492,12 @@
               },
               {
                 "$ref": "#/components/schemas/PromptDeepSeekInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptXAIInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptOllamaInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -6268,7 +6508,9 @@
                 "azure_openai": "#/components/schemas/PromptAzureOpenAIInvocationParameters",
                 "deepseek": "#/components/schemas/PromptDeepSeekInvocationParameters",
                 "google": "#/components/schemas/PromptGoogleInvocationParameters",
-                "openai": "#/components/schemas/PromptOpenAIInvocationParameters"
+                "ollama": "#/components/schemas/PromptOllamaInvocationParameters",
+                "openai": "#/components/schemas/PromptOpenAIInvocationParameters",
+                "xai": "#/components/schemas/PromptXAIInvocationParameters"
               }
             }
           },
@@ -6380,6 +6622,12 @@
               },
               {
                 "$ref": "#/components/schemas/PromptDeepSeekInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptXAIInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptOllamaInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -6390,7 +6638,9 @@
                 "azure_openai": "#/components/schemas/PromptAzureOpenAIInvocationParameters",
                 "deepseek": "#/components/schemas/PromptDeepSeekInvocationParameters",
                 "google": "#/components/schemas/PromptGoogleInvocationParameters",
-                "openai": "#/components/schemas/PromptOpenAIInvocationParameters"
+                "ollama": "#/components/schemas/PromptOllamaInvocationParameters",
+                "openai": "#/components/schemas/PromptOpenAIInvocationParameters",
+                "xai": "#/components/schemas/PromptXAIInvocationParameters"
               }
             }
           },
@@ -6487,6 +6737,152 @@
           "name"
         ],
         "title": "PromptVersionTagData"
+      },
+      "PromptXAIInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "xai",
+            "title": "Type"
+          },
+          "xai": {
+            "$ref": "#/components/schemas/PromptXAIInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "xai"
+        ],
+        "title": "PromptXAIInvocationParameters"
+      },
+      "PromptXAIInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "title": "Max Completion Tokens"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Reasoning Effort"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptXAIInvocationParametersContent"
+      },
+      "Span": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Span Global ID, distinct from the OpenTelemetry span ID"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Name of the span operation"
+          },
+          "context": {
+            "$ref": "#/components/schemas/SpanContext",
+            "description": "Span context containing trace_id and span_id"
+          },
+          "span_kind": {
+            "type": "string",
+            "title": "Span Kind",
+            "description": "Type of work that the span encapsulates"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id",
+            "description": "OpenTelemetry span ID of the parent span"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start Time",
+            "description": "Start time of the span"
+          },
+          "end_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End Time",
+            "description": "End time of the span"
+          },
+          "status_code": {
+            "type": "string",
+            "title": "Status Code",
+            "description": "Status code of the span"
+          },
+          "status_message": {
+            "type": "string",
+            "title": "Status Message",
+            "description": "Status message",
+            "default": ""
+          },
+          "attributes": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Attributes",
+            "description": "Span attributes"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/SpanEvent"
+            },
+            "type": "array",
+            "title": "Events",
+            "description": "Span events"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "context",
+          "span_kind",
+          "start_time",
+          "end_time",
+          "status_code"
+        ],
+        "title": "Span"
       },
       "SpanAnnotation": {
         "properties": {
@@ -6718,11 +7114,58 @@
         ],
         "title": "SpanAnnotationsResponseBody"
       },
-      "SpanSearchResponseBody": {
+      "SpanContext": {
+        "properties": {
+          "trace_id": {
+            "type": "string",
+            "title": "Trace Id",
+            "description": "OpenTelemetry trace ID"
+          },
+          "span_id": {
+            "type": "string",
+            "title": "Span Id",
+            "description": "OpenTelemetry span ID"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trace_id",
+          "span_id"
+        ],
+        "title": "SpanContext"
+      },
+      "SpanEvent": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Name of the event"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp",
+            "description": "When the event occurred"
+          },
+          "attributes": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Attributes",
+            "description": "Event attributes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "timestamp"
+        ],
+        "title": "SpanEvent"
+      },
+      "SpansResponseBody": {
         "properties": {
           "data": {
             "items": {
-              "$ref": "#/components/schemas/OtlpSpan"
+              "$ref": "#/components/schemas/Span"
             },
             "type": "array",
             "title": "Data"
@@ -6744,8 +7187,7 @@
           "data",
           "next_cursor"
         ],
-        "title": "SpanSearchResponseBody",
-        "description": "Paginated response where each span follows OTLP JSON structure."
+        "title": "SpansResponseBody"
       },
       "TextContentPart": {
         "properties": {

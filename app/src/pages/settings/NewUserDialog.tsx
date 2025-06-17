@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import { Dialog, Modal } from "@phoenix/components";
+import { Dialog, Modal, ModalOverlay } from "@phoenix/components";
 import {
   DialogCloseButton,
   DialogContent,
@@ -87,36 +87,37 @@ export function NewUserDialog({
   );
 
   return (
-    <Modal
+    <ModalOverlay
       isOpen={true}
       onOpenChange={(isOpen) => {
         if (!isOpen) {
           onDismiss();
         }
       }}
-      isDismissable
     >
-      <Dialog>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add User</DialogTitle>
-            <DialogCloseButton />
-          </DialogHeader>
-          {window.Config.basicAuthDisabled ? (
-            <OAuthUserForm
-              key="oauth-form"
-              onSubmit={onSubmitOauthUser}
-              isSubmitting={isCommitting}
-            />
-          ) : (
-            <UserForm
-              key="user-form"
-              onSubmit={onSubmit}
-              isSubmitting={isCommitting}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-    </Modal>
+      <Modal>
+        <Dialog>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add User</DialogTitle>
+              <DialogCloseButton />
+            </DialogHeader>
+            {window.Config.basicAuthDisabled ? (
+              <OAuthUserForm
+                key="oauth-form"
+                onSubmit={onSubmitOauthUser}
+                isSubmitting={isCommitting}
+              />
+            ) : (
+              <UserForm
+                key="user-form"
+                onSubmit={onSubmit}
+                isSubmitting={isCommitting}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
   );
 }

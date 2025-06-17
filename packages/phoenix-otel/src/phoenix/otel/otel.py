@@ -16,7 +16,7 @@ from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
     OTLPSpanExporter as _HTTPSpanExporter,
 )
-from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.resources import Resource  # type: ignore
 from opentelemetry.sdk.trace import SpanProcessor
 from opentelemetry.sdk.trace.export import BatchSpanProcessor as _BatchSpanProcessor
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor as _SimpleSpanProcessor
@@ -212,7 +212,15 @@ class TracerProvider(_TracerProvider):
             if processors := self._active_span_processor._span_processors:
                 if len(processors) == 1:
                     span_processor = self._active_span_processor._span_processors[0]
-                    if exporter := getattr(span_processor, "span_exporter"):
+                    # Handle both old and new attribute locations for OpenTelemetry compatibility
+                    # OpenTelemetry v1.34.0+ moved exporter from span_exporter to
+                    # _batch_processor._exporter
+                    # https://github.com/open-telemetry/opentelemetry-python/pull/4580
+
+                    exporter = getattr(
+                        getattr(span_processor, "_batch_processor", None), "_exporter", None
+                    ) or getattr(span_processor, "span_exporter", None)
+                    if exporter:
                         processor_name = span_processor.__class__.__name__
                         endpoint = exporter._endpoint
                         transport = _exporter_transport(exporter)

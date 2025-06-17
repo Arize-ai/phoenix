@@ -26,3 +26,9 @@ Here’s the step-by-step process for using an LLM as a judge:
 Using an LLM as a judge significantly enhances the scalability and efficiency of the evaluation process. By employing this method, you can run thousands of evaluations across curated data without the need for human annotation.
 
 This capability will not only speed up the iteration process for refining your LLM's prompts but will also ensure that you can deploy your models to production with confidence.
+
+#### Additional Resources <a href="#how-it-works" id="how-it-works"></a>
+
+{% embed url="https://arize.com/llm-as-a-judge/" %}
+
+{% embed url="https://arize.com/llm-as-a-jury/" %}
