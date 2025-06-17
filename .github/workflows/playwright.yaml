@@ -67,7 +67,9 @@ jobs:
         with:
           version: 0.7.12
           enable-cache: true
-          cache-dependency-glob: "pyproject.toml"
+          cache-dependency-glob: |
+            "**/requirements/**/*.txt"
+            "**/pyproject.toml"
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - run: uv pip install --system uvloop
         if: runner.os != 'Windows'
