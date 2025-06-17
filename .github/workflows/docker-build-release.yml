@@ -28,8 +28,15 @@ jobs:
       - name: Extract version from tag
         id: extract_version
         run: |
-          echo "VERSION=${GITHUB_REF#refs/tags/arize-phoenix-v}" >> $GITHUB_ENV
-          echo "VERSION=${GITHUB_REF#refs/tags/arize-phoenix-v}" >> $GITHUB_OUTPUT
+          VERSION=${GITHUB_REF#refs/tags/arize-phoenix-v}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+          # Extract version parts
+          MAJOR_VERSION=$(echo $VERSION | cut -d. -f1)
+          MINOR_VERSION=$(echo $VERSION | cut -d. -f2)
+          echo "MAJOR_VERSION=$MAJOR_VERSION" >> $GITHUB_OUTPUT
+          echo "MINOR_VERSION=$MINOR_VERSION" >> $GITHUB_OUTPUT
 
       - name: Set BASE_IMAGE environment variable
         id: set-base-image
@@ -73,12 +80,12 @@ jobs:
           sbom: true
           provenance: mode=max
           tags: |
-            ${{ matrix.variant == 'root' && format('{0}/{1}:version-{2}', env.REGISTRY, env.IMAGE_NAME, split(env.VERSION, '.')[0]) || '' }}
-            ${{ matrix.variant == 'root' && format('{0}/{1}:version-{2}.{3}', env.REGISTRY, env.IMAGE_NAME, split(env.VERSION, '.')[0], split(env.VERSION, '.')[1]) || '' }}
+            ${{ matrix.variant == 'root' && format('{0}/{1}:version-{2}', env.REGISTRY, env.IMAGE_NAME, steps.extract_version.outputs.MAJOR_VERSION) || '' }}
+            ${{ matrix.variant == 'root' && format('{0}/{1}:version-{2}.{3}', env.REGISTRY, env.IMAGE_NAME, steps.extract_version.outputs.MAJOR_VERSION, steps.extract_version.outputs.MINOR_VERSION) || '' }}
             ${{ matrix.variant == 'root' && format('{0}/{1}:version-{2}', env.REGISTRY, env.IMAGE_NAME, env.VERSION) || '' }}
             ${{ matrix.variant == 'root' && format('{0}/{1}:latest', env.REGISTRY, env.IMAGE_NAME) || '' }}
-            ${{ matrix.variant != 'root' && format('{0}/{1}:version-{2}-{3}', env.REGISTRY, env.IMAGE_NAME, split(env.VERSION, '.')[0], matrix.variant) || '' }}
-            ${{ matrix.variant != 'root' && format('{0}/{1}:version-{2}.{3}-{4}', env.REGISTRY, env.IMAGE_NAME, split(env.VERSION, '.')[0], split(env.VERSION, '.')[1], matrix.variant) || '' }}
+            ${{ matrix.variant != 'root' && format('{0}/{1}:version-{2}-{3}', env.REGISTRY, env.IMAGE_NAME, steps.extract_version.outputs.MAJOR_VERSION, matrix.variant) || '' }}
+            ${{ matrix.variant != 'root' && format('{0}/{1}:version-{2}.{3}-{4}', env.REGISTRY, env.IMAGE_NAME, steps.extract_version.outputs.MAJOR_VERSION, steps.extract_version.outputs.MINOR_VERSION, matrix.variant) || '' }}
             ${{ matrix.variant != 'root' && format('{0}/{1}:version-{2}-{3}', env.REGISTRY, env.IMAGE_NAME, env.VERSION, matrix.variant) || '' }}
             ${{ matrix.variant != 'root' && format('{0}/{1}:latest-{2}', env.REGISTRY, env.IMAGE_NAME, matrix.variant) || '' }}
           labels: ${{ steps.meta.outputs.labels }}
