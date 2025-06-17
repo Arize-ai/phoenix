@@ -1516,12 +1516,13 @@ _KUBERNETES_PHOENIX_PORT_PATTERN = re.compile(r"^tcp://\d{1,3}[.]\d{1,3}[.]\d{1,
 
 def get_env_allowed_origins() -> Optional[list[str]]:
     """
-    Get the list of allowed origins for CORS.
+    Gets the value of the PHOENIX_ALLOWED_ORIGINS environment variable.
     """
-    if not (allowed_origins := getenv(ENV_PHOENIX_ALLOWED_ORIGINS)):
+    allowed_origins = getenv(ENV_PHOENIX_ALLOWED_ORIGINS)
+    if allowed_origins is None:
         return None
 
-    return [origin.strip() for origin in allowed_origins.split(",") if origin.strip()]
+    return allowed_origins.split(",")
 
 
 def get_env_fullstory_org() -> Optional[str]:
