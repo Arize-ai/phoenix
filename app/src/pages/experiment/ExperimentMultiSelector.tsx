@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
+import { css } from "@emotion/react";
 
 import {
   Button,
@@ -16,6 +17,8 @@ import {
   Text,
 } from "@phoenix/components";
 import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
+import { fieldBaseCSS } from "@phoenix/components/field/styles";
+import { selectCSS } from "@phoenix/components/select/styles";
 
 import { ExperimentMultiSelector__experiments$key } from "./__generated__/ExperimentMultiSelector__experiments.graphql";
 
@@ -78,24 +81,15 @@ export function ExperimentMultiSelector(props: {
   }, [selectedExperimentIds, noExperiments]);
 
   return (
-    <div
-      className={`ac-field ${validationState === "invalid" ? "ac-field--invalid" : ""}`}
-    >
+    <div css={css(fieldBaseCSS, selectCSS)}>
       <Label>{label}</Label>
       <DialogTrigger>
         <Button
           isDisabled={noExperiments || isDisabled}
           size={size}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            minWidth: "150px",
-            width: "fit-content",
-          }}
+          trailingVisual={<SelectChevronUpDownIcon />}
         >
-          <span>{displayText}</span>
-          <SelectChevronUpDownIcon />
+          {displayText}
         </Button>
         <Popover placement="bottom start">
           <Dialog>
