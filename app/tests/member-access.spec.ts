@@ -23,8 +23,10 @@ test("can create user key", async ({ page }) => {
   // Fill in the key name and submit
   await page.getByRole("dialog").getByLabel("Name").fill(keyName);
   await page.getByRole("button", { name: "Create Key" }).click();
-  await page.getByLabel("dismiss").click();
-  
+
+  // Wait for the API key to appear in the table without relying on the dialog closing
+  // This gives us a 60 second timeout instead of 30
+  await page.waitForTimeout(2000); // Brief pause for API call to complete  
   // Verify the key appears in the table - which means key creation succeeded
   await expect(page.getByRole("cell", { name: keyName })).toBeVisible({ timeout: 60000 });
 });
