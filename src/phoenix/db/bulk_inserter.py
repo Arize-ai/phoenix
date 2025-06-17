@@ -208,7 +208,8 @@ class BulkInserter:
                                 if span_cost is not None:
                                     session.add(span_cost)
                                     await session.flush()
-                            except Exception:
+                            except Exception as e:
+                                logger.exception(e)
                                 pass
 
                 if self._enable_prometheus:
@@ -453,7 +454,7 @@ def _calculate_span_cost(span: Span, span_id: int) -> Optional[SpanCost]:
     total_token_cost = sum(costs)
 
     return SpanCost(
-        span_id=span_id,
+        span_rowid=span_id,
         generative_model_id=model_id,
         prompt_token_cost=prompt_token_cost,
         completion_token_cost=completion_token_cost,
