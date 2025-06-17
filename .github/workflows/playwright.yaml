@@ -60,8 +60,6 @@ jobs:
         # WebKit dependencies can't be cached and must always be installed.
         if: ${{ env.CI_PLAYWRIGHT_SKIP_WEBKIT != 'true' && steps.playwright-cache.outputs.cache-hit == 'true' }}
         run: pnpm exec playwright install-deps webkit
-      - name: Build the app
-        run: NODE_ENV=test pnpm run build
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py }}
@@ -73,9 +71,8 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - run: uv pip install --system uvloop
         if: runner.os != 'Windows'
-      - run: uv sync --extra container
       - name: Run Playwright tests
-        run: pnpm exec playwright test
+        run: pnpm test:e2e
       - uses: actions/upload-artifact@v4
         if: always()
         with:
