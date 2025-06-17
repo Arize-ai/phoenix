@@ -62,8 +62,9 @@ from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
+from phoenix.server.cost_tracking.cost_lookup import get_cost_table
 from phoenix.server.dml_event import SpanInsertEvent
-from phoenix.trace.attributes import unflatten
+from phoenix.trace.attributes import get_attribute_value, unflatten
 from phoenix.trace.schemas import SpanException
 from phoenix.utilities.json import jsonify
 from phoenix.utilities.template_formatters import (
@@ -447,6 +448,7 @@ class ChatCompletionMutationMixin:
                 llm_token_count_completion=attributes.get(LLM_TOKEN_COUNT_COMPLETION, 0),
                 trace=trace,
             )
+            span.span_cost = _calculate_span_cost(span.attributes, span.id)
             session.add(trace)
             session.add(span)
             await session.flush()
@@ -605,5 +607,64 @@ TOOL_CALL_FUNCTION_ARGUMENTS_JSON = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUME
 TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
 PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
 
+LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
 
 PLAYGROUND_PROJECT_NAME = "playground"
+
+
+def _calculate_span_cost(
+    span_attributes: dict[str, Any], span_id: int
+) -> Optional[models.SpanCost]:
+    """
+    Calculate cost information for a span based on its attributes.
+    This is simplified for playground spans which only have basic token counts.
+    """
+    llm_model_name = get_attribute_value(span_attributes, LLM_MODEL_NAME)
+    if not llm_model_name:
+        return None
+
+    llm_provider = get_attribute_value(span_attributes, LLM_PROVIDER)
+    cost_table = get_cost_table()
+    cost_table_result = cost_table.get_cost(provider=llm_provider, model_name=llm_model_name)
+    if not cost_table_result:
+        return None
+
+    _, token_costs = cost_table_result[0]
+    model_id = token_costs.model_id
+    cost_per_input_token = token_costs.input
+    cost_per_output_token = token_costs.output
+
+    llm_prompt_tokens = get_attribute_value(span_attributes, LLM_TOKEN_COUNT_PROMPT)
+    llm_completion_tokens = get_attribute_value(span_attributes, LLM_TOKEN_COUNT_COMPLETION)
+
+    input_token_cost = (
+        llm_prompt_tokens * cost_per_input_token
+        if llm_prompt_tokens is not None and cost_per_input_token is not None
+        else None
+    )
+    output_token_cost = (
+        llm_completion_tokens * cost_per_output_token
+        if llm_completion_tokens is not None and cost_per_output_token is not None
+        else None
+    )
+
+    costs = [cost for cost in [input_token_cost, output_token_cost] if cost is not None]
+    if not costs:
+        return None
+
+    total_token_cost = sum(costs)
+
+    return models.SpanCost(
+        span_rowid=span_id,
+        generative_model_id=model_id,
+        prompt_token_cost=input_token_cost,
+        completion_token_cost=output_token_cost,
+        input_token_cost=input_token_cost,
+        output_token_cost=output_token_cost,
+        cache_read_token_cost=None,  # Not available in playground
+        cache_write_token_cost=None,  # Not available in playground
+        prompt_audio_token_cost=None,  # Not available in playground
+        completion_audio_token_cost=None,  # Not available in playground
+        reasoning_token_cost=None,  # Not available in playground
+        total_token_cost=total_token_cost,
+    )

@@ -16,6 +16,7 @@ import {
 } from "@phoenix/components";
 import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 
@@ -40,6 +41,9 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
             }
             tokenCountTotal
             latencyMs
+            cost {
+              total
+            }
           }
         }
       }
@@ -53,6 +57,7 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
     return null;
   }
   const { trace } = data.span;
+  const totalCost = data.span.cost?.total;
 
   return (
     <View
@@ -69,6 +74,9 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
             tokenCountTotal={data.span.tokenCountTotal || 0}
             nodeId={data.span.id}
           />
+          {totalCost != null && (
+            <TokenCosts totalCost={totalCost} nodeId={data.span.id} />
+          )}
           <LatencyText latencyMs={data.span.latencyMs || 0} />
         </Flex>
         <Flex direction="row" gap="size-100" alignItems="center">
