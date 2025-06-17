@@ -25,7 +25,9 @@ console.log(
 );
 
 // Execute the server
-const childProcess = exec(`uv run --compile --extra container phoenix serve`);
+const childProcess = exec(
+  `uv run --active --compile --with-requirements=../requirements/dev.txt phoenix serve`
+);
 
 childProcess.stdout?.pipe(process.stdout);
 childProcess.stderr?.pipe(process.stderr);
