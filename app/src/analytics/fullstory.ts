@@ -21,7 +21,7 @@ function getUniqueUserId(userId: string) {
   return userId; // Fallback to the original user id if no basename is set
 }
 
-export function setItentity(identity: FullStoryIdentity) {
+export function setIdentity(identity: FullStoryIdentity) {
   if (!isFullStoryEnabled()) {
     return;
   }
