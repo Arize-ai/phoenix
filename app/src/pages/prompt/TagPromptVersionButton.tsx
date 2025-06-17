@@ -20,7 +20,9 @@ import { useNotifySuccess } from "@phoenix/contexts";
 
 import { TagPromptVersionButtonTagsQuery } from "./__generated__/TagPromptVersionButtonTagsQuery.graphql";
 import { NewPromptVersionDialog } from "./NewPromptVersionTagDialog";
+
 export function TagPromptVersionButton() {
+  const [showTagList, setShowTagList] = useState<boolean>(false);
   const [showNewTagDialog, setShowNewTagDialog] = useState<boolean>(false);
   const [fetchKey, setFetchKey] = useState<number>(0);
   const notifySuccess = useNotifySuccess();
@@ -34,7 +36,7 @@ export function TagPromptVersionButton() {
 
   return (
     <div>
-      <DialogTrigger>
+      <DialogTrigger isOpen={showTagList} onOpenChange={setShowTagList}>
         <Button
           size="S"
           leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}
@@ -71,7 +73,10 @@ export function TagPromptVersionButton() {
                 css={css`
                   width: 100%;
                 `}
-                onPress={() => setShowNewTagDialog(true)}
+                onPress={() => {
+                  setShowTagList(false);
+                  setShowNewTagDialog(true);
+                }}
               >
                 New Tag
               </Button>
@@ -79,7 +84,12 @@ export function TagPromptVersionButton() {
           </Dialog>
         </Popover>
       </DialogTrigger>
-      {showNewTagDialog && (
+      <DialogTrigger
+        isOpen={showNewTagDialog}
+        onOpenChange={(isOpen) => {
+          setShowNewTagDialog(isOpen);
+        }}
+      >
         <NewPromptVersionDialog
           promptVersionId={versionId}
           onDismiss={() => setShowNewTagDialog(false)}
@@ -87,11 +97,11 @@ export function TagPromptVersionButton() {
             setFetchKey((prev) => prev + 1);
             notifySuccess({
               title: "Tag Created",
-              message: `The tag ${newTag.name} has been created and been set on the version`,
+              message: `The tag ${newTag.name} has been created and set on the prompt version`,
             });
           }}
         />
-      )}
+      </DialogTrigger>
     </div>
   );
 }

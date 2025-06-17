@@ -1,5 +1,34 @@
 # Changelog
 
+## [10.13.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.13.1...arize-phoenix-v10.13.2) (2025-06-17)
+
+
+### Bug Fixes
+
+* chunk deletion of project sessions ([#8133](https://github.com/Arize-ai/phoenix/issues/8133)) ([af5fec4](https://github.com/Arize-ai/phoenix/commit/af5fec44c5a8007b82c0093e2f930e0e107da7f4))
+* revert ([#8136](https://github.com/Arize-ai/phoenix/issues/8136)) ([964d59b](https://github.com/Arize-ai/phoenix/commit/964d59be7cf8c85aa2a8f2c6ad2538c1f32619cc))
+* span prompt template export ([#8110](https://github.com/Arize-ai/phoenix/issues/8110)) ([8ffb200](https://github.com/Arize-ai/phoenix/commit/8ffb2005e12f8728ee5e49a72fc1a6d708159456))
+
+## [10.13.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.13.0...arize-phoenix-v10.13.1) (2025-06-17)
+
+
+### Documentation
+
+* add google adk ([#8127](https://github.com/Arize-ai/phoenix/issues/8127)) ([993f324](https://github.com/Arize-ai/phoenix/commit/993f324ce5961e3cda74528f9ef1ab1571d45d12))
+
+## [10.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.12.0...arize-phoenix-v10.13.0) (2025-06-17)
+
+
+### Features
+
+* fullstory ([#8120](https://github.com/Arize-ai/phoenix/issues/8120)) ([e619db9](https://github.com/Arize-ai/phoenix/commit/e619db97e9e61432d913ddd5ec6cce6a5fa19f5f))
+* **helm:** enhanced service configurability and docs ([#8063](https://github.com/Arize-ai/phoenix/issues/8063)) ([15dfe28](https://github.com/Arize-ai/phoenix/commit/15dfe2828ac8df69c09b646fc7ce9a8cadb65f52))
+
+
+### Bug Fixes
+
+* exp empty select ([#8111](https://github.com/Arize-ai/phoenix/issues/8111)) ([e3f08fe](https://github.com/Arize-ai/phoenix/commit/e3f08fe93e8553218ca83084983e6c3f7a535277))
+
 ## [10.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.11.0...arize-phoenix-v10.12.0) (2025-06-13)
 
 

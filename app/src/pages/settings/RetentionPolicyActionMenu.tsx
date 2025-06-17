@@ -1,14 +1,23 @@
-import { ReactNode, Suspense, useCallback, useState } from "react";
+import { Suspense, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import { ActionMenu, Dialog, DialogContainer, Item } from "@arizeai/components";
+import { ActionMenu, Item } from "@arizeai/components";
 
 import {
   Button,
+  Dialog,
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+  DialogTrigger,
   Flex,
   Icon,
   Icons,
   Loading,
+  Modal,
+  ModalOverlay,
   Text,
   View,
 } from "@phoenix/components";
@@ -47,26 +56,8 @@ export const RetentionPolicyActionMenu = ({
   connectionId,
 }: RetentionPolicyActionMenuProps) => {
   const canDelete = policyName !== DEFAULT_POLICY_NAME;
-  const [dialog, setDialog] = useState<ReactNode>(null);
-
-  const onEdit = useCallback(() => {
-    setDialog(
-      <Dialog size="M" title="Edit Retention Policy">
-        <Suspense fallback={<Loading />}>
-          <EditRetentionPolicy
-            policyId={policyId}
-            onEditCompleted={() => {
-              onPolicyEdit();
-              setDialog(null);
-            }}
-            onCancel={() => {
-              setDialog(null);
-            }}
-          />
-        </Suspense>
-      </Dialog>
-    );
-  }, [onPolicyEdit, policyId]);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const [deletePolicy, isDeleting] = useMutation(graphql`
     mutation RetentionPolicyActionMenuDeletePolicyMutation(
@@ -84,64 +75,6 @@ export const RetentionPolicyActionMenu = ({
     }
   `);
 
-  const onDelete = useCallback(() => {
-    setDialog(
-      <Dialog size="S" title="Delete Retention Policy">
-        <View padding="size-200">
-          <Text color="danger">
-            {`Are you sure you want to delete retention policy "${policyName}"? This cannot be undone.`}
-          </Text>
-          <br />
-          {projectNames.length > 0 && (
-            <Text color="danger">
-              {`This policy is associated with the following projects: ${projectNames.join(
-                ", "
-              )}. These projects will fall back to the default policy.`}
-            </Text>
-          )}
-        </View>
-        <View
-          paddingEnd="size-200"
-          paddingTop="size-100"
-          paddingBottom="size-100"
-          borderTopColor="light"
-          borderTopWidth="thin"
-        >
-          <Flex direction="row" justifyContent="end">
-            <Button
-              variant="danger"
-              size="S"
-              onPress={() => {
-                deletePolicy({
-                  variables: {
-                    policyId,
-                    connectionId,
-                  },
-                });
-                setDialog(null);
-                onPolicyDelete();
-              }}
-              isDisabled={isDeleting}
-              leadingVisual={
-                isDeleting ? <Icon svg={<Icons.LoadingOutline />} /> : undefined
-              }
-            >
-              {isDeleting ? "Deleting..." : "Delete Policy"}
-            </Button>
-          </Flex>
-        </View>
-      </Dialog>
-    );
-  }, [
-    policyId,
-    policyName,
-    projectNames,
-    deletePolicy,
-    onPolicyDelete,
-    isDeleting,
-    connectionId,
-  ]);
-
   return (
     <StopPropagation>
       <ActionMenu
@@ -151,10 +84,10 @@ export const RetentionPolicyActionMenu = ({
         onAction={(action) => {
           switch (action as RetentionPolicyAction) {
             case RetentionPolicyAction.EDIT: {
-              return onEdit();
+              return setShowEditDialog(true);
             }
             case RetentionPolicyAction.DELETE: {
-              return onDelete();
+              return setShowDeleteDialog(true);
             }
           }
         }}
@@ -182,13 +115,113 @@ export const RetentionPolicyActionMenu = ({
           </Flex>
         </Item>
       </ActionMenu>
-      <DialogContainer
-        type="modal"
-        isDismissable
-        onDismiss={() => setDialog(null)}
+
+      {/* Edit Dialog */}
+      <DialogTrigger isOpen={showEditDialog} onOpenChange={setShowEditDialog}>
+        <ModalOverlay>
+          <Modal size="M">
+            <Dialog>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Edit Retention Policy</DialogTitle>
+                  <DialogTitleExtra>
+                    <DialogCloseButton
+                      onPress={() => setShowEditDialog(false)}
+                      slot="close"
+                    />
+                  </DialogTitleExtra>
+                </DialogHeader>
+                <Suspense fallback={<Loading />}>
+                  <EditRetentionPolicy
+                    policyId={policyId}
+                    onEditCompleted={() => {
+                      onPolicyEdit();
+                      setShowEditDialog(false);
+                    }}
+                    onCancel={() => {
+                      setShowEditDialog(false);
+                    }}
+                  />
+                </Suspense>
+              </DialogContent>
+            </Dialog>
+          </Modal>
+        </ModalOverlay>
+      </DialogTrigger>
+
+      {/* Delete Dialog */}
+      <DialogTrigger
+        isOpen={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
       >
-        {dialog}
-      </DialogContainer>
+        <ModalOverlay>
+          <Modal size="S">
+            <Dialog>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Delete Retention Policy</DialogTitle>
+                  <DialogTitleExtra>
+                    <DialogCloseButton slot="close" />
+                  </DialogTitleExtra>
+                </DialogHeader>
+                <View padding="size-200">
+                  <Text color="danger">
+                    {`Are you sure you want to delete retention policy "${policyName}"? This cannot be undone.`}
+                  </Text>
+                  <br />
+                  {projectNames.length > 0 && (
+                    <Text color="danger">
+                      {`This policy is associated with the following projects: ${projectNames.join(
+                        ", "
+                      )}. These projects will fall back to the default policy.`}
+                    </Text>
+                  )}
+                </View>
+                <View
+                  paddingEnd="size-200"
+                  paddingTop="size-100"
+                  paddingBottom="size-100"
+                  borderTopColor="light"
+                  borderTopWidth="thin"
+                >
+                  <Flex direction="row" justifyContent="end" gap="size-100">
+                    <Button
+                      variant="default"
+                      size="M"
+                      slot="close"
+                      isDisabled={isDeleting}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="S"
+                      onPress={() => {
+                        deletePolicy({
+                          variables: {
+                            policyId,
+                            connectionId,
+                          },
+                        });
+                        setShowDeleteDialog(false);
+                        onPolicyDelete();
+                      }}
+                      isDisabled={isDeleting}
+                      leadingVisual={
+                        isDeleting ? (
+                          <Icon svg={<Icons.LoadingOutline />} />
+                        ) : undefined
+                      }
+                    >
+                      {isDeleting ? "Deleting..." : "Delete Policy"}
+                    </Button>
+                  </Flex>
+                </View>
+              </DialogContent>
+            </Dialog>
+          </Modal>
+        </ModalOverlay>
+      </DialogTrigger>
     </StopPropagation>
   );
 };

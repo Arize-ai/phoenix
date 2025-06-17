@@ -50,6 +50,11 @@ ENV_PHOENIX_PROJECT_NAME = "PHOENIX_PROJECT_NAME"
 """
 The project name to use when logging traces and evals. defaults to 'default'.
 """
+ENV_PHOENIX_FULLSTORY_ORG = "PHOENIX_FULLSTORY_ORG"
+"""
+The FullStory organization ID for web analytics tracking. When set, FullStory tracking
+will be enabled in the Phoenix web interface.
+"""
 ENV_PHOENIX_SQL_DATABASE_URL = "PHOENIX_SQL_DATABASE_URL"
 """
 The SQL database URL to use when logging traces and evals.
@@ -1518,6 +1523,16 @@ def get_env_allowed_origins() -> Optional[list[str]]:
         return None
 
     return allowed_origins.split(",")
+
+
+def get_env_fullstory_org() -> Optional[str]:
+    """
+    Get the FullStory organization ID from environment variables.
+
+    Returns:
+        Optional[str]: The FullStory organization ID if set, None otherwise.
+    """
+    return getenv(ENV_PHOENIX_FULLSTORY_ORG)
 
 
 def verify_server_environment_variables() -> None:

@@ -1,4 +1,5 @@
 from unittest.mock import MagicMock, Mock, patch
+from urllib.parse import urlparse
 
 import pytest
 from opentelemetry import trace as trace_api
@@ -14,6 +15,7 @@ from phoenix.otel.otel import (
     OTLPTransportProtocol,
     SimpleSpanProcessor,
     TracerProvider,
+    _construct_phoenix_cloud_endpoint,
     register,
 )
 
@@ -365,6 +367,38 @@ class TestEndpointNormalization:
                 parsed, endpoint = _normalized_endpoint(None, use_http=False)
                 assert parsed.scheme == "http"
                 assert parsed.netloc == "localhost:4317"
+
+
+class TestPhoenixCloudEndpoint:
+    def test_space_path_basic(self):
+        parsed = urlparse("https://app.phoenix.arize.com/s/testspace")
+        result = _construct_phoenix_cloud_endpoint(parsed)
+
+        assert result.path == "/s/testspace/v1/traces"
+
+    def test_space_path_with_trailing_slash(self):
+        parsed = urlparse("https://app.phoenix.arize.com/s/my-space_01/")
+        result = _construct_phoenix_cloud_endpoint(parsed)
+
+        assert result.path == "/s/my-space_01/v1/traces"
+
+    def test_space_path_with_additional_components(self):
+        parsed = urlparse("https://app.phoenix.arize.com/s/space123/extra/path")
+        result = _construct_phoenix_cloud_endpoint(parsed)
+
+        assert result.path == "/s/space123/v1/traces"
+
+    def test_non_space_path_defaults(self):
+        parsed = urlparse("https://app.phoenix.arize.com/some/other/path")
+        result = _construct_phoenix_cloud_endpoint(parsed)
+
+        assert result.path == "/v1/traces"
+
+    def test_empty_space_id_defaults(self):
+        parsed = urlparse("https://app.phoenix.arize.com/s/")
+        result = _construct_phoenix_cloud_endpoint(parsed)
+
+        assert result.path == "/v1/traces"
 
 
 class TestOTLPTransportProtocol:

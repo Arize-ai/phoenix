@@ -186,6 +186,40 @@ async def test_compare_experiments_returns_expected_comparisons(
     }
 
 
+async def test_compare_experiments_with_empty_experiment_ids_returns_empty_connection(
+    gql_client: AsyncGraphQLClient,
+    comparison_experiments: Any,
+) -> None:
+    """Test that compare_experiments handles empty experiment_ids gracefully."""
+    query = """
+      query ($experimentIds: [ID!]!, $first: Int, $after: String) {
+        compareExperiments(
+          experimentIds: $experimentIds
+          first: $first
+          after: $after
+        ) {
+          edges {
+            node {
+              example {
+                id
+              }
+            }
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "experimentIds": [],
+            "first": 50,
+            "after": None,
+        },
+    )
+    assert not response.errors
+    assert response.data == {"compareExperiments": {"edges": []}}
+
+
 @pytest.mark.skip(reason="TODO: re-enable this test after we figure out the issue with sqlite")
 async def test_db_table_stats(gql_client: AsyncGraphQLClient) -> None:
     query = """
