@@ -473,13 +473,8 @@ async def _chat_completion_result_payloads(
     async with db() as session:
         for _, span, run in results:
             if span:
+                span.span_cost = _calculate_span_cost(span.attributes, span.id)
                 session.add(span)
-                try:
-                    span_cost = _calculate_span_cost(span.attributes, span.id)
-                    if span_cost is not None:
-                        session.add(span_cost)
-                except Exception:
-                    pass
             session.add(run)
         await session.flush()
     for example_id, span, run in results:
