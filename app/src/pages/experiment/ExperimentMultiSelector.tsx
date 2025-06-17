@@ -27,23 +27,8 @@ export function ExperimentMultiSelector(props: {
   selectedExperimentIds: string[];
   onChange: (selectedExperimentIds: string[]) => void;
   dataset: ExperimentMultiSelector__experiments$key;
-  size?: "S" | "M";
-  isDisabled?: boolean;
-  validationState?: "valid" | "invalid";
-  description?: string;
-  errorMessage?: string;
 }) {
-  const {
-    dataset,
-    selectedExperimentIds,
-    onChange,
-    label,
-    size = "M",
-    isDisabled,
-    validationState,
-    description,
-    errorMessage,
-  } = props;
+  const { dataset, selectedExperimentIds, onChange, label } = props;
 
   const data = useFragment(
     graphql`
@@ -85,8 +70,8 @@ export function ExperimentMultiSelector(props: {
       <Label>{label}</Label>
       <DialogTrigger>
         <Button
-          isDisabled={noExperiments || isDisabled}
-          size={size}
+          isDisabled={noExperiments}
+          size="M"
           trailingVisual={<SelectChevronUpDownIcon />}
         >
           {displayText}
@@ -132,10 +117,6 @@ export function ExperimentMultiSelector(props: {
           </Dialog>
         </Popover>
       </DialogTrigger>
-      {description && <Text slot="description">{description}</Text>}
-      {errorMessage && validationState === "invalid" && (
-        <Text slot="errorMessage">{errorMessage}</Text>
-      )}
     </div>
   );
 }
