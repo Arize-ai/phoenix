@@ -196,6 +196,8 @@ def _safely_json_decode(value: Any) -> Any:
     """
     Safely decodes a JSON-encoded value.
     """
+    if isinstance(value, dict):
+        return value
     if not isinstance(value, str):
         return None
     try:
