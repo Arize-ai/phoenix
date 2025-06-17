@@ -110,13 +110,12 @@ function CloneModelDialogContent({
               name: params.name,
               provider: params.provider,
               namePattern: params.namePattern,
-              inputCostPerToken: params.cost.input,
-              outputCostPerToken: params.cost.output,
-              cacheReadCostPerToken: params.cost.cacheRead,
-              cacheWriteCostPerToken: params.cost.cacheWrite,
-              promptAudioCostPerToken: params.cost.promptAudio,
-              completionAudioCostPerToken: params.cost.completionAudio,
-              reasoningCostPerToken: params.cost.reasoning,
+              costs: Object.entries(params.cost)
+                .filter(([_, value]) => value != null)
+                .map(([key, value]) => ({
+                  tokenType: key,
+                  costPerToken: value,
+                })),
             },
           },
           onCompleted: () => {
