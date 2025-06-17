@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from phoenix.otel.otel import get_env_collector_endpoint
+from phoenix.otel.settings import get_env_collector_endpoint
 
 
 @pytest.mark.parametrize(
