@@ -104,6 +104,10 @@ class TestProjectMutations:
             newest_trace = await session.get(models.Trace, traces[0].id)
             assert newest_trace is not None, "Newest trace should remain"
 
+            # The newest project session should remain since its trace remains
+            newest_session = await session.get(models.ProjectSession, project_sessions[0].id)
+            assert newest_session is not None, "Newest project session should remain"
+
             # The two oldest traces and their sessions should be deleted since they're
             # before end_time
             for i in range(1, n):
