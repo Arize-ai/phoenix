@@ -448,16 +448,9 @@ class ChatCompletionMutationMixin:
                 llm_token_count_completion=attributes.get(LLM_TOKEN_COUNT_COMPLETION, 0),
                 trace=trace,
             )
+            span.span_cost = _calculate_span_cost(span.attributes, span.id)
             session.add(trace)
             session.add(span)
-
-            try:
-                span_cost = _calculate_span_cost(span.attributes, span.id)
-                if span_cost is not None:
-                    session.add(span_cost)
-            except Exception:
-                pass
-
             await session.flush()
 
         gql_span = Span(span_rowid=span.id, db_span=span)
@@ -662,8 +655,8 @@ def _calculate_span_cost(
     total_token_cost = sum(costs)
 
     return models.SpanCost(
-        span_id=span_id,
-        model_id=model_id,
+        span_rowid=span_id,
+        generative_model_id=model_id,
         prompt_token_cost=input_token_cost,
         completion_token_cost=output_token_cost,
         input_token_cost=input_token_cost,

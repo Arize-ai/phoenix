@@ -173,17 +173,8 @@ class Subscription:
                 )
             db_trace = get_db_trace(span, playground_project_id)
             db_span = get_db_span(span, db_trace)
+            db_span.span_cost = _calculate_span_cost(span.attributes, db_span.id)
             session.add(db_span)
-
-            span_cost = None
-            try:
-                span_cost = _calculate_span_cost(span.attributes, db_span.id)
-            except Exception:
-                pass
-
-            if span_cost is not None:
-                session.add(span_cost)
-
             await session.flush()
 
         info.context.event_queue.put(SpanInsertEvent(ids=(playground_project_id,)))
@@ -656,8 +647,8 @@ def _calculate_span_cost(
     total_token_cost = sum(costs)
 
     return models.SpanCost(
-        span_id=span_id,
-        model_id=model_id,
+        span_rowid=span_id,
+        generative_model_id=model_id,
         prompt_token_cost=input_token_cost,
         completion_token_cost=output_token_cost,
         input_token_cost=input_token_cost,
