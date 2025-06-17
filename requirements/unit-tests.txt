@@ -12,7 +12,7 @@ numpy
 openai>=1.0.0
 pandas-stubs==2.0.3.230814
 pandas>=1.0
-protobuf==3.20.2  # version minimum (for tests)
+protobuf==4.25.8  # version minimum (for tests)
 psycopg[binary,pool]
 pyarrow-stubs
 pytest-postgresql
