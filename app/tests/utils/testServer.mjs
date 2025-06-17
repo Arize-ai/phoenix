@@ -25,19 +25,8 @@ console.log(
 );
 
 // Execute the server
-// uv will:
-// - install the phoenix server in editable mode
-// - install the phoenix evals and otel packages from the local packages directory
-// - install openai (necessary for playground)
-// - run the arize-phoenix serve command
 const childProcess = exec(
-  `uv tool run\
-  --with=openai\
-  --with=arize-phoenix-evals@../packages/phoenix-evals\
-  --with=arize-phoenix-otel@../packages/phoenix-otel\
-  --project=..\
-  arize-phoenix serve
-`
+  `uv run --compile --with-requirements=../requirements/dev.txt phoenix serve`
 );
 
 childProcess.stdout?.pipe(process.stdout);
