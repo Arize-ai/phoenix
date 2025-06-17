@@ -78,7 +78,9 @@ export function ExperimentMultiSelector(props: {
   }, [selectedExperimentIds, noExperiments]);
 
   return (
-    <div className={`ac-field ${validationState === 'invalid' ? 'ac-field--invalid' : ''}`}>
+    <div
+      className={`ac-field ${validationState === "invalid" ? "ac-field--invalid" : ""}`}
+    >
       <Label>{label}</Label>
       <DialogTrigger>
         <Button
