@@ -25,6 +25,7 @@ from phoenix.config import (
     get_env_db_logging_level,
     get_env_disable_migrations,
     get_env_enable_prometheus,
+    get_env_fullstory_org,
     get_env_grpc_port,
     get_env_host,
     get_env_host_root_path,
@@ -484,11 +485,13 @@ def main() -> None:
 
 
 def initialize_settings() -> None:
+    """Initialize the settings from environment variables."""
     Settings.logging_mode = get_env_logging_mode()
     Settings.logging_level = get_env_logging_level()
     Settings.db_logging_level = get_env_db_logging_level()
     Settings.log_migrations = get_env_log_migrations()
     Settings.disable_migrations = get_env_disable_migrations()
+    Settings.fullstory_org = get_env_fullstory_org()
 
 
 if __name__ == "__main__":

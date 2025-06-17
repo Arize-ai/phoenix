@@ -154,6 +154,16 @@ module.exports = {
         module: "@arizeai/components",
         use: "import { SearchField, Input } from '@phoenix/components'",
       },
+      {
+        name: "Dialog",
+        module: "@arizeai/components",
+        use: "import { Dialog } from '@phoenix/components'",
+      },
+      {
+        name: "DialogTrigger",
+        module: "@arizeai/components",
+        use: "import { DialogTrigger } from '@phoenix/components'",
+      },
     ],
     "no-duplicate-imports": "error",
   },

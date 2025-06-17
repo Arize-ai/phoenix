@@ -1,13 +1,21 @@
-import { ReactNode, useState } from "react";
-
-import { Dialog, DialogContainer } from "@arizeai/components";
+import { useState } from "react";
+import { css } from "@emotion/react";
 
 import {
   Button,
   ButtonProps,
+  Dialog,
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+  DialogTrigger,
   ExternalLink,
   Icon,
   Icons,
+  Modal,
+  ModalOverlay,
   Text,
   View,
 } from "@phoenix/components";
@@ -23,26 +31,28 @@ type NewProjectButtonProps = {
   variant?: ButtonProps["variant"];
 };
 export function NewProjectButton({ variant }: NewProjectButtonProps) {
-  const [dialog, setDialog] = useState<ReactNode>(null);
   return (
     <div>
-      <Button
-        leadingVisual={<Icon svg={<Icons.GridOutline />} />}
-        size="S"
-        variant={variant}
-        onPress={() => {
-          setDialog(<NewProjectDialog />);
-        }}
-      >
-        New Project
-      </Button>
-      <DialogContainer
-        isDismissable
-        type="slideOver"
-        onDismiss={() => setDialog(null)}
-      >
-        {dialog}
-      </DialogContainer>
+      <DialogTrigger>
+        <Button
+          leadingVisual={<Icon svg={<Icons.GridOutline />} />}
+          size="S"
+          variant={variant}
+        >
+          New Project
+        </Button>
+        <ModalOverlay>
+          <Modal
+            variant="slideover"
+            size="L"
+            css={css`
+              width: 70vw !important;
+            `}
+          >
+            <NewProjectDialog />
+          </Modal>
+        </ModalOverlay>
+      </DialogTrigger>
     </div>
   );
 }
@@ -50,27 +60,38 @@ export function NewProjectButton({ variant }: NewProjectButtonProps) {
 function NewProjectDialog() {
   const [language, setLanguage] = useState<CodeLanguage>("Python");
   return (
-    <Dialog title="Create a New Project" size="L">
-      <View padding="size-400" overflow="auto">
-        <View paddingBottom="size-200">
-          <CodeLanguageRadioGroup language={language} onChange={setLanguage} />
+    <Dialog>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create a New Project</DialogTitle>
+          <DialogTitleExtra>
+            <DialogCloseButton slot="close" />
+          </DialogTitleExtra>
+        </DialogHeader>
+        <View padding="size-400" overflow="auto">
+          <View paddingBottom="size-200">
+            <CodeLanguageRadioGroup
+              language={language}
+              onChange={setLanguage}
+            />
+          </View>
+          <View paddingBottom="size-100">
+            <Text>
+              Projects are created when you log your first trace via
+              OpenTelemetry. See the{" "}
+              <ExternalLink href={PHOENIX_OTEL_DOC_LINK}>
+                documentation
+              </ExternalLink>{" "}
+              for a complete guide.
+            </Text>
+          </View>
+          {language === "Python" ? (
+            <PythonProjectGuide />
+          ) : (
+            <TypeScriptProjectGuide />
+          )}
         </View>
-        <View paddingBottom="size-100">
-          <Text>
-            Projects are created when you log your first trace via
-            OpenTelemetry. See the{" "}
-            <ExternalLink href={PHOENIX_OTEL_DOC_LINK}>
-              documentation
-            </ExternalLink>{" "}
-            for a complete guide.
-          </Text>
-        </View>
-        {language === "Python" ? (
-          <PythonProjectGuide />
-        ) : (
-          <TypeScriptProjectGuide />
-        )}
-      </View>
+      </DialogContent>
     </Dialog>
   );
 }

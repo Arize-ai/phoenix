@@ -1,10 +1,17 @@
-import { ReactNode, useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 import { getLocalTimeZone } from "@internationalized/date";
 
-import { Card, DialogContainer } from "@arizeai/components";
+import { Card } from "@arizeai/components";
 
-import { Button, Icon, Icons } from "@phoenix/components";
+import {
+  Button,
+  DialogTrigger,
+  Icon,
+  Icons,
+  Modal,
+  ModalOverlay,
+} from "@phoenix/components";
 import {
   APIKeyFormParams,
   CreateAPIKeyDialog,
@@ -13,7 +20,10 @@ import {
 import { useNotifyError } from "@phoenix/contexts";
 
 import { APIKeysTableFragment$key } from "./__generated__/APIKeysTableFragment.graphql";
-import { ViewerAPIKeysCreateUserAPIKeyMutation } from "./__generated__/ViewerAPIKeysCreateUserAPIKeyMutation.graphql";
+import {
+  ViewerAPIKeysCreateUserAPIKeyMutation,
+  ViewerAPIKeysCreateUserAPIKeyMutation$data,
+} from "./__generated__/ViewerAPIKeysCreateUserAPIKeyMutation.graphql";
 import { APIKeysTable } from "./APIKeysTable";
 
 export function ViewerAPIKeys({
@@ -21,7 +31,8 @@ export function ViewerAPIKeys({
 }: {
   viewer: APIKeysTableFragment$key;
 }) {
-  const [dialog, setDialog] = useState<ReactNode>(null);
+  const [showCreateAPIKeyResponse, setShowCreateAPIKeyResponse] =
+    useState<ViewerAPIKeysCreateUserAPIKeyMutation$data | null>(null);
   const notifyError = useNotifyError();
 
   const [commit, isCommitting] =
@@ -30,6 +41,9 @@ export function ViewerAPIKeys({
         $input: CreateUserApiKeyInput!
       ) {
         createUserApiKey(input: $input) {
+          query {
+            ...SystemAPIKeysTableFragment
+          }
           jwt
           apiKey {
             id
@@ -42,7 +56,7 @@ export function ViewerAPIKeys({
     `);
 
   const onSubmit = useCallback(
-    (data: APIKeyFormParams) => {
+    (data: APIKeyFormParams, onCloseCreateAPIKeyDialog: () => void) => {
       commit({
         variables: {
           input: {
@@ -52,9 +66,8 @@ export function ViewerAPIKeys({
           },
         },
         onCompleted: (response) => {
-          setDialog(
-            <OneTimeAPIKeyDialog jwt={response.createUserApiKey.jwt} />
-          );
+          onCloseCreateAPIKeyDialog();
+          setShowCreateAPIKeyResponse(response);
         },
         onError: (error) => {
           notifyError({
@@ -67,35 +80,44 @@ export function ViewerAPIKeys({
     [commit, notifyError]
   );
   return (
-    <Card
-      title="API Keys"
-      variant="compact"
-      bodyStyle={{ padding: 0 }}
-      extra={
-        <Button
-          size="S"
-          leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
-          onPress={() =>
-            setDialog(
-              <CreateAPIKeyDialog
-                onSubmit={onSubmit}
-                isCommitting={isCommitting}
-              />
-            )
-          }
-        >
-          New Key
-        </Button>
-      }
-    >
-      <APIKeysTable query={viewer} />
-      <DialogContainer
-        onDismiss={() => {
-          setDialog(null);
-        }}
+    <>
+      <Card
+        title="API Keys"
+        variant="compact"
+        bodyStyle={{ padding: 0 }}
+        extra={
+          <DialogTrigger>
+            <Button
+              size="S"
+              leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
+            >
+              New Key
+            </Button>
+            <ModalOverlay>
+              <Modal size="M">
+                <CreateAPIKeyDialog
+                  onSubmit={onSubmit}
+                  isCommitting={isCommitting}
+                />
+              </Modal>
+            </ModalOverlay>
+          </DialogTrigger>
+        }
       >
-        {dialog}
-      </DialogContainer>
-    </Card>
+        <APIKeysTable query={viewer} />
+      </Card>
+      <DialogTrigger
+        isOpen={!!showCreateAPIKeyResponse}
+        onOpenChange={() => setShowCreateAPIKeyResponse(null)}
+      >
+        <ModalOverlay>
+          <Modal size="L">
+            <OneTimeAPIKeyDialog
+              jwt={showCreateAPIKeyResponse?.createUserApiKey?.jwt ?? ""}
+            />
+          </Modal>
+        </ModalOverlay>
+      </DialogTrigger>
+    </>
   );
 }

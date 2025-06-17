@@ -214,6 +214,8 @@ class AppConfig(NamedTuple):
     oauth2_idps: Sequence[OAuth2Idp]
     basic_auth_disabled: bool = False
     auto_login_idp_name: Optional[str] = None
+    fullstory_org: Optional[str] = None
+    """ FullStory organization ID for web analytics tracking """
 
 
 class Static(StaticFiles):
@@ -279,6 +281,7 @@ class Static(StaticFiles):
                     "oauth2_idps": self._app_config.oauth2_idps,
                     "basic_auth_disabled": self._app_config.basic_auth_disabled,
                     "auto_login_idp_name": self._app_config.auto_login_idp_name,
+                    "fullstory_org": self._app_config.fullstory_org,
                 },
             )
         except Exception as e:
@@ -964,6 +967,7 @@ def create_app(
                     oauth2_idps=oauth2_idps,
                     basic_auth_disabled=basic_auth_disabled,
                     auto_login_idp_name=auto_login_idp_name,
+                    fullstory_org=Settings.fullstory_org,
                 ),
             ),
             name="static",

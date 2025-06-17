@@ -2,16 +2,22 @@ import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 
-import { Dialog, DialogContainer } from "@arizeai/components";
-
 import {
   Alert,
   Button,
+  Dialog,
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
   FieldError,
   Flex,
   Form,
   Input,
   Label,
+  Modal,
+  ModalOverlay,
   Text,
   TextArea,
   TextField,
@@ -84,89 +90,109 @@ export function NewPromptVersionDialog({
   };
 
   return (
-    <DialogContainer onDismiss={onDismiss} isDismissable type="modal">
-      <Dialog title="New Prompt Tag">
-        {error ? (
-          <Alert variant="danger" banner>
-            {error}
-          </Alert>
-        ) : null}
-        <Form onSubmit={handleSubmit(onSubmit)}>
-          <View padding="size-200">
-            <Controller
-              name="name"
-              control={control}
-              rules={{
-                required: "Name is required",
-                pattern: identifierPattern,
-              }}
-              render={({
-                field: { name, onChange, onBlur, value },
-                fieldState: { invalid, error },
-              }) => (
-                <TextField
-                  isInvalid={invalid}
-                  onChange={onChange}
-                  onBlur={onBlur}
-                  name={name}
-                  value={value.toString()}
-                >
-                  <Label>Tag Name</Label>
-                  <Input placeholder="e.x. prod" />
-                  {error?.message ? (
-                    <FieldError>{error.message}</FieldError>
-                  ) : (
-                    <Text slot="description">The identifier of the tag</Text>
+    <ModalOverlay>
+      <Modal size="M">
+        <Dialog>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>New Prompt Tag</DialogTitle>
+              <DialogTitleExtra>
+                <DialogCloseButton onPress={onDismiss} slot="close" />
+              </DialogTitleExtra>
+            </DialogHeader>
+            {error ? (
+              <Alert variant="danger" banner>
+                {error}
+              </Alert>
+            ) : null}
+            <Form onSubmit={handleSubmit(onSubmit)}>
+              <View padding="size-200">
+                <Controller
+                  name="name"
+                  control={control}
+                  rules={{
+                    required: "Name is required",
+                    pattern: identifierPattern,
+                  }}
+                  render={({
+                    field: { name, onChange, onBlur, value },
+                    fieldState: { invalid, error },
+                  }) => (
+                    <TextField
+                      isInvalid={invalid}
+                      onChange={onChange}
+                      onBlur={onBlur}
+                      name={name}
+                      value={value.toString()}
+                    >
+                      <Label>Tag Name</Label>
+                      <Input placeholder="e.x. prod" />
+                      {error?.message ? (
+                        <FieldError>{error.message}</FieldError>
+                      ) : (
+                        <Text slot="description">
+                          The identifier of the tag
+                        </Text>
+                      )}
+                    </TextField>
                   )}
-                </TextField>
-              )}
-            />
-            <Controller
-              name="description"
-              control={control}
-              render={({
-                field: { name, onChange, onBlur, value },
-                fieldState: { invalid, error },
-              }) => (
-                <TextField
-                  isInvalid={invalid}
-                  onChange={onChange}
-                  name={name}
-                  onBlur={onBlur}
-                  value={value.toString()}
-                >
-                  <Label>Description</Label>
-                  <TextArea placeholder="A description of the tag" />
-                  {error?.message ? (
-                    <FieldError>{error.message}</FieldError>
-                  ) : (
-                    <Text slot="description">
-                      A description of the tag (optional)
-                    </Text>
+                />
+                <Controller
+                  name="description"
+                  control={control}
+                  render={({
+                    field: { name, onChange, onBlur, value },
+                    fieldState: { invalid, error },
+                  }) => (
+                    <TextField
+                      isInvalid={invalid}
+                      onChange={onChange}
+                      name={name}
+                      onBlur={onBlur}
+                      value={value.toString()}
+                    >
+                      <Label>Description</Label>
+                      <TextArea placeholder="A description of the tag" />
+                      {error?.message ? (
+                        <FieldError>{error.message}</FieldError>
+                      ) : (
+                        <Text slot="description">
+                          A description of the tag (optional)
+                        </Text>
+                      )}
+                    </TextField>
                   )}
-                </TextField>
-              )}
-            />
-          </View>
-          <View
-            paddingX="size-200"
-            paddingY="size-100"
-            borderTopColor="dark"
-            borderTopWidth="thin"
-          >
-            <Flex gap="size-100" justifyContent="end">
-              <Button
-                variant={isDirty ? "primary" : "default"}
-                size="S"
-                type="submit"
-                isDisabled={isCommitting}
+                />
+              </View>
+              <View
+                paddingX="size-200"
+                paddingY="size-100"
+                borderTopColor="dark"
+                borderTopWidth="thin"
               >
-                Create Tag
-              </Button>
-            </Flex>
-          </View>
-        </Form>
-      </Dialog>
-    </DialogContainer>
+                <Flex gap="size-100" justifyContent="end">
+                  <Button
+                    variant="default"
+                    size="S"
+                    onPress={onDismiss}
+                    isDisabled={isCommitting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant={isDirty ? "primary" : "default"}
+                    size="S"
+                    type="submit"
+                    isDisabled={isCommitting}
+                  >
+                    Create Tag
+                  </Button>
+                </Flex>
+              </View>
+            </Form>
+          </DialogContent>
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
   );
 }

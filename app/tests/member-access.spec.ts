@@ -2,27 +2,6 @@ import { expect, test } from "@playwright/test";
 import { randomUUID } from "crypto";
 
 test.beforeEach(async ({ page }) => {
-  // Mock the systemApiKeys response to prevent unauthorized errors
-  await page.route('**/graphql', async (route) => {
-    const request = route.request();
-    const postData = request.postDataJSON();
-    
-    // If this is a query that includes systemApiKeys, return an empty array
-    if (postData.query && postData.query.includes('systemApiKeys')) {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          data: {
-            systemApiKeys: []
-          }
-        })
-      });
-    } else {
-      // Otherwise, let the request proceed normally
-      await route.continue();
-    }
-  });
 
   page.goto(`/login`);
   await page.getByLabel("Email").fill("member@localhost.com");
@@ -32,9 +11,16 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("can create user key", async ({ page }) => {
+  // Navigate to profile page
   await page.goto("/profile");
-  await page.getByRole("button", { name: "New Key" }).click();
+  
+  // Generate a unique key name for this test run
   const keyName = `key-${randomUUID()}`;
+  
+  // Click the "New Key" button to open the create dialog
+  await page.getByRole("button", { name: "New Key" }).click();
+  
+  // Fill in the key name and submit
   await page.getByRole("dialog").getByLabel("Name").fill(keyName);
   await page.getByRole("button", { name: "Create Key" }).click();
   await page.getByLabel("dismiss").click();
