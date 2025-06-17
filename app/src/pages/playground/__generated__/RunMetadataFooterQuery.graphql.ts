@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<327f789766e1db0331139905095db697>>
+ * @generated SignedSource<<bd58788c6229152f93865bd594b8be0a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,6 +14,9 @@ export type RunMetadataFooterQuery$variables = {
 };
 export type RunMetadataFooterQuery$data = {
   readonly span: {
+    readonly cost?: {
+      readonly total: number | null;
+    } | null;
     readonly id: string;
     readonly latencyMs?: number | null;
     readonly spanId?: string;
@@ -108,6 +111,24 @@ v3 = {
       "kind": "ScalarField",
       "name": "latencyMs",
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "TokenCost",
+      "kind": "LinkedField",
+      "name": "cost",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "total",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
     }
   ],
   "type": "Span",
@@ -166,16 +187,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "24fe0e0ac8fe3f88cbbce31e0dd43e12",
+    "cacheID": "eb2cd7af18e3109431f887c4f5a54e58",
     "id": null,
     "metadata": {},
     "name": "RunMetadataFooterQuery",
     "operationKind": "query",
-    "text": "query RunMetadataFooterQuery(\n  $spanId: ID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    id\n    ... on Span {\n      spanId\n      trace {\n        id\n        traceId\n        project {\n          id\n        }\n      }\n      tokenCountTotal\n      latencyMs\n    }\n  }\n}\n"
+    "text": "query RunMetadataFooterQuery(\n  $spanId: ID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    id\n    ... on Span {\n      spanId\n      trace {\n        id\n        traceId\n        project {\n          id\n        }\n      }\n      tokenCountTotal\n      latencyMs\n      cost {\n        total\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f511626560567f113e6b977bfea1efd3";
+(node as any).hash = "7996cfea6120977c331bb4ec2b8142fb";
 
 export default node;

@@ -62,8 +62,10 @@ from phoenix.server.api.types.Experiment import to_gql_experiment
 from phoenix.server.api.types.ExperimentRun import to_gql_experiment_run
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
+from phoenix.server.cost_tracking.cost_lookup import get_cost_table
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.types import DbSessionFactory
+from phoenix.trace.attributes import get_attribute_value
 from phoenix.utilities.template_formatters import (
     FStringTemplateFormatter,
     MustacheTemplateFormatter,
@@ -171,8 +173,10 @@ class Subscription:
                 )
             db_trace = get_db_trace(span, playground_project_id)
             db_span = get_db_span(span, db_trace)
+            db_span.span_cost = _calculate_span_cost(span.attributes, db_span.id)
             session.add(db_span)
             await session.flush()
+
         info.context.event_queue.put(SpanInsertEvent(ids=(playground_project_id,)))
         yield ChatCompletionSubscriptionResult(span=Span(span_rowid=db_span.id, db_span=db_span))
 
@@ -469,6 +473,7 @@ async def _chat_completion_result_payloads(
     async with db() as session:
         for _, span, run in results:
             if span:
+                span.span_cost = _calculate_span_cost(span.attributes, span.id)
                 session.add(span)
             session.add(run)
         await session.flush()
@@ -594,3 +599,59 @@ LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
 PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
+LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
+LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
+
+
+def _calculate_span_cost(
+    span_attributes: dict[str, Any], span_id: int
+) -> Optional[models.SpanCost]:
+    llm_model_name = get_attribute_value(span_attributes, LLM_MODEL_NAME)
+    if not llm_model_name:
+        return None
+
+    llm_provider = get_attribute_value(span_attributes, LLM_PROVIDER)
+    cost_table = get_cost_table()
+    cost_table_result = cost_table.get_cost(provider=llm_provider, model_name=llm_model_name)
+    if not cost_table_result:
+        return None
+
+    _, token_costs = cost_table_result[0]
+    model_id = token_costs.model_id
+    cost_per_input_token = token_costs.input
+    cost_per_output_token = token_costs.output
+
+    llm_prompt_tokens = get_attribute_value(span_attributes, LLM_TOKEN_COUNT_PROMPT)
+    llm_completion_tokens = get_attribute_value(span_attributes, LLM_TOKEN_COUNT_COMPLETION)
+
+    input_token_cost = (
+        llm_prompt_tokens * cost_per_input_token
+        if llm_prompt_tokens is not None and cost_per_input_token is not None
+        else None
+    )
+    output_token_cost = (
+        llm_completion_tokens * cost_per_output_token
+        if llm_completion_tokens is not None and cost_per_output_token is not None
+        else None
+    )
+
+    costs = [cost for cost in [input_token_cost, output_token_cost] if cost is not None]
+    if not costs:
+        return None
+
+    total_token_cost = sum(costs)
+
+    return models.SpanCost(
+        span_rowid=span_id,
+        generative_model_id=model_id,
+        prompt_token_cost=input_token_cost,
+        completion_token_cost=output_token_cost,
+        input_token_cost=input_token_cost,
+        output_token_cost=output_token_cost,
+        cache_read_token_cost=None,  # Not available in playground
+        cache_write_token_cost=None,  # Not available in playground
+        prompt_audio_token_cost=None,  # Not available in playground
+        completion_audio_token_cost=None,  # Not available in playground
+        reasoning_token_cost=None,  # Not available in playground
+        total_token_cost=total_token_cost,
+    )
