@@ -1,5 +1,14 @@
 # Changelog
 
+## [10.13.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.13.1...arize-phoenix-v10.13.2) (2025-06-17)
+
+
+### Bug Fixes
+
+* chunk deletion of project sessions ([#8133](https://github.com/Arize-ai/phoenix/issues/8133)) ([af5fec4](https://github.com/Arize-ai/phoenix/commit/af5fec44c5a8007b82c0093e2f930e0e107da7f4))
+* revert ([#8136](https://github.com/Arize-ai/phoenix/issues/8136)) ([964d59b](https://github.com/Arize-ai/phoenix/commit/964d59be7cf8c85aa2a8f2c6ad2538c1f32619cc))
+* span prompt template export ([#8110](https://github.com/Arize-ai/phoenix/issues/8110)) ([8ffb200](https://github.com/Arize-ai/phoenix/commit/8ffb2005e12f8728ee5e49a72fc1a6d708159456))
+
 ## [10.13.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.13.0...arize-phoenix-v10.13.1) (2025-06-17)
 
 
