@@ -129,7 +129,6 @@ TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
                         ],
                     },
                 ],
-                "prompt_template_variables": {"variable_name": "variable-value"},
                 "variable_name": "variable-value",
             },
             id="llm-span-with-input-messages-and-prompt-template-variables",
@@ -192,7 +191,6 @@ TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
             ),
             {
                 "input": "plain-text-input",
-                "prompt_template_variables": {"variable_name": "variable-value"},
                 "variable_name": "variable-value",
             },
             id="llm-span-with-no-input-messages-and-plain-text-input-with-prompt-template-variables",
