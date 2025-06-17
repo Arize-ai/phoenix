@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<68a42e47f701b7da34927880bd8aaa1e>>
+ * @generated SignedSource<<cff0c2d17fd6a5f33326b2b3a7a56ce9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,17 +11,15 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
 export type UpdateModelMutationInput = {
-  cacheReadCostPerToken?: number | null;
-  cacheWriteCostPerToken?: number | null;
-  completionAudioCostPerToken?: number | null;
+  costs: ReadonlyArray<CostPerTokenInput>;
   id: string;
-  inputCostPerToken: number;
   name: string;
   namePattern: string;
-  outputCostPerToken: number;
-  promptAudioCostPerToken?: number | null;
   provider?: string | null;
-  reasoningCostPerToken?: number | null;
+};
+export type CostPerTokenInput = {
+  costPerToken: number;
+  tokenType: string;
 };
 export type EditModelButtonMutation$variables = {
   input: UpdateModelMutationInput;

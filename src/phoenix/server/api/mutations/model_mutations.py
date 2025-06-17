@@ -1,21 +1,24 @@
 from typing import Optional
 
 import strawberry
-from openinference.semconv.trace import OpenInferenceLLMProviderValues
 from sqlalchemy import delete
 from sqlalchemy.orm import joinedload
 from strawberry.relay import GlobalID
 from strawberry.types import Info
-from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.server.api.auth import IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.queries import Query
-from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.Model import Model, to_gql_model
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+
+
+@strawberry.input
+class CostPerTokenInput:
+    token_type: str
+    cost_per_token: float
 
 
 @strawberry.input
@@ -23,13 +26,7 @@ class CreateModelMutationInput:
     name: str
     provider: Optional[str] = None
     name_pattern: str
-    input_cost_per_token: float
-    output_cost_per_token: float
-    cache_read_cost_per_token: Optional[float] = None
-    cache_write_cost_per_token: Optional[float] = None
-    prompt_audio_cost_per_token: Optional[float] = None
-    completion_audio_cost_per_token: Optional[float] = None
-    reasoning_cost_per_token: Optional[float] = None
+    costs: list[CostPerTokenInput]
 
 
 @strawberry.type
@@ -44,13 +41,7 @@ class UpdateModelMutationInput:
     name: str
     provider: Optional[str]
     name_pattern: str
-    input_cost_per_token: float
-    output_cost_per_token: float
-    cache_read_cost_per_token: Optional[float] = None
-    cache_write_cost_per_token: Optional[float] = None
-    prompt_audio_cost_per_token: Optional[float] = None
-    completion_audio_cost_per_token: Optional[float] = None
-    reasoning_cost_per_token: Optional[float] = None
+    costs: list[CostPerTokenInput]
 
 
 @strawberry.type
@@ -78,61 +69,26 @@ class ModelMutationMixin:
         info: Info[Context, None],
         input: CreateModelMutationInput,
     ) -> CreateModelMutationPayload:
+        cost_types = set(cost.token_type for cost in input.costs)
+        if "input" not in cost_types:
+            raise BadRequest("input cost is required")
+        if "output" not in cost_types:
+            raise BadRequest("output cost is required")
+        costs = [
+            models.ModelCost(
+                token_type=cost.token_type,
+                cost_per_token=cost.cost_per_token,
+            )
+            for cost in input.costs
+        ]
+        model = models.Model(
+            name=input.name,
+            provider=input.provider,
+            name_pattern=input.name_pattern,
+            is_override=True,
+            costs=costs,
+        )
         async with info.context.db() as session:
-            model = models.Model(
-                name=input.name,
-                provider=input.provider,
-                name_pattern=input.name_pattern,
-                is_override=True,
-            )
-            model.costs.append(
-                models.ModelCost(
-                    token_type="input",
-                    cost_per_token=input.input_cost_per_token,
-                )
-            )
-            model.costs.append(
-                models.ModelCost(
-                    token_type="output",
-                    cost_per_token=input.output_cost_per_token,
-                )
-            )
-            if input.cache_read_cost_per_token is not None:
-                model.costs.append(
-                    models.ModelCost(
-                        token_type="cache_read",
-                        cost_per_token=input.cache_read_cost_per_token,
-                    )
-                )
-            if input.cache_write_cost_per_token is not None:
-                model.costs.append(
-                    models.ModelCost(
-                        token_type="cache_write",
-                        cost_per_token=input.cache_write_cost_per_token,
-                    )
-                )
-            if input.prompt_audio_cost_per_token is not None:
-                model.costs.append(
-                    models.ModelCost(
-                        token_type="prompt_audio",
-                        cost_per_token=input.prompt_audio_cost_per_token,
-                    )
-                )
-            if input.completion_audio_cost_per_token is not None:
-                model.costs.append(
-                    models.ModelCost(
-                        token_type="completion_audio",
-                        cost_per_token=input.completion_audio_cost_per_token,
-                    )
-                )
-            if input.reasoning_cost_per_token is not None:
-                model.costs.append(
-                    models.ModelCost(
-                        token_type="reasoning",
-                        cost_per_token=input.reasoning_cost_per_token,
-                    )
-                )
-
             session.add(model)
             await session.commit()
 
@@ -152,6 +108,18 @@ class ModelMutationMixin:
         except ValueError:
             raise BadRequest(f'Invalid model id: "{input.id}"')
 
+        cost_types = set(cost.token_type for cost in input.costs)
+        if "input" not in cost_types:
+            raise BadRequest("input cost is required")
+        if "output" not in cost_types:
+            raise BadRequest("output cost is required")
+        costs = [
+            models.ModelCost(
+                token_type=cost.token_type,
+                cost_per_token=cost.cost_per_token,
+            )
+            for cost in input.costs
+        ]
         async with info.context.db() as session:
             model = await session.get(
                 models.Model,
@@ -172,60 +140,7 @@ class ModelMutationMixin:
             model.name = input.name
             model.provider = input.provider
             model.name_pattern = input.name_pattern
-            model.costs.append(
-                models.ModelCost(
-                    model_id=model.id,
-                    token_type="input",
-                    cost_per_token=input.input_cost_per_token,
-                )
-            )
-            model.costs.append(
-                models.ModelCost(
-                    model_id=model.id,
-                    token_type="output",
-                    cost_per_token=input.output_cost_per_token,
-                )
-            )
-            if input.cache_read_cost_per_token is not None:
-                model.costs.append(
-                    models.ModelCost(
-                        model_id=model.id,
-                        token_type="cache_read",
-                        cost_per_token=input.cache_read_cost_per_token,
-                    )
-                )
-            if input.cache_write_cost_per_token is not None:
-                model.costs.append(
-                    models.ModelCost(
-                        model_id=model.id,
-                        token_type="cache_write",
-                        cost_per_token=input.cache_write_cost_per_token,
-                    )
-                )
-            if input.prompt_audio_cost_per_token is not None:
-                model.costs.append(
-                    models.ModelCost(
-                        model_id=model.id,
-                        token_type="prompt_audio",
-                        cost_per_token=input.prompt_audio_cost_per_token,
-                    )
-                )
-            if input.completion_audio_cost_per_token is not None:
-                model.costs.append(
-                    models.ModelCost(
-                        model_id=model.id,
-                        token_type="completion_audio",
-                        cost_per_token=input.completion_audio_cost_per_token,
-                    )
-                )
-            if input.reasoning_cost_per_token is not None:
-                model.costs.append(
-                    models.ModelCost(
-                        model_id=model.id,
-                        token_type="reasoning",
-                        cost_per_token=input.reasoning_cost_per_token,
-                    )
-                )
+            model.costs = costs
             session.add(model)
             await session.flush()
             await session.refresh(model)
@@ -259,24 +174,3 @@ class ModelMutationMixin:
             model=to_gql_model(model),
             query=Query(),
         )
-
-
-def _gql_to_semconv_provider(provider: GenerativeProviderKey) -> OpenInferenceLLMProviderValues:
-    """
-    Translates a GQL provider key to a semconv provider.
-    """
-    if provider == GenerativeProviderKey.OPENAI:
-        return OpenInferenceLLMProviderValues.OPENAI
-    elif provider == GenerativeProviderKey.ANTHROPIC:
-        return OpenInferenceLLMProviderValues.ANTHROPIC
-    elif provider == GenerativeProviderKey.AZURE_OPENAI:
-        return OpenInferenceLLMProviderValues.AZURE
-    elif provider == GenerativeProviderKey.GOOGLE:
-        return OpenInferenceLLMProviderValues.GOOGLE
-    elif provider == GenerativeProviderKey.DEEPSEEK:
-        return OpenInferenceLLMProviderValues.DEEPSEEK
-    elif provider == GenerativeProviderKey.XAI:
-        return OpenInferenceLLMProviderValues.XAI
-    elif provider == GenerativeProviderKey.OLLAMA:
-        raise BadRequest("Model cost is not supported for Ollama since it is self-hosted")
-    assert_never(provider)
