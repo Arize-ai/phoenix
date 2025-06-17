@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cff0c2d17fd6a5f33326b2b3a7a56ce9>>
+ * @generated SignedSource<<0ebbee9225f3fcc48269f9b5d2593e85>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -76,7 +76,7 @@ v1 = [
       {
         "alias": null,
         "args": null,
-        "concreteType": "Model",
+        "concreteType": "GenerativeModel",
         "kind": "LinkedField",
         "name": "model",
         "plural": false,

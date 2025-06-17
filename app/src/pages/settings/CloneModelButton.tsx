@@ -33,7 +33,7 @@ import { ModelForm, ModelFormParams } from "./ModelForm";
 const ModelQuery = graphql`
   query CloneModelButtonQuery($id: ID!) {
     node(id: $id) {
-      ... on Model {
+      ... on GenerativeModel {
         id
         name
         provider

@@ -1308,8 +1308,9 @@ class ApiKey(Base):
 CostType: TypeAlias = Literal["DEFAULT", "OVERRIDE"]
 
 
-class Model(Base):
-    __tablename__ = "models"
+class GenerativeModel(Base):
+    __tablename__ = "generative_models"
+    id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     provider: Mapped[Optional[str]]
     name_pattern: Mapped[str] = mapped_column(String, nullable=False)
@@ -1333,14 +1334,14 @@ class Model(Base):
 class ModelCost(Base):
     __tablename__ = "model_costs"
     model_id: Mapped[int] = mapped_column(
-        ForeignKey("models.id", ondelete="CASCADE"),
+        ForeignKey("generative_models.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     token_type: Mapped[str] = mapped_column(String, nullable=False)
     cost_per_token: Mapped[float] = mapped_column(Float, nullable=False)
 
-    model: Mapped["Model"] = relationship("Model", back_populates="costs")
+    model: Mapped["GenerativeModel"] = relationship("GenerativeModel", back_populates="costs")
 
     __table_args__ = (
         UniqueConstraint(
@@ -1533,8 +1534,8 @@ class SpanCost(Base):
         ForeignKey("spans.id", ondelete="CASCADE"),
         nullable=False,
     )
-    model_id: Mapped[int] = mapped_column(
-        ForeignKey("models.id", ondelete="CASCADE"),
+    generative_model_id: Mapped[int] = mapped_column(
+        ForeignKey("generative_models.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
