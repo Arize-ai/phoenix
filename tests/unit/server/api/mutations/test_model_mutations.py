@@ -355,6 +355,26 @@ class TestModelMutations:
         assert result.errors[0].message == expected_error_message
         assert result.data is None
 
+    async def test_deleting_default_model_fails_with_expected_error(
+        self,
+        gql_client: AsyncGraphQLClient,
+        default_model: models.Model,
+    ) -> None:
+        model_id = str(GlobalID(Model.__name__, str(default_model.id)))
+        variables = {
+            "input": {
+                "id": model_id,
+            }
+        }
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="DeleteModelMutation",
+        )
+        assert len(result.errors) == 1
+        assert result.errors[0].message == "Cannot delete default model"
+        assert result.data is None
+
 
 @pytest.fixture
 async def default_model(db: DbSessionFactory) -> models.Model:
