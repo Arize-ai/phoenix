@@ -4,7 +4,7 @@ import pytest
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.server.api.types.Model import Model
+from phoenix.server.api.types.GenerativeModel import GenerativeModel
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -213,7 +213,7 @@ class TestModelMutations:
             pytest.param(
                 {
                     "input": {
-                        "id": str(GlobalID(Model.__name__, str(999))),
+                        "id": str(GlobalID(GenerativeModel.__name__, str(999))),
                         "name": "updated-model",
                         "provider": "openai",
                         "namePattern": "gpt-*",
@@ -223,7 +223,7 @@ class TestModelMutations:
                         ],
                     }
                 },
-                f'Model "{str(GlobalID(Model.__name__, str(999)))}" not found',
+                f'Model "{str(GlobalID(GenerativeModel.__name__, str(999)))}" not found',
                 id="non-existent-model",
             ),
             pytest.param(
@@ -245,7 +245,7 @@ class TestModelMutations:
             pytest.param(
                 {
                     "input": {
-                        "id": str(GlobalID(Model.__name__, str(1))),
+                        "id": str(GlobalID(GenerativeModel.__name__, str(1))),
                         "name": "updated-model",
                         "provider": "openai",
                         "namePattern": "gpt-*",
@@ -260,7 +260,7 @@ class TestModelMutations:
             pytest.param(
                 {
                     "input": {
-                        "id": str(GlobalID(Model.__name__, str(1))),
+                        "id": str(GlobalID(GenerativeModel.__name__, str(1))),
                         "name": "updated-model",
                         "provider": "openai",
                         "namePattern": "gpt-*",
@@ -292,9 +292,9 @@ class TestModelMutations:
     async def test_updating_default_model_fails_with_expected_error(
         self,
         gql_client: AsyncGraphQLClient,
-        default_model: models.Model,
+        default_model: models.GenerativeModel,
     ) -> None:
-        model_id = str(GlobalID(Model.__name__, str(default_model.id)))
+        model_id = str(GlobalID(GenerativeModel.__name__, str(default_model.id)))
         variables = {
             "input": {
                 "id": model_id,
@@ -323,10 +323,10 @@ class TestModelMutations:
             pytest.param(
                 {
                     "input": {
-                        "id": str(GlobalID(Model.__name__, str(999))),
+                        "id": str(GlobalID(GenerativeModel.__name__, str(999))),
                     }
                 },
-                f'Model "{str(GlobalID(Model.__name__, str(999)))}" not found',
+                f'Model "{str(GlobalID(GenerativeModel.__name__, str(999)))}" not found',
                 id="non-existent-model",
             ),
             pytest.param(
@@ -358,9 +358,9 @@ class TestModelMutations:
     async def test_deleting_default_model_fails_with_expected_error(
         self,
         gql_client: AsyncGraphQLClient,
-        default_model: models.Model,
+        default_model: models.GenerativeModel,
     ) -> None:
-        model_id = str(GlobalID(Model.__name__, str(default_model.id)))
+        model_id = str(GlobalID(GenerativeModel.__name__, str(default_model.id)))
         variables = {
             "input": {
                 "id": model_id,
@@ -377,12 +377,12 @@ class TestModelMutations:
 
 
 @pytest.fixture
-async def default_model(db: DbSessionFactory) -> models.Model:
+async def default_model(db: DbSessionFactory) -> models.GenerativeModel:
     """
     Inserts a default model with input and output costs.
     """
     async with db() as session:
-        model = models.Model(
+        model = models.GenerativeModel(
             name="default-model",
             provider="openai",
             name_pattern="gpt-*",
