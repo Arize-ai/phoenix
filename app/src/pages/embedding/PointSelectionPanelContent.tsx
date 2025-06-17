@@ -371,8 +371,8 @@ export function PointSelectionPanelContent() {
         isOpen={eventDetails !== null}
         onOpenChange={handleOpenChange}
       >
-        <ModalOverlay isDismissable>
-          <Modal variant="slideover" size="S">
+        <ModalOverlay>
+          <Modal variant="slideover" size="L">
             <Dialog>
               <DialogContent>
                 <DialogHeader>

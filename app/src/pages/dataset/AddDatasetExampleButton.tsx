@@ -1,6 +1,11 @@
-import { useState } from "react";
-
-import { Button, Icon, Icons } from "@phoenix/components";
+import {
+  Button,
+  DialogTrigger,
+  Icon,
+  Icons,
+  Modal,
+  ModalOverlay,
+} from "@phoenix/components";
 
 import { AddDatasetExampleDialog } from "./AddDatasetExampleDialog";
 
@@ -11,27 +16,26 @@ type AddDatasetExampleButtonProps = {
 
 export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
   const { datasetId, onAddExampleCompleted } = props;
-  const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <>
+    <DialogTrigger>
       <Button
         leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
         size="S"
-        onPress={() => setIsOpen(true)}
         aria-label="Add Dataset Example"
       >
         Add Example
       </Button>
-      <AddDatasetExampleDialog
-        datasetId={datasetId}
-        onCompleted={() => {
-          onAddExampleCompleted();
-          setIsOpen(false);
-        }}
-        isOpen={isOpen}
-        onOpenChange={setIsOpen}
-      />
-    </>
+      <ModalOverlay>
+        <Modal size="L">
+          <AddDatasetExampleDialog
+            datasetId={datasetId}
+            onCompleted={() => {
+              onAddExampleCompleted();
+            }}
+          />
+        </Modal>
+      </ModalOverlay>
+    </DialogTrigger>
   );
 }

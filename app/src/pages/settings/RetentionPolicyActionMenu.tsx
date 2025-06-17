@@ -1,12 +1,12 @@
 import { Suspense, useState } from "react";
 import { graphql, useMutation } from "react-relay";
-import { css } from "@emotion/react";
 
 import { ActionMenu, Item } from "@arizeai/components";
 
 import {
   Button,
   Dialog,
+  DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -118,27 +118,15 @@ export const RetentionPolicyActionMenu = ({
 
       {/* Edit Dialog */}
       <DialogTrigger isOpen={showEditDialog} onOpenChange={setShowEditDialog}>
-        <></>
-        <ModalOverlay isDismissable>
-          <Modal
-            variant="default"
-            css={css`
-              width: 600px;
-              max-width: 90vw;
-            `}
-          >
+        <ModalOverlay>
+          <Modal size="M">
             <Dialog>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Edit Retention Policy</DialogTitle>
                   <DialogTitleExtra>
-                    <Button
-                      size="S"
-                      data-testid="dialog-close-button"
-                      leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
+                    <DialogCloseButton
                       onPress={() => setShowEditDialog(false)}
-                      type="button"
-                      variant="default"
                       slot="close"
                     />
                   </DialogTitleExtra>
@@ -166,29 +154,14 @@ export const RetentionPolicyActionMenu = ({
         isOpen={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
       >
-        <></>
-        <ModalOverlay isDismissable>
-          <Modal
-            variant="default"
-            css={css`
-              width: 500px;
-              max-width: 90vw;
-            `}
-          >
+        <ModalOverlay>
+          <Modal size="S">
             <Dialog>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Delete Retention Policy</DialogTitle>
                   <DialogTitleExtra>
-                    <Button
-                      size="S"
-                      data-testid="dialog-close-button"
-                      leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
-                      onPress={() => setShowDeleteDialog(false)}
-                      type="button"
-                      variant="default"
-                      slot="close"
-                    />
+                    <DialogCloseButton slot="close" />
                   </DialogTitleExtra>
                 </DialogHeader>
                 <View padding="size-200">
@@ -214,8 +187,8 @@ export const RetentionPolicyActionMenu = ({
                   <Flex direction="row" justifyContent="end" gap="size-100">
                     <Button
                       variant="default"
-                      size="S"
-                      onPress={() => setShowDeleteDialog(false)}
+                      size="M"
+                      slot="close"
                       isDisabled={isDeleting}
                     >
                       Cancel

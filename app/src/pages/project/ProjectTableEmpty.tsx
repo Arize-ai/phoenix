@@ -4,6 +4,7 @@ import { css } from "@emotion/react";
 import {
   Button,
   Dialog,
+  DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -20,13 +21,7 @@ import { CodeLanguage, CodeLanguageRadioGroup } from "@phoenix/components/code";
 import { PythonProjectGuide } from "@phoenix/components/project/PythonProjectGuide";
 import { TypeScriptProjectGuide } from "@phoenix/components/project/TypeScriptProjectGuide";
 
-function SetupProjectDialog({
-  projectName,
-  onDismiss,
-}: {
-  projectName: string;
-  onDismiss: () => void;
-}) {
+function SetupProjectDialog({ projectName }: { projectName: string }) {
   const [language, setLanguage] = useState<CodeLanguage>("Python");
   return (
     <Dialog>
@@ -34,14 +29,7 @@ function SetupProjectDialog({
         <DialogHeader>
           <DialogTitle>Send Traces to this Project</DialogTitle>
           <DialogTitleExtra>
-            <Button
-              size="S"
-              data-testid="dialog-close-button"
-              leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
-              onPress={onDismiss}
-              type="button"
-              variant="default"
-            />
+            <DialogCloseButton slot="close" />
           </DialogTitleExtra>
         </DialogHeader>
         <View padding="size-400" overflow="auto">
@@ -63,8 +51,6 @@ function SetupProjectDialog({
 }
 
 export function ProjectTableEmpty({ projectName }: { projectName: string }) {
-  const [isOpen, setIsOpen] = useState(false);
-
   return (
     <>
       <tbody className="is-empty">
@@ -79,7 +65,7 @@ export function ProjectTableEmpty({ projectName }: { projectName: string }) {
           >
             <Flex direction="column" gap="size-200" alignItems="center">
               No traces found that match the selected filters
-              <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
+              <DialogTrigger>
                 <Button
                   variant="default"
                   leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
@@ -87,17 +73,8 @@ export function ProjectTableEmpty({ projectName }: { projectName: string }) {
                   Get Started
                 </Button>
                 <ModalOverlay>
-                  <Modal
-                    variant="slideover"
-                    size="L"
-                    css={css`
-                      width: 70vw !important;
-                    `}
-                  >
-                    <SetupProjectDialog
-                      projectName={projectName}
-                      onDismiss={() => setIsOpen(false)}
-                    />
+                  <Modal variant="slideover" size="L">
+                    <SetupProjectDialog projectName={projectName} />
                   </Modal>
                 </ModalOverlay>
               </DialogTrigger>

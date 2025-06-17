@@ -59,17 +59,6 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
           }
         }}
       >
-        <Item key={DatasetAction.DELETE}>
-          <Flex
-            direction={"row"}
-            gap="size-75"
-            justifyContent={"start"}
-            alignItems={"center"}
-          >
-            <Icon svg={<Icons.TrashOutline />} />
-            <Text>Delete</Text>
-          </Flex>
-        </Item>
         <Item key={DatasetAction.EDIT}>
           <Flex
             direction={"row"}
@@ -79,6 +68,17 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
           >
             <Icon svg={<Icons.Edit2Outline />} />
             <Text>Edit</Text>
+          </Flex>
+        </Item>
+        <Item key={DatasetAction.DELETE}>
+          <Flex
+            direction={"row"}
+            gap="size-75"
+            justifyContent={"start"}
+            alignItems={"center"}
+          >
+            <Icon svg={<Icons.TrashOutline />} />
+            <Text>Delete</Text>
           </Flex>
         </Item>
       </ActionMenu>

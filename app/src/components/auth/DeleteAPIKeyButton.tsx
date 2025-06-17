@@ -1,5 +1,3 @@
-import { useState } from "react";
-
 import {
   Button,
   Dialog,
@@ -25,26 +23,23 @@ export function DeleteAPIKeyButton({
 }: {
   handleDelete: () => void;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-
   return (
-    <>
+    <DialogTrigger>
       <Button
         variant="danger"
         size="S"
         leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
         aria-label="Delete System Key"
-        onPress={() => setIsOpen(true)}
       />
-      <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
-        <ModalOverlay isDismissable>
-          <Modal>
-            <Dialog>
+      <ModalOverlay isDismissable>
+        <Modal>
+          <Dialog>
+            {({ close }) => (
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Delete API Key</DialogTitle>
                   <DialogTitleExtra>
-                    <DialogCloseButton close={() => setIsOpen(false)} />
+                    <DialogCloseButton slot="close" />
                   </DialogTitleExtra>
                 </DialogHeader>
                 <View padding="size-200">
@@ -60,14 +55,14 @@ export function DeleteAPIKeyButton({
                   borderTopWidth="thin"
                 >
                   <Flex direction="row" justifyContent="end" gap="size-100">
-                    <Button onPress={() => setIsOpen(false)} size="S">
+                    <Button slot="close" size="S">
                       Cancel
                     </Button>
                     <Button
                       variant="danger"
                       onPress={() => {
+                        close();
                         handleDelete();
-                        setIsOpen(false);
                       }}
                       size="S"
                     >
@@ -76,10 +71,10 @@ export function DeleteAPIKeyButton({
                   </Flex>
                 </View>
               </DialogContent>
-            </Dialog>
-          </Modal>
-        </ModalOverlay>
-      </DialogTrigger>
-    </>
+            )}
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+    </DialogTrigger>
   );
 }

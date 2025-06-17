@@ -2,7 +2,6 @@ import React, {
   memo,
   PropsWithChildren,
   ReactNode,
-  startTransition,
   useCallback,
   useEffect,
   useMemo,
@@ -261,10 +260,8 @@ function EmptyExampleOutput({
 
 function ExampleOutputContent({
   exampleData,
-  setDialog,
 }: {
   exampleData: ExampleRunData;
-  setDialog(dialog: ReactNode): void;
 }) {
   const { span, content, toolCalls, errorMessage, experimentRunId } =
     exampleData;
@@ -275,24 +272,20 @@ function ExampleOutputContent({
       return (
         <>
           {hasExperimentRun && (
-            <TooltipTrigger>
+            <DialogTrigger>
               <Button
                 size="S"
                 aria-label="View experiment run details"
                 leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
-                onPress={() => {
-                  startTransition(() => {
-                    setDialog(
-                      <PlaygroundExperimentRunDetailsDialog
-                        runId={experimentRunId}
-                        onDismiss={() => setDialog(null)}
-                      />
-                    );
-                  });
-                }}
               />
-              <Tooltip>View run details</Tooltip>
-            </TooltipTrigger>
+              <ModalOverlay>
+                <Modal variant="slideover" size="L">
+                  <PlaygroundExperimentRunDetailsDialog
+                    runId={experimentRunId}
+                  />
+                </Modal>
+              </ModalOverlay>
+            </DialogTrigger>
           )}
           {hasSpan && (
             <>
@@ -317,7 +310,7 @@ function ExampleOutputContent({
         </>
       );
     }
-  }, [experimentRunId, hasExperimentRun, hasSpan, setDialog, span]);
+  }, [experimentRunId, hasExperimentRun, hasSpan, span]);
 
   return (
     <CellWithControlsWrap controls={spanControls}>
@@ -345,14 +338,12 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   isRunning,
   instanceId,
   exampleId,
-  setDialog,
   instanceVariables,
   datasetExampleInput,
 }: {
   instanceId: number;
   exampleId: string;
   isRunning: boolean;
-  setDialog(dialog: ReactNode): void;
   instanceVariables: string[];
   datasetExampleInput: unknown;
 }) {
@@ -367,7 +358,7 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
       datasetExampleInput={datasetExampleInput}
     />
   ) : (
-    <ExampleOutputContent exampleData={exampleData} setDialog={setDialog} />
+    <ExampleOutputContent exampleData={exampleData} />
   );
 });
 
@@ -788,7 +779,6 @@ export function PlaygroundDatasetExamplesTable({
               instanceId={instance.id}
               exampleId={row.original.id}
               isRunning={hasSomeRunIds}
-              setDialog={setDialog}
               instanceVariables={instanceVariables}
               datasetExampleInput={row.original.input}
             />

@@ -1,17 +1,15 @@
 import { useCallback } from "react";
 import { graphql, useMutation } from "react-relay";
-import { css } from "@emotion/react";
 
 import {
   Button,
   Dialog,
+  DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
   Flex,
-  Icon,
-  Icons,
   Text,
   View,
 } from "@phoenix/components";
@@ -22,11 +20,9 @@ import { DeletePromptDialogMutation } from "./__generated__/DeletePromptDialogMu
 export function DeletePromptDialog({
   promptId,
   onDeleted,
-  onClose,
 }: {
   promptId: string;
   onDeleted: () => void;
-  onClose: () => void;
 }) {
   const [commit, isCommitting] = useMutation<DeletePromptDialogMutation>(
     graphql`
@@ -54,7 +50,6 @@ export function DeletePromptDialog({
           message: "Prompt has been deleted.",
         });
         onDeleted();
-        onClose();
       },
       onError: (error) => {
         notifyError({
@@ -63,27 +58,15 @@ export function DeletePromptDialog({
         });
       },
     });
-  }, [commit, notifyError, notifySuccess, onClose, onDeleted, promptId]);
+  }, [commit, notifyError, notifySuccess, onDeleted, promptId]);
 
   return (
-    <Dialog
-      css={css`
-        width: 500px;
-        max-width: 90vw;
-      `}
-    >
+    <Dialog>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Delete Prompt</DialogTitle>
           <DialogTitleExtra>
-            <Button
-              size="S"
-              data-testid="dialog-close-button"
-              leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
-              onPress={onClose}
-              type="button"
-              variant="default"
-            />
+            <DialogCloseButton slot="close" />
           </DialogTitleExtra>
         </DialogHeader>
         <View padding="size-200">
@@ -99,7 +82,7 @@ export function DeletePromptDialog({
           borderTopWidth="thin"
         >
           <Flex direction="row" justifyContent="end" gap="size-100">
-            <Button variant="default" onPress={onClose} size="S">
+            <Button variant="default" slot="close" size="S">
               Cancel
             </Button>
             <Button

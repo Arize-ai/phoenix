@@ -1,10 +1,10 @@
-import React, { Suspense, useCallback } from "react";
+import { Suspense, useCallback } from "react";
 import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
-import { css } from "@emotion/react";
 
-import { Button, Dialog, Icon, Icons, Loading } from "@phoenix/components";
+import { Dialog, Loading } from "@phoenix/components";
 import {
+  DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -18,13 +18,12 @@ import { instanceToPromptVersion } from "@phoenix/pages/playground/fetchPlaygrou
 import { denormalizePlaygroundInstance } from "@phoenix/pages/playground/playgroundUtils";
 import {
   SavePromptForm,
-  SavePromptSubmitHandler,
+  SavePromptFormParams,
 } from "@phoenix/pages/playground/SavePromptForm";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 type UpsertPromptFromTemplateProps = {
   instanceId: number;
-  setDialog: (dialog: React.ReactNode) => void;
   selectedPromptId?: string;
 };
 
@@ -57,7 +56,6 @@ const getInstancePromptParamsFromStore = (
 
 export const UpsertPromptFromTemplateDialog = ({
   instanceId,
-  setDialog,
   selectedPromptId,
 }: UpsertPromptFromTemplateProps) => {
   const navigate = useNavigate();
@@ -109,8 +107,8 @@ export const UpsertPromptFromTemplateDialog = ({
     },
     [store, instanceId]
   );
-  const onCreate: SavePromptSubmitHandler = useCallback(
-    (params) => {
+  const onCreate = useCallback(
+    (params: SavePromptFormParams, close: () => void) => {
       const { promptInput, templateFormat } = getInstancePromptParamsFromStore(
         instanceId,
         store
@@ -140,7 +138,7 @@ export const UpsertPromptFromTemplateDialog = ({
             response.createChatPrompt.id,
             response.createChatPrompt.name
           );
-          setDialog(null);
+          close();
         },
         onError: (error) => {
           const message = getErrorMessagesFromRelayMutationError(error);
@@ -148,7 +146,6 @@ export const UpsertPromptFromTemplateDialog = ({
             title: "Error creating prompt",
             message: message?.[0],
           });
-          setDialog(null);
         },
       });
     },
@@ -159,12 +156,11 @@ export const UpsertPromptFromTemplateDialog = ({
       notifyError,
       notifySuccess,
       onSuccess,
-      setDialog,
       store,
     ]
   );
-  const onUpdate: SavePromptSubmitHandler = useCallback(
-    (params) => {
+  const onUpdate = useCallback(
+    (params: SavePromptFormParams, close: () => void) => {
       if (!params.promptId) {
         throw new Error("Prompt ID is required");
       }
@@ -197,7 +193,7 @@ export const UpsertPromptFromTemplateDialog = ({
             response.createChatPromptVersion.id,
             response.createChatPromptVersion.name
           );
-          setDialog(null);
+          close();
         },
         onError: (error) => {
           const message = getErrorMessagesFromRelayMutationError(error);
@@ -205,7 +201,6 @@ export const UpsertPromptFromTemplateDialog = ({
             title: "Error updating prompt",
             message: message?.[0],
           });
-          setDialog(null);
         },
       });
     },
@@ -214,42 +209,32 @@ export const UpsertPromptFromTemplateDialog = ({
       navigate,
       notifyError,
       notifySuccess,
-      setDialog,
       store,
       updatePrompt,
       onSuccess,
     ]
   );
   return (
-    <Dialog
-      css={css`
-        width: 600px;
-        max-width: 90vw;
-      `}
-    >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Create Prompt from Template</DialogTitle>
-          <DialogTitleExtra>
-            <Button
-              size="S"
-              data-testid="dialog-close-button"
-              leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
-              onPress={() => setDialog(null)}
-              type="button"
-              variant="default"
+    <Dialog>
+      {({ close }) => (
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Prompt from Template</DialogTitle>
+            <DialogTitleExtra>
+              <DialogCloseButton />
+            </DialogTitleExtra>
+          </DialogHeader>
+          <Suspense fallback={<Loading />}>
+            <SavePromptForm
+              onClose={close}
+              onCreate={onCreate}
+              onUpdate={onUpdate}
+              isSubmitting={isCreatePending || isUpdatePending}
+              defaultSelectedPromptId={selectedPromptId}
             />
-          </DialogTitleExtra>
-        </DialogHeader>
-        <Suspense fallback={<Loading />}>
-          <SavePromptForm
-            onCreate={onCreate}
-            onUpdate={onUpdate}
-            isSubmitting={isCreatePending || isUpdatePending}
-            defaultSelectedPromptId={selectedPromptId}
-          />
-        </Suspense>
-      </DialogContent>
+          </Suspense>
+        </DialogContent>
+      )}
     </Dialog>
   );
 };

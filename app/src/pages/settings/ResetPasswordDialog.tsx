@@ -1,11 +1,11 @@
 import { useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
-import { css } from "@emotion/react";
 
 import {
   Button,
   Dialog,
+  DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -13,8 +13,6 @@ import {
   FieldError,
   Flex,
   Form,
-  Icon,
-  Icons,
   Input,
   Label,
   Text,
@@ -89,24 +87,12 @@ export function ResetPasswordDialog({
   );
 
   return (
-    <Dialog
-      css={css`
-        width: 500px;
-        max-width: 90vw;
-      `}
-    >
+    <Dialog>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Reset Password</DialogTitle>
           <DialogTitleExtra>
-            <Button
-              size="S"
-              data-testid="dialog-close-button"
-              leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
-              onPress={onClose}
-              type="button"
-              variant="default"
-            />
+            <DialogCloseButton onPress={onClose} slot="close" />
           </DialogTitleExtra>
         </DialogHeader>
         <Form>

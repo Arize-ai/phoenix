@@ -4,6 +4,7 @@ import { css } from "@emotion/react";
 import {
   Button,
   Dialog,
+  DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -21,7 +22,7 @@ import { CodeLanguage, CodeLanguageRadioGroup } from "@phoenix/components/code";
 import { PythonSessionsGuide } from "./PythonSessionsGuide";
 import { TypeScriptSessionsGuide } from "./TypeScriptSessionsGuide";
 
-function SetupSessionsDialog({ onDismiss }: { onDismiss: () => void }) {
+function SetupSessionsDialog() {
   const [language, setLanguage] = useState<CodeLanguage>("Python");
   return (
     <Dialog>
@@ -29,14 +30,7 @@ function SetupSessionsDialog({ onDismiss }: { onDismiss: () => void }) {
         <DialogHeader>
           <DialogTitle>Setup Sessions for this Project</DialogTitle>
           <DialogTitleExtra>
-            <Button
-              size="S"
-              data-testid="dialog-close-button"
-              leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
-              onPress={onDismiss}
-              type="button"
-              variant="default"
-            />
+            <DialogCloseButton slot="close" />
           </DialogTitleExtra>
         </DialogHeader>
         <View padding="size-400" overflow="auto">
@@ -58,8 +52,6 @@ function SetupSessionsDialog({ onDismiss }: { onDismiss: () => void }) {
 }
 
 export function SessionsTableEmpty() {
-  const [isOpen, setIsOpen] = useState(false);
-
   return (
     <tbody className="is-empty">
       <tr>
@@ -73,21 +65,15 @@ export function SessionsTableEmpty() {
         >
           <Flex direction="column" gap="size-200" alignItems="center">
             No sessions found for this project
-            <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger>
               <Button
                 leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
               >
                 Setup Sessions
               </Button>
               <ModalOverlay>
-                <Modal
-                  variant="slideover"
-                  size="L"
-                  css={css`
-                    width: 70vw !important;
-                  `}
-                >
-                  <SetupSessionsDialog onDismiss={() => setIsOpen(false)} />
+                <Modal variant="slideover" size="L">
+                  <SetupSessionsDialog />
                 </Modal>
               </ModalOverlay>
             </DialogTrigger>

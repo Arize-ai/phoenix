@@ -124,7 +124,7 @@ export function ExportSelectionButton() {
         onOpenChange={handleOpenChange}
       >
         <ModalOverlay isDismissable>
-          <Modal variant="slideover" size="S">
+          <Modal variant="slideover" size="M">
             <Dialog>
               <DialogContent>
                 <DialogHeader>

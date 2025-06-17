@@ -181,7 +181,7 @@ function CreateDatasetActionMenu({
         isOpen={isNewDatasetOpen}
         onOpenChange={setIsNewDatasetOpen}
       >
-        <ModalOverlay isDismissable>
+        <ModalOverlay>
           <Modal>
             <Dialog>
               <DialogContent>
@@ -203,7 +203,7 @@ function CreateDatasetActionMenu({
 
       {/* Dataset from CSV Dialog */}
       <DialogTrigger isOpen={isFromCSVOpen} onOpenChange={setIsFromCSVOpen}>
-        <ModalOverlay isDismissable>
+        <ModalOverlay>
           <Modal>
             <Dialog>
               <DialogContent>

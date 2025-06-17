@@ -16,24 +16,26 @@ import {
 import { CodeWrap, PythonBlockWithCopy } from "@phoenix/components/code";
 import { CopyToClipboardButton } from "@phoenix/components/CopyToClipboardButton";
 import {
+  DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTitleExtra,
 } from "@phoenix/components/dialog";
 
 /**
  * Displays the key one time for the user to copy.
  */
-export function OneTimeAPIKeyDialog(props: {
-  jwt: string;
-  onClose: () => void;
-}) {
-  const { jwt, onClose } = props;
+export function OneTimeAPIKeyDialog(props: { jwt: string }) {
+  const { jwt } = props;
   return (
     <Dialog>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New API Key Created</DialogTitle>
+          <DialogTitleExtra>
+            <DialogCloseButton slot="close" />
+          </DialogTitleExtra>
         </DialogHeader>
         <Alert variant="success" banner>
           You have successfully created a new API key. The API key will only be
@@ -94,7 +96,7 @@ export function OneTimeAPIKeyDialog(props: {
           </View>
           <View padding="size-200" borderTopColor="light" borderTopWidth="thin">
             <Flex direction="row" justifyContent="end">
-              <Button variant="primary" onPress={onClose} aria-label="dismiss">
+              <Button variant="primary" aria-label="dismiss" slot="close">
                 Close
               </Button>
             </Flex>

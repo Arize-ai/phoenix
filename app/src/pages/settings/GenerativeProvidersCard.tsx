@@ -7,7 +7,6 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { css } from "@emotion/react";
 
 import { Card } from "@arizeai/components";
 
@@ -16,6 +15,7 @@ import {
   CredentialField,
   CredentialInput,
   Dialog,
+  DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -140,14 +140,8 @@ export function GenerativeProvidersCard({
                   size="S"
                   leadingVisual={<Icon svg={<Icons.EditOutline />} />}
                 />
-                <ModalOverlay isDismissable>
-                  <Modal
-                    variant="default"
-                    css={css`
-                      width: 600px;
-                      max-width: 90vw;
-                    `}
-                  >
+                <ModalOverlay>
+                  <Modal size="M">
                     <ProviderCredentialsDialog provider={row.original} />
                   </Modal>
                 </ModalOverlay>
@@ -223,14 +217,7 @@ function ProviderCredentialsDialog({
         <DialogHeader>
           <DialogTitle>Configure {provider.name} Credentials</DialogTitle>
           <DialogTitleExtra>
-            <Button
-              size="S"
-              data-testid="dialog-close-button"
-              leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
-              type="button"
-              variant="default"
-              slot="close"
-            />
+            <DialogCloseButton slot="close" />
           </DialogTitleExtra>
         </DialogHeader>
         <View padding="size-200">

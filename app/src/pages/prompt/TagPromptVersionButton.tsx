@@ -22,6 +22,7 @@ import { TagPromptVersionButtonTagsQuery } from "./__generated__/TagPromptVersio
 import { NewPromptVersionDialog } from "./NewPromptVersionTagDialog";
 
 export function TagPromptVersionButton() {
+  const [showTagList, setShowTagList] = useState<boolean>(false);
   const [showNewTagDialog, setShowNewTagDialog] = useState<boolean>(false);
   const [fetchKey, setFetchKey] = useState<number>(0);
   const notifySuccess = useNotifySuccess();
@@ -35,7 +36,7 @@ export function TagPromptVersionButton() {
 
   return (
     <div>
-      <DialogTrigger>
+      <DialogTrigger isOpen={showTagList} onOpenChange={setShowTagList}>
         <Button
           size="S"
           leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}
@@ -66,34 +67,40 @@ export function TagPromptVersionButton() {
               />
             </Suspense>
             <View padding="size-100" width="250px">
-              <DialogTrigger
-                isOpen={showNewTagDialog}
-                onOpenChange={setShowNewTagDialog}
+              <Button
+                leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+                size="S"
+                css={css`
+                  width: 100%;
+                `}
+                onPress={() => {
+                  setShowTagList(false);
+                  setShowNewTagDialog(true);
+                }}
               >
-                <Button
-                  leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
-                  size="S"
-                  css={css`
-                    width: 100%;
-                  `}
-                >
-                  New Tag
-                </Button>
-                <NewPromptVersionDialog
-                  promptVersionId={versionId}
-                  onDismiss={() => setShowNewTagDialog(false)}
-                  onNewTagCreated={(newTag) => {
-                    setFetchKey((prev) => prev + 1);
-                    notifySuccess({
-                      title: "Tag Created",
-                      message: `The tag ${newTag.name} has been created and been set on the version`,
-                    });
-                  }}
-                />
-              </DialogTrigger>
+                New Tag
+              </Button>
             </View>
           </Dialog>
         </Popover>
+      </DialogTrigger>
+      <DialogTrigger
+        isOpen={showNewTagDialog}
+        onOpenChange={(isOpen) => {
+          setShowNewTagDialog(isOpen);
+        }}
+      >
+        <NewPromptVersionDialog
+          promptVersionId={versionId}
+          onDismiss={() => setShowNewTagDialog(false)}
+          onNewTagCreated={(newTag) => {
+            setFetchKey((prev) => prev + 1);
+            notifySuccess({
+              title: "Tag Created",
+              message: `The tag ${newTag.name} has been created and set on the prompt version`,
+            });
+          }}
+        />
       </DialogTrigger>
     </div>
   );

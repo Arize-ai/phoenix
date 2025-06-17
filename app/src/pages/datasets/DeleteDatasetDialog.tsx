@@ -77,8 +77,8 @@ export function DeleteDatasetDialog({
 
   return (
     <DialogTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
-      <ModalOverlay isDismissable>
-        <Modal variant="slideover" size="S">
+      <ModalOverlay>
+        <Modal>
           <Dialog>
             <DialogContent>
               <DialogHeader>

@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
-import { css } from "@emotion/react";
 
 import {
   Alert,
   Button,
   Dialog,
+  DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -14,8 +14,6 @@ import {
   FieldError,
   Flex,
   Form,
-  Icon,
-  Icons,
   Input,
   Label,
   Modal,
@@ -92,28 +90,14 @@ export function NewPromptVersionDialog({
   };
 
   return (
-    <ModalOverlay isDismissable>
-      <Modal
-        variant="default"
-        css={css`
-          width: 500px;
-          max-width: 90vw;
-        `}
-      >
+    <ModalOverlay>
+      <Modal size="M">
         <Dialog>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>New Prompt Tag</DialogTitle>
               <DialogTitleExtra>
-                <Button
-                  size="S"
-                  data-testid="dialog-close-button"
-                  leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
-                  onPress={onDismiss}
-                  type="button"
-                  variant="default"
-                  slot="close"
-                />
+                <DialogCloseButton onPress={onDismiss} slot="close" />
               </DialogTitleExtra>
             </DialogHeader>
             {error ? (

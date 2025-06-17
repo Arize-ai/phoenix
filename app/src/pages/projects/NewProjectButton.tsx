@@ -5,6 +5,7 @@ import {
   Button,
   ButtonProps,
   Dialog,
+  DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -30,11 +31,9 @@ type NewProjectButtonProps = {
   variant?: ButtonProps["variant"];
 };
 export function NewProjectButton({ variant }: NewProjectButtonProps) {
-  const [isOpen, setIsOpen] = useState(false);
-
   return (
     <div>
-      <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger>
         <Button
           leadingVisual={<Icon svg={<Icons.GridOutline />} />}
           size="S"
@@ -50,7 +49,7 @@ export function NewProjectButton({ variant }: NewProjectButtonProps) {
               width: 70vw !important;
             `}
           >
-            <NewProjectDialog onDismiss={() => setIsOpen(false)} />
+            <NewProjectDialog />
           </Modal>
         </ModalOverlay>
       </DialogTrigger>
@@ -58,7 +57,7 @@ export function NewProjectButton({ variant }: NewProjectButtonProps) {
   );
 }
 
-function NewProjectDialog({ onDismiss }: { onDismiss: () => void }) {
+function NewProjectDialog() {
   const [language, setLanguage] = useState<CodeLanguage>("Python");
   return (
     <Dialog>
@@ -66,14 +65,7 @@ function NewProjectDialog({ onDismiss }: { onDismiss: () => void }) {
         <DialogHeader>
           <DialogTitle>Create a New Project</DialogTitle>
           <DialogTitleExtra>
-            <Button
-              size="S"
-              data-testid="dialog-close-button"
-              leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
-              onPress={onDismiss}
-              type="button"
-              variant="default"
-            />
+            <DialogCloseButton slot="close" />
           </DialogTitleExtra>
         </DialogHeader>
         <View padding="size-400" overflow="auto">

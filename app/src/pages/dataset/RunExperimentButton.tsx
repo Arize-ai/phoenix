@@ -242,15 +242,12 @@ export function RunExperimentButton({
 }: {
   variant?: ButtonProps["variant"];
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-
   return (
-    <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
+    <DialogTrigger>
       <Button
         size="S"
         variant={variant}
         leadingVisual={<Icon svg={<Icons.ExperimentOutline />} />}
-        onPress={() => setIsOpen(true)}
       >
         Run Experiment
       </Button>

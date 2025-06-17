@@ -104,7 +104,7 @@ export function DimensionPage() {
     <TimeSliceContextProvider initialTimestamp={new Date(timeRange.end)}>
       <DialogTrigger isOpen={isOpen} onOpenChange={handleOpenChange}>
         <ModalOverlay isDismissable>
-          <Modal variant="slideover" size="M">
+          <Modal variant="slideover" size="L">
             <Dialog>
               <DialogContent>
                 <DialogHeader>
