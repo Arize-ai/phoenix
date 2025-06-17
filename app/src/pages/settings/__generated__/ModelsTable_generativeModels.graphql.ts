@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<466f5828230b763dd1787bd1b392d145>>
+ * @generated SignedSource<<5026a06ec6f5126d81e9aec4caf0d116>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,8 +11,8 @@
 import { ReaderFragment } from 'relay-runtime';
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
 import { FragmentRefs } from "relay-runtime";
-export type ModelsTable_models$data = {
-  readonly models: {
+export type ModelsTable_generativeModels$data = {
+  readonly generativeModels: {
     readonly __id: string;
     readonly edges: ReadonlyArray<{
       readonly model: {
@@ -36,18 +36,18 @@ export type ModelsTable_models$data = {
       };
     }>;
   };
-  readonly " $fragmentType": "ModelsTable_models";
+  readonly " $fragmentType": "ModelsTable_generativeModels";
 };
-export type ModelsTable_models$key = {
-  readonly " $data"?: ModelsTable_models$data;
-  readonly " $fragmentSpreads": FragmentRefs<"ModelsTable_models">;
+export type ModelsTable_generativeModels$key = {
+  readonly " $data"?: ModelsTable_generativeModels$data;
+  readonly " $fragmentSpreads": FragmentRefs<"ModelsTable_generativeModels">;
 };
 
 import ModelsTableModelsQuery_graphql from './ModelsTableModelsQuery.graphql';
 
 const node: ReaderFragment = (function(){
 var v0 = [
-  "models"
+  "generativeModels"
 ];
 return {
   "argumentDefinitions": [
@@ -85,20 +85,20 @@ return {
       "operation": ModelsTableModelsQuery_graphql
     }
   },
-  "name": "ModelsTable_models",
+  "name": "ModelsTable_generativeModels",
   "selections": [
     {
-      "alias": "models",
+      "alias": "generativeModels",
       "args": null,
-      "concreteType": "ModelConnection",
+      "concreteType": "GenerativeModelConnection",
       "kind": "LinkedField",
-      "name": "__ModelsTable_models_connection",
+      "name": "__ModelsTable_generativeModels_connection",
       "plural": false,
       "selections": [
         {
           "alias": null,
           "args": null,
-          "concreteType": "ModelEdge",
+          "concreteType": "GenerativeModelEdge",
           "kind": "LinkedField",
           "name": "edges",
           "plural": true,
@@ -106,7 +106,7 @@ return {
             {
               "alias": "model",
               "args": null,
-              "concreteType": "Model",
+              "concreteType": "GenerativeModel",
               "kind": "LinkedField",
               "name": "node",
               "plural": false,
@@ -240,7 +240,7 @@ return {
             {
               "alias": null,
               "args": null,
-              "concreteType": "Model",
+              "concreteType": "GenerativeModel",
               "kind": "LinkedField",
               "name": "node",
               "plural": false,
@@ -304,6 +304,6 @@ return {
 };
 })();
 
-(node as any).hash = "cf177b302511726ace98e39913b0e8f7";
+(node as any).hash = "b2c1c41f9ba92b585c216d3d76bae502";
 
 export default node;

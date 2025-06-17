@@ -470,7 +470,7 @@ input CreateModelMutationInput {
 }
 
 type CreateModelMutationPayload {
-  model: Model!
+  model: GenerativeModel!
   query: Query!
 }
 
@@ -847,7 +847,7 @@ input DeleteModelMutationInput {
 }
 
 type DeleteModelMutationPayload {
-  model: Model!
+  model: GenerativeModel!
   query: Query!
 }
 
@@ -1528,6 +1528,52 @@ input GenerativeCredentialInput {
   value: String!
 }
 
+type GenerativeModel implements Node & ModelInterface {
+  """
+  The Globally Unique ID of this object
+  """
+  id: ID!
+  name: String!
+  providerKey: GenerativeProviderKey
+  provider: String
+  namePattern: String!
+  isOverride: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  tokenCost: TokenCost
+  totalTokenCost: TokenCost
+}
+
+"""
+A connection to a list of items.
+"""
+type GenerativeModelConnection {
+  """
+  Pagination data for this connection
+  """
+  pageInfo: PageInfo!
+
+  """
+  Contains the nodes in this connection
+  """
+  edges: [GenerativeModelEdge!]!
+}
+
+"""
+An edge in a connection.
+"""
+type GenerativeModelEdge {
+  """
+  A cursor for use in pagination
+  """
+  cursor: String!
+
+  """
+  The item at the end of the edge
+  """
+  node: GenerativeModel!
+}
+
 input GenerativeModelInput {
   providerKey: GenerativeProviderKey!
   name: String!
@@ -1754,52 +1800,6 @@ enum MimeType {
 
 type MissingValueBin {
   name: String
-}
-
-type Model implements Node & ModelInterface {
-  """
-  The Globally Unique ID of this object
-  """
-  id: ID!
-  name: String!
-  providerKey: GenerativeProviderKey
-  provider: String
-  namePattern: String!
-  isOverride: Boolean!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  tokenCost: TokenCost
-  totalTokenCost: TokenCost
-}
-
-"""
-A connection to a list of items.
-"""
-type ModelConnection {
-  """
-  Pagination data for this connection
-  """
-  pageInfo: PageInfo!
-
-  """
-  Contains the nodes in this connection
-  """
-  edges: [ModelEdge!]!
-}
-
-"""
-An edge in a connection.
-"""
-type ModelEdge {
-  """
-  A cursor for use in pagination
-  """
-  cursor: String!
-
-  """
-  The item at the end of the edge
-  """
-  node: Model!
 }
 
 interface ModelInterface {
@@ -2582,12 +2582,12 @@ type PromptVersionTagMutationPayload {
 
 type Query {
   modelProviders: [GenerativeProvider!]!
-  models(
+  generativeModels(
     first: Int = 50
     last: Int
     after: String
     before: String
-  ): ModelConnection!
+  ): GenerativeModelConnection!
   playgroundModels(input: ModelsInput = null): [PlaygroundModel!]!
   modelInvocationParameters(input: ModelsInput = null): [InvocationParameter!]!
   users(
@@ -3392,7 +3392,7 @@ input UpdateModelMutationInput {
 }
 
 type UpdateModelMutationPayload {
-  model: Model!
+  model: GenerativeModel!
   query: Query!
 }
 
