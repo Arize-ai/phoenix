@@ -424,6 +424,11 @@ input ContinuousAnnotationConfigInput {
   upperBound: Float = null
 }
 
+input CostPerTokenInput {
+  tokenType: String!
+  costPerToken: Float!
+}
+
 input CreateAnnotationConfigInput {
   annotationConfig: AnnotationConfigInput!
 }
@@ -461,13 +466,7 @@ input CreateModelMutationInput {
   name: String!
   provider: String = null
   namePattern: String!
-  inputCostPerToken: Float!
-  outputCostPerToken: Float!
-  cacheReadCostPerToken: Float = null
-  cacheWriteCostPerToken: Float = null
-  promptAudioCostPerToken: Float = null
-  completionAudioCostPerToken: Float = null
-  reasoningCostPerToken: Float = null
+  costs: [CostPerTokenInput!]!
 }
 
 type CreateModelMutationPayload {
@@ -3386,13 +3385,7 @@ input UpdateModelMutationInput {
   name: String!
   provider: String
   namePattern: String!
-  inputCostPerToken: Float!
-  outputCostPerToken: Float!
-  cacheReadCostPerToken: Float = null
-  cacheWriteCostPerToken: Float = null
-  promptAudioCostPerToken: Float = null
-  completionAudioCostPerToken: Float = null
-  reasoningCostPerToken: Float = null
+  costs: [CostPerTokenInput!]!
 }
 
 type UpdateModelMutationPayload {

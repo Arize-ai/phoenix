@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<843b758a83555f62e898d5df0fd10523>>
+ * @generated SignedSource<<993a64954369c0578018edd8e7f8197c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,16 +10,14 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type CreateModelMutationInput = {
-  cacheReadCostPerToken?: number | null;
-  cacheWriteCostPerToken?: number | null;
-  completionAudioCostPerToken?: number | null;
-  inputCostPerToken: number;
+  costs: ReadonlyArray<CostPerTokenInput>;
   name: string;
   namePattern: string;
-  outputCostPerToken: number;
-  promptAudioCostPerToken?: number | null;
   provider?: string | null;
-  reasoningCostPerToken?: number | null;
+};
+export type CostPerTokenInput = {
+  costPerToken: number;
+  tokenType: string;
 };
 export type NewModelButtonCreateModelMutation$variables = {
   input: CreateModelMutationInput;
