@@ -24,6 +24,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+ENV_OTEL_EXPORTER_OTLP_ENDPOINT = "OTEL_EXPORTER_OTLP_ENDPOINT"
+
 # Phoenix environment variables
 ENV_PHOENIX_PORT = "PHOENIX_PORT"
 ENV_PHOENIX_GRPC_PORT = "PHOENIX_GRPC_PORT"
@@ -1276,7 +1278,7 @@ def get_env_host_root_path() -> str:
 
 
 def get_env_collector_endpoint() -> Optional[str]:
-    return getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT)
+    return getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT) or getenv(ENV_OTEL_EXPORTER_OTLP_ENDPOINT)
 
 
 def get_env_project_name() -> str:
