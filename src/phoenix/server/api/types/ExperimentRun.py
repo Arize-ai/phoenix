@@ -20,6 +20,7 @@ from phoenix.server.api.types.pagination import (
     CursorString,
     connection_from_list,
 )
+from phoenix.server.api.types.TokenCost import TokenCost, to_gql_token_cost
 from phoenix.server.api.types.Trace import Trace
 
 if TYPE_CHECKING:
@@ -97,6 +98,31 @@ class ExperimentRun(Node):
             created_at=example.created_at,
             version_id=version_id,
         )
+
+    @strawberry.field
+    async def cost(self, info: Info[Context, None]) -> Optional[TokenCost]:
+        if not self.trace_id:
+            return None
+
+        dataloader = info.context.data_loaders.trace_by_trace_ids
+        if (db_trace := await dataloader.load(self.trace_id)) is None:
+            return None
+
+        stmt = select(models.Span.id).join(models.Trace).where(models.Trace.id == db_trace.id)
+        async with info.context.db() as session:
+            span_ids = [span_id async for span_id in await session.stream_scalars(stmt)]
+
+        if not span_ids:
+            return None
+
+        span_costs = await info.context.data_loaders.span_costs.load_many(span_ids)
+
+        aggregated_cost = TokenCost()
+        for span_cost in span_costs:
+            if span_cost is not None:
+                aggregated_cost += to_gql_token_cost(span_cost)
+
+        return aggregated_cost if aggregated_cost else None
 
 
 def to_gql_experiment_run(run: models.ExperimentRun) -> ExperimentRun:
