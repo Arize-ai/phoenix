@@ -2,14 +2,16 @@ from typing import Optional
 
 import strawberry
 from sqlalchemy import delete
+from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.orm import joinedload
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.auth import IsNotReadOnly
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.GenerativeModel import GenerativeModel, to_gql_generative_model
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -90,7 +92,10 @@ class ModelMutationMixin:
         )
         async with info.context.db() as session:
             session.add(model)
-            await session.commit()
+            try:
+                await session.commit()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+                raise Conflict(f"Model with name '{input.name}' already exists")
 
         return CreateModelMutationPayload(
             model=to_gql_generative_model(model),
@@ -142,7 +147,10 @@ class ModelMutationMixin:
             model.name_pattern = input.name_pattern
             model.costs = costs
             session.add(model)
-            await session.flush()
+            try:
+                await session.flush()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+                raise Conflict(f"Model with name '{input.name}' already exists")
             await session.refresh(model)
 
         return UpdateModelMutationPayload(
