@@ -48,6 +48,7 @@ import {
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { JSONText } from "@phoenix/components/code/JSONText";
+import { CellTop } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -154,7 +155,7 @@ const cellWithControlsWrapCSS = css`
   position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   height: 100%;
   min-height: 75px;
   .controls {
@@ -175,7 +176,7 @@ const cellWithControlsWrapCSS = css`
 
 const cellControlsCSS = css`
   position: absolute;
-  top: -4px;
+  top: calc(-1 * var(--ac-global-dimension-static-size-200));
   right: var(--ac-global-dimension-static-size-100);
   display: flex;
   flex-direction: row;
@@ -315,6 +316,7 @@ function ExampleOutputContent({
 
   return (
     <CellWithControlsWrap controls={spanControls}>
+      {hasSpan ? <SpanMetadata span={span} /> : null}
       <View padding="size-200">
         <Flex direction={"column"} gap="size-200">
           {errorMessage != null ? (
@@ -328,7 +330,6 @@ function ExampleOutputContent({
                 )
               )
             : null}
-          {hasSpan ? <SpanMetadata span={span} /> : null}
         </Flex>
       </View>
     </CellWithControlsWrap>
@@ -366,7 +367,8 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
 function SpanMetadata({ span }: { span: Span }) {
   const totalCost = span.cost?.total;
   return (
-    <Flex direction="row" gap="size-100" alignItems="center">
+    <CellTop>
+      <LatencyText latencyMs={span.latencyMs || 0} size="S" />
       <TokenCount
         tokenCountTotal={span.tokenCountTotal || 0}
         nodeId={span.id}
@@ -374,8 +376,7 @@ function SpanMetadata({ span }: { span: Span }) {
       {totalCost != null && (
         <TokenCosts totalCost={totalCost} nodeId={span.id} />
       )}
-      <LatencyText latencyMs={span.latencyMs || 0} />
-    </Flex>
+    </CellTop>
   );
 }
 
