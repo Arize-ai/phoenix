@@ -2,6 +2,9 @@ name: "Chromatic"
 
 on: push
 
+permissions:
+  contents: read
+
 jobs:
   chromatic:
     name: Run Chromatic
