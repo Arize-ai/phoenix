@@ -95,6 +95,7 @@ import {
   extractVariablesFromInstance,
   getChatCompletionOverDatasetInput,
 } from "./playgroundUtils";
+import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 
 const PAGE_SIZE = 10;
 
@@ -371,12 +372,16 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
 });
 
 function SpanMetadata({ span }: { span: Span }) {
+  const totalCost = span.cost?.total;
   return (
     <Flex direction="row" gap="size-100" alignItems="center">
       <TokenCount
         tokenCountTotal={span.tokenCountTotal || 0}
         nodeId={span.id}
       />
+      {totalCost != null && (
+        <TokenCosts totalCost={totalCost} nodeId={span.id} />
+      )}
       <LatencyText latencyMs={span.latencyMs || 0} />
     </Flex>
   );
@@ -997,6 +1002,9 @@ graphql`
         span {
           id
           tokenCountTotal
+          cost {
+            total
+          }
           latencyMs
           project {
             id
@@ -1038,6 +1046,9 @@ graphql`
             span {
               id
               tokenCountTotal
+              cost {
+                total
+              }
               latencyMs
               project {
                 id
