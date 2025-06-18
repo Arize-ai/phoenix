@@ -190,6 +190,21 @@ class TestModelMutations:
                 "output cost is required",
                 id="missing-output-cost",
             ),
+            pytest.param(
+                {
+                    "input": {
+                        "name": "default-model",
+                        "provider": "openai",
+                        "namePattern": "gpt-*",
+                        "costs": [
+                            {"tokenType": "input", "costPerToken": 0.001},
+                            {"tokenType": "output", "costPerToken": 0.002},
+                        ],
+                    }
+                },
+                "Model with name 'default-model' already exists",
+                id="duplicate-default-model",
+            ),
         ],
     )
     async def test_create_model_with_invalid_input_raises_expected_error(
@@ -197,6 +212,7 @@ class TestModelMutations:
         gql_client: AsyncGraphQLClient,
         variables: dict[str, Any],
         expected_error_message: str,
+        default_model: models.GenerativeModel,
     ) -> None:
         result = await gql_client.execute(
             query=self.QUERY,
