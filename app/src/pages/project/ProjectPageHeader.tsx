@@ -44,10 +44,16 @@ export function ProjectPageHeader(props: {
         tokenCountTotal(timeRange: $timeRange)
         tokenCountPrompt(timeRange: $timeRange)
         tokenCountCompletion(timeRange: $timeRange)
-        tokenCost(timeRange: $timeRange) {
-          total
-          prompt
-          completion
+        costSummary(timeRange: $timeRange) {
+          total {
+            cost
+          }
+          prompt {
+            cost
+          }
+          completion {
+            cost
+          }
         }
         latencyMsP50: latencyMsQuantile(
           probability: 0.50
@@ -183,7 +189,7 @@ export function ProjectPageHeader(props: {
               <TooltipTrigger delay={0} placement="bottom">
                 <TriggerWrap>
                   <Text size="L">
-                    {costFormatter(data?.tokenCost?.total ?? 0)}
+                    {costFormatter(data?.costSummary?.total?.cost ?? 0)}
                   </Text>
                 </TriggerWrap>
                 <HelpTooltip>
@@ -192,19 +198,21 @@ export function ProjectPageHeader(props: {
                       <Flex justifyContent="space-between">
                         <Text>Prompt Cost</Text>
                         <Text>
-                          {costFormatter(data?.tokenCost?.prompt ?? 0)}
+                          {costFormatter(data?.costSummary?.prompt?.cost ?? 0)}
                         </Text>
                       </Flex>
                       <Flex justifyContent="space-between">
                         <Text>Completion Cost</Text>
                         <Text>
-                          {costFormatter(data?.tokenCost?.completion ?? 0)}
+                          {costFormatter(
+                            data?.costSummary?.completion?.cost ?? 0
+                          )}
                         </Text>
                       </Flex>
                       <Flex justifyContent="space-between">
                         <Text>Total Cost</Text>
                         <Text>
-                          {costFormatter(data?.tokenCost?.total ?? 0)}
+                          {costFormatter(data?.costSummary?.total?.cost ?? 0)}
                         </Text>
                       </Flex>
                     </Flex>

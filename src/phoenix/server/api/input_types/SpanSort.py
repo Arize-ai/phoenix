@@ -58,7 +58,7 @@ class SpanColumn(Enum):
         elif self is SpanColumn.cumulativeTokenCountCompletion:
             expr = models.Span.cumulative_llm_token_count_completion
         elif self is SpanColumn.tokenCostTotal:
-            expr = models.SpanCost.total_token_cost
+            expr = models.SpanCost.total_cost
         else:
             assert_never(self)
         return expr.label(self.column_name)

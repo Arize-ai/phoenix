@@ -87,7 +87,6 @@ from phoenix.server.api.dataloaders import (
     ExperimentSequenceNumberDataLoader,
     LatencyMsQuantileDataLoader,
     MinStartOrMaxEndTimeDataLoader,
-    ModelTotalCostsDataLoader,
     NumChildSpansDataLoader,
     NumSpansPerTraceDataLoader,
     ProjectByNameDataLoader,
@@ -101,12 +100,19 @@ from phoenix.server.api.dataloaders import (
     SessionTraceLatencyMsQuantileDataLoader,
     SpanAnnotationsDataLoader,
     SpanByIdDataLoader,
-    SpanCostsDataLoader,
+    SpanCostBySpanDataLoader,
+    SpanCostDetailsBySpanCostDataLoader,
+    SpanCostDetailSummaryEntriesByGenerativeModelDataLoader,
+    SpanCostDetailSummaryEntriesByProjectSessionDataLoader,
+    SpanCostDetailSummaryEntriesByTraceDataLoader,
+    SpanCostSummaryByGenerativeModelDataLoader,
+    SpanCostSummaryByProjectDataLoader,
+    SpanCostSummaryByProjectSessionDataLoader,
+    SpanCostSummaryByTraceDataLoader,
     SpanDatasetExamplesDataLoader,
     SpanDescendantsDataLoader,
     SpanProjectsDataLoader,
     TableFieldsDataLoader,
-    TokenCostDataLoader,
     TokenCountDataLoader,
     TraceByTraceIdsDataLoader,
     TraceRetentionPolicyIdByProjectIdDataLoader,
@@ -661,7 +667,6 @@ def create_graphql_router(
                 ),
                 num_child_spans=NumChildSpansDataLoader(db),
                 num_spans_per_trace=NumSpansPerTraceDataLoader(db),
-                model_total_costs=ModelTotalCostsDataLoader(db),
                 project_fields=TableFieldsDataLoader(db, models.Project),
                 projects_by_trace_retention_policy_id=ProjectIdsByTraceRetentionPolicyIdDataLoader(
                     db
@@ -680,14 +685,31 @@ def create_graphql_router(
                 span_annotations=SpanAnnotationsDataLoader(db),
                 span_fields=TableFieldsDataLoader(db, models.Span),
                 span_by_id=SpanByIdDataLoader(db),
-                span_costs=SpanCostsDataLoader(db),
-                span_dataset_examples=SpanDatasetExamplesDataLoader(db),
-                span_descendants=SpanDescendantsDataLoader(db),
-                span_projects=SpanProjectsDataLoader(db),
-                token_costs=TokenCostDataLoader(
+                span_cost_by_span=SpanCostBySpanDataLoader(db),
+                span_cost_detail_summary_entries_by_generative_model=SpanCostDetailSummaryEntriesByGenerativeModelDataLoader(
+                    db
+                ),
+                span_cost_detail_summary_entries_by_project_session=SpanCostDetailSummaryEntriesByProjectSessionDataLoader(
+                    db
+                ),
+                span_cost_detail_summary_entries_by_trace=SpanCostDetailSummaryEntriesByTraceDataLoader(
+                    db
+                ),
+                span_cost_details_by_span_cost=SpanCostDetailsBySpanCostDataLoader(db),
+                span_cost_detail_fields=TableFieldsDataLoader(db, models.SpanCostDetail),
+                span_cost_fields=TableFieldsDataLoader(db, models.SpanCost),
+                span_cost_summary_by_generative_model=SpanCostSummaryByGenerativeModelDataLoader(
+                    db
+                ),
+                span_cost_summary_by_project=SpanCostSummaryByProjectDataLoader(
                     db,
                     cache_map=cache_for_dataloaders.token_cost if cache_for_dataloaders else None,
                 ),
+                span_cost_summary_by_project_session=SpanCostSummaryByProjectSessionDataLoader(db),
+                span_cost_summary_by_trace=SpanCostSummaryByTraceDataLoader(db),
+                span_dataset_examples=SpanDatasetExamplesDataLoader(db),
+                span_descendants=SpanDescendantsDataLoader(db),
+                span_projects=SpanProjectsDataLoader(db),
                 token_counts=TokenCountDataLoader(
                     db,
                     cache_map=cache_for_dataloaders.token_count if cache_for_dataloaders else None,

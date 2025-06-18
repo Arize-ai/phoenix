@@ -41,10 +41,10 @@ from phoenix.server.api.types.MimeType import MimeType
 from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_annotation
+from phoenix.server.api.types.SpanCost import SpanCost
 from phoenix.server.api.types.SpanIOValue import SpanIOValue, truncate_value
 from phoenix.trace.attributes import get_attribute_value
 
-from .TokenCost import TokenCost, to_gql_token_cost
 from .TokenCountPromptDetails import TokenCountPromptDetails
 
 if TYPE_CHECKING:
@@ -792,11 +792,12 @@ class Span(Node):
         ]
 
     @strawberry.field(description="The cost of the span")  # type: ignore
-    async def cost(self, info: Info[Context, None]) -> Optional[TokenCost]:
-        span_cost = await info.context.data_loaders.span_costs.load(self.span_rowid)
-        if span_cost is None:
+    async def cost(self, info: Info[Context, None]) -> Optional[SpanCost]:
+        loader = info.context.data_loaders.span_cost_by_span
+        record = await loader.load(self.span_rowid)
+        if record is None:
             return None
-        return to_gql_token_cost(span_cost)
+        return SpanCost(id_=record.id, db_record=record)
 
 
 def _hide_embedding_vectors(attributes: Mapping[str, Any]) -> Mapping[str, Any]:

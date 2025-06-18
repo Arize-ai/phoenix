@@ -102,6 +102,14 @@ def upgrade() -> None:
             sa.Integer,
             sa.ForeignKey("spans.id", ondelete="CASCADE"),
             nullable=False,
+            index=True,
+        ),
+        sa.Column(
+            "trace_rowid",
+            sa.Integer,
+            sa.ForeignKey("traces.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
         ),
         sa.Column(
             "generative_model_id",
@@ -111,69 +119,46 @@ def upgrade() -> None:
             index=True,
         ),
         sa.Column(
-            "prompt_token_cost",
-            sa.Float,
-            nullable=True,
-            index=True,
-        ),
-        sa.Column(
-            "completion_token_cost",
-            sa.Float,
-            nullable=True,
-            index=True,
-        ),
-        sa.Column(
-            "input_token_cost",
-            sa.Float,
-            nullable=True,
-            index=True,
-        ),
-        sa.Column(
-            "output_token_cost",
-            sa.Float,
-            nullable=True,
-            index=True,
-        ),
-        sa.Column(
-            "cache_read_token_cost",
-            sa.Float,
-            nullable=True,
-            index=True,
-        ),
-        sa.Column(
-            "cache_write_token_cost",
-            sa.Float,
-            nullable=True,
-            index=True,
-        ),
-        sa.Column(
-            "prompt_audio_token_cost",
-            sa.Float,
-            nullable=True,
-            index=True,
-        ),
-        sa.Column(
-            "completion_audio_token_cost",
-            sa.Float,
-            nullable=True,
-            index=True,
-        ),
-        sa.Column(
-            "reasoning_token_cost",
-            sa.Float,
-            nullable=True,
-            index=True,
-        ),
-        sa.Column(
-            "total_token_cost",
-            sa.Float,
+            "span_start_time",
+            sa.TIMESTAMP(timezone=True),
             nullable=False,
             index=True,
+        ),
+        sa.Column("total_cost", sa.Float),
+        sa.Column("total_tokens", sa.Float),
+        sa.Column("prompt_cost", sa.Float),
+        sa.Column("prompt_tokens", sa.Float),
+        sa.Column("completion_cost", sa.Float),
+        sa.Column("completion_tokens", sa.Float),
+    )
+    op.create_table(
+        "span_cost_details",
+        sa.Column(
+            "id",
+            sa.Integer,
+            primary_key=True,
+        ),
+        sa.Column(
+            "span_cost_id",
+            sa.Integer,
+            sa.ForeignKey("span_costs.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column("token_type", sa.String, nullable=False, index=True),
+        sa.Column("is_prompt", sa.Boolean, nullable=False),
+        sa.Column("cost", sa.Float),
+        sa.Column("tokens", sa.Float),
+        sa.UniqueConstraint(
+            "span_cost_id",
+            "token_type",
+            "is_prompt",
         ),
     )
 
 
 def downgrade() -> None:
+    op.drop_table("span_cost_details")
     op.drop_table("span_costs")
     op.drop_table("model_costs")
     op.drop_table("generative_models")

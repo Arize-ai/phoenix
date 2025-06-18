@@ -233,7 +233,7 @@ export function SpansTable(props: SpansTableProps) {
                   hit
                 }
                 cost {
-                  total
+                  totalCost
                 }
                 ...AnnotationSummaryGroup
               }

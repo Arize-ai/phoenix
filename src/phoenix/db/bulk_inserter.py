@@ -12,6 +12,7 @@ from openinference.semconv.trace import SpanAttributes
 from typing_extensions import TypeAlias
 
 import phoenix.trace.v1 as pb
+from phoenix.db import models
 from phoenix.db.insertion.constants import DEFAULT_RETRY_ALLOWANCE, DEFAULT_RETRY_DELAY_SEC
 from phoenix.db.insertion.document_annotation import DocumentAnnotationQueueInserter
 from phoenix.db.insertion.evaluation import (
@@ -204,7 +205,11 @@ class BulkInserter:
                             project_ids.add(result.project_rowid)
 
                             try:
-                                span_cost = _calculate_span_cost(span, result.span_rowid)
+                                span_cost = _calculate_span_cost(
+                                    span,
+                                    result.span_rowid,
+                                    result.trace_rowid,
+                                )
                                 if span_cost is not None:
                                     session.add(span_cost)
                                     await session.flush()
@@ -308,7 +313,11 @@ class _QueueInserters:
         await self._document_annotations.enqueue(item)
 
 
-def _calculate_span_cost(span: Span, span_id: int) -> Optional[SpanCost]:
+def _calculate_span_cost(
+    span: Span,
+    span_rowid: int,
+    trace_rowid: int,
+) -> Optional[SpanCost]:
     llm_model_name = get_attribute_value(span.attributes, LLM_MODEL_NAME)
     if not llm_model_name:
         return None
@@ -412,29 +421,6 @@ def _calculate_span_cost(span: Span, span_id: int) -> Optional[SpanCost]:
         if llm_completion_audio_tokens is not None and cost_per_completion_audio_token is not None
         else None
     )
-    prompt_token_cost_components = [
-        cost
-        for cost in [
-            input_token_cost,
-            cache_read_token_cost,
-            cache_write_token_cost,
-            prompt_audio_token_cost,
-        ]
-        if cost is not None
-    ]
-    prompt_token_cost = sum(prompt_token_cost_components) if prompt_token_cost_components else None
-    completion_token_cost_components = [
-        cost
-        for cost in [
-            output_token_cost,
-            reasoning_token_cost,
-            completion_audio_token_cost,
-        ]
-        if cost is not None
-    ]
-    completion_token_cost = (
-        sum(completion_token_cost_components) if completion_token_cost_components else None
-    )
     costs = [
         cost
         for cost in [
@@ -451,22 +437,81 @@ def _calculate_span_cost(span: Span, span_id: int) -> Optional[SpanCost]:
     if not costs:
         return None
 
-    total_token_cost = sum(costs)
-
-    return SpanCost(
-        span_rowid=span_id,
+    span_cost = models.SpanCost(
+        span_rowid=span_rowid,
+        span_start_time=span.start_time,
+        trace_rowid=trace_rowid,
         generative_model_id=model_id,
-        prompt_token_cost=prompt_token_cost,
-        completion_token_cost=completion_token_cost,
-        input_token_cost=input_token_cost,
-        output_token_cost=output_token_cost,
-        cache_read_token_cost=cache_read_token_cost,
-        cache_write_token_cost=cache_write_token_cost,
-        prompt_audio_token_cost=prompt_audio_token_cost,
-        completion_audio_token_cost=completion_audio_token_cost,
-        reasoning_token_cost=reasoning_token_cost,
-        total_token_cost=total_token_cost,
     )
+
+    cost_details: list[models.SpanCostDetail] = []
+    if input_token_cost is not None:
+        cost_details.append(
+            models.SpanCostDetail(
+                token_type="input",
+                is_prompt=True,
+                tokens=input_tokens,
+                cost=input_token_cost,
+            )
+        )
+    if cache_read_token_cost is not None:
+        cost_details.append(
+            models.SpanCostDetail(
+                token_type="cache_read",
+                tokens=llm_cache_read_tokens,
+                is_prompt=True,
+                cost=cache_read_token_cost,
+            )
+        )
+    if cache_write_token_cost is not None:
+        cost_details.append(
+            models.SpanCostDetail(
+                token_type="cache_write",
+                tokens=llm_cache_write_tokens,
+                is_prompt=True,
+                cost=cache_write_token_cost,
+            )
+        )
+    if prompt_audio_token_cost is not None:
+        cost_details.append(
+            models.SpanCostDetail(
+                token_type="audio",
+                tokens=llm_prompt_audio_tokens,
+                is_prompt=True,
+                cost=prompt_audio_token_cost,
+            )
+        )
+    if output_token_cost is not None:
+        cost_details.append(
+            models.SpanCostDetail(
+                token_type="output",
+                tokens=output_tokens,
+                is_prompt=False,
+                cost=output_token_cost,
+            )
+        )
+    if reasoning_token_cost is not None:
+        cost_details.append(
+            models.SpanCostDetail(
+                token_type="reasoning",
+                tokens=llm_reasoning_tokens,
+                is_prompt=False,
+                cost=reasoning_token_cost,
+            )
+        )
+    if completion_audio_token_cost is not None:
+        cost_details.append(
+            models.SpanCostDetail(
+                token_type="audio",
+                tokens=llm_completion_audio_tokens,
+                is_prompt=False,
+                cost=completion_audio_token_cost,
+            )
+        )
+    for detail in cost_details:
+        span_cost.append_detail(detail)
+
+    return span_cost
 
 
 LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME

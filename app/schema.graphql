@@ -370,6 +370,12 @@ input ContinuousAnnotationConfigInput {
   upperBound: Float = null
 }
 
+type CostBreakdown {
+  tokens: Float!
+  cost: Float!
+  costPerToken: Float
+}
+
 input CostPerTokenInput {
   tokenType: String!
   costPerToken: Float!
@@ -1257,7 +1263,8 @@ type GenerativeModel implements Node & ModelInterface {
   createdAt: DateTime!
   updatedAt: DateTime!
   tokenCost: TokenCost
-  totalTokenCost: TokenCost
+  costSummary: SpanCostSummary!
+  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
 """A connection to a list of items."""
@@ -1685,7 +1692,7 @@ type Project implements Node {
   tokenCountTotal(timeRange: TimeRange, filterCondition: String): Float!
   tokenCountPrompt(timeRange: TimeRange, filterCondition: String): Float!
   tokenCountCompletion(timeRange: TimeRange, filterCondition: String): Float!
-  tokenCost(timeRange: TimeRange, filterCondition: String): TokenCost!
+  costSummary(timeRange: TimeRange, filterCondition: String): SpanCostSummary!
   latencyMsQuantile(probability: Float!, timeRange: TimeRange): Float
   spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String): Float
   trace(traceId: ID!): Trace
@@ -1765,6 +1772,8 @@ type ProjectSession implements Node {
   tokenUsage: TokenUsage!
   traces(first: Int = 50, last: Int, after: String, before: String): TraceConnection!
   traceLatencyMsQuantile(probability: Float!): Float
+  costSummary: SpanCostSummary!
+  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
 enum ProjectSessionColumn {
@@ -2246,7 +2255,7 @@ type Span implements Node {
   invocationParameters: [InvocationParameter!]!
 
   """The cost of the span"""
-  cost: TokenCost
+  cost: SpanCost
 }
 
 type SpanAnnotation implements Node & Annotation {
@@ -2340,6 +2349,43 @@ type SpanConnection {
 type SpanContext {
   traceId: ID!
   spanId: ID!
+}
+
+type SpanCost implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  details: [SpanCostDetail!]!
+  totalTokens: Float
+  totalCost: Float
+  totalCostPerToken: Float
+  promptTokens: Float
+  promptCost: Float
+  promptCostPerToken: Float
+  completionTokens: Float
+  completionCost: Float
+  completionCostPerToken: Float
+}
+
+type SpanCostDetail implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  tokenType: String!
+  isPrompt: Boolean!
+  tokens: Float
+  cost: Float
+  costPerToken: Float
+}
+
+type SpanCostDetailSummaryEntry {
+  tokenType: String!
+  isPrompt: Boolean!
+  value: CostBreakdown!
+}
+
+type SpanCostSummary {
+  prompt: CostBreakdown!
+  completion: CostBreakdown!
+  total: CostBreakdown!
 }
 
 type SpanCountTimeSeries implements TimeSeries {
@@ -2491,9 +2537,9 @@ type TokenCountPromptDetails {
 }
 
 type TokenUsage {
-  prompt: Int!
-  completion: Int!
-  total: Int!
+  prompt: Float!
+  completion: Float!
+  total: Float!
 }
 
 type ToolCallChunk implements ChatCompletionSubscriptionPayload {
@@ -2566,6 +2612,8 @@ type Trace implements Node {
 
   """Annotations associated with the trace."""
   traceAnnotations(sort: TraceAnnotationSort = null): [TraceAnnotation!]!
+  costSummary: SpanCostSummary!
+  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
 type TraceAnnotation implements Node {

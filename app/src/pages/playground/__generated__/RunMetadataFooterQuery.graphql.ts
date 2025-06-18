@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bd58788c6229152f93865bd594b8be0a>>
+ * @generated SignedSource<<d203b42adc5f96acb4a649a5680d259e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,7 +15,7 @@ export type RunMetadataFooterQuery$variables = {
 export type RunMetadataFooterQuery$data = {
   readonly span: {
     readonly cost?: {
-      readonly total: number | null;
+      readonly totalCost: number | null;
     } | null;
     readonly id: string;
     readonly latencyMs?: number | null;
@@ -58,81 +58,63 @@ v2 = {
   "storageKey": null
 },
 v3 = {
-  "kind": "InlineFragment",
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "spanId",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "Trace",
+  "kind": "LinkedField",
+  "name": "trace",
+  "plural": false,
   "selections": [
+    (v2/*: any*/),
     {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "spanId",
+      "name": "traceId",
       "storageKey": null
     },
     {
       "alias": null,
       "args": null,
-      "concreteType": "Trace",
+      "concreteType": "Project",
       "kind": "LinkedField",
-      "name": "trace",
+      "name": "project",
       "plural": false,
       "selections": [
-        (v2/*: any*/),
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "traceId",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "Project",
-          "kind": "LinkedField",
-          "name": "project",
-          "plural": false,
-          "selections": [
-            (v2/*: any*/)
-          ],
-          "storageKey": null
-        }
-      ],
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "tokenCountTotal",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "latencyMs",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "TokenCost",
-      "kind": "LinkedField",
-      "name": "cost",
-      "plural": false,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "total",
-          "storageKey": null
-        }
+        (v2/*: any*/)
       ],
       "storageKey": null
     }
   ],
-  "type": "Span",
-  "abstractKey": null
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "tokenCountTotal",
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "latencyMs",
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "totalCost",
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -150,7 +132,29 @@ return {
         "plural": false,
         "selections": [
           (v2/*: any*/),
-          (v3/*: any*/)
+          {
+            "kind": "InlineFragment",
+            "selections": [
+              (v3/*: any*/),
+              (v4/*: any*/),
+              (v5/*: any*/),
+              (v6/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "SpanCost",
+                "kind": "LinkedField",
+                "name": "cost",
+                "plural": false,
+                "selections": [
+                  (v7/*: any*/)
+                ],
+                "storageKey": null
+              }
+            ],
+            "type": "Span",
+            "abstractKey": null
+          }
         ],
         "storageKey": null
       }
@@ -180,23 +184,46 @@ return {
             "storageKey": null
           },
           (v2/*: any*/),
-          (v3/*: any*/)
+          {
+            "kind": "InlineFragment",
+            "selections": [
+              (v3/*: any*/),
+              (v4/*: any*/),
+              (v5/*: any*/),
+              (v6/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "SpanCost",
+                "kind": "LinkedField",
+                "name": "cost",
+                "plural": false,
+                "selections": [
+                  (v7/*: any*/),
+                  (v2/*: any*/)
+                ],
+                "storageKey": null
+              }
+            ],
+            "type": "Span",
+            "abstractKey": null
+          }
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "eb2cd7af18e3109431f887c4f5a54e58",
+    "cacheID": "9d976a6defe2afaaa8b207ac4caa1641",
     "id": null,
     "metadata": {},
     "name": "RunMetadataFooterQuery",
     "operationKind": "query",
-    "text": "query RunMetadataFooterQuery(\n  $spanId: ID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    id\n    ... on Span {\n      spanId\n      trace {\n        id\n        traceId\n        project {\n          id\n        }\n      }\n      tokenCountTotal\n      latencyMs\n      cost {\n        total\n      }\n    }\n  }\n}\n"
+    "text": "query RunMetadataFooterQuery(\n  $spanId: ID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    id\n    ... on Span {\n      spanId\n      trace {\n        id\n        traceId\n        project {\n          id\n        }\n      }\n      tokenCountTotal\n      latencyMs\n      cost {\n        totalCost\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7996cfea6120977c331bb4ec2b8142fb";
+(node as any).hash = "f06b310f8b1184f1688bdbf19a452047";
 
 export default node;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1ee9b8ea9aeae6c7226769bd4b38d7a2>>
+ * @generated SignedSource<<1d0110b8efefb96769d0d2a9ef884967>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -55,6 +55,15 @@ v2 = {
 },
 v3 = [
   (v2/*: any*/)
+],
+v4 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "cost",
+    "storageKey": null
+  }
 ];
 return {
   "fragment": {
@@ -150,30 +159,39 @@ return {
               {
                 "alias": null,
                 "args": (v3/*: any*/),
-                "concreteType": "TokenCost",
+                "concreteType": "SpanCostSummary",
                 "kind": "LinkedField",
-                "name": "tokenCost",
+                "name": "costSummary",
                 "plural": false,
                 "selections": [
                   {
                     "alias": null,
                     "args": null,
-                    "kind": "ScalarField",
+                    "concreteType": "CostBreakdown",
+                    "kind": "LinkedField",
                     "name": "total",
+                    "plural": false,
+                    "selections": (v4/*: any*/),
                     "storageKey": null
                   },
                   {
                     "alias": null,
                     "args": null,
-                    "kind": "ScalarField",
+                    "concreteType": "CostBreakdown",
+                    "kind": "LinkedField",
                     "name": "prompt",
+                    "plural": false,
+                    "selections": (v4/*: any*/),
                     "storageKey": null
                   },
                   {
                     "alias": null,
                     "args": null,
-                    "kind": "ScalarField",
+                    "concreteType": "CostBreakdown",
+                    "kind": "LinkedField",
                     "name": "completion",
+                    "plural": false,
+                    "selections": (v4/*: any*/),
                     "storageKey": null
                   }
                 ],
@@ -238,12 +256,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "6a3f04f018bb9ce824f6c99b35d5ecca",
+    "cacheID": "4799eb38f30fb25ca31d7f62c2c75cb0",
     "id": null,
     "metadata": {},
     "name": "ProjectPageQuery",
     "operationKind": "query",
-    "text": "query ProjectPageQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...ProjectPageHeader_stats\n    ...StreamToggle_data\n    id\n  }\n}\n\nfragment ProjectPageHeader_stats on Project {\n  traceCount(timeRange: $timeRange)\n  tokenCountTotal(timeRange: $timeRange)\n  tokenCountPrompt(timeRange: $timeRange)\n  tokenCountCompletion(timeRange: $timeRange)\n  tokenCost(timeRange: $timeRange) {\n    total\n    prompt\n    completion\n  }\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n  spanAnnotationNames\n  documentEvaluationNames\n  id\n}\n\nfragment StreamToggle_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
+    "text": "query ProjectPageQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...ProjectPageHeader_stats\n    ...StreamToggle_data\n    id\n  }\n}\n\nfragment ProjectPageHeader_stats on Project {\n  traceCount(timeRange: $timeRange)\n  tokenCountTotal(timeRange: $timeRange)\n  tokenCountPrompt(timeRange: $timeRange)\n  tokenCountCompletion(timeRange: $timeRange)\n  costSummary(timeRange: $timeRange) {\n    total {\n      cost\n    }\n    prompt {\n      cost\n    }\n    completion {\n      cost\n    }\n  }\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n  spanAnnotationNames\n  documentEvaluationNames\n  id\n}\n\nfragment StreamToggle_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
   }
 };
 })();

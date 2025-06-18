@@ -14,6 +14,7 @@ from typing_extensions import TypeAlias
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.TraceAnnotationSort import TraceAnnotationSort
+from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     CursorString,
@@ -21,6 +22,8 @@ from phoenix.server.api.types.pagination import (
 )
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span
+from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
+from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.TraceAnnotation import TraceAnnotation, to_gql_trace_annotation
 
 if TYPE_CHECKING:
@@ -225,6 +228,44 @@ class Trace(Node):
                 stmt = stmt.order_by(models.TraceAnnotation.created_at.desc())
             annotations = await session.scalars(stmt)
         return [to_gql_trace_annotation(annotation) for annotation in annotations]
+
+    @strawberry.field
+    async def cost_summary(
+        self,
+        info: Info[Context, None],
+    ) -> SpanCostSummary:
+        loader = info.context.data_loaders.span_cost_summary_by_trace
+        summary = await loader.load(self.trace_rowid)
+        return SpanCostSummary(
+            prompt=CostBreakdown(
+                tokens=summary.prompt.tokens,
+                cost=summary.prompt.cost,
+            ),
+            completion=CostBreakdown(
+                tokens=summary.completion.tokens,
+                cost=summary.completion.cost,
+            ),
+            total=CostBreakdown(
+                tokens=summary.total.tokens,
+                cost=summary.total.cost,
+            ),
+        )
+
+    @strawberry.field
+    async def cost_detail_summary_entries(
+        self,
+        info: Info[Context, None],
+    ) -> list[SpanCostDetailSummaryEntry]:
+        loader = info.context.data_loaders.span_cost_detail_summary_entries_by_trace
+        entries = await loader.load(self.trace_rowid)
+        return [
+            SpanCostDetailSummaryEntry(
+                token_type=entry.token_type,
+                is_prompt=entry.is_prompt,
+                value=CostBreakdown(tokens=entry.value.tokens, cost=entry.value.cost),
+            )
+            for entry in entries
+        ]
 
 
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")

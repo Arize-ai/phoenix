@@ -448,10 +448,13 @@ class ChatCompletionMutationMixin:
                 llm_token_count_completion=attributes.get(LLM_TOKEN_COUNT_COMPLETION, 0),
                 trace=trace,
             )
-            span.span_cost = _calculate_span_cost(span.attributes, span.id)
             session.add(trace)
             session.add(span)
             await session.flush()
+            span_cost = _calculate_span_cost(span.attributes, span.start_time, span.id, trace.id)
+            if span_cost:
+                session.add(span_cost)
+                await session.flush()
 
         gql_span = Span(span_rowid=span.id, db_span=span)
 
@@ -613,7 +616,10 @@ PLAYGROUND_PROJECT_NAME = "playground"
 
 
 def _calculate_span_cost(
-    span_attributes: dict[str, Any], span_id: int
+    span_attributes: dict[str, Any],
+    span_start_time: datetime,
+    span_rowid: int,
+    trace_rowid: int,
 ) -> Optional[models.SpanCost]:
     """
     Calculate cost information for a span based on its attributes.
@@ -652,19 +658,18 @@ def _calculate_span_cost(
     if not costs:
         return None
 
-    total_token_cost = sum(costs)
+    total_tokens = (llm_prompt_tokens or 0) + (llm_completion_tokens or 0)
+    total_cost = sum(costs)
 
     return models.SpanCost(
-        span_rowid=span_id,
+        span_start_time=span_start_time,
+        span_rowid=span_rowid,
+        trace_rowid=trace_rowid,
         generative_model_id=model_id,
-        prompt_token_cost=input_token_cost,
-        completion_token_cost=output_token_cost,
-        input_token_cost=input_token_cost,
-        output_token_cost=output_token_cost,
-        cache_read_token_cost=None,  # Not available in playground
-        cache_write_token_cost=None,  # Not available in playground
-        prompt_audio_token_cost=None,  # Not available in playground
-        completion_audio_token_cost=None,  # Not available in playground
-        reasoning_token_cost=None,  # Not available in playground
-        total_token_cost=total_token_cost,
+        total_cost=total_cost,
+        total_tokens=total_tokens,
+        prompt_cost=input_token_cost,
+        prompt_tokens=llm_prompt_tokens,
+        completion_cost=output_token_cost,
+        completion_tokens=llm_completion_tokens,
     )
