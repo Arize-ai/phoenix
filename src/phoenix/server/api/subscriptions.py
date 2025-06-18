@@ -644,14 +644,7 @@ def _calculate_span_cost(
     return models.SpanCost(
         span_rowid=span_id,
         generative_model_id=model_id,
-        prompt_token_cost=input_token_cost,
-        completion_token_cost=output_token_cost,
-        input_token_cost=input_token_cost,
-        output_token_cost=output_token_cost,
-        cache_read_token_cost=None,  # Not available in playground
-        cache_write_token_cost=None,  # Not available in playground
-        prompt_audio_token_cost=None,  # Not available in playground
-        completion_audio_token_cost=None,  # Not available in playground
-        reasoning_token_cost=None,  # Not available in playground
-        total_token_cost=total_token_cost,
+        prompt_cost=input_token_cost,
+        completion_cost=output_token_cost,
+        total_cost=total_token_cost,
     )
