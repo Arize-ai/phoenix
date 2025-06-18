@@ -173,9 +173,15 @@ class Subscription:
                 )
             db_trace = get_db_trace(span, playground_project_id)
             db_span = get_db_span(span, db_trace)
-            db_span.span_cost = _calculate_span_cost(span.attributes, db_span.id)
             session.add(db_span)
             await session.flush()
+            span_cost = _calculate_span_cost(
+                span.attributes,
+                db_span.start_time,
+                db_span.id,
+                db_span.trace_rowid,
+            )
+            session.add(span_cost) if span_cost else None
 
         info.context.event_queue.put(SpanInsertEvent(ids=(playground_project_id,)))
         yield ChatCompletionSubscriptionResult(span=Span(span_rowid=db_span.id, db_span=db_span))
@@ -473,8 +479,15 @@ async def _chat_completion_result_payloads(
     async with db() as session:
         for _, span, run in results:
             if span:
-                span.span_cost = _calculate_span_cost(span.attributes, span.id)
                 session.add(span)
+                await session.flush()
+                span_cost = _calculate_span_cost(
+                    span.attributes,
+                    span.start_time,
+                    span.id,
+                    span.trace_rowid,
+                )
+                session.add(span_cost) if span_cost else None
             session.add(run)
         await session.flush()
     for example_id, span, run in results:
@@ -604,7 +617,10 @@ LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
 
 
 def _calculate_span_cost(
-    span_attributes: dict[str, Any], span_id: int
+    span_attributes: dict[str, Any],
+    span_start_time: datetime,
+    span_id: int,
+    trace_rowid: int,
 ) -> Optional[models.SpanCost]:
     llm_model_name = get_attribute_value(span_attributes, LLM_MODEL_NAME)
     if not llm_model_name:
@@ -643,6 +659,8 @@ def _calculate_span_cost(
 
     return models.SpanCost(
         span_rowid=span_id,
+        span_start_time=span_start_time,
+        trace_rowid=trace_rowid,
         generative_model_id=model_id,
         prompt_cost=input_token_cost,
         completion_cost=output_token_cost,
