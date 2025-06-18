@@ -260,3 +260,30 @@ Use cursor-based pagination. Each request gives a cursor to the next page of res
 
 -   The response should be a JSON object with a `data` key.
 -   Payload content should use snake case to make it easier to work with when translating to objects.
+
+## Cursor
+
+A recommended list of extensions for Cursor/VSCode is located in the `.vscode/extensions.json` file.
+When opening Phoenix in Cursor, you will automatically be prompted to install the recommended extensions.
+After doing so, consider pasting the following settings into your workspace settings at `.vscode/settings.json` to make sure the extensions work when Phoenix is opened at the root of the monorepo.
+
+```json
+{
+  "python.languageServer": "Default",
+  "mypy-type-checker.importStrategy": "fromEnvironment",
+  "[python]": {
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "always"
+    }
+  },
+  "mypy-type-checker.ignorePatterns": [".tox,.venv,app"],
+  "javascript.preferences.importModuleSpecifier": "shortest",
+  "typescript.preferences.importModuleSpecifier": "non-relative",
+  "prettier.configPath": "app/.prettierrc.json",
+  "prettier.prettierPath": "app/node_modules/prettier",
+  "typescript.tsdk": "app/node_modules/typescript/lib",
+  "relay.rootDirectory": "app",
+  "relay.pathToConfig": "app/relay.config.js",
+  "relay.autoStartCompiler": true
+}
+```

@@ -1,5 +1,6 @@
 # Generated dirs
 .vscode
+!.vscode/extensions.json
 .idea
 .coverage
 node_modules
