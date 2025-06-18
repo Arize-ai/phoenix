@@ -7,8 +7,11 @@ from typing_extensions import TypeAlias
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 
-Key: TypeAlias = int
-Result: TypeAlias = List[int]
+TraceRowId: TypeAlias = int
+SpanRowId: TypeAlias = int
+
+Key: TypeAlias = TraceRowId
+Result: TypeAlias = List[SpanRowId]
 
 
 class SpanIdsByTraceIdDataLoader(DataLoader[Key, Result]):
@@ -21,7 +24,7 @@ class SpanIdsByTraceIdDataLoader(DataLoader[Key, Result]):
             models.Span.trace_rowid.in_(keys)
         )
         async with self._db() as session:
-            result: dict[Key, List[int]] = {trace_id: [] for trace_id in keys}
-            async for span_id, trace_id in await session.stream(stmt):
-                result[trace_id].append(span_id)
-        return [result[trace_id] for trace_id in keys]
+            result: dict[TraceRowId, List[SpanRowId]] = {trace_rowid: [] for trace_rowid in keys}
+            async for span_rowid, trace_rowid in await session.stream(stmt):
+                result[trace_rowid].append(span_rowid)
+        return [result[trace_rowid] for trace_rowid in keys]

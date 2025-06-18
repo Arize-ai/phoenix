@@ -35,20 +35,3 @@ class TokenCost:
         if a is None and b is None:
             return None
         return (a or 0.0) + (b or 0.0)
-
-    def __bool__(self) -> bool:
-        return any(
-            value is not None and value > 0
-            for value in [
-                self.input,
-                self.output,
-                self.prompt,
-                self.completion,
-                self.cache_read,
-                self.cache_write,
-                self.prompt_audio,
-                self.completion_audio,
-                self.reasoning,
-                self.total,
-            ]
-        )
