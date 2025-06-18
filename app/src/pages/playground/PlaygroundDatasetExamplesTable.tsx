@@ -52,6 +52,7 @@ import { JSONText } from "@phoenix/components/code/JSONText";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useNotifyError } from "@phoenix/contexts";
@@ -95,7 +96,6 @@ import {
   extractVariablesFromInstance,
   getChatCompletionOverDatasetInput,
 } from "./playgroundUtils";
-import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 
 const PAGE_SIZE = 10;
 
