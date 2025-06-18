@@ -149,6 +149,7 @@ def upgrade() -> None:
         sa.Column("is_prompt", sa.Boolean, nullable=False),
         sa.Column("cost", sa.Float),
         sa.Column("tokens", sa.Float),
+        sa.Column("cost_per_token", sa.Float),
         sa.UniqueConstraint(
             "span_cost_id",
             "token_type",

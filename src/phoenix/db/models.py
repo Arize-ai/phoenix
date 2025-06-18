@@ -1646,15 +1646,7 @@ class SpanCostDetail(Base):
 
     cost: Mapped[Optional[float]]
     tokens: Mapped[Optional[float]]
-
-    @hybrid_property
-    def cost_per_token(self) -> Optional[float]:
-        return ((self.cost or 0) / self.tokens) if self.tokens else None
-
-    @cost_per_token.inplace.expression
-    @classmethod
-    def _cost_per_token_expression(cls) -> ColumnElement[Optional[float]]:
-        return sql.case((sa.and_(cls.tokens.isnot(None), cls.tokens != 0), cls.cost / cls.tokens))
+    cost_per_token: Mapped[Optional[float]]
 
     span_cost: Mapped["SpanCost"] = relationship("SpanCost", back_populates="span_cost_details")
 

@@ -450,62 +450,69 @@ def _calculate_span_cost(
             models.SpanCostDetail(
                 token_type="input",
                 is_prompt=True,
-                tokens=input_tokens,
                 cost=input_token_cost,
+                tokens=input_tokens,
+                cost_per_token=cost_per_input_token,
             )
         )
     if cache_read_token_cost is not None:
         cost_details.append(
             models.SpanCostDetail(
                 token_type="cache_read",
-                tokens=llm_cache_read_tokens,
                 is_prompt=True,
                 cost=cache_read_token_cost,
+                tokens=llm_cache_read_tokens,
+                cost_per_token=cost_per_cache_read_token,
             )
         )
     if cache_write_token_cost is not None:
         cost_details.append(
             models.SpanCostDetail(
                 token_type="cache_write",
-                tokens=llm_cache_write_tokens,
                 is_prompt=True,
                 cost=cache_write_token_cost,
+                tokens=llm_cache_write_tokens,
+                cost_per_token=cost_per_cache_write_token,
             )
         )
     if prompt_audio_token_cost is not None:
         cost_details.append(
             models.SpanCostDetail(
                 token_type="audio",
-                tokens=llm_prompt_audio_tokens,
                 is_prompt=True,
                 cost=prompt_audio_token_cost,
+                tokens=llm_prompt_audio_tokens,
+                cost_per_token=cost_per_prompt_audio_token,
             )
         )
     if output_token_cost is not None:
         cost_details.append(
             models.SpanCostDetail(
                 token_type="output",
-                tokens=output_tokens,
                 is_prompt=False,
                 cost=output_token_cost,
+                tokens=output_tokens,
+                cost_per_token=cost_per_output_token,
             )
         )
     if reasoning_token_cost is not None:
         cost_details.append(
             models.SpanCostDetail(
                 token_type="reasoning",
-                tokens=llm_reasoning_tokens,
                 is_prompt=False,
                 cost=reasoning_token_cost,
+                tokens=llm_reasoning_tokens,
+                cost_per_token=cost_per_reasoning_token,
             )
         )
     if completion_audio_token_cost is not None:
         cost_details.append(
             models.SpanCostDetail(
                 token_type="audio",
-                tokens=llm_completion_audio_tokens,
                 is_prompt=False,
                 cost=completion_audio_token_cost,
+                tokens=llm_completion_audio_tokens,
+                cost_per_token=cost_per_completion_audio_token,
             )
         )
     for detail in cost_details:
