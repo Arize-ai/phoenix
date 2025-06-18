@@ -155,7 +155,7 @@ const cellWithControlsWrapCSS = css`
   position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   height: 100%;
   min-height: 75px;
   .controls {
@@ -321,6 +321,7 @@ function ExampleOutputContent({
 
   return (
     <CellWithControlsWrap controls={spanControls}>
+      {hasSpan ? <SpanMetadata span={span} /> : null}
       <View padding="size-200">
         <Flex direction={"column"} gap="size-200">
           {errorMessage != null ? (
@@ -334,7 +335,6 @@ function ExampleOutputContent({
                 )
               )
             : null}
-          {hasSpan ? <SpanMetadata span={span} /> : null}
         </Flex>
       </View>
     </CellWithControlsWrap>
@@ -374,16 +374,23 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
 function SpanMetadata({ span }: { span: Span }) {
   const totalCost = span.cost?.total;
   return (
-    <Flex direction="row" gap="size-100" alignItems="center">
-      <TokenCount
-        tokenCountTotal={span.tokenCountTotal || 0}
-        nodeId={span.id}
-      />
-      {totalCost != null && (
-        <TokenCosts totalCost={totalCost} nodeId={span.id} />
-      )}
-      <LatencyText latencyMs={span.latencyMs || 0} />
-    </Flex>
+    <View
+      paddingX="size-100"
+      paddingY="size-50"
+      borderBottomWidth="thin"
+      borderColor="grey-100"
+    >
+      <Flex direction="row" gap="size-100" alignItems="center">
+        <LatencyText latencyMs={span.latencyMs || 0} size="S" />
+        <TokenCount
+          tokenCountTotal={span.tokenCountTotal || 0}
+          nodeId={span.id}
+        />
+        {totalCost != null && (
+          <TokenCosts totalCost={totalCost} nodeId={span.id} />
+        )}
+      </Flex>
+    </View>
   );
 }
 
