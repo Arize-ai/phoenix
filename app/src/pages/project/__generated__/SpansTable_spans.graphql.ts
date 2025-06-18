@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8a1fb883287c3a50345f8af78fc0fac2>>
+ * @generated SignedSource<<1d2c5a6937395fe14d8940ca86b8f5fb>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,8 +19,10 @@ export type SpansTable_spans$data = {
   readonly spans: {
     readonly edges: ReadonlyArray<{
       readonly span: {
-        readonly cost: {
-          readonly totalCost: number | null;
+        readonly costSummary: {
+          readonly total: {
+            readonly cost: number | null;
+          };
         } | null;
         readonly cumulativeTokenCountTotal: number | null;
         readonly documentRetrievalMetrics: ReadonlyArray<{
@@ -450,16 +452,27 @@ return {
                 {
                   "alias": null,
                   "args": null,
-                  "concreteType": "SpanCost",
+                  "concreteType": "SpanCostSummary",
                   "kind": "LinkedField",
-                  "name": "cost",
+                  "name": "costSummary",
                   "plural": false,
                   "selections": [
                     {
                       "alias": null,
                       "args": null,
-                      "kind": "ScalarField",
-                      "name": "totalCost",
+                      "concreteType": "CostBreakdown",
+                      "kind": "LinkedField",
+                      "name": "total",
+                      "plural": false,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "cost",
+                          "storageKey": null
+                        }
+                      ],
                       "storageKey": null
                     }
                   ],
@@ -536,6 +549,6 @@ return {
 };
 })();
 
-(node as any).hash = "720e6cbe786dc256e27124e94d0b3838";
+(node as any).hash = "57172213447c80d4600ee6be8eb67626";
 
 export default node;

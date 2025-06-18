@@ -371,8 +371,8 @@ input ContinuousAnnotationConfigInput {
 }
 
 type CostBreakdown {
-  tokens: Float!
-  cost: Float!
+  tokens: Float
+  cost: Float
   costPerToken: Float
 }
 
@@ -2255,7 +2255,9 @@ type Span implements Node {
   invocationParameters: [InvocationParameter!]!
 
   """The cost of the span"""
-  cost: SpanCost
+  cost: SpanCost @deprecated(reason: "Use costSummary and costDetailSummaryEntries instead")
+  costSummary: SpanCostSummary
+  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
 type SpanAnnotation implements Node & Annotation {

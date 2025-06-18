@@ -49,7 +49,7 @@ export function formatNumber(number: number): string {
 }
 
 /**
- * Formats a cost value in dollars with appropriate precision.
+ * Formats a cost value in dollars.
  * Provides special handling for small and zero costs.
  * @param cost The cost value in dollars
  * @returns {string} The formatted cost string with dollar sign
@@ -61,7 +61,10 @@ export function formatCost(cost: number): string {
   if (cost < 0.001) {
     return "<$0.001";
   }
-  return `$${cost.toPrecision(3)}`;
+  if (cost < 0.01) {
+    return `$${format(".3~f")(cost)}`;
+  }
+  return `$${format(".2f")(cost)}`;
 }
 
 /**

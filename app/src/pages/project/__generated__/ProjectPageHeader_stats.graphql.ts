@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<252e57bbcdae228d396ed8dbafee6ff7>>
+ * @generated SignedSource<<d4e6f809057028dde59903b06ef7494e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,13 +13,13 @@ import { FragmentRefs } from "relay-runtime";
 export type ProjectPageHeader_stats$data = {
   readonly costSummary: {
     readonly completion: {
-      readonly cost: number;
+      readonly cost: number | null;
     };
     readonly prompt: {
-      readonly cost: number;
+      readonly cost: number | null;
     };
     readonly total: {
-      readonly cost: number;
+      readonly cost: number | null;
     };
   };
   readonly documentEvaluationNames: ReadonlyArray<string>;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e6c01d3627a0e02440a276f3b40e74da>>
+ * @generated SignedSource<<169db018e00a724092f153a17aa38674>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,19 +18,19 @@ export type SessionDetailsQuery$data = {
   readonly session: {
     readonly costSummary?: {
       readonly completion: {
-        readonly cost: number;
+        readonly cost: number | null;
         readonly costPerToken: number | null;
-        readonly tokens: number;
+        readonly tokens: number | null;
       };
       readonly prompt: {
-        readonly cost: number;
+        readonly cost: number | null;
         readonly costPerToken: number | null;
-        readonly tokens: number;
+        readonly tokens: number | null;
       };
       readonly total: {
-        readonly cost: number;
+        readonly cost: number | null;
         readonly costPerToken: number | null;
-        readonly tokens: number;
+        readonly tokens: number | null;
       };
     };
     readonly latencyP50?: number | null;
