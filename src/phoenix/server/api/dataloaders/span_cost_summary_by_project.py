@@ -1,5 +1,4 @@
 from collections import defaultdict
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Optional
 
@@ -11,17 +10,10 @@ from typing_extensions import TypeAlias
 
 from phoenix.db import models
 from phoenix.server.api.dataloaders.cache import TwoTierCache
+from phoenix.server.api.dataloaders.types import CostBreakdown, SpanCostSummary
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
-
-
-@dataclass
-class TokenCost:
-    prompt: Optional[float] = None
-    completion: Optional[float] = None
-    total: Optional[float] = None
-
 
 ProjectRowId: TypeAlias = int
 TimeInterval: TypeAlias = tuple[Optional[datetime], Optional[datetime]]
@@ -31,9 +23,9 @@ Segment: TypeAlias = tuple[TimeInterval, FilterCondition]
 Param: TypeAlias = ProjectRowId
 
 Key: TypeAlias = tuple[ProjectRowId, Optional[TimeRange], FilterCondition]
-Result: TypeAlias = TokenCost
+Result: TypeAlias = SpanCostSummary
 ResultPosition: TypeAlias = int
-DEFAULT_VALUE: Result = TokenCost()
+DEFAULT_VALUE: Result = SpanCostSummary()
 
 
 def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
@@ -48,7 +40,7 @@ _Section: TypeAlias = ProjectRowId
 _SubKey: TypeAlias = tuple[TimeInterval, FilterCondition]
 
 
-class TokenCostCache(
+class SpanCostSummaryCache(
     TwoTierCache[Key, Result, _Section, _SubKey],
 ):
     def __init__(self) -> None:
@@ -65,7 +57,7 @@ class TokenCostCache(
         return project_rowid, (interval, filter_condition)
 
 
-class TokenCostDataLoader(DataLoader[Key, Result]):
+class SpanCostSummaryByProjectDataLoader(DataLoader[Key, Result]):
     def __init__(
         self,
         db: DbSessionFactory,
@@ -91,11 +83,22 @@ class TokenCostDataLoader(DataLoader[Key, Result]):
             for segment, params in arguments.items():
                 stmt = _get_stmt(segment, *params.keys())
                 data = await session.stream(stmt)
-                async for project_rowid, prompt_cost, completion_cost, total_cost in data:
-                    for position in params.get(project_rowid, []):
-                        results[position].prompt = prompt_cost
-                        results[position].completion = completion_cost
-                        results[position].total = total_cost
+                async for (
+                    id_,
+                    prompt_cost,
+                    completion_cost,
+                    total_cost,
+                    prompt_tokens,
+                    completion_tokens,
+                    total_tokens,
+                ) in data:
+                    summary = SpanCostSummary(
+                        prompt=CostBreakdown(tokens=prompt_tokens, cost=prompt_cost),
+                        completion=CostBreakdown(tokens=completion_tokens, cost=completion_cost),
+                        total=CostBreakdown(tokens=total_tokens, cost=total_cost),
+                    )
+                    for position in params.get(id_, []):
+                        results[position] = summary
         return results
 
 
@@ -106,20 +109,19 @@ def _get_stmt(
     (start_time, end_time), filter_condition = segment
     pid = models.Trace.project_rowid
 
-    prompt_cost = coalesce(func.sum(models.SpanCost.prompt_token_cost), 0)
-    completion_cost = coalesce(func.sum(models.SpanCost.completion_token_cost), 0)
-    total_cost = coalesce(func.sum(models.SpanCost.total_token_cost), 0)
-
     stmt: Select[Any] = (
         select(
             pid,
-            prompt_cost.label("prompt_cost"),
-            completion_cost.label("completion_cost"),
-            total_cost.label("total_cost"),
+            coalesce(func.sum(models.SpanCost.prompt_cost), 0).label("prompt_cost"),
+            coalesce(func.sum(models.SpanCost.completion_cost), 0).label("completion_cost"),
+            coalesce(func.sum(models.SpanCost.total_cost), 0).label("total_cost"),
+            coalesce(func.sum(models.SpanCost.prompt_tokens), 0).label("prompt_tokens"),
+            coalesce(func.sum(models.SpanCost.completion_tokens), 0).label("completion_tokens"),
+            coalesce(func.sum(models.SpanCost.total_tokens), 0).label("total_tokens"),
         )
         .select_from(models.Trace)
         .join(models.Span, models.Span.trace_rowid == models.Trace.id)
-        .join(models.SpanCost, models.Span.id == models.SpanCost.span_rowid, isouter=True)
+        .join(models.SpanCost, models.Span.id == models.SpanCost.span_rowid)
         .group_by(pid)
     )
 

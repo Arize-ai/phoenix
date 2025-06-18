@@ -365,7 +365,7 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
 });
 
 function SpanMetadata({ span }: { span: Span }) {
-  const totalCost = span.cost?.total;
+  const totalCost = span.cost?.totalCost;
   return (
     <CellTop>
       <LatencyText latencyMs={span.latencyMs || 0} size="S" />
@@ -995,7 +995,7 @@ graphql`
           id
           tokenCountTotal
           cost {
-            total
+            totalCost
           }
           latencyMs
           project {
@@ -1039,7 +1039,7 @@ graphql`
               id
               tokenCountTotal
               cost {
-                total
+                totalCost
               }
               latencyMs
               project {

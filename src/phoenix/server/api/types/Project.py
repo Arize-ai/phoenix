@@ -28,6 +28,7 @@ from phoenix.server.api.input_types.SpanSort import SpanSort, SpanSortConfig
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
+from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -40,8 +41,8 @@ from phoenix.server.api.types.pagination import (
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span
+from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.TimeSeries import TimeSeries, TimeSeriesDataPoint
-from phoenix.server.api.types.TokenCost import TokenCost
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.trace.dsl import SpanFilter
@@ -177,19 +178,27 @@ class Project(Node):
         )
 
     @strawberry.field
-    async def token_cost(
+    async def cost_summary(
         self,
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
-    ) -> TokenCost:
-        token_cost = await info.context.data_loaders.token_costs.load(
-            (self.project_rowid, time_range, filter_condition),
-        )
-        return TokenCost(
-            prompt=token_cost.prompt,
-            completion=token_cost.completion,
-            total=token_cost.total,
+    ) -> SpanCostSummary:
+        loader = info.context.data_loaders.span_cost_summary_by_project
+        summary = await loader.load((self.project_rowid, time_range, filter_condition))
+        return SpanCostSummary(
+            prompt=CostBreakdown(
+                tokens=summary.prompt.tokens,
+                cost=summary.prompt.cost,
+            ),
+            completion=CostBreakdown(
+                tokens=summary.completion.tokens,
+                cost=summary.completion.cost,
+            ),
+            total=CostBreakdown(
+                tokens=summary.total.tokens,
+                cost=summary.total.cost,
+            ),
         )
 
     @strawberry.field

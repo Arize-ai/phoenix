@@ -30,7 +30,6 @@ from phoenix.server.api.dataloaders import (
     ExperimentSequenceNumberDataLoader,
     LatencyMsQuantileDataLoader,
     MinStartOrMaxEndTimeDataLoader,
-    ModelTotalCostsDataLoader,
     NumChildSpansDataLoader,
     NumSpansPerTraceDataLoader,
     ProjectByNameDataLoader,
@@ -44,12 +43,19 @@ from phoenix.server.api.dataloaders import (
     SessionTraceLatencyMsQuantileDataLoader,
     SpanAnnotationsDataLoader,
     SpanByIdDataLoader,
-    SpanCostsDataLoader,
+    SpanCostBySpanDataLoader,
+    SpanCostDetailsBySpanCostDataLoader,
+    SpanCostDetailSummaryEntriesByGenerativeModelDataLoader,
+    SpanCostDetailSummaryEntriesByProjectSessionDataLoader,
+    SpanCostDetailSummaryEntriesByTraceDataLoader,
+    SpanCostSummaryByGenerativeModelDataLoader,
+    SpanCostSummaryByProjectDataLoader,
+    SpanCostSummaryByProjectSessionDataLoader,
+    SpanCostSummaryByTraceDataLoader,
     SpanDatasetExamplesDataLoader,
     SpanDescendantsDataLoader,
     SpanProjectsDataLoader,
     TableFieldsDataLoader,
-    TokenCostDataLoader,
     TokenCountDataLoader,
     TraceByTraceIdsDataLoader,
     TraceRetentionPolicyIdByProjectIdDataLoader,
@@ -71,13 +77,13 @@ from phoenix.server.types import (
 
 @dataclass
 class DataLoaders:
+    annotation_summaries: AnnotationSummaryDataLoader
     average_experiment_run_latency: AverageExperimentRunLatencyDataLoader
     dataset_example_revisions: DatasetExampleRevisionsDataLoader
     dataset_example_spans: DatasetExampleSpansDataLoader
     document_evaluation_summaries: DocumentEvaluationSummaryDataLoader
     document_evaluations: DocumentEvaluationsDataLoader
     document_retrieval_metrics: DocumentRetrievalMetricsDataLoader
-    annotation_summaries: AnnotationSummaryDataLoader
     experiment_annotation_summaries: ExperimentAnnotationSummaryDataLoader
     experiment_error_rates: ExperimentErrorRatesDataLoader
     experiment_run_annotations: ExperimentRunAnnotations
@@ -85,10 +91,11 @@ class DataLoaders:
     experiment_sequence_number: ExperimentSequenceNumberDataLoader
     latency_ms_quantile: LatencyMsQuantileDataLoader
     min_start_or_max_end_times: MinStartOrMaxEndTimeDataLoader
-    model_total_costs: ModelTotalCostsDataLoader
     num_child_spans: NumChildSpansDataLoader
     num_spans_per_trace: NumSpansPerTraceDataLoader
+    project_by_name: ProjectByNameDataLoader
     project_fields: TableFieldsDataLoader
+    project_trace_retention_policy_fields: TableFieldsDataLoader
     projects_by_trace_retention_policy_id: ProjectIdsByTraceRetentionPolicyIdDataLoader
     prompt_version_sequence_number: PromptVersionSequenceNumberDataLoader
     record_counts: RecordCountDataLoader
@@ -100,21 +107,32 @@ class DataLoaders:
     session_trace_latency_ms_quantile: SessionTraceLatencyMsQuantileDataLoader
     span_annotations: SpanAnnotationsDataLoader
     span_by_id: SpanByIdDataLoader
-    span_costs: SpanCostsDataLoader
+    span_cost_by_span: SpanCostBySpanDataLoader
+    span_cost_detail_fields: TableFieldsDataLoader
+    span_cost_detail_summary_entries_by_generative_model: (
+        SpanCostDetailSummaryEntriesByGenerativeModelDataLoader
+    )
+    span_cost_detail_summary_entries_by_project_session: (
+        SpanCostDetailSummaryEntriesByProjectSessionDataLoader
+    )
+    span_cost_detail_summary_entries_by_trace: SpanCostDetailSummaryEntriesByTraceDataLoader
+    span_cost_details_by_span_cost: SpanCostDetailsBySpanCostDataLoader
+    span_cost_fields: TableFieldsDataLoader
+    span_cost_summary_by_generative_model: SpanCostSummaryByGenerativeModelDataLoader
+    span_cost_summary_by_project: SpanCostSummaryByProjectDataLoader
+    span_cost_summary_by_project_session: SpanCostSummaryByProjectSessionDataLoader
+    span_cost_summary_by_trace: SpanCostSummaryByTraceDataLoader
     span_dataset_examples: SpanDatasetExamplesDataLoader
     span_descendants: SpanDescendantsDataLoader
     span_fields: TableFieldsDataLoader
     span_projects: SpanProjectsDataLoader
-    token_costs: TokenCostDataLoader
     token_counts: TokenCountDataLoader
     trace_by_trace_ids: TraceByTraceIdsDataLoader
     trace_fields: TableFieldsDataLoader
     trace_retention_policy_id_by_project_id: TraceRetentionPolicyIdByProjectIdDataLoader
-    project_trace_retention_policy_fields: TableFieldsDataLoader
     trace_root_spans: TraceRootSpansDataLoader
-    project_by_name: ProjectByNameDataLoader
-    users: UsersDataLoader
     user_roles: UserRolesDataLoader
+    users: UsersDataLoader
 
 
 class _NoOp:

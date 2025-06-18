@@ -279,7 +279,7 @@ def llm_span() -> None:
     """
     with tracer.start_as_current_span(token_hex(6)) as span:
         span.set_attribute("openinference.span.kind", "LLM")
-        upperbound = sample([100, 1_000, 10_000, 1_000_000], k=1)[0]
+        upperbound = 10 ** sample(range(2, 9), k=1)[0]
         prompt, completion = randint(10, upperbound), randint(10, upperbound)
         span.set_attribute("llm.token_count.prompt", prompt)
         span.set_attribute("llm.token_count.completion", completion)
@@ -297,17 +297,22 @@ def llm_span() -> None:
         span.set_attribute("llm.model_name", row.model_name)
 
 
-for _ in range(randint(1, 2)):
-    with tracer.start_as_current_span(token_hex(6)):
-        for _ in range(randint(0, 3)):
+for _ in range(randint(1, 20)):
+    with tracer.start_as_current_span(token_hex(6)) as root_span:
+        root_span.set_attribute("session.id", randint(1, 5))
+        for _ in range(randint(0, 4)):
             llm_span()
         for _ in range(randint(1, 3)):
             with tracer.start_as_current_span(token_hex(6)):
-                for _ in range(randint(0, 3)):
+                for _ in range(randint(0, 4)):
                     llm_span()
                 for _ in range(randint(1, 3)):
                     with tracer.start_as_current_span(token_hex(6)):
-                        for _ in range(randint(0, 3)):
+                        for _ in range(randint(0, 4)):
                             llm_span()
+                        for _ in range(randint(1, 3)):
+                            with tracer.start_as_current_span(token_hex(6)):
+                                for _ in range(randint(0, 4)):
+                                    llm_span()
 
 tracer_provider.force_flush()
