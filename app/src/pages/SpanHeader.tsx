@@ -27,7 +27,7 @@ export function SpanHeader(props: SpanHeaderProps) {
         startTime
         tokenCountTotal
         cost {
-          total
+          totalCost
         }
       }
     `,
@@ -71,8 +71,8 @@ export function SpanHeader(props: SpanHeaderProps) {
               size="S"
             />
           ) : null}
-          {span.cost?.total ? (
-            <TokenCosts totalCost={span.cost.total} nodeId={span.id} />
+          {span.cost?.totalCost ? (
+            <TokenCosts totalCost={span.cost.totalCost} nodeId={span.id} />
           ) : null}
         </Flex>
       </Flex>

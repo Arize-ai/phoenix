@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<37800451ee4973c46b43e532447181c1>>
+ * @generated SignedSource<<252e57bbcdae228d396ed8dbafee6ff7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,16 +11,22 @@
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ProjectPageHeader_stats$data = {
+  readonly costSummary: {
+    readonly completion: {
+      readonly cost: number;
+    };
+    readonly prompt: {
+      readonly cost: number;
+    };
+    readonly total: {
+      readonly cost: number;
+    };
+  };
   readonly documentEvaluationNames: ReadonlyArray<string>;
   readonly id: string;
   readonly latencyMsP50: number | null;
   readonly latencyMsP99: number | null;
   readonly spanAnnotationNames: ReadonlyArray<string>;
-  readonly tokenCost: {
-    readonly completion: number | null;
-    readonly prompt: number | null;
-    readonly total: number | null;
-  };
   readonly tokenCountCompletion: number;
   readonly tokenCountPrompt: number;
   readonly tokenCountTotal: number;
@@ -42,6 +48,15 @@ var v0 = {
 },
 v1 = [
   (v0/*: any*/)
+],
+v2 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "cost",
+    "storageKey": null
+  }
 ];
 return {
   "argumentDefinitions": [
@@ -97,30 +112,39 @@ return {
     {
       "alias": null,
       "args": (v1/*: any*/),
-      "concreteType": "TokenCost",
+      "concreteType": "SpanCostSummary",
       "kind": "LinkedField",
-      "name": "tokenCost",
+      "name": "costSummary",
       "plural": false,
       "selections": [
         {
           "alias": null,
           "args": null,
-          "kind": "ScalarField",
+          "concreteType": "CostBreakdown",
+          "kind": "LinkedField",
           "name": "total",
+          "plural": false,
+          "selections": (v2/*: any*/),
           "storageKey": null
         },
         {
           "alias": null,
           "args": null,
-          "kind": "ScalarField",
+          "concreteType": "CostBreakdown",
+          "kind": "LinkedField",
           "name": "prompt",
+          "plural": false,
+          "selections": (v2/*: any*/),
           "storageKey": null
         },
         {
           "alias": null,
           "args": null,
-          "kind": "ScalarField",
+          "concreteType": "CostBreakdown",
+          "kind": "LinkedField",
           "name": "completion",
+          "plural": false,
+          "selections": (v2/*: any*/),
           "storageKey": null
         }
       ],
@@ -181,6 +205,6 @@ return {
 };
 })();
 
-(node as any).hash = "5f0616b6454b92daf384c1b769ebbbdc";
+(node as any).hash = "513bdcce2f2fc6bd5e0340b4c1d11db4";
 
 export default node;

@@ -48,12 +48,12 @@ function TokenCostsDetails(props: { nodeId: string }) {
           __typename
           ... on Span {
             cost {
-              input
-              output
-              cacheRead
-              cacheWrite
-              promptAudio
-              completionAudio
+              details {
+                tokenType
+                isPrompt
+                cost
+                tokens
+              }
             }
           }
         }
@@ -70,26 +70,43 @@ function TokenCostsDetails(props: { nodeId: string }) {
     tokenCostPromptAudio,
     tokenCostCompletionAudio,
   } = useMemo(() => {
-    switch (data.node.__typename) {
-      case "Span":
-        return {
-          tokenCostInput: data.node.cost?.input,
-          tokenCostOutput: data.node.cost?.output,
-          tokenCostCacheRead: data.node.cost?.cacheRead,
-          tokenCostCacheWrite: data.node.cost?.cacheWrite,
-          tokenCostPromptAudio: data.node.cost?.promptAudio,
-          tokenCostCompletionAudio: data.node.cost?.completionAudio,
-        };
-      default:
-        return {
-          tokenCostInput: undefined,
-          tokenCostOutput: undefined,
-          tokenCostCacheRead: undefined,
-          tokenCostCacheWrite: undefined,
-          tokenCostPromptAudio: undefined,
-          tokenCostCompletionAudio: undefined,
-        };
+    if (data.node.__typename == "Span") {
+      const details = data.node.cost?.details;
+      const tokenCostInput = details?.find(
+        (detail) => detail.tokenType === "input" && !detail.isPrompt
+      )?.cost;
+      const tokenCostOutput = details?.find(
+        (detail) => detail.tokenType === "output" && !detail.isPrompt
+      )?.cost;
+      const tokenCostCacheRead = details?.find(
+        (detail) => detail.tokenType === "cache_read" && detail.isPrompt
+      )?.cost;
+      const tokenCostCacheWrite = details?.find(
+        (detail) => detail.tokenType === "cache_write" && detail.isPrompt
+      )?.cost;
+      const tokenCostPromptAudio = details?.find(
+        (detail) => detail.tokenType === "audio" && detail.isPrompt
+      )?.cost;
+      const tokenCostCompletionAudio = details?.find(
+        (detail) => detail.tokenType === "audio" && !detail.isPrompt
+      )?.cost;
+      return {
+        tokenCostInput,
+        tokenCostOutput,
+        tokenCostCacheRead,
+        tokenCostCacheWrite,
+        tokenCostPromptAudio,
+        tokenCostCompletionAudio,
+      };
     }
+    return {
+      tokenCostInput: undefined,
+      tokenCostOutput: undefined,
+      tokenCostCacheRead: undefined,
+      tokenCostCacheWrite: undefined,
+      tokenCostPromptAudio: undefined,
+      tokenCostCompletionAudio: undefined,
+    };
   }, [data.node]);
 
   return (

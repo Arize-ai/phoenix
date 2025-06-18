@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9ce4f889e5f49af3037adfc46d386675>>
+ * @generated SignedSource<<2e8eb3e867ec14a93ef15d3600068fb9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -77,7 +77,7 @@ export type PlaygroundDatasetExamplesTableMutation$data = {
             readonly traceId: string;
           };
           readonly cost: {
-            readonly total: number | null;
+            readonly totalCost: number | null;
           } | null;
           readonly id: string;
           readonly latencyMs: number | null;
@@ -115,219 +115,241 @@ var v0 = [
     "name": "input"
   }
 ],
-v1 = {
+v1 = [
+  {
+    "kind": "Variable",
+    "name": "input",
+    "variableName": "input"
+  }
+],
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v2 = {
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "experimentId",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "datasetExampleId",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "experimentRunId",
+  "storageKey": null
+},
+v6 = {
+  "kind": "InlineFragment",
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "message",
+      "storageKey": null
+    }
+  ],
+  "type": "ChatCompletionMutationError",
+  "abstractKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "content",
+  "storageKey": null
+},
+v8 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "errorMessage",
+  "storageKey": null
+},
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v3 = [
-  {
-    "alias": null,
-    "args": [
-      {
-        "kind": "Variable",
-        "name": "input",
-        "variableName": "input"
-      }
-    ],
-    "concreteType": "ChatCompletionOverDatasetMutationPayload",
-    "kind": "LinkedField",
-    "name": "chatCompletionOverDataset",
-    "plural": false,
+v10 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "tokenCountTotal",
+  "storageKey": null
+},
+v11 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "totalCost",
+  "storageKey": null
+},
+v12 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "latencyMs",
+  "storageKey": null
+},
+v13 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "Project",
+  "kind": "LinkedField",
+  "name": "project",
+  "plural": false,
+  "selections": [
+    (v9/*: any*/)
+  ],
+  "storageKey": null
+},
+v14 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "SpanContext",
+  "kind": "LinkedField",
+  "name": "context",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "traceId",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v15 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "ChatCompletionToolCall",
+  "kind": "LinkedField",
+  "name": "toolCalls",
+  "plural": true,
+  "selections": [
+    (v9/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "ChatCompletionFunctionCall",
+      "kind": "LinkedField",
+      "name": "function",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "name",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "arguments",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+};
+return {
+  "fragment": {
+    "argumentDefinitions": (v0/*: any*/),
+    "kind": "Fragment",
+    "metadata": null,
+    "name": "PlaygroundDatasetExamplesTableMutation",
     "selections": [
-      (v1/*: any*/),
       {
         "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "experimentId",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "ChatCompletionOverDatasetMutationExamplePayload",
+        "args": (v1/*: any*/),
+        "concreteType": "ChatCompletionOverDatasetMutationPayload",
         "kind": "LinkedField",
-        "name": "examples",
-        "plural": true,
+        "name": "chatCompletionOverDataset",
+        "plural": false,
         "selections": [
+          (v2/*: any*/),
+          (v3/*: any*/),
           {
             "alias": null,
             "args": null,
-            "kind": "ScalarField",
-            "name": "datasetExampleId",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "experimentRunId",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "concreteType": null,
+            "concreteType": "ChatCompletionOverDatasetMutationExamplePayload",
             "kind": "LinkedField",
-            "name": "result",
-            "plural": false,
+            "name": "examples",
+            "plural": true,
             "selections": [
-              (v1/*: any*/),
+              (v4/*: any*/),
+              (v5/*: any*/),
               {
-                "kind": "InlineFragment",
+                "alias": null,
+                "args": null,
+                "concreteType": null,
+                "kind": "LinkedField",
+                "name": "result",
+                "plural": false,
                 "selections": [
+                  (v2/*: any*/),
+                  (v6/*: any*/),
                   {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "message",
-                    "storageKey": null
-                  }
-                ],
-                "type": "ChatCompletionMutationError",
-                "abstractKey": null
-              },
-              {
-                "kind": "InlineFragment",
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "content",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "errorMessage",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "Span",
-                    "kind": "LinkedField",
-                    "name": "span",
-                    "plural": false,
+                    "kind": "InlineFragment",
                     "selections": [
-                      (v2/*: any*/),
+                      (v7/*: any*/),
+                      (v8/*: any*/),
                       {
                         "alias": null,
                         "args": null,
-                        "kind": "ScalarField",
-                        "name": "tokenCountTotal",
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "TokenCost",
+                        "concreteType": "Span",
                         "kind": "LinkedField",
-                        "name": "cost",
+                        "name": "span",
                         "plural": false,
                         "selections": [
+                          (v9/*: any*/),
+                          (v10/*: any*/),
                           {
                             "alias": null,
                             "args": null,
-                            "kind": "ScalarField",
-                            "name": "total",
-                            "storageKey": null
-                          }
-                        ],
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "latencyMs",
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "Project",
-                        "kind": "LinkedField",
-                        "name": "project",
-                        "plural": false,
-                        "selections": [
-                          (v2/*: any*/)
-                        ],
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "SpanContext",
-                        "kind": "LinkedField",
-                        "name": "context",
-                        "plural": false,
-                        "selections": [
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "traceId",
-                            "storageKey": null
-                          }
-                        ],
-                        "storageKey": null
-                      }
-                    ],
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "ChatCompletionToolCall",
-                    "kind": "LinkedField",
-                    "name": "toolCalls",
-                    "plural": true,
-                    "selections": [
-                      (v2/*: any*/),
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "ChatCompletionFunctionCall",
-                        "kind": "LinkedField",
-                        "name": "function",
-                        "plural": false,
-                        "selections": [
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "name",
+                            "concreteType": "SpanCost",
+                            "kind": "LinkedField",
+                            "name": "cost",
+                            "plural": false,
+                            "selections": [
+                              (v11/*: any*/)
+                            ],
                             "storageKey": null
                           },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "arguments",
-                            "storageKey": null
-                          }
+                          (v12/*: any*/),
+                          (v13/*: any*/),
+                          (v14/*: any*/)
                         ],
                         "storageKey": null
-                      }
+                      },
+                      (v15/*: any*/)
                     ],
-                    "storageKey": null
+                    "type": "ChatCompletionMutationPayload",
+                    "abstractKey": null
                   }
                 ],
-                "type": "ChatCompletionMutationPayload",
-                "abstractKey": null
+                "storageKey": null
               }
             ],
             "storageKey": null
@@ -336,16 +358,6 @@ v3 = [
         "storageKey": null
       }
     ],
-    "storageKey": null
-  }
-];
-return {
-  "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
-    "kind": "Fragment",
-    "metadata": null,
-    "name": "PlaygroundDatasetExamplesTableMutation",
-    "selections": (v3/*: any*/),
     "type": "Mutation",
     "abstractKey": null
   },
@@ -354,19 +366,98 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "PlaygroundDatasetExamplesTableMutation",
-    "selections": (v3/*: any*/)
+    "selections": [
+      {
+        "alias": null,
+        "args": (v1/*: any*/),
+        "concreteType": "ChatCompletionOverDatasetMutationPayload",
+        "kind": "LinkedField",
+        "name": "chatCompletionOverDataset",
+        "plural": false,
+        "selections": [
+          (v2/*: any*/),
+          (v3/*: any*/),
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "ChatCompletionOverDatasetMutationExamplePayload",
+            "kind": "LinkedField",
+            "name": "examples",
+            "plural": true,
+            "selections": [
+              (v4/*: any*/),
+              (v5/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": null,
+                "kind": "LinkedField",
+                "name": "result",
+                "plural": false,
+                "selections": [
+                  (v2/*: any*/),
+                  (v6/*: any*/),
+                  {
+                    "kind": "InlineFragment",
+                    "selections": [
+                      (v7/*: any*/),
+                      (v8/*: any*/),
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "Span",
+                        "kind": "LinkedField",
+                        "name": "span",
+                        "plural": false,
+                        "selections": [
+                          (v9/*: any*/),
+                          (v10/*: any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "SpanCost",
+                            "kind": "LinkedField",
+                            "name": "cost",
+                            "plural": false,
+                            "selections": [
+                              (v11/*: any*/),
+                              (v9/*: any*/)
+                            ],
+                            "storageKey": null
+                          },
+                          (v12/*: any*/),
+                          (v13/*: any*/),
+                          (v14/*: any*/)
+                        ],
+                        "storageKey": null
+                      },
+                      (v15/*: any*/)
+                    ],
+                    "type": "ChatCompletionMutationPayload",
+                    "abstractKey": null
+                  }
+                ],
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      }
+    ]
   },
   "params": {
-    "cacheID": "8462a4e51fe119bfd6721b44ea644bd6",
+    "cacheID": "de828177fed5fd53517d908626767f1a",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableMutation",
     "operationKind": "mutation",
-    "text": "mutation PlaygroundDatasetExamplesTableMutation(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    __typename\n    experimentId\n    examples {\n      datasetExampleId\n      experimentRunId\n      result {\n        __typename\n        ... on ChatCompletionMutationError {\n          message\n        }\n        ... on ChatCompletionMutationPayload {\n          content\n          errorMessage\n          span {\n            id\n            tokenCountTotal\n            cost {\n              total\n            }\n            latencyMs\n            project {\n              id\n            }\n            context {\n              traceId\n            }\n          }\n          toolCalls {\n            id\n            function {\n              name\n              arguments\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation PlaygroundDatasetExamplesTableMutation(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    __typename\n    experimentId\n    examples {\n      datasetExampleId\n      experimentRunId\n      result {\n        __typename\n        ... on ChatCompletionMutationError {\n          message\n        }\n        ... on ChatCompletionMutationPayload {\n          content\n          errorMessage\n          span {\n            id\n            tokenCountTotal\n            cost {\n              totalCost\n              id\n            }\n            latencyMs\n            project {\n              id\n            }\n            context {\n              traceId\n            }\n          }\n          toolCalls {\n            id\n            function {\n              name\n              arguments\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c93b6beaa17a375bda37093da5fbd32d";
+(node as any).hash = "4df10f6c7ccc0d8245cb7242bbd30742";
 
 export default node;

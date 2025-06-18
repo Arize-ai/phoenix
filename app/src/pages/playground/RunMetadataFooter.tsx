@@ -42,7 +42,7 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
             tokenCountTotal
             latencyMs
             cost {
-              total
+              totalCost
             }
           }
         }
@@ -57,7 +57,7 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
     return null;
   }
   const { trace } = data.span;
-  const totalCost = data.span.cost?.total;
+  const totalCost = data.span.cost?.totalCost;
 
   return (
     <View

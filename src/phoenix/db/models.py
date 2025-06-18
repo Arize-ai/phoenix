@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from typing import Any, Iterable, Literal, Optional, Sequence, TypedDict, cast
 
+import sqlalchemy as sa
 import sqlalchemy.sql as sql
 from openinference.semconv.trace import RerankerAttributes, SpanAttributes
 from sqlalchemy import (
@@ -528,6 +529,12 @@ class Trace(Base):
     experiment_runs: Mapped[list["ExperimentRun"]] = relationship(
         primaryjoin="foreign(ExperimentRun.trace_id) == Trace.trace_id",
         back_populates="trace",
+    )
+    span_costs: Mapped[list["SpanCost"]] = relationship(
+        "SpanCost",
+        back_populates="trace",
+        cascade="all, delete-orphan",
+        uselist=True,
     )
     __table_args__ = (
         UniqueConstraint(
@@ -1310,7 +1317,6 @@ CostType: TypeAlias = Literal["DEFAULT", "OVERRIDE"]
 
 class GenerativeModel(Base):
     __tablename__ = "generative_models"
-    id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     provider: Mapped[Optional[str]]
     name_pattern: Mapped[str] = mapped_column(String, nullable=False)
@@ -1529,65 +1535,125 @@ class ProjectAnnotationConfig(Base):
 class SpanCost(Base):
     __tablename__ = "span_costs"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
     span_rowid: Mapped[int] = mapped_column(
         ForeignKey("spans.id", ondelete="CASCADE"),
         nullable=False,
     )
+    trace_rowid: Mapped[int] = mapped_column(
+        ForeignKey("traces.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    span_start_time: Mapped[datetime] = mapped_column(
+        UtcTimeStamp,
+        nullable=False,
+        index=True,
+    )
     generative_model_id: Mapped[int] = mapped_column(
+        sa.Integer,
         ForeignKey("generative_models.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    prompt_token_cost: Mapped[Optional[float]] = mapped_column(
-        Float,
-        nullable=True,
-        index=True,
+    total_cost: Mapped[Optional[float]]
+    total_tokens: Mapped[Optional[float]]
+
+    @hybrid_property
+    def total_cost_per_token(self) -> Optional[float]:
+        return ((self.total_cost or 0) / self.total_tokens) if self.total_tokens else None
+
+    @total_cost_per_token.inplace.expression
+    @classmethod
+    def _total_cost_per_token_expression(cls) -> ColumnElement[Optional[float]]:
+        return sql.case(
+            (
+                sa.and_(cls.total_tokens.isnot(None), cls.total_tokens != 0),
+                cls.total_cost / cls.total_tokens,
+            )
+        )
+
+    prompt_cost: Mapped[Optional[float]]
+    prompt_tokens: Mapped[Optional[float]]
+
+    @hybrid_property
+    def prompt_cost_per_token(self) -> Optional[float]:
+        return ((self.prompt_cost or 0) / self.prompt_tokens) if self.prompt_tokens else None
+
+    @prompt_cost_per_token.inplace.expression
+    @classmethod
+    def _prompt_cost_per_token_expression(cls) -> ColumnElement[Optional[float]]:
+        return sql.case(
+            (
+                sa.and_(cls.prompt_tokens.isnot(None), cls.prompt_tokens != 0),
+                cls.prompt_cost / cls.prompt_tokens,
+            )
+        )
+
+    completion_cost: Mapped[Optional[float]]
+    completion_tokens: Mapped[Optional[float]]
+
+    @hybrid_property
+    def completion_cost_per_token(self) -> Optional[float]:
+        return (
+            ((self.completion_cost or 0) / self.completion_tokens)
+            if self.completion_tokens
+            else None
+        )
+
+    @completion_cost_per_token.inplace.expression
+    @classmethod
+    def _completion_cost_per_token_expression(cls) -> ColumnElement[Optional[float]]:
+        return sql.case(
+            (
+                sa.and_(cls.completion_tokens.isnot(None), cls.completion_tokens != 0),
+                cls.completion_cost / cls.completion_tokens,
+            )
+        )
+
+    span: Mapped["Span"] = relationship("Span", back_populates="span_cost")
+    trace: Mapped["Trace"] = relationship("Trace", back_populates="span_costs")
+    span_cost_details: Mapped[list["SpanCostDetail"]] = relationship(
+        "SpanCostDetail",
+        back_populates="span_cost",
+        cascade="all, delete-orphan",
+        uselist=True,
     )
-    completion_token_cost: Mapped[Optional[float]] = mapped_column(
-        Float,
-        nullable=True,
-        index=True,
-    )
-    input_token_cost: Mapped[Optional[float]] = mapped_column(
-        Float,
-        nullable=True,
-        index=True,
-    )
-    output_token_cost: Mapped[Optional[float]] = mapped_column(
-        Float,
-        nullable=True,
-        index=True,
-    )
-    cache_read_token_cost: Mapped[Optional[float]] = mapped_column(
-        Float,
-        nullable=True,
-        index=True,
-    )
-    cache_write_token_cost: Mapped[Optional[float]] = mapped_column(
-        Float,
-        nullable=True,
-        index=True,
-    )
-    prompt_audio_token_cost: Mapped[Optional[float]] = mapped_column(
-        Float,
-        nullable=True,
-        index=True,
-    )
-    completion_audio_token_cost: Mapped[Optional[float]] = mapped_column(
-        Float,
-        nullable=True,
-        index=True,
-    )
-    reasoning_token_cost: Mapped[Optional[float]] = mapped_column(
-        Float,
-        nullable=True,
-        index=True,
-    )
-    total_token_cost: Mapped[float] = mapped_column(
-        Float,
+
+    def append_detail(self, detail: "SpanCostDetail") -> None:
+        self.span_cost_details.append(detail)
+        if cost := detail.cost:
+            if detail.is_prompt:
+                self.prompt_cost = (self.prompt_cost or 0) + cost
+            else:
+                self.completion_cost = (self.completion_cost or 0) + cost
+            self.total_cost = (self.total_cost or 0) + cost
+        if tokens := detail.tokens:
+            if detail.is_prompt:
+                self.prompt_tokens = (self.prompt_tokens or 0) + tokens
+            else:
+                self.completion_tokens = (self.completion_tokens or 0) + tokens
+            self.total_tokens = (self.total_tokens or 0) + tokens
+
+
+class SpanCostDetail(Base):
+    __tablename__ = "span_cost_details"
+    span_cost_id: Mapped[int] = mapped_column(
+        ForeignKey("span_costs.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
+    token_type: Mapped[str]
+    is_prompt: Mapped[bool]
 
-    span: Mapped["Span"] = relationship("Span", back_populates="span_cost")
+    cost: Mapped[Optional[float]]
+    tokens: Mapped[Optional[float]]
+    cost_per_token: Mapped[Optional[float]]
+
+    span_cost: Mapped["SpanCost"] = relationship("SpanCost", back_populates="span_cost_details")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "span_cost_id",
+            "token_type",
+            "is_prompt",
+        ),
+    )

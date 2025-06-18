@@ -10,8 +10,11 @@ from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.ModelInterface import ModelInterface
+from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
+from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.TokenCost import TokenCost
 
 
@@ -37,20 +40,42 @@ class GenerativeModel(Node, ModelInterface):
         return token_cost
 
     @strawberry.field
-    async def total_token_cost(self, info: Info[Context, None]) -> Optional[TokenCost]:
-        total_costs = await info.context.data_loaders.model_total_costs.load(self.id_attr)
-        if total_costs is None:
-            return None
-        return TokenCost(
-            input=total_costs.total_input_token_cost,
-            output=total_costs.total_output_token_cost,
-            cache_read=total_costs.total_cache_read_token_cost,
-            cache_write=total_costs.total_cache_write_token_cost,
-            prompt_audio=total_costs.total_prompt_audio_token_cost,
-            completion_audio=total_costs.total_completion_audio_token_cost,
-            reasoning=total_costs.total_reasoning_token_cost,
-            total=total_costs.total_token_cost,
+    async def cost_summary(self, info: Info[Context, None]) -> SpanCostSummary:
+        loader = info.context.data_loaders.span_cost_summary_by_generative_model
+        summary = await loader.load(self.id_attr)
+        return SpanCostSummary(
+            prompt=CostBreakdown(
+                tokens=summary.prompt.tokens,
+                cost=summary.prompt.cost,
+            ),
+            completion=CostBreakdown(
+                tokens=summary.completion.tokens,
+                cost=summary.completion.cost,
+            ),
+            total=CostBreakdown(
+                tokens=summary.total.tokens,
+                cost=summary.total.cost,
+            ),
         )
+
+    @strawberry.field
+    async def cost_detail_summary_entries(
+        self,
+        info: Info[Context, None],
+    ) -> list[SpanCostDetailSummaryEntry]:
+        loader = info.context.data_loaders.span_cost_detail_summary_entries_by_generative_model
+        summary = await loader.load(self.id_attr)
+        return [
+            SpanCostDetailSummaryEntry(
+                token_type=entry.token_type,
+                is_prompt=entry.is_prompt,
+                value=CostBreakdown(
+                    tokens=entry.value.tokens,
+                    cost=entry.value.cost,
+                ),
+            )
+            for entry in summary
+        ]
 
 
 def to_gql_generative_model(model: models.GenerativeModel) -> GenerativeModel:

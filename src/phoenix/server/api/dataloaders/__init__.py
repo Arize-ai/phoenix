@@ -1,5 +1,9 @@
 from dataclasses import dataclass, field
 
+from phoenix.server.api.dataloaders.span_cost_detail_summary_entries_by_project_session import (
+    SpanCostDetailSummaryEntriesByProjectSessionDataLoader,
+)
+
 from .annotation_summaries import AnnotationSummaryCache, AnnotationSummaryDataLoader
 from .average_experiment_run_latency import AverageExperimentRunLatencyDataLoader
 from .dataset_example_revisions import DatasetExampleRevisionsDataLoader
@@ -17,7 +21,6 @@ from .experiment_run_counts import ExperimentRunCountsDataLoader
 from .experiment_sequence_number import ExperimentSequenceNumberDataLoader
 from .latency_ms_quantile import LatencyMsQuantileCache, LatencyMsQuantileDataLoader
 from .min_start_or_max_end_times import MinStartOrMaxEndTimeCache, MinStartOrMaxEndTimeDataLoader
-from .model_total_costs import ModelTotalCostsDataLoader
 from .num_child_spans import NumChildSpansDataLoader
 from .num_spans_per_trace import NumSpansPerTraceDataLoader
 from .project_by_name import ProjectByNameDataLoader
@@ -31,12 +34,22 @@ from .session_token_usages import SessionTokenUsagesDataLoader
 from .session_trace_latency_ms_quantile import SessionTraceLatencyMsQuantileDataLoader
 from .span_annotations import SpanAnnotationsDataLoader
 from .span_by_id import SpanByIdDataLoader
-from .span_costs import SpanCostsDataLoader
+from .span_cost_by_span import SpanCostBySpanDataLoader
+from .span_cost_detail_summary_entries_by_generative_model import (
+    SpanCostDetailSummaryEntriesByGenerativeModelDataLoader,
+)
+from .span_cost_detail_summary_entries_by_trace import SpanCostDetailSummaryEntriesByTraceDataLoader
+from .span_cost_details_by_span_cost import SpanCostDetailsBySpanCostDataLoader
+from .span_cost_summary_by_generative_model import (
+    SpanCostSummaryByGenerativeModelDataLoader,
+)
+from .span_cost_summary_by_project import SpanCostSummaryByProjectDataLoader, SpanCostSummaryCache
+from .span_cost_summary_by_project_session import SpanCostSummaryByProjectSessionDataLoader
+from .span_cost_summary_by_trace import SpanCostSummaryByTraceDataLoader
 from .span_dataset_examples import SpanDatasetExamplesDataLoader
 from .span_descendants import SpanDescendantsDataLoader
 from .span_projects import SpanProjectsDataLoader
 from .table_fields import TableFieldsDataLoader
-from .token_costs import TokenCostCache, TokenCostDataLoader
 from .token_counts import TokenCountCache, TokenCountDataLoader
 from .trace_by_trace_ids import TraceByTraceIdsDataLoader
 from .trace_retention_policy_id_by_project_id import TraceRetentionPolicyIdByProjectIdDataLoader
@@ -45,14 +58,14 @@ from .user_roles import UserRolesDataLoader
 from .users import UsersDataLoader
 
 __all__ = [
-    "CacheForDataLoaders",
+    "AnnotationSummaryDataLoader",
     "AverageExperimentRunLatencyDataLoader",
+    "CacheForDataLoaders",
     "DatasetExampleRevisionsDataLoader",
     "DatasetExampleSpansDataLoader",
     "DocumentEvaluationSummaryDataLoader",
     "DocumentEvaluationsDataLoader",
     "DocumentRetrievalMetricsDataLoader",
-    "AnnotationSummaryDataLoader",
     "ExperimentAnnotationSummaryDataLoader",
     "ExperimentErrorRatesDataLoader",
     "ExperimentRunAnnotations",
@@ -60,9 +73,9 @@ __all__ = [
     "ExperimentSequenceNumberDataLoader",
     "LatencyMsQuantileDataLoader",
     "MinStartOrMaxEndTimeDataLoader",
-    "ModelTotalCostsDataLoader",
     "NumChildSpansDataLoader",
     "NumSpansPerTraceDataLoader",
+    "ProjectByNameDataLoader",
     "ProjectIdsByTraceRetentionPolicyIdDataLoader",
     "PromptVersionSequenceNumberDataLoader",
     "RecordCountDataLoader",
@@ -71,21 +84,27 @@ __all__ = [
     "SessionNumTracesWithErrorDataLoader",
     "SessionTokenUsagesDataLoader",
     "SessionTraceLatencyMsQuantileDataLoader",
+    "SpanAnnotationsDataLoader",
     "SpanByIdDataLoader",
+    "SpanCostBySpanDataLoader",
+    "SpanCostDetailSummaryEntriesByGenerativeModelDataLoader",
+    "SpanCostDetailSummaryEntriesByProjectSessionDataLoader",
+    "SpanCostDetailSummaryEntriesByTraceDataLoader",
+    "SpanCostDetailsBySpanCostDataLoader",
+    "SpanCostSummaryByGenerativeModelDataLoader",
+    "SpanCostSummaryByProjectDataLoader",
+    "SpanCostSummaryByProjectSessionDataLoader",
+    "SpanCostSummaryByTraceDataLoader",
     "SpanDatasetExamplesDataLoader",
     "SpanDescendantsDataLoader",
     "SpanProjectsDataLoader",
     "TableFieldsDataLoader",
-    "TokenCostDataLoader",
     "TokenCountDataLoader",
     "TraceByTraceIdsDataLoader",
     "TraceRetentionPolicyIdByProjectIdDataLoader",
     "TraceRootSpansDataLoader",
-    "ProjectByNameDataLoader",
-    "SpanAnnotationsDataLoader",
-    "SpanCostsDataLoader",
-    "UsersDataLoader",
     "UserRolesDataLoader",
+    "UsersDataLoader",
 ]
 
 
@@ -109,6 +128,6 @@ class CacheForDataLoaders:
     token_count: TokenCountCache = field(
         default_factory=TokenCountCache,
     )
-    token_cost: TokenCostCache = field(
-        default_factory=TokenCostCache,
+    token_cost: SpanCostSummaryCache = field(
+        default_factory=SpanCostSummaryCache,
     )
