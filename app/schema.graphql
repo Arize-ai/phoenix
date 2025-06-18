@@ -1079,6 +1079,7 @@ type Experiment implements Node {
   averageRunLatencyMs: Float
   project: Project
   lastUpdatedAt: DateTime
+  cost: TokenCost!
 }
 
 type ExperimentAnnotationSummary {
@@ -1149,6 +1150,7 @@ type ExperimentRun implements Node {
   annotations(first: Int = 50, last: Int, after: String, before: String): ExperimentRunAnnotationConnection!
   trace: Trace
   example: DatasetExample!
+  cost: TokenCost!
 }
 
 type ExperimentRunAnnotation implements Node {
