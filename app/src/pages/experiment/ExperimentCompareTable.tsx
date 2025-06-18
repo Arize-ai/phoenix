@@ -21,7 +21,7 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { ActionMenu, Card, CardProps, Item } from "@arizeai/components";
+import { Card, CardProps } from "@arizeai/components";
 
 import {
   Button,
@@ -33,8 +33,11 @@ import {
   Heading,
   Icon,
   Icons,
+  ListBox,
+  ListBoxItem,
   Modal,
   ModalOverlay,
+  Popover,
   Text,
   View,
   ViewSummaryAside,
@@ -283,11 +286,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                     View Example
                   </Button>
                   <ModalOverlay>
-                    <Modal variant="slideover" size="fullscreen">
+                    <Modal variant="slideover" size="L">
                       <Suspense>
                         <ExampleDetailsDialog
                           exampleId={row.original.example.id}
-                          onDismiss={() => {}}
                         />
                       </Suspense>
                     </Modal>
@@ -683,33 +685,46 @@ function ExperimentRowActionMenu(props: {
         e.stopPropagation();
       }}
     >
-      <ActionMenu
-        buttonSize="compact"
-        align="end"
-        onAction={(firedAction) => {
-          const action = firedAction as ExperimentRowAction;
-          switch (action) {
-            case ExperimentRowAction.GO_TO_EXAMPLE: {
-              return navigate(`/datasets/${datasetId}/examples/${exampleId}`);
-            }
-            default: {
-              assertUnreachable(action);
-            }
-          }
-        }}
-      >
-        <Item key={ExperimentRowAction.GO_TO_EXAMPLE}>
-          <Flex
-            direction={"row"}
-            gap="size-75"
-            justifyContent={"start"}
-            alignItems={"center"}
-          >
-            <Icon svg={<Icons.ExternalLinkOutline />} />
-            <Text>Go to example</Text>
-          </Flex>
-        </Item>
-      </ActionMenu>
+      <DialogTrigger>
+        <Button
+          size="S"
+          leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
+        />
+        <Popover>
+          <Dialog>
+            {({ close }) => (
+              <ListBox
+                style={{ minHeight: "auto" }}
+                onAction={(firedAction) => {
+                  const action = firedAction as ExperimentRowAction;
+                  switch (action) {
+                    case ExperimentRowAction.GO_TO_EXAMPLE: {
+                      navigate(`/datasets/${datasetId}/examples/${exampleId}`);
+                      break;
+                    }
+                    default: {
+                      assertUnreachable(action);
+                    }
+                  }
+                  close();
+                }}
+              >
+                <ListBoxItem id={ExperimentRowAction.GO_TO_EXAMPLE}>
+                  <Flex
+                    direction="row"
+                    gap="size-75"
+                    justifyContent="start"
+                    alignItems="center"
+                  >
+                    <Icon svg={<Icons.ExternalLinkOutline />} />
+                    <Text>Go to example</Text>
+                  </Flex>
+                </ListBoxItem>
+              </ListBox>
+            )}
+          </Dialog>
+        </Popover>
+      </DialogTrigger>
     </div>
   );
 }
@@ -1049,6 +1064,7 @@ function TraceDetailsDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogTitleExtra>
             <Button
+              size="S"
               onPress={() =>
                 navigate(`/projects/${projectId}/traces/${traceId}`)
               }
