@@ -100,20 +100,18 @@ class ExperimentRun(Node):
         )
 
     @strawberry.field
-    async def cost(self, info: Info[Context, None]) -> Optional[TokenCost]:
+    async def cost(self, info: Info[Context, None]) -> TokenCost:
         if not self.trace_id:
-            return None
+            return TokenCost()
 
-        dataloader = info.context.data_loaders.trace_by_trace_ids
-        if (db_trace := await dataloader.load(self.trace_id)) is None:
-            return None
+        db_trace = await info.context.data_loaders.trace_by_trace_ids.load(self.trace_id)
+        if db_trace is None:
+            return TokenCost()
 
-        stmt = select(models.Span.id).join(models.Trace).where(models.Trace.id == db_trace.id)
-        async with info.context.db() as session:
-            span_ids = [span_id async for span_id in await session.stream_scalars(stmt)]
+        span_ids = await info.context.data_loaders.span_ids_by_trace_id.load(db_trace.id)
 
         if not span_ids:
-            return None
+            return TokenCost()
 
         span_costs = await info.context.data_loaders.span_costs.load_many(span_ids)
 
@@ -122,7 +120,7 @@ class ExperimentRun(Node):
             if span_cost is not None:
                 aggregated_cost += to_gql_token_cost(span_cost)
 
-        return aggregated_cost if aggregated_cost else None
+        return aggregated_cost
 
 
 def to_gql_experiment_run(run: models.ExperimentRun) -> ExperimentRun:
@@ -135,9 +133,7 @@ def to_gql_experiment_run(run: models.ExperimentRun) -> ExperimentRun:
     return ExperimentRun(
         id_attr=run.id,
         experiment_id=GlobalID(Experiment.__name__, str(run.experiment_id)),
-        trace_id=trace_id
-        if (trace := run.trace) and (trace_id := trace.trace_id) is not None
-        else None,
+        trace_id=run.trace.trace_id if run.trace else None,
         output=run.output.get("task_output"),
         start_time=run.start_time,
         end_time=run.end_time,

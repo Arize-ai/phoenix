@@ -113,6 +113,7 @@ from phoenix.server.api.dataloaders import (
     SpanCostSummaryByTraceDataLoader,
     SpanDatasetExamplesDataLoader,
     SpanDescendantsDataLoader,
+    SpanIdsByTraceIdDataLoader,
     SpanProjectsDataLoader,
     TableFieldsDataLoader,
     TokenCountDataLoader,
