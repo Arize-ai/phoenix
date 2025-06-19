@@ -103,7 +103,7 @@ const modalCSS = css`
       z-index: 1001;
       // 90% gives a decent amount of padding around the dialog when it would
       // otherwise be cut off by the edges of the screen
-      max-height: 90%;
+      max-height: calc(100% - var(--ac-global-dimension-size-800));
       overflow: auto;
       // prevent bounce in safari when scrolling
       overscroll-behavior: contain;
