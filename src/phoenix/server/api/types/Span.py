@@ -42,7 +42,6 @@ from phoenix.server.api.types.MimeType import MimeType
 from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_annotation
-from phoenix.server.api.types.SpanCost import SpanCost
 from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.SpanIOValue import SpanIOValue, truncate_value
@@ -793,18 +792,6 @@ class Span(Node):
                 or ip.invocation_name in invocation_parameters
             )
         ]
-
-    # todo: remove this resolver
-    @strawberry.field(
-        description="The cost of the span",
-        deprecation_reason="Use costSummary and costDetailSummaryEntries instead",
-    )  # type: ignore
-    async def cost(self, info: Info[Context, None]) -> Optional[SpanCost]:
-        loader = info.context.data_loaders.span_cost_by_span
-        record = await loader.load(self.span_rowid)
-        if record is None:
-            return None
-        return SpanCost(id_=record.id, db_record=record)
 
     @strawberry.field
     async def cost_summary(self, info: Info[Context, None]) -> Optional[SpanCostSummary]:
