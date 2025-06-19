@@ -25,14 +25,10 @@ input AddSpansToDatasetInput {
 }
 
 interface Annotation {
-  """
-  Name of the annotation, e.g. 'helpfulness' or 'relevance'.
-  """
+  """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
 
-  """
-  Value of the annotation in the form of a numeric score.
-  """
+  """Value of the annotation in the form of a numeric score."""
   score: Float
 
   """
@@ -45,21 +41,14 @@ interface Annotation {
   """
   explanation: String
 
-  """
-  The date and time when the annotation was created.
-  """
+  """The date and time when the annotation was created."""
   createdAt: DateTime!
 
-  """
-  The date and time when the annotation was last updated.
-  """
+  """The date and time when the annotation was last updated."""
   updatedAt: DateTime!
 }
 
-union AnnotationConfig =
-  | CategoricalAnnotationConfig
-  | ContinuousAnnotationConfig
-  | FreeformAnnotationConfig
+union AnnotationConfig = CategoricalAnnotationConfig | ContinuousAnnotationConfig | FreeformAnnotationConfig
 
 interface AnnotationConfigBase {
   name: String!
@@ -67,33 +56,21 @@ interface AnnotationConfigBase {
   annotationType: AnnotationType!
 }
 
-"""
-A connection to a list of items.
-"""
+"""A connection to a list of items."""
 type AnnotationConfigConnection {
-  """
-  Pagination data for this connection
-  """
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
 
-  """
-  Contains the nodes in this connection
-  """
+  """Contains the nodes in this connection"""
   edges: [AnnotationConfigEdge!]!
 }
 
-"""
-An edge in a connection.
-"""
+"""An edge in a connection."""
 type AnnotationConfigEdge {
-  """
-  A cursor for use in pagination
-  """
+  """A cursor for use in pagination"""
   cursor: String!
 
-  """
-  The item at the end of the edge
-  """
+  """The item at the end of the edge"""
   node: AnnotationConfig!
 }
 
@@ -131,24 +108,16 @@ enum AnnotatorKind {
 }
 
 interface ApiKey {
-  """
-  Name of the API key.
-  """
+  """Name of the API key."""
   name: String!
 
-  """
-  Description of the API key.
-  """
+  """Description of the API key."""
   description: String
 
-  """
-  The date and time the API key was created.
-  """
+  """The date and time the API key was created."""
   createdAt: DateTime!
 
-  """
-  The date and time the API key will expire.
-  """
+  """The date and time the API key will expire."""
   expiresAt: DateTime
 }
 
@@ -192,9 +161,7 @@ enum CanonicalParameterName {
 }
 
 type CategoricalAnnotationConfig implements Node & AnnotationConfigBase {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
   name: String!
   description: String
@@ -238,14 +205,10 @@ input ChatCompletionInput {
 input ChatCompletionMessageInput {
   role: ChatCompletionMessageRole!
 
-  """
-  The content of the message as JSON to support various kinds of text
-  """
+  """The content of the message as JSON to support various kinds of text"""
   content: JSON! = ""
 
-  """
-  The tool calls that were made in the message
-  """
+  """The tool calls that were made in the message"""
   toolCalls: [JSON!]
 
   """
@@ -272,9 +235,7 @@ type ChatCompletionMutationPayload {
   errorMessage: String
 }
 
-union ChatCompletionMutationPayloadChatCompletionMutationError =
-  | ChatCompletionMutationPayload
-  | ChatCompletionMutationError
+union ChatCompletionMutationPayloadChatCompletionMutationError = ChatCompletionMutationPayload | ChatCompletionMutationError
 
 input ChatCompletionOverDatasetInput {
   messages: [ChatCompletionMessageInput!]!
@@ -343,9 +304,7 @@ input ChatPromptVersionInput {
 input ClearProjectInput {
   id: ID!
 
-  """
-  The time up to which to purge data. Time is right-open /non-inclusive.
-  """
+  """The time up to which to purge data. Time is right-open /non-inclusive."""
   endTime: DateTime
 }
 
@@ -356,24 +315,16 @@ input ClonePromptInput {
 }
 
 type Cluster {
-  """
-  The ID of the cluster
-  """
+  """The ID of the cluster"""
   id: ID!
 
-  """
-  The event IDs of the points in the cluster
-  """
+  """The event IDs of the points in the cluster"""
   eventIds: [ID!]!
 
-  """
-  Ratio of primary points over reference points
-  """
+  """Ratio of primary points over reference points"""
   driftRatio: Float
 
-  """
-  Ratio of primary points over corpus points
-  """
+  """Ratio of primary points over corpus points"""
   primaryToCorpusRatio: Float
 
   """
@@ -392,10 +343,7 @@ input ClusterInput {
   id: ID
 }
 
-union ContentPart =
-  | TextContentPart
-  | ToolCallContentPart
-  | ToolResultContentPart
+union ContentPart = TextContentPart | ToolCallContentPart | ToolResultContentPart
 
 input ContentPartInput @oneOf {
   text: TextContentValueInput
@@ -404,9 +352,7 @@ input ContentPartInput @oneOf {
 }
 
 type ContinuousAnnotationConfig implements Node & AnnotationConfigBase {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
   name: String!
   description: String
@@ -575,45 +521,26 @@ type DataQualityTimeSeries implements TimeSeries {
 }
 
 type Dataset implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
   name: String!
   description: String
   metadata: JSON!
   createdAt: DateTime!
   updatedAt: DateTime!
-  versions(
-    first: Int = 50
-    last: Int
-    after: String
-    before: String
-    sort: DatasetVersionSort
-  ): DatasetVersionConnection!
+  versions(first: Int = 50, last: Int, after: String, before: String, sort: DatasetVersionSort): DatasetVersionConnection!
 
   """
   Number of examples in a specific version if version is specified, or in the latest version if version is not specified.
   """
   exampleCount(datasetVersionId: ID): Int!
-  examples(
-    datasetVersionId: ID
-    first: Int = 50
-    last: Int
-    after: String
-    before: String
-  ): DatasetExampleConnection!
+  examples(datasetVersionId: ID, first: Int = 50, last: Int, after: String, before: String): DatasetExampleConnection!
 
   """
   Number of experiments for a specific version if version is specified, or for all versions if version is not specified.
   """
   experimentCount(datasetVersionId: ID): Int!
-  experiments(
-    first: Int = 50
-    last: Int
-    after: String
-    before: String
-  ): ExperimentConnection!
+  experiments(first: Int = 50, last: Int, after: String, before: String): ExperimentConnection!
   experimentAnnotationSummaries: [ExperimentAnnotationSummary!]!
   lastUpdatedAt: DateTime
 }
@@ -623,79 +550,48 @@ enum DatasetColumn {
   name
 }
 
-"""
-A connection to a list of items.
-"""
+"""A connection to a list of items."""
 type DatasetConnection {
-  """
-  Pagination data for this connection
-  """
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
 
-  """
-  Contains the nodes in this connection
-  """
+  """Contains the nodes in this connection"""
   edges: [DatasetEdge!]!
 }
 
-"""
-An edge in a connection.
-"""
+"""An edge in a connection."""
 type DatasetEdge {
-  """
-  A cursor for use in pagination
-  """
+  """A cursor for use in pagination"""
   cursor: String!
 
-  """
-  The item at the end of the edge
-  """
+  """The item at the end of the edge"""
   node: Dataset!
 }
 
 type DatasetExample implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
   createdAt: DateTime!
   revision(datasetVersionId: ID): DatasetExampleRevision!
   span: Span
-  experimentRuns(
-    first: Int = 50
-    last: Int
-    after: String
-    before: String
-  ): ExperimentRunConnection!
+  experimentRuns(first: Int = 50, last: Int, after: String, before: String): ExperimentRunConnection!
 }
 
-"""
-A connection to a list of items.
-"""
+"""A connection to a list of items."""
 type DatasetExampleConnection {
-  """
-  Pagination data for this connection
-  """
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
 
-  """
-  Contains the nodes in this connection
-  """
+  """Contains the nodes in this connection"""
   edges: [DatasetExampleEdge!]!
 }
 
-"""
-An edge in a connection.
-"""
+"""An edge in a connection."""
 type DatasetExampleEdge {
-  """
-  A cursor for use in pagination
-  """
+  """A cursor for use in pagination"""
   cursor: String!
 
-  """
-  The item at the end of the edge
-  """
+  """The item at the end of the edge"""
   node: DatasetExample!
 }
 
@@ -721,9 +617,7 @@ type DatasetExampleRevision implements ExampleRevision {
   createdAt: DateTime!
 }
 
-"""
-A filter for datasets
-"""
+"""A filter for datasets"""
 input DatasetFilter {
   col: DatasetFilterColumn!
   value: String!
@@ -737,9 +631,7 @@ type DatasetMutationPayload {
   dataset: Dataset!
 }
 
-"""
-The sort key and direction for dataset connections
-"""
+"""The sort key and direction for dataset connections"""
 input DatasetSort {
   col: DatasetColumn!
   dir: SortDir!
@@ -751,9 +643,7 @@ type DatasetValues {
 }
 
 type DatasetVersion implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
   description: String
   metadata: JSON!
@@ -764,47 +654,31 @@ enum DatasetVersionColumn {
   createdAt
 }
 
-"""
-A connection to a list of items.
-"""
+"""A connection to a list of items."""
 type DatasetVersionConnection {
-  """
-  Pagination data for this connection
-  """
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
 
-  """
-  Contains the nodes in this connection
-  """
+  """Contains the nodes in this connection"""
   edges: [DatasetVersionEdge!]!
 }
 
-"""
-An edge in a connection.
-"""
+"""An edge in a connection."""
 type DatasetVersionEdge {
-  """
-  A cursor for use in pagination
-  """
+  """A cursor for use in pagination"""
   cursor: String!
 
-  """
-  The item at the end of the edge
-  """
+  """The item at the end of the edge"""
   node: DatasetVersion!
 }
 
-"""
-The sort key and direction for dataset version connections
-"""
+"""The sort key and direction for dataset version connections"""
 input DatasetVersionSort {
   col: DatasetVersionColumn!
   dir: SortDir!
 }
 
-"""
-Date with time (isoformat)
-"""
+"""Date with time (isoformat)"""
 scalar DateTime
 
 type DbTableStats {
@@ -882,14 +756,10 @@ input DeleteUsersInput {
 }
 
 type Dimension implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
 
-  """
-  The name of the dimension (a.k.a. the column name)
-  """
+  """The name of the dimension (a.k.a. the column name)"""
   name: String!
 
   """
@@ -897,23 +767,17 @@ type Dimension implements Node {
   """
   type: DimensionType!
 
-  """
-  The data type of the column. Categorical or numeric.
-  """
+  """The data type of the column. Categorical or numeric."""
   dataType: DimensionDataType!
 
-  """
-  Whether the dimension data is continuous or discrete.
-  """
+  """Whether the dimension data is continuous or discrete."""
   shape: DimensionShape!
   driftMetric(metric: ScalarDriftMetric!, timeRange: TimeRange): Float
   dataQualityMetric(
     metric: DataQualityMetric!
     timeRange: TimeRange
 
-    """
-    The inferences (primary or reference) to query
-    """
+    """The inferences (primary or reference) to query"""
     inferencesRole: InferencesRole = primary
   ): Float
 
@@ -930,20 +794,14 @@ type Dimension implements Node {
     timeRange: TimeRange!
     granularity: Granularity!
 
-    """
-    The inferences (primary or reference) to query
-    """
+    """The inferences (primary or reference) to query"""
     inferencesRole: InferencesRole = primary
   ): DataQualityTimeSeries!
 
   """
   The time series of the specified metric for data within a time range. Data points are generated starting at the end time and are separated by the sampling interval. Each data point is labeled by the end instant and contains data from their respective evaluation windows.
   """
-  driftTimeSeries(
-    metric: ScalarDriftMetric!
-    timeRange: TimeRange!
-    granularity: Granularity!
-  ): DriftTimeSeries!
+  driftTimeSeries(metric: ScalarDriftMetric!, timeRange: TimeRange!, granularity: Granularity!): DriftTimeSeries!
 
   """
   The segments across both inference sets and returns the counts per segment
@@ -951,18 +809,12 @@ type Dimension implements Node {
   segmentsComparison(primaryTimeRange: TimeRange): Segments!
 }
 
-"""
-A connection to a list of items.
-"""
+"""A connection to a list of items."""
 type DimensionConnection {
-  """
-  Pagination data for this connection
-  """
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
 
-  """
-  Contains the nodes in this connection
-  """
+  """Contains the nodes in this connection"""
   edges: [DimensionEdge!]!
 }
 
@@ -971,18 +823,12 @@ enum DimensionDataType {
   numeric
 }
 
-"""
-An edge in a connection.
-"""
+"""An edge in a connection."""
 type DimensionEdge {
-  """
-  A cursor for use in pagination
-  """
+  """A cursor for use in pagination"""
   cursor: String!
 
-  """
-  The item at the end of the edge
-  """
+  """The item at the end of the edge"""
   node: Dimension!
 }
 
@@ -1012,21 +858,15 @@ enum DimensionType {
 type DimensionWithValue {
   dimension: Dimension!
 
-  """
-  The string representation of the dimension's value
-  """
+  """The string representation of the dimension's value"""
   value: String
 }
 
 type DocumentEvaluation implements Annotation {
-  """
-  Name of the annotation, e.g. 'helpfulness' or 'relevance'.
-  """
+  """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
 
-  """
-  Value of the annotation in the form of a numeric score.
-  """
+  """Value of the annotation in the form of a numeric score."""
   score: Float
 
   """
@@ -1039,14 +879,10 @@ type DocumentEvaluation implements Annotation {
   """
   explanation: String
 
-  """
-  The date and time when the annotation was created.
-  """
+  """The date and time when the annotation was created."""
   createdAt: DateTime!
 
-  """
-  The date and time when the annotation was last updated.
-  """
+  """The date and time when the annotation was last updated."""
   updatedAt: DateTime!
 
   """
@@ -1102,9 +938,7 @@ type DriftTimeSeries implements TimeSeries {
 }
 
 type EmbeddingDimension implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
   name: String!
 
@@ -1126,99 +960,61 @@ type EmbeddingDimension implements Node {
     timeRange: TimeRange!
     granularity: Granularity!
 
-    """
-    The dataset (primary or reference) to query
-    """
+    """The dataset (primary or reference) to query"""
     inferencesRole: InferencesRole = primary
   ): DataQualityTimeSeries!
 
   """
-  Computes a drift time-series between the primary and reference datasets. The output drift time-series contains one data point for each whole hour in the input time range (inclusive of the time range start and exclusive of the time range end). Each data point contains the drift metric value between all reference data and the primary data within the evaluation window ending at the corresponding time. Returns None if no reference dataset exists or if the input time range is invalid.
+  Computes a drift time-series between the primary and reference datasets. The output drift time-series contains one data point for each whole hour in the input time range (inclusive of the time range start and exclusive of the time range end). Each data point contains the drift metric value between all reference data and the primary data within the evaluation window ending at the corresponding time. Returns None if no reference dataset exists or if the input time range is invalid.           
   """
-  driftTimeSeries(
-    metric: VectorDriftMetric!
-    timeRange: TimeRange!
-    granularity: Granularity!
-  ): DriftTimeSeries!
+  driftTimeSeries(metric: VectorDriftMetric!, timeRange: TimeRange!, granularity: Granularity!): DriftTimeSeries!
 
   """
-  Computes a retrieval metric between the primary and corpus datasets. The output time-series contains one data point for each whole hour in the input time range (inclusive of the time range start and exclusive of the time range end). Each data point contains the metric value between all corpus data and the primary data within the evaluation window ending at the corresponding time. Returns None if no corpus dataset exists or if the input time range is invalid.
+  Computes a retrieval metric between the primary and corpus datasets. The output time-series contains one data point for each whole hour in the input time range (inclusive of the time range start and exclusive of the time range end). Each data point contains the metric value between all corpus data and the primary data within the evaluation window ending at the corresponding time. Returns None if no corpus dataset exists or if the input time range is invalid.           
   """
-  retrievalMetricTimeSeries(
-    metric: VectorDriftMetric!
-    timeRange: TimeRange!
-    granularity: Granularity!
-  ): DriftTimeSeries!
+  retrievalMetricTimeSeries(metric: VectorDriftMetric!, timeRange: TimeRange!, granularity: Granularity!): DriftTimeSeries!
   UMAPPoints(
-    """
-    The time range of the primary dataset to generate the UMAP points for
-    """
+    """The time range of the primary dataset to generate the UMAP points for"""
     timeRange: TimeRange!
 
-    """
-    UMAP target dimension hyperparameter. Must be 2 or 3
-    """
+    """UMAP target dimension hyperparameter. Must be 2 or 3"""
     nComponents: Int = 3
 
-    """
-    UMAP minimum distance hyperparameter
-    """
+    """UMAP minimum distance hyperparameter"""
     minDist: Float! = 0
 
-    """
-    UMAP N neighbors hyperparameter
-    """
+    """UMAP N neighbors hyperparameter"""
     nNeighbors: Int! = 30
 
-    """
-    UMAP N samples
-    """
+    """UMAP N samples"""
     nSamples: Int! = 500
 
-    """
-    HDBSCAN minimum cluster size
-    """
+    """HDBSCAN minimum cluster size"""
     minClusterSize: Int! = 10
 
-    """
-    HDBSCAN minimum samples
-    """
+    """HDBSCAN minimum samples"""
     clusterMinSamples: Int! = 1
 
-    """
-    HDBSCAN cluster selection epsilon
-    """
+    """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Float! = 0
   ): UMAPPoints!
 }
 
-"""
-A connection to a list of items.
-"""
+"""A connection to a list of items."""
 type EmbeddingDimensionConnection {
-  """
-  Pagination data for this connection
-  """
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
 
-  """
-  Contains the nodes in this connection
-  """
+  """Contains the nodes in this connection"""
   edges: [EmbeddingDimensionEdge!]!
 }
 
-"""
-An edge in a connection.
-"""
+"""An edge in a connection."""
 type EmbeddingDimensionEdge {
-  """
-  A cursor for use in pagination
-  """
+  """A cursor for use in pagination"""
   cursor: String!
 
-  """
-  The item at the end of the edge
-  """
+  """The item at the end of the edge"""
   node: EmbeddingDimension!
 }
 
@@ -1243,14 +1039,10 @@ type Event {
   eventMetadata: EventMetadata!
   dimensions: [DimensionWithValue!]!
 
-  """
-  The prompt and response pair associated with the event
-  """
+  """The prompt and response pair associated with the event"""
   promptAndResponse: PromptResponse
 
-  """
-  The text of the document if the event is a retrieved document record
-  """
+  """The text of the document if the event is a retrieved document record"""
   documentText: String
 }
 
@@ -1269,9 +1061,7 @@ interface ExampleRevision {
 }
 
 type Experiment implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
   name: String!
   projectName: String
@@ -1280,16 +1070,9 @@ type Experiment implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
 
-  """
-  Sequence number (1-based) of experiments belonging to the same dataset
-  """
+  """Sequence number (1-based) of experiments belonging to the same dataset"""
   sequenceNumber: Int!
-  runs(
-    first: Int = 50
-    last: Int
-    after: String
-    before: String
-  ): ExperimentRunConnection!
+  runs(first: Int = 50, last: Int, after: String, before: String): ExperimentRunConnection!
   runCount: Int!
   annotationSummaries: [ExperimentAnnotationSummary!]!
   errorRate: Float
@@ -1308,71 +1091,45 @@ type ExperimentAnnotationSummary {
 }
 
 type ExperimentComparison implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
   example: DatasetExample!
   runComparisonItems: [RunComparisonItem!]!
 }
 
-"""
-A connection to a list of items.
-"""
+"""A connection to a list of items."""
 type ExperimentComparisonConnection {
-  """
-  Pagination data for this connection
-  """
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
 
-  """
-  Contains the nodes in this connection
-  """
+  """Contains the nodes in this connection"""
   edges: [ExperimentComparisonEdge!]!
 }
 
-"""
-An edge in a connection.
-"""
+"""An edge in a connection."""
 type ExperimentComparisonEdge {
-  """
-  A cursor for use in pagination
-  """
+  """A cursor for use in pagination"""
   cursor: String!
 
-  """
-  The item at the end of the edge
-  """
+  """The item at the end of the edge"""
   node: ExperimentComparison!
 }
 
-"""
-A connection to a list of items.
-"""
+"""A connection to a list of items."""
 type ExperimentConnection {
-  """
-  Pagination data for this connection
-  """
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
 
-  """
-  Contains the nodes in this connection
-  """
+  """Contains the nodes in this connection"""
   edges: [ExperimentEdge!]!
 }
 
-"""
-An edge in a connection.
-"""
+"""An edge in a connection."""
 type ExperimentEdge {
-  """
-  A cursor for use in pagination
-  """
+  """A cursor for use in pagination"""
   cursor: String!
 
-  """
-  The item at the end of the edge
-  """
+  """The item at the end of the edge"""
   node: Experiment!
 }
 
@@ -1381,9 +1138,7 @@ type ExperimentMutationPayload {
 }
 
 type ExperimentRun implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
   experimentId: ID!
   traceId: String
@@ -1391,20 +1146,13 @@ type ExperimentRun implements Node {
   startTime: DateTime!
   endTime: DateTime!
   error: String
-  annotations(
-    first: Int = 50
-    last: Int
-    after: String
-    before: String
-  ): ExperimentRunAnnotationConnection!
+  annotations(first: Int = 50, last: Int, after: String, before: String): ExperimentRunAnnotationConnection!
   trace: Trace
   example: DatasetExample!
 }
 
 type ExperimentRunAnnotation implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
   name: String!
   annotatorKind: ExperimentRunAnnotatorKind!
@@ -1419,33 +1167,21 @@ type ExperimentRunAnnotation implements Node {
   trace: Trace
 }
 
-"""
-A connection to a list of items.
-"""
+"""A connection to a list of items."""
 type ExperimentRunAnnotationConnection {
-  """
-  Pagination data for this connection
-  """
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
 
-  """
-  Contains the nodes in this connection
-  """
+  """Contains the nodes in this connection"""
   edges: [ExperimentRunAnnotationEdge!]!
 }
 
-"""
-An edge in a connection.
-"""
+"""An edge in a connection."""
 type ExperimentRunAnnotationEdge {
-  """
-  A cursor for use in pagination
-  """
+  """A cursor for use in pagination"""
   cursor: String!
 
-  """
-  The item at the end of the edge
-  """
+  """The item at the end of the edge"""
   node: ExperimentRunAnnotation!
 }
 
@@ -1455,40 +1191,26 @@ enum ExperimentRunAnnotatorKind {
   CODE
 }
 
-"""
-A connection to a list of items.
-"""
+"""A connection to a list of items."""
 type ExperimentRunConnection {
-  """
-  Pagination data for this connection
-  """
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
 
-  """
-  Contains the nodes in this connection
-  """
+  """Contains the nodes in this connection"""
   edges: [ExperimentRunEdge!]!
 }
 
-"""
-An edge in a connection.
-"""
+"""An edge in a connection."""
 type ExperimentRunEdge {
-  """
-  A cursor for use in pagination
-  """
+  """A cursor for use in pagination"""
   cursor: String!
 
-  """
-  The item at the end of the edge
-  """
+  """The item at the end of the edge"""
   node: ExperimentRun!
 }
 
 type ExportedFile {
-  """
-  File name without the file extension.
-  """
+  """File name without the file extension."""
   fileName: String!
 }
 
@@ -1502,9 +1224,7 @@ type FloatInvocationParameter implements InvocationParameterBase {
 }
 
 type FreeformAnnotationConfig implements Node & AnnotationConfigBase {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
   name: String!
   description: String
@@ -1523,9 +1243,7 @@ type FunctionCallChunk implements ChatCompletionSubscriptionPayload {
 }
 
 type Functionality {
-  """
-  Model inferences are available for analysis
-  """
+  """Model inferences are available for analysis"""
   modelInferences: Boolean!
 }
 
@@ -1535,9 +1253,7 @@ input GenerativeCredentialInput {
 }
 
 type GenerativeModel implements Node & ModelInterface {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
   name: String!
   providerKey: GenerativeProviderKey
@@ -1551,33 +1267,21 @@ type GenerativeModel implements Node & ModelInterface {
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
-"""
-A connection to a list of items.
-"""
+"""A connection to a list of items."""
 type GenerativeModelConnection {
-  """
-  Pagination data for this connection
-  """
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
 
-  """
-  Contains the nodes in this connection
-  """
+  """Contains the nodes in this connection"""
   edges: [GenerativeModelEdge!]!
 }
 
-"""
-An edge in a connection.
-"""
+"""An edge in a connection."""
 type GenerativeModelEdge {
-  """
-  A cursor for use in pagination
-  """
+  """A cursor for use in pagination"""
   cursor: String!
 
-  """
-  The item at the end of the edge
-  """
+  """The item at the end of the edge"""
   node: GenerativeModel!
 }
 
@@ -1595,14 +1299,10 @@ type GenerativeProvider {
   dependencies: [String!]!
   dependenciesInstalled: Boolean!
 
-  """
-  The credential requirements for the provider
-  """
+  """The credential requirements for the provider"""
   credentialRequirements: [GenerativeProviderCredentialConfig!]!
 
-  """
-  Whether the credentials are set on the server for the provider
-  """
+  """Whether the credentials are set on the server for the provider"""
   credentialsSet: Boolean!
 }
 
@@ -1639,35 +1339,19 @@ input Granularity {
 scalar Identifier
 
 type InferenceModel {
-  dimensions(
-    first: Int = 50
-    last: Int
-    after: String
-    before: String
-    include: DimensionFilter
-    exclude: DimensionFilter
-  ): DimensionConnection!
+  dimensions(first: Int = 50, last: Int, after: String, before: String, include: DimensionFilter, exclude: DimensionFilter): DimensionConnection!
   primaryInferences: Inferences!
   referenceInferences: Inferences
   corpusInferences: Inferences
-  embeddingDimensions(
-    first: Int = 50
-    last: Int
-    after: String
-    before: String
-  ): EmbeddingDimensionConnection!
+  embeddingDimensions(first: Int = 50, last: Int, after: String, before: String): EmbeddingDimensionConnection!
 
-  """
-  Returns exported file names sorted by descending modification time.
-  """
+  """Returns exported file names sorted by descending modification time."""
   exportedFiles: [ExportedFile!]!
   performanceMetric(
     metric: PerformanceMetricInput!
     timeRange: TimeRange
 
-    """
-    The inferences (primary or reference) to query
-    """
+    """The inferences (primary or reference) to query"""
     inferencesRole: InferencesRole = primary
   ): Float
 
@@ -1679,32 +1363,22 @@ type InferenceModel {
     timeRange: TimeRange!
     granularity: Granularity!
 
-    """
-    The inferences (primary or reference) to query
-    """
+    """The inferences (primary or reference) to query"""
     inferencesRole: InferencesRole = primary
   ): PerformanceTimeSeries!
 }
 
 type Inferences {
-  """
-  The start bookend of the data
-  """
+  """The start bookend of the data"""
   startTime: DateTime!
 
-  """
-  The end bookend of the data
-  """
+  """The end bookend of the data"""
   endTime: DateTime!
 
-  """
-  The record count of the data
-  """
+  """The record count of the data"""
   recordCount: Int!
 
-  """
-  Returns a human friendly name for the inferences.
-  """
+  """Returns a human friendly name for the inferences."""
   name: String!
   events(eventIds: [ID!]!, dimensions: [DimensionInput!]): [Event!]!
 }
@@ -1748,14 +1422,7 @@ enum InvocationInputField {
   value_boolean
 }
 
-union InvocationParameter =
-  | IntInvocationParameter
-  | FloatInvocationParameter
-  | BoundedFloatInvocationParameter
-  | StringInvocationParameter
-  | JSONInvocationParameter
-  | StringListInvocationParameter
-  | BooleanInvocationParameter
+union InvocationParameter = IntInvocationParameter | FloatInvocationParameter | BoundedFloatInvocationParameter | StringInvocationParameter | JSONInvocationParameter | StringListInvocationParameter | BooleanInvocationParameter
 
 interface InvocationParameterBase {
   invocationName: String!
@@ -1779,10 +1446,7 @@ input InvocationParameterInput {
 """
 The `JSON` scalar type represents JSON values as specified by [ECMA-404](https://ecma-international.org/wp-content/uploads/ECMA-404_2nd_edition_december_2017.pdf).
 """
-scalar JSON
-  @specifiedBy(
-    url: "https://ecma-international.org/wp-content/uploads/ECMA-404_2nd_edition_december_2017.pdf"
-  )
+scalar JSON @specifiedBy(url: "https://ecma-international.org/wp-content/uploads/ECMA-404_2nd_edition_december_2017.pdf")
 
 type JSONInvocationParameter implements InvocationParameterBase {
   invocationName: String!
@@ -1828,46 +1492,24 @@ input ModelsInput {
 }
 
 type Mutation {
-  createAnnotationConfig(
-    input: CreateAnnotationConfigInput!
-  ): CreateAnnotationConfigPayload!
-  updateAnnotationConfig(
-    input: UpdateAnnotationConfigInput!
-  ): UpdateAnnotationConfigPayload!
-  deleteAnnotationConfigs(
-    input: DeleteAnnotationConfigsInput!
-  ): DeleteAnnotationConfigsPayload!
-  addAnnotationConfigToProject(
-    input: [AddAnnotationConfigToProjectInput!]!
-  ): AddAnnotationConfigToProjectPayload!
-  removeAnnotationConfigFromProject(
-    input: [RemoveAnnotationConfigFromProjectInput!]!
-  ): RemoveAnnotationConfigFromProjectPayload!
-  createSystemApiKey(
-    input: CreateApiKeyInput!
-  ): CreateSystemApiKeyMutationPayload!
-  createUserApiKey(
-    input: CreateUserApiKeyInput!
-  ): CreateUserApiKeyMutationPayload!
+  createAnnotationConfig(input: CreateAnnotationConfigInput!): CreateAnnotationConfigPayload!
+  updateAnnotationConfig(input: UpdateAnnotationConfigInput!): UpdateAnnotationConfigPayload!
+  deleteAnnotationConfigs(input: DeleteAnnotationConfigsInput!): DeleteAnnotationConfigsPayload!
+  addAnnotationConfigToProject(input: [AddAnnotationConfigToProjectInput!]!): AddAnnotationConfigToProjectPayload!
+  removeAnnotationConfigFromProject(input: [RemoveAnnotationConfigFromProjectInput!]!): RemoveAnnotationConfigFromProjectPayload!
+  createSystemApiKey(input: CreateApiKeyInput!): CreateSystemApiKeyMutationPayload!
+  createUserApiKey(input: CreateUserApiKeyInput!): CreateUserApiKeyMutationPayload!
   deleteSystemApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
   deleteUserApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
-  chatCompletionOverDataset(
-    input: ChatCompletionOverDatasetInput!
-  ): ChatCompletionOverDatasetMutationPayload!
+  chatCompletionOverDataset(input: ChatCompletionOverDatasetInput!): ChatCompletionOverDatasetMutationPayload!
   chatCompletion(input: ChatCompletionInput!): ChatCompletionMutationPayload!
   createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
   patchDataset(input: PatchDatasetInput!): DatasetMutationPayload!
   addSpansToDataset(input: AddSpansToDatasetInput!): DatasetMutationPayload!
-  addExamplesToDataset(
-    input: AddExamplesToDatasetInput!
-  ): DatasetMutationPayload!
+  addExamplesToDataset(input: AddExamplesToDatasetInput!): DatasetMutationPayload!
   deleteDataset(input: DeleteDatasetInput!): DatasetMutationPayload!
-  patchDatasetExamples(
-    input: PatchDatasetExamplesInput!
-  ): DatasetMutationPayload!
-  deleteDatasetExamples(
-    input: DeleteDatasetExamplesInput!
-  ): DatasetMutationPayload!
+  patchDatasetExamples(input: PatchDatasetExamplesInput!): DatasetMutationPayload!
+  deleteDatasetExamples(input: DeleteDatasetExamplesInput!): DatasetMutationPayload!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
 
   """
@@ -1884,52 +1526,28 @@ type Mutation {
   deleteModel(input: DeleteModelMutationInput!): DeleteModelMutationPayload!
   deleteProject(id: ID!): Query!
   clearProject(input: ClearProjectInput!): Query!
-  createProjectTraceRetentionPolicy(
-    input: CreateProjectTraceRetentionPolicyInput!
-  ): ProjectTraceRetentionPolicyMutationPayload!
-  patchProjectTraceRetentionPolicy(
-    input: PatchProjectTraceRetentionPolicyInput!
-  ): ProjectTraceRetentionPolicyMutationPayload!
-  deleteProjectTraceRetentionPolicy(
-    input: DeleteProjectTraceRetentionPolicyInput!
-  ): ProjectTraceRetentionPolicyMutationPayload!
+  createProjectTraceRetentionPolicy(input: CreateProjectTraceRetentionPolicyInput!): ProjectTraceRetentionPolicyMutationPayload!
+  patchProjectTraceRetentionPolicy(input: PatchProjectTraceRetentionPolicyInput!): ProjectTraceRetentionPolicyMutationPayload!
+  deleteProjectTraceRetentionPolicy(input: DeleteProjectTraceRetentionPolicyInput!): ProjectTraceRetentionPolicyMutationPayload!
   createChatPrompt(input: CreateChatPromptInput!): Prompt!
   createChatPromptVersion(input: CreateChatPromptVersionInput!): Prompt!
   deletePrompt(input: DeletePromptInput!): DeletePromptMutationPayload!
   clonePrompt(input: ClonePromptInput!): Prompt!
   patchPrompt(input: PatchPromptInput!): Prompt!
-  deletePromptVersionTag(
-    input: DeletePromptVersionTagInput!
-  ): PromptVersionTagMutationPayload!
-  setPromptVersionTag(
-    input: SetPromptVersionTagInput!
-  ): PromptVersionTagMutationPayload!
+  deletePromptVersionTag(input: DeletePromptVersionTagInput!): PromptVersionTagMutationPayload!
+  setPromptVersionTag(input: SetPromptVersionTagInput!): PromptVersionTagMutationPayload!
   createPromptLabel(input: CreatePromptLabelInput!): PromptLabelMutationPayload!
   patchPromptLabel(input: PatchPromptLabelInput!): PromptLabelMutationPayload!
   deletePromptLabel(input: DeletePromptLabelInput!): PromptLabelMutationPayload!
   setPromptLabel(input: SetPromptLabelInput!): PromptLabelMutationPayload!
   unsetPromptLabel(input: UnsetPromptLabelInput!): PromptLabelMutationPayload!
-  createSpanAnnotations(
-    input: [CreateSpanAnnotationInput!]!
-  ): SpanAnnotationMutationPayload!
-  createSpanNote(
-    annotationInput: CreateSpanNoteInput!
-  ): SpanAnnotationMutationPayload!
-  patchSpanAnnotations(
-    input: [PatchAnnotationInput!]!
-  ): SpanAnnotationMutationPayload!
-  deleteSpanAnnotations(
-    input: DeleteAnnotationsInput!
-  ): SpanAnnotationMutationPayload!
-  createTraceAnnotations(
-    input: [CreateTraceAnnotationInput!]!
-  ): TraceAnnotationMutationPayload!
-  patchTraceAnnotations(
-    input: [PatchAnnotationInput!]!
-  ): TraceAnnotationMutationPayload!
-  deleteTraceAnnotations(
-    input: DeleteAnnotationsInput!
-  ): TraceAnnotationMutationPayload!
+  createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
+  createSpanNote(annotationInput: CreateSpanNoteInput!): SpanAnnotationMutationPayload!
+  patchSpanAnnotations(input: [PatchAnnotationInput!]!): SpanAnnotationMutationPayload!
+  deleteSpanAnnotations(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
+  createTraceAnnotations(input: [CreateTraceAnnotationInput!]!): TraceAnnotationMutationPayload!
+  patchTraceAnnotations(input: [PatchAnnotationInput!]!): TraceAnnotationMutationPayload!
+  deleteTraceAnnotations(input: DeleteAnnotationsInput!): TraceAnnotationMutationPayload!
   deleteTraces(traceIds: [ID!]!): Query!
   createUser(input: CreateUserInput!): UserMutationPayload!
   patchUser(input: PatchUserInput!): UserMutationPayload!
@@ -1937,13 +1555,9 @@ type Mutation {
   deleteUsers(input: DeleteUsersInput!): Void
 }
 
-"""
-An object with a Globally Unique ID
-"""
+"""An object with a Globally Unique ID"""
 interface Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
 }
 
@@ -1962,28 +1576,18 @@ enum OptimizationDirection {
   NONE
 }
 
-"""
-Information to aid in pagination.
-"""
+"""Information to aid in pagination."""
 type PageInfo {
-  """
-  When paginating forwards, are there more items?
-  """
+  """When paginating forwards, are there more items?"""
   hasNextPage: Boolean!
 
-  """
-  When paginating backwards, are there more items?
-  """
+  """When paginating backwards, are there more items?"""
   hasPreviousPage: Boolean!
 
-  """
-  When paginating backwards, the cursor to continue.
-  """
+  """When paginating backwards, the cursor to continue."""
   startCursor: String
 
-  """
-  When paginating forwards, the cursor to continue.
-  """
+  """When paginating forwards, the cursor to continue."""
   endCursor: String
 }
 
@@ -2076,9 +1680,7 @@ type Point3D {
 }
 
 type Project implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
   name: String!
   gradientStartColor: String!
@@ -2092,31 +1694,10 @@ type Project implements Node {
   tokenCountCompletion(timeRange: TimeRange, filterCondition: String): Float!
   costSummary(timeRange: TimeRange, filterCondition: String): SpanCostSummary!
   latencyMsQuantile(probability: Float!, timeRange: TimeRange): Float
-  spanLatencyMsQuantile(
-    probability: Float!
-    timeRange: TimeRange
-    filterCondition: String
-  ): Float
+  spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String): Float
   trace(traceId: ID!): Trace
-  spans(
-    timeRange: TimeRange
-    first: Int = 30
-    last: Int
-    after: String
-    before: String
-    sort: SpanSort
-    rootSpansOnly: Boolean
-    filterCondition: String
-    orphanSpanAsRootSpan: Boolean = true
-  ): SpanConnection!
-  sessions(
-    timeRange: TimeRange
-    first: Int = 30
-    after: String
-    sort: ProjectSessionSort
-    filterIoSubstring: String
-    sessionId: String
-  ): ProjectSessionConnection!
+  spans(timeRange: TimeRange, first: Int = 30, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String, orphanSpanAsRootSpan: Boolean = true): SpanConnection!
+  sessions(timeRange: TimeRange, first: Int = 30, after: String, sort: ProjectSessionSort, filterIoSubstring: String, sessionId: String): ProjectSessionConnection!
 
   """
   Names of all available annotations for traces. (The list contains no duplicates.)
@@ -2128,39 +1709,19 @@ type Project implements Node {
   """
   spanAnnotationNames: [String!]!
 
-  """
-  Names of available document evaluations.
-  """
+  """Names of available document evaluations."""
   documentEvaluationNames(spanId: ID): [String!]!
-  traceAnnotationSummary(
-    annotationName: String!
-    timeRange: TimeRange
-  ): AnnotationSummary
-  spanAnnotationSummary(
-    annotationName: String!
-    timeRange: TimeRange
-    filterCondition: String
-  ): AnnotationSummary
-  documentEvaluationSummary(
-    evaluationName: String!
-    timeRange: TimeRange
-    filterCondition: String
-  ): DocumentEvaluationSummary
+  traceAnnotationSummary(annotationName: String!, timeRange: TimeRange): AnnotationSummary
+  spanAnnotationSummary(annotationName: String!, timeRange: TimeRange, filterCondition: String): AnnotationSummary
+  documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   streamingLastUpdatedAt: DateTime
   validateSpanFilterCondition(condition: String!): ValidationResult!
-  annotationConfigs(
-    first: Int = 50
-    last: Int = null
-    after: String = null
-    before: String = null
-  ): AnnotationConfigConnection!
+  annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
   traceRetentionPolicy: ProjectTraceRetentionPolicy!
   createdAt: DateTime!
   updatedAt: DateTime!
 
-  """
-  Hourly span count for the project.
-  """
+  """Hourly span count for the project."""
   spanCountTimeSeries(timeRange: TimeRange): SpanCountTimeSeries!
 }
 
@@ -2169,39 +1730,25 @@ enum ProjectColumn {
   endTime
 }
 
-"""
-A connection to a list of items.
-"""
+"""A connection to a list of items."""
 type ProjectConnection {
-  """
-  Pagination data for this connection
-  """
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
 
-  """
-  Contains the nodes in this connection
-  """
+  """Contains the nodes in this connection"""
   edges: [ProjectEdge!]!
 }
 
-"""
-An edge in a connection.
-"""
+"""An edge in a connection."""
 type ProjectEdge {
-  """
-  A cursor for use in pagination
-  """
+  """A cursor for use in pagination"""
   cursor: String!
 
-  """
-  The item at the end of the edge
-  """
+  """The item at the end of the edge"""
   node: Project!
 }
 
-"""
-The filter key and value for project connections
-"""
+"""The filter key and value for project connections"""
 input ProjectFilter {
   col: ProjectFilterColumn!
   value: String!
@@ -2212,9 +1759,7 @@ enum ProjectFilterColumn {
 }
 
 type ProjectSession implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
   sessionId: String!
   startTime: DateTime!
@@ -2225,12 +1770,7 @@ type ProjectSession implements Node {
   firstInput: SpanIOValue
   lastOutput: SpanIOValue
   tokenUsage: TokenUsage!
-  traces(
-    first: Int = 50
-    last: Int
-    after: String
-    before: String
-  ): TraceConnection!
+  traces(first: Int = 50, last: Int, after: String, before: String): TraceConnection!
   traceLatencyMsQuantile(probability: Float!): Float
   costSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
@@ -2243,95 +1783,60 @@ enum ProjectSessionColumn {
   numTraces
 }
 
-"""
-A connection to a list of items.
-"""
+"""A connection to a list of items."""
 type ProjectSessionConnection {
-  """
-  Pagination data for this connection
-  """
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
 
-  """
-  Contains the nodes in this connection
-  """
+  """Contains the nodes in this connection"""
   edges: [ProjectSessionEdge!]!
 }
 
-"""
-An edge in a connection.
-"""
+"""An edge in a connection."""
 type ProjectSessionEdge {
-  """
-  A cursor for use in pagination
-  """
+  """A cursor for use in pagination"""
   cursor: String!
 
-  """
-  The item at the end of the edge
-  """
+  """The item at the end of the edge"""
   node: ProjectSession!
 }
 
-"""
-The sort key and direction for ProjectSession connections.
-"""
+"""The sort key and direction for ProjectSession connections."""
 input ProjectSessionSort {
   col: ProjectSessionColumn!
   dir: SortDir!
 }
 
-"""
-The sort key and direction for project connections
-"""
+"""The sort key and direction for project connections"""
 input ProjectSort {
   col: ProjectColumn!
   dir: SortDir!
 }
 
 type ProjectTraceRetentionPolicy implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
   name: String!
   cronExpression: CronExpression!
   rule: TraceRetentionRule!
-  projects(
-    first: Int = 100
-    last: Int
-    after: String
-    before: String
-  ): ProjectConnection!
+  projects(first: Int = 100, last: Int, after: String, before: String): ProjectConnection!
 }
 
-"""
-A connection to a list of items.
-"""
+"""A connection to a list of items."""
 type ProjectTraceRetentionPolicyConnection {
-  """
-  Pagination data for this connection
-  """
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
 
-  """
-  Contains the nodes in this connection
-  """
+  """Contains the nodes in this connection"""
   edges: [ProjectTraceRetentionPolicyEdge!]!
 }
 
-"""
-An edge in a connection.
-"""
+"""An edge in a connection."""
 type ProjectTraceRetentionPolicyEdge {
-  """
-  A cursor for use in pagination
-  """
+  """A cursor for use in pagination"""
   cursor: String!
 
-  """
-  The item at the end of the edge
-  """
+  """The item at the end of the edge"""
   node: ProjectTraceRetentionPolicy!
 }
 
@@ -2360,9 +1865,7 @@ input ProjectTraceRetentionRuleMaxDaysOrCountInput {
 }
 
 type Prompt implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
   sourcePromptId: ID
   name: Identifier!
@@ -2370,12 +1873,7 @@ type Prompt implements Node {
   createdAt: DateTime!
   version(versionId: ID = null): PromptVersion!
   versionTags: [PromptVersionTag!]!
-  promptVersions(
-    first: Int = 50
-    last: Int
-    after: String
-    before: String
-  ): PromptVersionConnection!
+  promptVersions(first: Int = 50, last: Int, after: String, before: String): PromptVersionConnection!
   sourcePrompt: Prompt
 }
 
@@ -2387,73 +1885,47 @@ input PromptChatTemplateInput {
   messages: [PromptMessageInput!]!
 }
 
-"""
-A connection to a list of items.
-"""
+"""A connection to a list of items."""
 type PromptConnection {
-  """
-  Pagination data for this connection
-  """
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
 
-  """
-  Contains the nodes in this connection
-  """
+  """Contains the nodes in this connection"""
   edges: [PromptEdge!]!
 }
 
-"""
-An edge in a connection.
-"""
+"""An edge in a connection."""
 type PromptEdge {
-  """
-  A cursor for use in pagination
-  """
+  """A cursor for use in pagination"""
   cursor: String!
 
-  """
-  The item at the end of the edge
-  """
+  """The item at the end of the edge"""
   node: Prompt!
 }
 
 type PromptLabel implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
   name: Identifier!
   description: String
   prompts: [Prompt!]!
 }
 
-"""
-A connection to a list of items.
-"""
+"""A connection to a list of items."""
 type PromptLabelConnection {
-  """
-  Pagination data for this connection
-  """
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
 
-  """
-  Contains the nodes in this connection
-  """
+  """Contains the nodes in this connection"""
   edges: [PromptLabelEdge!]!
 }
 
-"""
-An edge in a connection.
-"""
+"""An edge in a connection."""
 type PromptLabelEdge {
-  """
-  A cursor for use in pagination
-  """
+  """A cursor for use in pagination"""
   cursor: String!
 
-  """
-  The item at the end of the edge
-  """
+  """The item at the end of the edge"""
   node: PromptLabel!
 }
 
@@ -2480,14 +1952,10 @@ enum PromptMessageRole {
 }
 
 type PromptResponse {
-  """
-  The prompt submitted to the LLM
-  """
+  """The prompt submitted to the LLM"""
   prompt: String
 
-  """
-  The response generated by the LLM
-  """
+  """The response generated by the LLM"""
   response: String
 }
 
@@ -2514,9 +1982,7 @@ enum PromptTemplateType {
 }
 
 type PromptVersion implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
   description: String
   templateType: PromptTemplateType!
@@ -2539,40 +2005,26 @@ type PromptVersion implements Node {
   sequenceNumber: Int!
 }
 
-"""
-A connection to a list of items.
-"""
+"""A connection to a list of items."""
 type PromptVersionConnection {
-  """
-  Pagination data for this connection
-  """
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
 
-  """
-  Contains the nodes in this connection
-  """
+  """Contains the nodes in this connection"""
   edges: [PromptVersionEdge!]!
 }
 
-"""
-An edge in a connection.
-"""
+"""An edge in a connection."""
 type PromptVersionEdge {
-  """
-  A cursor for use in pagination
-  """
+  """A cursor for use in pagination"""
   cursor: String!
 
-  """
-  The item at the end of the edge
-  """
+  """The item at the end of the edge"""
   node: PromptVersion!
 }
 
 type PromptVersionTag implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
   promptVersionId: ID!
   name: Identifier!
@@ -2588,112 +2040,48 @@ type PromptVersionTagMutationPayload {
 
 type Query {
   modelProviders: [GenerativeProvider!]!
-  generativeModels(
-    first: Int = 50
-    last: Int
-    after: String
-    before: String
-  ): GenerativeModelConnection!
+  generativeModels(first: Int = 50, last: Int, after: String, before: String): GenerativeModelConnection!
   playgroundModels(input: ModelsInput = null): [PlaygroundModel!]!
   modelInvocationParameters(input: ModelsInput = null): [InvocationParameter!]!
-  users(
-    first: Int = 50
-    last: Int
-    after: String
-    before: String
-  ): UserConnection!
+  users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
   userRoles: [UserRole!]!
   userApiKeys: [UserApiKey!]!
   systemApiKeys: [SystemApiKey!]!
-  projects(
-    first: Int = 50
-    last: Int
-    after: String
-    before: String
-    sort: ProjectSort
-    filter: ProjectFilter
-  ): ProjectConnection!
+  projects(first: Int = 50, last: Int, after: String, before: String, sort: ProjectSort, filter: ProjectFilter): ProjectConnection!
   projectsLastUpdatedAt: DateTime
-  datasets(
-    first: Int = 50
-    last: Int
-    after: String
-    before: String
-    sort: DatasetSort
-    filter: DatasetFilter
-  ): DatasetConnection!
+  datasets(first: Int = 50, last: Int, after: String, before: String, sort: DatasetSort, filter: DatasetFilter): DatasetConnection!
   datasetsLastUpdatedAt: DateTime
-  compareExperiments(
-    experimentIds: [ID!]!
-    first: Int = 50
-    after: String
-    filterCondition: String
-  ): ExperimentComparisonConnection!
-  validateExperimentRunFilterCondition(
-    condition: String!
-    experimentIds: [ID!]!
-  ): ValidationResult!
+  compareExperiments(experimentIds: [ID!]!, first: Int = 50, after: String, filterCondition: String): ExperimentComparisonConnection!
+  validateExperimentRunFilterCondition(condition: String!, experimentIds: [ID!]!): ValidationResult!
   functionality: Functionality!
   model: InferenceModel!
   node(id: ID!): Node!
   viewer: User
-  prompts(
-    first: Int = 50
-    last: Int
-    after: String
-    before: String
-  ): PromptConnection!
-  promptLabels(
-    first: Int = 50
-    last: Int
-    after: String
-    before: String
-  ): PromptLabelConnection!
-  annotationConfigs(
-    first: Int = 50
-    last: Int = null
-    after: String = null
-    before: String = null
-  ): AnnotationConfigConnection!
+  prompts(first: Int = 50, last: Int, after: String, before: String): PromptConnection!
+  promptLabels(first: Int = 50, last: Int, after: String, before: String): PromptLabelConnection!
+  annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
   clusters(clusters: [ClusterInput!]!): [Cluster!]!
   hdbscanClustering(
-    """
-    Event ID of the coordinates
-    """
+    """Event ID of the coordinates"""
     eventIds: [ID!]!
 
-    """
-    Point coordinates. Must be either 2D or 3D.
-    """
+    """Point coordinates. Must be either 2D or 3D."""
     coordinates2d: [InputCoordinate2D!]
 
-    """
-    Point coordinates. Must be either 2D or 3D.
-    """
+    """Point coordinates. Must be either 2D or 3D."""
     coordinates3d: [InputCoordinate3D!]
 
-    """
-    HDBSCAN minimum cluster size
-    """
+    """HDBSCAN minimum cluster size"""
     minClusterSize: Int! = 10
 
-    """
-    HDBSCAN minimum samples
-    """
+    """HDBSCAN minimum samples"""
     clusterMinSamples: Int! = 1
 
-    """
-    HDBSCAN cluster selection epsilon
-    """
+    """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
   defaultProjectTraceRetentionPolicy: ProjectTraceRetentionPolicy!
-  projectTraceRetentionPolicies(
-    first: Int = 100
-    last: Int
-    after: String
-    before: String
-  ): ProjectTraceRetentionPolicyConnection!
+  projectTraceRetentionPolicies(first: Int = 100, last: Int, after: String, before: String): ProjectTraceRetentionPolicyConnection!
 
   """
   The allocated storage capacity of the database in bytes. Return None if this information is unavailable.
@@ -2770,9 +2158,7 @@ enum SortDir {
 }
 
 type Span implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
   name: String!
   statusCode: SpanStatusCode!
@@ -2781,23 +2167,17 @@ type Span implements Node {
   endTime: DateTime
   latencyMs: Float
 
-  """
-  the parent span ID. If null, it is a root span
-  """
+  """the parent span ID. If null, it is a root span"""
   parentId: ID
   spanKind: SpanKind!
   spanId: ID!
   trace: Trace!
   context: SpanContext!
 
-  """
-  Span attributes as a JSON string
-  """
+  """Span attributes as a JSON string"""
   attributes: String!
 
-  """
-  Metadata as a JSON string
-  """
+  """Metadata as a JSON string"""
   metadata: String
   numDocuments: Int
   tokenCountTotal: Int
@@ -2831,37 +2211,24 @@ type Span implements Node {
   """
   Annotations associated with the span. This encompasses both LLM and human annotations.
   """
-  spanAnnotations(
-    sort: SpanAnnotationSort
-    filter: SpanAnnotationFilter = null
-  ): [SpanAnnotation!]!
+  spanAnnotations(sort: SpanAnnotationSort, filter: SpanAnnotationFilter = null): [SpanAnnotation!]!
 
-  """
-  Notes associated with the span.
-  """
+  """Notes associated with the span."""
   spanNotes: [SpanAnnotation!]!
 
-  """
-  Summarizes each annotation (by name) associated with the span
-  """
-  spanAnnotationSummaries(
-    filter: SpanAnnotationFilter = null
-  ): [AnnotationSummary!]!
+  """Summarizes each annotation (by name) associated with the span"""
+  spanAnnotationSummaries(filter: SpanAnnotationFilter = null): [AnnotationSummary!]!
 
   """
   Evaluations of the documents associated with the span, e.g. if the span is a RETRIEVER with a list of documents in its RETRIEVAL_DOCUMENTS attribute, an evaluation for each document may assess its relevance respect to the input query of the span. Note that RETRIEVAL_DOCUMENTS is a list, and each evaluation is identified by its document's (zero-based) index in that list.
   """
   documentEvaluations: [DocumentEvaluation!]!
 
-  """
-  Retrieval metrics: NDCG@K, Precision@K, Reciprocal Rank, etc.
-  """
+  """Retrieval metrics: NDCG@K, Precision@K, Reciprocal Rank, etc."""
   documentRetrievalMetrics(evaluationName: String): [DocumentRetrievalMetrics!]!
   numChildSpans: Int!
 
-  """
-  All descendant spans (children, grandchildren, etc.)
-  """
+  """All descendant spans (children, grandchildren, etc.)"""
   descendants(
     """
     Maximum depth of breadth first search. For example, maxDepth=1 searches for only the immediate child spans (if any); maxDepth=2 searches for the immediate child spans plus their children. maxDepth=0 (or None) means no limit.
@@ -2878,41 +2245,27 @@ type Span implements Node {
   """
   asExampleRevision: SpanAsExampleRevision!
 
-  """
-  The project that this span belongs to.
-  """
+  """The project that this span belongs to."""
   project: Project!
 
-  """
-  Indicates if the span is contained in any dataset
-  """
+  """Indicates if the span is contained in any dataset"""
   containedInDataset: Boolean!
 
-  """
-  Invocation parameters for the span
-  """
+  """Invocation parameters for the span"""
   invocationParameters: [InvocationParameter!]!
 
-  """
-  The cost of the span
-  """
+  """The cost of the span"""
   cost: SpanCost
 }
 
 type SpanAnnotation implements Node & Annotation {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
 
-  """
-  Name of the annotation, e.g. 'helpfulness' or 'relevance'.
-  """
+  """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
 
-  """
-  Value of the annotation in the form of a numeric score.
-  """
+  """Value of the annotation in the form of a numeric score."""
   score: Float
 
   """
@@ -2925,14 +2278,10 @@ type SpanAnnotation implements Node & Annotation {
   """
   explanation: String
 
-  """
-  The date and time when the annotation was created.
-  """
+  """The date and time when the annotation was created."""
   createdAt: DateTime!
 
-  """
-  The date and time when the annotation was last updated.
-  """
+  """The date and time when the annotation was last updated."""
   updatedAt: DateTime!
   annotatorKind: AnnotatorKind!
   metadata: JSON!
@@ -2963,9 +2312,7 @@ type SpanAnnotationMutationPayload {
   query: Query!
 }
 
-"""
-The sort key and direction for SpanAnnotation connections
-"""
+"""The sort key and direction for SpanAnnotation connections"""
 input SpanAnnotationSort {
   col: SpanAnnotationColumn!
   dir: SortDir!
@@ -2990,18 +2337,12 @@ enum SpanColumn {
   tokenCostTotal
 }
 
-"""
-A connection to a list of items.
-"""
+"""A connection to a list of items."""
 type SpanConnection {
-  """
-  Pagination data for this connection
-  """
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
 
-  """
-  Contains the nodes in this connection
-  """
+  """Contains the nodes in this connection"""
   edges: [SpanEdge!]!
 }
 
@@ -3011,9 +2352,7 @@ type SpanContext {
 }
 
 type SpanCost implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
   details: [SpanCostDetail!]!
   totalTokens: Float
@@ -3028,9 +2367,7 @@ type SpanCost implements Node {
 }
 
 type SpanCostDetail implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
   tokenType: String!
   isPrompt: Boolean!
@@ -3055,18 +2392,12 @@ type SpanCountTimeSeries implements TimeSeries {
   data: [TimeSeriesDataPoint!]!
 }
 
-"""
-An edge in a connection.
-"""
+"""An edge in a connection."""
 type SpanEdge {
-  """
-  A cursor for use in pagination
-  """
+  """A cursor for use in pagination"""
   cursor: String!
 
-  """
-  The item at the end of the edge
-  """
+  """The item at the end of the edge"""
   node: Span!
 }
 
@@ -3079,9 +2410,7 @@ type SpanEvent {
 type SpanIOValue {
   mimeType: MimeType!
 
-  """
-  Truncated value up to 100 characters, appending '...' if truncated.
-  """
+  """Truncated value up to 100 characters, appending '...' if truncated."""
   truncatedValue: String!
   value: String!
 }
@@ -3133,38 +2462,24 @@ type StringListInvocationParameter implements InvocationParameterBase {
 }
 
 type Subscription {
-  chatCompletion(
-    input: ChatCompletionInput!
-  ): ChatCompletionSubscriptionPayload!
-  chatCompletionOverDataset(
-    input: ChatCompletionOverDatasetInput!
-  ): ChatCompletionSubscriptionPayload!
+  chatCompletion(input: ChatCompletionInput!): ChatCompletionSubscriptionPayload!
+  chatCompletionOverDataset(input: ChatCompletionOverDatasetInput!): ChatCompletionSubscriptionPayload!
 }
 
 type SystemApiKey implements ApiKey & Node {
-  """
-  Name of the API key.
-  """
+  """Name of the API key."""
   name: String!
 
-  """
-  Description of the API key.
-  """
+  """Description of the API key."""
   description: String
 
-  """
-  The date and time the API key was created.
-  """
+  """The date and time the API key was created."""
   createdAt: DateTime!
 
-  """
-  The date and time the API key will expire.
-  """
+  """The date and time the API key will expire."""
   expiresAt: DateTime
 
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
 }
 
@@ -3186,14 +2501,10 @@ input TextContentValueInput {
 }
 
 input TimeRange {
-  """
-  The start of the time range
-  """
+  """The start of the time range"""
   start: DateTime = null
 
-  """
-  The end of the time range. Right exclusive.
-  """
+  """The end of the time range. Right exclusive."""
   end: DateTime = null
 }
 
@@ -3285,9 +2596,7 @@ input ToolResultContentValueInput {
 }
 
 type Trace implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
   traceId: ID!
   startTime: DateTime!
@@ -3299,25 +2608,16 @@ type Trace implements Node {
   session: ProjectSession
   rootSpan: Span
   numSpans: Int!
-  spans(
-    first: Int = 50
-    last: Int
-    after: String
-    before: String
-  ): SpanConnection!
+  spans(first: Int = 50, last: Int, after: String, before: String): SpanConnection!
 
-  """
-  Annotations associated with the trace.
-  """
+  """Annotations associated with the trace."""
   traceAnnotations(sort: TraceAnnotationSort = null): [TraceAnnotation!]!
   costSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
 type TraceAnnotation implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
   name: String!
   annotatorKind: AnnotatorKind!
@@ -3341,48 +2641,31 @@ type TraceAnnotationMutationPayload {
   query: Query!
 }
 
-"""
-The sort key and direction for TraceAnnotation connections
-"""
+"""The sort key and direction for TraceAnnotation connections"""
 input TraceAnnotationSort {
   col: TraceAnnotationColumn!
   dir: SortDir!
 }
 
-"""
-A connection to a list of items.
-"""
+"""A connection to a list of items."""
 type TraceConnection {
-  """
-  Pagination data for this connection
-  """
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
 
-  """
-  Contains the nodes in this connection
-  """
+  """Contains the nodes in this connection"""
   edges: [TraceEdge!]!
 }
 
-"""
-An edge in a connection.
-"""
+"""An edge in a connection."""
 type TraceEdge {
-  """
-  A cursor for use in pagination
-  """
+  """A cursor for use in pagination"""
   cursor: String!
 
-  """
-  The item at the end of the edge
-  """
+  """The item at the end of the edge"""
   node: Trace!
 }
 
-union TraceRetentionRule =
-  | TraceRetentionRuleMaxDays
-  | TraceRetentionRuleMaxCount
-  | TraceRetentionRuleMaxDaysOrCount
+union TraceRetentionRule = TraceRetentionRuleMaxDays | TraceRetentionRuleMaxCount | TraceRetentionRuleMaxDaysOrCount
 
 type TraceRetentionRuleMaxCount {
   maxCount: Int!
@@ -3400,9 +2683,7 @@ type TraceRetentionRuleMaxDaysOrCount {
 type UMAPPoint {
   id: ID!
 
-  """
-  The ID of the event that the point is a projection of
-  """
+  """The ID of the event that the point is a projection of"""
   eventId: ID!
   coordinates: Point2DPoint3D!
   embeddingMetadata: EmbeddingMetadata!
@@ -3446,9 +2727,7 @@ type UpdateModelMutationPayload {
 }
 
 type User implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
   passwordNeedsReset: Boolean!
   email: String!
@@ -3461,60 +2740,38 @@ type User implements Node {
 }
 
 type UserApiKey implements ApiKey & Node {
-  """
-  Name of the API key.
-  """
+  """Name of the API key."""
   name: String!
 
-  """
-  Description of the API key.
-  """
+  """Description of the API key."""
   description: String
 
-  """
-  The date and time the API key was created.
-  """
+  """The date and time the API key was created."""
   createdAt: DateTime!
 
-  """
-  The date and time the API key will expire.
-  """
+  """The date and time the API key will expire."""
   expiresAt: DateTime
 
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
   user: User!
 }
 
-"""
-A connection to a list of items.
-"""
+"""A connection to a list of items."""
 type UserConnection {
-  """
-  Pagination data for this connection
-  """
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
 
-  """
-  Contains the nodes in this connection
-  """
+  """Contains the nodes in this connection"""
   edges: [UserEdge!]!
 }
 
-"""
-An edge in a connection.
-"""
+"""An edge in a connection."""
 type UserEdge {
-  """
-  A cursor for use in pagination
-  """
+  """A cursor for use in pagination"""
   cursor: String!
 
-  """
-  The item at the end of the edge
-  """
+  """The item at the end of the edge"""
   node: User!
 }
 
@@ -3523,9 +2780,7 @@ type UserMutationPayload {
 }
 
 type UserRole implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: ID!
   name: String!
 }
@@ -3544,7 +2799,5 @@ enum VectorDriftMetric {
   euclideanDistance
 }
 
-"""
-Represents NULL values
-"""
+"""Represents NULL values"""
 scalar Void
