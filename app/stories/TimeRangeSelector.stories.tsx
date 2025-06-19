@@ -21,7 +21,7 @@ export default meta;
 const Template: StoryFn<TimeRangeSelectorProps> = (args) => {
   const [timeRange, setTimeRange] = useState<OpenTimeRangeWithKey>({
     timeRangeKey: "7d",
-    start: new Date(),
+    start: new Date("2024-01-15T10:00:00Z"),
   });
   return (
     <div>
