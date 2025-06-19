@@ -1,3 +1,4 @@
+import re
 from typing import Optional
 
 import strawberry
@@ -76,6 +77,7 @@ class ModelMutationMixin:
             raise BadRequest("input cost is required")
         if "output" not in cost_types:
             raise BadRequest("output cost is required")
+        _ensure_valid_regex(input.name_pattern)
         costs = [
             models.ModelCost(
                 token_type=cost.token_type,
@@ -118,6 +120,7 @@ class ModelMutationMixin:
             raise BadRequest("input cost is required")
         if "output" not in cost_types:
             raise BadRequest("output cost is required")
+        _ensure_valid_regex(input.name_pattern)
         costs = [
             models.ModelCost(
                 token_type=cost.token_type,
@@ -184,3 +187,13 @@ class ModelMutationMixin:
             model=to_gql_generative_model(model),
             query=Query(),
         )
+
+
+def _ensure_valid_regex(maybe_regex: str) -> None:
+    """
+    Raises a BadRequest error if the given string is not a valid regex.
+    """
+    try:
+        re.compile(maybe_regex)
+    except re.error as error:
+        raise BadRequest(f"Invalid regex: {str(error)}")

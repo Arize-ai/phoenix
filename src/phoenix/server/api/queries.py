@@ -1,3 +1,4 @@
+import re
 from collections import defaultdict
 from datetime import datetime
 from typing import Iterable, Iterator, Optional, Union, cast
@@ -1005,6 +1006,14 @@ class Query:
             DbTableStats(table_name=table_name, num_bytes=num_bytes)
             for table_name, num_bytes in stats
         ]
+
+    @strawberry.field
+    def validate_regular_expression(self, regex: str) -> ValidationResult:
+        try:
+            re.compile(regex)
+            return ValidationResult(is_valid=True, error_message=None)
+        except re.error as error:
+            return ValidationResult(is_valid=False, error_message=str(error))
 
 
 def _consolidate_sqlite_db_table_stats(
