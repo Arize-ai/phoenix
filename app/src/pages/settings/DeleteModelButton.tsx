@@ -82,13 +82,7 @@ function DeleteModelDialogContent({
   ]);
 
   return (
-    <Dialog>
-      <DialogHeader>
-        <DialogTitle>Delete Model</DialogTitle>
-        <DialogTitleExtra>
-          <DialogCloseButton slot="close" />
-        </DialogTitleExtra>
-      </DialogHeader>
+    <div>
       <View padding="size-200">
         <Text color="danger">
           {`Are you sure you want to delete the "${modelName}" model? This action cannot be undone and all services dependent on this model, including associated costs, will be affected.`}
@@ -117,7 +111,7 @@ function DeleteModelDialogContent({
           </Button>
         </Flex>
       </View>
-    </Dialog>
+    </div>
   );
 }
 
