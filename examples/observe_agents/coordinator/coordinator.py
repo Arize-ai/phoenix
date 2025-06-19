@@ -23,6 +23,7 @@ load_dotenv()
 tracer_provider = register(
     auto_instrument=True,
     endpoint="http://localhost:4317",
+    verbose=False,
 )
 tracer = tracer_provider.get_tracer("coordinator-agent")
 
