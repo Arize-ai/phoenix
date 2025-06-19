@@ -22,6 +22,7 @@ import {
   SessionDetailsQuery$data,
 } from "./__generated__/SessionDetailsQuery.graphql";
 import { EditSpanAnnotationsButton } from "./EditSpanAnnotationsButton";
+import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 
 const getUserFromRootSpanAttributes = (attributes: string) => {
   const { json: parsedAttributes } = safelyParseJSON(attributes);
@@ -131,6 +132,12 @@ function RootSpanDetails({
               tokenCountTotal={rootSpan.cumulativeTokenCountTotal ?? 0}
               nodeId={rootSpan.id}
             />
+            {rootSpan.costSummary?.total?.cost != null && (
+              <TokenCosts
+                totalCost={rootSpan.costSummary.total.cost}
+                nodeId={rootSpan.id}
+              />
+            )}
             {rootSpan.latencyMs != null ? (
               <LatencyText latencyMs={rootSpan.latencyMs} />
             ) : (
