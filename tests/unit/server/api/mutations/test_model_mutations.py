@@ -205,6 +205,21 @@ class TestModelMutations:
                 "Model with name 'default-model' already exists",
                 id="duplicate-default-model",
             ),
+            pytest.param(
+                {
+                    "input": {
+                        "name": "test-model",
+                        "provider": "openai",
+                        "namePattern": "[",
+                        "costs": [
+                            {"tokenType": "input", "costPerToken": 0.001},
+                            {"tokenType": "output", "costPerToken": 0.002},
+                        ],
+                    }
+                },
+                "Invalid regex: unterminated character set at position 0",
+                id="invalid-regex",
+            ),
         ],
     )
     async def test_create_model_with_invalid_input_raises_expected_error(
@@ -287,6 +302,22 @@ class TestModelMutations:
                 },
                 "output cost is required",
                 id="missing-output-cost",
+            ),
+            pytest.param(
+                {
+                    "input": {
+                        "id": str(GlobalID(GenerativeModel.__name__, str(1))),
+                        "name": "updated-model",
+                        "provider": "openai",
+                        "namePattern": "[",
+                        "costs": [
+                            {"tokenType": "input", "costPerToken": 0.001},
+                            {"tokenType": "output", "costPerToken": 0.002},
+                        ],
+                    }
+                },
+                "Invalid regex: unterminated character set at position 0",
+                id="invalid-regex",
             ),
         ],
     )

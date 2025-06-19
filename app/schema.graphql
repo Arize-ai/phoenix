@@ -2088,6 +2088,7 @@ type Query {
   """
   dbStorageCapacityBytes: Float
   dbTableStats: [DbTableStats!]!
+  validateRegularExpression(regex: String!): ValidationResult!
 }
 
 input RemoveAnnotationConfigFromProjectInput {
