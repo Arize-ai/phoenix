@@ -4,6 +4,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
 import { Flex, Loading, Text, TextProps } from "@phoenix/components";
+import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type { TokenCosts_TokenCostsDetailsQuery } from "./__generated__/TokenCosts_TokenCostsDetailsQuery.graphql";
 
@@ -29,7 +30,7 @@ export function TokenCosts(props: TokenCostsProps) {
   return (
     <TooltipTrigger delay={500}>
       <TriggerWrap>
-        <TokenCostsItem size={props.size}>{props.totalCost}</TokenCostsItem>
+        <Text size={props.size}>{costFormatter(props.totalCost)}</Text>
       </TriggerWrap>
       <Tooltip>
         <Suspense fallback={<Loading />}>
@@ -45,14 +46,36 @@ function TokenCostsDetails(props: { nodeId: string }) {
     graphql`
       query TokenCosts_TokenCostsDetailsQuery($nodeId: ID!) {
         node(id: $nodeId) {
-          __typename
           ... on Span {
-            cost {
-              details {
-                tokenType
-                isPrompt
+            costDetailSummaryEntries {
+              tokenType
+              isPrompt
+              value {
                 cost
                 tokens
+                costPerToken
+              }
+            }
+          }
+          ... on Trace {
+            costDetailSummaryEntries {
+              tokenType
+              isPrompt
+              value {
+                cost
+                tokens
+                costPerToken
+              }
+            }
+          }
+          ... on ProjectSession {
+            costDetailSummaryEntries {
+              tokenType
+              isPrompt
+              value {
+                cost
+                tokens
+                costPerToken
               }
             }
           }
@@ -62,117 +85,64 @@ function TokenCostsDetails(props: { nodeId: string }) {
     { nodeId: props.nodeId }
   );
 
-  const {
-    tokenCostInput,
-    tokenCostOutput,
-    tokenCostCacheRead,
-    tokenCostCacheWrite,
-    tokenCostPromptAudio,
-    tokenCostCompletionAudio,
-  } = useMemo(() => {
-    if (data.node.__typename == "Span") {
-      const details = data.node.cost?.details;
-      const tokenCostInput = details?.find(
-        (detail) => detail.tokenType === "input" && !detail.isPrompt
-      )?.cost;
-      const tokenCostOutput = details?.find(
-        (detail) => detail.tokenType === "output" && !detail.isPrompt
-      )?.cost;
-      const tokenCostCacheRead = details?.find(
-        (detail) => detail.tokenType === "cache_read" && detail.isPrompt
-      )?.cost;
-      const tokenCostCacheWrite = details?.find(
-        (detail) => detail.tokenType === "cache_write" && detail.isPrompt
-      )?.cost;
-      const tokenCostPromptAudio = details?.find(
-        (detail) => detail.tokenType === "audio" && detail.isPrompt
-      )?.cost;
-      const tokenCostCompletionAudio = details?.find(
-        (detail) => detail.tokenType === "audio" && !detail.isPrompt
-      )?.cost;
+  const { promptDetails, completionDetails } = useMemo(() => {
+    const details = data.node.costDetailSummaryEntries;
+    if (!details) {
       return {
-        tokenCostInput,
-        tokenCostOutput,
-        tokenCostCacheRead,
-        tokenCostCacheWrite,
-        tokenCostPromptAudio,
-        tokenCostCompletionAudio,
+        promptDetails: [],
+        completionDetails: [],
       };
     }
     return {
-      tokenCostInput: undefined,
-      tokenCostOutput: undefined,
-      tokenCostCacheRead: undefined,
-      tokenCostCacheWrite: undefined,
-      tokenCostPromptAudio: undefined,
-      tokenCostCompletionAudio: undefined,
+      promptDetails: details
+        .filter((detail) => detail.isPrompt)
+        .sort((a, b) => a.tokenType.localeCompare(b.tokenType)),
+      completionDetails: details
+        .filter((detail) => !detail.isPrompt)
+        .sort((a, b) => a.tokenType.localeCompare(b.tokenType)),
     };
-  }, [data.node]);
+  }, [data.node.costDetailSummaryEntries]);
 
   return (
-    <Flex direction="column" gap="size-50">
-      {!tokenCostInput &&
-      !tokenCostOutput &&
-      !tokenCostCacheRead &&
-      !tokenCostCacheWrite &&
-      !tokenCostPromptAudio &&
-      !tokenCostCompletionAudio ? (
-        <Text>No cost details</Text>
-      ) : (
-        <>
-          {tokenCostInput != null && tokenCostInput !== 0 && (
-            <Flex direction="row" gap="size-100" justifyContent="space-between">
-              <Text>input tokens</Text>
-              <TokenCostsItem>{tokenCostInput}</TokenCostsItem>
-            </Flex>
-          )}
-          {tokenCostOutput != null && tokenCostOutput !== 0 && (
-            <Flex direction="row" gap="size-100" justifyContent="space-between">
-              <Text>output tokens</Text>
-              <TokenCostsItem>{tokenCostOutput}</TokenCostsItem>
-            </Flex>
-          )}
-          {tokenCostPromptAudio != null && tokenCostPromptAudio !== 0 && (
-            <Flex direction="row" gap="size-100" justifyContent="space-between">
-              <Text>prompt audio tokens</Text>
-              <TokenCostsItem>{tokenCostPromptAudio}</TokenCostsItem>
-            </Flex>
-          )}
-          {tokenCostCompletionAudio != null &&
-            tokenCostCompletionAudio !== 0 && (
+    (promptDetails.length > 0 || completionDetails.length > 0) && (
+      <Flex direction="column" gap="size-50">
+        {promptDetails.length > 0 && (
+          <>
+            <Text weight="heavy">Prompt</Text>
+            {promptDetails.map((detail) => (
               <Flex
+                key={detail.tokenType}
                 direction="row"
                 gap="size-100"
                 justifyContent="space-between"
               >
-                <Text>completion audio tokens</Text>
-                <TokenCostsItem>{tokenCostCompletionAudio}</TokenCostsItem>
+                <Text>{`${detail.tokenType} tokens`}</Text>
+                <Text>
+                  {detail.value.cost ? costFormatter(detail.value.cost) : "?"}
+                </Text>
               </Flex>
-            )}
-          {tokenCostCacheRead != null && tokenCostCacheRead !== 0 && (
-            <Flex direction="row" gap="size-100" justifyContent="space-between">
-              <Text>cache read tokens</Text>
-              <TokenCostsItem>{tokenCostCacheRead}</TokenCostsItem>
-            </Flex>
-          )}
-          {tokenCostCacheWrite != null && tokenCostCacheWrite !== 0 && (
-            <Flex direction="row" gap="size-100" justifyContent="space-between">
-              <Text>cache write tokens</Text>
-              <TokenCostsItem>{tokenCostCacheWrite}</TokenCostsItem>
-            </Flex>
-          )}
-        </>
-      )}
-    </Flex>
+            ))}
+          </>
+        )}
+        {completionDetails.length > 0 && (
+          <>
+            <Text weight="heavy">Completion</Text>
+            {completionDetails.map((detail) => (
+              <Flex
+                key={detail.tokenType}
+                direction="row"
+                gap="size-100"
+                justifyContent="space-between"
+              >
+                <Text>{`${detail.tokenType} tokens`}</Text>
+                <Text>
+                  {detail.value.cost ? costFormatter(detail.value.cost) : "?"}
+                </Text>
+              </Flex>
+            ))}
+          </>
+        )}
+      </Flex>
+    )
   );
-}
-
-function TokenCostsItem({
-  children,
-  ...textProps
-}: {
-  children: number;
-  size?: TextProps["size"];
-}) {
-  return <Text {...textProps}>{`$${Number(children.toPrecision(3))}`}</Text>;
 }

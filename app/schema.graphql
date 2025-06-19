@@ -371,8 +371,8 @@ input ContinuousAnnotationConfigInput {
 }
 
 type CostBreakdown {
-  tokens: Float!
-  cost: Float!
+  tokens: Float
+  cost: Float
   costPerToken: Float
 }
 
@@ -2256,9 +2256,8 @@ type Span implements Node {
 
   """Invocation parameters for the span"""
   invocationParameters: [InvocationParameter!]!
-
-  """The cost of the span"""
-  cost: SpanCost
+  costSummary: SpanCostSummary
+  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
 type SpanAnnotation implements Node & Annotation {
@@ -2352,31 +2351,6 @@ type SpanConnection {
 type SpanContext {
   traceId: ID!
   spanId: ID!
-}
-
-type SpanCost implements Node {
-  """The Globally Unique ID of this object"""
-  id: ID!
-  details: [SpanCostDetail!]!
-  totalTokens: Float
-  totalCost: Float
-  totalCostPerToken: Float
-  promptTokens: Float
-  promptCost: Float
-  promptCostPerToken: Float
-  completionTokens: Float
-  completionCost: Float
-  completionCostPerToken: Float
-}
-
-type SpanCostDetail implements Node {
-  """The Globally Unique ID of this object"""
-  id: ID!
-  tokenType: String!
-  isPrompt: Boolean!
-  tokens: Float
-  cost: Float
-  costPerToken: Float
 }
 
 type SpanCostDetailSummaryEntry {

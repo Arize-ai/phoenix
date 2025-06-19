@@ -33,6 +33,7 @@ from phoenix.server.api.input_types.SpanAnnotationSort import (
     SpanAnnotationSort,
 )
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
+from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalMetrics
 from phoenix.server.api.types.Evaluation import DocumentEvaluation
 from phoenix.server.api.types.ExampleRevisionInterface import ExampleRevision
@@ -41,7 +42,8 @@ from phoenix.server.api.types.MimeType import MimeType
 from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_annotation
-from phoenix.server.api.types.SpanCost import SpanCost
+from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
+from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.SpanIOValue import SpanIOValue, truncate_value
 from phoenix.trace.attributes import get_attribute_value
 
@@ -791,13 +793,40 @@ class Span(Node):
             )
         ]
 
-    @strawberry.field(description="The cost of the span")  # type: ignore
-    async def cost(self, info: Info[Context, None]) -> Optional[SpanCost]:
-        loader = info.context.data_loaders.span_cost_by_span
-        record = await loader.load(self.span_rowid)
-        if record is None:
+    @strawberry.field
+    async def cost_summary(self, info: Info[Context, None]) -> Optional[SpanCostSummary]:
+        span_cost = await info.context.data_loaders.span_cost_by_span.load(self.span_rowid)
+        if span_cost is None:
             return None
-        return SpanCost(id_=record.id, db_record=record)
+        return SpanCostSummary(
+            prompt=CostBreakdown(
+                tokens=span_cost.prompt_tokens,
+                cost=span_cost.prompt_cost,
+            ),
+            completion=CostBreakdown(
+                tokens=span_cost.completion_tokens,
+                cost=span_cost.completion_cost,
+            ),
+            total=CostBreakdown(
+                tokens=span_cost.total_tokens,
+                cost=span_cost.total_cost,
+            ),
+        )
+
+    @strawberry.field
+    async def cost_detail_summary_entries(
+        self, info: Info[Context, None]
+    ) -> list[SpanCostDetailSummaryEntry]:
+        loader = info.context.data_loaders.span_cost_detail_summary_entries_by_span
+        entries = await loader.load(self.span_rowid)
+        return [
+            SpanCostDetailSummaryEntry(
+                token_type=entry.token_type,
+                is_prompt=entry.is_prompt,
+                value=CostBreakdown(tokens=entry.value.tokens, cost=entry.value.cost),
+            )
+            for entry in entries
+        ]
 
 
 def _hide_embedding_vectors(attributes: Mapping[str, Any]) -> Mapping[str, Any]:
