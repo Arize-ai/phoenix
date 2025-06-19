@@ -27,7 +27,7 @@ const meta: Meta = {
   argTypes: {
     size: {
       control: { type: "select" },
-      options: ["S", "M", "L"],
+      options: ["S", "M"],
     },
     color: {
       control: { type: "select" },
@@ -78,9 +78,6 @@ export const Sizes = () => (
       <Icon svg={<SearchOutline />} />
     </IconButton>
     <IconButton size="M" aria-label="Medium search">
-      <Icon svg={<SearchOutline />} />
-    </IconButton>
-    <IconButton size="L" aria-label="Large search">
       <Icon svg={<SearchOutline />} />
     </IconButton>
   </div>
@@ -199,26 +196,6 @@ export const SizeVariations = () => (
         `}
       >
         Medium
-      </span>
-    </div>
-    <div
-      css={css`
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: var(--ac-global-dimension-size-100);
-      `}
-    >
-      <IconButton size="L" aria-label="Large delete">
-        <Icon svg={<TrashOutline />} />
-      </IconButton>
-      <span
-        css={css`
-          font-size: var(--ac-global-font-size-xs);
-          color: var(--ac-global-text-color-500);
-        `}
-      >
-        Large
       </span>
     </div>
   </div>
