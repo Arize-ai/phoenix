@@ -38,7 +38,7 @@ Default.args = {};
 
 export const InAPopOver = () => {
   const [timeRange, setTimeRange] = useState<OpenTimeRange>({
-    start: new Date(),
+    start: new Date("2024-01-15T10:00:00Z"),
   });
   const timeRangeString = timeRangeFormatter(timeRange);
   return (
