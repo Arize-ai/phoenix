@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0fa3a727338f7bd8dea94ea5fdf313db>>
+ * @generated SignedSource<<c67092f73558bbc51bb72f7994731eea>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,19 +14,15 @@ export type TokenCosts_TokenCostsDetailsQuery$variables = {
 };
 export type TokenCosts_TokenCostsDetailsQuery$data = {
   readonly node: {
-    readonly __typename: "Span";
-    readonly cost: {
-      readonly details: ReadonlyArray<{
+    readonly costDetailSummaryEntries?: ReadonlyArray<{
+      readonly isPrompt: boolean;
+      readonly tokenType: string;
+      readonly value: {
         readonly cost: number | null;
-        readonly isPrompt: boolean;
-        readonly tokenType: string;
+        readonly costPerToken: number | null;
         readonly tokens: number | null;
-      }>;
-    } | null;
-  } | {
-    // This will never be '%other', but we need some
-    // value in case none of the concrete values match.
-    readonly __typename: "%other";
+      };
+    }>;
   };
 };
 export type TokenCosts_TokenCostsDetailsQuery = {
@@ -49,47 +45,82 @@ v1 = [
     "variableName": "nodeId"
   }
 ],
-v2 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "__typename",
-  "storageKey": null
-},
+v2 = [
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "SpanCostDetailSummaryEntry",
+    "kind": "LinkedField",
+    "name": "costDetailSummaryEntries",
+    "plural": true,
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "tokenType",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "isPrompt",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "CostBreakdown",
+        "kind": "LinkedField",
+        "name": "value",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "cost",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "tokens",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "costPerToken",
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      }
+    ],
+    "storageKey": null
+  }
+],
 v3 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "tokenType",
-  "storageKey": null
+  "kind": "InlineFragment",
+  "selections": (v2/*: any*/),
+  "type": "Span",
+  "abstractKey": null
 },
 v4 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "isPrompt",
-  "storageKey": null
+  "kind": "InlineFragment",
+  "selections": (v2/*: any*/),
+  "type": "Trace",
+  "abstractKey": null
 },
 v5 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "cost",
-  "storageKey": null
-},
-v6 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "tokens",
-  "storageKey": null
-},
-v7 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "id",
-  "storageKey": null
+  "kind": "InlineFragment",
+  "selections": (v2/*: any*/),
+  "type": "ProjectSession",
+  "abstractKey": null
 };
 return {
   "fragment": {
@@ -106,40 +137,9 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
-          {
-            "kind": "InlineFragment",
-            "selections": [
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "SpanCost",
-                "kind": "LinkedField",
-                "name": "cost",
-                "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "SpanCostDetail",
-                    "kind": "LinkedField",
-                    "name": "details",
-                    "plural": true,
-                    "selections": [
-                      (v3/*: any*/),
-                      (v4/*: any*/),
-                      (v5/*: any*/),
-                      (v6/*: any*/)
-                    ],
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": null
-              }
-            ],
-            "type": "Span",
-            "abstractKey": null
-          }
+          (v3/*: any*/),
+          (v4/*: any*/),
+          (v5/*: any*/)
         ],
         "storageKey": null
       }
@@ -161,59 +161,39 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
           {
-            "kind": "InlineFragment",
-            "selections": [
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "SpanCost",
-                "kind": "LinkedField",
-                "name": "cost",
-                "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "SpanCostDetail",
-                    "kind": "LinkedField",
-                    "name": "details",
-                    "plural": true,
-                    "selections": [
-                      (v3/*: any*/),
-                      (v4/*: any*/),
-                      (v5/*: any*/),
-                      (v6/*: any*/),
-                      (v7/*: any*/)
-                    ],
-                    "storageKey": null
-                  },
-                  (v7/*: any*/)
-                ],
-                "storageKey": null
-              }
-            ],
-            "type": "Span",
-            "abstractKey": null
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "__typename",
+            "storageKey": null
           },
-          (v7/*: any*/)
+          (v3/*: any*/),
+          (v4/*: any*/),
+          (v5/*: any*/),
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "id",
+            "storageKey": null
+          }
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "52860feacc5d6464b36962cb2baf44a2",
+    "cacheID": "621be4b260aab8b119610e7089d8f825",
     "id": null,
     "metadata": {},
     "name": "TokenCosts_TokenCostsDetailsQuery",
     "operationKind": "query",
-    "text": "query TokenCosts_TokenCostsDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      cost {\n        details {\n          tokenType\n          isPrompt\n          cost\n          tokens\n          id\n        }\n        id\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query TokenCosts_TokenCostsDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      costDetailSummaryEntries {\n        tokenType\n        isPrompt\n        value {\n          cost\n          tokens\n          costPerToken\n        }\n      }\n    }\n    ... on Trace {\n      costDetailSummaryEntries {\n        tokenType\n        isPrompt\n        value {\n          cost\n          tokens\n          costPerToken\n        }\n      }\n    }\n    ... on ProjectSession {\n      costDetailSummaryEntries {\n        tokenType\n        isPrompt\n        value {\n          cost\n          tokens\n          costPerToken\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f70efa6cec859cb808262d5b855db4f3";
+(node as any).hash = "501319a4bf950875b2169e3b81d966cd";
 
 export default node;

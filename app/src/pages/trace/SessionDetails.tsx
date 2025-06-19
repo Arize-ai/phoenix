@@ -159,6 +159,11 @@ export function SessionDetails(props: SessionDetailsProps) {
                       mimeType
                     }
                     cumulativeTokenCountTotal
+                    costSummary {
+                      total {
+                        cost
+                      }
+                    }
                     latencyMs
                     startTime
                     spanId

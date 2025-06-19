@@ -38,6 +38,7 @@ from .span_cost_by_span import SpanCostBySpanDataLoader
 from .span_cost_detail_summary_entries_by_generative_model import (
     SpanCostDetailSummaryEntriesByGenerativeModelDataLoader,
 )
+from .span_cost_detail_summary_entries_by_span import SpanCostDetailSummaryEntriesBySpanDataLoader
 from .span_cost_detail_summary_entries_by_trace import SpanCostDetailSummaryEntriesByTraceDataLoader
 from .span_cost_details_by_span_cost import SpanCostDetailsBySpanCostDataLoader
 from .span_cost_summary_by_generative_model import (
@@ -89,6 +90,7 @@ __all__ = [
     "SpanCostBySpanDataLoader",
     "SpanCostDetailSummaryEntriesByGenerativeModelDataLoader",
     "SpanCostDetailSummaryEntriesByProjectSessionDataLoader",
+    "SpanCostDetailSummaryEntriesBySpanDataLoader",
     "SpanCostDetailSummaryEntriesByTraceDataLoader",
     "SpanCostDetailsBySpanCostDataLoader",
     "SpanCostSummaryByGenerativeModelDataLoader",
