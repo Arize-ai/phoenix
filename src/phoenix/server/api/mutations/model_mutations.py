@@ -77,8 +77,7 @@ class ModelMutationMixin:
             raise BadRequest("input cost is required")
         if "output" not in cost_types:
             raise BadRequest("output cost is required")
-        if not _is_valid_regex(input.name_pattern):
-            raise BadRequest("name_pattern is not a valid regex")
+        _ensure_valid_regex(input.name_pattern)
         costs = [
             models.ModelCost(
                 token_type=cost.token_type,
@@ -121,8 +120,7 @@ class ModelMutationMixin:
             raise BadRequest("input cost is required")
         if "output" not in cost_types:
             raise BadRequest("output cost is required")
-        if not _is_valid_regex(input.name_pattern):
-            raise BadRequest("name_pattern is not a valid regex")
+        _ensure_valid_regex(input.name_pattern)
         costs = [
             models.ModelCost(
                 token_type=cost.token_type,
@@ -191,12 +189,11 @@ class ModelMutationMixin:
         )
 
 
-def _is_valid_regex(maybe_regex: str) -> bool:
+def _ensure_valid_regex(maybe_regex: str) -> None:
     """
-    Returns True if the given string is a valid regex, False otherwise.
+    Raises a BadRequest error if the given string is not a valid regex.
     """
     try:
         re.compile(maybe_regex)
-        return True
-    except re.error:
-        return False
+    except re.error as error:
+        raise BadRequest(f"Invalid regex: {str(error)}")

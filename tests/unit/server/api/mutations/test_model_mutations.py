@@ -217,7 +217,7 @@ class TestModelMutations:
                         ],
                     }
                 },
-                "name_pattern is not a valid regex",
+                "Invalid regex: unterminated character set at position 0",
                 id="invalid-regex",
             ),
         ],
@@ -316,7 +316,7 @@ class TestModelMutations:
                         ],
                     }
                 },
-                "name_pattern is not a valid regex",
+                "Invalid regex: unterminated character set at position 0",
                 id="invalid-regex",
             ),
         ],
