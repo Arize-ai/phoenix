@@ -654,8 +654,8 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
                                    aws_session_token=self.aws_session_token)
         self.client._client = _HttpxClient({}, self._attributes)
 
-        self._attributes[LLM_PROVIDER] = "bedrock"
-        self._attributes[LLM_SYSTEM] = "bedrock"
+        self._attributes[LLM_PROVIDER] = "aws"
+        self._attributes[LLM_SYSTEM] = "aws"
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:

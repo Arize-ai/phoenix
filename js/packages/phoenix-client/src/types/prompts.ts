@@ -132,8 +132,8 @@ export type OllamaInvocationParameters =
 /**
  * The invocation parameters for a prompt version for Bedrock.
  */
-export type BedrockInvocationParameters =
-  components["schemas"]["PromptBedrockInvocationParametersContent"];
+export type AwsInvocationParameters =
+  components["schemas"]["PromptAwsInvocationParametersContent"];
 
 /**
  * The format of the prompt template message(s).

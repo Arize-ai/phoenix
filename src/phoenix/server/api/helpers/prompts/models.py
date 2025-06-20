@@ -402,16 +402,16 @@ class PromptAnthropicInvocationParameters(DBBaseModel):
     type: Literal["anthropic"]
     anthropic: PromptAnthropicInvocationParametersContent
 
-class PromptBedrockInvocationParametersContent(DBBaseModel):
+class PromptAwsInvocationParametersContent(DBBaseModel):
     region: str = UNDEFINED
     api: str = UNDEFINED
     max_tokens: int
     temperature: float = UNDEFINED
     top_p: float = UNDEFINED
 
-class PromptBedrockInvocationParameters(DBBaseModel):
-    type: Literal["bedrock"]
-    bedrock: PromptBedrockInvocationParametersContent
+class PromptAwsInvocationParameters(DBBaseModel):
+    type: Literal["aws"]
+    aws: PromptAwsInvocationParametersContent
 
 
 class PromptGoogleInvocationParametersContent(DBBaseModel):
@@ -438,7 +438,7 @@ PromptInvocationParameters: TypeAlias = Annotated[
         PromptDeepSeekInvocationParameters,
         PromptXAIInvocationParameters,
         PromptOllamaInvocationParameters,
-        PromptBedrockInvocationParameters,
+        PromptAwsInvocationParameters,
     ],
     Field(..., discriminator="type"),
 ]
@@ -461,8 +461,8 @@ def get_raw_invocation_parameters(
         return invocation_parameters.xai.model_dump()
     if isinstance(invocation_parameters, PromptOllamaInvocationParameters):
         return invocation_parameters.ollama.model_dump()
-    if isinstance(invocation_parameters, PromptBedrockInvocationParameters):
-        return invocation_parameters.bedrock.model_dump()
+    if isinstance(invocation_parameters, PromptAwsInvocationParameters):
+        return invocation_parameters.aws.model_dump()
     assert_never(invocation_parameters)
 
 
@@ -479,7 +479,7 @@ def is_prompt_invocation_parameters(
             PromptDeepSeekInvocationParameters,
             PromptXAIInvocationParameters,
             PromptOllamaInvocationParameters,
-            PromptBedrockInvocationParameters,
+            PromptAwsInvocationParameters,
         ),
     )
 
@@ -534,9 +534,9 @@ def validate_invocation_parameters(
             ollama=PromptOllamaInvocationParametersContent.model_validate(invocation_parameters),
         )
     elif model_provider is ModelProvider.AWS:
-        return PromptBedrockInvocationParameters(
-            type="bedrock",
-            bedrock=PromptBedrockInvocationParametersContent.model_validate(invocation_parameters),
+        return PromptAwsInvocationParameters(
+            type="aws",
+            aws=PromptAwsInvocationParametersContent.model_validate(invocation_parameters),
         )
     assert_never(model_provider)
 

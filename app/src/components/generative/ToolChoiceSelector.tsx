@@ -15,7 +15,6 @@ import {
   findToolChoiceName,
   makeAnthropicToolChoice,
   makeOpenAIToolChoice,
-  makeAwsToolChoice,
   OpenaiToolChoice,
 } from "@phoenix/schemas/toolChoiceSchemas";
 import { assertUnreachable, isObject } from "@phoenix/typeUtils";
@@ -260,13 +259,6 @@ export function ToolChoiceSelector<
                 })
               );
               break;
-              // case "AWS":
-              //   onChange(
-              //     makeAwsToolChoice({
-              //       type: choice as (typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER)["AWS"][number],
-              //     })
-              //   );
-              break;
             default:
               assertUnreachable(provider);
           }
@@ -290,13 +282,6 @@ export function ToolChoiceSelector<
                   type: choice as (typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER)["ANTHROPIC"][number],
                 })
               );
-              break;
-              // case "AWS":
-              //   onChange(
-              //     makeAwsToolChoice({
-              //       type: choice as (typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER)["AWS"][number],
-              //     })
-              //   );
               break;
             default:
               assertUnreachable(provider);
