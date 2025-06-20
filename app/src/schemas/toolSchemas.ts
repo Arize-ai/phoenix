@@ -134,11 +134,11 @@ export const anthropicToolDefinitionJSONSchema = zodToJsonSchema(
 export const awsToolDefinitionSchema = z.object({
   toolSpec: z.object({
     name: z.string(),
-    description: z.string(),
+    description: z.string().min(1),
     inputSchema: z.object({
-      json: jsonSchemaZodSchema
-    })
-  })
+      json: jsonSchemaZodSchema,
+    }),
+  }),
 });
 
 export type AwsToolDefinition = z.infer<typeof awsToolDefinitionSchema>;
@@ -399,9 +399,7 @@ export function createAnthropicToolDefinition(
   };
 }
 
-export function createAwsToolDefinition(
-  toolNumber: number
-): AwsToolDefinition {
+export function createAwsToolDefinition(toolNumber: number): AwsToolDefinition {
   return {
     toolSpec: {
       name: `new_function_${toolNumber}`,

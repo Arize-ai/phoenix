@@ -20,6 +20,7 @@ import {
 } from "@phoenix/contexts/PlaygroundContext";
 import {
   anthropicToolDefinitionJSONSchema,
+  awsToolDefinitionJSONSchema,
   openAIToolDefinitionJSONSchema,
 } from "@phoenix/schemas";
 import { findToolChoiceName } from "@phoenix/schemas/toolChoiceSchemas";
@@ -122,11 +123,12 @@ export function PlaygroundTool({
       case "DEEPSEEK":
       case "XAI":
       case "OLLAMA":
-      case "AWS":
-      case "BEDROCK":
         return openAIToolDefinitionJSONSchema as JSONSchema7;
       case "ANTHROPIC":
         return anthropicToolDefinitionJSONSchema as JSONSchema7;
+      case "AWS":
+      case "BEDROCK":
+        return awsToolDefinitionJSONSchema as JSONSchema7;
       case "GOOGLE":
         return null;
     }
