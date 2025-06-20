@@ -177,9 +177,7 @@ export function CloneModelButton({
         aria-label="Clone model"
         onPress={handleOpen}
         size="S"
-      >
-        Clone
-      </Button>
+      />
       <ModalOverlay>
         <Modal>
           <Dialog>

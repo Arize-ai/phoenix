@@ -178,9 +178,7 @@ export function EditModelButton({
         aria-label="Edit model"
         onPress={handleOpen}
         size="S"
-      >
-        Edit
-      </Button>
+      />
       <ModalOverlay>
         <Modal>
           <Dialog>

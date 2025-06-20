@@ -9,7 +9,7 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons } from "@phoenix/components";
+import { Flex, Icon, Icons, Token, View } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { TextCell } from "@phoenix/components/table";
 import {
@@ -109,7 +109,29 @@ export function ModelsTable(props: ModelsTableProps) {
       {
         header: "name",
         accessorKey: "name",
-        size: 200,
+        size: 300,
+        cell: ({ row }) => {
+          const model = row.original;
+          return (
+            <Flex
+              direction="row"
+              gap="size-100"
+              alignItems="center"
+              justifyContent="space-between"
+            >
+              <span>{model.name}</span>
+              <View flex="none">
+                {row.original.isOverride ? (
+                  <Token>custom</Token>
+                ) : (
+                  <Token color="var(--ac-global-color-blue-500)">
+                    built-in
+                  </Token>
+                )}
+              </View>
+            </Flex>
+          );
+        },
       },
       {
         header: "provider",
@@ -213,7 +235,12 @@ export function ModelsTable(props: ModelsTableProps) {
         cell: ({ row }) => {
           const isOverride = row.original.isOverride;
           return (
-            <Flex direction="row" gap="size-50">
+            <Flex
+              direction="row"
+              gap="size-50"
+              width="100%"
+              justifyContent="end"
+            >
               {isOverride && <EditModelButton modelId={row.original.id} />}
               <CloneModelButton modelId={row.original.id} />
               {isOverride && (
