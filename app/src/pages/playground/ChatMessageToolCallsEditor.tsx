@@ -95,9 +95,9 @@ export function ChatMessageToolCallsEditor({
         return openAIToolCallsJSONSchema as JSONSchema7;
       case "ANTHROPIC":
         return anthropicToolCallsJSONSchema as JSONSchema7;
-      // TODO(apowell): #5348 Add Google tool calls schema
       case "AWS":
         return awsToolCallsJSONSchema as JSONSchema7;
+      // TODO(apowell): #5348 Add Google tool calls schema
       case "GOOGLE":
         return null;
     }
