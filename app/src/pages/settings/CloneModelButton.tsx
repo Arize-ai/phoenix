@@ -106,12 +106,12 @@ function CloneModelDialogContent({
               name: params.name,
               provider: params.provider,
               namePattern: params.namePattern,
-              costs: Object.entries(params.cost)
-                .filter(([_, value]) => value != null)
-                .map(([key, value]) => ({
-                  tokenType: key,
-                  costPerToken: value,
-                })),
+              costs: [...params.promptCosts, ...params.completionCosts].map(
+                (cost) => ({
+                  tokenType: cost.name,
+                  costPerToken: cost.cost,
+                })
+              ),
             },
             connectionId,
           },
