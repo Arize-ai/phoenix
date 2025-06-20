@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-import { LLMProvider } from "@arizeai/openinference-semantic-conventions";
-
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { getTemplateFormatUtils } from "@phoenix/components/templateEditor/templateEditorUtils";
 import { TemplateFormat } from "@phoenix/components/templateEditor/types";
@@ -20,9 +18,7 @@ import {
 import { JSONLiteral } from "@phoenix/schemas/jsonLiteralSchema";
 import {
   AnthropicToolCall,
-  AwsToolCall,
   createAnthropicToolCall,
-  createAwsToolCall,
   createOpenAIToolCall,
   LlmProviderToolCall,
   OpenAIToolCall,
@@ -177,15 +173,6 @@ export function processAttributeToolCalls({
             input: toolCallArgs,
           } satisfies AnthropicToolCall;
         }
-        // case "AWS": {
-        //   return {
-        //     toolSpec: {
-        //       name: tool_call.function?.name ?? "",
-        //       description: tool_call.function?.name ?? "",
-        //       inputSchema: toolCallArgs,
-        //     },
-        //   } satisfies AwsToolCall;
-        // }
         // TODO(apowell): #5348 Add Google tool call
         case "GOOGLE":
           return {
@@ -397,7 +384,6 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
 } {
   const { success, data } = modelConfigSchema.safeParse(parsedAttributes);
   if (success) {
-    debugger;
     const provider =
       openInferenceModelProviderToPhoenixModelProvider(data.llm.provider) ||
       getModelProviderFromModelName(data.llm.model_name);
@@ -961,8 +947,6 @@ export const createToolCallForProvider = (
       return createOpenAIToolCall();
     case "ANTHROPIC":
       return createAnthropicToolCall();
-    // case "AWS":
-    //   return createAwsToolCall();
     // TODO(apowell): #5348 Add Google tool call
     case "GOOGLE":
       return createOpenAIToolCall();
