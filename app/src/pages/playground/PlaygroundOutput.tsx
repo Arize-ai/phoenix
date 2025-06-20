@@ -94,16 +94,23 @@ function PlaygroundOutputMessage({
       {content != null && !Array.isArray(content) && (
         <ConnectedMarkdownBlock>{content}</ConnectedMarkdownBlock>
       )}
-      {toolCalls && toolCalls.length > 0
-        ? toolCalls.map((toolCall) => {
-            return (
-              <PlaygroundToolCall
-                key={getToolCallKey(toolCall)}
-                toolCall={toolCall}
-              />
-            );
-          })
-        : null}
+      <View
+        paddingX="size-200"
+        paddingY="size-200"
+        borderTopWidth="thin"
+        borderTopColor="blue-500"
+      >
+        {toolCalls && toolCalls.length > 0
+          ? toolCalls.map((toolCall) => {
+              return (
+                <PlaygroundToolCall
+                  key={getToolCallKey(toolCall)}
+                  toolCall={toolCall}
+                />
+              );
+            })
+          : null}
+      </View>
     </Card>
   );
 }
