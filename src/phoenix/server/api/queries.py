@@ -6,7 +6,7 @@ import numpy as np
 import numpy.typing as npt
 import strawberry
 from sqlalchemy import and_, distinct, func, select, text
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, GlobalID, Node
@@ -412,8 +412,11 @@ class Query:
                         OrmExperimentRun.experiment_id.in_(experiment_ids_),
                     )
                 )
-                .options(joinedload(OrmExperimentRun.trace).load_only(OrmTrace.trace_id))
-            ):
+                .options(
+                    joinedload(OrmExperimentRun.trace).load_only(OrmTrace.trace_id),
+                    selectinload(OrmExperimentRun.annotations)
+                )
+            ):  
                 runs[run.dataset_example_id][run.experiment_id].append(run)
 
         experiment_comparisons = []

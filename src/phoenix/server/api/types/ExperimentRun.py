@@ -35,6 +35,7 @@ class ExperimentRun(Node):
     start_time: datetime
     end_time: datetime
     error: Optional[str]
+    _annotations: strawberry.Private[Optional[list[models.ExperimentRunAnnotation]]] = None
 
     @strawberry.field
     async def annotations(
@@ -51,6 +52,11 @@ class ExperimentRun(Node):
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
+        if self._annotations is not None:
+            return connection_from_list(
+                [to_gql_experiment_run_annotation(annotation) for annotation in self._annotations],
+                args,
+            )
         run_id = self.id_attr
         annotations = await info.context.data_loaders.experiment_run_annotations.load(run_id)
         return connection_from_list(
@@ -116,4 +122,5 @@ def to_gql_experiment_run(run: models.ExperimentRun) -> ExperimentRun:
         start_time=run.start_time,
         end_time=run.end_time,
         error=run.error,
+        _annotations=run.annotations if hasattr(run, "annotations") else None,
     )
