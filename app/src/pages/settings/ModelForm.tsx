@@ -27,7 +27,7 @@ import {
   getSemConvProvider,
 } from "@phoenix/utils/generativeUtils";
 
-type TokenPrice = {
+export type TokenPrice = {
   kind: ModelTokenKind;
   tokenType: string;
   costPerMillionTokens: number;

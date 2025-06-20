@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { ModelForm } from "../src/pages/settings/ModelForm";
+import { ModelForm, TokenPrice } from "../src/pages/settings/ModelForm";
 
 const meta: Meta<typeof ModelForm> = {
   title: "Forms/ModelForm",
@@ -48,6 +48,19 @@ const meta: Meta<typeof ModelForm> = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+const defaultCost = [
+  {
+    kind: "PROMPT",
+    tokenType: "input",
+    costPerMillionTokens: 1,
+  },
+  {
+    kind: "COMPLETION",
+    tokenType: "output",
+    costPerMillionTokens: 2,
+  },
+] satisfies TokenPrice[];
+
 /**
  * Default form state for creating a new model with empty fields.
  */
@@ -74,26 +87,7 @@ export const CreateWithDefaults: Story = {
     modelName: "gpt-4-turbo",
     modelProvider: "openai",
     modelNamePattern: "^gpt-4-turbo.*",
-    modelCost: [
-      {
-        tokenType: "input",
-        isPrompt: true,
-        value: {
-          tokens: 1000000,
-          cost: 1.0,
-          costPerToken: 0.000001,
-        },
-      },
-      {
-        tokenType: "output",
-        isPrompt: false,
-        value: {
-          tokens: 1000000,
-          cost: 1.0,
-          costPerToken: 0.000001,
-        },
-      },
-    ],
+    modelCost: defaultCost,
   },
 };
 
@@ -108,26 +102,7 @@ export const EditExistingModel: Story = {
     modelName: "claude-3-sonnet",
     modelProvider: "anthropic",
     modelNamePattern: "^claude-3-sonnet.*",
-    modelCost: [
-      {
-        tokenType: "input",
-        isPrompt: true,
-        value: {
-          tokens: 1000000,
-          cost: 1.0,
-          costPerToken: 0.000001,
-        },
-      },
-      {
-        tokenType: "output",
-        isPrompt: false,
-        value: {
-          tokens: 1000000,
-          cost: 1.0,
-          costPerToken: 0.000001,
-        },
-      },
-    ],
+    modelCost: defaultCost,
   },
 };
 
@@ -142,26 +117,7 @@ export const EditWithAllCosts: Story = {
     modelName: "gpt-4o-audio-preview",
     modelProvider: "openai",
     modelNamePattern: "^gpt-4o-audio.*",
-    modelCost: [
-      {
-        tokenType: "input",
-        isPrompt: true,
-        value: {
-          tokens: 1000000,
-          cost: 1.0,
-          costPerToken: 0.000001,
-        },
-      },
-      {
-        tokenType: "output",
-        isPrompt: false,
-        value: {
-          tokens: 1000000,
-          cost: 1.0,
-          costPerToken: 0.000001,
-        },
-      },
-    ],
+    modelCost: defaultCost,
   },
 };
 
@@ -177,26 +133,7 @@ export const SubmittingState: Story = {
     modelName: "gemini-pro",
     modelProvider: "google",
     modelNamePattern: "^gemini-pro.*",
-    modelCost: [
-      {
-        tokenType: "input",
-        isPrompt: true,
-        value: {
-          tokens: 1000000,
-          cost: 1.0,
-          costPerToken: 0.000001,
-        },
-      },
-      {
-        tokenType: "output",
-        isPrompt: false,
-        value: {
-          tokens: 1000000,
-          cost: 1.0,
-          costPerToken: 0.000001,
-        },
-      },
-    ],
+    modelCost: defaultCost,
   },
 };
 
@@ -211,26 +148,7 @@ export const MinimalRequired: Story = {
     modelName: "mistral-7b",
     modelProvider: null,
     modelNamePattern: "mistral.*",
-    modelCost: [
-      {
-        tokenType: "input",
-        isPrompt: true,
-        value: {
-          tokens: 1000000,
-          cost: 1.0,
-          costPerToken: 0.000001,
-        },
-      },
-      {
-        tokenType: "output",
-        isPrompt: false,
-        value: {
-          tokens: 1000000,
-          cost: 1.0,
-          costPerToken: 0.000001,
-        },
-      },
-    ],
+    modelCost: defaultCost,
   },
 };
 
@@ -244,25 +162,6 @@ export const CustomProvider: Story = {
     modelName: "llama-3-70b",
     modelProvider: "together_ai",
     modelNamePattern: "^llama-3-70b.*",
-    modelCost: [
-      {
-        tokenType: "input",
-        isPrompt: true,
-        value: {
-          tokens: 1000000,
-          cost: 1.0,
-          costPerToken: 0.000001,
-        },
-      },
-      {
-        tokenType: "output",
-        isPrompt: false,
-        value: {
-          tokens: 1000000,
-          cost: 1.0,
-          costPerToken: 0.000001,
-        },
-      },
-    ],
+    modelCost: defaultCost,
   },
 };
