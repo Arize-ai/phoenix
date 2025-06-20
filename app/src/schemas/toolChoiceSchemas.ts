@@ -21,6 +21,28 @@ export const openAIToolChoiceSchema = schemaForType<ToolChoice>()(
 
 export type OpenaiToolChoice = z.infer<typeof openAIToolChoiceSchema>;
 
+export const awsToolChoiceSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("none"),
+  }),
+  z.object({
+    type: z.literal("tool"),
+    name: z.string(),
+    disable_parallel_tool_use: z.boolean().optional(),
+  }),
+  z.object({
+    type: z.literal("auto"),
+    disable_parallel_tool_use: z.boolean().optional(),
+  }),
+  z.object({
+    type: z.literal("any"),
+    disable_parallel_tool_use: z.boolean().optional(),
+  }),
+]);
+
+export type AwsToolChoice = z.infer<typeof awsToolChoiceSchema>;
+
+
 /**
  * Anthropic's tool choice schema
  *
@@ -214,6 +236,12 @@ export const safelyConvertToolChoiceToProvider = <T extends ModelProvider>({
 export const makeOpenAIToolChoice = (
   toolChoice: OpenaiToolChoice
 ): OpenaiToolChoice => {
+  return toolChoice;
+};
+
+export const makeAwsToolChoice = (
+  toolChoice: AwsToolChoice
+): AwsToolChoice => {
   return toolChoice;
 };
 

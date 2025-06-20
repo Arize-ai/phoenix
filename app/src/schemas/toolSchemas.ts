@@ -236,7 +236,7 @@ type ToolDefinitionWithProvider =
       validatedToolDefinition: AnthropicToolDefinition;
     }
   | {
-      provider: Extract<ModelProvider, "AWS" | "BEDROCK">;
+      provider: Extract<ModelProvider, "AWS">;
       validatedToolDefinition: AwsToolDefinition;
     }
   | {
@@ -288,7 +288,6 @@ type ProviderToToolDefinitionMap = {
   DEEPSEEK: OpenAIToolDefinition;
   XAI: OpenAIToolDefinition;
   OLLAMA: OpenAIToolDefinition;
-  BEDROCK: AwsToolDefinition;
   AWS: AwsToolDefinition;
 };
 

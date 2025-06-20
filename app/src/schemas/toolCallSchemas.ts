@@ -196,7 +196,6 @@ export const openAIToolCallToAnthropic = openAIToolCallSchema.transform(
 export const llmProviderToolCallSchema = z.union([
   openAIToolCallSchema,
   anthropicToolCallSchema,
-  awsToolCallSchema,
   jsonLiteralSchema,
 ]);
 
@@ -260,7 +259,6 @@ type ProviderToToolCallMap = {
   XAI: OpenAIToolCall;
   OLLAMA: OpenAIToolCall;
   AWS: AwsToolCall;
-  BEDROCK: AwsToolCall;
   ANTHROPIC: AnthropicToolCall;
   // Use generic JSON type for unknown tool formats / new providers
   GOOGLE: JSONLiteral;
