@@ -392,12 +392,13 @@ def main() -> None:
     grpc_scheme = "https" if tls_enabled_for_grpc else "http"
     # Use localhost for display when host is the loopback address to make URLs clickable
     display_host = "localhost" if host == "0.0.0.0" else host
-    root_path = urljoin(f"{http_scheme}://{display_host}:{port}", host_root_path)
+    root_path = urljoin(f"{http_scheme}://{host}:{port}", host_root_path)
+    display_root_path = urljoin(f"{http_scheme}://{display_host}:{port}", host_root_path)
     msg = _WELCOME_MESSAGE.render(
         version=phoenix_version,
-        ui_path=root_path,
+        ui_path=display_root_path,
         grpc_path=f"{grpc_scheme}://{display_host}:{get_env_grpc_port()}",
-        http_path=urljoin(root_path, "v1/traces"),
+        http_path=urljoin(display_root_path, "v1/traces"),
         storage=get_printable_db_url(db_connection_str),
         schema=get_env_database_schema(),
         auth_enabled=auth_settings.enable_auth,
