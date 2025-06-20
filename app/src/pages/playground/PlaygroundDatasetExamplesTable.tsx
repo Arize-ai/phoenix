@@ -32,13 +32,13 @@ import {
 } from "relay-runtime";
 import { css } from "@emotion/react";
 
-import { DialogContainer, Tooltip, TooltipTrigger } from "@arizeai/components";
+import { DialogContainer } from "@arizeai/components";
 
 import {
-  Button,
   DialogTrigger,
   Flex,
   Icon,
+  IconButton,
   Icons,
   Loading,
   Modal,
@@ -81,7 +81,6 @@ import PlaygroundDatasetExamplesTableSubscription, {
 import {
   ExampleRunData,
   InstanceResponses,
-  Span,
   usePlaygroundDatasetExamplesTableContext,
 } from "./PlaygroundDatasetExamplesTableContext";
 import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
@@ -202,11 +201,11 @@ export function CellWithControlsWrap(
 function LargeTextWrap({ children }: { children: ReactNode }) {
   return (
     <div
+      data-testid="large-text-wrap"
       css={css`
         max-height: 300px;
         overflow-y: auto;
-        padding: var(--ac-global-dimension-static-size-100)
-          var(--ac-global-dimension-static-size-200);
+        padding: var(--ac-global-dimension-static-size-200);
       `}
     >
       {children}
@@ -275,11 +274,9 @@ function ExampleOutputContent({
         <>
           {hasExperimentRun && (
             <DialogTrigger>
-              <Button
-                size="S"
-                aria-label="View experiment run details"
-                leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
-              />
+              <IconButton size="S" aria-label="View experiment run details">
+                <Icon svg={<Icons.ExpandOutline />} />
+              </IconButton>
               <ModalOverlay>
                 <Modal variant="slideover" size="L">
                   <PlaygroundExperimentRunDetailsDialog
@@ -292,11 +289,9 @@ function ExampleOutputContent({
           {hasSpan && (
             <>
               <DialogTrigger>
-                <Button
-                  size="S"
-                  aria-label="View run trace"
-                  leadingVisual={<Icon svg={<Icons.Trace />} />}
-                />
+                <IconButton size="S" aria-label="View run trace">
+                  <Icon svg={<Icons.Trace />} />
+                </IconButton>
                 <ModalOverlay>
                   <Modal size="fullscreen" variant="slideover">
                     <PlaygroundRunTraceDetailsDialog
@@ -315,14 +310,39 @@ function ExampleOutputContent({
   }, [experimentRunId, hasExperimentRun, hasSpan, span]);
 
   return (
-    <CellWithControlsWrap controls={spanControls}>
-      {hasSpan ? <SpanMetadata span={span} /> : null}
+    <Flex direction="column" height="100%">
+      <CellTop extra={spanControls}>
+        {span ? (
+          <Flex
+            direction="row"
+            gap="size-100"
+            alignItems="center"
+            height="100%"
+          >
+            <LatencyText latencyMs={span.latencyMs || 0} size="S" />
+            <TokenCount
+              tokenCountTotal={span.tokenCountTotal || 0}
+              nodeId={span.id}
+            />
+            <TokenCosts
+              totalCost={span.costSummary?.total?.cost || 0}
+              nodeId={span.id}
+            />
+          </Flex>
+        ) : (
+          <Text color="text-500" fontStyle="italic">
+            generating...
+          </Text>
+        )}
+      </CellTop>
       <View padding="size-200">
-        <Flex direction={"column"} gap="size-200">
+        <Flex direction={"column"} gap="size-100" key="content-wrap">
           {errorMessage != null ? (
-            <PlaygroundErrorWrap>{errorMessage}</PlaygroundErrorWrap>
+            <PlaygroundErrorWrap key="error-message">
+              {errorMessage}
+            </PlaygroundErrorWrap>
           ) : null}
-          <Text>{content}</Text>
+          {content != null ? <Text key="content">{content}</Text> : null}
           {toolCalls != null
             ? Object.values(toolCalls).map((toolCall) =>
                 toolCall == null ? null : (
@@ -332,7 +352,7 @@ function ExampleOutputContent({
             : null}
         </Flex>
       </View>
-    </CellWithControlsWrap>
+    </Flex>
   );
 }
 
@@ -364,22 +384,6 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   );
 });
 
-function SpanMetadata({ span }: { span: Span }) {
-  const totalCost = span.costSummary?.total?.cost;
-  return (
-    <CellTop>
-      <LatencyText latencyMs={span.latencyMs || 0} size="S" />
-      <TokenCount
-        tokenCountTotal={span.tokenCountTotal || 0}
-        nodeId={span.id}
-      />
-      {totalCost != null && (
-        <TokenCosts totalCost={totalCost} nodeId={span.id} />
-      )}
-    </CellTop>
-  );
-}
-
 // un-memoized normal table body component - see memoized version below
 function TableBody<T>({ table }: { table: Table<T> }) {
   return (
@@ -392,7 +396,10 @@ function TableBody<T>({ table }: { table: Table<T> }) {
                 key={cell.id}
                 style={{
                   padding: 0,
+                  verticalAlign: "top",
                   width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
+                  maxWidth: `calc(var(--col-${cell.column.id}-size) * 1px)`,
+                  minWidth: 0,
                   // allow long text with no symbols or spaces to wrap
                   // otherwise, it will prevent the cell from shrinking
                   // an alternative solution would be to set a max-width and allow
@@ -801,24 +808,30 @@ export function PlaygroundDatasetExamplesTable({
       accessorKey: "input",
       cell: ({ row }) => {
         return (
-          <CellWithControlsWrap
-            controls={
-              <TooltipTrigger>
-                <Button
+          <>
+            <CellTop
+              extra={
+                <IconButton
                   size="S"
                   aria-label="View example details"
-                  leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
                   onPress={() => {
                     setSearchParams((prev) => {
                       prev.set("exampleId", row.original.id);
                       return prev;
                     });
                   }}
-                />
-                <Tooltip>View Example</Tooltip>
-              </TooltipTrigger>
-            }
-          >
+                >
+                  <Icon svg={<Icons.ExpandOutline />} />
+                </IconButton>
+              }
+            >
+              <Text
+                color="text-500"
+                css={css`
+                  white-space: nowrap;
+                `}
+              >{`Example ${row.original.id}`}</Text>
+            </CellTop>
             <LargeTextWrap>
               <JSONText
                 json={row.original.input}
@@ -827,7 +840,7 @@ export function PlaygroundDatasetExamplesTable({
                 collapseSingleKey={false}
               />
             </LargeTextWrap>
-          </CellWithControlsWrap>
+          </>
         );
       },
       size: 200,
@@ -835,7 +848,16 @@ export function PlaygroundDatasetExamplesTable({
     {
       header: "reference output",
       accessorKey: "output",
-      cell: (props) => JSONCell({ ...props, collapseSingleKey: true }),
+      cell: (props) => {
+        return (
+          <>
+            <CellTop>
+              <Text color="text-500">{`reference output`}</Text>
+            </CellTop>
+            <JSONCell {...props} collapseSingleKey={true} />
+          </>
+        );
+      },
       size: 200,
     },
     ...playgroundInstanceOutputColumns,
