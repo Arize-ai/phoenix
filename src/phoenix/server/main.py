@@ -91,12 +91,12 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 ██║     ██║  ██║╚██████╔╝███████╗██║ ╚████║██║██╔╝ ██╗
 ╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝ v{{ version }}
 
+|  ⭐️⭐️⭐️ Support Open Source ⭐️⭐️⭐️
+|  ⭐️⭐️⭐️ Star on GitHub! ⭐️⭐️⭐️
+|  https://github.com/Arize-ai/phoenix
 |
 |  🌎 Join our Community 🌎
 |  https://arize-ai.slack.com/join/shared_invite/zt-2w57bhem8-hq24MB6u7yE_ZF_ilOYSBw#/shared-invite/email
-|
-|  ⭐️ Leave us a Star ⭐️
-|  https://github.com/Arize-ai/phoenix
 |
 |  📚 Documentation 📚
 |  https://arize.com/docs/phoenix
@@ -387,12 +387,15 @@ def main() -> None:
     # Print information about the server
     http_scheme = "https" if tls_enabled_for_http else "http"
     grpc_scheme = "https" if tls_enabled_for_grpc else "http"
+    # Use localhost for display when host is the loopback address to make URLs clickable
+    display_host = "localhost" if host in ("0.0.0.0", "::") else host
     root_path = urljoin(f"{http_scheme}://{host}:{port}", host_root_path)
+    display_root_path = urljoin(f"{http_scheme}://{display_host}:{port}", host_root_path)
     msg = _WELCOME_MESSAGE.render(
         version=phoenix_version,
-        ui_path=root_path,
-        grpc_path=f"{grpc_scheme}://{host}:{get_env_grpc_port()}",
-        http_path=urljoin(root_path, "v1/traces"),
+        ui_path=display_root_path,
+        grpc_path=f"{grpc_scheme}://{display_host}:{get_env_grpc_port()}",
+        http_path=urljoin(display_root_path, "v1/traces"),
         storage=get_printable_db_url(db_connection_str),
         schema=get_env_database_schema(),
         auth_enabled=auth_settings.enable_auth,
