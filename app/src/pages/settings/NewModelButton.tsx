@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { graphql, useMutation } from "react-relay";
+import { ConnectionHandler, graphql, useMutation } from "react-relay";
 
 import {
   Alert,
@@ -24,8 +24,10 @@ import { ModelForm, ModelFormParams } from "./ModelForm";
 
 export function NewModelButton({
   onModelCreated,
+  queryId,
 }: {
   onModelCreated?: (model: ModelFormParams) => void;
+  queryId: string;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -36,10 +38,15 @@ export function NewModelButton({
     graphql`
       mutation NewModelButtonCreateModelMutation(
         $input: CreateModelMutationInput!
+        $connectionId: ID!
       ) {
         createModel(input: $input) {
-          model {
-            id
+          model
+            @prependNode(
+              connections: [$connectionId]
+              edgeTypeName: "GenerativeModelEdge"
+            ) {
+            ...ModelsTable_generativeModel
           }
         }
       }
@@ -82,6 +89,10 @@ export function NewModelButton({
                 onSubmit={(params) => {
                   setError(null);
                   setIsOpen(false);
+                  const connectionId = ConnectionHandler.getConnectionID(
+                    queryId,
+                    "ModelsTable_generativeModels"
+                  );
                   commit({
                     variables: {
                       input: {
@@ -95,6 +106,7 @@ export function NewModelButton({
                             costPerToken: value,
                           })),
                       },
+                      connectionId,
                     },
                     onCompleted: () => {
                       onModelCreated && onModelCreated(params);
