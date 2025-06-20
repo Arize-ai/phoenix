@@ -1,6 +1,0 @@
-openai>=1.25.0
-python-dotenv>=1.0.1
-openai-agents>=0.0.17 
-arize-phoenix-otel
-openinference-instrumentation-openai-agents
-openinference-instrumentation-mcp
