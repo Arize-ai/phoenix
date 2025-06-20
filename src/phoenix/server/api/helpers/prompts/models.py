@@ -533,7 +533,7 @@ def validate_invocation_parameters(
             type="ollama",
             ollama=PromptOllamaInvocationParametersContent.model_validate(invocation_parameters),
         )
-    elif model_provider is ModelProvider.BEDROCK:
+    elif model_provider is ModelProvider.AWS:
         return PromptBedrockInvocationParameters(
             type="bedrock",
             bedrock=PromptBedrockInvocationParametersContent.model_validate(invocation_parameters),
@@ -553,11 +553,11 @@ def normalize_tools(
         or model_provider is ModelProvider.DEEPSEEK
         or model_provider is ModelProvider.XAI
         or model_provider is ModelProvider.OLLAMA
-        or model_provider is ModelProvider.BEDROCK
+        or model_provider is ModelProvider.AWS
     ):
         openai_tools = [OpenAIToolDefinition.model_validate(schema) for schema in schemas]
         tools = [_openai_to_prompt_tool(openai_tool) for openai_tool in openai_tools]
-    elif model_provider is ModelProvider.BEDROCK:
+    elif model_provider is ModelProvider.AWS:
         bedrock_tools = [BedrockToolDefinition.model_validate(schema) for schema in schemas]
         tools = [_bedrock_to_prompt_tool(bedrock_tool) for bedrock_tool in bedrock_tools]
     elif model_provider is ModelProvider.ANTHROPIC:
@@ -573,7 +573,7 @@ def normalize_tools(
             or model_provider is ModelProvider.DEEPSEEK
             or model_provider is ModelProvider.XAI
             or model_provider is ModelProvider.OLLAMA
-            or model_provider is ModelProvider.BEDROCK
+            or model_provider is ModelProvider.AWS
         ):
             ans.tool_choice = OpenAIToolChoiceConversion.from_openai(tool_choice)  # type: ignore[arg-type]
         elif model_provider is ModelProvider.ANTHROPIC:
@@ -598,7 +598,7 @@ def denormalize_tools(
         or model_provider is ModelProvider.DEEPSEEK
         or model_provider is ModelProvider.XAI
         or model_provider is ModelProvider.OLLAMA
-        or model_provider is ModelProvider.BEDROCK
+        or model_provider is ModelProvider.AWS
     ):
         denormalized_tools = [_prompt_to_openai_tool(tool) for tool in tools.tools]
         if tools.tool_choice:
@@ -653,7 +653,7 @@ def _bedrock_to_prompt_tool(
         function=PromptToolFunctionDefinition(
             name=tool.tool_spec["name"],
             description=tool.tool_spec["description"],
-            parameters=tool.tool_spec["inputSchema"],
+            parameters=tool.tool_spec["inputSchema"]["json"],
         ),
     )
 
