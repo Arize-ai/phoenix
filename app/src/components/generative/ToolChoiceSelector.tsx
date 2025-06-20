@@ -260,12 +260,12 @@ export function ToolChoiceSelector<
                 })
               );
               break;
-            // case "AWS":
-            //   onChange(
-            //     makeAwsToolChoice({
-            //       type: choice as (typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER)["AWS"][number],
-            //     })
-            //   );
+              // case "AWS":
+              //   onChange(
+              //     makeAwsToolChoice({
+              //       type: choice as (typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER)["AWS"][number],
+              //     })
+              //   );
               break;
             default:
               assertUnreachable(provider);
@@ -291,12 +291,12 @@ export function ToolChoiceSelector<
                 })
               );
               break;
-            // case "AWS":
-            //   onChange(
-            //     makeAwsToolChoice({
-            //       type: choice as (typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER)["AWS"][number],
-            //     })
-            //   );
+              // case "AWS":
+              //   onChange(
+              //     makeAwsToolChoice({
+              //       type: choice as (typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER)["AWS"][number],
+              //     })
+              //   );
               break;
             default:
               assertUnreachable(provider);

@@ -77,7 +77,6 @@ export const awsToolCallSchema = z.object({
   //   description: z.string().describe("The description of the function"),
   //   inputSchema: z.record(z.unknown()).describe("The input for the tool"),
   // }),
-
 });
 
 export type AwsToolCall = z.infer<typeof awsToolCallSchema>;

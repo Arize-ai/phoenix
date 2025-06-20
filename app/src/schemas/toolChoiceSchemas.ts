@@ -42,7 +42,6 @@ export const awsToolChoiceSchema = z.discriminatedUnion("type", [
 
 export type AwsToolChoice = z.infer<typeof awsToolChoiceSchema>;
 
-
 /**
  * Anthropic's tool choice schema
  *
@@ -239,9 +238,7 @@ export const makeOpenAIToolChoice = (
   return toolChoice;
 };
 
-export const makeAwsToolChoice = (
-  toolChoice: AwsToolChoice
-): AwsToolChoice => {
+export const makeAwsToolChoice = (toolChoice: AwsToolChoice): AwsToolChoice => {
   return toolChoice;
 };
 

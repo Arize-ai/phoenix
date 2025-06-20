@@ -317,7 +317,7 @@ class BedrockToolDefinition(DBBaseModel):
     Based on https://github.com/aws/amazon-bedrock-sdk-python/blob/main/src/bedrock/types/tool_param.py#L12
     """
 
-    tool_spec: dict[str, Any]
+    toolSpec: dict[str, Any]
 
 
 class PromptOpenAIInvocationParametersContent(DBBaseModel):
@@ -553,7 +553,7 @@ def normalize_tools(
         or model_provider is ModelProvider.DEEPSEEK
         or model_provider is ModelProvider.XAI
         or model_provider is ModelProvider.OLLAMA
-        or model_provider is ModelProvider.AWS
+        # or model_provider is ModelProvider.AWS
     ):
         openai_tools = [OpenAIToolDefinition.model_validate(schema) for schema in schemas]
         tools = [_openai_to_prompt_tool(openai_tool) for openai_tool in openai_tools]
@@ -566,6 +566,7 @@ def normalize_tools(
     else:
         raise ValueError(f"Unsupported model provider: {model_provider}")
     ans = PromptTools(type="tools", tools=tools)
+    print(tool_choice)
     if tool_choice is not None:
         if (
             model_provider is ModelProvider.OPENAI
@@ -573,10 +574,9 @@ def normalize_tools(
             or model_provider is ModelProvider.DEEPSEEK
             or model_provider is ModelProvider.XAI
             or model_provider is ModelProvider.OLLAMA
-            or model_provider is ModelProvider.AWS
         ):
             ans.tool_choice = OpenAIToolChoiceConversion.from_openai(tool_choice)  # type: ignore[arg-type]
-        elif model_provider is ModelProvider.ANTHROPIC:
+        elif model_provider is ModelProvider.ANTHROPIC or model_provider is ModelProvider.AWS:
             choice, disable_parallel_tool_calls = AnthropicToolChoiceConversion.from_anthropic(
                 tool_choice  # type: ignore[arg-type]
             )
@@ -651,9 +651,9 @@ def _bedrock_to_prompt_tool(
     return PromptToolFunction(
         type="function",
         function=PromptToolFunctionDefinition(
-            name=tool.tool_spec["name"],
-            description=tool.tool_spec["description"],
-            parameters=tool.tool_spec["inputSchema"]["json"],
+            name=tool.toolSpec["name"],
+            description=tool.toolSpec["description"],
+            parameters=tool.toolSpec["inputSchema"]["json"],
         ),
     )
 
