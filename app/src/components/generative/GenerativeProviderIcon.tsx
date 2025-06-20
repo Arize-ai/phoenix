@@ -159,6 +159,7 @@ const PROVIDER_ICONS: Record<
   XAI: XAISVG,
   OLLAMA: OllamaSVG,
   BEDROCK: BedrockSVG,
+  AWS: BedrockSVG,
 };
 
 export type GenerativeProviderIconProps = {

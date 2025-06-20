@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<97cf03fd5813fc3541faaacb271b4760>>
+ * @generated SignedSource<<3894247deaf040951c330ebf505b723d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "BEDROCK" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
+export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "BEDROCK" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
 export type ModelComboBoxQuery$variables = {
   providerKey: GenerativeProviderKey;
 };

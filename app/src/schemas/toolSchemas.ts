@@ -131,11 +131,53 @@ export const anthropicToolDefinitionJSONSchema = zodToJsonSchema(
   }
 );
 
+export const awsToolDefinitionSchema = z.object({
+  toolSpec: z.object({
+    name: z.string(),
+    description: z.string(),
+    inputSchema: z.object({
+      json: jsonSchemaZodSchema
+    })
+  })
+});
+
+export type AwsToolDefinition = z.infer<typeof awsToolDefinitionSchema>;
+
+export const awsToolDefinitionJSONSchema = zodToJsonSchema(
+  awsToolDefinitionSchema,
+  {
+    removeAdditionalStrategy: "passthrough",
+  }
+);
+
 /**
  * --------------------------------
  * Conversion Schemas
  * --------------------------------
  */
+
+export const awsToolToOpenAI = awsToolDefinitionSchema.transform(
+  (aws): OpenAIToolDefinition => ({
+    type: "function",
+    function: {
+      name: aws.toolSpec.name,
+      description: aws.toolSpec.description,
+      parameters: aws.toolSpec.inputSchema.json,
+    },
+  })
+);
+
+export const openAIToolToAws = openAIToolDefinitionSchema.transform(
+  (openai): AwsToolDefinition => ({
+    toolSpec: {
+      name: openai.function.name,
+      description: openai.function.description ?? openai.function.name,
+      inputSchema: {
+        json: openai.function.parameters,
+      },
+    },
+  })
+);
 
 /**
  * Parse incoming object as an Anthropic tool call and immediately convert to OpenAI format
@@ -176,6 +218,7 @@ export const openAIToolToAnthropic = openAIToolDefinitionSchema.transform(
 export const llmProviderToolDefinitionSchema = z.union([
   openAIToolDefinitionSchema,
   anthropicToolDefinitionSchema,
+  awsToolDefinitionSchema,
   jsonLiteralSchema,
 ]);
 
@@ -191,6 +234,10 @@ type ToolDefinitionWithProvider =
   | {
       provider: Extract<ModelProvider, "ANTHROPIC">;
       validatedToolDefinition: AnthropicToolDefinition;
+    }
+  | {
+      provider: Extract<ModelProvider, "AWS" | "BEDROCK">;
+      validatedToolDefinition: AwsToolDefinition;
     }
   | {
       provider: "UNKNOWN";
@@ -220,6 +267,15 @@ export const detectToolDefinitionProvider = (
       validatedToolDefinition: anthropicData,
     };
   }
+
+  const { success: awsSuccess, data: awsData } =
+    awsToolDefinitionSchema.safeParse(toolDefinition);
+  if (awsSuccess) {
+    return {
+      provider: "AWS",
+      validatedToolDefinition: awsData,
+    };
+  }
   return { provider: "UNKNOWN", validatedToolDefinition: null };
 };
 
@@ -232,7 +288,8 @@ type ProviderToToolDefinitionMap = {
   DEEPSEEK: OpenAIToolDefinition;
   XAI: OpenAIToolDefinition;
   OLLAMA: OpenAIToolDefinition;
-  BEDROCK: OpenAIToolDefinition;
+  BEDROCK: AwsToolDefinition;
+  AWS: AwsToolDefinition;
 };
 
 /**
@@ -249,6 +306,9 @@ export const toOpenAIToolDefinition = (
       return validatedToolDefinition;
     case "ANTHROPIC":
       return anthropicToolToOpenAI.parse(validatedToolDefinition);
+    case "BEDROCK":
+    case "AWS":
+      return awsToolToOpenAI.parse(validatedToolDefinition);
     case "UNKNOWN":
       return null;
     default:
@@ -272,10 +332,14 @@ export const fromOpenAIToolDefinition = <T extends ModelProvider>({
     case "DEEPSEEK":
     case "XAI":
     case "OLLAMA":
-    case "BEDROCK":
       return toolDefinition as ProviderToToolDefinitionMap[T];
     case "ANTHROPIC":
       return openAIToolToAnthropic.parse(
+        toolDefinition
+      ) as ProviderToToolDefinitionMap[T];
+    case "AWS":
+    case "BEDROCK":
+      return openAIToolToAws.parse(
         toolDefinition
       ) as ProviderToToolDefinitionMap[T];
     // TODO(apowell): #5348 Add Google tool calls schema - https://github.com/Arize-ai/phoenix/issues/5348
@@ -331,6 +395,28 @@ export function createAnthropicToolDefinition(
         },
       },
       required: [],
+    },
+  };
+}
+
+export function createAwsToolDefinition(
+  toolNumber: number
+): AwsToolDefinition {
+  return {
+    toolSpec: {
+      name: `new_function_${toolNumber}`,
+      description: "",
+      inputSchema: {
+        json: {
+          type: "object",
+          properties: {
+            new_arg: {
+              type: "string",
+            },
+          },
+          required: [],
+        },
+      },
     },
   };
 }

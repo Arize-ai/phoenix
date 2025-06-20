@@ -722,15 +722,6 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
     async def _handle_converse_api(self, messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]], tools: list[JSONScalarType], invocation_parameters: dict):
         """
         Handle the converse API.
-
-        NOTE: there are 5 important events that we need to handle:
-        - contentBlockStart
-        - contentBlockDelta
-        - contentBlockStop
-        - messageStop
-        - metadata
-
-        currently, we are not handling the messageStop events.
         """
         # Build messages in Converse API format
         converse_messages = self._build_converse_messages(messages)
@@ -754,15 +745,14 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         # Add tools if provided
         if tools:
             converse_params["toolConfig"] = {
-                "tools": self._convert_tools_to_converse_format(tools)
+                "tools": tools
             }
 
         # Make the streaming API call
         response = self.client.converse_stream(**converse_params)
 
         # Track active tool calls
-        active_tool_calls = {}  # index -> {id, name, arguments_buffer}
-        current_index = 0
+        active_tool_calls = {}  # contentBlockIndex -> {id, name, arguments_buffer}
 
         # Process the event stream
         event_stream = response.get('stream')
@@ -772,10 +762,11 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
             if 'contentBlockStart' in event:
                 content_block_start = event['contentBlockStart']
                 start_event = content_block_start.get('start', {})
+                block_index = content_block_start.get('contentBlockIndex', 0)  # Get the actual index
 
                 if 'toolUse' in start_event:
                     tool_use = start_event['toolUse']
-                    active_tool_calls[current_index] = {
+                    active_tool_calls[block_index] = {  # Use the actual block index
                         'id': tool_use.get('toolUseId'),
                         'name': tool_use.get('name'),
                         'arguments_buffer': ''
@@ -789,7 +780,6 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
                             arguments='',
                         ),
                     )
-                    current_index += 1
 
             # Handle content block delta events
             elif 'contentBlockDelta' in event:
@@ -827,20 +817,20 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
             elif 'metadata' in event:
                 self._attributes.update(
                     {LLM_TOKEN_COUNT_PROMPT: event.get('metadata')
-                     .get('usage', {})
-                     .get('inputTokens', 0)}
+                    .get('usage', {})
+                    .get('inputTokens', 0)}
                 )
 
                 self._attributes.update(
                     {LLM_TOKEN_COUNT_COMPLETION: event.get('metadata')
-                     .get('usage', {})
-                     .get('outputTokens', 0)}
+                    .get('usage', {})
+                    .get('outputTokens', 0)}
                 )
 
                 self._attributes.update(
                     {LLM_TOKEN_COUNT_TOTAL: event.get('metadata')
-                     .get('usage', {})
-                     .get('totalTokens', 0)}
+                    .get('usage', {})
+                    .get('totalTokens', 0)}
                 )
 
     async def _handle_invoke_api(self, messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]], tools: list[JSONScalarType], invocation_parameters: dict):
@@ -964,24 +954,6 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
             if role == ChatCompletionMessageRole.SYSTEM:
                 system_prompts.append(content)
         return "\n".join(system_prompts)
-
-    def _convert_tools_to_converse_format(self, tools: list[JSONScalarType]) -> list[dict]:
-        """Convert tools from OpenAI format to Converse API format."""
-        converse_tools = []
-        for tool in tools:
-            if tool.get("type") == "function":
-                function = tool.get("function", {})
-                converse_tool = {
-                    "toolSpec": {
-                        "name": function.get("name"),
-                        "description": function.get("description"),
-                        "inputSchema": {
-                            "json": function.get("parameters", {})
-                        }
-                    }
-                }
-                converse_tools.append(converse_tool)
-        return converse_tools
 
     def _build_converse_messages(self, messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]]) -> list[dict]:
         """Convert messages to Converse API format."""

@@ -18,6 +18,7 @@ class GenerativeProviderKey(Enum):
     XAI = "xAI"
     OLLAMA = "Ollama"
     BEDROCK = "Bedrock"
+    AWS = "AWS"
 
 
 @strawberry.type
@@ -47,6 +48,7 @@ class GenerativeProvider:
         OpenInferenceLLMProviderValues.ANTHROPIC.value: GenerativeProviderKey.ANTHROPIC,
         OpenInferenceLLMProviderValues.AZURE.value: GenerativeProviderKey.AZURE_OPENAI,
         OpenInferenceLLMProviderValues.GOOGLE.value: GenerativeProviderKey.GOOGLE,
+        OpenInferenceLLMProviderValues.AWS.value: GenerativeProviderKey.BEDROCK,
         # Note: DeepSeek uses OpenAI compatibility but we can't duplicate the key in the dict
         # The provider will be determined through model name prefix matching instead
         # Note: xAI uses OpenAI compatibility but we can't duplicate the key in the dict

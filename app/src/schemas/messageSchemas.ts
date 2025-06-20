@@ -24,8 +24,10 @@ import {
 } from "./promptSchemas";
 import {
   anthropicToolCallSchema,
+  awsToolCallSchema,
   openAIToolCallSchema,
   openAIToolCallToAnthropic,
+  openAIToolCallToAws,
 } from "./toolCallSchemas";
 
 type ModelProvider = keyof typeof ModelProviders;
@@ -69,6 +71,25 @@ export const openAIMessagesSchema = z.array(openAIMessageSchema);
 export const openAIMessagesJSONSchema = zodToJsonSchema(openAIMessagesSchema, {
   removeAdditionalStrategy: "passthrough",
 });
+
+/**
+ * AWS Message Schemas
+ */
+export const awsMessageSchema = z.object({
+  role: z.enum(["user", "assistant", "tool"]),
+  content: z.array(z.unknown()),
+  tool_call_id: z.string().optional(),
+  tool_calls: z.array(awsToolCallSchema).optional(),
+}).passthrough();
+
+export type AwsMessage = z.infer<typeof awsMessageSchema>;
+
+export const awsMessagesSchema = z.array(awsMessageSchema);
+
+export const awsMessagesJSONSchema = zodToJsonSchema(awsMessagesSchema, {
+  removeAdditionalStrategy: "passthrough",
+});
+
 
 /**
  * Anthropic Message Schemas
@@ -158,6 +179,26 @@ export const promptMessagesJSONSchema = zodToJsonSchema(promptMessagesSchema, {
 /**
  * Hub → Spoke: Convert an OpenAI message to Anthropic format
  */
+export const openAIMessageToAws = openAIMessageSchema.transform(
+  (openai): AwsMessage => {
+
+    const base = {
+      role: openai.role === "assistant" ? "assistant" : "user",
+      content: openai.content ? [{ type: "text", text: openai.content }] : [],
+    } satisfies AwsMessage;
+
+    if (openai.tool_calls) {
+      return {
+        role: openai.role === "assistant" ? "assistant" : "user",
+        content: openai.content ? [{ type: "text", text: openai.content }] : [],
+        tool_calls: openai.tool_calls.map((tc) => openAIToolCallToAws.parse(tc)),
+      };
+    }
+
+    return base;
+  }
+);
+
 export const openAIMessageToAnthropic = openAIMessageSchema.transform(
   (openai): AnthropicMessage => {
     const base = {
@@ -384,10 +425,12 @@ export const fromOpenAIMessage = <T extends ModelProvider>({
     case "DEEPSEEK":
     case "XAI":
     case "OLLAMA":
-    case "BEDROCK":
       return message as ProviderToMessageMap[T];
     case "ANTHROPIC":
       return openAIMessageToAnthropic.parse(message) as ProviderToMessageMap[T];
+    case "BEDROCK":
+    case "AWS":
+      return openAIMessageToAws.parse(message) as ProviderToMessageMap[T];
     case "GOOGLE":
       // TODO: Add Google message support
       return message as ProviderToMessageMap[T];
@@ -414,6 +457,7 @@ type ProviderToMessageMap = {
   DEEPSEEK: OpenAIMessage;
   XAI: OpenAIMessage;
   OLLAMA: OpenAIMessage;
+  AWS: OpenAIMessage;
   BEDROCK: OpenAIMessage;
   ANTHROPIC: AnthropicMessage;
   // Use generic JSON type for unknown message formats / new providers

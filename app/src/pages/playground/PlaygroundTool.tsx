@@ -122,6 +122,7 @@ export function PlaygroundTool({
       case "DEEPSEEK":
       case "XAI":
       case "OLLAMA":
+      case "AWS":
       case "BEDROCK":
         return openAIToolDefinitionJSONSchema as JSONSchema7;
       case "ANTHROPIC":

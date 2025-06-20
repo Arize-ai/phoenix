@@ -13,14 +13,17 @@ import {
 } from "@phoenix/constants/generativeConstants";
 import {
   createAnthropicToolDefinition,
+  createAwsToolDefinition,
   createOpenAIToolDefinition,
   detectToolDefinitionProvider,
 } from "@phoenix/schemas";
 import { JSONLiteral } from "@phoenix/schemas/jsonLiteralSchema";
 import {
   AnthropicToolCall,
+  AwsToolCall,
   createAnthropicToolCall,
   createOpenAIToolCall,
+  createAwsToolCall,
   LlmProviderToolCall,
   OpenAIToolCall,
 } from "@phoenix/schemas/toolCallSchemas";
@@ -155,7 +158,6 @@ export function processAttributeToolCalls({
         case "OPENAI":
         case "AZURE_OPENAI":
         case "DEEPSEEK":
-        case "BEDROCK":
         case "XAI":
         case "OLLAMA":
           return {
@@ -173,6 +175,16 @@ export function processAttributeToolCalls({
             name: tool_call.function?.name ?? "",
             input: toolCallArgs,
           } satisfies AnthropicToolCall;
+        }
+        case "BEDROCK":
+        case "AWS": {
+          return {
+            toolSpec: {
+              name: tool_call.function?.name ?? "",
+              description: tool_call.function?.name ?? "",
+              inputSchema: toolCallArgs,
+            }
+          } satisfies AwsToolCall;
         }
         // TODO(apowell): #5348 Add Google tool call
         case "GOOGLE":
@@ -878,6 +890,9 @@ export const getToolName = (tool: Tool): string | null => {
       return validatedToolDefinition.function.name;
     case "ANTHROPIC":
       return validatedToolDefinition.name;
+    case "BEDROCK":
+    case "AWS":
+      return validatedToolDefinition.toolSpec.name;
     case "UNKNOWN":
       return null;
     default:
@@ -903,7 +918,6 @@ export const createToolForProvider = ({
     case "DEEPSEEK":
     case "XAI":
     case "OLLAMA":
-    case "BEDROCK":
     case "AZURE_OPENAI":
       return {
         id: generateToolId(),
@@ -913,6 +927,12 @@ export const createToolForProvider = ({
       return {
         id: generateToolId(),
         definition: createAnthropicToolDefinition(toolNumber),
+      };
+    case "BEDROCK":
+    case "AWS":
+      return {
+        id: generateToolId(),
+        definition: createAwsToolDefinition(toolNumber),
       };
     // TODO(apowell): #5348 Add Google tool definition
     case "GOOGLE":
@@ -943,6 +963,8 @@ export const createToolCallForProvider = (
       return createOpenAIToolCall();
     case "ANTHROPIC":
       return createAnthropicToolCall();
+    case "AWS":
+      return createAwsToolCall();
     // TODO(apowell): #5348 Add Google tool call
     case "GOOGLE":
       return createOpenAIToolCall();

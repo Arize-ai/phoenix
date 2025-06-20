@@ -57,6 +57,7 @@ export const findToolChoiceType = (
     case "XAI":
     case "OLLAMA":
     case "BEDROCK":
+    case "AWS":
     case "OPENAI":
       if (
         isObject(choice) &&

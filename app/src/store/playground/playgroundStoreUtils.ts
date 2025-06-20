@@ -26,7 +26,6 @@ export const convertInstanceToolsToProvider = ({
       case "DEEPSEEK":
       case "XAI":
       case "OLLAMA":
-      case "BEDROCK":
       case "AZURE_OPENAI": {
         const maybeOpenAIToolDefinition = toOpenAIToolDefinition(
           tool.definition
@@ -46,6 +45,25 @@ export const convertInstanceToolsToProvider = ({
               targetProvider: provider,
             })
           : tool.definition;
+        return {
+          ...tool,
+          definition,
+        };
+      }
+      case "AWS":
+      case "BEDROCK": {
+        // Keep Bedrock tool definitions in OpenAI format
+        // The backend will handle the conversion to Bedrock format
+        const maybeOpenAIToolDefinition = toOpenAIToolDefinition(
+          tool.definition
+        );
+
+        const definition = maybeOpenAIToolDefinition
+        ? fromOpenAIToolDefinition({
+            toolDefinition: maybeOpenAIToolDefinition,
+            targetProvider: provider,
+          })
+        : tool.definition;
         return {
           ...tool,
           definition,
@@ -81,7 +99,6 @@ export const convertMessageToolCallsToProvider = ({
       case "DEEPSEEK":
       case "XAI":
       case "OLLAMA":
-      case "BEDROCK":
       case "AZURE_OPENAI": {
         return toOpenAIToolCall(toolCall) ?? toolCall;
       }
@@ -90,6 +107,16 @@ export const convertMessageToolCallsToProvider = ({
         return maybeOpenAIToolCall != null
           ? fromOpenAIToolCall({
               toolCall: maybeOpenAIToolCall,
+              targetProvider: provider,
+            })
+          : toolCall;
+      }
+      case "AWS":
+      case "BEDROCK": {
+        const maybeBedrockToolCall = toOpenAIToolCall(toolCall);
+        return maybeBedrockToolCall != null
+          ? fromOpenAIToolCall({
+              toolCall: maybeBedrockToolCall,
               targetProvider: provider,
             })
           : toolCall;

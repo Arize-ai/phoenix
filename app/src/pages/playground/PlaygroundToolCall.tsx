@@ -54,6 +54,13 @@ export function PlaygroundToolCall({
           name: validatedToolCall.name,
           input: validatedToolCall.input,
         };
+
+      case "AWS":
+        return {
+          name: validatedToolCall.toolSpec.name,
+          input: validatedToolCall.toolSpec.inputSchema,
+        };
+
       case "UNKNOWN": {
         // This should never be the case, happen but we should handle it in case the server returns an invalid tool call
         if (!isPartialOutputToolCall(toolCall)) {

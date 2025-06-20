@@ -65,6 +65,56 @@ export const openAIToolCallsJSONSchema = zodToJsonSchema(
 );
 
 /**
+ * AWS/Bedrock tool call schema
+ * 
+ * NOTE: This schema is not currently used in the frontend. 
+ * The backend expects OpenAI format tool calls and handles the conversion to Bedrock format internally.
+ * This schema is kept for future use when we want to handle Bedrock format directly in the frontend.
+ */
+export const awsToolCallSchema = z.object({
+  toolSpec: z.object({
+    name: z.string().describe("The name of the function"),
+    description: z.string().describe("The description of the function"),
+    inputSchema:  z.record(z.unknown()).describe("The input for the tool"),
+  }),
+});
+
+export type AwsToolCall = z.infer<typeof awsToolCallSchema>;
+
+export const awsToolCallsSchema = z.array(awsToolCallSchema);
+
+export const awsToolCallsJSONSchema = zodToJsonSchema(
+  awsToolCallsSchema,
+  {
+    removeAdditionalStrategy: "passthrough",
+  }
+);
+
+export const openAIToolCallToAws = openAIToolCallSchema.transform(
+  (openai): AwsToolCall => ({
+    toolSpec: {
+      name: openai.function.name,
+      description: typeof openai.function.description === "string" ? openai.function.description : openai.function.name,
+      inputSchema: typeof openai.function.arguments === "string"
+        ? { [openai.function.arguments]: openai.function.arguments }
+        : (openai.function.arguments ?? {}),
+    },
+  })
+);
+
+export const awsToolCallToOpenAI = awsToolCallSchema.transform(
+  (aws): OpenAIToolCall => ({
+    id: aws.toolSpec.name,
+    type: "function",
+    function: {
+      name: aws.toolSpec.name,
+      arguments: aws.toolSpec.inputSchema,
+    },
+  })
+);
+
+
+/**
  * The schema for an Anthropic tool call, this is what a message that calls a tool looks like
  */
 export const anthropicToolCallSchema = z
@@ -146,6 +196,7 @@ export const openAIToolCallToAnthropic = openAIToolCallSchema.transform(
 export const llmProviderToolCallSchema = z.union([
   openAIToolCallSchema,
   anthropicToolCallSchema,
+  awsToolCallSchema,
   jsonLiteralSchema,
 ]);
 
@@ -169,6 +220,10 @@ type ToolCallWithProvider =
       provider: Extract<ModelProvider, "ANTHROPIC">;
       validatedToolCall: AnthropicToolCall;
     }
+  | {
+      provider: Extract<ModelProvider, "AWS">;
+      validatedToolCall: AwsToolCall;
+    }
   | { provider: "UNKNOWN"; validatedToolCall: null };
 
 /**
@@ -188,6 +243,13 @@ export const detectToolCallProvider = (
   if (anthropicSuccess) {
     return { provider: "ANTHROPIC", validatedToolCall: anthropicData };
   }
+
+  const { success: awsSuccess, data: awsData } =
+    awsToolCallSchema.safeParse(toolCall);
+  if (awsSuccess) {
+    return { provider: "AWS", validatedToolCall: awsData };
+  }
+
   return { provider: "UNKNOWN", validatedToolCall: null };
 };
 
@@ -197,7 +259,8 @@ type ProviderToToolCallMap = {
   DEEPSEEK: OpenAIToolCall;
   XAI: OpenAIToolCall;
   OLLAMA: OpenAIToolCall;
-  BEDROCK: OpenAIToolCall;
+  AWS: AwsToolCall;
+  BEDROCK: AwsToolCall;
   ANTHROPIC: AnthropicToolCall;
   // Use generic JSON type for unknown tool formats / new providers
   GOOGLE: JSONLiteral;
@@ -218,6 +281,8 @@ export const toOpenAIToolCall = (
       return validatedToolCall;
     case "ANTHROPIC":
       return anthropicToolCallToOpenAI.parse(validatedToolCall);
+    case "AWS":
+      return awsToolCallToOpenAI.parse(validatedToolCall);
     case "UNKNOWN":
       return null;
     default:
@@ -244,8 +309,10 @@ export const fromOpenAIToolCall = <T extends ModelProvider>({
     case "DEEPSEEK":
     case "XAI":
     case "OLLAMA":
-    case "BEDROCK":
       return toolCall as ProviderToToolCallMap[T];
+    case "BEDROCK":
+    case "AWS":
+      return openAIToolCallToAws.parse(toolCall) as ProviderToToolCallMap[T];
     case "ANTHROPIC":
       return openAIToolCallToAnthropic.parse(
         toolCall
@@ -297,6 +364,16 @@ export function createAnthropicToolCall(): AnthropicToolCall {
     type: "tool_use",
     name: "",
     input: {},
+  };
+}
+
+export function createAwsToolCall(): AwsToolCall {
+  return {
+    toolSpec: {
+      name: "",
+      description: "",
+      inputSchema: {},
+    },
   };
 }
 
