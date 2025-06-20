@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a9b516e4af103f44722ef36800091a4a>>
+ * @generated SignedSource<<a99e1cff25b4af780a70c3ecefc81d26>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -46,14 +46,7 @@ v1 = [
     "name": "first",
     "variableName": "first"
   }
-],
-v2 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "id",
-  "storageKey": null
-};
+];
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
@@ -93,14 +86,20 @@ return {
             "plural": true,
             "selections": [
               {
-                "alias": "model",
+                "alias": null,
                 "args": null,
                 "concreteType": "GenerativeModel",
                 "kind": "LinkedField",
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v2/*: any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "id",
+                    "storageKey": null
+                  },
                   {
                     "alias": null,
                     "args": null,
@@ -216,6 +215,13 @@ return {
                       }
                     ],
                     "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "__typename",
+                    "storageKey": null
                   }
                 ],
                 "storageKey": null
@@ -225,25 +231,6 @@ return {
                 "args": null,
                 "kind": "ScalarField",
                 "name": "cursor",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "GenerativeModel",
-                "kind": "LinkedField",
-                "name": "node",
-                "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "__typename",
-                    "storageKey": null
-                  },
-                  (v2/*: any*/)
-                ],
                 "storageKey": null
               }
             ],
@@ -301,16 +288,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9cea7bc4e0d312e7aefecd58a07a2d38",
+    "cacheID": "30dd1a1d752f46826221747a0d687291",
     "id": null,
     "metadata": {},
     "name": "ModelsTableModelsQuery",
     "operationKind": "query",
-    "text": "query ModelsTableModelsQuery(\n  $after: String = null\n  $first: Int = 100\n) {\n  ...ModelsTable_generativeModels_2HEEH6\n}\n\nfragment ModelsTable_generativeModels_2HEEH6 on Query {\n  generativeModels(first: $first, after: $after) {\n    edges {\n      model: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        createdAt\n        updatedAt\n        lastUsedAt\n        isOverride\n        tokenCost {\n          input\n          output\n          cacheRead\n          cacheWrite\n          promptAudio\n          completionAudio\n          reasoning\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ModelsTableModelsQuery(\n  $after: String = null\n  $first: Int = 100\n) {\n  ...ModelsTable_generativeModels_2HEEH6\n}\n\nfragment ModelsTable_generativeModel on GenerativeModel {\n  id\n  name\n  provider\n  namePattern\n  providerKey\n  createdAt\n  updatedAt\n  lastUsedAt\n  isOverride\n  tokenCost {\n    input\n    output\n    cacheRead\n    cacheWrite\n    promptAudio\n    completionAudio\n    reasoning\n  }\n}\n\nfragment ModelsTable_generativeModels_2HEEH6 on Query {\n  generativeModels(first: $first, after: $after) {\n    edges {\n      node {\n        ...ModelsTable_generativeModel\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1f0231056e896fcbe4eb1ae2ed370613";
+(node as any).hash = "9846ff00418031c923f124ea100ef531";
 
 export default node;

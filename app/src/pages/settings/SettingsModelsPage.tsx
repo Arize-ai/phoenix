@@ -16,7 +16,7 @@ export function SettingsModelsPage() {
       <Card
         title="Models"
         variant="compact"
-        extra={<NewModelButton />}
+        extra={<NewModelButton queryId={data.__id} />}
         bodyStyle={{ padding: 0 }}
       >
         <ModelsTable query={data} />

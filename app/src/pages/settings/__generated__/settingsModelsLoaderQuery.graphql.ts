@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c1be7337ba1717a0901b2994321a9c6b>>
+ * @generated SignedSource<<b8c24cd6996d7c3dec44f9ca7428b428>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,6 +12,7 @@ import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type settingsModelsLoaderQuery$variables = Record<PropertyKey, never>;
 export type settingsModelsLoaderQuery$data = {
+  readonly __id: string;
   readonly " $fragmentSpreads": FragmentRefs<"ModelsTable_generativeModels">;
 };
 export type settingsModelsLoaderQuery = {
@@ -20,20 +21,25 @@ export type settingsModelsLoaderQuery = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
+var v0 = {
+  "kind": "ClientExtension",
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "__id",
+      "storageKey": null
+    }
+  ]
+},
+v1 = [
   {
     "kind": "Literal",
     "name": "first",
     "value": 100
   }
-],
-v1 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "id",
-  "storageKey": null
-};
+];
 return {
   "fragment": {
     "argumentDefinitions": [],
@@ -45,7 +51,8 @@ return {
         "args": null,
         "kind": "FragmentSpread",
         "name": "ModelsTable_generativeModels"
-      }
+      },
+      (v0/*: any*/)
     ],
     "type": "Query",
     "abstractKey": null
@@ -58,7 +65,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v0/*: any*/),
+        "args": (v1/*: any*/),
         "concreteType": "GenerativeModelConnection",
         "kind": "LinkedField",
         "name": "generativeModels",
@@ -73,14 +80,20 @@ return {
             "plural": true,
             "selections": [
               {
-                "alias": "model",
+                "alias": null,
                 "args": null,
                 "concreteType": "GenerativeModel",
                 "kind": "LinkedField",
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v1/*: any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "id",
+                    "storageKey": null
+                  },
                   {
                     "alias": null,
                     "args": null,
@@ -196,6 +209,13 @@ return {
                       }
                     ],
                     "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "__typename",
+                    "storageKey": null
                   }
                 ],
                 "storageKey": null
@@ -205,25 +225,6 @@ return {
                 "args": null,
                 "kind": "ScalarField",
                 "name": "cursor",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "GenerativeModel",
-                "kind": "LinkedField",
-                "name": "node",
-                "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "__typename",
-                    "storageKey": null
-                  },
-                  (v1/*: any*/)
-                ],
                 "storageKey": null
               }
             ],
@@ -254,43 +255,33 @@ return {
             ],
             "storageKey": null
           },
-          {
-            "kind": "ClientExtension",
-            "selections": [
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "__id",
-                "storageKey": null
-              }
-            ]
-          }
+          (v0/*: any*/)
         ],
         "storageKey": "generativeModels(first:100)"
       },
       {
         "alias": null,
-        "args": (v0/*: any*/),
+        "args": (v1/*: any*/),
         "filters": null,
         "handle": "connection",
         "key": "ModelsTable_generativeModels",
         "kind": "LinkedHandle",
         "name": "generativeModels"
-      }
+      },
+      (v0/*: any*/)
     ]
   },
   "params": {
-    "cacheID": "b58632595c1589c7ea7edc1df355c74e",
+    "cacheID": "b3d3653fb978e45057f505e116ca20dd",
     "id": null,
     "metadata": {},
     "name": "settingsModelsLoaderQuery",
     "operationKind": "query",
-    "text": "query settingsModelsLoaderQuery {\n  ...ModelsTable_generativeModels\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels(first: 100) {\n    edges {\n      model: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        createdAt\n        updatedAt\n        lastUsedAt\n        isOverride\n        tokenCost {\n          input\n          output\n          cacheRead\n          cacheWrite\n          promptAudio\n          completionAudio\n          reasoning\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query settingsModelsLoaderQuery {\n  ...ModelsTable_generativeModels\n}\n\nfragment ModelsTable_generativeModel on GenerativeModel {\n  id\n  name\n  provider\n  namePattern\n  providerKey\n  createdAt\n  updatedAt\n  lastUsedAt\n  isOverride\n  tokenCost {\n    input\n    output\n    cacheRead\n    cacheWrite\n    promptAudio\n    completionAudio\n    reasoning\n  }\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels(first: 100) {\n    edges {\n      node {\n        ...ModelsTable_generativeModel\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a0f3a13e85b11b62ee06f77c3efabae7";
+(node as any).hash = "41daedd4be2eba5c03fe4c16c11c66cd";
 
 export default node;
