@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<021a3551762c7e817e2d730afb061630>>
+ * @generated SignedSource<<d0794bacfce119f3c5c2f9e8734407f9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -35,9 +35,6 @@ export type ExperimentCompareTable_comparisons$data = {
                   readonly name: string;
                   readonly score: number | null;
                   readonly trace: {
-                    readonly project: {
-                      readonly id: string;
-                    };
                     readonly projectId: string;
                     readonly traceId: string;
                   } | null;
@@ -107,32 +104,19 @@ v2 = {
 v3 = {
   "alias": null,
   "args": null,
+  "kind": "ScalarField",
+  "name": "projectId",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
   "concreteType": "Project",
   "kind": "LinkedField",
   "name": "project",
   "plural": false,
   "selections": [
     (v1/*: any*/)
-  ],
-  "storageKey": null
-},
-v4 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "Trace",
-  "kind": "LinkedField",
-  "name": "trace",
-  "plural": false,
-  "selections": [
-    (v2/*: any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "projectId",
-      "storageKey": null
-    },
-    (v3/*: any*/)
   ],
   "storageKey": null
 },
@@ -319,7 +303,20 @@ return {
                           "name": "endTime",
                           "storageKey": null
                         },
-                        (v4/*: any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "Trace",
+                          "kind": "LinkedField",
+                          "name": "trace",
+                          "plural": false,
+                          "selections": [
+                            (v2/*: any*/),
+                            (v3/*: any*/),
+                            (v4/*: any*/)
+                          ],
+                          "storageKey": null
+                        },
                         {
                           "alias": null,
                           "args": null,
@@ -375,7 +372,19 @@ return {
                                       "storageKey": null
                                     },
                                     (v2/*: any*/),
-                                    (v4/*: any*/)
+                                    {
+                                      "alias": null,
+                                      "args": null,
+                                      "concreteType": "Trace",
+                                      "kind": "LinkedField",
+                                      "name": "trace",
+                                      "plural": false,
+                                      "selections": [
+                                        (v2/*: any*/),
+                                        (v3/*: any*/)
+                                      ],
+                                      "storageKey": null
+                                    }
                                   ],
                                   "storageKey": null
                                 }
@@ -508,7 +517,7 @@ return {
                           "name": "metadata",
                           "storageKey": null
                         },
-                        (v3/*: any*/)
+                        (v4/*: any*/)
                       ],
                       "storageKey": null
                     }
@@ -531,6 +540,6 @@ return {
 };
 })();
 
-(node as any).hash = "b6baad2a2c92d4fed03f7ac6f1d7e858";
+(node as any).hash = "69a39b524316550b7e55ce4871dc2826";
 
 export default node;
