@@ -1263,7 +1263,7 @@ export interface components {
          * ModelProvider
          * @enum {string}
          */
-        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK" | "XAI" | "OLLAMA" | "BEDROCK";
+        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK" | "XAI" | "OLLAMA" | "AWS";
         /** OAuth2User */
         OAuth2User: {
             /** Id */
@@ -1587,6 +1587,28 @@ export interface components {
             /** Budget Tokens */
             budget_tokens: number;
         };
+        /** PromptAwsInvocationParameters */
+        PromptAwsInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "aws";
+            aws: components["schemas"]["PromptAwsInvocationParametersContent"];
+        };
+        /** PromptAwsInvocationParametersContent */
+        PromptAwsInvocationParametersContent: {
+            /** Region */
+            region?: string;
+            /** Api */
+            api?: string;
+            /** Max Tokens */
+            max_tokens: number;
+            /** Temperature */
+            temperature?: number;
+            /** Top P */
+            top_p?: number;
+        };
         /** PromptAzureOpenAIInvocationParameters */
         PromptAzureOpenAIInvocationParameters: {
             /**
@@ -1617,28 +1639,6 @@ export interface components {
              * @enum {string}
              */
             reasoning_effort?: "low" | "medium" | "high";
-        };
-        /** PromptBedrockInvocationParameters */
-        PromptBedrockInvocationParameters: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "bedrock";
-            bedrock: components["schemas"]["PromptBedrockInvocationParametersContent"];
-        };
-        /** PromptBedrockInvocationParametersContent */
-        PromptBedrockInvocationParametersContent: {
-            /** Region */
-            region?: string;
-            /** Api */
-            api?: string;
-            /** Max Tokens */
-            max_tokens: number;
-            /** Temperature */
-            temperature?: number;
-            /** Top P */
-            top_p?: number;
         };
         /** PromptChatTemplate */
         PromptChatTemplate: {
@@ -1911,7 +1911,7 @@ export interface components {
             template_type: components["schemas"]["PromptTemplateType"];
             template_format: components["schemas"]["PromptTemplateFormat"];
             /** Invocation Parameters */
-            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptBedrockInvocationParameters"];
+            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"];
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
@@ -1930,7 +1930,7 @@ export interface components {
             template_type: components["schemas"]["PromptTemplateType"];
             template_format: components["schemas"]["PromptTemplateFormat"];
             /** Invocation Parameters */
-            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptBedrockInvocationParameters"];
+            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"];
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;

@@ -130,7 +130,7 @@ export type OllamaInvocationParameters =
   components["schemas"]["PromptOllamaInvocationParametersContent"];
 
 /**
- * The invocation parameters for a prompt version for Bedrock.
+ * The invocation parameters for a prompt version for AWS.
  */
 export type AwsInvocationParameters =
   components["schemas"]["PromptAwsInvocationParametersContent"];

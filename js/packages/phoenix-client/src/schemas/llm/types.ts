@@ -114,10 +114,6 @@ export type ToolDefinitionWithProvider =
       validatedToolDefinition: AnthropicToolDefinition;
     }
   | {
-      provider: Extract<PromptSDKFormat, "AWS">;
-      validatedToolDefinition: AwsToolDefinition;
-    }
-  | {
       provider: Extract<PromptSDKFormat, "PHOENIX">;
       validatedToolDefinition: PhoenixToolDefinition;
     }

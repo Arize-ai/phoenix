@@ -11,7 +11,7 @@ import {
   DeepSeekInvocationParameters,
   XAIInvocationParameters,
   OllamaInvocationParameters,
-  BedrockInvocationParameters,
+  AwsInvocationParameters,
   PromptChatMessage,
 } from "../types/prompts";
 import { assertUnreachable } from "../utils/assertUnreachable";
@@ -121,9 +121,9 @@ interface OllamaPromptVersionInput extends PromptVersionInputBase {
   invocationParameters?: OllamaInvocationParameters;
 }
 
-interface BedrockPromptVersionInput extends PromptVersionInputBase {
-  modelProvider: "BEDROCK";
-  invocationParameters?: BedrockInvocationParameters;
+interface AwsPromptVersionInput extends PromptVersionInputBase {
+  modelProvider: "AWS";
+  invocationParameters?: AwsInvocationParameters;
 }
 
 type PromptVersionInput =
@@ -134,7 +134,7 @@ type PromptVersionInput =
   | DeepSeekPromptVersionInput
   | XAIPromptVersionInput
   | OllamaPromptVersionInput
-  | BedrockPromptVersionInput;
+  | AwsPromptVersionInput;
 
 /**
  * A helper function to construct a prompt version declaratively.
@@ -266,7 +266,7 @@ export function promptVersion(params: PromptVersionInput): PromptVersionData {
           ollama: invocation_parameters ?? {},
         },
       };
-    case "BEDROCK":
+    case "AWS":
       return {
         description,
         model_provider,
@@ -278,8 +278,8 @@ export function promptVersion(params: PromptVersionInput): PromptVersionData {
           messages: templateMessages,
         },
         invocation_parameters: {
-          type: "bedrock",
-          bedrock: invocation_parameters ?? {},
+          type: "aws",
+          aws: invocation_parameters ?? {},
         },
       };
     default:
