@@ -57,6 +57,7 @@ export function ModelsTable(props: ModelsTableProps) {
               providerKey
               createdAt
               updatedAt
+              lastUsedAt
               isOverride
               tokenCost {
                 input
@@ -67,7 +68,6 @@ export function ModelsTable(props: ModelsTableProps) {
                 completionAudio
                 reasoning
               }
-              lastUsedAt
             }
           }
         }

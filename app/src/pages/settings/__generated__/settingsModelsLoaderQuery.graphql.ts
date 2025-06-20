@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<59eda7b845c20d472df231e4e3e73e7e>>
+ * @generated SignedSource<<c1be7337ba1717a0901b2994321a9c6b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -127,6 +127,13 @@ return {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
+                    "name": "lastUsedAt",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
                     "name": "isOverride",
                     "storageKey": null
                   },
@@ -188,13 +195,6 @@ return {
                         "storageKey": null
                       }
                     ],
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "lastUsedAt",
                     "storageKey": null
                   }
                 ],
@@ -281,12 +281,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "be2d6f251b3fa6cfc444a657040a8e43",
+    "cacheID": "b58632595c1589c7ea7edc1df355c74e",
     "id": null,
     "metadata": {},
     "name": "settingsModelsLoaderQuery",
     "operationKind": "query",
-    "text": "query settingsModelsLoaderQuery {\n  ...ModelsTable_generativeModels\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels(first: 100) {\n    edges {\n      model: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        createdAt\n        updatedAt\n        isOverride\n        tokenCost {\n          input\n          output\n          cacheRead\n          cacheWrite\n          promptAudio\n          completionAudio\n          reasoning\n        }\n        lastUsedAt\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query settingsModelsLoaderQuery {\n  ...ModelsTable_generativeModels\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels(first: 100) {\n    edges {\n      model: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        createdAt\n        updatedAt\n        lastUsedAt\n        isOverride\n        tokenCost {\n          input\n          output\n          cacheRead\n          cacheWrite\n          promptAudio\n          completionAudio\n          reasoning\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

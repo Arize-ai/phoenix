@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<104a49c3f0d267eee1068b4e32120d38>>
+ * @generated SignedSource<<a9b516e4af103f44722ef36800091a4a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -147,6 +147,13 @@ return {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
+                    "name": "lastUsedAt",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
                     "name": "isOverride",
                     "storageKey": null
                   },
@@ -208,13 +215,6 @@ return {
                         "storageKey": null
                       }
                     ],
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "lastUsedAt",
                     "storageKey": null
                   }
                 ],
@@ -301,16 +301,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "eeae250b1462ccf9f8753d514d4df283",
+    "cacheID": "9cea7bc4e0d312e7aefecd58a07a2d38",
     "id": null,
     "metadata": {},
     "name": "ModelsTableModelsQuery",
     "operationKind": "query",
-    "text": "query ModelsTableModelsQuery(\n  $after: String = null\n  $first: Int = 100\n) {\n  ...ModelsTable_generativeModels_2HEEH6\n}\n\nfragment ModelsTable_generativeModels_2HEEH6 on Query {\n  generativeModels(first: $first, after: $after) {\n    edges {\n      model: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        createdAt\n        updatedAt\n        isOverride\n        tokenCost {\n          input\n          output\n          cacheRead\n          cacheWrite\n          promptAudio\n          completionAudio\n          reasoning\n        }\n        lastUsedAt\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ModelsTableModelsQuery(\n  $after: String = null\n  $first: Int = 100\n) {\n  ...ModelsTable_generativeModels_2HEEH6\n}\n\nfragment ModelsTable_generativeModels_2HEEH6 on Query {\n  generativeModels(first: $first, after: $after) {\n    edges {\n      model: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        createdAt\n        updatedAt\n        lastUsedAt\n        isOverride\n        tokenCost {\n          input\n          output\n          cacheRead\n          cacheWrite\n          promptAudio\n          completionAudio\n          reasoning\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2457e2738b4e9f72ca225a01a6bc3d3b";
+(node as any).hash = "1f0231056e896fcbe4eb1ae2ed370613";
 
 export default node;
