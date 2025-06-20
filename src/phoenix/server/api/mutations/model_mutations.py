@@ -1,13 +1,11 @@
 import re
-from itertools import chain
-from typing import Iterator, Optional
+from typing import Optional
 
 import strawberry
 from sqlalchemy import delete
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
-from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
@@ -18,28 +16,22 @@ from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.GenerativeModel import GenerativeModel, to_gql_generative_model
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.TokenPrice import TokenKind
 
 
 @strawberry.input
-class CostPerTokenInput:
+class TokenPriceInput:
     token_type: str
-    cost_per_token: float
-    is_prompt: Optional[bool] = UNSET
+    cost_per_million_tokens: float
+    kind: TokenKind
 
     @property
-    def token_prices(self) -> Iterator[models.TokenPrice]:
+    def token_prices(self) -> models.TokenPrice:
         """Generate TokenPrice instances based on the input."""
-        return (
-            models.TokenPrice(
-                token_type=self.token_type,
-                is_prompt=is_prompt,
-                base_rate=self.cost_per_token,
-            )
-            for is_prompt in (
-                (True, False)
-                if self.is_prompt is UNSET or self.is_prompt is None
-                else (self.is_prompt,)
-            )
+        return models.TokenPrice(
+            token_type=self.token_type,
+            is_prompt=self.kind == TokenKind.PROMPT,
+            base_rate=self.cost_per_million_tokens / 1_000_000,
         )
 
 
@@ -48,7 +40,7 @@ class CreateModelMutationInput:
     name: str
     provider: Optional[str] = None
     name_pattern: str
-    costs: list[CostPerTokenInput]
+    costs: list[TokenPriceInput]
 
 
 @strawberry.type
@@ -63,7 +55,7 @@ class UpdateModelMutationInput:
     name: str
     provider: Optional[str]
     name_pattern: str
-    costs: list[CostPerTokenInput]
+    costs: list[TokenPriceInput]
 
 
 @strawberry.type
@@ -97,7 +89,7 @@ class ModelMutationMixin:
         if "output" not in cost_types:
             raise BadRequest("output cost is required")
         _ensure_valid_regex(input.name_pattern)
-        token_prices = list(chain.from_iterable(cost.token_prices for cost in input.costs))
+        token_prices = [cost.token_prices for cost in input.costs]
         model = models.GenerativeModel(
             name=input.name,
             provider=input.provider,
@@ -134,7 +126,7 @@ class ModelMutationMixin:
         if "output" not in cost_types:
             raise BadRequest("output cost is required")
         _ensure_valid_regex(input.name_pattern)
-        token_prices = list(chain.from_iterable(cost.token_prices for cost in input.costs))
+        token_prices = [cost.token_prices for cost in input.costs]
         async with info.context.db() as session:
             model = await session.get(
                 models.GenerativeModel,

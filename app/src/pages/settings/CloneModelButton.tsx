@@ -24,6 +24,7 @@ import {
   ModalOverlay,
 } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { Mutable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { CloneModelButtonMutation } from "./__generated__/CloneModelButtonMutation.graphql";
@@ -39,13 +40,11 @@ const ModelQuery = graphql`
         provider
         namePattern
         providerKey
-        tokenCost {
-          input
-          output
-          cacheRead
-          cacheWrite
-          promptAudio
-          completionAudio
+        tokenPrices {
+          tokenType
+          kind
+          costPerMillionTokens
+          costPerToken
         }
       }
     }
@@ -98,7 +97,7 @@ function CloneModelDialogContent({
       modelName={`${modelData.name} (override)`}
       modelProvider={modelData.provider}
       modelNamePattern={modelData.namePattern}
-      modelCost={modelData.tokenCost}
+      modelCost={modelData.tokenPrices as Mutable<typeof modelData.tokenPrices>}
       onSubmit={(params) => {
         commitCloneModel({
           variables: {
@@ -106,12 +105,13 @@ function CloneModelDialogContent({
               name: params.name,
               provider: params.provider,
               namePattern: params.namePattern,
-              costs: Object.entries(params.cost)
-                .filter(([_, value]) => value != null)
-                .map(([key, value]) => ({
-                  tokenType: key,
-                  costPerToken: value,
-                })),
+              costs: [...params.promptCosts, ...params.completionCosts].map(
+                (cost) => ({
+                  tokenType: cost.tokenType,
+                  costPerMillionTokens: cost.costPerMillionTokens,
+                  kind: cost.kind,
+                })
+              ),
             },
             connectionId,
           },

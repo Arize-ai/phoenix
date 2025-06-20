@@ -376,12 +376,6 @@ type CostBreakdown {
   costPerToken: Float
 }
 
-input CostPerTokenInput {
-  tokenType: String!
-  costPerToken: Float!
-  isPrompt: Boolean
-}
-
 input CreateAnnotationConfigInput {
   annotationConfig: AnnotationConfigInput!
 }
@@ -419,7 +413,7 @@ input CreateModelMutationInput {
   name: String!
   provider: String = null
   namePattern: String!
-  costs: [CostPerTokenInput!]!
+  costs: [TokenPriceInput!]!
 }
 
 type CreateModelMutationPayload {
@@ -1267,7 +1261,7 @@ type GenerativeModel implements Node & ModelInterface {
   isOverride: Boolean!
   createdAt: DateTime!
   updatedAt: DateTime!
-  tokenCost: TokenCost
+  tokenPrices: [TokenPrice!]!
   costSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
   lastUsedAt: DateTime
@@ -2502,23 +2496,28 @@ type TimeSeriesDataPoint {
   value: Float
 }
 
-type TokenCost {
-  input: Float
-  output: Float
-  prompt: Float
-  completion: Float
-  cacheRead: Float
-  cacheWrite: Float
-  promptAudio: Float
-  completionAudio: Float
-  reasoning: Float
-  total: Float
-}
-
 type TokenCountPromptDetails {
   cacheRead: Int
   cacheWrite: Int
   audio: Int
+}
+
+enum TokenKind {
+  PROMPT
+  COMPLETION
+}
+
+type TokenPrice {
+  tokenType: String!
+  kind: TokenKind!
+  costPerMillionTokens: Float!
+  costPerToken: Float!
+}
+
+input TokenPriceInput {
+  tokenType: String!
+  costPerMillionTokens: Float!
+  kind: TokenKind!
 }
 
 type TokenUsage {
@@ -2703,7 +2702,7 @@ input UpdateModelMutationInput {
   name: String!
   provider: String
   namePattern: String!
-  costs: [CostPerTokenInput!]!
+  costs: [TokenPriceInput!]!
 }
 
 type UpdateModelMutationPayload {

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<746563740ad04c1aa8649b7f573ca026>>
+ * @generated SignedSource<<83033f0e613f0f1bb614d49e03e37fe7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,6 +10,7 @@
 
 import { ReaderInlineDataFragment } from 'relay-runtime';
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
+export type TokenKind = "COMPLETION" | "PROMPT";
 import { FragmentRefs } from "relay-runtime";
 export type ModelsTable_generativeModel$data = {
   readonly createdAt: string;
@@ -20,15 +21,12 @@ export type ModelsTable_generativeModel$data = {
   readonly namePattern: string;
   readonly provider: string | null;
   readonly providerKey: GenerativeProviderKey | null;
-  readonly tokenCost: {
-    readonly cacheRead: number | null;
-    readonly cacheWrite: number | null;
-    readonly completionAudio: number | null;
-    readonly input: number | null;
-    readonly output: number | null;
-    readonly promptAudio: number | null;
-    readonly reasoning: number | null;
-  } | null;
+  readonly tokenPrices: ReadonlyArray<{
+    readonly costPerMillionTokens: number;
+    readonly costPerToken: number;
+    readonly kind: TokenKind;
+    readonly tokenType: string;
+  }>;
   readonly updatedAt: string;
   readonly " $fragmentType": "ModelsTable_generativeModel";
 };
@@ -42,6 +40,6 @@ const node: ReaderInlineDataFragment = {
   "name": "ModelsTable_generativeModel"
 };
 
-(node as any).hash = "f9dd8c9522dd8959ef12a68390498d76";
+(node as any).hash = "f4e5e68bd29ab6bddfc1867d39b20918";
 
 export default node;
