@@ -158,7 +158,6 @@ const PROVIDER_ICONS: Record<
   DEEPSEEK: DeepSeekSVG,
   XAI: XAISVG,
   OLLAMA: OllamaSVG,
-  BEDROCK: BedrockSVG,
   AWS: BedrockSVG,
 };
 

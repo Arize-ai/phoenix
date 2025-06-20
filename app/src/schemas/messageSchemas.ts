@@ -75,12 +75,14 @@ export const openAIMessagesJSONSchema = zodToJsonSchema(openAIMessagesSchema, {
 /**
  * AWS Message Schemas
  */
-export const awsMessageSchema = z.object({
-  role: z.enum(["user", "assistant", "tool"]),
-  content: z.array(z.unknown()),
-  tool_call_id: z.string().optional(),
-  tool_calls: z.array(awsToolCallSchema).optional(),
-}).passthrough();
+export const awsMessageSchema = z
+  .object({
+    role: z.enum(["user", "assistant", "tool"]),
+    content: z.array(z.unknown()),
+    tool_call_id: z.string().optional(),
+    tool_calls: z.array(awsToolCallSchema).optional(),
+  })
+  .passthrough();
 
 export type AwsMessage = z.infer<typeof awsMessageSchema>;
 
@@ -89,7 +91,6 @@ export const awsMessagesSchema = z.array(awsMessageSchema);
 export const awsMessagesJSONSchema = zodToJsonSchema(awsMessagesSchema, {
   removeAdditionalStrategy: "passthrough",
 });
-
 
 /**
  * Anthropic Message Schemas
@@ -181,7 +182,6 @@ export const promptMessagesJSONSchema = zodToJsonSchema(promptMessagesSchema, {
  */
 export const openAIMessageToAws = openAIMessageSchema.transform(
   (openai): AwsMessage => {
-
     const base = {
       role: openai.role === "assistant" ? "assistant" : "user",
       content: openai.content ? [{ type: "text", text: openai.content }] : [],
@@ -191,7 +191,9 @@ export const openAIMessageToAws = openAIMessageSchema.transform(
       return {
         role: openai.role === "assistant" ? "assistant" : "user",
         content: openai.content ? [{ type: "text", text: openai.content }] : [],
-        tool_calls: openai.tool_calls.map((tc) => openAIToolCallToAws.parse(tc)),
+        tool_calls: openai.tool_calls.map((tc) =>
+          openAIToolCallToAws.parse(tc)
+        ),
       };
     }
 
@@ -428,7 +430,6 @@ export const fromOpenAIMessage = <T extends ModelProvider>({
       return message as ProviderToMessageMap[T];
     case "ANTHROPIC":
       return openAIMessageToAnthropic.parse(message) as ProviderToMessageMap[T];
-    case "BEDROCK":
     case "AWS":
       return openAIMessageToAws.parse(message) as ProviderToMessageMap[T];
     case "GOOGLE":

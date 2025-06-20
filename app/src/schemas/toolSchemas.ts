@@ -306,7 +306,6 @@ export const toOpenAIToolDefinition = (
       return validatedToolDefinition;
     case "ANTHROPIC":
       return anthropicToolToOpenAI.parse(validatedToolDefinition);
-    case "BEDROCK":
     case "AWS":
       return awsToolToOpenAI.parse(validatedToolDefinition);
     case "UNKNOWN":
@@ -338,7 +337,6 @@ export const fromOpenAIToolDefinition = <T extends ModelProvider>({
         toolDefinition
       ) as ProviderToToolDefinitionMap[T];
     case "AWS":
-    case "BEDROCK":
       return openAIToolToAws.parse(
         toolDefinition
       ) as ProviderToToolDefinitionMap[T];
@@ -362,7 +360,7 @@ export function createOpenAIToolDefinition(
     type: "function",
     function: {
       name: `new_function_${toolNumber}`,
-      description: "",
+      description: "a description",
       parameters: {
         type: "object",
         properties: {
@@ -386,7 +384,7 @@ export function createAnthropicToolDefinition(
 ): AnthropicToolDefinition {
   return {
     name: `new_function_${toolNumber}`,
-    description: "",
+    description: "a description",
     input_schema: {
       type: "object",
       properties: {
@@ -403,7 +401,7 @@ export function createAwsToolDefinition(toolNumber: number): AwsToolDefinition {
   return {
     toolSpec: {
       name: `new_function_${toolNumber}`,
-      description: "",
+      description: "a description",
       inputSchema: {
         json: {
           type: "object",

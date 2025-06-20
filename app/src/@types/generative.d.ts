@@ -7,7 +7,6 @@ declare type ModelProvider =
   | "DEEPSEEK"
   | "XAI"
   | "OLLAMA"
-  | "BEDROCK"
   | "AWS";
 
 /**

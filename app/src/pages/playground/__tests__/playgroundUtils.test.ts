@@ -741,7 +741,6 @@ describe("processAttributeToolCalls", () => {
   const ProviderToToolCallTestMap: ProviderToolCallTestMap = {
     ANTHROPIC: ["ANTHROPIC", testSpanToolCall, expectedAnthropicToolCall],
     OPENAI: ["OPENAI", testSpanToolCall, expectedTestOpenAIToolCall],
-    BEDROCK: ["BEDROCK", testSpanToolCall, expectedTestOpenAIToolCall],
     AWS: ["AWS", testSpanToolCall, expectedTestOpenAIToolCall],
     DEEPSEEK: ["DEEPSEEK", testSpanToolCall, expectedTestOpenAIToolCall],
     XAI: ["XAI", testSpanToolCall, expectedTestOpenAIToolCall],

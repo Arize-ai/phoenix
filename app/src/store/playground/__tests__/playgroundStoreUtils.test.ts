@@ -137,10 +137,10 @@ describe("convertMessageToolCallsToProvider", () => {
         [{ test: "test" }],
       ],
     ],
-    BEDROCK: [
+    AWS: [
       [
-        "return tools as they are for bedrock",
-        "BEDROCK",
+        "return tools as they are for aws bedrock",
+        "AWS",
         [{ test: "test" }],
         [{ test: "test" }],
       ],
@@ -424,10 +424,10 @@ describe("convertMessageToolCallsToProvider", () => {
         [{ id: 1, definition: { test: "test" } }],
       ],
     ],
-    BEDROCK: [
+    AWS: [
       [
-        "return tools as they are for bedrock",
-        "BEDROCK",
+        "return tools as they are for aws",
+        "AWS",
         [{ id: 1, definition: { test: "test" } }],
         [{ id: 1, definition: { test: "test" } }],
       ],

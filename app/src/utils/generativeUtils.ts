@@ -33,8 +33,6 @@ export function getProviderName(provider: ModelProvider): string {
       return "XAI";
     case "OLLAMA":
       return "Ollama";
-    case "BEDROCK":
-      return "Bedrock";
     case "AWS":
       return "AWS";
     default:

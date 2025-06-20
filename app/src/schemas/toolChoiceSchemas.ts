@@ -178,7 +178,6 @@ export const fromOpenAIToolChoice = <T extends ModelProvider>({
     case "XAI":
     case "OLLAMA":
       return toolChoice as ProviderToToolChoiceMap[T];
-    case "BEDROCK":
     case "AWS":
     case "ANTHROPIC":
       return openAIToolChoiceToAnthropicToolChoice.parse(

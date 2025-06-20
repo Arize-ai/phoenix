@@ -245,7 +245,7 @@ function AzureOpenAiModelConfigFormField({
   );
 }
 
-function BedrockModelConfigFormField({
+function AwsModelConfigFormField({
   instance,
   container,
 }: {
@@ -627,8 +627,8 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
           container={container ?? undefined}
         />
       )}
-      {instance.model.provider === "BEDROCK" ? (
-        <BedrockModelConfigFormField
+      {instance.model.provider === "AWS" ? (
+        <AwsModelConfigFormField
           instance={instance}
           container={container ?? null}
         />

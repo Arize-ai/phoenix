@@ -33,7 +33,7 @@ export const DEFAULT_TOOL_CHOICES_BY_PROVIDER = {
   XAI: ["required", "auto", "none"] as const,
   OLLAMA: ["required", "auto", "none"] as const,
   ANTHROPIC: ["any", "auto", "none"] as const,
-  BEDROCK: ["required", "auto", "none"] as const,
+  AWS: ["required", "auto", "none"] as const,
 } satisfies Partial<
   Record<ModelProvider, (string | Record<string, unknown>)[]>
 >;

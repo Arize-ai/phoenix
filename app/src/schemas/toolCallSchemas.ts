@@ -66,8 +66,8 @@ export const openAIToolCallsJSONSchema = zodToJsonSchema(
 
 /**
  * AWS/Bedrock tool call schema
- * 
- * NOTE: This schema is not currently used in the frontend. 
+ *
+ * NOTE: This schema is not currently used in the frontend.
  * The backend expects OpenAI format tool calls and handles the conversion to Bedrock format internally.
  * This schema is kept for future use when we want to handle Bedrock format directly in the frontend.
  */
@@ -75,7 +75,7 @@ export const awsToolCallSchema = z.object({
   toolSpec: z.object({
     name: z.string().describe("The name of the function"),
     description: z.string().describe("The description of the function"),
-    inputSchema:  z.record(z.unknown()).describe("The input for the tool"),
+    inputSchema: z.record(z.unknown()).describe("The input for the tool"),
   }),
 });
 
@@ -83,21 +83,22 @@ export type AwsToolCall = z.infer<typeof awsToolCallSchema>;
 
 export const awsToolCallsSchema = z.array(awsToolCallSchema);
 
-export const awsToolCallsJSONSchema = zodToJsonSchema(
-  awsToolCallsSchema,
-  {
-    removeAdditionalStrategy: "passthrough",
-  }
-);
+export const awsToolCallsJSONSchema = zodToJsonSchema(awsToolCallsSchema, {
+  removeAdditionalStrategy: "passthrough",
+});
 
 export const openAIToolCallToAws = openAIToolCallSchema.transform(
   (openai): AwsToolCall => ({
     toolSpec: {
       name: openai.function.name,
-      description: typeof openai.function.description === "string" ? openai.function.description : openai.function.name,
-      inputSchema: typeof openai.function.arguments === "string"
-        ? { [openai.function.arguments]: openai.function.arguments }
-        : (openai.function.arguments ?? {}),
+      description:
+        typeof openai.function.description === "string"
+          ? openai.function.description
+          : openai.function.name,
+      inputSchema:
+        typeof openai.function.arguments === "string"
+          ? { [openai.function.arguments]: openai.function.arguments }
+          : (openai.function.arguments ?? {}),
     },
   })
 );
@@ -112,7 +113,6 @@ export const awsToolCallToOpenAI = awsToolCallSchema.transform(
     },
   })
 );
-
 
 /**
  * The schema for an Anthropic tool call, this is what a message that calls a tool looks like
@@ -310,7 +310,6 @@ export const fromOpenAIToolCall = <T extends ModelProvider>({
     case "XAI":
     case "OLLAMA":
       return toolCall as ProviderToToolCallMap[T];
-    case "BEDROCK":
     case "AWS":
       return openAIToolCallToAws.parse(toolCall) as ProviderToToolCallMap[T];
     case "ANTHROPIC":
