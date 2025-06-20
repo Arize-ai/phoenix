@@ -96,10 +96,7 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 |  https://github.com/Arize-ai/phoenix
 |
 |  🌎 Join our Community 🌎
-|  https://arize-ai.slack.com/join/shared_invite/zt-2w57bhem8-hq24MB6u7yE_ZF_ilOYSBw#/shared-invite/email 
-|
-|  🚀 Phoenix Server 🚀
-|  Phoenix UI: {{ ui_path }}
+|  https://arize-ai.slack.com/join/shared_invite/zt-2w57bhem8-hq24MB6u7yE_ZF_ilOYSBw#/shared-invite/email
 |
 |  📚 Documentation 📚
 |  https://arize.com/docs/phoenix
@@ -391,7 +388,7 @@ def main() -> None:
     http_scheme = "https" if tls_enabled_for_http else "http"
     grpc_scheme = "https" if tls_enabled_for_grpc else "http"
     # Use localhost for display when host is the loopback address to make URLs clickable
-    display_host = "localhost" if host == "0.0.0.0" else host
+    display_host = "localhost" if host in ("0.0.0.0", "::") else host
     root_path = urljoin(f"{http_scheme}://{host}:{port}", host_root_path)
     display_root_path = urljoin(f"{http_scheme}://{display_host}:{port}", host_root_path)
     msg = _WELCOME_MESSAGE.render(
