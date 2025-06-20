@@ -51,6 +51,15 @@ const GENERATIVE_MODEL_FRAGMENT = graphql`
   }
 `;
 
+const CostCell = ({ cost }: { cost: number | null | undefined }) => {
+  if (cost == null) {
+    return <span>--</span>;
+  }
+
+  const costPerMillion = cost * 1000000;
+  return <span>${costPerMillion.toPrecision(3)}</span>;
+};
+
 type ModelsTableProps = {
   query: ModelsTable_generativeModels$key;
 };
@@ -172,56 +181,49 @@ export function ModelsTable(props: ModelsTableProps) {
         header: "input cost",
         accessorKey: "tokenCost.input",
         cell: ({ row }) => {
-          const cost = row.original.tokenCost?.input;
-          return cost != null ? `$${cost.toPrecision(3)}` : "--";
+          return <CostCell cost={row.original.tokenCost?.input} />;
         },
       },
       {
         header: "output cost",
         accessorKey: "tokenCost.output",
         cell: ({ row }) => {
-          const cost = row.original.tokenCost?.output;
-          return cost != null ? `$${cost.toPrecision(3)}` : "--";
+          return <CostCell cost={row.original.tokenCost?.output} />;
         },
       },
       {
         header: "cache read cost",
         accessorKey: "tokenCost.cacheRead",
         cell: ({ row }) => {
-          const cost = row.original.tokenCost?.cacheRead;
-          return cost != null ? `$${cost.toPrecision(3)}` : "--";
+          return <CostCell cost={row.original.tokenCost?.cacheRead} />;
         },
       },
       {
         header: "cache write cost",
         accessorKey: "tokenCost.cacheWrite",
         cell: ({ row }) => {
-          const cost = row.original.tokenCost?.cacheWrite;
-          return cost != null ? `$${cost.toPrecision(3)}` : "--";
+          return <CostCell cost={row.original.tokenCost?.cacheWrite} />;
         },
       },
       {
         header: "prompt audio cost",
         accessorKey: "tokenCost.promptAudio",
         cell: ({ row }) => {
-          const cost = row.original.tokenCost?.promptAudio;
-          return cost != null ? `$${cost.toPrecision(3)}` : "--";
+          return <CostCell cost={row.original.tokenCost?.promptAudio} />;
         },
       },
       {
         header: "completion audio cost",
         accessorKey: "tokenCost.completionAudio",
         cell: ({ row }) => {
-          const cost = row.original.tokenCost?.completionAudio;
-          return cost != null ? `$${cost.toPrecision(3)}` : "--";
+          return <CostCell cost={row.original.tokenCost?.completionAudio} />;
         },
       },
       {
         header: "reasoning cost",
         accessorKey: "tokenCost.reasoning",
         cell: ({ row }) => {
-          const cost = row.original.tokenCost?.reasoning;
-          return cost != null ? `$${cost.toPrecision(3)}` : "--";
+          return <CostCell cost={row.original.tokenCost?.reasoning} />;
         },
       },
       {
