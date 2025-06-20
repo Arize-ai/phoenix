@@ -264,6 +264,7 @@ class Project(Node):
     ) -> Connection[Span]:
         stmt = (
             select(models.Span.id)
+            .select_from(models.Span)
             .join(models.Trace)
             .where(models.Trace.project_rowid == self.project_rowid)
         )
