@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d0794bacfce119f3c5c2f9e8734407f9>>
+ * @generated SignedSource<<76c3f2781a16dbeed4b672c2485311e3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -47,9 +47,6 @@ export type ExperimentCompareTable_comparisons$data = {
             readonly output: any | null;
             readonly startTime: string;
             readonly trace: {
-              readonly project: {
-                readonly id: string;
-              };
               readonly projectId: string;
               readonly traceId: string;
             } | null;
@@ -104,23 +101,23 @@ v2 = {
 v3 = {
   "alias": null,
   "args": null,
-  "kind": "ScalarField",
-  "name": "projectId",
-  "storageKey": null
-},
-v4 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "Project",
+  "concreteType": "Trace",
   "kind": "LinkedField",
-  "name": "project",
+  "name": "trace",
   "plural": false,
   "selections": [
-    (v1/*: any*/)
+    (v2/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "projectId",
+      "storageKey": null
+    }
   ],
   "storageKey": null
 },
-v5 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -303,20 +300,7 @@ return {
                           "name": "endTime",
                           "storageKey": null
                         },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "concreteType": "Trace",
-                          "kind": "LinkedField",
-                          "name": "trace",
-                          "plural": false,
-                          "selections": [
-                            (v2/*: any*/),
-                            (v3/*: any*/),
-                            (v4/*: any*/)
-                          ],
-                          "storageKey": null
-                        },
+                        (v3/*: any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -342,7 +326,7 @@ return {
                                   "plural": false,
                                   "selections": [
                                     (v1/*: any*/),
-                                    (v5/*: any*/),
+                                    (v4/*: any*/),
                                     {
                                       "alias": null,
                                       "args": null,
@@ -372,19 +356,7 @@ return {
                                       "storageKey": null
                                     },
                                     (v2/*: any*/),
-                                    {
-                                      "alias": null,
-                                      "args": null,
-                                      "concreteType": "Trace",
-                                      "kind": "LinkedField",
-                                      "name": "trace",
-                                      "plural": false,
-                                      "selections": [
-                                        (v2/*: any*/),
-                                        (v3/*: any*/)
-                                      ],
-                                      "storageKey": null
-                                    }
+                                    (v3/*: any*/)
                                   ],
                                   "storageKey": null
                                 }
@@ -502,7 +474,7 @@ return {
                       "plural": false,
                       "selections": [
                         (v1/*: any*/),
-                        (v5/*: any*/),
+                        (v4/*: any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -517,7 +489,18 @@ return {
                           "name": "metadata",
                           "storageKey": null
                         },
-                        (v4/*: any*/)
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "Project",
+                          "kind": "LinkedField",
+                          "name": "project",
+                          "plural": false,
+                          "selections": [
+                            (v1/*: any*/)
+                          ],
+                          "storageKey": null
+                        }
                       ],
                       "storageKey": null
                     }
@@ -540,6 +523,6 @@ return {
 };
 })();
 
-(node as any).hash = "69a39b524316550b7e55ce4871dc2826";
+(node as any).hash = "a456a4a4df559b1b8ce842de34f895d9";
 
 export default node;

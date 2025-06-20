@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3f71cbf3289c9dc8ff7743cace175241>>
+ * @generated SignedSource<<cfe16db80b54f570a4257164b2cf625d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -96,30 +96,31 @@ v7 = {
 v8 = {
   "alias": null,
   "args": null,
-  "kind": "ScalarField",
-  "name": "projectId",
-  "storageKey": null
-},
-v9 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "Project",
+  "concreteType": "Trace",
   "kind": "LinkedField",
-  "name": "project",
+  "name": "trace",
   "plural": false,
   "selections": [
+    (v7/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "projectId",
+      "storageKey": null
+    },
     (v6/*: any*/)
   ],
   "storageKey": null
 },
-v10 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v11 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -270,21 +271,7 @@ return {
                             "name": "endTime",
                             "storageKey": null
                           },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "concreteType": "Trace",
-                            "kind": "LinkedField",
-                            "name": "trace",
-                            "plural": false,
-                            "selections": [
-                              (v7/*: any*/),
-                              (v8/*: any*/),
-                              (v9/*: any*/),
-                              (v6/*: any*/)
-                            ],
-                            "storageKey": null
-                          },
+                          (v8/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -310,7 +297,7 @@ return {
                                     "plural": false,
                                     "selections": [
                                       (v6/*: any*/),
-                                      (v10/*: any*/),
+                                      (v9/*: any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -340,20 +327,7 @@ return {
                                         "storageKey": null
                                       },
                                       (v7/*: any*/),
-                                      {
-                                        "alias": null,
-                                        "args": null,
-                                        "concreteType": "Trace",
-                                        "kind": "LinkedField",
-                                        "name": "trace",
-                                        "plural": false,
-                                        "selections": [
-                                          (v7/*: any*/),
-                                          (v8/*: any*/),
-                                          (v6/*: any*/)
-                                        ],
-                                        "storageKey": null
-                                      }
+                                      (v8/*: any*/)
                                     ],
                                     "storageKey": null
                                   }
@@ -389,7 +363,7 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v11/*: any*/),
+                  (v10/*: any*/),
                   (v6/*: any*/)
                 ],
                 "storageKey": null
@@ -451,7 +425,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v11/*: any*/),
+          (v10/*: any*/),
           (v6/*: any*/),
           {
             "kind": "InlineFragment",
@@ -481,7 +455,7 @@ return {
                         "plural": false,
                         "selections": [
                           (v6/*: any*/),
-                          (v10/*: any*/),
+                          (v9/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -496,7 +470,18 @@ return {
                             "name": "metadata",
                             "storageKey": null
                           },
-                          (v9/*: any*/)
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "Project",
+                            "kind": "LinkedField",
+                            "name": "project",
+                            "plural": false,
+                            "selections": [
+                              (v6/*: any*/)
+                            ],
+                            "storageKey": null
+                          }
                         ],
                         "storageKey": null
                       }
@@ -516,16 +501,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0ee28fe98953a69063d50d2e84d0c1d3",
+    "cacheID": "c2fb09bdbe8464a8889de427538cdc7a",
     "id": null,
     "metadata": {},
     "name": "ExperimentCompareTableQuery",
     "operationKind": "query",
-    "text": "query ExperimentCompareTableQuery(\n  $after: String = null\n  $datasetId: ID!\n  $experimentIds: [ID!]!\n  $filterCondition: String = null\n  $first: Int = 50\n) {\n  ...ExperimentCompareTable_comparisons_2j8slP\n}\n\nfragment ExperimentCompareTable_comparisons_2j8slP on Query {\n  compareExperiments(first: $first, after: $after, experimentIds: $experimentIds, filterCondition: $filterCondition) {\n    edges {\n      comparison: node {\n        example {\n          id\n          revision {\n            input\n            referenceOutput: output\n          }\n        }\n        runComparisonItems {\n          experimentId\n          runs {\n            output\n            error\n            startTime\n            endTime\n            trace {\n              traceId\n              projectId\n              project {\n                id\n              }\n              id\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  score\n                  label\n                  annotatorKind\n                  explanation\n                  traceId\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n            id\n          }\n        }\n        id\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experiments {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            metadata\n            project {\n              id\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query ExperimentCompareTableQuery(\n  $after: String = null\n  $datasetId: ID!\n  $experimentIds: [ID!]!\n  $filterCondition: String = null\n  $first: Int = 50\n) {\n  ...ExperimentCompareTable_comparisons_2j8slP\n}\n\nfragment ExperimentCompareTable_comparisons_2j8slP on Query {\n  compareExperiments(first: $first, after: $after, experimentIds: $experimentIds, filterCondition: $filterCondition) {\n    edges {\n      comparison: node {\n        example {\n          id\n          revision {\n            input\n            referenceOutput: output\n          }\n        }\n        runComparisonItems {\n          experimentId\n          runs {\n            output\n            error\n            startTime\n            endTime\n            trace {\n              traceId\n              projectId\n              id\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  score\n                  label\n                  annotatorKind\n                  explanation\n                  traceId\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n            id\n          }\n        }\n        id\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experiments {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            metadata\n            project {\n              id\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "69a39b524316550b7e55ce4871dc2826";
+(node as any).hash = "a456a4a4df559b1b8ce842de34f895d9";
 
 export default node;
