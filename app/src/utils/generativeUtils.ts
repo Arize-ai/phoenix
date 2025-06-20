@@ -12,7 +12,6 @@ export function isModelProvider(provider: string): provider is ModelProvider {
     provider === "DEEPSEEK" ||
     provider === "XAI" ||
     provider === "OLLAMA" ||
-    provider === "BEDROCK" ||
     provider === "AWS"
   );
 }
