@@ -38,7 +38,7 @@ def upgrade() -> None:
             nullable=True,
         ),
         sa.Column(
-            "name_pattern",
+            "llm_name_pattern",
             sa.String,
             nullable=False,
         ),
@@ -46,6 +46,10 @@ def upgrade() -> None:
             "is_override",
             sa.Boolean,
             nullable=False,
+        ),
+        sa.Column(
+            "start_time",
+            sa.TIMESTAMP(timezone=True),
         ),
         sa.Column(
             "created_at",
@@ -62,7 +66,7 @@ def upgrade() -> None:
         ),
     )
     op.create_table(
-        "model_costs",
+        "token_prices",
         sa.Column(
             "id",
             sa.Integer,
@@ -75,19 +79,14 @@ def upgrade() -> None:
             nullable=False,
             index=True,
         ),
-        sa.Column(
-            "token_type",
-            sa.String,
-            nullable=False,
-        ),
-        sa.Column(
-            "cost_per_token",
-            sa.Float,
-            nullable=False,
-        ),
+        sa.Column("token_type", sa.String, nullable=False),
+        sa.Column("is_prompt", sa.Boolean, nullable=False),
+        sa.Column("base_rate", sa.Float, nullable=False),
+        sa.Column("customization", sa.JSON),
         sa.UniqueConstraint(
             "model_id",
             "token_type",
+            "is_prompt",
         ),
     )
     op.create_table(
@@ -112,9 +111,9 @@ def upgrade() -> None:
             index=True,
         ),
         sa.Column(
-            "generative_model_id",
+            "model_id",
             sa.Integer,
-            sa.ForeignKey("generative_models.id", ondelete="CASCADE"),
+            sa.ForeignKey("generative_models.id", ondelete="SET NULL"),
             nullable=False,
             index=True,
         ),
@@ -161,5 +160,5 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_table("span_cost_details")
     op.drop_table("span_costs")
-    op.drop_table("model_costs")
+    op.drop_table("token_prices")
     op.drop_table("generative_models")

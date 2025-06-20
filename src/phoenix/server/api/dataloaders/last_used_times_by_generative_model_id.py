@@ -24,13 +24,12 @@ class LastUsedTimesByGenerativeModelIdDataLoader(DataLoader[Key, Result]):
                 model_id: last_used_time
                 async for model_id, last_used_time in await session.stream(
                     select(
-                        models.SpanCost.generative_model_id,
-                        func.max(models.Span.start_time).label("last_used_time"),
+                        models.SpanCost.model_id,
+                        func.max(models.SpanCost.span_start_time).label("last_used_time"),
                     )
                     .select_from(models.SpanCost)
-                    .join(models.Span, models.Span.id == models.SpanCost.span_rowid)
-                    .where(models.SpanCost.generative_model_id.in_(keys))
-                    .group_by(models.SpanCost.generative_model_id)
+                    .where(models.SpanCost.model_id.in_(keys))
+                    .group_by(models.SpanCost.model_id)
                 )
             }
         return [last_used_times_by_model_id.get(model_id) for model_id in keys]

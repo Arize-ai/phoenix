@@ -461,16 +461,18 @@ async def default_model(db: DbSessionFactory) -> models.GenerativeModel:
         model = models.GenerativeModel(
             name="default-model",
             provider="openai",
-            name_pattern="gpt-*",
+            llm_name_pattern="gpt-*",
             is_override=False,
-            costs=[
-                models.ModelCost(
+            token_prices=[
+                models.TokenPrice(
                     token_type="input",
-                    cost_per_token=0.001,
+                    is_prompt=True,
+                    base_rate=0.001,
                 ),
-                models.ModelCost(
+                models.TokenPrice(
                     token_type="output",
-                    cost_per_token=0.002,
+                    is_prompt=False,
+                    base_rate=0.002,
                 ),
             ],
         )
@@ -488,16 +490,18 @@ async def custom_model(db: DbSessionFactory) -> models.GenerativeModel:
         model = models.GenerativeModel(
             name="custom-model",
             provider="anthropic",
-            name_pattern="claude-*",
+            llm_name_pattern="claude-*",
             is_override=True,
-            costs=[
-                models.ModelCost(
+            token_prices=[
+                models.TokenPrice(
                     token_type="input",
-                    cost_per_token=0.003,
+                    is_prompt=True,
+                    base_rate=0.003,
                 ),
-                models.ModelCost(
+                models.TokenPrice(
                     token_type="output",
-                    cost_per_token=0.004,
+                    is_prompt=False,
+                    base_rate=0.004,
                 ),
             ],
         )

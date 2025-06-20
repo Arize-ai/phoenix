@@ -66,6 +66,7 @@ from phoenix.server.api.dataloaders import (
     UsersDataLoader,
 )
 from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.email.types import EmailSender
 from phoenix.server.types import (
@@ -151,6 +152,7 @@ class Context(BaseContext):
     cache_for_dataloaders: Optional[CacheForDataLoaders]
     model: Model
     export_path: Path
+    span_cost_calculator: SpanCostCalculator
     last_updated_at: CanGetLastUpdatedAt = _NoOp()
     event_queue: CanPutItem[DmlEvent] = _NoOp()
     corpus: Optional[Model] = None

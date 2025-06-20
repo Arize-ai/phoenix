@@ -558,24 +558,6 @@
     "regex":"(?i)^(gpt-4o-mini-2024-07-18)$"
   },
   {
-    "model":"gpt-4o-realtime-preview",
-    "provider":"openai",
-    "input":null,
-    "output":null,
-    "cache_write":0.00002,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4o-realtime-preview)$"
-  },
-  {
-    "model":"gpt-4o-realtime-preview-2024-10-01",
-    "provider":"openai",
-    "input":null,
-    "output":null,
-    "cache_write":0.00002,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4o-realtime-preview-2024-10-01)$"
-  },
-  {
     "model":"o1",
     "provider":"openai",
     "input":0.000015,

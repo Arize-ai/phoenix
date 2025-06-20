@@ -1,11 +1,13 @@
 import re
-from typing import Optional
+from itertools import chain
+from typing import Iterator, Optional
 
 import strawberry
 from sqlalchemy import delete
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
+from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
@@ -22,6 +24,23 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 class CostPerTokenInput:
     token_type: str
     cost_per_token: float
+    is_prompt: Optional[bool] = UNSET
+
+    @property
+    def token_prices(self) -> Iterator[models.TokenPrice]:
+        """Generate TokenPrice instances based on the input."""
+        return (
+            models.TokenPrice(
+                token_type=self.token_type,
+                is_prompt=is_prompt,
+                base_rate=self.cost_per_token,
+            )
+            for is_prompt in (
+                (True, False)
+                if self.is_prompt is UNSET or self.is_prompt is None
+                else (self.is_prompt,)
+            )
+        )
 
 
 @strawberry.input
@@ -78,19 +97,13 @@ class ModelMutationMixin:
         if "output" not in cost_types:
             raise BadRequest("output cost is required")
         _ensure_valid_regex(input.name_pattern)
-        costs = [
-            models.ModelCost(
-                token_type=cost.token_type,
-                cost_per_token=cost.cost_per_token,
-            )
-            for cost in input.costs
-        ]
+        token_prices = list(chain.from_iterable(cost.token_prices for cost in input.costs))
         model = models.GenerativeModel(
             name=input.name,
             provider=input.provider,
-            name_pattern=input.name_pattern,
+            llm_name_pattern=input.name_pattern,
             is_override=True,
-            costs=costs,
+            token_prices=token_prices,
         )
         async with info.context.db() as session:
             session.add(model)
@@ -121,18 +134,12 @@ class ModelMutationMixin:
         if "output" not in cost_types:
             raise BadRequest("output cost is required")
         _ensure_valid_regex(input.name_pattern)
-        costs = [
-            models.ModelCost(
-                token_type=cost.token_type,
-                cost_per_token=cost.cost_per_token,
-            )
-            for cost in input.costs
-        ]
+        token_prices = list(chain.from_iterable(cost.token_prices for cost in input.costs))
         async with info.context.db() as session:
             model = await session.get(
                 models.GenerativeModel,
                 model_id,
-                options=[joinedload(models.GenerativeModel.costs)],
+                options=[joinedload(models.GenerativeModel.token_prices)],
             )
             if model is None:
                 raise NotFound(f'Model "{input.id}" not found')
@@ -140,15 +147,15 @@ class ModelMutationMixin:
                 raise BadRequest("Cannot update default model")
 
             await session.execute(
-                delete(models.ModelCost).where(models.ModelCost.model_id == model.id)
+                delete(models.TokenPrice).where(models.TokenPrice.model_id == model.id)
             )
 
             await session.refresh(model)
 
             model.name = input.name
             model.provider = input.provider
-            model.name_pattern = input.name_pattern
-            model.costs = costs
+            model.llm_name_pattern = input.name_pattern
+            model.token_prices = token_prices
             session.add(model)
             try:
                 await session.flush()

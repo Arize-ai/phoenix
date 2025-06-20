@@ -134,7 +134,7 @@ class Query:
                     models.GenerativeModel.provider,
                     models.GenerativeModel.name,
                 )
-                .options(joinedload(models.GenerativeModel.costs))
+                .options(joinedload(models.GenerativeModel.token_prices))
             )
 
         data = [to_gql_generative_model(model) for model in result.unique()]
@@ -695,7 +695,7 @@ class Query:
                 stmt = (
                     select(models.GenerativeModel)
                     .where(models.GenerativeModel.id == node_id)
-                    .options(joinedload(models.GenerativeModel.costs))
+                    .options(joinedload(models.GenerativeModel.token_prices))
                 )
                 model = await session.scalar(stmt)
                 if not model:

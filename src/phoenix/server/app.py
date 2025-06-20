@@ -131,6 +131,8 @@ from phoenix.server.api.routers import (
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.bearer_auth import BearerTokenAuthBackend, is_authenticated
+from phoenix.server.daemons.generative_model_store import GenerativeModelStore
+from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.email.types import EmailSender
@@ -513,6 +515,8 @@ def _lifespan(
     bulk_inserter: BulkInserter,
     dml_event_handler: DmlEventHandler,
     trace_data_sweeper: Optional[TraceDataSweeper],
+    span_cost_calculator: SpanCostCalculator,
+    generative_model_store: GenerativeModelStore,
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
@@ -547,6 +551,8 @@ def _lifespan(
             await stack.enter_async_context(dml_event_handler)
             if trace_data_sweeper:
                 await stack.enter_async_context(trace_data_sweeper)
+            await stack.enter_async_context(span_cost_calculator)
+            await stack.enter_async_context(generative_model_store)
             if scaffolder_config:
                 scaffolder = Scaffolder(
                     config=scaffolder_config,
@@ -594,6 +600,7 @@ def create_graphql_router(
     export_path: Path,
     last_updated_at: CanGetLastUpdatedAt,
     authentication_enabled: bool,
+    span_cost_calculator: SpanCostCalculator,
     corpus: Optional[Model] = None,
     cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
     event_queue: CanPutItem[DmlEvent],
@@ -611,6 +618,7 @@ def create_graphql_router(
         export_path (Path): the file path to export data to for download (legacy)
         last_updated_at (CanGetLastUpdatedAt): How to get the last updated timestamp for updates.
         authentication_enabled (bool): Whether authentication is enabled.
+        span_cost_calculator (SpanCostCalculator): The span cost calculator for calculating costs.
         event_queue (CanPutItem[DmlEvent]): The event queue for DML events.
         corpus (Optional[Model], optional): the corpus for UMAP projection. Defaults to None.
         cache_for_dataloaders (Optional[CacheForDataLoaders], optional): GraphQL data loaders.
@@ -744,6 +752,7 @@ def create_graphql_router(
             secret=secret,
             token_store=token_store,
             email_sender=email_sender,
+            span_cost_calculator=span_cost_calculator,
         )
 
     return GraphQLRouter(
@@ -899,9 +908,12 @@ def create_app(
         db=db,
         dml_event_handler=dml_event_handler,
     )
+    generative_model_store = GenerativeModelStore(db)
+    span_cots_calculator = SpanCostCalculator(db, generative_model_store)
     bulk_inserter = bulk_inserter_factory(
         db,
         enable_prometheus=enable_prometheus,
+        span_cost_calculator=span_cots_calculator,
         event_queue=dml_event_handler,
         initial_batch_of_spans=initial_batch_of_spans,
         initial_batch_of_evaluations=initial_batch_of_evaluations,
@@ -943,6 +955,7 @@ def create_app(
         secret=secret,
         token_store=token_store,
         email_sender=email_sender,
+        span_cost_calculator=span_cots_calculator,
     )
     if enable_prometheus:
         from phoenix.server.prometheus import PrometheusMiddleware
@@ -957,6 +970,8 @@ def create_app(
             bulk_inserter=bulk_inserter,
             dml_event_handler=dml_event_handler,
             trace_data_sweeper=trace_data_sweeper,
+            span_cost_calculator=span_cots_calculator,
+            generative_model_store=generative_model_store,
             token_store=token_store,
             tracer_provider=tracer_provider,
             enable_prometheus=enable_prometheus,
@@ -1020,6 +1035,7 @@ def create_app(
     app.state.oauth2_clients = OAuth2Clients.from_configs(oauth2_client_configs or [])
     app.state.db = db
     app.state.email_sender = email_sender
+    app.state.span_cots_calculator = span_cots_calculator
     app = _add_get_secret_method(app=app, secret=secret)
     app = _add_get_token_store_method(app=app, token_store=token_store)
     if tracer_provider:

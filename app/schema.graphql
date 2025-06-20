@@ -379,6 +379,7 @@ type CostBreakdown {
 input CostPerTokenInput {
   tokenType: String!
   costPerToken: Float!
+  isPrompt: Boolean
 }
 
 input CreateAnnotationConfigInput {
