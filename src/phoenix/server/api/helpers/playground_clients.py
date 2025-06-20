@@ -957,26 +957,43 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
     def _build_converse_messages(self, messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]]) -> list[dict]:
         """Convert messages to Converse API format."""
         converse_messages = []
-        for role, content, name, tool_calls in messages:
+
+        for role, content, _id, tool_calls in messages:
             if role == ChatCompletionMessageRole.USER:
                 converse_messages.append({
                     "role": "user",
                     "content": [{"text": content}]
                 })
+            elif role == ChatCompletionMessageRole.TOOL:
+                converse_messages.append({
+                    "role": "user",
+                    "content": [
+                        {
+                            "toolResult": {
+                                "toolUseId": _id,
+                                "content": [{"json": json.loads(content)}],
+                            }
+                        }
+                    ]
+                })
+
             elif role == ChatCompletionMessageRole.AI:
                 # Handle assistant messages with potential tool calls
-                message = {"role": "assistant", "content": []}
                 if content:
+                    message = {"role": "assistant", "content": []}
                     message["content"].append({"text": content})
                 if tool_calls:
                     for tool_call in tool_calls:
-                        message["content"].append({
+                        message = {"role": "assistant", "content": []}
+                        message["content"].append(
+                            {
                             "toolUse": {
                                 "toolUseId": tool_call.get("id"),
                                 "name": tool_call.get("function", {}).get("name"),
-                                "input": json.loads(tool_call.get("function", {}).get("arguments", "{}"))
+                                "input": tool_call.get("function", {}).get("arguments", {})
                             }
                         })
+
                 if message["content"]:  # Only add if there's content
                     converse_messages.append(message)
         return converse_messages

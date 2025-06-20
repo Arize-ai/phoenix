@@ -72,11 +72,12 @@ export const openAIToolCallsJSONSchema = zodToJsonSchema(
  * This schema is kept for future use when we want to handle Bedrock format directly in the frontend.
  */
 export const awsToolCallSchema = z.object({
-  // toolSpec: z.object({
-  //   name: z.string().describe("The name of the function"),
-  //   description: z.string().describe("The description of the function"),
-  //   inputSchema: z.record(z.unknown()).describe("The input for the tool"),
-  // }),
+  id: z.string().describe("The ID of the tool call"),
+  type: z.literal("function"),
+  function: z.object({
+    name: z.string().describe("The name of the function"),
+    arguments: z.record(z.unknown()).describe("The arguments for the function"),
+  }),
 });
 
 export type AwsToolCall = z.infer<typeof awsToolCallSchema>;
@@ -89,30 +90,22 @@ export const awsToolCallsJSONSchema = zodToJsonSchema(awsToolCallsSchema, {
 
 export const openAIToolCallToAws = openAIToolCallSchema.transform(
   (openai): AwsToolCall => ({
-    toolSpec: {
-      name: openai.function.name,
-      description:
-        typeof openai.function.description === "string"
-          ? openai.function.description
-          : openai.function.name,
-      inputSchema:
-        typeof openai.function.arguments === "string"
-          ? { [openai.function.arguments]: openai.function.arguments }
-          : (openai.function.arguments ?? {}),
-    },
+    id: openai.id,
+    type: openai.type,
+    function: openai.function,
   })
 );
 
-// export const awsToolCallToOpenAI = awsToolCallSchema.transform(
-//   (aws): OpenAIToolCall => ({
-//     id: aws.toolSpec.name,
-//     type: "function",
-//     function: {
-//       name: aws.toolSpec.name,
-//       arguments: aws.toolSpec.inputSchema,
-//     },
-//   })
-// );
+export const awsToolCallToOpenAI = awsToolCallSchema.transform(
+  (aws): OpenAIToolCall => ({
+    id: aws.id,
+    type: "function",
+    function: {
+      name: aws.function.name,
+      arguments: aws.function.arguments,
+    },
+  })
+);
 
 /**
  * The schema for an Anthropic tool call, this is what a message that calls a tool looks like
@@ -196,6 +189,7 @@ export const openAIToolCallToAnthropic = openAIToolCallSchema.transform(
 export const llmProviderToolCallSchema = z.union([
   openAIToolCallSchema,
   anthropicToolCallSchema,
+  awsToolCallSchema,
   jsonLiteralSchema,
 ]);
 
@@ -212,17 +206,17 @@ export type LlmProviderToolCalls = z.infer<typeof llmProviderToolCallsSchema>;
 
 type ToolCallWithProvider =
   | {
-      provider: Extract<ModelProvider, "OPENAI" | "AZURE_OPENAI" | "AWS">;
+      provider: Extract<ModelProvider, "OPENAI" | "AZURE_OPENAI">;
       validatedToolCall: OpenAIToolCall;
     }
   | {
       provider: Extract<ModelProvider, "ANTHROPIC">;
       validatedToolCall: AnthropicToolCall;
     }
-  // | {
-  //     provider: Extract<ModelProvider, "AWS">;
-  //     validatedToolCall: AwsToolCall;
-  //   }
+  | {
+      provider: Extract<ModelProvider, "AWS">;
+      validatedToolCall: AwsToolCall;
+    }
   | { provider: "UNKNOWN"; validatedToolCall: null };
 
 /**
@@ -243,11 +237,11 @@ export const detectToolCallProvider = (
     return { provider: "ANTHROPIC", validatedToolCall: anthropicData };
   }
 
-  // const { success: awsSuccess, data: awsData } =
-  //   awsToolCallSchema.safeParse(toolCall);
-  // if (awsSuccess) {
-  //   return { provider: "AWS", validatedToolCall: awsData };
-  // }
+  const { success: awsSuccess, data: awsData } =
+    awsToolCallSchema.safeParse(toolCall);
+  if (awsSuccess) {
+    return { provider: "AWS", validatedToolCall: awsData };
+  }
 
   return { provider: "UNKNOWN", validatedToolCall: null };
 };
@@ -258,7 +252,7 @@ type ProviderToToolCallMap = {
   DEEPSEEK: OpenAIToolCall;
   XAI: OpenAIToolCall;
   OLLAMA: OpenAIToolCall;
-  AWS: OpenAIToolCall;
+  AWS: AwsToolCall;
   ANTHROPIC: AnthropicToolCall;
   // Use generic JSON type for unknown tool formats / new providers
   GOOGLE: JSONLiteral;
@@ -275,13 +269,12 @@ export const toOpenAIToolCall = (
   const { provider, validatedToolCall } = detectToolCallProvider(maybeToolCall);
   switch (provider) {
     case "AZURE_OPENAI":
-    case "AWS":
     case "OPENAI":
       return validatedToolCall;
     case "ANTHROPIC":
       return anthropicToolCallToOpenAI.parse(validatedToolCall);
-    // case "AWS":
-    //   return awsToolCallToOpenAI.parse(validatedToolCall);
+    case "AWS":
+      return awsToolCallToOpenAI.parse(validatedToolCall);
     case "UNKNOWN":
       return null;
     default:
@@ -367,10 +360,11 @@ export function createAnthropicToolCall(): AnthropicToolCall {
 
 export function createAwsToolCall(): AwsToolCall {
   return {
-    toolSpec: {
+    id: "",
+    type: "function",
+    function: {
       name: "",
-      description: "",
-      inputSchema: {},
+      arguments: {},
     },
   };
 }
