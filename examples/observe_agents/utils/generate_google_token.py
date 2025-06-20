@@ -9,7 +9,7 @@ This script will:
 4. Save the resulting token to a JSON file
 
 Usage:
-    python generate_gmail_token.py
+    python utils/generate_google_token.py
 
 Make sure you have set:
     GMAIL_CLIENT_SECRET_JSON=/path/to/your/client_secret.json
@@ -55,7 +55,7 @@ def main():
     creds = flow.run_local_server(port=0)
 
     # Save the token
-    token_path = Path("keys/gmail_token.json")
+    token_path = Path("../keys/gmail_token.json")
 
     # Convert credentials to dictionary format
     token_data = {

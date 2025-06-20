@@ -4,13 +4,66 @@ This example demonstrates **Python-based agents** that collaborate using the Ope
 
 > Arrange a meeting with Bob next week → find a slot, draft invite, send email, book the calendar.
 
+## 🔧  Running the Project
+
+### Prerequisites
+- **Phoenix server** running at `localhost:4317` (already running per requirements)
+- Python 3.8+
+
+1. **Install deps**
+   ```bash
+   # Install all dependencies
+   python -m venv .venv && source .venv/bin/activate
+   pip install -r requirements.txt
+   ```
+
+2. **Set env vars**
+   ```bash
+   export GMAIL_CLIENT_SECRET_JSON=/path/to/client_secret.json
+   export OPENAI_API_KEY=sk-...
+   ```
+   See `.env.example`
+
+3. **Generate Gmail Token File**
+   ```bash
+   python utils/generate_google_token.py
+   ```
+   Add resulting file path to your env file
+
+4. **Setup Phoenix prompts**
+   ```bash
+   python utils/setup_prompts.py
+   ```
+   This creates the prompts for all three agents and tags them with "production". The agents will automatically load these prompts from Phoenix.
+
+   *This script only needs to be run once on first setup*
+
+5. **Run the Streamlit frontend**
+   ```bash
+   streamlit run front_end.py
+   ```
+
+   *Each agent can also be run directly instead of using the frontend*
+
+6. **Ask questions**
+   Interact with the Coordinator over stdio:
+   ```bash
+   Arrange a meeting with Alice next Tuesday
+   ```
+
+7. **View traces in Phoenix**
+   Open Phoenix at the configured endpoint to see agent traces from all three agents.
+
 ## 🏗  Repository layout
 
 ```
 observe_agents/
 ├── calendar_agent.py   # Python OpenAI Agent – Google Calendar
-├── mail_agent/         # Python OpenAI Agent – Gmail
-├── coordinator/        # Python OpenAI Agent – Orchestration
+├── mail_agent.py       # Python OpenAI Agent – Gmail
+├── coordinator.py      # Python OpenAI Agent – Orchestration
+├── utils/
+│   ├── setup_prompts.py        # Setup prompts in Phoenix
+│   └── generate_google_token.py # Generate OAuth token for Gmail/Calendar
 └── README.md           # You are here
 ```
 
@@ -46,53 +99,19 @@ The agents are all built using the OpenAI Agents framework and communicate throu
 
 All agents emit traces to Phoenix for full observability of the multi-agent workflow.
 
-## 🔧  Quick start
+## 🎯 Prompt Management
 
-### Prerequisites
-- **Phoenix server** running at `localhost:4317` (already running per requirements)
-- Python 3.8+
+The agents use **Phoenix for prompt management**, allowing you to:
+- **Version control prompts**: Track changes to agent instructions over time
+- **Tag prompts**: Use "production" tags to manage different versions
+- **Dynamic loading**: Agents load prompts at runtime from Phoenix
+- **Fallback handling**: If Phoenix is unavailable, agents use hardcoded fallbacks
 
-1. **Install deps**
-   ```bash
-   # Install all dependencies
-   python -m venv .venv && source .venv/bin/activate
-   pip install -r requirements.txt
-   ```
-
-2. **Set env vars**
-   ```bash
-   export GMAIL_CLIENT_SECRET_JSON=/path/to/client_secret.json
-   export GMAIL_TOKEN_JSON=/path/to/gmail_token.json
-   export OPENAI_API_KEY=sk-...
-   ```
-
-3. **Run agents individually or use the coordinator**
-   ```bash
-   # Run individual agents
-   python calendar_agent.py                  # Calendar agent 
-   python mail_agent/mail_agent.py           # Mail agent
-   
-   # Or run the coordinator (recommended)
-   python coordinator/coordinator.py         # Coordinator that uses both agents
-   ```
-
-4. **Ask questions**
-   Interact with the Coordinator over stdio:
-   ```bash
-   Arrange a meeting with Alice next Tuesday
-   ```
-
-5. **View traces in Phoenix**
-   Open Phoenix at the configured endpoint to see cross-language agent traces from all three agents.
-
-## 🧩 Work completed
-
-- [x] Simplified architecture to use Python-only agents
-- [x] Convert all agents to use OpenAI Agents framework
-- [x] Add Phoenix / OpenInference instrumentation hooks pointing to localhost:4317
-  - [x] All agents: `phoenix.otel.register(auto_instrument=True)` + `openinference-instrumentation-openai-agents`
-- [x] Implement event extraction from emails using AI
-- [x] Full Google Calendar and Gmail integration
+**Key prompts:**
+- `mail-agent-prompt`: Instructions for the Gmail agent
+- `calendar-agent-prompt`: Instructions for the Google Calendar agent  
+- `coordinator-agent-prompt`: Instructions for the orchestration agent
+- `email-event-extraction-prompt`: AI prompt for extracting meeting/event information from emails
 
 ## 📊 Observability
 

@@ -20,6 +20,8 @@ from agents import Agent, Runner, function_tool
 from dotenv import load_dotenv
 from openai import OpenAI
 
+import phoenix as px
+
 # ---------------------------------------------------------------------------
 # Environment & instrumentation
 # ---------------------------------------------------------------------------
@@ -32,6 +34,7 @@ if not OPENAI_API_KEY:
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+phoenix_client = px.Client(endpoint=os.getenv("PHOENIX_BASE_URL"))
 ASSISTANT_FILE = Path(__file__).with_suffix(".assistant_id")
 
 # ---------------------------------------------------------------------------
@@ -243,38 +246,82 @@ def search_threads(query: str, max_results: int = 10) -> List[Dict[str, Any]]:
         return []
 
 
+def get_email_extraction_prompt():
+    """Load the email event extraction prompt from Phoenix with production tag."""
+    try:
+        prompt_version = phoenix_client.prompts.get(
+            prompt_identifier="email-event-extraction-prompt", tag="production"
+        )
+        # Format the prompt to get the OpenAI format
+        formatted_prompt = prompt_version.format()
+
+        # Extract the system message content from the formatted prompt
+        if hasattr(formatted_prompt, "messages") and len(formatted_prompt.messages) > 0:
+            return formatted_prompt.messages[0]["content"]
+        else:
+            # Fallback prompt if format not recognized
+            return """You are an AI assistant that extracts meeting and event information from emails.
+
+Analyze the email content and extract any meeting or event details. Return a JSON object with the following structure:
+{
+    "has_event": boolean,  // whether the email contains event information
+    "event_title": string or null,  // meeting/event title
+    "event_description": string or null,  // meeting description/agenda
+    "start_datetime": string or null,  // ISO format datetime (YYYY-MM-DDTHH:MM:SS)
+    "end_datetime": string or null,    // ISO format datetime (YYYY-MM-DDTHH:MM:SS)
+    "attendees": [string] or null,     // list of email addresses
+    "location": string or null,        // meeting location/venue
+    "is_invitation": boolean,          // whether this is a meeting invitation
+    "requires_response": boolean       // whether a response is needed
+}
+
+Look for:
+- Meeting invitations or requests
+- Date and time mentions (convert to ISO format, assume current year if not specified)
+- Duration information
+- Attendee information
+- Location details
+- Calendar-related keywords
+
+If no event information is found, set has_event to false and other fields to null.
+For date/time parsing, be flexible with formats and make reasonable assumptions about timezone (use local time)."""
+    except Exception as e:
+        print(f"⚠️  Failed to load email extraction prompt from Phoenix: {e}")
+        # Fallback prompt
+        return """You are an AI assistant that extracts meeting and event information from emails.
+
+Analyze the email content and extract any meeting or event details. Return a JSON object with the following structure:
+{
+    "has_event": boolean,  // whether the email contains event information
+    "event_title": string or null,  // meeting/event title
+    "event_description": string or null,  // meeting description/agenda
+    "start_datetime": string or null,  // ISO format datetime (YYYY-MM-DDTHH:MM:SS)
+    "end_datetime": string or null,    // ISO format datetime (YYYY-MM-DDTHH:MM:SS)
+    "attendees": [string] or null,     // list of email addresses
+    "location": string or null,        // meeting location/venue
+    "is_invitation": boolean,          // whether this is a meeting invitation
+    "requires_response": boolean       // whether a response is needed
+}
+
+Look for:
+- Meeting invitations or requests
+- Date and time mentions (convert to ISO format, assume current year if not specified)
+- Duration information
+- Attendee information
+- Location details
+- Calendar-related keywords
+
+If no event information is found, set has_event to false and other fields to null.
+For date/time parsing, be flexible with formats and make reasonable assumptions about timezone (use local time)."""
+
+
 @function_tool
 def extract_event_info(email_content: str, email_subject: str, email_from: str) -> Dict[str, Any]:
     """Extract meeting/event information from email content using AI."""
     import json
 
-    # Prepare the prompt for extracting event information
-    system_prompt = """You are an AI assistant that extracts meeting and event information from emails.
-
-    Analyze the email content and extract any meeting or event details. Return a JSON object with the following structure:
-    {
-        "has_event": boolean,  // whether the email contains event information
-        "event_title": string or null,  // meeting/event title
-        "event_description": string or null,  // meeting description/agenda
-        "start_datetime": string or null,  // ISO format datetime (YYYY-MM-DDTHH:MM:SS)
-        "end_datetime": string or null,    // ISO format datetime (YYYY-MM-DDTHH:MM:SS)
-        "attendees": [string] or null,     // list of email addresses
-        "location": string or null,        // meeting location/venue
-        "is_invitation": boolean,          // whether this is a meeting invitation
-        "requires_response": boolean       // whether a response is needed
-    }
-
-    Look for:
-    - Meeting invitations or requests
-    - Date and time mentions (convert to ISO format, assume current year if not specified)
-    - Duration information
-    - Attendee information
-    - Location details
-    - Calendar-related keywords
-
-    If no event information is found, set has_event to false and other fields to null.
-    For date/time parsing, be flexible with formats and make reasonable assumptions about timezone (use local time).
-    """
+    # Get the system prompt from Phoenix
+    system_prompt = get_email_extraction_prompt()
 
     user_prompt = f"""
     Email Subject: {email_subject}
@@ -363,12 +410,37 @@ def fetch_unread_with_events(max_results: int = 5) -> List[Dict[str, Any]]:
 # Agent definition
 # ---------------------------------------------------------------------------
 
+
+def get_mail_agent_prompt():
+    """Load the mail agent prompt from Phoenix with production tag."""
+    try:
+        prompt_version = phoenix_client.prompts.get(
+            prompt_identifier="mail-agent-prompt", tag="production"
+        )
+        # Format the prompt to get the OpenAI format
+        formatted_prompt = prompt_version.format()
+
+        # Extract the system message content from the formatted prompt
+        if hasattr(formatted_prompt, "messages") and len(formatted_prompt.messages) > 0:
+            return formatted_prompt.messages[0]["content"]
+        else:
+            # Fallback instructions if prompt format not recognized
+            return (
+                "You are an email assistant with access to Gmail. "
+                "Use the provided tools to send and manage email."
+            )
+    except Exception as e:
+        print(f"⚠️  Failed to load prompt from Phoenix: {e}")
+        # Fallback instructions
+        return (
+            "You are an email assistant with access to Gmail. "
+            "Use the provided tools to send and manage email."
+        )
+
+
 MAIL_AGENT = Agent(
     name="Mail Agent",
-    instructions=(
-        "You are an email assistant with access to Gmail. "
-        "Use the provided tools to send and manage email."
-    ),
+    instructions=get_mail_agent_prompt(),
     tools=[send_mail, fetch_unread, search_threads, extract_event_info, fetch_unread_with_events],
 )
 

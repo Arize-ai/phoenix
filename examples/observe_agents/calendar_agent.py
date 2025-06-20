@@ -21,6 +21,8 @@ from agents import Agent, Runner, function_tool
 from dotenv import load_dotenv
 from openai import OpenAI
 
+import phoenix as px
+
 # ---------------------------------------------------------------------------
 # Environment & instrumentation
 # ---------------------------------------------------------------------------
@@ -33,6 +35,7 @@ if not OPENAI_API_KEY:
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+phoenix_client = px.Client(endpoint=os.getenv("PHOENIX_BASE_URL"))
 
 # ---------------------------------------------------------------------------
 # Google Calendar helpers
@@ -366,14 +369,41 @@ def find_free_time(
 # Agent definition
 # ---------------------------------------------------------------------------
 
+
+def get_calendar_agent_prompt():
+    """Load the calendar agent prompt from Phoenix with production tag."""
+    try:
+        prompt_version = phoenix_client.prompts.get(
+            prompt_identifier="calendar-agent-prompt", tag="production"
+        )
+        # Format the prompt to get the OpenAI format
+        formatted_prompt = prompt_version.format()
+
+        # Extract the system message content from the formatted prompt
+        if hasattr(formatted_prompt, "messages") and len(formatted_prompt.messages) > 0:
+            return formatted_prompt.messages[0]["content"]
+        else:
+            # Fallback instructions if prompt format not recognized
+            return (
+                "You are a calendar assistant with access to Google Calendar. "
+                "Use the provided tools to manage calendar events, check availability, "
+                "and help with scheduling. Always provide clear confirmations when "
+                "creating, updating, or deleting events."
+            )
+    except Exception as e:
+        print(f"⚠️  Failed to load prompt from Phoenix: {e}")
+        # Fallback instructions
+        return (
+            "You are a calendar assistant with access to Google Calendar. "
+            "Use the provided tools to manage calendar events, check availability, "
+            "and help with scheduling. Always provide clear confirmations when "
+            "creating, updating, or deleting events."
+        )
+
+
 CALENDAR_AGENT = Agent(
     name="Calendar Agent",
-    instructions=(
-        "You are a calendar assistant with access to Google Calendar. "
-        "Use the provided tools to manage calendar events, check availability, "
-        "and help with scheduling. Always provide clear confirmations when "
-        "creating, updating, or deleting events."
-    ),
+    instructions=get_calendar_agent_prompt(),
     tools=[
         list_availability,
         create_event,
