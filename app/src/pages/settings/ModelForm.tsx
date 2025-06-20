@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { Key } from "react-aria-components";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
-import { css } from "@emotion/react";
 
 import {
   Button,
@@ -10,21 +9,17 @@ import {
   FieldError,
   Flex,
   Form,
-  Heading,
-  Icon,
-  Icons,
   Input,
   Label,
-  NumberField,
   Text,
   TextField,
   View,
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
+import { ModelTokenCostControlTable } from "@phoenix/pages/settings/ModelTokenCostControlTable";
 import {
   DEFAULT_TOKEN_COMPLETION_OPTIONS,
   DEFAULT_TOKEN_PROMPT_OPTIONS,
-  ModelTokenTypeComboBox,
 } from "@phoenix/pages/settings/ModelTokenTypeComboBox";
 import {
   getProviderName,
@@ -356,185 +351,27 @@ export function ModelForm({
             )}
           />
 
-          <Heading level={3} weight="heavy">
-            Prompt tokens
-          </Heading>
+          <ModelTokenCostControlTable
+            title="Prompt tokens"
+            namePrefix="promptCosts"
+            fields={promptCostFields}
+            control={control}
+            tokenTypeOptions={DEFAULT_TOKEN_PROMPT_OPTIONS}
+            onAppend={appendPromptCost}
+            onRemove={removePromptCost}
+            appendKind="prompt"
+          />
 
-          {promptCostFields.map((field, index) => (
-            <Flex
-              key={field.id}
-              direction="row"
-              gap="size-100"
-              css={css`
-                & button {
-                  // ensure button only matches the height of the sibling input, and not the full space when helper text is visible
-                  align-items: center;
-                  height: 100%;
-                }
-              `}
-            >
-              <Controller
-                name={`promptCosts.${index}.name`}
-                control={control}
-                render={({ fieldState: { invalid, error }, field }) => (
-                  <ModelTokenTypeComboBox
-                    options={DEFAULT_TOKEN_PROMPT_OPTIONS}
-                    {...field}
-                    invalid={invalid}
-                    isRequired
-                    error={error?.message}
-                  />
-                )}
-              />
-              <Controller
-                name={`promptCosts.${index}.cost`}
-                control={control}
-                render={({ fieldState: { invalid, error }, field }) => (
-                  <Flex
-                    direction="column"
-                    gap="size-100"
-                    flexGrow={1}
-                    alignItems="end"
-                  >
-                    <NumberField
-                      isInvalid={invalid}
-                      {...field}
-                      step={0.000001}
-                      isRequired
-                      minValue={0}
-                      size="S"
-                      formatOptions={{
-                        style: "currency",
-                        currency: "USD",
-                        minimumFractionDigits: 6,
-                      }}
-                    >
-                      <Input />
-                      {error?.message && (
-                        <FieldError>{error.message}</FieldError>
-                      )}
-                    </NumberField>
-                    {index === promptCostFields.length - 1 && (
-                      <Button
-                        onPress={() => {
-                          appendPromptCost({
-                            kind: "prompt",
-                            name: "",
-                            cost: 0,
-                          });
-                        }}
-                        size="S"
-                        variant="quiet"
-                        css={css`
-                          width: fit-content;
-                        `}
-                      >
-                        Add row
-                      </Button>
-                    )}
-                  </Flex>
-                )}
-              />
-              <Button
-                leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
-                onPress={() => {
-                  removePromptCost(index);
-                }}
-                size="S"
-                isDisabled={promptCostFields.indexOf(field) === 0}
-              />
-            </Flex>
-          ))}
-
-          <Heading level={3} weight="heavy">
-            Completion tokens
-          </Heading>
-
-          {completionCostFields.map((field, index) => (
-            <Flex
-              key={field.id}
-              direction="row"
-              gap="size-100"
-              css={css`
-                & button {
-                  // ensure button only matches the height of the sibling input, and not the full space when helper text is visible
-                  align-items: center;
-                  height: 100%;
-                }
-              `}
-            >
-              <Controller
-                name={`completionCosts.${index}.name`}
-                control={control}
-                render={({ fieldState: { invalid, error }, field }) => (
-                  <ModelTokenTypeComboBox
-                    options={DEFAULT_TOKEN_COMPLETION_OPTIONS}
-                    {...field}
-                    invalid={invalid}
-                    isRequired
-                    error={error?.message}
-                  />
-                )}
-              />
-              <Controller
-                name={`completionCosts.${index}.cost`}
-                control={control}
-                render={({ fieldState: { invalid, error }, field }) => (
-                  <Flex
-                    direction="column"
-                    gap="size-100"
-                    flexGrow={1}
-                    alignItems="end"
-                  >
-                    <NumberField
-                      isInvalid={invalid}
-                      {...field}
-                      step={0.000001}
-                      isRequired
-                      minValue={0}
-                      size="S"
-                      formatOptions={{
-                        style: "currency",
-                        currency: "USD",
-                        minimumFractionDigits: 6,
-                      }}
-                    >
-                      <Input />
-                      {error?.message && (
-                        <FieldError>{error.message}</FieldError>
-                      )}
-                    </NumberField>
-                    {index === completionCostFields.length - 1 && (
-                      <Button
-                        onPress={() => {
-                          appendCompletionCost({
-                            kind: "completion",
-                            name: "",
-                            cost: 0,
-                          });
-                        }}
-                        size="S"
-                        variant="quiet"
-                        css={css`
-                          width: fit-content;
-                        `}
-                      >
-                        Add row
-                      </Button>
-                    )}
-                  </Flex>
-                )}
-              />
-              <Button
-                leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
-                onPress={() => {
-                  removeCompletionCost(index);
-                }}
-                size="S"
-                isDisabled={completionCostFields.indexOf(field) === 0}
-              />
-            </Flex>
-          ))}
+          <ModelTokenCostControlTable
+            title="Completion tokens"
+            namePrefix="completionCosts"
+            fields={completionCostFields}
+            control={control}
+            tokenTypeOptions={DEFAULT_TOKEN_COMPLETION_OPTIONS}
+            onAppend={appendCompletionCost}
+            onRemove={removeCompletionCost}
+            appendKind="completion"
+          />
         </Flex>
       </View>
 
