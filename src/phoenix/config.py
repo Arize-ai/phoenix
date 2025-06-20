@@ -462,11 +462,11 @@ def get_env_tls_verify_client() -> bool:
 
 def get_env_default_retention_policy_days() -> int:
     """
-    Gets the value of the PHOENIX_DEFAULT_RETENTION_POLICY_DAYS environment variable.
+    Returns the number of days for the default retention policy as set by the
+    PHOENIX_DEFAULT_RETENTION_POLICY_DAYS environment variable, defaulting to 0 if not set.
 
     Returns:
-        int: True if client certificate verification is enabled, False otherwise. Defaults to False
-        if the environment variable is not set.
+        int: Number of days for the default retention policy. Defaults to 0 if the environment variable is not set.
     """  # noqa: E501
     days = _int_val(ENV_PHOENIX_DEFAULT_RETENTION_POLICY_DAYS, 0)
     assert days >= 0
