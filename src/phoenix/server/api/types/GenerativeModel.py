@@ -77,6 +77,11 @@ class GenerativeModel(Node, ModelInterface):
             for entry in summary
         ]
 
+    @strawberry.field
+    async def last_used_at(self, info: Info[Context, None]) -> Optional[datetime]:
+        model_id = self.id_attr
+        return await info.context.data_loaders.last_used_times_by_generative_model_id.load(model_id)
+
 
 def to_gql_generative_model(model: models.GenerativeModel) -> GenerativeModel:
     costs_are_loaded = isinstance(inspect(model).attrs.costs.loaded_value, list)

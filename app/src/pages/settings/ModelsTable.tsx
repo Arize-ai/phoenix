@@ -67,6 +67,7 @@ export function ModelsTable(props: ModelsTableProps) {
                 completionAudio
                 reasoning
               }
+              lastUsedAt
             }
           }
         }
@@ -197,6 +198,11 @@ export function ModelsTable(props: ModelsTableProps) {
       {
         header: "updated at",
         accessorKey: "updatedAt",
+        cell: TimestampCell,
+      },
+      {
+        header: "last used at",
+        accessorKey: "lastUsedAt",
         cell: TimestampCell,
       },
       {

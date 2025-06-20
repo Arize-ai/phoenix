@@ -1265,6 +1265,7 @@ type GenerativeModel implements Node & ModelInterface {
   tokenCost: TokenCost
   costSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+  lastUsedAt: DateTime
 }
 
 """A connection to a list of items."""

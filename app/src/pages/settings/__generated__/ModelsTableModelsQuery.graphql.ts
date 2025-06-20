@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<abb18b2c4aade425ffaa3e06713ccbce>>
+ * @generated SignedSource<<104a49c3f0d267eee1068b4e32120d38>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -209,6 +209,13 @@ return {
                       }
                     ],
                     "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "lastUsedAt",
+                    "storageKey": null
                   }
                 ],
                 "storageKey": null
@@ -294,16 +301,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b43bd54383d3bcfbd7a13e8c81c7b1cd",
+    "cacheID": "eeae250b1462ccf9f8753d514d4df283",
     "id": null,
     "metadata": {},
     "name": "ModelsTableModelsQuery",
     "operationKind": "query",
-    "text": "query ModelsTableModelsQuery(\n  $after: String = null\n  $first: Int = 100\n) {\n  ...ModelsTable_generativeModels_2HEEH6\n}\n\nfragment ModelsTable_generativeModels_2HEEH6 on Query {\n  generativeModels(first: $first, after: $after) {\n    edges {\n      model: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        createdAt\n        updatedAt\n        isOverride\n        tokenCost {\n          input\n          output\n          cacheRead\n          cacheWrite\n          promptAudio\n          completionAudio\n          reasoning\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ModelsTableModelsQuery(\n  $after: String = null\n  $first: Int = 100\n) {\n  ...ModelsTable_generativeModels_2HEEH6\n}\n\nfragment ModelsTable_generativeModels_2HEEH6 on Query {\n  generativeModels(first: $first, after: $after) {\n    edges {\n      model: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        createdAt\n        updatedAt\n        isOverride\n        tokenCost {\n          input\n          output\n          cacheRead\n          cacheWrite\n          promptAudio\n          completionAudio\n          reasoning\n        }\n        lastUsedAt\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b2c1c41f9ba92b585c216d3d76bae502";
+(node as any).hash = "2457e2738b4e9f72ca225a01a6bc3d3b";
 
 export default node;

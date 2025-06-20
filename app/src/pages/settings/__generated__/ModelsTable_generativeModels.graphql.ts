@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<daa68f850b575ee8001893934cbb66dd>>
+ * @generated SignedSource<<b05329316e279e4c934be8d47440e5c0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,6 +19,7 @@ export type ModelsTable_generativeModels$data = {
         readonly createdAt: string;
         readonly id: string;
         readonly isOverride: boolean;
+        readonly lastUsedAt: string | null;
         readonly name: string;
         readonly namePattern: string;
         readonly provider: string | null;
@@ -226,6 +227,13 @@ return {
                     }
                   ],
                   "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "lastUsedAt",
+                  "storageKey": null
                 }
               ],
               "storageKey": null
@@ -304,6 +312,6 @@ return {
 };
 })();
 
-(node as any).hash = "b2c1c41f9ba92b585c216d3d76bae502";
+(node as any).hash = "2457e2738b4e9f72ca225a01a6bc3d3b";
 
 export default node;

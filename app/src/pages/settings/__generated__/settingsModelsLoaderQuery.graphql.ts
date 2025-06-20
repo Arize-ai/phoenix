@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<90f3d73805e40a3a64ac86918da9120f>>
+ * @generated SignedSource<<59eda7b845c20d472df231e4e3e73e7e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -189,6 +189,13 @@ return {
                       }
                     ],
                     "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "lastUsedAt",
+                    "storageKey": null
                   }
                 ],
                 "storageKey": null
@@ -274,12 +281,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "702c528afb583a8304eb4d0c17eb1c76",
+    "cacheID": "be2d6f251b3fa6cfc444a657040a8e43",
     "id": null,
     "metadata": {},
     "name": "settingsModelsLoaderQuery",
     "operationKind": "query",
-    "text": "query settingsModelsLoaderQuery {\n  ...ModelsTable_generativeModels\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels(first: 100) {\n    edges {\n      model: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        createdAt\n        updatedAt\n        isOverride\n        tokenCost {\n          input\n          output\n          cacheRead\n          cacheWrite\n          promptAudio\n          completionAudio\n          reasoning\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query settingsModelsLoaderQuery {\n  ...ModelsTable_generativeModels\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels(first: 100) {\n    edges {\n      model: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        createdAt\n        updatedAt\n        isOverride\n        tokenCost {\n          input\n          output\n          cacheRead\n          cacheWrite\n          promptAudio\n          completionAudio\n          reasoning\n        }\n        lastUsedAt\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

@@ -85,6 +85,7 @@ from phoenix.server.api.dataloaders import (
     ExperimentRunAnnotations,
     ExperimentRunCountsDataLoader,
     ExperimentSequenceNumberDataLoader,
+    LastUsedTimesByGenerativeModelIdDataLoader,
     LatencyMsQuantileDataLoader,
     MinStartOrMaxEndTimeDataLoader,
     NumChildSpansDataLoader,
@@ -655,6 +656,9 @@ def create_graphql_router(
                 experiment_run_annotations=ExperimentRunAnnotations(db),
                 experiment_run_counts=ExperimentRunCountsDataLoader(db),
                 experiment_sequence_number=ExperimentSequenceNumberDataLoader(db),
+                last_used_times_by_generative_model_id=LastUsedTimesByGenerativeModelIdDataLoader(
+                    db
+                ),
                 latency_ms_quantile=LatencyMsQuantileDataLoader(
                     db,
                     cache_map=(
