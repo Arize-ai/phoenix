@@ -469,7 +469,8 @@ def get_env_default_retention_policy_days() -> int:
         int: Number of days for the default retention policy. Defaults to 0 if the environment variable is not set.
     """  # noqa: E501
     days = _int_val(ENV_PHOENIX_DEFAULT_RETENTION_POLICY_DAYS, 0)
-    assert days >= 0
+    if days < 0:
+        raise ValueError("PHOENIX_DEFAULT_RETENTION_POLICY_DAYS must be non-negative")
     return days
 
 
