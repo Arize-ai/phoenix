@@ -21,7 +21,7 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Card, CardProps, DialogContainer } from "@arizeai/components";
+import { Card, CardProps } from "@arizeai/components";
 
 import {
   Button,
@@ -423,7 +423,11 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         return run ? (
           <CellWithControlsWrap controls={runControls}>
             <PaddedCell>
-              <ExperimentRunOutput {...run} displayFullText={displayFullText} setDialog={setDialog} />
+              <ExperimentRunOutput
+                {...run}
+                displayFullText={displayFullText}
+                setDialog={setDialog}
+              />
             </PaddedCell>
           </CellWithControlsWrap>
         ) : (
@@ -616,9 +620,14 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           </table>
         </div>
       </Flex>
-      <DialogContainer onDismiss={() => setDialog(null)}>
-        {dialog}
-      </DialogContainer>
+      {dialog && (
+        <DialogTrigger
+          isOpen={true}
+          onOpenChange={(isOpen) => !isOpen && setDialog(null)}
+        >
+          {dialog}
+        </DialogTrigger>
+      )}
     </View>
   );
 }
@@ -795,11 +804,15 @@ function ExperimentRunOutput(
                   if (trace) {
                     startTransition(() => {
                       props.setDialog(
-                        <TraceDetailsDialog
-                          traceId={trace.traceId}
-                          projectId={trace.projectId}
-                          title={`Evaluator Trace: ${annotation.name}`}
-                        />
+                        <ModalOverlay>
+                          <Modal variant="slideover" size="fullscreen">
+                            <TraceDetailsDialog
+                              traceId={trace.traceId}
+                              projectId={trace.projectId}
+                              title={`Evaluator Trace: ${annotation.name}`}
+                            />
+                          </Modal>
+                        </ModalOverlay>
                       );
                     });
                   }
