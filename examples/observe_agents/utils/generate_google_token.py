@@ -12,7 +12,7 @@ Usage:
     python utils/generate_google_token.py
 
 Make sure you have set:
-    GMAIL_CLIENT_SECRET_JSON=/path/to/your/client_secret.json
+    GMAIL_CLIENT_SECRET_JSON=/path/to/your/client_file.json
 
 Or the script will prompt you for the path.
 """
@@ -34,17 +34,17 @@ SCOPES = [
 def main():
     """Generate Gmail + Calendar OAuth token."""
     # Get client secret path
-    client_secret_path = os.getenv("GMAIL_CLIENT_SECRET_JSON")
+    client_json_path = os.getenv("GMAIL_CLIENT_SECRET_JSON")
 
-    if not client_secret_path:
-        client_secret_path = input("Enter path to your Gmail client secret JSON file: ").strip()
+    if not client_json_path:
+        client_json_path = input("Enter path to your Gmail client secret JSON file: ").strip()
 
-    if not client_secret_path or not Path(client_secret_path).exists():
-        print(f"Error: Client secret file not found at {client_secret_path}")
+    if not client_json_path or not Path(client_json_path).exists():
+        print(f"Error: Client secret file not found at {client_json_path}")
         return
 
     # Set up the OAuth flow
-    flow = InstalledAppFlow.from_client_secrets_file(client_secret_path, SCOPES)
+    flow = InstalledAppFlow.from_client_secrets_file(client_json_path, SCOPES)
 
     print("Starting OAuth flow...")
     print("This will open a browser window for you to authorize the app.")
@@ -72,7 +72,7 @@ def main():
 
     print(f"✅ Token saved to: {token_path.absolute()}")
     print(f"Now set: export GMAIL_TOKEN_JSON={token_path.absolute()}")
-    print(f"And set: export GMAIL_CLIENT_SECRET_JSON={client_secret_path}")
+    print(f"And set: export GMAIL_CLIENT_SECRET_JSON={client_json_path}")
 
 
 if __name__ == "__main__":

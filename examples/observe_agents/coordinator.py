@@ -27,6 +27,7 @@ tracer_provider = register(
     auto_instrument=True,
     endpoint=os.getenv("PHOENIX_COLLECTOR_ENDPOINT"),
     project_name="observe-agents",
+    verbose=False,
 )
 tracer = tracer_provider.get_tracer(__name__)
 
