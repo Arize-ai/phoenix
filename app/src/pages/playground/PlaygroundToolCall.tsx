@@ -79,6 +79,7 @@ export function PlaygroundToolCall({
       css={css`
         text-wrap: wrap;
         margin: var(--ac-global-dimension-static-size-100) 0;
+        margin-block: 0;
       `}
     >
       {functionDisplay.name}(
