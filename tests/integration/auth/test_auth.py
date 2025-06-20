@@ -14,7 +14,6 @@ from typing import (
     TypeVar,
 )
 from urllib.error import URLError
-from urllib.parse import urljoin
 from urllib.request import urlopen
 
 import bs4
@@ -353,7 +352,7 @@ class TestWelcomeEmail:
             assert (soup := _extract_html(msg))
             assert isinstance((link := soup.find(id="welcome-url")), bs4.Tag)
             assert isinstance((url := link.get("href")), str)
-            assert url == urljoin(str(get_env_root_url()), "forgot-password")
+            assert url == str(get_env_root_url())
         else:
             assert not _smtpd.messages or _smtpd.messages[-1]["to"] != u.email
 
