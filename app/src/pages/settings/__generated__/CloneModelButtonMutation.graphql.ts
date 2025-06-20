@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<39287e2111dc8b3ac9c684a540eff387>>
+ * @generated SignedSource<<71c9b26c0b3a1ceea9488b91ab1c0636>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -123,58 +123,55 @@ v3 = [
   {
     "alias": null,
     "args": null,
-    "concreteType": "TokenCost",
+    "concreteType": "SpanCostDetailSummaryEntry",
     "kind": "LinkedField",
-    "name": "tokenCost",
-    "plural": false,
+    "name": "costDetailSummaryEntries",
+    "plural": true,
     "selections": [
       {
         "alias": null,
         "args": null,
         "kind": "ScalarField",
-        "name": "input",
+        "name": "tokenType",
         "storageKey": null
       },
       {
         "alias": null,
         "args": null,
         "kind": "ScalarField",
-        "name": "output",
+        "name": "isPrompt",
         "storageKey": null
       },
       {
         "alias": null,
         "args": null,
-        "kind": "ScalarField",
-        "name": "cacheRead",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "cacheWrite",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "promptAudio",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "completionAudio",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "reasoning",
+        "concreteType": "CostBreakdown",
+        "kind": "LinkedField",
+        "name": "value",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "tokens",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "cost",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "costPerToken",
+            "storageKey": null
+          }
+        ],
         "storageKey": null
       }
     ],
@@ -293,12 +290,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "07f46723c520b9951028744cbc6887ff",
+    "cacheID": "93f96cf5ee7e0f0b913ea0a8aaee92e9",
     "id": null,
     "metadata": {},
     "name": "CloneModelButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation CloneModelButtonMutation(\n  $input: CreateModelMutationInput!\n) {\n  createModel(input: $input) {\n    model {\n      ...ModelsTable_generativeModel\n      id\n    }\n    __typename\n  }\n}\n\nfragment ModelsTable_generativeModel on GenerativeModel {\n  id\n  name\n  provider\n  namePattern\n  providerKey\n  createdAt\n  updatedAt\n  lastUsedAt\n  isOverride\n  tokenCost {\n    input\n    output\n    cacheRead\n    cacheWrite\n    promptAudio\n    completionAudio\n    reasoning\n  }\n}\n"
+    "text": "mutation CloneModelButtonMutation(\n  $input: CreateModelMutationInput!\n) {\n  createModel(input: $input) {\n    model {\n      ...ModelsTable_generativeModel\n      id\n    }\n    __typename\n  }\n}\n\nfragment ModelsTable_generativeModel on GenerativeModel {\n  id\n  name\n  provider\n  namePattern\n  providerKey\n  createdAt\n  updatedAt\n  lastUsedAt\n  isOverride\n  costDetailSummaryEntries {\n    tokenType\n    isPrompt\n    value {\n      tokens\n      cost\n      costPerToken\n    }\n  }\n}\n"
   }
 };
 })();

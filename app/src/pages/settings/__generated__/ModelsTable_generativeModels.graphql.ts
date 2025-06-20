@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c3629dce32e364e002db51549bb95ab2>>
+ * @generated SignedSource<<ccc998c6e26b889b0dc47f626513f255>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -164,58 +164,55 @@ return {
                     {
                       "alias": null,
                       "args": null,
-                      "concreteType": "TokenCost",
+                      "concreteType": "SpanCostDetailSummaryEntry",
                       "kind": "LinkedField",
-                      "name": "tokenCost",
-                      "plural": false,
+                      "name": "costDetailSummaryEntries",
+                      "plural": true,
                       "selections": [
                         {
                           "alias": null,
                           "args": null,
                           "kind": "ScalarField",
-                          "name": "input",
+                          "name": "tokenType",
                           "storageKey": null
                         },
                         {
                           "alias": null,
                           "args": null,
                           "kind": "ScalarField",
-                          "name": "output",
+                          "name": "isPrompt",
                           "storageKey": null
                         },
                         {
                           "alias": null,
                           "args": null,
-                          "kind": "ScalarField",
-                          "name": "cacheRead",
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "cacheWrite",
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "promptAudio",
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "completionAudio",
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "reasoning",
+                          "concreteType": "CostBreakdown",
+                          "kind": "LinkedField",
+                          "name": "value",
+                          "plural": false,
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "tokens",
+                              "storageKey": null
+                            },
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "cost",
+                              "storageKey": null
+                            },
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "costPerToken",
+                              "storageKey": null
+                            }
+                          ],
                           "storageKey": null
                         }
                       ],

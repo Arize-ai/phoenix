@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<97d7b6ae2b2d5bac856d473f842072cf>>
+ * @generated SignedSource<<56821ab3242cf4b7287652147e781cc2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -29,20 +29,20 @@ export type EditModelButtonMutation$data = {
   readonly updateModel: {
     readonly __typename: "UpdateModelMutationPayload";
     readonly model: {
+      readonly costDetailSummaryEntries: ReadonlyArray<{
+        readonly isPrompt: boolean;
+        readonly tokenType: string;
+        readonly value: {
+          readonly cost: number | null;
+          readonly costPerToken: number | null;
+          readonly tokens: number | null;
+        };
+      }>;
       readonly id: string;
       readonly name: string;
       readonly namePattern: string;
       readonly provider: string | null;
       readonly providerKey: GenerativeProviderKey | null;
-      readonly tokenCost: {
-        readonly cacheRead: number | null;
-        readonly cacheWrite: number | null;
-        readonly completionAudio: number | null;
-        readonly input: number | null;
-        readonly output: number | null;
-        readonly promptAudio: number | null;
-        readonly reasoning: number | null;
-      } | null;
     };
   };
 };
@@ -120,58 +120,55 @@ v1 = [
           {
             "alias": null,
             "args": null,
-            "concreteType": "TokenCost",
+            "concreteType": "SpanCostDetailSummaryEntry",
             "kind": "LinkedField",
-            "name": "tokenCost",
-            "plural": false,
+            "name": "costDetailSummaryEntries",
+            "plural": true,
             "selections": [
               {
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
-                "name": "input",
+                "name": "tokenType",
                 "storageKey": null
               },
               {
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
-                "name": "output",
+                "name": "isPrompt",
                 "storageKey": null
               },
               {
                 "alias": null,
                 "args": null,
-                "kind": "ScalarField",
-                "name": "cacheRead",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "cacheWrite",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "promptAudio",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "completionAudio",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "reasoning",
+                "concreteType": "CostBreakdown",
+                "kind": "LinkedField",
+                "name": "value",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "tokens",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "cost",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "costPerToken",
+                    "storageKey": null
+                  }
+                ],
                 "storageKey": null
               }
             ],
@@ -209,16 +206,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "e6dca8cc5cc393912d6a49783428ace3",
+    "cacheID": "f7b978d5c18caea005d5096364f91779",
     "id": null,
     "metadata": {},
     "name": "EditModelButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation EditModelButtonMutation(\n  $input: UpdateModelMutationInput!\n) {\n  updateModel(input: $input) {\n    model {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      tokenCost {\n        input\n        output\n        cacheRead\n        cacheWrite\n        promptAudio\n        completionAudio\n        reasoning\n      }\n    }\n    __typename\n  }\n}\n"
+    "text": "mutation EditModelButtonMutation(\n  $input: UpdateModelMutationInput!\n) {\n  updateModel(input: $input) {\n    model {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      costDetailSummaryEntries {\n        tokenType\n        isPrompt\n        value {\n          tokens\n          cost\n          costPerToken\n        }\n      }\n    }\n    __typename\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "202e64f8f5e7ec16860d3ceaba5e2ff3";
+(node as any).hash = "e5b0b221e91e1580525202e9b3a669c6";
 
 export default node;

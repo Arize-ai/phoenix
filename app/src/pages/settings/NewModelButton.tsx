@@ -104,7 +104,7 @@ export function NewModelButton({
                           ...params.completionCosts,
                         ].map((cost) => ({
                           tokenType: cost.name,
-                          costPerToken: cost.cost,
+                          costPerToken: cost.costPerMillion,
                         })),
                       },
                       connectionId,

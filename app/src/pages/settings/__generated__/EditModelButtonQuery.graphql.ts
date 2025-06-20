@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<07444f9f9ed10d1b5f78bc1ba1ce25d8>>
+ * @generated SignedSource<<ac079bdc45df130d2b0e148bb51913c4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,19 +15,20 @@ export type EditModelButtonQuery$variables = {
 };
 export type EditModelButtonQuery$data = {
   readonly node: {
+    readonly costDetailSummaryEntries?: ReadonlyArray<{
+      readonly isPrompt: boolean;
+      readonly tokenType: string;
+      readonly value: {
+        readonly cost: number | null;
+        readonly costPerToken: number | null;
+        readonly tokens: number | null;
+      };
+    }>;
     readonly id?: string;
     readonly name?: string;
     readonly namePattern?: string;
     readonly provider?: string | null;
     readonly providerKey?: GenerativeProviderKey | null;
-    readonly tokenCost?: {
-      readonly cacheRead: number | null;
-      readonly cacheWrite: number | null;
-      readonly completionAudio: number | null;
-      readonly input: number | null;
-      readonly output: number | null;
-      readonly promptAudio: number | null;
-    } | null;
   };
 };
 export type EditModelButtonQuery = {
@@ -88,51 +89,55 @@ v6 = {
 v7 = {
   "alias": null,
   "args": null,
-  "concreteType": "TokenCost",
+  "concreteType": "SpanCostDetailSummaryEntry",
   "kind": "LinkedField",
-  "name": "tokenCost",
-  "plural": false,
+  "name": "costDetailSummaryEntries",
+  "plural": true,
   "selections": [
     {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "input",
+      "name": "tokenType",
       "storageKey": null
     },
     {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "output",
+      "name": "isPrompt",
       "storageKey": null
     },
     {
       "alias": null,
       "args": null,
-      "kind": "ScalarField",
-      "name": "cacheRead",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "cacheWrite",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "promptAudio",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "completionAudio",
+      "concreteType": "CostBreakdown",
+      "kind": "LinkedField",
+      "name": "value",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "tokens",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "cost",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "costPerToken",
+          "storageKey": null
+        }
+      ],
       "storageKey": null
     }
   ],
@@ -213,16 +218,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "018f01355e46d026c605b1191198d4ed",
+    "cacheID": "ce9e87ad8f56cddf8a24901194ea4a29",
     "id": null,
     "metadata": {},
     "name": "EditModelButtonQuery",
     "operationKind": "query",
-    "text": "query EditModelButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on GenerativeModel {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      tokenCost {\n        input\n        output\n        cacheRead\n        cacheWrite\n        promptAudio\n        completionAudio\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query EditModelButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on GenerativeModel {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      costDetailSummaryEntries {\n        tokenType\n        isPrompt\n        value {\n          tokens\n          cost\n          costPerToken\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c1a9028f00cd9113aeb0f6fe85f8f580";
+(node as any).hash = "bab0bd8e5a25f36f18e790a4a0c76e93";
 
 export default node;

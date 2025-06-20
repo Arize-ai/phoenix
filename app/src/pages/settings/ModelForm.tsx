@@ -26,13 +26,20 @@ import {
   getSemConvProvider,
 } from "@phoenix/utils/generativeUtils";
 
-/**
- * @deprecated this just exists until the resolver is updated to return an array of costs
- */
+type SpanCostDetailEntry = {
+  tokenType: string;
+  isPrompt: boolean;
+  value: {
+    tokens: number | null;
+    cost: number | null;
+    costPerToken: number | null;
+  };
+};
+
 type ModelTokenCostDefinition = {
   kind: "prompt" | "completion";
   name: string;
-  cost: number;
+  costPerMillion: number;
 };
 
 export type ModelFormParams = {
@@ -47,80 +54,19 @@ export type ModelFormParams = {
  * @deprecated this just exists until the resolver is updated to return an array of costs
  */
 export const modelCostToModelTokenCostDefinitions = (
-  costs:
-    | {
-        input?: number | null;
-        output?: number | null;
-        cacheRead?: number | null;
-        cacheWrite?: number | null;
-        promptAudio?: number | null;
-        completionAudio?: number | null;
-      }
-    | null
-    | undefined
+  costs: SpanCostDetailEntry[] | null | undefined
 ): ModelTokenCostDefinition[] => {
   if (!costs) {
     return [];
   }
 
-  const definitions: ModelTokenCostDefinition[] = [];
-
-  if (costs.input != null) {
-    definitions.push({
-      name: "input",
-      kind: "prompt",
-      cost: costs.input,
-    });
-  } else {
-    definitions.push({
-      name: "input",
-      kind: "prompt",
-      cost: 0,
-    });
-  }
-  if (costs.output != null) {
-    definitions.push({
-      name: "output",
-      kind: "completion",
-      cost: costs.output,
-    });
-  } else {
-    definitions.push({
-      name: "output",
-      kind: "completion",
-      cost: 0,
-    });
-  }
-  if (costs.cacheRead != null) {
-    definitions.push({
-      name: "cacheRead",
-      kind: "prompt",
-      cost: costs.cacheRead,
-    });
-  }
-  if (costs.cacheWrite != null) {
-    definitions.push({
-      name: "cacheWrite",
-      kind: "prompt",
-      cost: costs.cacheWrite,
-    });
-  }
-  if (costs.promptAudio != null) {
-    definitions.push({
-      name: "promptAudio",
-      kind: "prompt",
-      cost: costs.promptAudio,
-    });
-  }
-  if (costs.completionAudio != null) {
-    definitions.push({
-      name: "completionAudio",
-      kind: "completion",
-      cost: costs.completionAudio,
-    });
-  }
-
-  return definitions;
+  return costs
+    .filter((cost) => cost.value.costPerToken != null)
+    .map((cost) => ({
+      kind: cost.isPrompt ? "prompt" : "completion",
+      name: cost.tokenType,
+      costPerMillion: cost.value.costPerToken ?? 0,
+    }));
 };
 
 const PROVIDER_OPTIONS: { key: ModelProvider; value: string; label: string }[] =
@@ -216,14 +162,7 @@ export function ModelForm({
   modelName?: string | null;
   modelProvider?: string | null;
   modelNamePattern?: string | null;
-  modelCost?: {
-    input?: number | null;
-    output?: number | null;
-    cacheRead?: number | null;
-    cacheWrite?: number | null;
-    promptAudio?: number | null;
-    completionAudio?: number | null;
-  } | null;
+  modelCost?: SpanCostDetailEntry[] | null;
   onSubmit: (params: ModelFormParams) => void;
   isSubmitting: boolean;
   submitButtonText: string;

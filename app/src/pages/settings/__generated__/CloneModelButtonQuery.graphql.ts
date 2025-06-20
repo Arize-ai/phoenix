@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<20d02a27fae4fded1b9c464681251307>>
+ * @generated SignedSource<<c677c1dfaf598bacd3c56e88a46918a9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,19 +15,20 @@ export type CloneModelButtonQuery$variables = {
 };
 export type CloneModelButtonQuery$data = {
   readonly node: {
+    readonly costDetailSummaryEntries?: ReadonlyArray<{
+      readonly isPrompt: boolean;
+      readonly tokenType: string;
+      readonly value: {
+        readonly cost: number | null;
+        readonly costPerToken: number | null;
+        readonly tokens: number | null;
+      };
+    }>;
     readonly id?: string;
     readonly name?: string;
     readonly namePattern?: string;
     readonly provider?: string | null;
     readonly providerKey?: GenerativeProviderKey | null;
-    readonly tokenCost?: {
-      readonly cacheRead: number | null;
-      readonly cacheWrite: number | null;
-      readonly completionAudio: number | null;
-      readonly input: number | null;
-      readonly output: number | null;
-      readonly promptAudio: number | null;
-    } | null;
   };
 };
 export type CloneModelButtonQuery = {
@@ -88,51 +89,55 @@ v6 = {
 v7 = {
   "alias": null,
   "args": null,
-  "concreteType": "TokenCost",
+  "concreteType": "SpanCostDetailSummaryEntry",
   "kind": "LinkedField",
-  "name": "tokenCost",
-  "plural": false,
+  "name": "costDetailSummaryEntries",
+  "plural": true,
   "selections": [
     {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "input",
+      "name": "tokenType",
       "storageKey": null
     },
     {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "output",
+      "name": "isPrompt",
       "storageKey": null
     },
     {
       "alias": null,
       "args": null,
-      "kind": "ScalarField",
-      "name": "cacheRead",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "cacheWrite",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "promptAudio",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "completionAudio",
+      "concreteType": "CostBreakdown",
+      "kind": "LinkedField",
+      "name": "value",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "tokens",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "cost",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "costPerToken",
+          "storageKey": null
+        }
+      ],
       "storageKey": null
     }
   ],
@@ -213,16 +218,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "98566158c3cc37d02a9df65db766f1a8",
+    "cacheID": "f4a84d683c76c4507391e641b53f1024",
     "id": null,
     "metadata": {},
     "name": "CloneModelButtonQuery",
     "operationKind": "query",
-    "text": "query CloneModelButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on GenerativeModel {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      tokenCost {\n        input\n        output\n        cacheRead\n        cacheWrite\n        promptAudio\n        completionAudio\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query CloneModelButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on GenerativeModel {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      costDetailSummaryEntries {\n        tokenType\n        isPrompt\n        value {\n          tokens\n          cost\n          costPerToken\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ddcf8ded3bed5d52331f731644ebe5ef";
+(node as any).hash = "9c7dfc03460d6ded135943408c5769b1";
 
 export default node;

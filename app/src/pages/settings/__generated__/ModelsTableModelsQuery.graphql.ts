@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a99e1cff25b4af780a70c3ecefc81d26>>
+ * @generated SignedSource<<13e7c6746d61da61428a38ad31e1806f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -159,58 +159,55 @@ return {
                   {
                     "alias": null,
                     "args": null,
-                    "concreteType": "TokenCost",
+                    "concreteType": "SpanCostDetailSummaryEntry",
                     "kind": "LinkedField",
-                    "name": "tokenCost",
-                    "plural": false,
+                    "name": "costDetailSummaryEntries",
+                    "plural": true,
                     "selections": [
                       {
                         "alias": null,
                         "args": null,
                         "kind": "ScalarField",
-                        "name": "input",
+                        "name": "tokenType",
                         "storageKey": null
                       },
                       {
                         "alias": null,
                         "args": null,
                         "kind": "ScalarField",
-                        "name": "output",
+                        "name": "isPrompt",
                         "storageKey": null
                       },
                       {
                         "alias": null,
                         "args": null,
-                        "kind": "ScalarField",
-                        "name": "cacheRead",
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "cacheWrite",
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "promptAudio",
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "completionAudio",
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "reasoning",
+                        "concreteType": "CostBreakdown",
+                        "kind": "LinkedField",
+                        "name": "value",
+                        "plural": false,
+                        "selections": [
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "tokens",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "cost",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "costPerToken",
+                            "storageKey": null
+                          }
+                        ],
                         "storageKey": null
                       }
                     ],
@@ -288,12 +285,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "30dd1a1d752f46826221747a0d687291",
+    "cacheID": "ca78b886214f977e50b5053e27e8fb39",
     "id": null,
     "metadata": {},
     "name": "ModelsTableModelsQuery",
     "operationKind": "query",
-    "text": "query ModelsTableModelsQuery(\n  $after: String = null\n  $first: Int = 100\n) {\n  ...ModelsTable_generativeModels_2HEEH6\n}\n\nfragment ModelsTable_generativeModel on GenerativeModel {\n  id\n  name\n  provider\n  namePattern\n  providerKey\n  createdAt\n  updatedAt\n  lastUsedAt\n  isOverride\n  tokenCost {\n    input\n    output\n    cacheRead\n    cacheWrite\n    promptAudio\n    completionAudio\n    reasoning\n  }\n}\n\nfragment ModelsTable_generativeModels_2HEEH6 on Query {\n  generativeModels(first: $first, after: $after) {\n    edges {\n      node {\n        ...ModelsTable_generativeModel\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ModelsTableModelsQuery(\n  $after: String = null\n  $first: Int = 100\n) {\n  ...ModelsTable_generativeModels_2HEEH6\n}\n\nfragment ModelsTable_generativeModel on GenerativeModel {\n  id\n  name\n  provider\n  namePattern\n  providerKey\n  createdAt\n  updatedAt\n  lastUsedAt\n  isOverride\n  costDetailSummaryEntries {\n    tokenType\n    isPrompt\n    value {\n      tokens\n      cost\n      costPerToken\n    }\n  }\n}\n\nfragment ModelsTable_generativeModels_2HEEH6 on Query {\n  generativeModels(first: $first, after: $after) {\n    edges {\n      node {\n        ...ModelsTable_generativeModel\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

@@ -32,7 +32,7 @@ export function ModelTokenCostControlTable({
   onAppend: (obj: {
     kind: "prompt" | "completion";
     name: string;
-    cost: number;
+    costPerMillion: number;
   }) => void;
   onRemove: (index: number) => void;
   appendKind: "prompt" | "completion";
@@ -102,7 +102,7 @@ export function ModelTokenCostControlTable({
               </td>
               <td>
                 <Controller
-                  name={`${namePrefix}.${index}.cost`}
+                  name={`${namePrefix}.${index}.costPerMillion`}
                   control={control}
                   render={({
                     fieldState: { invalid, error },
@@ -118,7 +118,7 @@ export function ModelTokenCostControlTable({
                       formatOptions={{
                         style: "currency",
                         currency: "USD",
-                        minimumFractionDigits: 6,
+                        minimumFractionDigits: 2,
                       }}
                     >
                       <Input />
@@ -150,7 +150,7 @@ export function ModelTokenCostControlTable({
                     onAppend({
                       kind: appendKind,
                       name: "",
-                      cost: 0,
+                      costPerMillion: 0,
                     });
                   }}
                   size="S"
