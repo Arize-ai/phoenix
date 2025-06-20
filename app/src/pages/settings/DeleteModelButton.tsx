@@ -142,14 +142,12 @@ export function DeleteModelButton({
       }}
     >
       <Button
-        variant="default"
+        variant="danger"
         leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
         aria-label="Delete model"
         onPress={handleOpen}
         size="S"
-      >
-        Delete
-      </Button>
+      />
       <ModalOverlay>
         <Modal>
           <Dialog>
