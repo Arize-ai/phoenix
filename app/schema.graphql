@@ -1785,6 +1785,7 @@ enum ProjectSessionColumn {
   endTime
   tokenCountTotal
   numTraces
+  costTotal
 }
 
 """A connection to a list of items."""
