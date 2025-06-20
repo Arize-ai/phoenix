@@ -5069,7 +5069,7 @@
           "DEEPSEEK",
           "XAI",
           "OLLAMA",
-          "BEDROCK"
+          "AWS"
         ],
         "title": "ModelProvider"
       },
