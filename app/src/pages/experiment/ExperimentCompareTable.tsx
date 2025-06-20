@@ -189,9 +189,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                     trace {
                       traceId
                       projectId
-                      project {
-                        id
-                      }
                     }
                     annotations {
                       edges {
