@@ -69,41 +69,27 @@ class GenerativeProvider:
             )
         ],
         GenerativeProviderKey.ANTHROPIC: [
-            GenerativeProviderCredentialConfig(
-                env_var_name="ANTHROPIC_API_KEY", is_required=True
-            )
+            GenerativeProviderCredentialConfig(env_var_name="ANTHROPIC_API_KEY", is_required=True)
         ],
         GenerativeProviderKey.OPENAI: [
-            GenerativeProviderCredentialConfig(
-                env_var_name="OPENAI_API_KEY", is_required=True
-            )
+            GenerativeProviderCredentialConfig(env_var_name="OPENAI_API_KEY", is_required=True)
         ],
         GenerativeProviderKey.GOOGLE: [
-            GenerativeProviderCredentialConfig(
-                env_var_name="GEMINI_API_KEY", is_required=True
-            )
+            GenerativeProviderCredentialConfig(env_var_name="GEMINI_API_KEY", is_required=True)
         ],
         GenerativeProviderKey.DEEPSEEK: [
-            GenerativeProviderCredentialConfig(
-                env_var_name="DEEPSEEK_API_KEY", is_required=True
-            )
+            GenerativeProviderCredentialConfig(env_var_name="DEEPSEEK_API_KEY", is_required=True)
         ],
         GenerativeProviderKey.XAI: [
-            GenerativeProviderCredentialConfig(
-                env_var_name="XAI_API_KEY", is_required=True
-            )
+            GenerativeProviderCredentialConfig(env_var_name="XAI_API_KEY", is_required=True)
         ],
         GenerativeProviderKey.OLLAMA: [],
         GenerativeProviderKey.AWS: [
-            GenerativeProviderCredentialConfig(
-                env_var_name="AWS_ACCESS_KEY_ID", is_required=True
-            ),
+            GenerativeProviderCredentialConfig(env_var_name="AWS_ACCESS_KEY_ID", is_required=True),
             GenerativeProviderCredentialConfig(
                 env_var_name="AWS_SECRET_ACCESS_KEY", is_required=True
             ),
-            GenerativeProviderCredentialConfig(
-                env_var_name="AWS_SESSION_TOKEN", is_required=False
-            ),
+            GenerativeProviderCredentialConfig(env_var_name="AWS_SESSION_TOKEN", is_required=False),
         ],
     }
 

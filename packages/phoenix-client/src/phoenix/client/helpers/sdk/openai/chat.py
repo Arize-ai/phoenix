@@ -110,7 +110,9 @@ def create_prompt_version_from_openai(
     *,
     description: Optional[str] = None,
     template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
-    model_provider: Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "OLLAMA", "AWS"] = "OPENAI",
+    model_provider: Literal[
+        "OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "OLLAMA", "AWS"
+    ] = "OPENAI",
 ) -> v1.PromptVersionData:
     messages: list[ChatCompletionMessageParam] = list(obj["messages"])
     template = v1.PromptChatTemplate(
@@ -397,7 +399,9 @@ class _InvocationParametersConversion:
         obj: CompletionCreateParamsBase,
         /,
         *,
-        model_provider: Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "OLLAMA", "AWS"] = "OPENAI",
+        model_provider: Literal[
+            "OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "OLLAMA", "AWS"
+        ] = "OPENAI",
     ) -> Union[
         v1.PromptOpenAIInvocationParameters,
         v1.PromptAzureOpenAIInvocationParameters,

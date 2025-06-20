@@ -8,7 +8,6 @@ from typing_extensions import Annotated, Self, TypeAlias, TypeGuard, assert_neve
 
 from phoenix.db.types.db_models import UNDEFINED, DBBaseModel
 from phoenix.db.types.model_provider import ModelProvider
-from phoenix.server.api.helpers.prompts.conversions.bedrock import BedrockToolChoiceConversion
 from phoenix.server.api.helpers.prompts.conversions.anthropic import AnthropicToolChoiceConversion
 from phoenix.server.api.helpers.prompts.conversions.openai import OpenAIToolChoiceConversion
 
@@ -312,6 +311,7 @@ class AnthropicToolDefinition(DBBaseModel):
     cache_control: Optional[AnthropicCacheControlParam] = UNDEFINED
     description: str = UNDEFINED
 
+
 class BedrockToolDefinition(DBBaseModel):
     """
     Based on https://github.com/aws/amazon-bedrock-sdk-python/blob/main/src/bedrock/types/tool_param.py#L12
@@ -330,9 +330,11 @@ class PromptOpenAIInvocationParametersContent(DBBaseModel):
     seed: int = UNDEFINED
     reasoning_effort: Literal["low", "medium", "high"] = UNDEFINED
 
+
 class PromptOpenAIInvocationParameters(DBBaseModel):
     type: Literal["openai"]
     openai: PromptOpenAIInvocationParametersContent
+
 
 class PromptAzureOpenAIInvocationParametersContent(PromptOpenAIInvocationParametersContent):
     pass
@@ -402,12 +404,14 @@ class PromptAnthropicInvocationParameters(DBBaseModel):
     type: Literal["anthropic"]
     anthropic: PromptAnthropicInvocationParametersContent
 
+
 class PromptAwsInvocationParametersContent(DBBaseModel):
     region: str = UNDEFINED
     api: str = UNDEFINED
     max_tokens: int
     temperature: float = UNDEFINED
     top_p: float = UNDEFINED
+
 
 class PromptAwsInvocationParameters(DBBaseModel):
     type: Literal["aws"]
@@ -647,6 +651,7 @@ def _prompt_to_openai_tool(
         ),
     )
 
+
 def _bedrock_to_prompt_tool(
     tool: BedrockToolDefinition,
 ) -> PromptToolFunction:
@@ -682,6 +687,7 @@ def _prompt_to_anthropic_tool(
         name=function.name,
         description=function.description,
     )
+
 
 def _prompt_to_bedrock_tool(
     tool: PromptToolFunction,

@@ -640,18 +640,27 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         credentials: Optional[list[PlaygroundClientCredential]] = None,
     ) -> None:
         import boto3
+
         super().__init__(model=model, credentials=credentials)
         self.region = model.region or "us-east-1"
         self.api = "converse"
-        self.aws_access_key_id = _get_credential_value(credentials, "AWS_ACCESS_KEY_ID") or getenv("AWS_ACCESS_KEY_ID")
-        self.aws_secret_access_key = _get_credential_value(credentials, "AWS_SECRET_ACCESS_KEY") or getenv("AWS_SECRET_ACCESS_KEY")
-        self.aws_session_token = _get_credential_value(credentials, "AWS_SESSION_TOKEN") or getenv("AWS_SESSION_TOKEN")
+        self.aws_access_key_id = _get_credential_value(credentials, "AWS_ACCESS_KEY_ID") or getenv(
+            "AWS_ACCESS_KEY_ID"
+        )
+        self.aws_secret_access_key = _get_credential_value(
+            credentials, "AWS_SECRET_ACCESS_KEY"
+        ) or getenv("AWS_SECRET_ACCESS_KEY")
+        self.aws_session_token = _get_credential_value(credentials, "AWS_SESSION_TOKEN") or getenv(
+            "AWS_SESSION_TOKEN"
+        )
         self.model_name = model.name
-        self.client = boto3.client(service_name="bedrock-runtime",
-                                   region_name="us-east-1", # match the default region in the UI
-                                   aws_access_key_id=self.aws_access_key_id, 
-                                   aws_secret_access_key=self.aws_secret_access_key, 
-                                   aws_session_token=self.aws_session_token)
+        self.client = boto3.client(
+            service_name="bedrock-runtime",
+            region_name="us-east-1",  # match the default region in the UI
+            aws_access_key_id=self.aws_access_key_id,
+            aws_secret_access_key=self.aws_secret_access_key,
+            aws_session_token=self.aws_session_token,
+        )
         self.client._client = _HttpxClient({}, self._attributes)
 
         self._attributes[LLM_PROVIDER] = "aws"
@@ -704,12 +713,16 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
     ) -> AsyncIterator[ChatCompletionChunk]:
         import boto3
 
-        if self.client.meta.region_name != self.region: # override the region if it's different from the default
-            self.client = boto3.client("bedrock-runtime",
-                                       region_name=self.region,
-                                       aws_access_key_id=self.aws_access_key_id,
-                                       aws_secret_access_key=self.aws_secret_access_key,
-                                       aws_session_token=self.aws_session_token)
+        if (
+            self.client.meta.region_name != self.region
+        ):  # override the region if it's different from the default
+            self.client = boto3.client(
+                "bedrock-runtime",
+                region_name=self.region,
+                aws_access_key_id=self.aws_access_key_id,
+                aws_secret_access_key=self.aws_secret_access_key,
+                aws_session_token=self.aws_session_token,
+            )
         if self.api == "invoke":
             async for chunk in self._handle_invoke_api(messages, tools, invocation_parameters):
                 yield chunk
@@ -717,8 +730,14 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
             async for chunk in self._handle_converse_api(messages, tools, invocation_parameters):
                 yield chunk
 
-
-    async def _handle_converse_api(self, messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]], tools: list[JSONScalarType], invocation_parameters: dict):
+    async def _handle_converse_api(
+        self,
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+        ],
+        tools: list[JSONScalarType],
+        invocation_parameters: dict,
+    ):
         """
         Handle the converse API.
         """
@@ -733,7 +752,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
                 "maxTokens": invocation_parameters["max_tokens"],
                 "temperature": invocation_parameters["temperature"],
                 "topP": invocation_parameters["top_p"],
-            }
+            },
         }
 
         # Add system prompt if available
@@ -743,9 +762,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
 
         # Add tools if provided
         if tools:
-            converse_params["toolConfig"] = {
-                "tools": tools
-            }
+            converse_params["toolConfig"] = {"tools": tools}
 
         # Make the streaming API call
         response = self.client.converse_stream(**converse_params)
@@ -754,86 +771,101 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         active_tool_calls = {}  # contentBlockIndex -> {id, name, arguments_buffer}
 
         # Process the event stream
-        event_stream = response.get('stream')
+        event_stream = response.get("stream")
 
         for event in event_stream:
             # Handle content block start events
-            if 'contentBlockStart' in event:
-                content_block_start = event['contentBlockStart']
-                start_event = content_block_start.get('start', {})
-                block_index = content_block_start.get('contentBlockIndex', 0)  # Get the actual index
+            if "contentBlockStart" in event:
+                content_block_start = event["contentBlockStart"]
+                start_event = content_block_start.get("start", {})
+                block_index = content_block_start.get(
+                    "contentBlockIndex", 0
+                )  # Get the actual index
 
-                if 'toolUse' in start_event:
-                    tool_use = start_event['toolUse']
+                if "toolUse" in start_event:
+                    tool_use = start_event["toolUse"]
                     active_tool_calls[block_index] = {  # Use the actual block index
-                        'id': tool_use.get('toolUseId'),
-                        'name': tool_use.get('name'),
-                        'arguments_buffer': ''
+                        "id": tool_use.get("toolUseId"),
+                        "name": tool_use.get("name"),
+                        "arguments_buffer": "",
                     }
 
                     # Yield initial tool call chunk
                     yield ToolCallChunk(
-                        id=tool_use.get('toolUseId'),
+                        id=tool_use.get("toolUseId"),
                         function=FunctionCallChunk(
-                            name=tool_use.get('name'),
-                            arguments='',
+                            name=tool_use.get("name"),
+                            arguments="",
                         ),
                     )
 
             # Handle content block delta events
-            elif 'contentBlockDelta' in event:
-                content_delta = event['contentBlockDelta']
-                delta = content_delta.get('delta', {})
-                delta_index = content_delta.get('contentBlockIndex', 0)
+            elif "contentBlockDelta" in event:
+                content_delta = event["contentBlockDelta"]
+                delta = content_delta.get("delta", {})
+                delta_index = content_delta.get("contentBlockIndex", 0)
 
                 # Handle text delta
-                if 'text' in delta:
-                    yield TextChunk(content=delta['text'])
+                if "text" in delta:
+                    yield TextChunk(content=delta["text"])
 
                 # Handle tool use delta
-                elif 'toolUse' in delta:
-                    tool_delta = delta['toolUse']
-                    if 'input' in tool_delta and delta_index in active_tool_calls:
+                elif "toolUse" in delta:
+                    tool_delta = delta["toolUse"]
+                    if "input" in tool_delta and delta_index in active_tool_calls:
                         # Accumulate tool arguments
-                        json_chunk = tool_delta['input']
-                        active_tool_calls[delta_index]['arguments_buffer'] += json_chunk
+                        json_chunk = tool_delta["input"]
+                        active_tool_calls[delta_index]["arguments_buffer"] += json_chunk
 
                         # Yield incremental argument update
                         yield ToolCallChunk(
-                            id=active_tool_calls[delta_index]['id'],
+                            id=active_tool_calls[delta_index]["id"],
                             function=FunctionCallChunk(
-                                name=active_tool_calls[delta_index]['name'],
+                                name=active_tool_calls[delta_index]["name"],
                                 arguments=json_chunk,
                             ),
                         )
 
             # Handle content block stop events
-            elif 'contentBlockStop' in event:
-                stop_index = event['contentBlockStop'].get('contentBlockIndex', 0)
+            elif "contentBlockStop" in event:
+                stop_index = event["contentBlockStop"].get("contentBlockIndex", 0)
                 if stop_index in active_tool_calls:
                     del active_tool_calls[stop_index]
 
-            elif 'metadata' in event:
+            elif "metadata" in event:
                 self._attributes.update(
-                    {LLM_TOKEN_COUNT_PROMPT: event.get('metadata')
-                    .get('usage', {})
-                    .get('inputTokens', 0)}
+                    {
+                        LLM_TOKEN_COUNT_PROMPT: event.get("metadata")
+                        .get("usage", {})
+                        .get("inputTokens", 0)
+                    }
                 )
 
                 self._attributes.update(
-                    {LLM_TOKEN_COUNT_COMPLETION: event.get('metadata')
-                    .get('usage', {})
-                    .get('outputTokens', 0)}
+                    {
+                        LLM_TOKEN_COUNT_COMPLETION: event.get("metadata")
+                        .get("usage", {})
+                        .get("outputTokens", 0)
+                    }
                 )
 
                 self._attributes.update(
-                    {LLM_TOKEN_COUNT_TOTAL: event.get('metadata')
-                    .get('usage', {})
-                    .get('totalTokens', 0)}
+                    {
+                        LLM_TOKEN_COUNT_TOTAL: event.get("metadata")
+                        .get("usage", {})
+                        .get("totalTokens", 0)
+                    }
                 )
 
-    async def _handle_invoke_api(self, messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]], tools: list[JSONScalarType], invocation_parameters: dict):
-        if 'anthropic' not in self.model_name:
+    async def _handle_invoke_api(
+        self,
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+        ],
+        tools: list[JSONScalarType],
+        invocation_parameters: dict,
+    ):
+        if "anthropic" not in self.model_name:
             raise ValueError("Invoke API is only supported for Anthropic models")
 
         bedrock_messages, system_prompt = self._build_bedrock_messages(messages)
@@ -852,101 +884,121 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
             contentType="application/json",
             accept="application/json",
             body=json.dumps(bedrock_params),
-            trace='ENABLED_FULL'
+            trace="ENABLED_FULL",
         )
 
         # The response['body'] is an EventStream object
-        event_stream = response['body']
+        event_stream = response["body"]
 
         # Track active tool calls and their accumulating arguments
         active_tool_calls = {}  # index -> {id, name, arguments_buffer}
 
         for event in event_stream:
-            if 'chunk' in event:
-                chunk_data = json.loads(event['chunk']['bytes'].decode('utf-8'))
+            if "chunk" in event:
+                chunk_data = json.loads(event["chunk"]["bytes"].decode("utf-8"))
 
                 # Handle text content
-                if chunk_data.get('type') == 'content_block_delta':
-                    delta = chunk_data.get('delta', {})
-                    index = chunk_data.get('index', 0)
+                if chunk_data.get("type") == "content_block_delta":
+                    delta = chunk_data.get("delta", {})
+                    index = chunk_data.get("index", 0)
 
-                    if delta.get('type') == 'text_delta' and 'text' in delta:
-                        yield TextChunk(content=delta['text'])
+                    if delta.get("type") == "text_delta" and "text" in delta:
+                        yield TextChunk(content=delta["text"])
 
-                    elif delta.get('type') == 'input_json_delta':
+                    elif delta.get("type") == "input_json_delta":
                         # Accumulate tool arguments
                         if index in active_tool_calls:
-                            active_tool_calls[index]['arguments_buffer'] += delta.get('partial_json', '')
+                            active_tool_calls[index]["arguments_buffer"] += delta.get(
+                                "partial_json", ""
+                            )
                             # Yield incremental argument update
                             yield ToolCallChunk(
-                                id=active_tool_calls[index]['id'],
+                                id=active_tool_calls[index]["id"],
                                 function=FunctionCallChunk(
-                                    name=active_tool_calls[index]['name'],
-                                    arguments=delta.get('partial_json', ''),
+                                    name=active_tool_calls[index]["name"],
+                                    arguments=delta.get("partial_json", ""),
                                 ),
                             )
 
                 # Handle tool call start
-                elif chunk_data.get('type') == 'content_block_start':
-                    content_block = chunk_data.get('content_block', {})
-                    index = chunk_data.get('index', 0)
+                elif chunk_data.get("type") == "content_block_start":
+                    content_block = chunk_data.get("content_block", {})
+                    index = chunk_data.get("index", 0)
 
-                    if content_block.get('type') == 'tool_use':
+                    if content_block.get("type") == "tool_use":
                         # Initialize tool call tracking
                         active_tool_calls[index] = {
-                            'id': content_block.get('id'),
-                            'name': content_block.get('name'),
-                            'arguments_buffer': ''
+                            "id": content_block.get("id"),
+                            "name": content_block.get("name"),
+                            "arguments_buffer": "",
                         }
 
                         # Yield initial tool call chunk
                         yield ToolCallChunk(
-                            id=content_block.get('id'),
+                            id=content_block.get("id"),
                             function=FunctionCallChunk(
-                                name=content_block.get('name'),
-                                arguments='',  # Start with empty, will be filled by deltas
+                                name=content_block.get("name"),
+                                arguments="",  # Start with empty, will be filled by deltas
                             ),
                         )
 
                 # Handle content block stop (tool call complete)
-                elif chunk_data.get('type') == 'content_block_stop':
-                    index = chunk_data.get('index', 0)
+                elif chunk_data.get("type") == "content_block_stop":
+                    index = chunk_data.get("index", 0)
                     if index in active_tool_calls:
                         # Tool call is complete, clean up
                         del active_tool_calls[index]
 
-                elif chunk_data.get('type') == 'message_stop':
+                elif chunk_data.get("type") == "message_stop":
                     self._attributes.update(
-                        {LLM_TOKEN_COUNT_COMPLETION: chunk_data
-                         .get('amazon-bedrock-invocationMetrics', {})
-                         .get('outputTokenCount', 0)}
+                        {
+                            LLM_TOKEN_COUNT_COMPLETION: chunk_data.get(
+                                "amazon-bedrock-invocationMetrics", {}
+                            ).get("outputTokenCount", 0)
+                        }
                     )
 
                     self._attributes.update(
-                        {LLM_TOKEN_COUNT_PROMPT: chunk_data
-                         .get('amazon-bedrock-invocationMetrics', {})
-                         .get('inputTokenCount', 0)}
+                        {
+                            LLM_TOKEN_COUNT_PROMPT: chunk_data.get(
+                                "amazon-bedrock-invocationMetrics", {}
+                            ).get("inputTokenCount", 0)
+                        }
                     )
 
-    def _build_bedrock_messages(self, messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]]) -> tuple[list[dict], str]:
+    def _build_bedrock_messages(
+        self,
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+        ],
+    ) -> tuple[list[dict], str]:
         bedrock_messages = []
         system_prompt = ""
         for role, content, _, _ in messages:
             if role == ChatCompletionMessageRole.USER:
-                bedrock_messages.append({
-                    "role": "user",
-                    "content": content,
-                })
+                bedrock_messages.append(
+                    {
+                        "role": "user",
+                        "content": content,
+                    }
+                )
             elif role == ChatCompletionMessageRole.AI:
-                bedrock_messages.append({
-                    "role": "assistant",
-                    "content": content,
-                })
+                bedrock_messages.append(
+                    {
+                        "role": "assistant",
+                        "content": content,
+                    }
+                )
             elif role == ChatCompletionMessageRole.SYSTEM:
                 system_prompt += content + "\n"
         return bedrock_messages, system_prompt
 
-    def _extract_system_prompt(self, messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]]) -> str:
+    def _extract_system_prompt(
+        self,
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+        ],
+    ) -> str:
         """Extract system prompt from messages."""
         system_prompts = []
         for role, content, _, _ in messages:
@@ -954,28 +1006,32 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
                 system_prompts.append(content)
         return "\n".join(system_prompts)
 
-    def _build_converse_messages(self, messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]]) -> list[dict]:
+    def _build_converse_messages(
+        self,
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+        ],
+    ) -> list[dict]:
         """Convert messages to Converse API format."""
         converse_messages = []
 
         for role, content, _id, tool_calls in messages:
             if role == ChatCompletionMessageRole.USER:
-                converse_messages.append({
-                    "role": "user",
-                    "content": [{"text": content}]
-                })
+                converse_messages.append({"role": "user", "content": [{"text": content}]})
             elif role == ChatCompletionMessageRole.TOOL:
-                converse_messages.append({
-                    "role": "user",
-                    "content": [
-                        {
-                            "toolResult": {
-                                "toolUseId": _id,
-                                "content": [{"json": json.loads(content)}],
+                converse_messages.append(
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "toolResult": {
+                                    "toolUseId": _id,
+                                    "content": [{"json": json.loads(content)}],
+                                }
                             }
-                        }
-                    ]
-                })
+                        ],
+                    }
+                )
 
             elif role == ChatCompletionMessageRole.AI:
                 # Handle assistant messages with potential tool calls
@@ -987,17 +1043,17 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
                         message = {"role": "assistant", "content": []}
                         message["content"].append(
                             {
-                            "toolUse": {
-                                "toolUseId": tool_call.get("id"),
-                                "name": tool_call.get("function", {}).get("name"),
-                                "input": tool_call.get("function", {}).get("arguments", {})
+                                "toolUse": {
+                                    "toolUseId": tool_call.get("id"),
+                                    "name": tool_call.get("function", {}).get("name"),
+                                    "input": tool_call.get("function", {}).get("arguments", {}),
+                                }
                             }
-                        })
+                        )
 
                 if message["content"]:  # Only add if there's content
                     converse_messages.append(message)
         return converse_messages
-
 
 
 @register_llm_client(

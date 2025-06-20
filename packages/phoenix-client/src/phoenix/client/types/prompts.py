@@ -71,11 +71,13 @@ class PromptVersion:
         Args:
             prompt (Sequence[v1.PromptMessage]): A sequence of prompt messages.
             model_name (str): The name of the model to use for the prompt.
-            description (Optional[str]): A description of the prompt. Defaults to None.
-            model_provider (Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE",
-                "DEEPSEEK", "XAI", "AWS", "OLLAMA"]): The provider of the model to use for the prompt.
-                Defaults to "OPENAI".
-            template_format (Literal["F_STRING", "MUSTACHE", "NONE"]): The format of the template
+            description (Optional[str]): A description of the prompt. Defaults
+            to None. model_provider (Literal["OPENAI", "AZURE_OPENAI",
+            "ANTHROPIC", "GOOGLE",
+                "DEEPSEEK", "XAI", "AWS", "OLLAMA"]): The provider of the model
+                to use for the prompt. Defaults to "OPENAI".
+            template_format (Literal["F_STRING", "MUSTACHE", "NONE"]): The
+            format of the template
                 to use for the prompt. Defaults to "MUSTACHE".
         """
         self._template = v1.PromptChatTemplate(messages=prompt, type="chat")
@@ -258,7 +260,9 @@ class PromptVersion:
         *,
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
         description: Optional[str] = None,
-        model_provider: Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "AWS", "OLLAMA"] = "OPENAI",
+        model_provider: Literal[
+            "OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "AWS", "OLLAMA"
+        ] = "OPENAI",
     ) -> Self:
         """
         Creates a prompt version from an OpenAI chat completion model.
