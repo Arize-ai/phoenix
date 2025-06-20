@@ -662,7 +662,7 @@ def _calculate_span_cost(
         span_rowid=span_id,
         span_start_time=span_start_time,
         trace_rowid=trace_rowid,
-        generative_model_id=model_id,
+        model_id=model_id,
         prompt_cost=input_token_cost,
         completion_cost=output_token_cost,
         total_cost=total_token_cost,

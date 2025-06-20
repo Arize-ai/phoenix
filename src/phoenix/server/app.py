@@ -909,11 +909,11 @@ def create_app(
         dml_event_handler=dml_event_handler,
     )
     generative_model_store = GenerativeModelStore(db)
-    span_cots_calculator = SpanCostCalculator(db, generative_model_store)
+    span_cost_calculator = SpanCostCalculator(db, generative_model_store)
     bulk_inserter = bulk_inserter_factory(
         db,
         enable_prometheus=enable_prometheus,
-        span_cost_calculator=span_cots_calculator,
+        span_cost_calculator=span_cost_calculator,
         event_queue=dml_event_handler,
         initial_batch_of_spans=initial_batch_of_spans,
         initial_batch_of_evaluations=initial_batch_of_evaluations,
@@ -955,7 +955,7 @@ def create_app(
         secret=secret,
         token_store=token_store,
         email_sender=email_sender,
-        span_cost_calculator=span_cots_calculator,
+        span_cost_calculator=span_cost_calculator,
     )
     if enable_prometheus:
         from phoenix.server.prometheus import PrometheusMiddleware
@@ -970,7 +970,7 @@ def create_app(
             bulk_inserter=bulk_inserter,
             dml_event_handler=dml_event_handler,
             trace_data_sweeper=trace_data_sweeper,
-            span_cost_calculator=span_cots_calculator,
+            span_cost_calculator=span_cost_calculator,
             generative_model_store=generative_model_store,
             token_store=token_store,
             tracer_provider=tracer_provider,
@@ -1035,7 +1035,7 @@ def create_app(
     app.state.oauth2_clients = OAuth2Clients.from_configs(oauth2_client_configs or [])
     app.state.db = db
     app.state.email_sender = email_sender
-    app.state.span_cots_calculator = span_cots_calculator
+    app.state.span_cost_calculator = span_cost_calculator
     app = _add_get_secret_method(app=app, secret=secret)
     app = _add_get_token_store_method(app=app, token_store=token_store)
     if tracer_provider:
