@@ -28,6 +28,7 @@ from phoenix.server.api.dataloaders import (
     ExperimentRunAnnotations,
     ExperimentRunCountsDataLoader,
     ExperimentSequenceNumberDataLoader,
+    LastUsedTimesByGenerativeModelIdDataLoader,
     LatencyMsQuantileDataLoader,
     MinStartOrMaxEndTimeDataLoader,
     NumChildSpansDataLoader,
@@ -90,6 +91,7 @@ class DataLoaders:
     experiment_run_annotations: ExperimentRunAnnotations
     experiment_run_counts: ExperimentRunCountsDataLoader
     experiment_sequence_number: ExperimentSequenceNumberDataLoader
+    last_used_times_by_generative_model_id: LastUsedTimesByGenerativeModelIdDataLoader
     latency_ms_quantile: LatencyMsQuantileDataLoader
     min_start_or_max_end_times: MinStartOrMaxEndTimeDataLoader
     num_child_spans: NumChildSpansDataLoader
