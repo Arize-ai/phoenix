@@ -228,35 +228,35 @@ class TestClientForUsersAPI:
         for i, user_data in enumerate(users_to_create):
             created_user = all_users_by_email[user_data["email"]]
             assert created_user["id"], f"User {i} ID should be present after creation"
-            assert (
-                created_user["username"] == user_data["username"]
-            ), f"User {i} username should match input after creation"
-            assert (
-                created_user["email"] == user_data["email"]
-            ), f"User {i} email should match input after creation"
-            assert (
-                created_user["role"] == user_data["role"]
-            ), f"User {i} role should match input after creation"
-            assert (
-                created_user["auth_method"] == user_data["auth_method"]
-            ), f"User {i} auth method should match input after creation"
+            assert created_user["username"] == user_data["username"], (
+                f"User {i} username should match input after creation"
+            )
+            assert created_user["email"] == user_data["email"], (
+                f"User {i} email should match input after creation"
+            )
+            assert created_user["role"] == user_data["role"], (
+                f"User {i} role should match input after creation"
+            )
+            assert created_user["auth_method"] == user_data["auth_method"], (
+                f"User {i} auth method should match input after creation"
+            )
 
             # Verify OAuth2 specific fields if applicable
             if created_user["auth_method"] == "OAUTH2":
-                assert created_user.get("oauth2_client_id") == user_data.get(
-                    "oauth2_client_id"
-                ), f"User {i} OAuth2 client ID should match input after creation"
-                assert created_user.get("oauth2_user_id") == user_data.get(
-                    "oauth2_user_id"
-                ), f"User {i} OAuth2 user ID should match input after creation"
+                assert created_user.get("oauth2_client_id") == user_data.get("oauth2_client_id"), (
+                    f"User {i} OAuth2 client ID should match input after creation"
+                )
+                assert created_user.get("oauth2_user_id") == user_data.get("oauth2_user_id"), (
+                    f"User {i} OAuth2 user ID should match input after creation"
+                )
             elif created_user["auth_method"] == "LOCAL":
                 # Verify LOCAL auth method specific fields
-                assert created_user[
-                    "password_needs_reset"
-                ], f"User {i} should have password_needs_reset set"
-                assert (
-                    "password" not in created_user
-                ), f"User {i} should not have password in response"
+                assert created_user["password_needs_reset"], (
+                    f"User {i} should have password_needs_reset set"
+                )
+                assert "password" not in created_user, (
+                    f"User {i} should not have password in response"
+                )
             else:
                 assert_never(created_user["auth_method"])
 
@@ -296,9 +296,9 @@ class TestClientForUsersAPI:
 
         # Verify none of our created users exist in the system anymore
         for i, created_user in enumerate(created_users):
-            assert (
-                created_user["id"] not in all_users_by_id
-            ), f"User {i} with ID {created_user['id']} should have been deleted"
+            assert created_user["id"] not in all_users_by_id, (
+                f"User {i} with ID {created_user['id']} should have been deleted"
+            )
 
     async def test_cannot_delete_default_users(
         self,
@@ -330,9 +330,9 @@ class TestClientForUsersAPI:
             if u["email"] == DEFAULT_ADMIN_EMAIL or u["username"] == DEFAULT_ADMIN_USERNAME
         ]
 
-        assert (
-            len(system_users) == 1
-        ), "Should have exactly one user with default system credentials"
+        assert len(system_users) == 1, (
+            "Should have exactly one user with default system credentials"
+        )
         assert len(admin_users) == 1, "Should have exactly one user with default admin credentials"
 
         # Get the users with default credentials
@@ -344,18 +344,18 @@ class TestClientForUsersAPI:
             users_api.delete(
                 user_id=system_user["id"],
             )
-        assert (
-            "403" in str(exc_info.value)
-        ), f"Should receive 403 Forbidden when attempting to delete user with default system credentials (ID: {system_user['id']})"  # noqa: E501
+        assert "403" in str(exc_info.value), (
+            f"Should receive 403 Forbidden when attempting to delete user with default system credentials (ID: {system_user['id']})"
+        )  # noqa: E501
 
         # Try to delete a user with default admin credentials
         with pytest.raises(Exception) as exc_info:
             users_api.delete(
                 user_id=admin_user["id"],
             )
-        assert (
-            "403" in str(exc_info.value)
-        ), f"Should receive 403 Forbidden when attempting to delete user with default admin credentials (ID: {admin_user['id']})"  # noqa: E501
+        assert "403" in str(exc_info.value), (
+            f"Should receive 403 Forbidden when attempting to delete user with default admin credentials (ID: {admin_user['id']})"
+        )  # noqa: E501
 
     @pytest.mark.parametrize("auth_method", ["LOCAL", "OAUTH2"])
     async def test_cannot_create_system_users(
@@ -399,9 +399,9 @@ class TestClientForUsersAPI:
             users_api.create(
                 user=user_data,
             )
-        assert "400" in str(
-            exc_info.value
-        ), f"Should receive 400 Bad Request when attempting to create {auth_method} SYSTEM user"
+        assert "400" in str(exc_info.value), (
+            f"Should receive 400 Bad Request when attempting to create {auth_method} SYSTEM user"
+        )
 
     async def test_list_pagination(
         self,
@@ -442,9 +442,9 @@ class TestClientForUsersAPI:
         # Verify all created users are present
         created_user_ids = {u["id"] for u in created_users}
         all_user_ids = {u["id"] for u in all_users}
-        assert created_user_ids.issubset(
-            all_user_ids
-        ), "All created users should be present in list results"
+        assert created_user_ids.issubset(all_user_ids), (
+            "All created users should be present in list results"
+        )
 
     async def test_member_access_denied(
         self,
@@ -475,9 +475,9 @@ class TestClientForUsersAPI:
                     auth_method="LOCAL",
                 ),
             )
-        assert "403" in str(
-            exc_info.value
-        ), "Should receive 403 Forbidden when attempting to create LOCAL user"
+        assert "403" in str(exc_info.value), (
+            "Should receive 403 Forbidden when attempting to create LOCAL user"
+        )
 
         # Test that member cannot create LOCAL users with ADMIN role
         with pytest.raises(Exception) as exc_info:
@@ -489,9 +489,9 @@ class TestClientForUsersAPI:
                     auth_method="LOCAL",
                 ),
             )
-        assert "403" in str(
-            exc_info.value
-        ), "Should receive 403 Forbidden when attempting to create LOCAL ADMIN user"
+        assert "403" in str(exc_info.value), (
+            "Should receive 403 Forbidden when attempting to create LOCAL ADMIN user"
+        )
 
         # Test that member cannot create OAuth2 users
         with pytest.raises(Exception) as exc_info:
@@ -504,9 +504,9 @@ class TestClientForUsersAPI:
                     oauth2_client_id=f"client_{token_hex(8)}",
                 ),
             )
-        assert "403" in str(
-            exc_info.value
-        ), "Should receive 403 Forbidden when attempting to create OAuth2 user"
+        assert "403" in str(exc_info.value), (
+            "Should receive 403 Forbidden when attempting to create OAuth2 user"
+        )
 
         # Test that member cannot create OAuth2 users with ADMIN role
         with pytest.raises(Exception) as exc_info:
@@ -519,9 +519,9 @@ class TestClientForUsersAPI:
                     oauth2_client_id=f"client_{token_hex(8)}",
                 ),
             )
-        assert "403" in str(
-            exc_info.value
-        ), "Should receive 403 Forbidden when attempting to create OAuth2 ADMIN user"
+        assert "403" in str(exc_info.value), (
+            "Should receive 403 Forbidden when attempting to create OAuth2 ADMIN user"
+        )
 
         # Test that member cannot list users
         with pytest.raises(Exception) as exc_info:
@@ -534,9 +534,9 @@ class TestClientForUsersAPI:
             users_api.delete(
                 user_id=another_user.gid,
             )
-        assert "403" in str(
-            exc_info.value
-        ), "Should receive 403 Forbidden when attempting to delete user"
+        assert "403" in str(exc_info.value), (
+            "Should receive 403 Forbidden when attempting to delete user"
+        )
 
     @pytest.mark.parametrize("role", ["MEMBER", "ADMIN"])
     def test_new_local_user_can_login_with_assigned_password(
