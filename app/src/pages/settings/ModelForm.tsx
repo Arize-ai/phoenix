@@ -31,6 +31,9 @@ import {
   getSemConvProvider,
 } from "@phoenix/utils/generativeUtils";
 
+/**
+ * @deprecated this just exists until the resolver is updated to return an array of costs
+ */
 type ModelTokenCostDefinition = {
   kind: "prompt" | "completion";
   name: string;
@@ -43,17 +46,11 @@ export type ModelFormParams = {
   namePattern: string;
   promptCosts: ModelTokenCostDefinition[];
   completionCosts: ModelTokenCostDefinition[];
-  // cost: {
-  //   input: number;
-  //   output: number;
-  //   cacheRead?: number;
-  //   cacheWrite?: number;
-  //   promptAudio?: number;
-  //   completionAudio?: number;
-  //   reasoning?: number;
-  // };
 };
 
+/**
+ * @deprecated this just exists until the resolver is updated to return an array of costs
+ */
 export const modelCostToModelTokenCostDefinitions = (
   costs:
     | {
