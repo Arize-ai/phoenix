@@ -9,4 +9,4 @@ class ModelProvider(Enum):
     DEEPSEEK = "DEEPSEEK"
     XAI = "XAI"
     OLLAMA = "OLLAMA"
-    BEDROCK = "BEDROCK"
+    AWS = "AWS"

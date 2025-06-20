@@ -8,6 +8,7 @@ from typing_extensions import Annotated, Self, TypeAlias, TypeGuard, assert_neve
 
 from phoenix.db.types.db_models import UNDEFINED, DBBaseModel
 from phoenix.db.types.model_provider import ModelProvider
+from phoenix.server.api.helpers.prompts.conversions.bedrock import BedrockToolChoiceConversion
 from phoenix.server.api.helpers.prompts.conversions.anthropic import AnthropicToolChoiceConversion
 from phoenix.server.api.helpers.prompts.conversions.openai import OpenAIToolChoiceConversion
 
@@ -311,6 +312,13 @@ class AnthropicToolDefinition(DBBaseModel):
     cache_control: Optional[AnthropicCacheControlParam] = UNDEFINED
     description: str = UNDEFINED
 
+class BedrockToolDefinition(DBBaseModel):
+    """
+    Based on https://github.com/aws/amazon-bedrock-sdk-python/blob/main/src/bedrock/types/tool_param.py#L12
+    """
+
+    tool_spec: dict[str, Any]
+
 
 class PromptOpenAIInvocationParametersContent(DBBaseModel):
     temperature: float = UNDEFINED
@@ -549,6 +557,9 @@ def normalize_tools(
     ):
         openai_tools = [OpenAIToolDefinition.model_validate(schema) for schema in schemas]
         tools = [_openai_to_prompt_tool(openai_tool) for openai_tool in openai_tools]
+    elif model_provider is ModelProvider.BEDROCK:
+        bedrock_tools = [BedrockToolDefinition.model_validate(schema) for schema in schemas]
+        tools = [_bedrock_to_prompt_tool(bedrock_tool) for bedrock_tool in bedrock_tools]
     elif model_provider is ModelProvider.ANTHROPIC:
         anthropic_tools = [AnthropicToolDefinition.model_validate(schema) for schema in schemas]
         tools = [_anthropic_to_prompt_tool(anthropic_tool) for anthropic_tool in anthropic_tools]
@@ -631,6 +642,18 @@ def _prompt_to_openai_tool(
             description=function.description,
             parameters=function.parameters,
             strict=function.strict if isinstance(function.strict, bool) else UNDEFINED,
+        ),
+    )
+
+def _bedrock_to_prompt_tool(
+    tool: BedrockToolDefinition,
+) -> PromptToolFunction:
+    return PromptToolFunction(
+        type="function",
+        function=PromptToolFunctionDefinition(
+            name=tool.tool_spec["name"],
+            description=tool.tool_spec["description"],
+            parameters=tool.tool_spec["inputSchema"],
         ),
     )
 

@@ -598,7 +598,7 @@ class OllamaStreamingClient(OpenAIBaseStreamingClient):
 
 
 @register_llm_client(
-    provider_key=GenerativeProviderKey.BEDROCK,
+    provider_key=GenerativeProviderKey.AWS,
     model_names=[
         PROVIDER_DEFAULT,
         "anthropic.claude-3-5-sonnet-20240620-v1:0",

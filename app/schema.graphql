@@ -1260,7 +1260,6 @@ enum GenerativeProviderKey {
   DEEPSEEK
   XAI
   OLLAMA
-  BEDROCK
   AWS
 }
 
@@ -1422,7 +1421,7 @@ enum ModelProvider {
   DEEPSEEK
   XAI
   OLLAMA
-  BEDROCK
+  AWS
 }
 
 input ModelsInput {

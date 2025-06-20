@@ -17,7 +17,6 @@ class GenerativeProviderKey(Enum):
     DEEPSEEK = "DeepSeek"
     XAI = "xAI"
     OLLAMA = "Ollama"
-    BEDROCK = "Bedrock"
     AWS = "AWS"
 
 
@@ -40,7 +39,7 @@ class GenerativeProvider:
         GenerativeProviderKey.DEEPSEEK: ["deepseek"],
         GenerativeProviderKey.XAI: ["grok"],
         GenerativeProviderKey.OLLAMA: ["llama", "mistral", "codellama", "phi", "qwen", "gemma"],
-        GenerativeProviderKey.BEDROCK: ["claude", "llama", "mistral", "deepseek", "titan"],
+        GenerativeProviderKey.AWS: ["claude", "llama", "mistral", "deepseek", "titan"],
     }
 
     attribute_provider_to_generative_provider_map: ClassVar[dict[str, GenerativeProviderKey]] = {
@@ -48,7 +47,7 @@ class GenerativeProvider:
         OpenInferenceLLMProviderValues.ANTHROPIC.value: GenerativeProviderKey.ANTHROPIC,
         OpenInferenceLLMProviderValues.AZURE.value: GenerativeProviderKey.AZURE_OPENAI,
         OpenInferenceLLMProviderValues.GOOGLE.value: GenerativeProviderKey.GOOGLE,
-        OpenInferenceLLMProviderValues.AWS.value: GenerativeProviderKey.BEDROCK,
+        OpenInferenceLLMProviderValues.AWS.value: GenerativeProviderKey.AWS,
         # Note: DeepSeek uses OpenAI compatibility but we can't duplicate the key in the dict
         # The provider will be determined through model name prefix matching instead
         # Note: xAI uses OpenAI compatibility but we can't duplicate the key in the dict
@@ -95,7 +94,7 @@ class GenerativeProvider:
             )
         ],
         GenerativeProviderKey.OLLAMA: [],
-        GenerativeProviderKey.BEDROCK: [
+        GenerativeProviderKey.AWS: [
             GenerativeProviderCredentialConfig(
                 env_var_name="AWS_ACCESS_KEY_ID", is_required=True
             ),
