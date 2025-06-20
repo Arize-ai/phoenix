@@ -103,8 +103,9 @@ export function NewModelButton({
                           ...params.promptCosts,
                           ...params.completionCosts,
                         ].map((cost) => ({
-                          tokenType: cost.name,
-                          costPerToken: cost.costPerMillion,
+                          tokenType: cost.tokenType,
+                          costPerMillionTokens: cost.costPerMillionTokens,
+                          kind: cost.kind,
                         })),
                       },
                       connectionId,

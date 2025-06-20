@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1cd4b1a9ee58af0abb1999a0815e2ef2>>
+ * @generated SignedSource<<6129b7b23391eda09fdbf5730b892939>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,15 +10,16 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type TokenKind = "COMPLETION" | "PROMPT";
 export type CreateModelMutationInput = {
-  costs: ReadonlyArray<CostPerTokenInput>;
+  costs: ReadonlyArray<TokenPriceInput>;
   name: string;
   namePattern: string;
   provider?: string | null;
 };
-export type CostPerTokenInput = {
-  costPerToken: number;
-  isPrompt?: boolean | null;
+export type TokenPriceInput = {
+  costPerMillionTokens: number;
+  kind: TokenKind;
   tokenType: string;
 };
 export type NewModelButtonCreateModelMutation$variables = {
@@ -122,9 +123,9 @@ v3 = [
   {
     "alias": null,
     "args": null,
-    "concreteType": "SpanCostDetailSummaryEntry",
+    "concreteType": "TokenPrice",
     "kind": "LinkedField",
-    "name": "costDetailSummaryEntries",
+    "name": "tokenPrices",
     "plural": true,
     "selections": [
       {
@@ -138,39 +139,21 @@ v3 = [
         "alias": null,
         "args": null,
         "kind": "ScalarField",
-        "name": "isPrompt",
+        "name": "kind",
         "storageKey": null
       },
       {
         "alias": null,
         "args": null,
-        "concreteType": "CostBreakdown",
-        "kind": "LinkedField",
-        "name": "value",
-        "plural": false,
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "tokens",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "cost",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "costPerToken",
-            "storageKey": null
-          }
-        ],
+        "kind": "ScalarField",
+        "name": "costPerMillionTokens",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "costPerToken",
         "storageKey": null
       }
     ],
@@ -280,12 +263,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "6fcce9216b87cb9a3f831bc76f9d8567",
+    "cacheID": "4cc2e1c51d39fa4c511b0bd7579c9598",
     "id": null,
     "metadata": {},
     "name": "NewModelButtonCreateModelMutation",
     "operationKind": "mutation",
-    "text": "mutation NewModelButtonCreateModelMutation(\n  $input: CreateModelMutationInput!\n) {\n  createModel(input: $input) {\n    model {\n      ...ModelsTable_generativeModel\n      id\n    }\n  }\n}\n\nfragment ModelsTable_generativeModel on GenerativeModel {\n  id\n  name\n  provider\n  namePattern\n  providerKey\n  createdAt\n  updatedAt\n  lastUsedAt\n  isOverride\n  costDetailSummaryEntries {\n    tokenType\n    isPrompt\n    value {\n      tokens\n      cost\n      costPerToken\n    }\n  }\n}\n"
+    "text": "mutation NewModelButtonCreateModelMutation(\n  $input: CreateModelMutationInput!\n) {\n  createModel(input: $input) {\n    model {\n      ...ModelsTable_generativeModel\n      id\n    }\n  }\n}\n\nfragment ModelsTable_generativeModel on GenerativeModel {\n  id\n  name\n  provider\n  namePattern\n  providerKey\n  createdAt\n  updatedAt\n  lastUsedAt\n  isOverride\n  tokenPrices {\n    tokenType\n    kind\n    costPerMillionTokens\n    costPerToken\n  }\n}\n"
   }
 };
 })();

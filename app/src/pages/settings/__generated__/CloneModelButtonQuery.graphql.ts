@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c677c1dfaf598bacd3c56e88a46918a9>>
+ * @generated SignedSource<<a6fb387b78621a5977370532b103da52>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,25 +10,23 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
+export type TokenKind = "COMPLETION" | "PROMPT";
 export type CloneModelButtonQuery$variables = {
   id: string;
 };
 export type CloneModelButtonQuery$data = {
   readonly node: {
-    readonly costDetailSummaryEntries?: ReadonlyArray<{
-      readonly isPrompt: boolean;
-      readonly tokenType: string;
-      readonly value: {
-        readonly cost: number | null;
-        readonly costPerToken: number | null;
-        readonly tokens: number | null;
-      };
-    }>;
     readonly id?: string;
     readonly name?: string;
     readonly namePattern?: string;
     readonly provider?: string | null;
     readonly providerKey?: GenerativeProviderKey | null;
+    readonly tokenPrices?: ReadonlyArray<{
+      readonly costPerMillionTokens: number;
+      readonly costPerToken: number;
+      readonly kind: TokenKind;
+      readonly tokenType: string;
+    }>;
   };
 };
 export type CloneModelButtonQuery = {
@@ -89,9 +87,9 @@ v6 = {
 v7 = {
   "alias": null,
   "args": null,
-  "concreteType": "SpanCostDetailSummaryEntry",
+  "concreteType": "TokenPrice",
   "kind": "LinkedField",
-  "name": "costDetailSummaryEntries",
+  "name": "tokenPrices",
   "plural": true,
   "selections": [
     {
@@ -105,39 +103,21 @@ v7 = {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "isPrompt",
+      "name": "kind",
       "storageKey": null
     },
     {
       "alias": null,
       "args": null,
-      "concreteType": "CostBreakdown",
-      "kind": "LinkedField",
-      "name": "value",
-      "plural": false,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "tokens",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "cost",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "costPerToken",
-          "storageKey": null
-        }
-      ],
+      "kind": "ScalarField",
+      "name": "costPerMillionTokens",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "costPerToken",
       "storageKey": null
     }
   ],
@@ -218,16 +198,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f4a84d683c76c4507391e641b53f1024",
+    "cacheID": "8a52135c5b5ac9c79eb79ac2f3e0b825",
     "id": null,
     "metadata": {},
     "name": "CloneModelButtonQuery",
     "operationKind": "query",
-    "text": "query CloneModelButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on GenerativeModel {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      costDetailSummaryEntries {\n        tokenType\n        isPrompt\n        value {\n          tokens\n          cost\n          costPerToken\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query CloneModelButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on GenerativeModel {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      tokenPrices {\n        tokenType\n        kind\n        costPerMillionTokens\n        costPerToken\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "9c7dfc03460d6ded135943408c5769b1";
+(node as any).hash = "224f274ffdbb1f1028cbd4c61c053f0a";
 
 export default node;

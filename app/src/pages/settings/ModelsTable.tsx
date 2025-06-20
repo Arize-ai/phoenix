@@ -19,6 +19,7 @@ import {
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { EditModelButton } from "@phoenix/pages/settings/EditModelButton";
 import { getProviderName } from "@phoenix/utils/generativeUtils";
+import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import {
   ModelsTable_generativeModel$data,
@@ -42,14 +43,11 @@ const GENERATIVE_MODEL_FRAGMENT = graphql`
     updatedAt
     lastUsedAt
     isOverride
-    costDetailSummaryEntries {
+    tokenPrices {
       tokenType
-      isPrompt
-      value {
-        tokens
-        cost
-        costPerToken
-      }
+      kind
+      costPerMillionTokens
+      costPerToken
     }
   }
 `;
@@ -59,10 +57,10 @@ type ModelsTableProps = {
 };
 
 function getRowCost(row: ModelsTable_generativeModel$data, tokenType: string) {
-  const cost = row.costDetailSummaryEntries?.find(
+  const cost = row.tokenPrices?.find(
     (entry) => entry.tokenType === tokenType
-  )?.value?.cost;
-  return cost != null ? `$${cost.toPrecision(3)}` : "--";
+  )?.costPerMillionTokens;
+  return cost != null ? `${costFormatter(cost)}` : "--";
 }
 
 export function ModelsTable(props: ModelsTableProps) {

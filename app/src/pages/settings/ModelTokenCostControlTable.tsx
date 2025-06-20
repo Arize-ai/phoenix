@@ -12,7 +12,10 @@ import {
   NumberField,
 } from "@phoenix/components";
 import { ModelFormParams } from "@phoenix/pages/settings/ModelForm";
-import { ModelTokenTypeComboBox } from "@phoenix/pages/settings/ModelTokenTypeComboBox";
+import {
+  ModelTokenKind,
+  ModelTokenTypeComboBox,
+} from "@phoenix/pages/settings/ModelTokenTypeComboBox";
 
 export function ModelTokenCostControlTable({
   title,
@@ -28,14 +31,14 @@ export function ModelTokenCostControlTable({
   namePrefix: "promptCosts" | "completionCosts";
   fields: { id: string }[];
   control: Control<ModelFormParams>;
-  tokenTypeOptions: { name: string; kind: "prompt" | "completion" }[];
+  tokenTypeOptions: { tokenType: string; kind: ModelTokenKind }[];
   onAppend: (obj: {
-    kind: "prompt" | "completion";
-    name: string;
-    costPerMillion: number;
+    kind: ModelTokenKind;
+    tokenType: string;
+    costPerMillionTokens: number;
   }) => void;
   onRemove: (index: number) => void;
-  appendKind: "prompt" | "completion";
+  appendKind: ModelTokenKind;
 }) {
   return (
     <>
@@ -84,7 +87,7 @@ export function ModelTokenCostControlTable({
             <tr key={field.id}>
               <td>
                 <Controller
-                  name={`${namePrefix}.${index}.name`}
+                  name={`${namePrefix}.${index}.tokenType`}
                   control={control}
                   render={({
                     fieldState: { invalid, error },
@@ -102,7 +105,7 @@ export function ModelTokenCostControlTable({
               </td>
               <td>
                 <Controller
-                  name={`${namePrefix}.${index}.costPerMillion`}
+                  name={`${namePrefix}.${index}.costPerMillionTokens`}
                   control={control}
                   render={({
                     fieldState: { invalid, error },
@@ -149,8 +152,8 @@ export function ModelTokenCostControlTable({
                   onPress={() => {
                     onAppend({
                       kind: appendKind,
-                      name: "",
-                      costPerMillion: 0,
+                      tokenType: "",
+                      costPerMillionTokens: 0,
                     });
                   }}
                   size="S"

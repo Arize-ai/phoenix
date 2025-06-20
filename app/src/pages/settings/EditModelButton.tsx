@@ -40,14 +40,11 @@ const ModelQuery = graphql`
         provider
         namePattern
         providerKey
-        costDetailSummaryEntries {
+        tokenPrices {
           tokenType
-          isPrompt
-          value {
-            tokens
-            cost
-            costPerToken
-          }
+          kind
+          costPerMillionTokens
+          costPerToken
         }
       }
     }
@@ -77,14 +74,11 @@ function EditModelDialogContent({
             provider
             namePattern
             providerKey
-            costDetailSummaryEntries {
+            tokenPrices {
               tokenType
-              isPrompt
-              value {
-                tokens
-                cost
-                costPerToken
-              }
+              kind
+              costPerMillionTokens
+              costPerToken
             }
           }
           __typename
@@ -104,11 +98,7 @@ function EditModelDialogContent({
       modelName={modelData.name}
       modelProvider={modelData.provider}
       modelNamePattern={modelData.namePattern}
-      modelCost={
-        modelData.costDetailSummaryEntries as Mutable<
-          typeof modelData.costDetailSummaryEntries
-        >
-      }
+      modelCost={modelData.tokenPrices as Mutable<typeof modelData.tokenPrices>}
       onSubmit={(params) => {
         commitUpdateModel({
           variables: {
@@ -119,8 +109,9 @@ function EditModelDialogContent({
               namePattern: params.namePattern,
               costs: [...params.promptCosts, ...params.completionCosts].map(
                 (cost) => ({
-                  tokenType: cost.name,
-                  costPerToken: cost.costPerMillion,
+                  tokenType: cost.tokenType,
+                  costPerMillionTokens: cost.costPerMillionTokens,
+                  kind: cost.kind,
                 })
               ),
             },

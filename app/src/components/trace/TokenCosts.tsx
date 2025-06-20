@@ -109,37 +109,41 @@ function TokenCostsDetails(props: { nodeId: string }) {
         {promptDetails.length > 0 && (
           <>
             <Text weight="heavy">Prompt</Text>
-            {promptDetails.map((detail) => (
-              <Flex
-                key={detail.tokenType}
-                direction="row"
-                gap="size-100"
-                justifyContent="space-between"
-              >
-                <Text>{`${detail.tokenType} tokens`}</Text>
-                <Text>
-                  {detail.value.cost ? costFormatter(detail.value.cost) : "?"}
-                </Text>
-              </Flex>
-            ))}
+            {promptDetails.map((detail) =>
+              detail.value.cost != null ? (
+                <Flex
+                  key={detail.tokenType}
+                  direction="row"
+                  gap="size-100"
+                  justifyContent="space-between"
+                >
+                  <Text>{`${detail.tokenType} tokens`}</Text>
+                  <Text>
+                    {detail.value.cost ? costFormatter(detail.value.cost) : "?"}
+                  </Text>
+                </Flex>
+              ) : null
+            )}
           </>
         )}
         {completionDetails.length > 0 && (
           <>
             <Text weight="heavy">Completion</Text>
-            {completionDetails.map((detail) => (
-              <Flex
-                key={detail.tokenType}
-                direction="row"
-                gap="size-100"
-                justifyContent="space-between"
-              >
-                <Text>{`${detail.tokenType} tokens`}</Text>
-                <Text>
-                  {detail.value.cost ? costFormatter(detail.value.cost) : "?"}
-                </Text>
-              </Flex>
-            ))}
+            {completionDetails.map((detail) =>
+              detail.value.cost != null ? (
+                <Flex
+                  key={detail.tokenType}
+                  direction="row"
+                  gap="size-100"
+                  justifyContent="space-between"
+                >
+                  <Text>{`${detail.tokenType} tokens`}</Text>
+                  <Text>
+                    {detail.value.cost ? costFormatter(detail.value.cost) : "?"}
+                  </Text>
+                </Flex>
+              ) : null
+            )}
           </>
         )}
       </Flex>

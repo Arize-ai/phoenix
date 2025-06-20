@@ -20,53 +20,25 @@ import { ModelTokenCostControlTable } from "@phoenix/pages/settings/ModelTokenCo
 import {
   DEFAULT_TOKEN_COMPLETION_OPTIONS,
   DEFAULT_TOKEN_PROMPT_OPTIONS,
+  ModelTokenKind,
 } from "@phoenix/pages/settings/ModelTokenTypeComboBox";
 import {
   getProviderName,
   getSemConvProvider,
 } from "@phoenix/utils/generativeUtils";
 
-type SpanCostDetailEntry = {
+type TokenPrice = {
+  kind: ModelTokenKind;
   tokenType: string;
-  isPrompt: boolean;
-  value: {
-    tokens: number | null;
-    cost: number | null;
-    costPerToken: number | null;
-  };
-};
-
-type ModelTokenCostDefinition = {
-  kind: "prompt" | "completion";
-  name: string;
-  costPerMillion: number;
+  costPerMillionTokens: number;
 };
 
 export type ModelFormParams = {
   name: string;
   provider?: string;
   namePattern: string;
-  promptCosts: ModelTokenCostDefinition[];
-  completionCosts: ModelTokenCostDefinition[];
-};
-
-/**
- * @deprecated this just exists until the resolver is updated to return an array of costs
- */
-export const modelCostToModelTokenCostDefinitions = (
-  costs: SpanCostDetailEntry[] | null | undefined
-): ModelTokenCostDefinition[] => {
-  if (!costs) {
-    return [];
-  }
-
-  return costs
-    .filter((cost) => cost.value.costPerToken != null)
-    .map((cost) => ({
-      kind: cost.isPrompt ? "prompt" : "completion",
-      name: cost.tokenType,
-      costPerMillion: cost.value.costPerToken ?? 0,
-    }));
+  promptCosts: TokenPrice[];
+  completionCosts: TokenPrice[];
 };
 
 const PROVIDER_OPTIONS: { key: ModelProvider; value: string; label: string }[] =
@@ -162,20 +134,33 @@ export function ModelForm({
   modelName?: string | null;
   modelProvider?: string | null;
   modelNamePattern?: string | null;
-  modelCost?: SpanCostDetailEntry[] | null;
+  modelCost?: TokenPrice[] | null;
   onSubmit: (params: ModelFormParams) => void;
   isSubmitting: boolean;
   submitButtonText: string;
   formMode: "create" | "edit";
 }) {
   const defaultCost = useMemo(() => {
-    return modelCostToModelTokenCostDefinitions(modelCost);
+    return Array.isArray(modelCost) && modelCost.length > 0
+      ? modelCost
+      : ([
+          {
+            kind: "PROMPT",
+            tokenType: "input",
+            costPerMillionTokens: 0,
+          },
+          {
+            kind: "COMPLETION",
+            tokenType: "output",
+            costPerMillionTokens: 0,
+          },
+        ] satisfies TokenPrice[]);
   }, [modelCost]);
   const defaultPromptCostFields = useMemo(() => {
-    return defaultCost.filter((field) => field.kind === "prompt");
+    return defaultCost.filter((field) => field.kind === "PROMPT");
   }, [defaultCost]);
   const defaultCompletionCostFields = useMemo(() => {
-    return defaultCost.filter((field) => field.kind === "completion");
+    return defaultCost.filter((field) => field.kind === "COMPLETION");
   }, [defaultCost]);
   const {
     control,
@@ -298,7 +283,7 @@ export function ModelForm({
             tokenTypeOptions={DEFAULT_TOKEN_PROMPT_OPTIONS}
             onAppend={appendPromptCost}
             onRemove={removePromptCost}
-            appendKind="prompt"
+            appendKind="PROMPT"
           />
 
           <ModelTokenCostControlTable
@@ -309,7 +294,7 @@ export function ModelForm({
             tokenTypeOptions={DEFAULT_TOKEN_COMPLETION_OPTIONS}
             onAppend={appendCompletionCost}
             onRemove={removeCompletionCost}
-            appendKind="completion"
+            appendKind="COMPLETION"
           />
         </Flex>
       </View>

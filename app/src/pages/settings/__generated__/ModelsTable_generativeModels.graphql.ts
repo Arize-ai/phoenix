@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ccc998c6e26b889b0dc47f626513f255>>
+ * @generated SignedSource<<8f9f8c7b0d7682cfbbfa3ba08a6e3db9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -164,9 +164,9 @@ return {
                     {
                       "alias": null,
                       "args": null,
-                      "concreteType": "SpanCostDetailSummaryEntry",
+                      "concreteType": "TokenPrice",
                       "kind": "LinkedField",
-                      "name": "costDetailSummaryEntries",
+                      "name": "tokenPrices",
                       "plural": true,
                       "selections": [
                         {
@@ -180,39 +180,21 @@ return {
                           "alias": null,
                           "args": null,
                           "kind": "ScalarField",
-                          "name": "isPrompt",
+                          "name": "kind",
                           "storageKey": null
                         },
                         {
                           "alias": null,
                           "args": null,
-                          "concreteType": "CostBreakdown",
-                          "kind": "LinkedField",
-                          "name": "value",
-                          "plural": false,
-                          "selections": [
-                            {
-                              "alias": null,
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "tokens",
-                              "storageKey": null
-                            },
-                            {
-                              "alias": null,
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "cost",
-                              "storageKey": null
-                            },
-                            {
-                              "alias": null,
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "costPerToken",
-                              "storageKey": null
-                            }
-                          ],
+                          "kind": "ScalarField",
+                          "name": "costPerMillionTokens",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "costPerToken",
                           "storageKey": null
                         }
                       ],

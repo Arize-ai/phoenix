@@ -40,14 +40,11 @@ const ModelQuery = graphql`
         provider
         namePattern
         providerKey
-        costDetailSummaryEntries {
+        tokenPrices {
           tokenType
-          isPrompt
-          value {
-            tokens
-            cost
-            costPerToken
-          }
+          kind
+          costPerMillionTokens
+          costPerToken
         }
       }
     }
@@ -100,11 +97,7 @@ function CloneModelDialogContent({
       modelName={`${modelData.name} (override)`}
       modelProvider={modelData.provider}
       modelNamePattern={modelData.namePattern}
-      modelCost={
-        modelData.costDetailSummaryEntries as Mutable<
-          typeof modelData.costDetailSummaryEntries
-        >
-      }
+      modelCost={modelData.tokenPrices as Mutable<typeof modelData.tokenPrices>}
       onSubmit={(params) => {
         commitCloneModel({
           variables: {
@@ -114,8 +107,9 @@ function CloneModelDialogContent({
               namePattern: params.namePattern,
               costs: [...params.promptCosts, ...params.completionCosts].map(
                 (cost) => ({
-                  tokenType: cost.name,
-                  costPerToken: cost.costPerMillion,
+                  tokenType: cost.tokenType,
+                  costPerMillionTokens: cost.costPerMillionTokens,
+                  kind: cost.kind,
                 })
               ),
             },

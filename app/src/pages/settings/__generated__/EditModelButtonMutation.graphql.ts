@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<56821ab3242cf4b7287652147e781cc2>>
+ * @generated SignedSource<<4cb71e9f4e75b631608fdefbeb17b26f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,16 +10,17 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
+export type TokenKind = "COMPLETION" | "PROMPT";
 export type UpdateModelMutationInput = {
-  costs: ReadonlyArray<CostPerTokenInput>;
+  costs: ReadonlyArray<TokenPriceInput>;
   id: string;
   name: string;
   namePattern: string;
   provider?: string | null;
 };
-export type CostPerTokenInput = {
-  costPerToken: number;
-  isPrompt?: boolean | null;
+export type TokenPriceInput = {
+  costPerMillionTokens: number;
+  kind: TokenKind;
   tokenType: string;
 };
 export type EditModelButtonMutation$variables = {
@@ -29,20 +30,17 @@ export type EditModelButtonMutation$data = {
   readonly updateModel: {
     readonly __typename: "UpdateModelMutationPayload";
     readonly model: {
-      readonly costDetailSummaryEntries: ReadonlyArray<{
-        readonly isPrompt: boolean;
-        readonly tokenType: string;
-        readonly value: {
-          readonly cost: number | null;
-          readonly costPerToken: number | null;
-          readonly tokens: number | null;
-        };
-      }>;
       readonly id: string;
       readonly name: string;
       readonly namePattern: string;
       readonly provider: string | null;
       readonly providerKey: GenerativeProviderKey | null;
+      readonly tokenPrices: ReadonlyArray<{
+        readonly costPerMillionTokens: number;
+        readonly costPerToken: number;
+        readonly kind: TokenKind;
+        readonly tokenType: string;
+      }>;
     };
   };
 };
@@ -120,9 +118,9 @@ v1 = [
           {
             "alias": null,
             "args": null,
-            "concreteType": "SpanCostDetailSummaryEntry",
+            "concreteType": "TokenPrice",
             "kind": "LinkedField",
-            "name": "costDetailSummaryEntries",
+            "name": "tokenPrices",
             "plural": true,
             "selections": [
               {
@@ -136,39 +134,21 @@ v1 = [
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
-                "name": "isPrompt",
+                "name": "kind",
                 "storageKey": null
               },
               {
                 "alias": null,
                 "args": null,
-                "concreteType": "CostBreakdown",
-                "kind": "LinkedField",
-                "name": "value",
-                "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "tokens",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "cost",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "costPerToken",
-                    "storageKey": null
-                  }
-                ],
+                "kind": "ScalarField",
+                "name": "costPerMillionTokens",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "costPerToken",
                 "storageKey": null
               }
             ],
@@ -206,16 +186,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "f7b978d5c18caea005d5096364f91779",
+    "cacheID": "9cd6fa8b44af4836f3856ffba17bc1cf",
     "id": null,
     "metadata": {},
     "name": "EditModelButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation EditModelButtonMutation(\n  $input: UpdateModelMutationInput!\n) {\n  updateModel(input: $input) {\n    model {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      costDetailSummaryEntries {\n        tokenType\n        isPrompt\n        value {\n          tokens\n          cost\n          costPerToken\n        }\n      }\n    }\n    __typename\n  }\n}\n"
+    "text": "mutation EditModelButtonMutation(\n  $input: UpdateModelMutationInput!\n) {\n  updateModel(input: $input) {\n    model {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      tokenPrices {\n        tokenType\n        kind\n        costPerMillionTokens\n        costPerToken\n      }\n    }\n    __typename\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e5b0b221e91e1580525202e9b3a669c6";
+(node as any).hash = "f4ba2de4c1b86f88b75e1b6e14e6fd05";
 
 export default node;

@@ -1,51 +1,51 @@
 import { ComboBox, ComboBoxItem, Flex } from "@phoenix/components";
 
-export type ModelTokenKind = "prompt" | "completion";
+export type ModelTokenKind = "PROMPT" | "COMPLETION";
 
 type TokenTypeOption = {
-  name: string;
+  tokenType: string;
   kind: ModelTokenKind;
 };
 
 type PromptTokenTypeOption = TokenTypeOption & {
-  kind: "prompt";
+  kind: "PROMPT";
 };
 
 type CompletionTokenTypeOption = TokenTypeOption & {
-  kind: "completion";
+  kind: "COMPLETION";
 };
 
 export const DEFAULT_TOKEN_PROMPT_OPTIONS = [
   {
-    name: "input",
-    kind: "prompt",
+    tokenType: "input",
+    kind: "PROMPT",
   },
   {
-    name: "promptAudio",
-    kind: "prompt",
+    tokenType: "audio",
+    kind: "PROMPT",
   },
   {
-    name: "cacheRead",
-    kind: "prompt",
+    tokenType: "cache_read",
+    kind: "PROMPT",
   },
   {
-    name: "cacheWrite",
-    kind: "prompt",
+    tokenType: "cache_write",
+    kind: "PROMPT",
   },
 ] satisfies PromptTokenTypeOption[];
 
 export const DEFAULT_TOKEN_COMPLETION_OPTIONS = [
   {
-    name: "output",
-    kind: "completion",
+    tokenType: "output",
+    kind: "COMPLETION",
   },
   {
-    name: "completionAudio",
-    kind: "completion",
+    tokenType: "audio",
+    kind: "COMPLETION",
   },
   {
-    name: "reasoning",
-    kind: "completion",
+    tokenType: "reasoning",
+    kind: "COMPLETION",
   },
 ] satisfies CompletionTokenTypeOption[];
 
@@ -68,17 +68,17 @@ export function ModelTokenTypeComboBox<
   invalid: boolean;
   isRequired?: boolean;
 }) {
-  const selectedOption = options.find((option) => option.name === value);
+  const selectedOption = options.find((option) => option.tokenType === value);
   return (
     <ComboBox
       aria-label="Token type"
       placeholder="Choose or enter a token type"
-      selectedKey={selectedOption?.name ?? ""}
+      selectedKey={selectedOption?.tokenType ?? ""}
       inputValue={value}
-      onSelectionChange={(name) => {
-        const option = options.find((option) => option.name === name);
+      onSelectionChange={(tokenType) => {
+        const option = options.find((option) => option.tokenType === tokenType);
         if (option) {
-          onChange(option.name);
+          onChange(option.tokenType);
         }
       }}
       onInputChange={(_value) => {
@@ -97,9 +97,13 @@ export function ModelTokenTypeComboBox<
       allowsCustomValue
     >
       {options.map((item) => (
-        <ComboBoxItem key={item.name} textValue={item.name} id={item.name}>
+        <ComboBoxItem
+          key={item.tokenType}
+          textValue={item.tokenType}
+          id={item.tokenType}
+        >
           <Flex alignItems="center" gap="size-50">
-            {item.name}
+            {item.tokenType}
           </Flex>
         </ComboBoxItem>
       ))}
