@@ -20,7 +20,7 @@ class SpanCostSummaryByGenerativeModelDataLoader(DataLoader[Key, Result]):
         self._db = db
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
-        pk = models.SpanCost.generative_model_id
+        pk = models.SpanCost.model_id
         stmt = (
             select(
                 pk,

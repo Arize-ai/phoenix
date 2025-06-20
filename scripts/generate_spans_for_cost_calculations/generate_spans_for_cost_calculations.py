@@ -229,7 +229,7 @@ grok-beta,xai
 grok-vision-beta,xai
 """
 
-df = pd.read_csv(StringIO(model_provider_data.strip()), names=["model_name", "provider"])
+df = pd.read_csv(StringIO(model_provider_data.strip()), names=["model_name", "provider"], dtype=str)
 
 
 def random_split(total: int, n: int = 5, alpha: float = 1.0) -> list[int]:
@@ -285,16 +285,22 @@ def llm_span() -> None:
         span.set_attribute("llm.token_count.completion", completion)
         span.set_attribute("llm.token_count.total", prompt + completion)
         for prefix, (total, subtotals) in {
-            "prompt_details": (prompt, ["audio", "cached_read", "cache_write"]),
-            "completion_details": (completion, ["audio", "reasoning"]),
+            "prompt_details": (
+                prompt,
+                ["audio", "video", "image", "document", "cached_read", "cache_write"],
+            ),
+            "completion_details": (
+                completion,
+                ["audio", "video", "image", "document", "reasoning"],
+            ),
         }.items():
             if not (keys := sample(subtotals, k=randint(0, len(subtotals)))):
                 continue
             for key, value in zip(keys, random_split(total, n=len(keys) + 1)):
                 span.set_attribute(f"llm.token_count.{prefix}.{key}", value)
         row = df.sample(1).iloc[0]
-        span.set_attribute("llm.provider", row.provider)
-        span.set_attribute("llm.model_name", row.model_name)
+        span.set_attribute("llm.provider", str(row.provider))
+        span.set_attribute("llm.model_name", str(row.model_name))
 
 
 for _ in range(randint(1, 20)):

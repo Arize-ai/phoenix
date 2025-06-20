@@ -28,7 +28,7 @@ class GenerativeModel(Node, ModelInterface):
     created_at: datetime
     updated_at: datetime
     provider_key: Optional[GenerativeProviderKey]
-    costs: strawberry.Private[Optional[list[models.ModelCost]]] = None
+    costs: strawberry.Private[Optional[list[models.TokenPrice]]] = None
 
     @strawberry.field
     async def token_cost(self, info: Info[Context, None]) -> Optional[TokenCost]:
@@ -36,7 +36,7 @@ class GenerativeModel(Node, ModelInterface):
             raise NotImplementedError
         token_cost = TokenCost()
         for cost in self.costs:
-            setattr(token_cost, cost.token_type, cost.cost_per_token)
+            setattr(token_cost, cost.token_type, cost.base_rate)
         return token_cost
 
     @strawberry.field
@@ -84,19 +84,19 @@ class GenerativeModel(Node, ModelInterface):
 
 
 def to_gql_generative_model(model: models.GenerativeModel) -> GenerativeModel:
-    costs_are_loaded = isinstance(inspect(model).attrs.costs.loaded_value, list)
+    costs_are_loaded = isinstance(inspect(model).attrs.token_prices.loaded_value, list)
     return GenerativeModel(
         id_attr=model.id,
         name=model.name,
         provider=model.provider,
-        name_pattern=model.name_pattern,
+        name_pattern=model.llm_name_pattern,
         is_override=model.is_override,
         created_at=model.created_at,
         updated_at=model.updated_at,
         provider_key=_semconv_provider_to_gql_generative_provider_key(model.provider)
         if model.provider
         else None,
-        costs=model.costs if costs_are_loaded else None,
+        costs=model.token_prices if costs_are_loaded else None,
     )
 
 

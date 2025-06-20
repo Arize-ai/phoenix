@@ -221,16 +221,16 @@ async def _create_cost_table(session: AsyncSession) -> "ModelCostLookup":
 
     result = await session.execute(
         select(models.GenerativeModel)
-        .options(joinedload(models.GenerativeModel.costs))
+        .options(joinedload(models.GenerativeModel.token_prices))
         .order_by(models.GenerativeModel.id)
     )
     db_models = result.unique().scalars().all()
 
     for model in db_models:
         token_cost = ModelTokenCost(model_id=model.id)
-        pattern = re.compile(model.name_pattern)
-        for cost in model.costs:
-            setattr(token_cost, cost.token_type, cost.cost_per_token)
+        pattern = re.compile(model.llm_name_pattern)
+        for cost in model.token_prices:
+            setattr(token_cost, cost.token_type, cost.base_rate)
             if model.is_override:
                 lookup.add_override(model.provider, pattern, token_cost)
             else:

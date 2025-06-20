@@ -286,54 +286,58 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
                 model = models.GenerativeModel(
                     name=model_data["model"],
                     provider=model_data["provider"],
-                    name_pattern=model_data["regex"],
+                    llm_name_pattern=model_data["regex"],
                     is_override=False,
                 )
                 session.add(model)
                 await session.flush()
             else:
                 existing_model.provider = model_data["provider"]
-                existing_model.name_pattern = model_data["regex"]
+                existing_model.llm_name_pattern = model_data["regex"]
                 model = existing_model
                 await session.execute(
-                    delete(models.ModelCost).where(models.ModelCost.model_id == model.id)
+                    delete(models.TokenPrice).where(models.TokenPrice.model_id == model.id)
                 )
 
-            costs = []
+            prices = []
             if model_data["input"] is not None:
-                costs.append(
-                    models.ModelCost(
+                prices.append(
+                    models.TokenPrice(
                         model_id=model.id,
                         token_type="input",
-                        cost_per_token=model_data["input"],
-                    )
-                )
-            if model_data["output"] is not None:
-                costs.append(
-                    models.ModelCost(
-                        model_id=model.id,
-                        token_type="output",
-                        cost_per_token=model_data["output"],
+                        is_prompt=True,
+                        base_rate=model_data["input"],
                     )
                 )
             if model_data["cache_write"] is not None:
-                costs.append(
-                    models.ModelCost(
+                prices.append(
+                    models.TokenPrice(
                         model_id=model.id,
                         token_type="cache_write",
-                        cost_per_token=model_data["cache_write"],
+                        is_prompt=True,
+                        base_rate=model_data["cache_write"],
                     )
                 )
             if model_data["cache_read"] is not None:
-                costs.append(
-                    models.ModelCost(
+                prices.append(
+                    models.TokenPrice(
                         model_id=model.id,
                         token_type="cache_read",
-                        cost_per_token=model_data["cache_read"],
+                        is_prompt=True,
+                        base_rate=model_data["cache_read"],
+                    )
+                )
+            if model_data["output"] is not None:
+                prices.append(
+                    models.TokenPrice(
+                        model_id=model.id,
+                        token_type="output",
+                        is_prompt=False,
+                        base_rate=model_data["output"],
                     )
                 )
 
-            session.add_all(costs)
+            session.add_all(prices)
 
         await session.flush()
         await initialize_cost_table(session)
