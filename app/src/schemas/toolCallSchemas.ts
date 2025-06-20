@@ -72,11 +72,12 @@ export const openAIToolCallsJSONSchema = zodToJsonSchema(
  * This schema is kept for future use when we want to handle Bedrock format directly in the frontend.
  */
 export const awsToolCallSchema = z.object({
-  toolSpec: z.object({
-    name: z.string().describe("The name of the function"),
-    description: z.string().describe("The description of the function"),
-    inputSchema: z.record(z.unknown()).describe("The input for the tool"),
-  }),
+  // toolSpec: z.object({
+  //   name: z.string().describe("The name of the function"),
+  //   description: z.string().describe("The description of the function"),
+  //   inputSchema: z.record(z.unknown()).describe("The input for the tool"),
+  // }),
+
 });
 
 export type AwsToolCall = z.infer<typeof awsToolCallSchema>;
@@ -103,16 +104,16 @@ export const openAIToolCallToAws = openAIToolCallSchema.transform(
   })
 );
 
-export const awsToolCallToOpenAI = awsToolCallSchema.transform(
-  (aws): OpenAIToolCall => ({
-    id: aws.toolSpec.name,
-    type: "function",
-    function: {
-      name: aws.toolSpec.name,
-      arguments: aws.toolSpec.inputSchema,
-    },
-  })
-);
+// export const awsToolCallToOpenAI = awsToolCallSchema.transform(
+//   (aws): OpenAIToolCall => ({
+//     id: aws.toolSpec.name,
+//     type: "function",
+//     function: {
+//       name: aws.toolSpec.name,
+//       arguments: aws.toolSpec.inputSchema,
+//     },
+//   })
+// );
 
 /**
  * The schema for an Anthropic tool call, this is what a message that calls a tool looks like
@@ -212,17 +213,17 @@ export type LlmProviderToolCalls = z.infer<typeof llmProviderToolCallsSchema>;
 
 type ToolCallWithProvider =
   | {
-      provider: Extract<ModelProvider, "OPENAI" | "AZURE_OPENAI">;
+      provider: Extract<ModelProvider, "OPENAI" | "AZURE_OPENAI" | "AWS">;
       validatedToolCall: OpenAIToolCall;
     }
   | {
       provider: Extract<ModelProvider, "ANTHROPIC">;
       validatedToolCall: AnthropicToolCall;
     }
-  | {
-      provider: Extract<ModelProvider, "AWS">;
-      validatedToolCall: AwsToolCall;
-    }
+  // | {
+  //     provider: Extract<ModelProvider, "AWS">;
+  //     validatedToolCall: AwsToolCall;
+  //   }
   | { provider: "UNKNOWN"; validatedToolCall: null };
 
 /**
@@ -243,11 +244,11 @@ export const detectToolCallProvider = (
     return { provider: "ANTHROPIC", validatedToolCall: anthropicData };
   }
 
-  const { success: awsSuccess, data: awsData } =
-    awsToolCallSchema.safeParse(toolCall);
-  if (awsSuccess) {
-    return { provider: "AWS", validatedToolCall: awsData };
-  }
+  // const { success: awsSuccess, data: awsData } =
+  //   awsToolCallSchema.safeParse(toolCall);
+  // if (awsSuccess) {
+  //   return { provider: "AWS", validatedToolCall: awsData };
+  // }
 
   return { provider: "UNKNOWN", validatedToolCall: null };
 };
@@ -258,7 +259,7 @@ type ProviderToToolCallMap = {
   DEEPSEEK: OpenAIToolCall;
   XAI: OpenAIToolCall;
   OLLAMA: OpenAIToolCall;
-  AWS: AwsToolCall;
+  AWS: OpenAIToolCall;
   ANTHROPIC: AnthropicToolCall;
   // Use generic JSON type for unknown tool formats / new providers
   GOOGLE: JSONLiteral;
@@ -275,12 +276,13 @@ export const toOpenAIToolCall = (
   const { provider, validatedToolCall } = detectToolCallProvider(maybeToolCall);
   switch (provider) {
     case "AZURE_OPENAI":
+    case "AWS":
     case "OPENAI":
       return validatedToolCall;
     case "ANTHROPIC":
       return anthropicToolCallToOpenAI.parse(validatedToolCall);
-    case "AWS":
-      return awsToolCallToOpenAI.parse(validatedToolCall);
+    // case "AWS":
+    //   return awsToolCallToOpenAI.parse(validatedToolCall);
     case "UNKNOWN":
       return null;
     default:

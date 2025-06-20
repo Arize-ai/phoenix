@@ -11,7 +11,7 @@ export type PromptModelProvider =
   | "DEEPSEEK"
   | "XAI"
   | "OLLAMA"
-  | "BEDROCK";
+  | "AWS";
 
 /**
  * Supported prompt provider SDKs

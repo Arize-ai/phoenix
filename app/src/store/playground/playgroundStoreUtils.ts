@@ -98,6 +98,7 @@ export const convertMessageToolCallsToProvider = ({
       case "DEEPSEEK":
       case "XAI":
       case "OLLAMA":
+      case "AWS":
       case "AZURE_OPENAI": {
         return toOpenAIToolCall(toolCall) ?? toolCall;
       }
@@ -110,15 +111,15 @@ export const convertMessageToolCallsToProvider = ({
             })
           : toolCall;
       }
-      case "AWS": {
-        const maybeBedrockToolCall = toOpenAIToolCall(toolCall);
-        return maybeBedrockToolCall != null
-          ? fromOpenAIToolCall({
-              toolCall: maybeBedrockToolCall,
-              targetProvider: provider,
-            })
-          : toolCall;
-      }
+      // case "AWS": {
+      //   const maybeBedrockToolCall = toOpenAIToolCall(toolCall);
+      //   return maybeBedrockToolCall != null
+      //     ? fromOpenAIToolCall({
+      //         toolCall: maybeBedrockToolCall,
+      //         targetProvider: provider,
+      //       })
+      //     : toolCall;
+      // }
       // TODO(apowell): #5348 Add Google tool call
       case "GOOGLE":
         return toolCall;

@@ -159,6 +159,7 @@ export function processAttributeToolCalls({
         case "AZURE_OPENAI":
         case "DEEPSEEK":
         case "XAI":
+        case "AWS":
         case "OLLAMA":
           return {
             id: tool_call.id ?? "",
@@ -176,15 +177,15 @@ export function processAttributeToolCalls({
             input: toolCallArgs,
           } satisfies AnthropicToolCall;
         }
-        case "AWS": {
-          return {
-            toolSpec: {
-              name: tool_call.function?.name ?? "",
-              description: tool_call.function?.name ?? "",
-              inputSchema: toolCallArgs,
-            },
-          } satisfies AwsToolCall;
-        }
+        // case "AWS": {
+        //   return {
+        //     toolSpec: {
+        //       name: tool_call.function?.name ?? "",
+        //       description: tool_call.function?.name ?? "",
+        //       inputSchema: toolCallArgs,
+        //     },
+        //   } satisfies AwsToolCall;
+        // }
         // TODO(apowell): #5348 Add Google tool call
         case "GOOGLE":
           return {
@@ -955,12 +956,13 @@ export const createToolCallForProvider = (
     case "AZURE_OPENAI":
     case "DEEPSEEK":
     case "XAI":
+    case "AWS":
     case "OLLAMA":
       return createOpenAIToolCall();
     case "ANTHROPIC":
       return createAnthropicToolCall();
-    case "AWS":
-      return createAwsToolCall();
+    // case "AWS":
+    //   return createAwsToolCall();
     // TODO(apowell): #5348 Add Google tool call
     case "GOOGLE":
       return createOpenAIToolCall();
