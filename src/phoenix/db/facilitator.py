@@ -21,6 +21,7 @@ from phoenix.auth import (
 from phoenix.config import (
     get_env_admins,
     get_env_default_admin_initial_password,
+    get_env_default_retention_policy_days,
     get_env_disable_basic_auth,
 )
 from phoenix.db import models
@@ -249,7 +250,9 @@ async def _ensure_default_project_trace_retention_policy(db: DbSessionFactory) -
         ):
             return
         cron_expression = TraceRetentionCronExpression(root="0 0 * * 0")
-        rule = TraceRetentionRule(root=MaxDaysRule(max_days=0))
+        rule = TraceRetentionRule(
+            root=MaxDaysRule(max_days=get_env_default_retention_policy_days())
+        )
         await session.execute(
             sa.insert(models.ProjectTraceRetentionPolicy),
             [
