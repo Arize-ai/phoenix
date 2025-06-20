@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef } from "react";
-import { graphql, usePaginationFragment } from "react-relay";
+import { graphql, readInlineData, usePaginationFragment } from "react-relay";
 import {
   ColumnDef,
   flexRender,
@@ -20,12 +20,36 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { EditModelButton } from "@phoenix/pages/settings/EditModelButton";
 import { getProviderName } from "@phoenix/utils/generativeUtils";
 
+import { ModelsTable_generativeModel$key } from "./__generated__/ModelsTable_generativeModel.graphql";
 import { ModelsTable_generativeModels$key } from "./__generated__/ModelsTable_generativeModels.graphql";
 import { ModelsTableModelsQuery } from "./__generated__/ModelsTableModelsQuery.graphql";
 import { CloneModelButton } from "./CloneModelButton";
 import { DeleteModelButton } from "./DeleteModelButton";
 
 const PAGE_SIZE = 100;
+
+const GENERATIVE_MODEL_FRAGMENT = graphql`
+  fragment ModelsTable_generativeModel on GenerativeModel @inline {
+    id
+    name
+    provider
+    namePattern
+    providerKey
+    createdAt
+    updatedAt
+    lastUsedAt
+    isOverride
+    tokenCost {
+      input
+      output
+      cacheRead
+      cacheWrite
+      promptAudio
+      completionAudio
+      reasoning
+    }
+  }
+`;
 
 type ModelsTableProps = {
   query: ModelsTable_generativeModels$key;
@@ -49,25 +73,8 @@ export function ModelsTable(props: ModelsTableProps) {
           @connection(key: "ModelsTable_generativeModels") {
           __id
           edges {
-            model: node {
-              id
-              name
-              provider
-              namePattern
-              providerKey
-              createdAt
-              updatedAt
-              lastUsedAt
-              isOverride
-              tokenCost {
-                input
-                output
-                cacheRead
-                cacheWrite
-                promptAudio
-                completionAudio
-                reasoning
-              }
+            node {
+              ...ModelsTable_generativeModel
             }
           }
         }
@@ -81,7 +88,12 @@ export function ModelsTable(props: ModelsTableProps) {
   const tableData = useMemo(
     () =>
       data.generativeModels.edges.map((edge) => {
-        return edge.model;
+        const node = edge.node;
+        const data = readInlineData<ModelsTable_generativeModel$key>(
+          GENERATIVE_MODEL_FRAGMENT,
+          node
+        );
+        return data;
       }),
     [data]
   );
@@ -242,7 +254,10 @@ export function ModelsTable(props: ModelsTableProps) {
               justifyContent="end"
             >
               {isOverride && <EditModelButton modelId={row.original.id} />}
-              <CloneModelButton modelId={row.original.id} />
+              <CloneModelButton
+                modelId={row.original.id}
+                connectionId={connectionId}
+              />
               {isOverride && (
                 <DeleteModelButton
                   modelId={row.original.id}
