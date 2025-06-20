@@ -254,7 +254,10 @@ export function ModelsTable(props: ModelsTableProps) {
               justifyContent="end"
             >
               {isOverride && <EditModelButton modelId={row.original.id} />}
-              <CloneModelButton modelId={row.original.id} />
+              <CloneModelButton
+                modelId={row.original.id}
+                connectionId={connectionId}
+              />
               {isOverride && (
                 <DeleteModelButton
                   modelId={row.original.id}
