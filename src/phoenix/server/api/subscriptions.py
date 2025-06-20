@@ -175,13 +175,14 @@ class Subscription:
             db_span = get_db_span(span, db_trace)
             session.add(db_span)
             await session.flush()
-            span_cost = _calculate_span_cost(
-                span.attributes,
-                db_span.start_time,
-                db_span.id,
-                db_span.trace_rowid,
+            span_cost = info.context.span_cost_calculator.calculate_cost(
+                start_time=db_span.start_time,
+                attributes=span.attributes,
             )
-            session.add(span_cost) if span_cost else None
+            if span_cost:
+                span_cost.span_rowid = db_span.id
+                span_cost.trace_rowid = db_span.trace_rowid
+                session.add(span_cost)
 
         info.context.event_queue.put(SpanInsertEvent(ids=(playground_project_id,)))
         yield ChatCompletionSubscriptionResult(span=Span(span_rowid=db_span.id, db_span=db_span))
@@ -661,7 +662,7 @@ def _calculate_span_cost(
         span_rowid=span_id,
         span_start_time=span_start_time,
         trace_rowid=trace_rowid,
-        generative_model_id=model_id,
+        model_id=model_id,
         prompt_cost=input_token_cost,
         completion_cost=output_token_cost,
         total_cost=total_token_cost,

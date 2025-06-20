@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0f935ce0113ec4dd93aa05e2765c5dc1>>
+ * @generated SignedSource<<39287e2111dc8b3ac9c684a540eff387>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,6 +18,7 @@ export type CreateModelMutationInput = {
 };
 export type CostPerTokenInput = {
   costPerToken: number;
+  isPrompt?: boolean | null;
   tokenType: string;
 };
 export type CloneModelButtonMutation$variables = {

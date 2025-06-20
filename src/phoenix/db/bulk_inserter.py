@@ -12,7 +12,6 @@ from openinference.semconv.trace import SpanAttributes
 from typing_extensions import TypeAlias
 
 import phoenix.trace.v1 as pb
-from phoenix.db import models
 from phoenix.db.insertion.constants import DEFAULT_RETRY_ALLOWANCE, DEFAULT_RETRY_DELAY_SEC
 from phoenix.db.insertion.document_annotation import DocumentAnnotationQueueInserter
 from phoenix.db.insertion.evaluation import (
@@ -24,11 +23,9 @@ from phoenix.db.insertion.span import SpanInsertionEvent, insert_span
 from phoenix.db.insertion.span_annotation import SpanAnnotationQueueInserter
 from phoenix.db.insertion.trace_annotation import TraceAnnotationQueueInserter
 from phoenix.db.insertion.types import Insertables, Precursors
-from phoenix.db.models import SpanCost
-from phoenix.server.cost_tracking.cost_lookup import get_cost_table
+from phoenix.server.daemons.span_cost_calculator import QueueItem, SpanCostCalculator
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.types import CanPutItem, DbSessionFactory
-from phoenix.trace.attributes import get_attribute_value
 from phoenix.trace.schemas import Span
 
 logger = logging.getLogger(__name__)
@@ -47,6 +44,7 @@ class BulkInserter:
         db: DbSessionFactory,
         *,
         event_queue: CanPutItem[DmlEvent],
+        span_cost_calculator: SpanCostCalculator,
         initial_batch_of_spans: Optional[Iterable[tuple[Span, str]]] = None,
         initial_batch_of_evaluations: Optional[Iterable[pb.Evaluation]] = None,
         sleep: float = 0.1,
@@ -83,6 +81,7 @@ class BulkInserter:
         self._retry_delay_sec = retry_delay_sec
         self._retry_allowance = retry_allowance
         self._queue_inserters = _QueueInserters(db, self._retry_delay_sec, self._retry_allowance)
+        self._span_cost_calculator = span_cost_calculator
 
     async def __aenter__(
         self,
@@ -203,19 +202,14 @@ class BulkInserter:
                             )
                         if result is not None:
                             project_ids.add(result.project_rowid)
-
-                            try:
-                                span_cost = _calculate_span_cost(
-                                    span,
-                                    result.span_rowid,
-                                    result.trace_rowid,
+                            self._span_cost_calculator.put_nowait(
+                                QueueItem(
+                                    span_rowid=result.span_rowid,
+                                    trace_rowid=result.trace_rowid,
+                                    attributes=span.attributes,
+                                    span_start_time=span.start_time,
                                 )
-                                if span_cost is not None:
-                                    session.add(span_cost)
-                                    await session.flush()
-                            except Exception as e:
-                                logger.exception(e)
-                                pass
+                            )
 
                 if self._enable_prometheus:
                     from phoenix.server.prometheus import BULK_LOADER_INSERTION_TIME
@@ -311,214 +305,6 @@ class _QueueInserters:
     @_enqueue.register(Insertables.DocumentAnnotation)
     async def _(self, item: Precursors.DocumentAnnotation) -> None:
         await self._document_annotations.enqueue(item)
-
-
-def _calculate_span_cost(
-    span: Span,
-    span_rowid: int,
-    trace_rowid: int,
-) -> Optional[SpanCost]:
-    llm_model_name = get_attribute_value(span.attributes, LLM_MODEL_NAME)
-    if not llm_model_name:
-        return None
-
-    llm_provider = get_attribute_value(span.attributes, LLM_PROVIDER)
-    cost_table = get_cost_table()
-    cost_table_result = cost_table.get_cost(provider=llm_provider, model_name=llm_model_name)
-    if not cost_table_result:
-        return None
-
-    _, token_costs = cost_table_result[0]
-    model_id = token_costs.model_id
-    cost_per_prompt_audio_token = token_costs.prompt_audio
-    cost_per_completion_audio_token = token_costs.completion_audio
-    cost_per_cache_read_token = token_costs.cache_read
-    cost_per_cache_write_token = token_costs.cache_write
-    cost_per_input_token = token_costs.input
-    cost_per_output_token = token_costs.output
-    cost_per_reasoning_token = token_costs.reasoning
-
-    llm_prompt_audio_tokens = get_attribute_value(
-        span.attributes,
-        LLM_TOKEN_COUNT_PROMPT_DETAILS_AUDIO,
-    )
-    llm_completion_audio_tokens = get_attribute_value(
-        span.attributes,
-        LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO,
-    )
-    llm_cache_read_tokens = get_attribute_value(
-        span.attributes,
-        LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ,
-    )
-    llm_cache_write_tokens = get_attribute_value(
-        span.attributes,
-        LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE,
-    )
-    llm_completion_tokens = get_attribute_value(
-        span.attributes,
-        LLM_TOKEN_COUNT_COMPLETION,
-    )
-    llm_prompt_tokens = get_attribute_value(
-        span.attributes,
-        LLM_TOKEN_COUNT_PROMPT,
-    )
-    llm_reasoning_tokens = get_attribute_value(
-        span.attributes,
-        LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING,
-    )
-
-    input_tokens = None
-    if llm_prompt_tokens is not None:
-        input_tokens = max(
-            0,
-            llm_prompt_tokens
-            - (llm_cache_read_tokens or 0)
-            - (llm_cache_write_tokens or 0)
-            - (llm_prompt_audio_tokens or 0),
-        )
-
-    output_tokens = None
-    if llm_completion_tokens is not None:
-        output_tokens = max(
-            0,
-            llm_completion_tokens
-            - (llm_reasoning_tokens or 0)
-            - (llm_completion_audio_tokens or 0),
-        )
-
-    input_token_cost = (
-        input_tokens * cost_per_input_token
-        if input_tokens is not None and cost_per_input_token is not None
-        else None
-    )
-    cache_read_token_cost = (
-        llm_cache_read_tokens * cost_per_cache_read_token
-        if llm_cache_read_tokens is not None and cost_per_cache_read_token is not None
-        else None
-    )
-    cache_write_token_cost = (
-        llm_cache_write_tokens * cost_per_cache_write_token
-        if llm_cache_write_tokens is not None and cost_per_cache_write_token is not None
-        else None
-    )
-    prompt_audio_token_cost = (
-        llm_prompt_audio_tokens * cost_per_prompt_audio_token
-        if llm_prompt_audio_tokens is not None and cost_per_prompt_audio_token is not None
-        else None
-    )
-    output_token_cost = (
-        output_tokens * cost_per_output_token
-        if output_tokens is not None and cost_per_output_token is not None
-        else None
-    )
-    reasoning_token_cost = (
-        llm_reasoning_tokens * cost_per_reasoning_token
-        if llm_reasoning_tokens is not None and cost_per_reasoning_token is not None
-        else None
-    )
-    completion_audio_token_cost = (
-        llm_completion_audio_tokens * cost_per_completion_audio_token
-        if llm_completion_audio_tokens is not None and cost_per_completion_audio_token is not None
-        else None
-    )
-    costs = [
-        cost
-        for cost in [
-            input_token_cost,
-            cache_read_token_cost,
-            cache_write_token_cost,
-            prompt_audio_token_cost,
-            output_token_cost,
-            reasoning_token_cost,
-            completion_audio_token_cost,
-        ]
-        if cost is not None
-    ]
-    if not costs:
-        return None
-
-    span_cost = models.SpanCost(
-        span_rowid=span_rowid,
-        span_start_time=span.start_time,
-        trace_rowid=trace_rowid,
-        generative_model_id=model_id,
-    )
-
-    cost_details: list[models.SpanCostDetail] = []
-    if input_token_cost is not None:
-        cost_details.append(
-            models.SpanCostDetail(
-                token_type="input",
-                is_prompt=True,
-                cost=input_token_cost,
-                tokens=input_tokens,
-                cost_per_token=cost_per_input_token,
-            )
-        )
-    if cache_read_token_cost is not None:
-        cost_details.append(
-            models.SpanCostDetail(
-                token_type="cache_read",
-                is_prompt=True,
-                cost=cache_read_token_cost,
-                tokens=llm_cache_read_tokens,
-                cost_per_token=cost_per_cache_read_token,
-            )
-        )
-    if cache_write_token_cost is not None:
-        cost_details.append(
-            models.SpanCostDetail(
-                token_type="cache_write",
-                is_prompt=True,
-                cost=cache_write_token_cost,
-                tokens=llm_cache_write_tokens,
-                cost_per_token=cost_per_cache_write_token,
-            )
-        )
-    if prompt_audio_token_cost is not None:
-        cost_details.append(
-            models.SpanCostDetail(
-                token_type="audio",
-                is_prompt=True,
-                cost=prompt_audio_token_cost,
-                tokens=llm_prompt_audio_tokens,
-                cost_per_token=cost_per_prompt_audio_token,
-            )
-        )
-    if output_token_cost is not None:
-        cost_details.append(
-            models.SpanCostDetail(
-                token_type="output",
-                is_prompt=False,
-                cost=output_token_cost,
-                tokens=output_tokens,
-                cost_per_token=cost_per_output_token,
-            )
-        )
-    if reasoning_token_cost is not None:
-        cost_details.append(
-            models.SpanCostDetail(
-                token_type="reasoning",
-                is_prompt=False,
-                cost=reasoning_token_cost,
-                tokens=llm_reasoning_tokens,
-                cost_per_token=cost_per_reasoning_token,
-            )
-        )
-    if completion_audio_token_cost is not None:
-        cost_details.append(
-            models.SpanCostDetail(
-                token_type="audio",
-                is_prompt=False,
-                cost=completion_audio_token_cost,
-                tokens=llm_completion_audio_tokens,
-                cost_per_token=cost_per_completion_audio_token,
-            )
-        )
-    for detail in cost_details:
-        span_cost.append_detail(detail)
-
-    return span_cost
 
 
 LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME

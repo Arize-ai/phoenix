@@ -54,6 +54,10 @@ from phoenix.db.types.annotation_configs import (
 )
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.token_price_customization import (
+    TokenPriceCustomization,
+    TokenPriceCustomizationParser,
+)
 from phoenix.db.types.trace_retention import TraceRetentionCronExpression, TraceRetentionRule
 from phoenix.server.api.helpers.prompts.models import (
     PromptInvocationParameters,
@@ -391,6 +395,22 @@ class _AnnotationConfig(TypeDecorator[AnnotationConfigType]):
         self, value: Optional[str], _: Dialect
     ) -> Optional[AnnotationConfigType]:
         return AnnotationConfigModel.model_validate(value).root if value is not None else None
+
+
+class _TokenCustomization(TypeDecorator[TokenPriceCustomization]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON
+
+    def process_bind_param(
+        self, value: Optional[TokenPriceCustomization], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        return value.model_dump() if value is not None else None
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[TokenPriceCustomization]:
+        return TokenPriceCustomizationParser.parse(value)
 
 
 class ExperimentRunOutput(TypedDict, total=False):
@@ -1319,7 +1339,8 @@ class GenerativeModel(Base):
     __tablename__ = "generative_models"
     name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     provider: Mapped[Optional[str]]
-    name_pattern: Mapped[str] = mapped_column(String, nullable=False)
+    start_time: Mapped[Optional[datetime]]
+    llm_name_pattern: Mapped[str] = mapped_column(String, nullable=False)
     is_override: Mapped[bool] = mapped_column(Boolean, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp,
@@ -1331,28 +1352,36 @@ class GenerativeModel(Base):
         onupdate=func.now(),
     )
 
-    costs: Mapped[list["ModelCost"]] = relationship(
-        "ModelCost",
+    token_prices: Mapped[list["TokenPrice"]] = relationship(
+        "TokenPrice",
         back_populates="model",
+        cascade="all, delete-orphan",
+        uselist=True,
     )
 
 
-class ModelCost(Base):
-    __tablename__ = "model_costs"
+class TokenPrice(Base):
+    __tablename__ = "token_prices"
     model_id: Mapped[int] = mapped_column(
         ForeignKey("generative_models.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    token_type: Mapped[str] = mapped_column(String, nullable=False)
-    cost_per_token: Mapped[float] = mapped_column(Float, nullable=False)
+    token_type: Mapped[str]
+    is_prompt: Mapped[bool]
+    base_rate: Mapped[float]
+    customization: Mapped[TokenPriceCustomization] = mapped_column(_TokenCustomization)
 
-    model: Mapped["GenerativeModel"] = relationship("GenerativeModel", back_populates="costs")
+    model: Mapped["GenerativeModel"] = relationship(
+        "GenerativeModel",
+        back_populates="token_prices",
+    )
 
     __table_args__ = (
         UniqueConstraint(
             "model_id",
             "token_type",
+            "is_prompt",
         ),
     )
 
@@ -1548,9 +1577,12 @@ class SpanCost(Base):
         nullable=False,
         index=True,
     )
-    generative_model_id: Mapped[int] = mapped_column(
+    model_id: Mapped[int] = mapped_column(
         sa.Integer,
-        ForeignKey("generative_models.id", ondelete="CASCADE"),
+        ForeignKey(
+            "generative_models.id",
+            ondelete="CASCADE",
+        ),
         nullable=False,
         index=True,
     )

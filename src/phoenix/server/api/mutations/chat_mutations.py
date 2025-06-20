@@ -451,8 +451,13 @@ class ChatCompletionMutationMixin:
             session.add(trace)
             session.add(span)
             await session.flush()
-            span_cost = _calculate_span_cost(span.attributes, span.start_time, span.id, trace.id)
+            span_cost = info.context.span_cost_calculator.calculate_cost(
+                start_time=span.start_time,
+                attributes=span.attributes,
+            )
             if span_cost:
+                span_cost.span_rowid = span.id
+                span_cost.trace_rowid = trace.id
                 session.add(span_cost)
                 await session.flush()
 
@@ -665,7 +670,7 @@ def _calculate_span_cost(
         span_start_time=span_start_time,
         span_rowid=span_rowid,
         trace_rowid=trace_rowid,
-        generative_model_id=model_id,
+        model_id=model_id,
         total_cost=total_cost,
         total_tokens=total_tokens,
         prompt_cost=input_token_cost,
