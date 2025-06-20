@@ -57,6 +57,7 @@ export function ModelsTable(props: ModelsTableProps) {
               providerKey
               createdAt
               updatedAt
+              lastUsedAt
               isOverride
               tokenCost {
                 input
@@ -197,6 +198,11 @@ export function ModelsTable(props: ModelsTableProps) {
       {
         header: "updated at",
         accessorKey: "updatedAt",
+        cell: TimestampCell,
+      },
+      {
+        header: "last used at",
+        accessorKey: "lastUsedAt",
         cell: TimestampCell,
       },
       {
