@@ -21,7 +21,7 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Card, CardProps } from "@arizeai/components";
+import { Card, CardProps, DialogContainer } from "@arizeai/components";
 
 import {
   Button,
@@ -147,6 +147,7 @@ const annotationTooltipExtraCSS = css`
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const { datasetId, experimentIds, displayFullText } = props;
   const [filterCondition, setFilterCondition] = useState("");
+  const [dialog, setDialog] = useState<ReactNode>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<
@@ -422,7 +423,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         return run ? (
           <CellWithControlsWrap controls={runControls}>
             <PaddedCell>
-              <ExperimentRunOutput {...run} displayFullText={displayFullText} />
+              <ExperimentRunOutput {...run} displayFullText={displayFullText} setDialog={setDialog} />
             </PaddedCell>
           </CellWithControlsWrap>
         ) : (
@@ -615,6 +616,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           </table>
         </div>
       </Flex>
+      <DialogContainer onDismiss={() => setDialog(null)}>
+        {dialog}
+      </DialogContainer>
     </View>
   );
 }
@@ -735,6 +739,7 @@ function ExperimentRowActionMenu(props: {
 function ExperimentRunOutput(
   props: ExperimentRun & {
     displayFullText: boolean;
+    setDialog: React.Dispatch<React.SetStateAction<ReactNode>>;
   }
 ) {
   const { output, error, startTime, endTime, annotations, displayFullText } =
@@ -786,7 +791,18 @@ function ExperimentRunOutput(
               <AnnotationLabel
                 annotation={annotation}
                 onClick={() => {
-                  // TODO: Convert to DialogTrigger pattern when needed
+                  const trace = annotation.trace;
+                  if (trace) {
+                    startTransition(() => {
+                      props.setDialog(
+                        <TraceDetailsDialog
+                          traceId={trace.traceId}
+                          projectId={trace.projectId}
+                          title={`Evaluator Trace: ${annotation.name}`}
+                        />
+                      );
+                    });
+                  }
                 }}
               />
             </AnnotationTooltip>
