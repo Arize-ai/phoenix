@@ -1,5 +1,6 @@
 # Generated dirs
 .vscode
+!.vscode/extensions.json
 .idea
 .coverage
 node_modules
@@ -83,3 +84,6 @@ packages/phoenix-otel/docs/build/
 packages/phoenix-client/docs/build/
 packages/phoenix-evals/docs/build/
 /examples/observe_agents/keys
+
+# Deployment
+helm/charts/*.tgz

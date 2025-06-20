@@ -2,6 +2,7 @@ import { ReactNode, Suspense, useCallback, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate } from "react-router";
 
+// eslint-disable-next-line deprecate/import
 import { ActionMenu, Dialog, DialogContainer, Item } from "@arizeai/components";
 
 import { Flex, Heading, Icon, Icons, Loading, View } from "@phoenix/components";

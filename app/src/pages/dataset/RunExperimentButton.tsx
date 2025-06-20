@@ -1,12 +1,15 @@
-import { ReactNode, useCallback, useMemo, useState } from "react";
-
-import { ButtonProps, Dialog, DialogContainer } from "@arizeai/components";
+import { useCallback, useState } from "react";
 
 import {
   Button,
+  ButtonProps,
+  Dialog,
+  DialogTrigger,
   ExternalLink,
   Icon,
   Icons,
+  Modal,
+  ModalOverlay,
   Text,
   View,
 } from "@phoenix/components";
@@ -15,6 +18,13 @@ import { CodeLanguage, CodeLanguageRadioGroup } from "@phoenix/components/code";
 import { CodeWrap } from "@phoenix/components/code/CodeWrap";
 import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";
 import { TypeScriptBlockWithCopy } from "@phoenix/components/code/TypeScriptBlockWithCopy";
+import {
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+} from "@phoenix/components/dialog";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 
 const INSTALL_PHOENIX_PYTHON = `pip install arize-phoenix>=${window.Config.platformVersion}`;
@@ -104,7 +114,7 @@ function RunExperimentPythonExample() {
   const version = useDatasetContext((state) => state.latestVersion);
   const isAuthEnabled = window.Config.authenticationEnabled;
 
-  const getDatasetPythonCode = useMemo(() => {
+  const getDatasetPythonCode = useCallback(() => {
     return (
       `import phoenix as px\n` +
       `# Initialize a phoenix client\n` +
@@ -149,7 +159,7 @@ function RunExperimentPythonExample() {
         <Text>Pull down this dataset</Text>
       </View>
       <CodeWrap>
-        <PythonBlockWithCopy value={getDatasetPythonCode} />
+        <PythonBlockWithCopy value={getDatasetPythonCode()} />
       </CodeWrap>
       <View paddingTop="size-100" paddingBottom="size-100">
         <Text>Define your task</Text>
@@ -201,17 +211,28 @@ function RunExperimentTypeScriptExample() {
 function RunExperimentExampleSwitcher() {
   const [language, setLanguage] = useState<CodeLanguage>("Python");
   return (
-    <Dialog title="Run Experiment" size="XL">
-      <View padding="size-400" overflow="auto">
-        <View paddingBottom="size-200">
-          <CodeLanguageRadioGroup language={language} onChange={setLanguage} />
+    <Dialog>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Run Experiment</DialogTitle>
+          <DialogTitleExtra>
+            <DialogCloseButton slot="close" />
+          </DialogTitleExtra>
+        </DialogHeader>
+        <View padding="size-400" overflow="auto">
+          <View paddingBottom="size-200">
+            <CodeLanguageRadioGroup
+              language={language}
+              onChange={setLanguage}
+            />
+          </View>
+          {language === "Python" ? (
+            <RunExperimentPythonExample />
+          ) : (
+            <RunExperimentTypeScriptExample />
+          )}
         </View>
-        {language === "Python" ? (
-          <RunExperimentPythonExample />
-        ) : (
-          <RunExperimentTypeScriptExample />
-        )}
-      </View>
+      </DialogContent>
     </Dialog>
   );
 }
@@ -221,29 +242,20 @@ export function RunExperimentButton({
 }: {
   variant?: ButtonProps["variant"];
 }) {
-  const [dialog, setDialog] = useState<ReactNode>(null);
-  const onRunExample = useCallback(() => {
-    setDialog(<RunExperimentExampleSwitcher />);
-  }, []);
   return (
-    <>
+    <DialogTrigger>
       <Button
         size="S"
         variant={variant}
         leadingVisual={<Icon svg={<Icons.ExperimentOutline />} />}
-        onPress={onRunExample}
       >
         Run Experiment
       </Button>
-      <DialogContainer
-        isDismissable
-        type="slideOver"
-        onDismiss={() => {
-          setDialog(null);
-        }}
-      >
-        {dialog}
-      </DialogContainer>
-    </>
+      <ModalOverlay isDismissable>
+        <Modal variant="slideover" size="L">
+          <RunExperimentExampleSwitcher />
+        </Modal>
+      </ModalOverlay>
+    </DialogTrigger>
   );
 }

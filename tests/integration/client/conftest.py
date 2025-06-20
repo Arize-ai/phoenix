@@ -102,9 +102,15 @@ def _span_ids(
     span_id1 = format_span_id(sc1.span_id)
     assert (sc2 := span2.get_span_context())  # type: ignore[no-untyped-call]
     span_id2 = format_span_id(sc2.span_id)
+    span_ids = [span_id1, span_id2]
 
     def query_fn() -> Optional[tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]]]:
-        res, _ = _gql(_admin_secret, query=QUERY, operation_name="GetSpanIds")
+        res, _ = _gql(
+            _admin_secret,
+            query=QUERY,
+            operation_name="GetSpanIds",
+            variables={"filterCondition": f"span_id in {span_ids}"},
+        )
         gids = {e["node"]["spanId"]: e["node"]["id"] for e in res["data"]["node"]["spans"]["edges"]}
         if span_id1 in gids and span_id2 in gids:
             return (span_id1, gids[span_id1]), (span_id2, gids[span_id2])
@@ -114,10 +120,10 @@ def _span_ids(
 
 
 QUERY = """
-query GetSpanIds {
+query GetSpanIds ($filterCondition: String) {
   node(id: "UHJvamVjdDox") {
     ... on Project {
-      spans {
+      spans (filterCondition: $filterCondition) {
         edges {
           node {
             id

@@ -38,6 +38,9 @@ export function SystemAPIKeysTable({
           createdAt
           expiresAt
         }
+        viewer {
+          ...APIKeysTableFragment
+        }
       }
     `,
     query

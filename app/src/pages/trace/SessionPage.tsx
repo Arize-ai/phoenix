@@ -1,9 +1,19 @@
 import { useLoaderData, useNavigate, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Dialog, DialogContainer } from "@arizeai/components";
-
-import { ErrorBoundary } from "@phoenix/components";
+import {
+  Dialog,
+  ErrorBoundary,
+  Modal,
+  ModalOverlay,
+} from "@phoenix/components";
+import {
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+} from "@phoenix/components/dialog";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { sessionLoader } from "@phoenix/pages/trace/sessionLoader";
 
@@ -17,21 +27,42 @@ export function SessionPage() {
   invariant(loaderData, "loaderData is required");
   const { sessionId } = useParams();
   const navigate = useNavigate();
-  const { rootPath } = useProjectRootPath();
+  const { rootPath, tab } = useProjectRootPath();
+
   return (
-    <DialogContainer
-      type="slideOver"
-      isDismissable
-      onDismiss={() => navigate(`${rootPath}/sessions`)}
+    <ModalOverlay
+      isOpen
+      onOpenChange={(isOpen) => {
+        if (!isOpen) {
+          navigate(`${rootPath}/${tab}`);
+        }
+      }}
     >
-      <Dialog
+      <Modal
+        variant="slideover"
         size="fullscreen"
-        title={`Session ID: ${loaderData.session?.sessionId ?? "--"}`}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            navigate(`${rootPath}/${tab}`);
+          }
+        }}
       >
-        <ErrorBoundary>
-          <SessionDetails sessionId={sessionId as string} />
-        </ErrorBoundary>
-      </Dialog>
-    </DialogContainer>
+        <Dialog>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                Session ID: {loaderData.session?.sessionId ?? "--"}
+              </DialogTitle>
+              <DialogTitleExtra>
+                <DialogCloseButton slot="close" />
+              </DialogTitleExtra>
+            </DialogHeader>
+            <ErrorBoundary>
+              <SessionDetails sessionId={sessionId as string} />
+            </ErrorBoundary>
+          </DialogContent>
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
   );
 }

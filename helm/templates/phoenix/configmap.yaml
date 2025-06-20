@@ -10,6 +10,11 @@ data:
   PHOENIX_ENABLE_AUTH: {{ .Values.auth.enableAuth | quote }}
   PHOENIX_USE_SECURE_COOKIES: {{ .Values.auth.useSecureCookies | quote }}
   PHOENIX_CSRF_TRUSTED_ORIGINS: {{ join "," .Values.auth.csrfTrustedOrigins | quote }}
+  PHOENIX_ALLOWED_ORIGINS: {{ join "," .Values.auth.allowedOrigins | quote }}
+  PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES: {{ .Values.auth.accessTokenExpiryMinutes | quote }}
+  PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES: {{ .Values.auth.passwordResetTokenExpiryMinutes | quote }}
+  PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES: {{ .Values.auth.refreshTokenExpiryMinutes | quote }}
+  
   # Server configuration
   PHOENIX_HOST: {{ .Values.server.host | quote }}
   PHOENIX_PORT: {{ .Values.server.port | quote }}
@@ -40,6 +45,16 @@ data:
   PHOENIX_LOGGING_LEVEL: {{ .Values.logging.level | quote }}
   PHOENIX_DB_LOGGING_LEVEL: {{ .Values.logging.dbLevel | quote }}
   PHOENIX_LOG_MIGRATIONS: {{ .Values.logging.logMigrations | quote }}
+
+  # TLS configuration
+  PHOENIX_TLS_ENABLED: {{ .Values.tls.enabled | quote }}
+  PHOENIX_TLS_ENABLED_FOR_GRPC: {{ .Values.tls.enabledForGrpc | quote }}
+  PHOENIX_TLS_ENABLED_FOR_HTTP: {{ .Values.tls.enabledForHttp | quote }}
+  PHOENIX_TLS_CERT_FILE: {{ .Values.tls.certFile | quote }}
+  PHOENIX_TLS_KEY_FILE: {{ .Values.tls.keyFile | quote }}
+  PHOENIX_TLS_KEY_FILE_PASSWORD: {{ .Values.tls.keyFilePassword | default "" | quote }}
+  PHOENIX_TLS_CA_FILE: {{ .Values.tls.caFile | quote }}
+  PHOENIX_TLS_VERIFY_CLIENT: {{ .Values.tls.verifyClient | quote }}
 
   # Instrumentation
   PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT: {{ .Values.instrumentation.otlpTraceCollectorHttpEndpoint | quote }}
