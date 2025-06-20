@@ -1581,7 +1581,7 @@ class SpanCost(Base):
         sa.Integer,
         ForeignKey(
             "generative_models.id",
-            ondelete="SET NULL",
+            ondelete="CASCADE",
         ),
         nullable=False,
         index=True,
