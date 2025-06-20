@@ -9,7 +9,6 @@ export const ModelProviders: Record<ModelProvider, string> = {
   DEEPSEEK: "DeepSeek",
   XAI: "xAI",
   OLLAMA: "Ollama",
-  BEDROCK: "Bedrock",
   AWS: "AWS",
 };
 
@@ -82,11 +81,6 @@ export const ProviderToCredentialsConfigMap: Record<
   XAI: [{ envVarName: "XAI_API_KEY", isRequired: true }],
   OLLAMA: [],
   AWS: [
-    { envVarName: "AWS_ACCESS_KEY_ID", isRequired: true },
-    { envVarName: "AWS_SECRET_ACCESS_KEY", isRequired: true },
-    { envVarName: "AWS_SESSION_TOKEN", isRequired: false },
-  ],
-  BEDROCK: [
     { envVarName: "AWS_ACCESS_KEY_ID", isRequired: true },
     { envVarName: "AWS_SECRET_ACCESS_KEY", isRequired: true },
     { envVarName: "AWS_SESSION_TOKEN", isRequired: false },

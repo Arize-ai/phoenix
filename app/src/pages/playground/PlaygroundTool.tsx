@@ -127,7 +127,6 @@ export function PlaygroundTool({
       case "ANTHROPIC":
         return anthropicToolDefinitionJSONSchema as JSONSchema7;
       case "AWS":
-      case "BEDROCK":
         return awsToolDefinitionJSONSchema as JSONSchema7;
       case "GOOGLE":
         return null;

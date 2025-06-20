@@ -22,8 +22,8 @@ import {
   AnthropicToolCall,
   AwsToolCall,
   createAnthropicToolCall,
-  createOpenAIToolCall,
   createAwsToolCall,
+  createOpenAIToolCall,
   LlmProviderToolCall,
   OpenAIToolCall,
 } from "@phoenix/schemas/toolCallSchemas";
@@ -176,14 +176,13 @@ export function processAttributeToolCalls({
             input: toolCallArgs,
           } satisfies AnthropicToolCall;
         }
-        case "BEDROCK":
         case "AWS": {
           return {
             toolSpec: {
               name: tool_call.function?.name ?? "",
               description: tool_call.function?.name ?? "",
               inputSchema: toolCallArgs,
-            }
+            },
           } satisfies AwsToolCall;
         }
         // TODO(apowell): #5348 Add Google tool call
@@ -353,9 +352,9 @@ export function openInferenceModelProviderToPhoenixModelProvider(
       return "OPENAI";
     case "anthropic":
       return "ANTHROPIC";
-    case "bedrock":
     case "aws":
-      return "BEDROCK";
+    case "bedrock":
+      return "AWS";
     case "google":
       return "GOOGLE";
     case "azure":
@@ -890,7 +889,6 @@ export const getToolName = (tool: Tool): string | null => {
       return validatedToolDefinition.function.name;
     case "ANTHROPIC":
       return validatedToolDefinition.name;
-    case "BEDROCK":
     case "AWS":
       return validatedToolDefinition.toolSpec.name;
     case "UNKNOWN":
@@ -928,7 +926,6 @@ export const createToolForProvider = ({
         id: generateToolId(),
         definition: createAnthropicToolDefinition(toolNumber),
       };
-    case "BEDROCK":
     case "AWS":
       return {
         id: generateToolId(),
@@ -959,7 +956,6 @@ export const createToolCallForProvider = (
     case "DEEPSEEK":
     case "XAI":
     case "OLLAMA":
-    case "BEDROCK":
       return createOpenAIToolCall();
     case "ANTHROPIC":
       return createAnthropicToolCall();
@@ -1085,7 +1081,7 @@ const getBaseChatCompletionInput = ({
       : {};
 
   const bedrockModelParams =
-    instance.model.provider === "BEDROCK"
+    instance.model.provider === "AWS"
       ? {
           region: instance.model.region,
         }

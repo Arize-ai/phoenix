@@ -96,7 +96,6 @@ export function ChatMessageToolCallsEditor({
       case "ANTHROPIC":
         return anthropicToolCallsJSONSchema as JSONSchema7;
       // TODO(apowell): #5348 Add Google tool calls schema
-      case "BEDROCK":
       case "AWS":
         return awsToolCallsJSONSchema as JSONSchema7;
       case "GOOGLE":

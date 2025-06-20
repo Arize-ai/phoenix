@@ -56,7 +56,6 @@ export const findToolChoiceType = (
     case "DEEPSEEK":
     case "XAI":
     case "OLLAMA":
-    case "BEDROCK":
     case "AWS":
     case "OPENAI":
       if (
@@ -241,7 +240,7 @@ export function ToolChoiceSelector<
             case "DEEPSEEK":
             case "XAI":
             case "OLLAMA":
-            case "BEDROCK":
+            case "AWS":
             case "OPENAI":
               onChange(
                 makeOpenAIToolChoice({
@@ -269,7 +268,7 @@ export function ToolChoiceSelector<
             case "DEEPSEEK":
             case "XAI":
             case "OLLAMA":
-            case "BEDROCK":
+            case "AWS":
             case "OPENAI":
               onChange(
                 makeOpenAIToolChoice(

@@ -1275,7 +1275,6 @@ describe("getToolsFromAttributes", () => {
       testSpanAnthropicToolDefinition,
     ],
     OPENAI: ["OPENAI", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
-    BEDROCK: ["BEDROCK", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
     AWS: ["AWS", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
     DEEPSEEK: ["DEEPSEEK", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
     XAI: ["XAI", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
