@@ -3,7 +3,6 @@ import ssl
 from email.message import EmailMessage
 from pathlib import Path
 from typing import Literal
-from urllib.parse import urljoin
 
 from anyio import to_thread
 from jinja2 import Environment, FileSystemLoader, select_autoescape
