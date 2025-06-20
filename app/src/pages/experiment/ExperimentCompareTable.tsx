@@ -70,7 +70,7 @@ import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialo
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
-import { TraceDetails } from "../trace";
+import { PlaygroundRunTraceDetailsDialog } from "../playground/PlaygroundRunTraceDialog";
 
 import type {
   ExperimentCompareTable_comparisons$data,
@@ -189,6 +189,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                     trace {
                       traceId
                       projectId
+                      project {
+                        id
+                      }
                     }
                     annotations {
                       edges {
@@ -199,9 +202,13 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                           label
                           annotatorKind
                           explanation
+                          traceId
                           trace {
                             traceId
                             projectId
+                            project {
+                              id
+                            }
                           }
                         }
                       }
@@ -384,7 +391,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               </Button>
               <ModalOverlay>
                 <Modal variant="slideover" size="fullscreen">
-                  <TraceDetailsDialog
+                  <PlaygroundRunTraceDetailsDialog
                     traceId={traceId}
                     projectId={projectId}
                     title={`Experiment Run Trace`}
@@ -800,15 +807,15 @@ function ExperimentRunOutput(
               <AnnotationLabel
                 annotation={annotation}
                 onClick={() => {
-                  const trace = annotation.trace;
-                  if (trace) {
+                  const annotationTrace = annotation.trace;
+                  if (annotationTrace) {
                     startTransition(() => {
                       props.setDialog(
                         <ModalOverlay>
                           <Modal variant="slideover" size="fullscreen">
-                            <TraceDetailsDialog
-                              traceId={trace.traceId}
-                              projectId={trace.projectId}
+                            <PlaygroundRunTraceDetailsDialog
+                              traceId={annotationTrace.traceId}
+                              projectId={annotationTrace.projectId}
                               title={`Evaluator Trace: ${annotation.name}`}
                             />
                           </Modal>
@@ -1071,39 +1078,6 @@ function SelectedExampleDialog({
             </Flex>
           </Panel>
         </PanelGroup>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function TraceDetailsDialog({
-  traceId,
-  projectId,
-  title,
-}: {
-  traceId: string;
-  projectId: string;
-  title: string;
-}) {
-  const navigate = useNavigate();
-  return (
-    <Dialog>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogTitleExtra>
-            <Button
-              size="S"
-              onPress={() =>
-                navigate(`/projects/${projectId}/traces/${traceId}`)
-              }
-            >
-              View Trace in Project
-            </Button>
-            <DialogCloseButton />
-          </DialogTitleExtra>
-        </DialogHeader>
-        <TraceDetails traceId={traceId} projectId={projectId} />
       </DialogContent>
     </Dialog>
   );
