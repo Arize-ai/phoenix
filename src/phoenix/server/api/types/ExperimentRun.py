@@ -11,6 +11,7 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.ExperimentRunAnnotation import (
     ExperimentRunAnnotation,
     to_gql_experiment_run_annotation,
@@ -20,7 +21,7 @@ from phoenix.server.api.types.pagination import (
     CursorString,
     connection_from_list,
 )
-from phoenix.server.api.types.TokenCost import TokenCost, to_gql_token_cost
+from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.Trace import Trace
 
 if TYPE_CHECKING:
@@ -100,27 +101,23 @@ class ExperimentRun(Node):
         )
 
     @strawberry.field
-    async def cost(self, info: Info[Context, None]) -> TokenCost:
-        if not self.trace_id:
-            return TokenCost()
-
-        db_trace = await info.context.data_loaders.trace_by_trace_ids.load(self.trace_id)
-        if db_trace is None:
-            return TokenCost()
-
-        span_ids = await info.context.data_loaders.span_ids_by_trace_id.load(db_trace.id)
-
-        if not span_ids:
-            return TokenCost()
-
-        span_costs = await info.context.data_loaders.span_costs.load_many(span_ids)
-
-        aggregated_cost = TokenCost()
-        for span_cost in span_costs:
-            if span_cost is not None:
-                aggregated_cost += to_gql_token_cost(span_cost)
-
-        return aggregated_cost
+    async def cost_summary(self, info: Info[Context, None]) -> SpanCostSummary:
+        run_id = self.id_attr
+        summary = await info.context.data_loaders.span_cost_summary_by_experiment_run.load(run_id)
+        return SpanCostSummary(
+            prompt=CostBreakdown(
+                tokens=summary.prompt.tokens,
+                cost=summary.prompt.cost,
+            ),
+            completion=CostBreakdown(
+                tokens=summary.completion.tokens,
+                cost=summary.completion.cost,
+            ),
+            total=CostBreakdown(
+                tokens=summary.total.tokens,
+                cost=summary.total.cost,
+            ),
+        )
 
 
 def to_gql_experiment_run(run: models.ExperimentRun) -> ExperimentRun:

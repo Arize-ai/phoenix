@@ -11,6 +11,7 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.ExperimentAnnotationSummary import ExperimentAnnotationSummary
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.pagination import (
@@ -19,7 +20,7 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.Project import Project
-from phoenix.server.api.types.TokenCost import TokenCost, to_gql_token_cost
+from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 
 
 @strawberry.type
@@ -132,47 +133,25 @@ class Experiment(Node):
         return info.context.last_updated_at.get(self._table, self.id_attr)
 
     @strawberry.field
-    async def cost(self, info: Info[Context, None]) -> TokenCost:
+    async def cost_summary(self, info: Info[Context, None]) -> SpanCostSummary:
         experiment_id = self.id_attr
-
-        async with info.context.db() as session:
-            runs = (
-                await session.scalars(
-                    select(models.ExperimentRun)
-                    .where(models.ExperimentRun.experiment_id == experiment_id)
-                    .options(
-                        joinedload(models.ExperimentRun.trace).load_only(
-                            models.Trace.id, models.Trace.trace_id
-                        )
-                    )
-                )
-            ).all()
-
-        trace_db_ids: list[int] = []
-        for run in runs:
-            if run.trace is not None:
-                trace_db_ids.append(run.trace.id)
-
-        if not trace_db_ids:
-            return TokenCost()
-
-        span_ids_lists = await info.context.data_loaders.span_ids_by_trace_id.load_many(
-            trace_db_ids
+        summary = await info.context.data_loaders.span_cost_summary_by_experiment.load(
+            experiment_id
         )
-
-        all_span_ids = [span_id for span_ids in span_ids_lists for span_id in span_ids]
-
-        if not all_span_ids:
-            return TokenCost()
-
-        span_costs = await info.context.data_loaders.span_costs.load_many(all_span_ids)
-
-        aggregated_cost = TokenCost()
-        for span_cost in span_costs:
-            if span_cost is not None:
-                aggregated_cost += to_gql_token_cost(span_cost)
-
-        return aggregated_cost
+        return SpanCostSummary(
+            prompt=CostBreakdown(
+                tokens=summary.prompt.tokens,
+                cost=summary.prompt.cost,
+            ),
+            completion=CostBreakdown(
+                tokens=summary.completion.tokens,
+                cost=summary.completion.cost,
+            ),
+            total=CostBreakdown(
+                tokens=summary.total.tokens,
+                cost=summary.total.cost,
+            ),
+        )
 
 
 def to_gql_experiment(

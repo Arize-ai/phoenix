@@ -50,13 +50,14 @@ from phoenix.server.api.dataloaders import (
     SpanCostDetailSummaryEntriesByProjectSessionDataLoader,
     SpanCostDetailSummaryEntriesBySpanDataLoader,
     SpanCostDetailSummaryEntriesByTraceDataLoader,
+    SpanCostSummaryByExperimentDataLoader,
+    SpanCostSummaryByExperimentRunDataLoader,
     SpanCostSummaryByGenerativeModelDataLoader,
     SpanCostSummaryByProjectDataLoader,
     SpanCostSummaryByProjectSessionDataLoader,
     SpanCostSummaryByTraceDataLoader,
     SpanDatasetExamplesDataLoader,
     SpanDescendantsDataLoader,
-    SpanIdsByTraceIdDataLoader,
     SpanProjectsDataLoader,
     TableFieldsDataLoader,
     TokenCountDataLoader,
@@ -123,6 +124,8 @@ class DataLoaders:
     span_cost_detail_summary_entries_by_trace: SpanCostDetailSummaryEntriesByTraceDataLoader
     span_cost_details_by_span_cost: SpanCostDetailsBySpanCostDataLoader
     span_cost_fields: TableFieldsDataLoader
+    span_cost_summary_by_experiment: SpanCostSummaryByExperimentDataLoader
+    span_cost_summary_by_experiment_run: SpanCostSummaryByExperimentRunDataLoader
     span_cost_summary_by_generative_model: SpanCostSummaryByGenerativeModelDataLoader
     span_cost_summary_by_project: SpanCostSummaryByProjectDataLoader
     span_cost_summary_by_project_session: SpanCostSummaryByProjectSessionDataLoader
@@ -130,7 +133,6 @@ class DataLoaders:
     span_dataset_examples: SpanDatasetExamplesDataLoader
     span_descendants: SpanDescendantsDataLoader
     span_fields: TableFieldsDataLoader
-    span_ids_by_trace_id: SpanIdsByTraceIdDataLoader
     span_projects: SpanProjectsDataLoader
     token_counts: TokenCountDataLoader
     trace_by_trace_ids: TraceByTraceIdsDataLoader
