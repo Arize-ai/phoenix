@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b8c24cd6996d7c3dec44f9ca7428b428>>
+ * @generated SignedSource<<34c810a13967d6d89c4078ca4c74f7b6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -153,58 +153,37 @@ return {
                   {
                     "alias": null,
                     "args": null,
-                    "concreteType": "TokenCost",
+                    "concreteType": "TokenPrice",
                     "kind": "LinkedField",
-                    "name": "tokenCost",
-                    "plural": false,
+                    "name": "tokenPrices",
+                    "plural": true,
                     "selections": [
                       {
                         "alias": null,
                         "args": null,
                         "kind": "ScalarField",
-                        "name": "input",
+                        "name": "tokenType",
                         "storageKey": null
                       },
                       {
                         "alias": null,
                         "args": null,
                         "kind": "ScalarField",
-                        "name": "output",
+                        "name": "kind",
                         "storageKey": null
                       },
                       {
                         "alias": null,
                         "args": null,
                         "kind": "ScalarField",
-                        "name": "cacheRead",
+                        "name": "costPerMillionTokens",
                         "storageKey": null
                       },
                       {
                         "alias": null,
                         "args": null,
                         "kind": "ScalarField",
-                        "name": "cacheWrite",
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "promptAudio",
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "completionAudio",
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "reasoning",
+                        "name": "costPerToken",
                         "storageKey": null
                       }
                     ],
@@ -272,12 +251,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b3d3653fb978e45057f505e116ca20dd",
+    "cacheID": "a8a2876f7ed6a8f33cd0acb4f13a6797",
     "id": null,
     "metadata": {},
     "name": "settingsModelsLoaderQuery",
     "operationKind": "query",
-    "text": "query settingsModelsLoaderQuery {\n  ...ModelsTable_generativeModels\n}\n\nfragment ModelsTable_generativeModel on GenerativeModel {\n  id\n  name\n  provider\n  namePattern\n  providerKey\n  createdAt\n  updatedAt\n  lastUsedAt\n  isOverride\n  tokenCost {\n    input\n    output\n    cacheRead\n    cacheWrite\n    promptAudio\n    completionAudio\n    reasoning\n  }\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels(first: 100) {\n    edges {\n      node {\n        ...ModelsTable_generativeModel\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query settingsModelsLoaderQuery {\n  ...ModelsTable_generativeModels\n}\n\nfragment ModelsTable_generativeModel on GenerativeModel {\n  id\n  name\n  provider\n  namePattern\n  providerKey\n  createdAt\n  updatedAt\n  lastUsedAt\n  isOverride\n  tokenPrices {\n    tokenType\n    kind\n    costPerMillionTokens\n    costPerToken\n  }\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels(first: 100) {\n    edges {\n      node {\n        ...ModelsTable_generativeModel\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

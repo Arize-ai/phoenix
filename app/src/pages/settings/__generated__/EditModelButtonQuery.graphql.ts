@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<07444f9f9ed10d1b5f78bc1ba1ce25d8>>
+ * @generated SignedSource<<261e6bb3b8a004b1343db470dc020bc7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,6 +10,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
+export type TokenKind = "COMPLETION" | "PROMPT";
 export type EditModelButtonQuery$variables = {
   id: string;
 };
@@ -20,14 +21,12 @@ export type EditModelButtonQuery$data = {
     readonly namePattern?: string;
     readonly provider?: string | null;
     readonly providerKey?: GenerativeProviderKey | null;
-    readonly tokenCost?: {
-      readonly cacheRead: number | null;
-      readonly cacheWrite: number | null;
-      readonly completionAudio: number | null;
-      readonly input: number | null;
-      readonly output: number | null;
-      readonly promptAudio: number | null;
-    } | null;
+    readonly tokenPrices?: ReadonlyArray<{
+      readonly costPerMillionTokens: number;
+      readonly costPerToken: number;
+      readonly kind: TokenKind;
+      readonly tokenType: string;
+    }>;
   };
 };
 export type EditModelButtonQuery = {
@@ -88,51 +87,37 @@ v6 = {
 v7 = {
   "alias": null,
   "args": null,
-  "concreteType": "TokenCost",
+  "concreteType": "TokenPrice",
   "kind": "LinkedField",
-  "name": "tokenCost",
-  "plural": false,
+  "name": "tokenPrices",
+  "plural": true,
   "selections": [
     {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "input",
+      "name": "tokenType",
       "storageKey": null
     },
     {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "output",
+      "name": "kind",
       "storageKey": null
     },
     {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "cacheRead",
+      "name": "costPerMillionTokens",
       "storageKey": null
     },
     {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "cacheWrite",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "promptAudio",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "completionAudio",
+      "name": "costPerToken",
       "storageKey": null
     }
   ],
@@ -213,16 +198,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "018f01355e46d026c605b1191198d4ed",
+    "cacheID": "d45b90140ef44d4a7f8154b7df52c267",
     "id": null,
     "metadata": {},
     "name": "EditModelButtonQuery",
     "operationKind": "query",
-    "text": "query EditModelButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on GenerativeModel {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      tokenCost {\n        input\n        output\n        cacheRead\n        cacheWrite\n        promptAudio\n        completionAudio\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query EditModelButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on GenerativeModel {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      tokenPrices {\n        tokenType\n        kind\n        costPerMillionTokens\n        costPerToken\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c1a9028f00cd9113aeb0f6fe85f8f580";
+(node as any).hash = "a30c96a3328266da17ec8ccff0904d69";
 
 export default node;

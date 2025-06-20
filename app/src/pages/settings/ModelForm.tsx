@@ -1,5 +1,6 @@
+import { useMemo } from "react";
 import { Key } from "react-aria-components";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useFieldArray, useForm } from "react-hook-form";
 
 import {
   Button,
@@ -8,33 +9,36 @@ import {
   FieldError,
   Flex,
   Form,
-  Heading,
   Input,
   Label,
-  NumberField,
   Text,
   TextField,
   View,
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
+import { ModelTokenCostControlTable } from "@phoenix/pages/settings/ModelTokenCostControlTable";
+import {
+  DEFAULT_TOKEN_COMPLETION_OPTIONS,
+  DEFAULT_TOKEN_PROMPT_OPTIONS,
+  ModelTokenKind,
+} from "@phoenix/pages/settings/ModelTokenTypeComboBox";
 import {
   getProviderName,
   getSemConvProvider,
 } from "@phoenix/utils/generativeUtils";
 
+export type TokenPrice = {
+  kind: ModelTokenKind;
+  tokenType: string;
+  costPerMillionTokens: number;
+};
+
 export type ModelFormParams = {
   name: string;
   provider?: string;
   namePattern: string;
-  cost: {
-    input: number;
-    output: number;
-    cacheRead?: number;
-    cacheWrite?: number;
-    promptAudio?: number;
-    completionAudio?: number;
-    reasoning?: number;
-  };
+  promptCosts: TokenPrice[];
+  completionCosts: TokenPrice[];
 };
 
 const PROVIDER_OPTIONS: { key: ModelProvider; value: string; label: string }[] =
@@ -130,19 +134,34 @@ export function ModelForm({
   modelName?: string | null;
   modelProvider?: string | null;
   modelNamePattern?: string | null;
-  modelCost?: {
-    input?: number | null;
-    output?: number | null;
-    cacheRead?: number | null;
-    cacheWrite?: number | null;
-    promptAudio?: number | null;
-    completionAudio?: number | null;
-  } | null;
+  modelCost?: TokenPrice[] | null;
   onSubmit: (params: ModelFormParams) => void;
   isSubmitting: boolean;
   submitButtonText: string;
   formMode: "create" | "edit";
 }) {
+  const defaultCost = useMemo(() => {
+    return Array.isArray(modelCost) && modelCost.length > 0
+      ? modelCost
+      : ([
+          {
+            kind: "PROMPT",
+            tokenType: "input",
+            costPerMillionTokens: 0,
+          },
+          {
+            kind: "COMPLETION",
+            tokenType: "output",
+            costPerMillionTokens: 0,
+          },
+        ] satisfies TokenPrice[]);
+  }, [modelCost]);
+  const defaultPromptCostFields = useMemo(() => {
+    return defaultCost.filter((field) => field.kind === "PROMPT");
+  }, [defaultCost]);
+  const defaultCompletionCostFields = useMemo(() => {
+    return defaultCost.filter((field) => field.kind === "COMPLETION");
+  }, [defaultCost]);
   const {
     control,
     handleSubmit,
@@ -152,19 +171,31 @@ export function ModelForm({
       name: modelName ?? "",
       provider: modelProvider || "",
       namePattern: modelNamePattern ?? "",
-      cost: {
-        input: modelCost?.input ?? 0,
-        output: modelCost?.output ?? 0,
-        cacheRead: modelCost?.cacheRead ?? undefined,
-        cacheWrite: modelCost?.cacheWrite ?? undefined,
-        promptAudio: modelCost?.promptAudio ?? undefined,
-        completionAudio: modelCost?.completionAudio ?? undefined,
-      },
+      promptCosts: defaultPromptCostFields,
+      completionCosts: defaultCompletionCostFields,
     },
   });
 
+  const {
+    fields: promptCostFields,
+    append: appendPromptCost,
+    remove: removePromptCost,
+  } = useFieldArray<ModelFormParams, "promptCosts">({
+    control,
+    name: "promptCosts",
+  });
+
+  const {
+    fields: completionCostFields,
+    append: appendCompletionCost,
+    remove: removeCompletionCost,
+  } = useFieldArray<ModelFormParams, "completionCosts">({
+    control,
+    name: "completionCosts",
+  });
+
   return (
-    <Form>
+    <Form onSubmit={handleSubmit(onSubmit)}>
       <View padding="size-200">
         <Flex direction="column" gap="size-200">
           <Controller
@@ -185,7 +216,7 @@ export function ModelForm({
                 isInvalid={invalid}
                 onChange={onChange}
                 onBlur={onBlur}
-                value={value.toString()}
+                value={value}
                 size="S"
               >
                 <Label>Model name</Label>
@@ -227,7 +258,7 @@ export function ModelForm({
                 isInvalid={invalid}
                 onChange={onChange}
                 onBlur={onBlur}
-                value={value.toString()}
+                value={value}
                 size="S"
               >
                 <Label>Name pattern</Label>
@@ -244,238 +275,26 @@ export function ModelForm({
             )}
           />
 
-          <Heading level={3} weight="heavy">
-            Prompt tokens
-          </Heading>
-
-          <Controller
-            name="cost.input"
+          <ModelTokenCostControlTable
+            title="Prompt tokens"
+            namePrefix="promptCosts"
+            fields={promptCostFields}
             control={control}
-            rules={{
-              required: "Input token cost is required",
-            }}
-            render={({
-              field: { onChange, onBlur, value },
-              fieldState: { invalid, error },
-            }) => (
-              <NumberField
-                isInvalid={invalid}
-                onChange={(val) => onChange(val)}
-                onBlur={onBlur}
-                value={value || 0}
-                step={0.000001}
-                minValue={0}
-                size="S"
-                formatOptions={{
-                  style: "currency",
-                  currency: "USD",
-                  minimumFractionDigits: 6,
-                }}
-              >
-                <Label>Input Tokens</Label>
-                <Input />
-                {error?.message ? (
-                  <FieldError>{error.message}</FieldError>
-                ) : (
-                  <Text slot="description">Cost per input token in USD</Text>
-                )}
-              </NumberField>
-            )}
-          />
-          <Controller
-            name="cost.cacheRead"
-            control={control}
-            render={({
-              field: { onChange, onBlur, value },
-              fieldState: { invalid, error },
-            }) => (
-              <NumberField
-                isInvalid={invalid}
-                onChange={(val) => onChange(val)}
-                onBlur={onBlur}
-                value={value || undefined}
-                step={0.000001}
-                minValue={0}
-                size="S"
-                formatOptions={{
-                  style: "currency",
-                  currency: "USD",
-                  minimumFractionDigits: 6,
-                }}
-              >
-                <Label>Cache Read</Label>
-                <Input />
-                {error?.message ? (
-                  <FieldError>{error.message}</FieldError>
-                ) : (
-                  <Text slot="description">
-                    Cost per cached token read in USD
-                  </Text>
-                )}
-              </NumberField>
-            )}
-          />
-          <Controller
-            name="cost.promptAudio"
-            control={control}
-            rules={{
-              validate: (value) => {
-                if (value !== undefined && value < 0) {
-                  return "Value must be non-negative";
-                }
-                return true;
-              },
-            }}
-            render={({
-              field: { onChange, onBlur, value },
-              fieldState: { invalid, error },
-            }) => (
-              <NumberField
-                isInvalid={invalid}
-                onChange={(val) => onChange(val)}
-                onBlur={onBlur}
-                value={value || undefined}
-                step={0.000001}
-                minValue={0}
-                size="S"
-                formatOptions={{
-                  style: "currency",
-                  currency: "USD",
-                  minimumFractionDigits: 6,
-                }}
-              >
-                <Label>Prompt Audio</Label>
-                <Input />
-                {error?.message ? (
-                  <FieldError>{error.message}</FieldError>
-                ) : (
-                  <Text slot="description">
-                    Cost per audio prompt token in USD
-                  </Text>
-                )}
-              </NumberField>
-            )}
+            tokenTypeOptions={DEFAULT_TOKEN_PROMPT_OPTIONS}
+            onAppend={appendPromptCost}
+            onRemove={removePromptCost}
+            appendKind="PROMPT"
           />
 
-          <Heading level={3} weight="heavy">
-            Completion tokens
-          </Heading>
-
-          <Controller
-            name="cost.output"
+          <ModelTokenCostControlTable
+            title="Completion tokens"
+            namePrefix="completionCosts"
+            fields={completionCostFields}
             control={control}
-            rules={{
-              required: "Output token cost is required",
-            }}
-            render={({
-              field: { onChange, onBlur, value },
-              fieldState: { invalid, error },
-            }) => (
-              <NumberField
-                isInvalid={invalid}
-                onChange={(val) => onChange(val)}
-                onBlur={onBlur}
-                value={value || 0}
-                step={0.000001}
-                minValue={0}
-                size="S"
-                formatOptions={{
-                  style: "currency",
-                  currency: "USD",
-                  minimumFractionDigits: 6,
-                }}
-              >
-                <Label>Output Tokens</Label>
-                <Input />
-                {error?.message ? (
-                  <FieldError>{error.message}</FieldError>
-                ) : (
-                  <Text slot="description">Cost per output token in USD</Text>
-                )}
-              </NumberField>
-            )}
-          />
-          <Controller
-            name="cost.cacheWrite"
-            control={control}
-            rules={{
-              validate: (value) => {
-                if (value !== undefined && value < 0) {
-                  return "Value must be non-negative";
-                }
-                return true;
-              },
-            }}
-            render={({
-              field: { onChange, onBlur, value },
-              fieldState: { invalid, error },
-            }) => (
-              <NumberField
-                isInvalid={invalid}
-                onChange={(val) => onChange(val)}
-                onBlur={onBlur}
-                value={value || undefined}
-                step={0.000001}
-                minValue={0}
-                size="S"
-                formatOptions={{
-                  style: "currency",
-                  currency: "USD",
-                  minimumFractionDigits: 6,
-                }}
-              >
-                <Label>Cache Write</Label>
-                <Input />
-                {error?.message ? (
-                  <FieldError>{error.message}</FieldError>
-                ) : (
-                  <Text slot="description">
-                    Cost per cached token write in USD
-                  </Text>
-                )}
-              </NumberField>
-            )}
-          />
-          <Controller
-            name="cost.completionAudio"
-            control={control}
-            rules={{
-              validate: (value) => {
-                if (value !== undefined && value < 0) {
-                  return "Value must be non-negative";
-                }
-                return true;
-              },
-            }}
-            render={({
-              field: { onChange, onBlur, value },
-              fieldState: { invalid, error },
-            }) => (
-              <NumberField
-                isInvalid={invalid}
-                onChange={(val) => onChange(val)}
-                onBlur={onBlur}
-                value={value || undefined}
-                step={0.000001}
-                minValue={0}
-                size="S"
-                formatOptions={{
-                  style: "currency",
-                  currency: "USD",
-                  minimumFractionDigits: 6,
-                }}
-              >
-                <Label>Completion Audio</Label>
-                <Input />
-                {error?.message ? (
-                  <FieldError>{error.message}</FieldError>
-                ) : (
-                  <Text slot="description">
-                    Cost per audio completion token in USD
-                  </Text>
-                )}
-              </NumberField>
-            )}
+            tokenTypeOptions={DEFAULT_TOKEN_COMPLETION_OPTIONS}
+            onAppend={appendCompletionCost}
+            onRemove={removeCompletionCost}
+            appendKind="COMPLETION"
           />
         </Flex>
       </View>
@@ -497,9 +316,7 @@ export function ModelForm({
             }
             variant={isDirty ? "primary" : "default"}
             size="S"
-            onPress={() => {
-              handleSubmit(onSubmit)();
-            }}
+            type="submit"
           >
             {submitButtonText}
           </Button>

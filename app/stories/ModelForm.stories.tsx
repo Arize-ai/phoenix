@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { ModelForm } from "../src/pages/settings/ModelForm";
+import { ModelForm, TokenPrice } from "../src/pages/settings/ModelForm";
 
 const meta: Meta<typeof ModelForm> = {
   title: "Forms/ModelForm",
@@ -48,6 +48,19 @@ const meta: Meta<typeof ModelForm> = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+const defaultCost = [
+  {
+    kind: "PROMPT",
+    tokenType: "input",
+    costPerMillionTokens: 1,
+  },
+  {
+    kind: "COMPLETION",
+    tokenType: "output",
+    costPerMillionTokens: 2,
+  },
+] satisfies TokenPrice[];
+
 /**
  * Default form state for creating a new model with empty fields.
  */
@@ -74,14 +87,7 @@ export const CreateWithDefaults: Story = {
     modelName: "gpt-4-turbo",
     modelProvider: "openai",
     modelNamePattern: "^gpt-4-turbo.*",
-    modelCost: {
-      input: 0.00001,
-      output: 0.00003,
-      cacheRead: null,
-      cacheWrite: null,
-      promptAudio: null,
-      completionAudio: null,
-    },
+    modelCost: defaultCost,
   },
 };
 
@@ -96,14 +102,7 @@ export const EditExistingModel: Story = {
     modelName: "claude-3-sonnet",
     modelProvider: "anthropic",
     modelNamePattern: "^claude-3-sonnet.*",
-    modelCost: {
-      input: 0.000003,
-      output: 0.000015,
-      cacheRead: 0.0000003,
-      cacheWrite: 0.0000037,
-      promptAudio: null,
-      completionAudio: null,
-    },
+    modelCost: defaultCost,
   },
 };
 
@@ -118,14 +117,7 @@ export const EditWithAllCosts: Story = {
     modelName: "gpt-4o-audio-preview",
     modelProvider: "openai",
     modelNamePattern: "^gpt-4o-audio.*",
-    modelCost: {
-      input: 0.0025,
-      output: 0.01,
-      cacheRead: 0.00125,
-      cacheWrite: 0.00625,
-      promptAudio: 0.1,
-      completionAudio: 0.2,
-    },
+    modelCost: defaultCost,
   },
 };
 
@@ -141,14 +133,7 @@ export const SubmittingState: Story = {
     modelName: "gemini-pro",
     modelProvider: "google",
     modelNamePattern: "^gemini-pro.*",
-    modelCost: {
-      input: 0.000125,
-      output: 0.000375,
-      cacheRead: null,
-      cacheWrite: null,
-      promptAudio: null,
-      completionAudio: null,
-    },
+    modelCost: defaultCost,
   },
 };
 
@@ -163,14 +148,7 @@ export const MinimalRequired: Story = {
     modelName: "mistral-7b",
     modelProvider: null,
     modelNamePattern: "mistral.*",
-    modelCost: {
-      input: 0.00000025,
-      output: 0.00000025,
-      cacheRead: null,
-      cacheWrite: null,
-      promptAudio: null,
-      completionAudio: null,
-    },
+    modelCost: defaultCost,
   },
 };
 
@@ -178,20 +156,12 @@ export const MinimalRequired: Story = {
  * Form with a custom provider not in the standard list.
  */
 export const CustomProvider: Story = {
-  name: "Custom Provider",
   args: {
     formMode: "create",
     submitButtonText: "Create Model",
     modelName: "llama-3-70b",
     modelProvider: "together_ai",
     modelNamePattern: "^llama-3-70b.*",
-    modelCost: {
-      input: 0.0009,
-      output: 0.0009,
-      cacheRead: null,
-      cacheWrite: null,
-      promptAudio: null,
-      completionAudio: null,
-    },
+    modelCost: defaultCost,
   },
 };

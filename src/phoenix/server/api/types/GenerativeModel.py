@@ -15,7 +15,7 @@ from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.ModelInterface import ModelInterface
 from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
-from phoenix.server.api.types.TokenCost import TokenCost
+from phoenix.server.api.types.TokenPrice import TokenKind, TokenPrice
 
 
 @strawberry.type
@@ -31,13 +31,20 @@ class GenerativeModel(Node, ModelInterface):
     costs: strawberry.Private[Optional[list[models.TokenPrice]]] = None
 
     @strawberry.field
-    async def token_cost(self, info: Info[Context, None]) -> Optional[TokenCost]:
+    async def token_prices(self) -> list[TokenPrice]:
         if self.costs is None:
             raise NotImplementedError
-        token_cost = TokenCost()
+        token_prices: list[TokenPrice] = list()
         for cost in self.costs:
-            setattr(token_cost, cost.token_type, cost.base_rate)
-        return token_cost
+            token_prices.append(
+                TokenPrice(
+                    token_type=cost.token_type,
+                    kind=TokenKind.PROMPT if cost.is_prompt else TokenKind.COMPLETION,
+                    cost_per_million_tokens=cost.base_rate * 1_000_000,
+                    cost_per_token=cost.base_rate,
+                )
+            )
+        return token_prices
 
     @strawberry.field
     async def cost_summary(self, info: Info[Context, None]) -> SpanCostSummary:

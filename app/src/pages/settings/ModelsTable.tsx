@@ -19,8 +19,12 @@ import {
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { EditModelButton } from "@phoenix/pages/settings/EditModelButton";
 import { getProviderName } from "@phoenix/utils/generativeUtils";
+import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 
-import { ModelsTable_generativeModel$key } from "./__generated__/ModelsTable_generativeModel.graphql";
+import {
+  ModelsTable_generativeModel$data,
+  ModelsTable_generativeModel$key,
+} from "./__generated__/ModelsTable_generativeModel.graphql";
 import { ModelsTable_generativeModels$key } from "./__generated__/ModelsTable_generativeModels.graphql";
 import { ModelsTableModelsQuery } from "./__generated__/ModelsTableModelsQuery.graphql";
 import { CloneModelButton } from "./CloneModelButton";
@@ -39,30 +43,25 @@ const GENERATIVE_MODEL_FRAGMENT = graphql`
     updatedAt
     lastUsedAt
     isOverride
-    tokenCost {
-      input
-      output
-      cacheRead
-      cacheWrite
-      promptAudio
-      completionAudio
-      reasoning
+    tokenPrices {
+      tokenType
+      kind
+      costPerMillionTokens
+      costPerToken
     }
   }
 `;
 
-const CostCell = ({ cost }: { cost: number | null | undefined }) => {
-  if (cost == null) {
-    return <span>--</span>;
-  }
-
-  const costPerMillion = cost * 1000000;
-  return <span>${costPerMillion.toPrecision(3)}</span>;
-};
-
 type ModelsTableProps = {
   query: ModelsTable_generativeModels$key;
 };
+
+function getRowCost(row: ModelsTable_generativeModel$data, tokenType: string) {
+  const cost = row.tokenPrices?.find(
+    (entry) => entry.tokenType === tokenType
+  )?.costPerMillionTokens;
+  return cost != null ? `${costFormatter(cost)}` : "--";
+}
 
 export function ModelsTable(props: ModelsTableProps) {
   //we need a reference to the scrolling element for logic down below
@@ -181,49 +180,49 @@ export function ModelsTable(props: ModelsTableProps) {
         header: "input cost",
         accessorKey: "tokenCost.input",
         cell: ({ row }) => {
-          return <CostCell cost={row.original.tokenCost?.input} />;
+          return getRowCost(row.original, "input");
         },
       },
       {
         header: "output cost",
         accessorKey: "tokenCost.output",
         cell: ({ row }) => {
-          return <CostCell cost={row.original.tokenCost?.output} />;
+          return getRowCost(row.original, "output");
         },
       },
       {
         header: "cache read cost",
         accessorKey: "tokenCost.cacheRead",
         cell: ({ row }) => {
-          return <CostCell cost={row.original.tokenCost?.cacheRead} />;
+          return getRowCost(row.original, "cacheRead");
         },
       },
       {
         header: "cache write cost",
         accessorKey: "tokenCost.cacheWrite",
         cell: ({ row }) => {
-          return <CostCell cost={row.original.tokenCost?.cacheWrite} />;
+          return getRowCost(row.original, "cacheWrite");
         },
       },
       {
         header: "prompt audio cost",
         accessorKey: "tokenCost.promptAudio",
         cell: ({ row }) => {
-          return <CostCell cost={row.original.tokenCost?.promptAudio} />;
+          return getRowCost(row.original, "promptAudio");
         },
       },
       {
         header: "completion audio cost",
         accessorKey: "tokenCost.completionAudio",
         cell: ({ row }) => {
-          return <CostCell cost={row.original.tokenCost?.completionAudio} />;
+          return getRowCost(row.original, "completionAudio");
         },
       },
       {
         header: "reasoning cost",
         accessorKey: "tokenCost.reasoning",
         cell: ({ row }) => {
-          return <CostCell cost={row.original.tokenCost?.reasoning} />;
+          return getRowCost(row.original, "reasoning");
         },
       },
       {

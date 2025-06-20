@@ -24,6 +24,7 @@ import {
   ModalOverlay,
 } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { Mutable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { EditModelButtonMutation } from "./__generated__/EditModelButtonMutation.graphql";
@@ -39,13 +40,11 @@ const ModelQuery = graphql`
         provider
         namePattern
         providerKey
-        tokenCost {
-          input
-          output
-          cacheRead
-          cacheWrite
-          promptAudio
-          completionAudio
+        tokenPrices {
+          tokenType
+          kind
+          costPerMillionTokens
+          costPerToken
         }
       }
     }
@@ -75,14 +74,11 @@ function EditModelDialogContent({
             provider
             namePattern
             providerKey
-            tokenCost {
-              input
-              output
-              cacheRead
-              cacheWrite
-              promptAudio
-              completionAudio
-              reasoning
+            tokenPrices {
+              tokenType
+              kind
+              costPerMillionTokens
+              costPerToken
             }
           }
           __typename
@@ -102,7 +98,7 @@ function EditModelDialogContent({
       modelName={modelData.name}
       modelProvider={modelData.provider}
       modelNamePattern={modelData.namePattern}
-      modelCost={modelData.tokenCost}
+      modelCost={modelData.tokenPrices as Mutable<typeof modelData.tokenPrices>}
       onSubmit={(params) => {
         commitUpdateModel({
           variables: {
@@ -111,12 +107,13 @@ function EditModelDialogContent({
               name: params.name,
               provider: params.provider,
               namePattern: params.namePattern,
-              costs: Object.entries(params.cost)
-                .filter(([_, value]) => value != null)
-                .map(([key, value]) => ({
-                  tokenType: key,
-                  costPerToken: value,
-                })),
+              costs: [...params.promptCosts, ...params.completionCosts].map(
+                (cost) => ({
+                  tokenType: cost.tokenType,
+                  costPerMillionTokens: cost.costPerMillionTokens,
+                  kind: cost.kind,
+                })
+              ),
             },
           },
           onCompleted: () => {

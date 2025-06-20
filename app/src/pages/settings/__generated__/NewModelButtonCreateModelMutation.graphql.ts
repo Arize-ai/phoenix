@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8f73317d57f13e4dc58c02c6757dd14b>>
+ * @generated SignedSource<<6129b7b23391eda09fdbf5730b892939>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,15 +10,16 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type TokenKind = "COMPLETION" | "PROMPT";
 export type CreateModelMutationInput = {
-  costs: ReadonlyArray<CostPerTokenInput>;
+  costs: ReadonlyArray<TokenPriceInput>;
   name: string;
   namePattern: string;
   provider?: string | null;
 };
-export type CostPerTokenInput = {
-  costPerToken: number;
-  isPrompt?: boolean | null;
+export type TokenPriceInput = {
+  costPerMillionTokens: number;
+  kind: TokenKind;
   tokenType: string;
 };
 export type NewModelButtonCreateModelMutation$variables = {
@@ -122,58 +123,37 @@ v3 = [
   {
     "alias": null,
     "args": null,
-    "concreteType": "TokenCost",
+    "concreteType": "TokenPrice",
     "kind": "LinkedField",
-    "name": "tokenCost",
-    "plural": false,
+    "name": "tokenPrices",
+    "plural": true,
     "selections": [
       {
         "alias": null,
         "args": null,
         "kind": "ScalarField",
-        "name": "input",
+        "name": "tokenType",
         "storageKey": null
       },
       {
         "alias": null,
         "args": null,
         "kind": "ScalarField",
-        "name": "output",
+        "name": "kind",
         "storageKey": null
       },
       {
         "alias": null,
         "args": null,
         "kind": "ScalarField",
-        "name": "cacheRead",
+        "name": "costPerMillionTokens",
         "storageKey": null
       },
       {
         "alias": null,
         "args": null,
         "kind": "ScalarField",
-        "name": "cacheWrite",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "promptAudio",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "completionAudio",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "reasoning",
+        "name": "costPerToken",
         "storageKey": null
       }
     ],
@@ -283,12 +263,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9cbd9dfe2d0cfa8b9860decf013446fa",
+    "cacheID": "4cc2e1c51d39fa4c511b0bd7579c9598",
     "id": null,
     "metadata": {},
     "name": "NewModelButtonCreateModelMutation",
     "operationKind": "mutation",
-    "text": "mutation NewModelButtonCreateModelMutation(\n  $input: CreateModelMutationInput!\n) {\n  createModel(input: $input) {\n    model {\n      ...ModelsTable_generativeModel\n      id\n    }\n  }\n}\n\nfragment ModelsTable_generativeModel on GenerativeModel {\n  id\n  name\n  provider\n  namePattern\n  providerKey\n  createdAt\n  updatedAt\n  lastUsedAt\n  isOverride\n  tokenCost {\n    input\n    output\n    cacheRead\n    cacheWrite\n    promptAudio\n    completionAudio\n    reasoning\n  }\n}\n"
+    "text": "mutation NewModelButtonCreateModelMutation(\n  $input: CreateModelMutationInput!\n) {\n  createModel(input: $input) {\n    model {\n      ...ModelsTable_generativeModel\n      id\n    }\n  }\n}\n\nfragment ModelsTable_generativeModel on GenerativeModel {\n  id\n  name\n  provider\n  namePattern\n  providerKey\n  createdAt\n  updatedAt\n  lastUsedAt\n  isOverride\n  tokenPrices {\n    tokenType\n    kind\n    costPerMillionTokens\n    costPerToken\n  }\n}\n"
   }
 };
 })();
