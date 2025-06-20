@@ -1080,6 +1080,8 @@ type Experiment implements Node {
   averageRunLatencyMs: Float
   project: Project
   lastUpdatedAt: DateTime
+  costSummary: SpanCostSummary!
+  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
 type ExperimentAnnotationSummary {
@@ -1150,6 +1152,8 @@ type ExperimentRun implements Node {
   annotations(first: Int = 50, last: Int, after: String, before: String): ExperimentRunAnnotationConnection!
   trace: Trace
   example: DatasetExample!
+  costSummary: SpanCostSummary!
+  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
 type ExperimentRunAnnotation implements Node {
@@ -1783,6 +1787,7 @@ enum ProjectSessionColumn {
   endTime
   tokenCountTotal
   numTraces
+  costTotal
 }
 
 """A connection to a list of items."""

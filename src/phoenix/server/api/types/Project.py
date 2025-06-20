@@ -264,6 +264,7 @@ class Project(Node):
     ) -> Connection[Span]:
         stmt = (
             select(models.Span.id)
+            .select_from(models.Span)
             .join(models.Trace)
             .where(models.Trace.project_rowid == self.project_rowid)
         )
@@ -434,6 +435,21 @@ class Project(Node):
                     ).subquery()
                 else:
                     assert_never(sort.col)
+                key = sort_subq.c.key
+                stmt = stmt.join(sort_subq, table.id == sort_subq.c.id)
+            elif sort.col is ProjectSessionColumn.costTotal:
+                sort_subq = (
+                    select(
+                        models.Trace.project_session_rowid.label("id"),
+                        func.sum(models.SpanCost.total_cost).label("key"),
+                    )
+                    .join_from(
+                        models.Trace,
+                        models.SpanCost,
+                        models.Trace.id == models.SpanCost.trace_rowid,
+                    )
+                    .group_by(models.Trace.project_session_rowid)
+                ).subquery()
                 key = sort_subq.c.key
                 stmt = stmt.join(sort_subq, table.id == sort_subq.c.id)
             else:

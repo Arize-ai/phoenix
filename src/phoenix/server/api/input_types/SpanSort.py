@@ -88,7 +88,8 @@ class SpanColumn(Enum):
         If needed, joins tables required for the sort column.
         """
         if self is SpanColumn.tokenCostTotal:
-            return stmt.join(
+            return stmt.join_from(
+                models.Span,
                 models.SpanCost,
                 onclause=models.SpanCost.span_rowid == models.Span.id,
             )
