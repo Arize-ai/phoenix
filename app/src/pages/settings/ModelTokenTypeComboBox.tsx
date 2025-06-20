@@ -74,7 +74,7 @@ export function ModelTokenTypeComboBox<
       aria-label="Token type"
       placeholder="Choose or enter a token type"
       selectedKey={selectedOption?.tokenType ?? ""}
-      inputValue={value}
+      inputValue={value ?? ""}
       onSelectionChange={(tokenType) => {
         const option = options.find((option) => option.tokenType === tokenType);
         if (option) {
@@ -96,17 +96,19 @@ export function ModelTokenTypeComboBox<
       size="M"
       allowsCustomValue
     >
-      {options.map((item) => (
-        <ComboBoxItem
-          key={item.tokenType}
-          textValue={item.tokenType}
-          id={item.tokenType}
-        >
-          <Flex alignItems="center" gap="size-50">
-            {item.tokenType}
-          </Flex>
-        </ComboBoxItem>
-      ))}
+      {options.map((item) =>
+        item.tokenType ? (
+          <ComboBoxItem
+            key={item.tokenType}
+            textValue={item.tokenType}
+            id={item.tokenType}
+          >
+            <Flex alignItems="center" gap="size-50">
+              {item.tokenType}
+            </Flex>
+          </ComboBoxItem>
+        ) : null
+      )}
     </ComboBox>
   );
 }

@@ -216,7 +216,7 @@ export function ModelForm({
                 isInvalid={invalid}
                 onChange={onChange}
                 onBlur={onBlur}
-                value={value.toString()}
+                value={value}
                 size="S"
               >
                 <Label>Model name</Label>
@@ -258,7 +258,7 @@ export function ModelForm({
                 isInvalid={invalid}
                 onChange={onChange}
                 onBlur={onBlur}
-                value={value.toString()}
+                value={value}
                 size="S"
               >
                 <Label>Name pattern</Label>

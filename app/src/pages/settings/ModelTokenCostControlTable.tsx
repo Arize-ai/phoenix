@@ -69,10 +69,6 @@ export function ModelTokenCostControlTable({
           & tbody td:not(:last-child) {
             padding-right: var(--ac-global-dimension-size-100);
           }
-
-          & tbody td:last-child {
-            vertical-align: middle;
-          }
         `}
       >
         <thead>
@@ -89,6 +85,9 @@ export function ModelTokenCostControlTable({
                 <Controller
                   name={`${namePrefix}.${index}.tokenType`}
                   control={control}
+                  rules={{
+                    required: "Token type is required",
+                  }}
                   render={({
                     fieldState: { invalid, error },
                     field: controllerField,
@@ -97,7 +96,6 @@ export function ModelTokenCostControlTable({
                       options={tokenTypeOptions}
                       {...controllerField}
                       invalid={invalid}
-                      isRequired
                       error={error?.message}
                     />
                   )}
@@ -107,16 +105,15 @@ export function ModelTokenCostControlTable({
                 <Controller
                   name={`${namePrefix}.${index}.costPerMillionTokens`}
                   control={control}
-                  render={({
-                    fieldState: { invalid, error },
-                    field: controllerField,
-                  }) => (
+                  rules={{
+                    required: "Cost per 1M tokens is required",
+                  }}
+                  render={({ fieldState: { invalid, error }, field }) => (
                     <NumberField
+                      {...field}
                       isInvalid={invalid}
-                      {...controllerField}
-                      step={0.000001}
-                      isRequired
                       minValue={0}
+                      isRequired
                       size="S"
                       formatOptions={{
                         style: "currency",
@@ -147,7 +144,7 @@ export function ModelTokenCostControlTable({
           <tr>
             <td />
             <td>
-              <Flex justifyContent="end">
+              <Flex justifyContent="end" alignItems="start">
                 <Button
                   onPress={() => {
                     onAppend({
