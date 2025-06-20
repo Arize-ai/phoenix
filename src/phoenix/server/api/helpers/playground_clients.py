@@ -641,7 +641,6 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
     ) -> None:
         import boto3
         super().__init__(model=model, credentials=credentials)
-        print(f"Model: {model}")
         self.region = model.region or "us-east-1"
         self.api = "converse"
         self.aws_access_key_id = _get_credential_value(credentials, "AWS_ACCESS_KEY_ID") or getenv("AWS_ACCESS_KEY_ID")

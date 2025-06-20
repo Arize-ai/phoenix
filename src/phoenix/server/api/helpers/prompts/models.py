@@ -553,7 +553,6 @@ def normalize_tools(
         or model_provider is ModelProvider.DEEPSEEK
         or model_provider is ModelProvider.XAI
         or model_provider is ModelProvider.OLLAMA
-        # or model_provider is ModelProvider.AWS
     ):
         openai_tools = [OpenAIToolDefinition.model_validate(schema) for schema in schemas]
         tools = [_openai_to_prompt_tool(openai_tool) for openai_tool in openai_tools]
@@ -566,7 +565,7 @@ def normalize_tools(
     else:
         raise ValueError(f"Unsupported model provider: {model_provider}")
     ans = PromptTools(type="tools", tools=tools)
-    print(tool_choice)
+
     if tool_choice is not None:
         if (
             model_provider is ModelProvider.OPENAI
@@ -598,9 +597,12 @@ def denormalize_tools(
         or model_provider is ModelProvider.DEEPSEEK
         or model_provider is ModelProvider.XAI
         or model_provider is ModelProvider.OLLAMA
-        or model_provider is ModelProvider.AWS
     ):
         denormalized_tools = [_prompt_to_openai_tool(tool) for tool in tools.tools]
+        if tools.tool_choice:
+            tool_choice = OpenAIToolChoiceConversion.to_openai(tools.tool_choice)
+    elif model_provider is ModelProvider.AWS:
+        denormalized_tools = [_prompt_to_bedrock_tool(tool) for tool in tools.tools]
         if tools.tool_choice:
             tool_choice = OpenAIToolChoiceConversion.to_openai(tools.tool_choice)
     elif model_provider is ModelProvider.ANTHROPIC:
@@ -679,4 +681,18 @@ def _prompt_to_anthropic_tool(
         input_schema=function.parameters if function.parameters is not UNDEFINED else {},
         name=function.name,
         description=function.description,
+    )
+
+def _prompt_to_bedrock_tool(
+    tool: PromptToolFunction,
+) -> BedrockToolDefinition:
+    function = tool.function
+    return BedrockToolDefinition(
+        toolSpec={
+            "name": function.name,
+            "description": function.description,
+            "inputSchema": {
+                "json": function.parameters,
+            },
+        }
     )
