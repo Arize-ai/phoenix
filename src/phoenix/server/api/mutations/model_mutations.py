@@ -108,7 +108,7 @@ class ModelMutationMixin:
         async with info.context.db() as session:
             session.add(model)
             try:
-                await session.commit()
+                await session.flush()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise Conflict(f"Model with name '{input.name}' already exists")
 
