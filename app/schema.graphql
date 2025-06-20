@@ -1080,6 +1080,7 @@ type Experiment implements Node {
   project: Project
   lastUpdatedAt: DateTime
   costSummary: SpanCostSummary!
+  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
 type ExperimentAnnotationSummary {
@@ -1151,6 +1152,7 @@ type ExperimentRun implements Node {
   trace: Trace
   example: DatasetExample!
   costSummary: SpanCostSummary!
+  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
 type ExperimentRunAnnotation implements Node {
