@@ -221,6 +221,14 @@ class PromptAnthropicThinkingConfigEnabled(TypedDict):
     budget_tokens: int
 
 
+class PromptAwsInvocationParametersContent(TypedDict):
+    region: NotRequired[str]
+    api: NotRequired[str]
+    max_tokens: NotRequired[int]
+    temperature: NotRequired[float]
+    top_p: NotRequired[float]
+
+
 class PromptAzureOpenAIInvocationParametersContent(TypedDict):
     temperature: NotRequired[float]
     max_tokens: NotRequired[int]
@@ -524,6 +532,11 @@ class PromptAnthropicInvocationParametersContent(TypedDict):
     ]
 
 
+class PromptAwsInvocationParameters(TypedDict):
+    type: Literal["aws"]
+    aws: PromptAwsInvocationParametersContent
+
+
 class PromptAzureOpenAIInvocationParameters(TypedDict):
     type: Literal["azure_openai"]
     azure_openai: PromptAzureOpenAIInvocationParametersContent
@@ -660,7 +673,7 @@ class PromptChatTemplate(TypedDict):
 
 class PromptVersionData(TypedDict):
     model_provider: Literal[
-        "OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE", "DEEPSEEK", "XAI", "OLLAMA"
+        "OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE", "DEEPSEEK", "XAI", "OLLAMA", "AWS"
     ]
     model_name: str
     template: Union[PromptChatTemplate, PromptStringTemplate]
@@ -674,6 +687,7 @@ class PromptVersionData(TypedDict):
         PromptDeepSeekInvocationParameters,
         PromptXAIInvocationParameters,
         PromptOllamaInvocationParameters,
+        PromptAwsInvocationParameters,
     ]
     description: NotRequired[str]
     tools: NotRequired[PromptTools]
