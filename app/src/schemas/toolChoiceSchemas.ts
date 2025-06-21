@@ -168,7 +168,6 @@ type ProviderToToolChoiceMap = {
   DEEPSEEK: OpenaiToolChoice;
   XAI: OpenaiToolChoice;
   OLLAMA: OpenaiToolChoice;
-  BEDROCK: AnthropicToolChoice;
   AWS: AnthropicToolChoice;
 };
 
