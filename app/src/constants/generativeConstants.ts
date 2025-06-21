@@ -9,7 +9,7 @@ export const ModelProviders: Record<ModelProvider, string> = {
   DEEPSEEK: "DeepSeek",
   XAI: "xAI",
   OLLAMA: "Ollama",
-  AWS: "AWS",
+  AWS: "AWS Bedrock",
 };
 
 /**

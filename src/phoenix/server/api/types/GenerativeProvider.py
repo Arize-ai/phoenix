@@ -17,7 +17,7 @@ class GenerativeProviderKey(Enum):
     DEEPSEEK = "DeepSeek"
     XAI = "xAI"
     OLLAMA = "Ollama"
-    AWS = "AWS"
+    AWS = "AWS Bedrock"
 
 
 @strawberry.type
