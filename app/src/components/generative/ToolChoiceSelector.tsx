@@ -14,6 +14,7 @@ import {
   AnthropicToolChoice,
   findToolChoiceName,
   makeAnthropicToolChoice,
+  makeAwsToolChoice,
   makeOpenAIToolChoice,
   OpenaiToolChoice,
 } from "@phoenix/schemas/toolChoiceSchemas";
@@ -33,6 +34,7 @@ export const DEFAULT_TOOL_CHOICES_BY_PROVIDER = {
   XAI: ["required", "auto", "none"] as const,
   OLLAMA: ["required", "auto", "none"] as const,
   ANTHROPIC: ["any", "auto", "none"] as const,
+  AWS: ["any", "auto", "none"] as const,
 } satisfies Partial<
   Record<ModelProvider, (string | Record<string, unknown>)[]>
 >;
@@ -56,6 +58,15 @@ export const findToolChoiceType = (
     case "XAI":
     case "OLLAMA":
     case "OPENAI":
+      if (
+        isObject(choice) &&
+        "type" in choice &&
+        typeof choice.type === "string"
+      ) {
+        return choice.type;
+      }
+      return choice;
+    case "AWS":
       if (
         isObject(choice) &&
         "type" in choice &&
@@ -248,6 +259,14 @@ export function ToolChoiceSelector<
                 })
               );
               break;
+            case "AWS":
+              onChange(
+                makeAwsToolChoice({
+                  type: "tool",
+                  name: removeToolNamePrefix(choice),
+                })
+              );
+              break;
             case "ANTHROPIC":
               onChange(
                 makeAnthropicToolChoice({
@@ -270,6 +289,13 @@ export function ToolChoiceSelector<
                 makeOpenAIToolChoice(
                   choice as (typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER)["OPENAI"][number]
                 )
+              );
+              break;
+            case "AWS":
+              onChange(
+                makeAwsToolChoice({
+                  type: choice as (typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER)["AWS"][number],
+                })
               );
               break;
             case "ANTHROPIC":

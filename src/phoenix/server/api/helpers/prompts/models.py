@@ -9,6 +9,7 @@ from typing_extensions import Annotated, Self, TypeAlias, TypeGuard, assert_neve
 from phoenix.db.types.db_models import UNDEFINED, DBBaseModel
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.conversions.anthropic import AnthropicToolChoiceConversion
+from phoenix.server.api.helpers.prompts.conversions.aws import AwsToolChoiceConversion
 from phoenix.server.api.helpers.prompts.conversions.openai import OpenAIToolChoiceConversion
 
 JSONSerializable = Union[None, bool, int, float, str, dict[str, Any], list[Any]]
@@ -312,6 +313,14 @@ class AnthropicToolDefinition(DBBaseModel):
     description: str = UNDEFINED
 
 
+class BedrockToolDefinition(DBBaseModel):
+    """
+    Based on https://github.com/aws/amazon-bedrock-sdk-python/blob/main/src/bedrock/types/tool_param.py#L12
+    """
+
+    toolSpec: dict[str, Any]
+
+
 class PromptOpenAIInvocationParametersContent(DBBaseModel):
     temperature: float = UNDEFINED
     max_tokens: int = UNDEFINED
@@ -397,6 +406,17 @@ class PromptAnthropicInvocationParameters(DBBaseModel):
     anthropic: PromptAnthropicInvocationParametersContent
 
 
+class PromptAwsInvocationParametersContent(DBBaseModel):
+    max_tokens: int = UNDEFINED
+    temperature: float = UNDEFINED
+    top_p: float = UNDEFINED
+
+
+class PromptAwsInvocationParameters(DBBaseModel):
+    type: Literal["aws"]
+    aws: PromptAwsInvocationParametersContent
+
+
 class PromptGoogleInvocationParametersContent(DBBaseModel):
     temperature: float = UNDEFINED
     max_output_tokens: int = UNDEFINED
@@ -421,6 +441,7 @@ PromptInvocationParameters: TypeAlias = Annotated[
         PromptDeepSeekInvocationParameters,
         PromptXAIInvocationParameters,
         PromptOllamaInvocationParameters,
+        PromptAwsInvocationParameters,
     ],
     Field(..., discriminator="type"),
 ]
@@ -443,6 +464,8 @@ def get_raw_invocation_parameters(
         return invocation_parameters.xai.model_dump()
     if isinstance(invocation_parameters, PromptOllamaInvocationParameters):
         return invocation_parameters.ollama.model_dump()
+    if isinstance(invocation_parameters, PromptAwsInvocationParameters):
+        return invocation_parameters.aws.model_dump()
     assert_never(invocation_parameters)
 
 
@@ -459,6 +482,7 @@ def is_prompt_invocation_parameters(
             PromptDeepSeekInvocationParameters,
             PromptXAIInvocationParameters,
             PromptOllamaInvocationParameters,
+            PromptAwsInvocationParameters,
         ),
     )
 
@@ -512,6 +536,11 @@ def validate_invocation_parameters(
             type="ollama",
             ollama=PromptOllamaInvocationParametersContent.model_validate(invocation_parameters),
         )
+    elif model_provider is ModelProvider.AWS:
+        return PromptAwsInvocationParameters(
+            type="aws",
+            aws=PromptAwsInvocationParametersContent.model_validate(invocation_parameters),
+        )
     assert_never(model_provider)
 
 
@@ -530,12 +559,16 @@ def normalize_tools(
     ):
         openai_tools = [OpenAIToolDefinition.model_validate(schema) for schema in schemas]
         tools = [_openai_to_prompt_tool(openai_tool) for openai_tool in openai_tools]
+    elif model_provider is ModelProvider.AWS:
+        bedrock_tools = [BedrockToolDefinition.model_validate(schema) for schema in schemas]
+        tools = [_bedrock_to_prompt_tool(bedrock_tool) for bedrock_tool in bedrock_tools]
     elif model_provider is ModelProvider.ANTHROPIC:
         anthropic_tools = [AnthropicToolDefinition.model_validate(schema) for schema in schemas]
         tools = [_anthropic_to_prompt_tool(anthropic_tool) for anthropic_tool in anthropic_tools]
     else:
         raise ValueError(f"Unsupported model provider: {model_provider}")
     ans = PromptTools(type="tools", tools=tools)
+
     if tool_choice is not None:
         if (
             model_provider is ModelProvider.OPENAI
@@ -545,6 +578,8 @@ def normalize_tools(
             or model_provider is ModelProvider.OLLAMA
         ):
             ans.tool_choice = OpenAIToolChoiceConversion.from_openai(tool_choice)  # type: ignore[arg-type]
+        elif model_provider is ModelProvider.AWS:
+            ans.tool_choice = AwsToolChoiceConversion.from_aws(tool_choice)  # type: ignore[arg-type]
         elif model_provider is ModelProvider.ANTHROPIC:
             choice, disable_parallel_tool_calls = AnthropicToolChoiceConversion.from_anthropic(
                 tool_choice  # type: ignore[arg-type]
@@ -569,6 +604,10 @@ def denormalize_tools(
         or model_provider is ModelProvider.OLLAMA
     ):
         denormalized_tools = [_prompt_to_openai_tool(tool) for tool in tools.tools]
+        if tools.tool_choice:
+            tool_choice = OpenAIToolChoiceConversion.to_openai(tools.tool_choice)
+    elif model_provider is ModelProvider.AWS:
+        denormalized_tools = [_prompt_to_bedrock_tool(tool) for tool in tools.tools]
         if tools.tool_choice:
             tool_choice = OpenAIToolChoiceConversion.to_openai(tools.tool_choice)
     elif model_provider is ModelProvider.ANTHROPIC:
@@ -614,6 +653,19 @@ def _prompt_to_openai_tool(
     )
 
 
+def _bedrock_to_prompt_tool(
+    tool: BedrockToolDefinition,
+) -> PromptToolFunction:
+    return PromptToolFunction(
+        type="function",
+        function=PromptToolFunctionDefinition(
+            name=tool.toolSpec["name"],
+            description=tool.toolSpec["description"],
+            parameters=tool.toolSpec["inputSchema"]["json"],
+        ),
+    )
+
+
 def _anthropic_to_prompt_tool(
     tool: AnthropicToolDefinition,
 ) -> PromptToolFunction:
@@ -635,4 +687,19 @@ def _prompt_to_anthropic_tool(
         input_schema=function.parameters if function.parameters is not UNDEFINED else {},
         name=function.name,
         description=function.description,
+    )
+
+
+def _prompt_to_bedrock_tool(
+    tool: PromptToolFunction,
+) -> BedrockToolDefinition:
+    function = tool.function
+    return BedrockToolDefinition(
+        toolSpec={
+            "name": function.name,
+            "description": function.description,
+            "inputSchema": {
+                "json": function.parameters,
+            },
+        }
     )

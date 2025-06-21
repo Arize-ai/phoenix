@@ -741,6 +741,7 @@ describe("processAttributeToolCalls", () => {
   const ProviderToToolCallTestMap: ProviderToolCallTestMap = {
     ANTHROPIC: ["ANTHROPIC", testSpanToolCall, expectedAnthropicToolCall],
     OPENAI: ["OPENAI", testSpanToolCall, expectedTestOpenAIToolCall],
+    AWS: ["AWS", testSpanToolCall, expectedTestOpenAIToolCall],
     DEEPSEEK: ["DEEPSEEK", testSpanToolCall, expectedTestOpenAIToolCall],
     XAI: ["XAI", testSpanToolCall, expectedTestOpenAIToolCall],
     OLLAMA: ["OLLAMA", testSpanToolCall, expectedTestOpenAIToolCall],
@@ -1274,6 +1275,7 @@ describe("getToolsFromAttributes", () => {
       testSpanAnthropicToolDefinition,
     ],
     OPENAI: ["OPENAI", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
+    AWS: ["AWS", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
     DEEPSEEK: ["DEEPSEEK", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
     XAI: ["XAI", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
     OLLAMA: ["OLLAMA", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],

@@ -1231,6 +1231,7 @@ input GenerativeModelInput {
   baseUrl: String
   endpoint: String
   apiVersion: String
+  region: String
 }
 
 type GenerativeProvider {
@@ -1259,6 +1260,7 @@ enum GenerativeProviderKey {
   DEEPSEEK
   XAI
   OLLAMA
+  AWS
 }
 
 """
@@ -1419,6 +1421,7 @@ enum ModelProvider {
   DEEPSEEK
   XAI
   OLLAMA
+  AWS
 }
 
 input ModelsInput {
