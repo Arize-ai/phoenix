@@ -639,7 +639,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         model: GenerativeModelInput,
         credentials: Optional[list[PlaygroundClientCredential]] = None,
     ) -> None:
-        import boto3
+        import boto3  # type: ignore[import-untyped]
 
         super().__init__(model=model, credentials=credentials)
         self.region = model.region or "us-east-1"
@@ -661,7 +661,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
             aws_secret_access_key=self.aws_secret_access_key,
             aws_session_token=self.aws_session_token,
         )
-        self.client._client = _HttpxClient({}, self._attributes)
+        self.client._client = _HttpxClient({}, self._attributes)  # type: ignore[attr-defined]
 
         self._attributes[LLM_PROVIDER] = "aws"
         self._attributes[LLM_SYSTEM] = "aws"
@@ -735,8 +735,8 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
             tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
         ],
         tools: list[JSONScalarType],
-        invocation_parameters: dict,
-    ):
+        invocation_parameters: dict[str, Any],
+    ) -> AsyncIterator[ChatCompletionChunk]:
         """
         Handle the converse API.
         """
@@ -744,7 +744,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         converse_messages = self._build_converse_messages(messages)
 
         # Build the request parameters for Converse API
-        converse_params = {
+        converse_params: dict[str, Any] = {
             "modelId": f"us.{self.model_name}",
             "messages": converse_messages,
             "inferenceConfig": {
@@ -876,8 +876,8 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
             tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
         ],
         tools: list[JSONScalarType],
-        invocation_parameters: dict,
-    ):
+        invocation_parameters: dict[str, Any],
+    ) -> AsyncIterator[ChatCompletionChunk]:
         if "anthropic" not in self.model_name:
             raise ValueError("Invoke API is only supported for Anthropic models")
 
@@ -904,7 +904,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         event_stream = response["body"]
 
         # Track active tool calls and their accumulating arguments
-        active_tool_calls = {}  # index -> {id, name, arguments_buffer}
+        active_tool_calls: dict[int, dict[str, Any]] = {}  # index -> {id, name, arguments_buffer}
 
         for event in event_stream:
             if "chunk" in event:
@@ -984,7 +984,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         messages: list[
             tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
         ],
-    ) -> tuple[list[dict], str]:
+    ) -> tuple[list[dict[str, Any]], str]:
         bedrock_messages = []
         system_prompt = ""
         for role, content, _, _ in messages:
@@ -1024,9 +1024,9 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         messages: list[
             tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
         ],
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Convert messages to Converse API format."""
-        converse_messages = []
+        converse_messages: list[dict[str, Any]] = []
         for role, content, _id, tool_calls in messages:
             if role == ChatCompletionMessageRole.USER:
                 converse_messages.append({"role": "user", "content": [{"text": content}]})
@@ -1047,16 +1047,13 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
 
             elif role == ChatCompletionMessageRole.AI:
                 # Handle assistant messages with potential tool calls
+                message: dict[str, Any] = {"role": "assistant", "content": []}
                 if content:
-                    message = {"role": "assistant", "content": []}
                     message["content"].append({"text": content})
                 if tool_calls:
                     for tool_call in tool_calls:
-                        message = {"role": "assistant", "content": []}
                         message["content"].append(tool_call)
-
-                if message["content"]:  # Only add if there's content
-                    converse_messages.append(message)
+                converse_messages.append(message)
         return converse_messages
 
 

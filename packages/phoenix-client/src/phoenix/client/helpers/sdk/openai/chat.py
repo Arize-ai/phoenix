@@ -328,14 +328,12 @@ class _InvocationParametersConversion:
         elif obj["type"] == "aws":
             aws_params: v1.PromptAwsInvocationParametersContent
             aws_params = obj["aws"]
-            if "max_completion_tokens" in aws_params:
-                ans["max_completion_tokens"] = aws_params["max_completion_tokens"]
             if "max_tokens" in aws_params:
                 ans["max_tokens"] = aws_params["max_tokens"]
-            if "region" in aws_params:
-                ans["region"] = aws_params["region"]
-            if "api" in aws_params:
-                ans["api"] = aws_params["api"]
+            if "temperature" in aws_params:
+                ans["temperature"] = aws_params["temperature"]
+            if "top_p" in aws_params:
+                ans["top_p"] = aws_params["top_p"]
         elif TYPE_CHECKING:
             assert_never(obj["type"])
         return ans
@@ -392,7 +390,22 @@ class _InvocationParametersConversion:
         /,
         *,
         model_provider: Literal["AWS"],
-    ) -> v1.PromptAwsInvocationParameters: ...
+    ) -> v1.PromptAwsInvocationParameters:
+        if model_provider == "AWS":
+            content = v1.PromptAwsInvocationParametersContent()
+        if "max_tokens" in obj and obj["max_tokens"] is not None:
+            content["max_tokens"] = obj["max_tokens"]
+        if "temperature" in obj and obj["temperature"] is not None:
+            content["temperature"] = obj["temperature"]
+        if "top_p" in obj and obj["top_p"] is not None:
+            content["top_p"] = obj["top_p"]
+        if model_provider == "AWS":
+            return v1.PromptAwsInvocationParameters(
+                type="aws",
+                aws=content,
+            )
+        else:
+            assert_never(model_provider)
 
     @staticmethod
     def from_openai(
@@ -408,7 +421,6 @@ class _InvocationParametersConversion:
         v1.PromptDeepSeekInvocationParameters,
         v1.PromptXAIInvocationParameters,
         v1.PromptOllamaInvocationParameters,
-        v1.PromptAwsInvocationParameters,
     ]:
         content: Union[
             v1.PromptOpenAIInvocationParametersContent,
@@ -416,7 +428,6 @@ class _InvocationParametersConversion:
             v1.PromptDeepSeekInvocationParametersContent,
             v1.PromptXAIInvocationParametersContent,
             v1.PromptOllamaInvocationParametersContent,
-            v1.PromptAwsInvocationParametersContent,
         ]
         if model_provider == "OPENAI":
             content = v1.PromptOpenAIInvocationParametersContent()
@@ -428,8 +439,6 @@ class _InvocationParametersConversion:
             content = v1.PromptXAIInvocationParametersContent()
         elif model_provider == "OLLAMA":
             content = v1.PromptOllamaInvocationParametersContent()
-        elif model_provider == "AWS":
-            content = v1.PromptAwsInvocationParametersContent()
         else:
             assert_never(model_provider)
         if "max_completion_tokens" in obj and obj["max_completion_tokens"] is not None:
@@ -469,11 +478,6 @@ class _InvocationParametersConversion:
             return v1.PromptXAIInvocationParameters(
                 type="xai",
                 xai=content,
-            )
-        elif model_provider == "AWS":
-            return v1.PromptAwsInvocationParameters(
-                type="aws",
-                aws=content,
             )
         elif model_provider == "OLLAMA":
             return v1.PromptOllamaInvocationParameters(
