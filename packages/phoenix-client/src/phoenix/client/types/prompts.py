@@ -24,9 +24,6 @@ from phoenix.client.helpers.sdk.anthropic.messages import (
 from phoenix.client.helpers.sdk.anthropic.messages import (
     to_chat_messages_and_kwargs as to_messages_anthropic,
 )
-from phoenix.client.helpers.sdk.aws.messages import (
-    create_prompt_version_from_aws,
-)
 from phoenix.client.helpers.sdk.google_generativeai.generate_content import (
     GoogleModelKwargs,
     create_prompt_version_from_google,
@@ -300,14 +297,7 @@ class PromptVersion:
         description: Optional[str] = None,
         model_provider: Literal["AWS"] = "AWS",
     ) -> Self:
-        return cls._loads(
-            create_prompt_version_from_aws(
-                obj,
-                description=description,
-                template_format=template_format,
-                model_provider=model_provider,
-            )
-        )
+        raise NotImplementedError("AWS is not supported yet")
 
     @classmethod
     def from_anthropic(

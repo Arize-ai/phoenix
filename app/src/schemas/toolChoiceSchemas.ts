@@ -168,7 +168,7 @@ type ProviderToToolChoiceMap = {
   DEEPSEEK: OpenaiToolChoice;
   XAI: OpenaiToolChoice;
   OLLAMA: OpenaiToolChoice;
-  AWS: AnthropicToolChoice;
+  AWS: AwsToolChoice;
 };
 
 /**
