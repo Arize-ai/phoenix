@@ -34,6 +34,7 @@ import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
 import {
+  costFormatter,
   floatFormatter,
   formatPercent,
 } from "@phoenix/utils/numberFormatUtils";
@@ -149,6 +150,20 @@ export function ExperimentsTable({
                 averageRunLatencyMs
                 project {
                   id
+                }
+                costSummary {
+                  total {
+                    tokens
+                    cost
+                  }
+                  prompt {
+                    tokens
+                    cost
+                  }
+                  completion {
+                    tokens
+                    cost
+                  }
                 }
                 annotationSummaries {
                   annotationName
@@ -306,6 +321,34 @@ export function ExperimentsTable({
           return "--";
         }
         return <LatencyText latencyMs={value} />;
+      },
+    },
+    {
+      header: "cost",
+      accessorKey: "costSummary.total.cost",
+      meta: {
+        textAlign: "right",
+      },
+      cell: ({ getValue }) => {
+        const value = getValue();
+        if (value === null || typeof value !== "number") {
+          return "--";
+        }
+        return <Text>{`$${costFormatter(value)}`}</Text>;
+      },
+    },
+    {
+      header: "tokens",
+      accessorKey: "costSummary.total.tokens",
+      meta: {
+        textAlign: "right",
+      },
+      cell: ({ getValue }) => {
+        const value = getValue();
+        if (value === null || typeof value !== "number") {
+          return "--";
+        }
+        return <Text>{`${value}`}</Text>;
       },
     },
     {
