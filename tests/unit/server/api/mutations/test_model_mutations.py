@@ -21,9 +21,11 @@ class TestModelMutations:
             isOverride
             createdAt
             updatedAt
-            tokenCost {
-              input
-              output
+            tokenPrices {
+              tokenType
+              kind
+              costPerToken
+              costPerMillionTokens
             }
           }
         }
@@ -39,9 +41,11 @@ class TestModelMutations:
             isOverride
             createdAt
             updatedAt
-            tokenCost {
-              input
-              output
+            tokenPrices {
+              tokenType
+              kind
+              costPerToken
+              costPerMillionTokens
             }
           }
         }
@@ -73,8 +77,16 @@ class TestModelMutations:
                 "provider": "openai",
                 "namePattern": "gpt-*",
                 "costs": [
-                    {"tokenType": "input", "costPerToken": 0.001},
-                    {"tokenType": "output", "costPerToken": 0.002},
+                    {
+                        "tokenType": "input",
+                        "kind": "PROMPT",
+                        "costPerMillionTokens": 0.001 * 1_000_000,
+                    },
+                    {
+                        "tokenType": "output",
+                        "kind": "COMPLETION",
+                        "costPerMillionTokens": 0.002 * 1_000_000,
+                    },
                 ],
             }
         }
@@ -94,11 +106,22 @@ class TestModelMutations:
         assert created_model.pop("isOverride") is True
         assert isinstance(created_model.pop("createdAt"), str)
         assert isinstance(created_model.pop("updatedAt"), str)
-        token_cost = created_model.pop("tokenCost")
+        token_prices = created_model.pop("tokenPrices")
+        assert token_prices == [
+            {
+                "tokenType": "input",
+                "kind": "PROMPT",
+                "costPerToken": 0.001,
+                "costPerMillionTokens": 0.001 * 1_000_000,
+            },
+            {
+                "tokenType": "output",
+                "kind": "COMPLETION",
+                "costPerToken": 0.002,
+                "costPerMillionTokens": 0.002 * 1_000_000,
+            },
+        ]
         assert not created_model
-        assert token_cost.pop("input") == 0.001
-        assert token_cost.pop("output") == 0.002
-        assert not token_cost
 
         # Update model
         update_variables = {
@@ -108,8 +131,16 @@ class TestModelMutations:
                 "provider": "anthropic",
                 "namePattern": "claude-*",
                 "costs": [
-                    {"tokenType": "input", "costPerToken": 0.003},
-                    {"tokenType": "output", "costPerToken": 0.004},
+                    {
+                        "tokenType": "input",
+                        "kind": "PROMPT",
+                        "costPerMillionTokens": 0.003 * 1_000_000,
+                    },
+                    {
+                        "tokenType": "output",
+                        "kind": "COMPLETION",
+                        "costPerMillionTokens": 0.004 * 1_000_000,
+                    },
                 ],
             }
         }
@@ -129,11 +160,21 @@ class TestModelMutations:
         assert updated_model.pop("isOverride") is True
         assert isinstance(updated_model.pop("createdAt"), str)
         assert isinstance(updated_model.pop("updatedAt"), str)
-        token_cost = updated_model.pop("tokenCost")
-        assert not updated_model
-        assert token_cost.pop("input") == 0.003
-        assert token_cost.pop("output") == 0.004
-        assert not token_cost
+        token_prices = updated_model.pop("tokenPrices")
+        assert token_prices == [
+            {
+                "tokenType": "input",
+                "kind": "PROMPT",
+                "costPerToken": 0.003,
+                "costPerMillionTokens": 0.003 * 1_000_000,
+            },
+            {
+                "tokenType": "output",
+                "kind": "COMPLETION",
+                "costPerToken": 0.004,
+                "costPerMillionTokens": 0.004 * 1_000_000,
+            },
+        ]
 
         # Delete model
         delete_variables = {
@@ -169,7 +210,11 @@ class TestModelMutations:
                         "provider": "openai",
                         "namePattern": "gpt-*",
                         "costs": [
-                            {"tokenType": "output", "costPerToken": 0.002},
+                            {
+                                "tokenType": "output",
+                                "kind": "COMPLETION",
+                                "costPerMillionTokens": 0.002 * 1_000_000,
+                            },
                         ],
                     }
                 },
@@ -183,7 +228,11 @@ class TestModelMutations:
                         "provider": "openai",
                         "namePattern": "gpt-*",
                         "costs": [
-                            {"tokenType": "input", "costPerToken": 0.001},
+                            {
+                                "tokenType": "input",
+                                "kind": "PROMPT",
+                                "costPerMillionTokens": 0.001 * 1_000_000,
+                            },
                         ],
                     }
                 },
@@ -197,8 +246,16 @@ class TestModelMutations:
                         "provider": "openai",
                         "namePattern": "gpt-*",
                         "costs": [
-                            {"tokenType": "input", "costPerToken": 0.001},
-                            {"tokenType": "output", "costPerToken": 0.002},
+                            {
+                                "tokenType": "input",
+                                "kind": "PROMPT",
+                                "costPerMillionTokens": 0.001 * 1_000_000,
+                            },
+                            {
+                                "tokenType": "output",
+                                "kind": "COMPLETION",
+                                "costPerMillionTokens": 0.002 * 1_000_000,
+                            },
                         ],
                     }
                 },
@@ -212,8 +269,16 @@ class TestModelMutations:
                         "provider": "openai",
                         "namePattern": "[",
                         "costs": [
-                            {"tokenType": "input", "costPerToken": 0.001},
-                            {"tokenType": "output", "costPerToken": 0.002},
+                            {
+                                "tokenType": "input",
+                                "kind": "PROMPT",
+                                "costPerMillionTokens": 0.001 * 1_000_000,
+                            },
+                            {
+                                "tokenType": "output",
+                                "kind": "COMPLETION",
+                                "costPerMillionTokens": 0.002 * 1_000_000,
+                            },
                         ],
                     }
                 },
@@ -249,8 +314,16 @@ class TestModelMutations:
                         "provider": "openai",
                         "namePattern": "gpt-*",
                         "costs": [
-                            {"tokenType": "input", "costPerToken": 0.001},
-                            {"tokenType": "output", "costPerToken": 0.002},
+                            {
+                                "tokenType": "input",
+                                "kind": "PROMPT",
+                                "costPerMillionTokens": 0.001 * 1_000_000,
+                            },
+                            {
+                                "tokenType": "output",
+                                "kind": "COMPLETION",
+                                "costPerMillionTokens": 0.002 * 1_000_000,
+                            },
                         ],
                     }
                 },
@@ -265,8 +338,16 @@ class TestModelMutations:
                         "provider": "openai",
                         "namePattern": "gpt-*",
                         "costs": [
-                            {"tokenType": "input", "costPerToken": 0.001},
-                            {"tokenType": "output", "costPerToken": 0.002},
+                            {
+                                "tokenType": "input",
+                                "kind": "PROMPT",
+                                "costPerMillionTokens": 0.001 * 1_000_000,
+                            },
+                            {
+                                "tokenType": "output",
+                                "kind": "COMPLETION",
+                                "costPerMillionTokens": 0.002 * 1_000_000,
+                            },
                         ],
                     }
                 },
@@ -281,7 +362,11 @@ class TestModelMutations:
                         "provider": "openai",
                         "namePattern": "gpt-*",
                         "costs": [
-                            {"tokenType": "output", "costPerToken": 0.002},
+                            {
+                                "tokenType": "output",
+                                "kind": "COMPLETION",
+                                "costPerMillionTokens": 0.002 * 1_000_000,
+                            },
                         ],
                     }
                 },
@@ -296,7 +381,11 @@ class TestModelMutations:
                         "provider": "openai",
                         "namePattern": "gpt-*",
                         "costs": [
-                            {"tokenType": "input", "costPerToken": 0.001},
+                            {
+                                "tokenType": "input",
+                                "kind": "PROMPT",
+                                "costPerMillionTokens": 0.001 * 1_000_000,
+                            },
                         ],
                     }
                 },
@@ -311,8 +400,16 @@ class TestModelMutations:
                         "provider": "openai",
                         "namePattern": "[",
                         "costs": [
-                            {"tokenType": "input", "costPerToken": 0.001},
-                            {"tokenType": "output", "costPerToken": 0.002},
+                            {
+                                "tokenType": "input",
+                                "kind": "PROMPT",
+                                "costPerMillionTokens": 0.001 * 1_000_000,
+                            },
+                            {
+                                "tokenType": "output",
+                                "kind": "COMPLETION",
+                                "costPerMillionTokens": 0.002 * 1_000_000,
+                            },
                         ],
                     }
                 },
@@ -349,8 +446,16 @@ class TestModelMutations:
                 "provider": "anthropic",
                 "namePattern": "claude-*",
                 "costs": [
-                    {"tokenType": "input", "costPerToken": 0.003},
-                    {"tokenType": "output", "costPerToken": 0.004},
+                    {
+                        "tokenType": "input",
+                        "kind": "PROMPT",
+                        "costPerMillionTokens": 0.003 * 1_000_000,
+                    },
+                    {
+                        "tokenType": "output",
+                        "kind": "COMPLETION",
+                        "costPerMillionTokens": 0.004 * 1_000_000,
+                    },
                 ],
             }
         }
@@ -378,8 +483,16 @@ class TestModelMutations:
                 "provider": "anthropic",
                 "namePattern": "claude-*",
                 "costs": [
-                    {"tokenType": "input", "costPerToken": 0.003},
-                    {"tokenType": "output", "costPerToken": 0.004},
+                    {
+                        "tokenType": "input",
+                        "kind": "PROMPT",
+                        "costPerMillionTokens": 0.003 * 1_000_000,
+                    },
+                    {
+                        "tokenType": "output",
+                        "kind": "COMPLETION",
+                        "costPerMillionTokens": 0.004 * 1_000_000,
+                    },
                 ],
             }
         }
