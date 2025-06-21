@@ -430,7 +430,7 @@ class _MessageConversion:
         formatter: TemplateFormatter,
         /,
     ) -> Iterator[MessageParam]:
-        role = _RoleConversion.to_anthropic(obj)
+        role = _RoleConversion.to_aws(obj)
         if isinstance(obj["content"], str):
             yield {"role": role, "content": formatter.format(obj["content"], variables=variables)}
             return
