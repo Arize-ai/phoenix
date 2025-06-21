@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1483bcf876cfe19b98bda83a4a4ce854>>
+ * @generated SignedSource<<795b9e0fde3350499e6280e6f4ce4b0e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,10 +9,10 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type TokenCount_TokenDetailsQuery$variables = {
+export type SpanTokenCount_TokenDetailsQuery$variables = {
   nodeId: string;
 };
-export type TokenCount_TokenDetailsQuery$data = {
+export type SpanTokenCount_TokenDetailsQuery$data = {
   readonly node: {
     readonly __typename: "ProjectSession";
     readonly tokenUsage: {
@@ -40,9 +40,9 @@ export type TokenCount_TokenDetailsQuery$data = {
     readonly __typename: "%other";
   };
 };
-export type TokenCount_TokenDetailsQuery = {
-  response: TokenCount_TokenDetailsQuery$data;
-  variables: TokenCount_TokenDetailsQuery$variables;
+export type SpanTokenCount_TokenDetailsQuery = {
+  response: SpanTokenCount_TokenDetailsQuery$data;
+  variables: SpanTokenCount_TokenDetailsQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -178,7 +178,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "TokenCount_TokenDetailsQuery",
+    "name": "SpanTokenCount_TokenDetailsQuery",
     "selections": [
       {
         "alias": null,
@@ -222,7 +222,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "TokenCount_TokenDetailsQuery",
+    "name": "SpanTokenCount_TokenDetailsQuery",
     "selections": [
       {
         "alias": null,
@@ -263,16 +263,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "33e7472dedab185792845ca5d971f85d",
+    "cacheID": "60d806b4424ef2a5672ceeb892e097e6",
     "id": null,
     "metadata": {},
-    "name": "TokenCount_TokenDetailsQuery",
+    "name": "SpanTokenCount_TokenDetailsQuery",
     "operationKind": "query",
-    "text": "query TokenCount_TokenDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      tokenCountPrompt\n      tokenCountCompletion\n      tokenPromptDetails {\n        audio\n        cacheRead\n        cacheWrite\n      }\n    }\n    ... on ProjectSession {\n      tokenUsage {\n        prompt\n        completion\n      }\n    }\n    ... on Trace {\n      rootSpan {\n        cumulativeTokenCountPrompt\n        cumulativeTokenCountCompletion\n        id\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query SpanTokenCount_TokenDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      tokenCountPrompt\n      tokenCountCompletion\n      tokenPromptDetails {\n        audio\n        cacheRead\n        cacheWrite\n      }\n    }\n    ... on ProjectSession {\n      tokenUsage {\n        prompt\n        completion\n      }\n    }\n    ... on Trace {\n      rootSpan {\n        cumulativeTokenCountPrompt\n        cumulativeTokenCountCompletion\n        id\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "78deb4c70ade5cabeacc2960828e441e";
+(node as any).hash = "f7d2bdeb3efc856fb1883e7337bc225f";
 
 export default node;

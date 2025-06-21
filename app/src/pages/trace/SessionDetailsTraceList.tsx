@@ -128,10 +128,7 @@ function RootSpanDetails({
             </Text>
           </Flex>
           <Flex direction={"row"} gap={"size-100"}>
-            <TokenCount
-              tokenCountTotal={rootSpan.cumulativeTokenCountTotal ?? 0}
-              nodeId={rootSpan.id}
-            />
+            <TokenCount>{rootSpan.cumulativeTokenCountTotal}</TokenCount>
             {rootSpan.costSummary?.total?.cost != null && (
               <TokenCosts
                 totalCost={rootSpan.costSummary.total.cost}

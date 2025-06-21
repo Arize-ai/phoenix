@@ -16,8 +16,8 @@ import {
 } from "@phoenix/components";
 import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
-import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 
 import { RunMetadataFooterQuery } from "./__generated__/RunMetadataFooterQuery.graphql";
@@ -72,7 +72,7 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
     >
       <Flex direction="row" gap="size-200" justifyContent="space-between">
         <Flex direction="row" gap="size-100" alignItems="center">
-          <TokenCount
+          <SpanTokenCount
             tokenCountTotal={data.span.tokenCountTotal || 0}
             nodeId={data.span.id}
           />

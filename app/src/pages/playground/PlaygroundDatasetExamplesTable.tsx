@@ -52,8 +52,8 @@ import { CellTop } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
-import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useNotifyError } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
@@ -320,7 +320,7 @@ function ExampleOutputContent({
             height="100%"
           >
             <LatencyText latencyMs={span.latencyMs || 0} size="S" />
-            <TokenCount
+            <SpanTokenCount
               tokenCountTotal={span.tokenCountTotal || 0}
               nodeId={span.id}
             />

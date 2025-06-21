@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d86a777f0102e6de79aba282959267c2>>
+ * @generated SignedSource<<2805c3dadcf80e33d06365710143b6ad>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -40,6 +40,20 @@ export type ExperimentCompareTable_comparisons$data = {
                   } | null;
                 };
               }>;
+            };
+            readonly costSummary: {
+              readonly completion: {
+                readonly cost: number | null;
+                readonly tokens: number | null;
+              };
+              readonly prompt: {
+                readonly cost: number | null;
+                readonly tokens: number | null;
+              };
+              readonly total: {
+                readonly cost: number | null;
+                readonly tokens: number | null;
+              };
             };
             readonly endTime: string;
             readonly error: string | null;
@@ -115,7 +129,23 @@ v2 = {
   ],
   "storageKey": null
 },
-v3 = {
+v3 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "tokens",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "cost",
+    "storageKey": null
+  }
+],
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -302,6 +332,47 @@ return {
                         {
                           "alias": null,
                           "args": null,
+                          "concreteType": "SpanCostSummary",
+                          "kind": "LinkedField",
+                          "name": "costSummary",
+                          "plural": false,
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "CostBreakdown",
+                              "kind": "LinkedField",
+                              "name": "total",
+                              "plural": false,
+                              "selections": (v3/*: any*/),
+                              "storageKey": null
+                            },
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "CostBreakdown",
+                              "kind": "LinkedField",
+                              "name": "prompt",
+                              "plural": false,
+                              "selections": (v3/*: any*/),
+                              "storageKey": null
+                            },
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "CostBreakdown",
+                              "kind": "LinkedField",
+                              "name": "completion",
+                              "plural": false,
+                              "selections": (v3/*: any*/),
+                              "storageKey": null
+                            }
+                          ],
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
                           "concreteType": "ExperimentRunAnnotationConnection",
                           "kind": "LinkedField",
                           "name": "annotations",
@@ -324,7 +395,7 @@ return {
                                   "plural": false,
                                   "selections": [
                                     (v1/*: any*/),
-                                    (v3/*: any*/),
+                                    (v4/*: any*/),
                                     {
                                       "alias": null,
                                       "args": null,
@@ -471,7 +542,7 @@ return {
                       "plural": false,
                       "selections": [
                         (v1/*: any*/),
-                        (v3/*: any*/),
+                        (v4/*: any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -520,6 +591,6 @@ return {
 };
 })();
 
-(node as any).hash = "197d8138f2229974e8f32af49e5e4261";
+(node as any).hash = "f9d4206ae366431d84d354dd4c36bf43";
 
 export default node;
