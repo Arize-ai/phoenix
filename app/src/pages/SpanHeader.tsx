@@ -6,8 +6,8 @@ import { Flex, Text } from "@phoenix/components";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
+import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
-import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import { SpanHeader_span$key } from "./__generated__/SpanHeader_span.graphql";
@@ -67,7 +67,7 @@ export function SpanHeader(props: SpanHeaderProps) {
             at {fullTimeFormatter(startTime)}
           </Text>
           {span.tokenCountTotal ? (
-            <TokenCount
+            <SpanTokenCount
               tokenCountTotal={span.tokenCountTotal}
               nodeId={span.id}
               size="S"

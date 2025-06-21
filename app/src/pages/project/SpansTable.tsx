@@ -41,8 +41,8 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
+import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
-import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
@@ -488,7 +488,10 @@ export function SpansTable(props: SpansTableProps) {
           ? span.cumulativeTokenCountTotal
           : span.tokenCountTotal;
         return (
-          <TokenCount tokenCountTotal={tokenCountTotal || 0} nodeId={span.id} />
+          <SpanTokenCount
+            tokenCountTotal={tokenCountTotal || 0}
+            nodeId={span.id}
+          />
         );
       },
     },

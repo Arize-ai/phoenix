@@ -25,12 +25,12 @@ import { Icon, Icons, View } from "@phoenix/components";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import { IntCell, TextCell } from "../../components/table";
 import { TokenCosts } from "../../components/trace/TokenCosts";
-import { TokenCount } from "../../components/trace/TokenCount";
 
 import { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
 import {
@@ -221,17 +221,12 @@ export function SessionsTable(props: SessionsTableProps) {
       accessorKey: "tokenCountTotal",
       enableSorting: true,
       minSize: 80,
-      cell: ({ row, getValue }) => {
+      cell: ({ getValue }) => {
         const value = getValue();
         if (value == null || typeof value !== "number") {
           return "--";
         }
-        return (
-          <TokenCount
-            tokenCountTotal={value as number}
-            nodeId={row.original.id}
-          />
-        );
+        return <TokenCount size="S">{value as number}</TokenCount>;
       },
     },
     {
