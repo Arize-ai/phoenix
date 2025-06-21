@@ -56,6 +56,7 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
+import { ExperimentRunTokenCount } from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
 import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
 import { resizeHandleCSS } from "@phoenix/components/resize";
@@ -190,6 +191,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 runComparisonItems {
                   experimentId
                   runs {
+                    id
                     output
                     error
                     startTime
@@ -790,12 +792,20 @@ function ExperimentRowActionMenu(props: {
 }
 
 function ExperimentRunMetadata(props: ExperimentRun) {
-  const { startTime, endTime, costSummary } = props;
+  const { id, startTime, endTime, costSummary } = props;
   const totalTokens = costSummary?.total?.tokens;
   return (
     <Flex direction="row" gap="size-100">
       <RunLatency startTime={startTime} endTime={endTime} />
-      <TokenCount size="S">{totalTokens}</TokenCount>
+      {totalTokens != null && id ? (
+        <ExperimentRunTokenCount
+          tokenCountTotal={totalTokens}
+          experimentRunId={id}
+          size="S"
+        />
+      ) : (
+        <TokenCount size="S">{totalTokens}</TokenCount>
+      )}
     </Flex>
   );
 }

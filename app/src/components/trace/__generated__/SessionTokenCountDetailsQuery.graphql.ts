@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9c903d426753c50967ecf8d7f53d289d>>
+ * @generated SignedSource<<24a40a6508658e623cbc40325bdd5437>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,18 +9,15 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type SpanTokenCountDetailsQuery$variables = {
+export type SessionTokenCountDetailsQuery$variables = {
   nodeId: string;
 };
-export type SpanTokenCountDetailsQuery$data = {
+export type SessionTokenCountDetailsQuery$data = {
   readonly node: {
-    readonly __typename: "Span";
-    readonly tokenCountCompletion: number | null;
-    readonly tokenCountPrompt: number | null;
-    readonly tokenPromptDetails: {
-      readonly audio: number | null;
-      readonly cacheRead: number | null;
-      readonly cacheWrite: number | null;
+    readonly __typename: "ProjectSession";
+    readonly tokenUsage: {
+      readonly completion: number;
+      readonly prompt: number;
     };
   } | {
     // This will never be '%other', but we need some
@@ -28,9 +25,9 @@ export type SpanTokenCountDetailsQuery$data = {
     readonly __typename: "%other";
   };
 };
-export type SpanTokenCountDetailsQuery = {
-  response: SpanTokenCountDetailsQuery$data;
-  variables: SpanTokenCountDetailsQuery$variables;
+export type SessionTokenCountDetailsQuery = {
+  response: SessionTokenCountDetailsQuery$data;
+  variables: SessionTokenCountDetailsQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -61,51 +58,30 @@ v3 = {
     {
       "alias": null,
       "args": null,
-      "kind": "ScalarField",
-      "name": "tokenCountPrompt",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "tokenCountCompletion",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "TokenCountPromptDetails",
+      "concreteType": "TokenUsage",
       "kind": "LinkedField",
-      "name": "tokenPromptDetails",
+      "name": "tokenUsage",
       "plural": false,
       "selections": [
         {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
-          "name": "audio",
+          "name": "prompt",
           "storageKey": null
         },
         {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
-          "name": "cacheRead",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "cacheWrite",
+          "name": "completion",
           "storageKey": null
         }
       ],
       "storageKey": null
     }
   ],
-  "type": "Span",
+  "type": "ProjectSession",
   "abstractKey": null
 };
 return {
@@ -113,7 +89,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "SpanTokenCountDetailsQuery",
+    "name": "SessionTokenCountDetailsQuery",
     "selections": [
       {
         "alias": null,
@@ -136,7 +112,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "SpanTokenCountDetailsQuery",
+    "name": "SessionTokenCountDetailsQuery",
     "selections": [
       {
         "alias": null,
@@ -161,16 +137,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7401c6c1af1b9883f95635344d94069c",
+    "cacheID": "5df073c3f0f20378aed5118f6f0d2f4b",
     "id": null,
     "metadata": {},
-    "name": "SpanTokenCountDetailsQuery",
+    "name": "SessionTokenCountDetailsQuery",
     "operationKind": "query",
-    "text": "query SpanTokenCountDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      tokenCountPrompt\n      tokenCountCompletion\n      tokenPromptDetails {\n        audio\n        cacheRead\n        cacheWrite\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query SessionTokenCountDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on ProjectSession {\n      tokenUsage {\n        prompt\n        completion\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "79e1debd61e4807b5d2ad804060bc9a1";
+(node as any).hash = "da1b954f5615c67f552ece1b8b3478b5";
 
 export default node;

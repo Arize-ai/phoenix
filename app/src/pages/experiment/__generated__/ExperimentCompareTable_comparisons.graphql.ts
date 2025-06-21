@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2805c3dadcf80e33d06365710143b6ad>>
+ * @generated SignedSource<<1725d4f00944f793d7e76fb8ee9a7471>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -57,6 +57,7 @@ export type ExperimentCompareTable_comparisons$data = {
             };
             readonly endTime: string;
             readonly error: string | null;
+            readonly id: string;
             readonly output: any | null;
             readonly startTime: string;
             readonly trace: {
@@ -300,6 +301,7 @@ return {
                       "name": "runs",
                       "plural": true,
                       "selections": [
+                        (v1/*: any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -591,6 +593,6 @@ return {
 };
 })();
 
-(node as any).hash = "f9d4206ae366431d84d354dd4c36bf43";
+(node as any).hash = "284bf071e66a6d4401338b2c89e9141c";
 
 export default node;

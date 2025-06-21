@@ -39,6 +39,7 @@ import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
@@ -487,6 +488,16 @@ export function SpansTable(props: SpansTableProps) {
         const tokenCountTotal = rootSpansOnly
           ? span.cumulativeTokenCountTotal
           : span.tokenCountTotal;
+
+        if (rootSpansOnly) {
+          return (
+            <SpanCumulativeTokenCount
+              tokenCountTotal={tokenCountTotal || 0}
+              nodeId={span.id}
+            />
+          );
+        }
+
         return (
           <SpanTokenCount
             tokenCountTotal={tokenCountTotal || 0}

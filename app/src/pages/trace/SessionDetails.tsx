@@ -5,7 +5,7 @@ import { HelpTooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
 import { Flex, Text, View } from "@phoenix/components";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
+import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
 
 import { costFormatter } from "../../utils/numberFormatUtils";
 
@@ -46,7 +46,7 @@ function SessionDetailsHeader({
             <Text elementType={"h3"} color={"text-700"}>
               Total Tokens
             </Text>
-            <SpanTokenCount
+            <SessionTokenCount
               tokenCountTotal={tokenUsage.total}
               nodeId={sessionId}
               size="L"

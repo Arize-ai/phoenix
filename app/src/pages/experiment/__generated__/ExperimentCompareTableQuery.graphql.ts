@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4b30f290f10f16d0f35bf7ddeb92eb9b>>
+ * @generated SignedSource<<4d91a2fd69b35c305eaaaae7fe6cc49e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -258,6 +258,7 @@ return {
                         "name": "runs",
                         "plural": true,
                         "selections": [
+                          (v6/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -391,8 +392,7 @@ return {
                               }
                             ],
                             "storageKey": null
-                          },
-                          (v6/*: any*/)
+                          }
                         ],
                         "storageKey": null
                       }
@@ -556,16 +556,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "1c850db68873a66a8ed04fe251ed6f26",
+    "cacheID": "016091a5320e4d5f6f5c23f2e4914d5d",
     "id": null,
     "metadata": {},
     "name": "ExperimentCompareTableQuery",
     "operationKind": "query",
-    "text": "query ExperimentCompareTableQuery(\n  $after: String = null\n  $datasetId: ID!\n  $experimentIds: [ID!]!\n  $filterCondition: String = null\n  $first: Int = 50\n) {\n  ...ExperimentCompareTable_comparisons_2j8slP\n}\n\nfragment ExperimentCompareTable_comparisons_2j8slP on Query {\n  compareExperiments(first: $first, after: $after, experimentIds: $experimentIds, filterCondition: $filterCondition) {\n    edges {\n      comparison: node {\n        example {\n          id\n          revision {\n            input\n            referenceOutput: output\n          }\n        }\n        runComparisonItems {\n          experimentId\n          runs {\n            output\n            error\n            startTime\n            endTime\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n              prompt {\n                tokens\n                cost\n              }\n              completion {\n                tokens\n                cost\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  score\n                  label\n                  annotatorKind\n                  explanation\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n            id\n          }\n        }\n        id\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experiments {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            metadata\n            project {\n              id\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query ExperimentCompareTableQuery(\n  $after: String = null\n  $datasetId: ID!\n  $experimentIds: [ID!]!\n  $filterCondition: String = null\n  $first: Int = 50\n) {\n  ...ExperimentCompareTable_comparisons_2j8slP\n}\n\nfragment ExperimentCompareTable_comparisons_2j8slP on Query {\n  compareExperiments(first: $first, after: $after, experimentIds: $experimentIds, filterCondition: $filterCondition) {\n    edges {\n      comparison: node {\n        example {\n          id\n          revision {\n            input\n            referenceOutput: output\n          }\n        }\n        runComparisonItems {\n          experimentId\n          runs {\n            id\n            output\n            error\n            startTime\n            endTime\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n              prompt {\n                tokens\n                cost\n              }\n              completion {\n                tokens\n                cost\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  score\n                  label\n                  annotatorKind\n                  explanation\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n        }\n        id\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experiments {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            metadata\n            project {\n              id\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f9d4206ae366431d84d354dd4c36bf43";
+(node as any).hash = "284bf071e66a6d4401338b2c89e9141c";
 
 export default node;

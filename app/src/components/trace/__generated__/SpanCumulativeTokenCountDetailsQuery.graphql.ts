@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9c903d426753c50967ecf8d7f53d289d>>
+ * @generated SignedSource<<8f2bca0bd47421fff70b9166ed35adac>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,28 +9,23 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type SpanTokenCountDetailsQuery$variables = {
+export type SpanCumulativeTokenCountDetailsQuery$variables = {
   nodeId: string;
 };
-export type SpanTokenCountDetailsQuery$data = {
+export type SpanCumulativeTokenCountDetailsQuery$data = {
   readonly node: {
     readonly __typename: "Span";
-    readonly tokenCountCompletion: number | null;
-    readonly tokenCountPrompt: number | null;
-    readonly tokenPromptDetails: {
-      readonly audio: number | null;
-      readonly cacheRead: number | null;
-      readonly cacheWrite: number | null;
-    };
+    readonly cumulativeTokenCountCompletion: number | null;
+    readonly cumulativeTokenCountPrompt: number | null;
   } | {
     // This will never be '%other', but we need some
     // value in case none of the concrete values match.
     readonly __typename: "%other";
   };
 };
-export type SpanTokenCountDetailsQuery = {
-  response: SpanTokenCountDetailsQuery$data;
-  variables: SpanTokenCountDetailsQuery$variables;
+export type SpanCumulativeTokenCountDetailsQuery = {
+  response: SpanCumulativeTokenCountDetailsQuery$data;
+  variables: SpanCumulativeTokenCountDetailsQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -62,46 +57,14 @@ v3 = {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "tokenCountPrompt",
+      "name": "cumulativeTokenCountPrompt",
       "storageKey": null
     },
     {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "tokenCountCompletion",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "TokenCountPromptDetails",
-      "kind": "LinkedField",
-      "name": "tokenPromptDetails",
-      "plural": false,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "audio",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "cacheRead",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "cacheWrite",
-          "storageKey": null
-        }
-      ],
+      "name": "cumulativeTokenCountCompletion",
       "storageKey": null
     }
   ],
@@ -113,7 +76,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "SpanTokenCountDetailsQuery",
+    "name": "SpanCumulativeTokenCountDetailsQuery",
     "selections": [
       {
         "alias": null,
@@ -136,7 +99,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "SpanTokenCountDetailsQuery",
+    "name": "SpanCumulativeTokenCountDetailsQuery",
     "selections": [
       {
         "alias": null,
@@ -161,16 +124,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7401c6c1af1b9883f95635344d94069c",
+    "cacheID": "522400393fe09f9365f62dae2e8c76b3",
     "id": null,
     "metadata": {},
-    "name": "SpanTokenCountDetailsQuery",
+    "name": "SpanCumulativeTokenCountDetailsQuery",
     "operationKind": "query",
-    "text": "query SpanTokenCountDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      tokenCountPrompt\n      tokenCountCompletion\n      tokenPromptDetails {\n        audio\n        cacheRead\n        cacheWrite\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query SpanCumulativeTokenCountDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      cumulativeTokenCountPrompt\n      cumulativeTokenCountCompletion\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "79e1debd61e4807b5d2ad804060bc9a1";
+(node as any).hash = "007ef8c10ec14064bfe1b3d4c3b99c88";
 
 export default node;
