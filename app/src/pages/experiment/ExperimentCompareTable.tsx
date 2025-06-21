@@ -67,6 +67,7 @@ import {
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import { assertUnreachable } from "@phoenix/typeUtils";
@@ -80,7 +81,6 @@ import type {
 } from "./__generated__/ExperimentCompareTable_comparisons.graphql";
 import type { ExperimentCompareTableQuery } from "./__generated__/ExperimentCompareTableQuery.graphql";
 import { ExperimentRunFilterConditionField } from "./ExperimentRunFilterConditionField";
-import { TokenCount } from "@phoenix/components/trace/TokenCount";
 
 type ExampleCompareTableProps = {
   query: ExperimentCompareTable_comparisons$key;
