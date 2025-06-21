@@ -119,6 +119,7 @@ export function ModelTokenCostControlTable({
                         style: "currency",
                         currency: "USD",
                         minimumFractionDigits: 2,
+                        maximumFractionDigits: 6,
                       }}
                     >
                       <Input />
