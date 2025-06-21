@@ -110,9 +110,7 @@ def create_prompt_version_from_openai(
     *,
     description: Optional[str] = None,
     template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
-    model_provider: Literal[
-        "OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "OLLAMA", "AWS"
-    ] = "OPENAI",
+    model_provider: Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "OLLAMA"] = "OPENAI",
 ) -> v1.PromptVersionData:
     messages: list[ChatCompletionMessageParam] = list(obj["messages"])
     template = v1.PromptChatTemplate(
@@ -198,7 +196,6 @@ class _InvocationParametersConversion:
             v1.PromptDeepSeekInvocationParameters,
             v1.PromptXAIInvocationParameters,
             v1.PromptOllamaInvocationParameters,
-            v1.PromptAwsInvocationParameters,
         ],
     ) -> _InvocationParameters:
         ans: _InvocationParameters = {}
@@ -383,38 +380,12 @@ class _InvocationParametersConversion:
         model_provider: Literal["OLLAMA"],
     ) -> v1.PromptOllamaInvocationParameters: ...
 
-    @overload
     @staticmethod
     def from_openai(
         obj: CompletionCreateParamsBase,
         /,
         *,
-        model_provider: Literal["AWS"],
-    ) -> v1.PromptAwsInvocationParameters:
-        if model_provider == "AWS":
-            content = v1.PromptAwsInvocationParametersContent()
-        if "max_tokens" in obj and obj["max_tokens"] is not None:
-            content["max_tokens"] = obj["max_tokens"]
-        if "temperature" in obj and obj["temperature"] is not None:
-            content["temperature"] = obj["temperature"]
-        if "top_p" in obj and obj["top_p"] is not None:
-            content["top_p"] = obj["top_p"]
-        if model_provider == "AWS":
-            return v1.PromptAwsInvocationParameters(
-                type="aws",
-                aws=content,
-            )
-        else:
-            assert_never(model_provider)
-
-    @staticmethod
-    def from_openai(
-        obj: CompletionCreateParamsBase,
-        /,
-        *,
-        model_provider: Literal[
-            "OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "OLLAMA"
-        ] = "OPENAI",
+        model_provider: Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "OLLAMA"] = "OPENAI",
     ) -> Union[
         v1.PromptOpenAIInvocationParameters,
         v1.PromptAzureOpenAIInvocationParameters,
