@@ -322,15 +322,6 @@ class _InvocationParametersConversion:
                 ans["frequency_penalty"] = google_params["frequency_penalty"]
             if "stop_sequences" in google_params:
                 ans["stop"] = list(google_params["stop_sequences"])
-        elif obj["type"] == "aws":
-            aws_params: v1.PromptAwsInvocationParametersContent
-            aws_params = obj["aws"]
-            if "max_tokens" in aws_params:
-                ans["max_tokens"] = aws_params["max_tokens"]
-            if "temperature" in aws_params:
-                ans["temperature"] = aws_params["temperature"]
-            if "top_p" in aws_params:
-                ans["top_p"] = aws_params["top_p"]
         elif TYPE_CHECKING:
             assert_never(obj["type"])
         return ans
@@ -392,7 +383,6 @@ class _InvocationParametersConversion:
         v1.PromptDeepSeekInvocationParameters,
         v1.PromptXAIInvocationParameters,
         v1.PromptOllamaInvocationParameters,
-        v1.PromptAwsInvocationParameters,
     ]:
         content: Union[
             v1.PromptOpenAIInvocationParametersContent,
@@ -400,7 +390,6 @@ class _InvocationParametersConversion:
             v1.PromptDeepSeekInvocationParametersContent,
             v1.PromptXAIInvocationParametersContent,
             v1.PromptOllamaInvocationParametersContent,
-            v1.PromptAwsInvocationParametersContent,
         ]
         if model_provider == "OPENAI":
             content = v1.PromptOpenAIInvocationParametersContent()
