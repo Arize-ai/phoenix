@@ -68,28 +68,22 @@ class AwsToolChoiceConversion:
             PromptToolChoiceSpecificFunctionTool,
             PromptToolChoiceZeroOrMore,
         )
-
+        print(obj)
         if obj["type"] == "auto":
-            disable_parallel_tool_use = (
-                obj["disable_parallel_tool_use"] if "disable_parallel_tool_use" in obj else None
-            )
+
             choice_zero_or_more = PromptToolChoiceZeroOrMore(type="zero_or_more")
-            return choice_zero_or_more, disable_parallel_tool_use
+            return choice_zero_or_more
         if obj["type"] == "any":
-            disable_parallel_tool_use = (
-                obj["disable_parallel_tool_use"] if "disable_parallel_tool_use" in obj else None
-            )
+
             choice_one_or_more = PromptToolChoiceOneOrMore(type="one_or_more")
-            return choice_one_or_more, disable_parallel_tool_use
+            return choice_one_or_more
         if obj["type"] == "tool":
-            disable_parallel_tool_use = (
-                obj["disable_parallel_tool_use"] if "disable_parallel_tool_use" in obj else None
-            )
+
             choice_function_tool = PromptToolChoiceSpecificFunctionTool(
                 type="specific_function",
                 function_name=obj["name"],
             )
-            return choice_function_tool, disable_parallel_tool_use
+            return choice_function_tool
         if obj["type"] == "none":
-            return PromptToolChoiceNone(type="none"), None
+            return PromptToolChoiceNone(type="none")
         assert_never(obj)

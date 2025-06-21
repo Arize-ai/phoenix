@@ -8,6 +8,7 @@ from typing_extensions import Annotated, Self, TypeAlias, TypeGuard, assert_neve
 
 from phoenix.db.types.db_models import UNDEFINED, DBBaseModel
 from phoenix.db.types.model_provider import ModelProvider
+from phoenix.server.api.helpers.prompts.conversions.aws import AwsToolChoiceConversion
 from phoenix.server.api.helpers.prompts.conversions.anthropic import AnthropicToolChoiceConversion
 from phoenix.server.api.helpers.prompts.conversions.openai import OpenAIToolChoiceConversion
 
@@ -406,8 +407,8 @@ class PromptAnthropicInvocationParameters(DBBaseModel):
 
 
 class PromptAwsInvocationParametersContent(DBBaseModel):
-    region: str = UNDEFINED
-    api: str = UNDEFINED
+    region: str
+    api: str
     max_tokens: int = UNDEFINED
     temperature: float = UNDEFINED
     top_p: float = UNDEFINED
@@ -579,7 +580,9 @@ def normalize_tools(
             or model_provider is ModelProvider.OLLAMA
         ):
             ans.tool_choice = OpenAIToolChoiceConversion.from_openai(tool_choice)  # type: ignore[arg-type]
-        elif model_provider is ModelProvider.ANTHROPIC or model_provider is ModelProvider.AWS:
+        elif model_provider is ModelProvider.AWS:
+            ans.tool_choice = AwsToolChoiceConversion.from_aws(tool_choice)  # type: ignore[arg-type]
+        elif model_provider is ModelProvider.ANTHROPIC:
             choice, disable_parallel_tool_calls = AnthropicToolChoiceConversion.from_anthropic(
                 tool_choice  # type: ignore[arg-type]
             )

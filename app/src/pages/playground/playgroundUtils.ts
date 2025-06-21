@@ -341,7 +341,6 @@ export function openInferenceModelProviderToPhoenixModelProvider(
     case "anthropic":
       return "ANTHROPIC";
     case "aws":
-    case "bedrock":
       return "AWS";
     case "google":
       return "GOOGLE";

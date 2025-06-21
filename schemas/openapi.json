@@ -5915,6 +5915,10 @@
         },
         "additionalProperties": false,
         "type": "object",
+        "required": [
+          "region",
+          "api"
+        ],
         "title": "PromptAwsInvocationParametersContent"
       },
       "PromptAzureOpenAIInvocationParameters": {
