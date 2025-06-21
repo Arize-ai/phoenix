@@ -57,8 +57,16 @@ export const findToolChoiceType = (
     case "DEEPSEEK":
     case "XAI":
     case "OLLAMA":
-    case "AWS":
     case "OPENAI":
+      if (
+        isObject(choice) &&
+        "type" in choice &&
+        typeof choice.type === "string"
+      ) {
+        return choice.type;
+      }
+      return choice;
+    case "AWS":
       if (
         isObject(choice) &&
         "type" in choice &&
