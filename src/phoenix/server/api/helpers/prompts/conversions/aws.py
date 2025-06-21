@@ -68,16 +68,14 @@ class AwsToolChoiceConversion:
             PromptToolChoiceSpecificFunctionTool,
             PromptToolChoiceZeroOrMore,
         )
-        if obj["type"] == "auto":
 
+        if obj["type"] == "auto":
             choice_zero_or_more = PromptToolChoiceZeroOrMore(type="zero_or_more")
             return choice_zero_or_more
         if obj["type"] == "any":
-
             choice_one_or_more = PromptToolChoiceOneOrMore(type="one_or_more")
             return choice_one_or_more
         if obj["type"] == "tool":
-
             choice_function_tool = PromptToolChoiceSpecificFunctionTool(
                 type="specific_function",
                 function_name=obj["name"],
