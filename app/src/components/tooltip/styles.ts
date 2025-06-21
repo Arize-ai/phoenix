@@ -60,5 +60,7 @@ export const tooltipCSS = css`
   & .react-aria-OverlayArrow svg {
     display: block;
     fill: var(--ac-global-tooltip-background-color);
+    stroke: var(--ac-global-tooltip-border-color);
+    stroke-width: 1px;
   }
 `;

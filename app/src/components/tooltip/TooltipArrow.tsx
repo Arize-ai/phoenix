@@ -1,28 +1,21 @@
 import { forwardRef, Ref } from "react";
 import { OverlayArrow } from "react-aria-components";
-import { css, SerializedStyles } from "@emotion/react";
 
-const arrowCSS = css`
-  & svg {
-    display: block;
-    fill: var(--ac-global-tooltip-background-color);
-    stroke: var(--ac-global-tooltip-border-color);
-    stroke-width: 1px;
-  }
-`;
+import { classNames } from "@arizeai/components";
 
-export interface TooltipArrowProps {
-  /**
-   * Custom CSS to apply to the arrow
-   */
-  css?: SerializedStyles;
-}
+import { StylableProps } from "../types";
+
+export interface TooltipArrowProps extends StylableProps {}
 
 function TooltipArrow(props: TooltipArrowProps, ref: Ref<HTMLDivElement>) {
   const { css: propCSS } = props;
 
   return (
-    <OverlayArrow ref={ref} css={css(arrowCSS, propCSS)}>
+    <OverlayArrow
+      ref={ref}
+      css={propCSS}
+      className={classNames("react-aria-OverlayArrow")}
+    >
       <svg width={8} height={8} viewBox="0 0 8 8">
         <path d="M0 0 L4 4 L8 0" />
       </svg>
