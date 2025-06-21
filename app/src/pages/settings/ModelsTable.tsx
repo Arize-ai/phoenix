@@ -229,7 +229,18 @@ export function ModelsTable(props: ModelsTableProps) {
       {
         header: "start date",
         accessorKey: "startTime",
-        cell: TimestampCell,
+        cell: (props) => {
+          return (
+            <TimestampCell
+              {...props}
+              format={{
+                year: "numeric",
+                month: "numeric",
+                day: "numeric",
+              }}
+            />
+          );
+        },
       },
       {
         header: "created at",
