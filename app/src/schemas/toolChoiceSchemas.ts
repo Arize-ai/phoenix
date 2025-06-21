@@ -87,21 +87,23 @@ export const anthropicToolChoiceToOpenaiToolChoice =
     }
   });
 
-export const openAIToolChoiceToAwsToolChoice = openAIToolChoiceSchema.transform((openAI): AwsToolChoice => {
-  if (isObject(openAI)) {
-    return { type: "tool", name: openAI.function.name };
+export const openAIToolChoiceToAwsToolChoice = openAIToolChoiceSchema.transform(
+  (openAI): AwsToolChoice => {
+    if (isObject(openAI)) {
+      return { type: "tool", name: openAI.function.name };
+    }
+    switch (openAI) {
+      case "none":
+        return { type: "none" };
+      case "auto":
+        return { type: "auto" };
+      case "required":
+        return { type: "any" };
+      default:
+        assertUnreachable(openAI);
+    }
   }
-  switch (openAI) {
-    case "none":
-      return { type: "none" };
-    case "auto":
-      return { type: "auto" };
-    case "required":
-      return { type: "any" };
-    default:
-      assertUnreachable(openAI);
-  }
-});
+);
 
 export const openAIToolChoiceToAnthropicToolChoice =
   openAIToolChoiceSchema.transform((openAI): AnthropicToolChoice => {
@@ -260,9 +262,7 @@ export const makeAnthropicToolChoice = (
   return toolChoice;
 };
 
-export const makeAwsToolChoice = (
-  toolChoice: AwsToolChoice
-): AwsToolChoice => {
+export const makeAwsToolChoice = (toolChoice: AwsToolChoice): AwsToolChoice => {
   return toolChoice;
 };
 
