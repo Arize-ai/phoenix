@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<795b9e0fde3350499e6280e6f4ce4b0e>>
+ * @generated SignedSource<<b0021ed62729398dfad6b6567dc5a376>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,10 +9,10 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type SpanTokenCount_TokenDetailsQuery$variables = {
+export type SpanTokenCountDetailsQuery$variables = {
   nodeId: string;
 };
-export type SpanTokenCount_TokenDetailsQuery$data = {
+export type SpanTokenCountDetailsQuery$data = {
   readonly node: {
     readonly __typename: "ProjectSession";
     readonly tokenUsage: {
@@ -40,9 +40,9 @@ export type SpanTokenCount_TokenDetailsQuery$data = {
     readonly __typename: "%other";
   };
 };
-export type SpanTokenCount_TokenDetailsQuery = {
-  response: SpanTokenCount_TokenDetailsQuery$data;
-  variables: SpanTokenCount_TokenDetailsQuery$variables;
+export type SpanTokenCountDetailsQuery = {
+  response: SpanTokenCountDetailsQuery$data;
+  variables: SpanTokenCountDetailsQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -178,7 +178,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "SpanTokenCount_TokenDetailsQuery",
+    "name": "SpanTokenCountDetailsQuery",
     "selections": [
       {
         "alias": null,
@@ -222,7 +222,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "SpanTokenCount_TokenDetailsQuery",
+    "name": "SpanTokenCountDetailsQuery",
     "selections": [
       {
         "alias": null,
@@ -263,16 +263,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "60d806b4424ef2a5672ceeb892e097e6",
+    "cacheID": "0d05b42d6852d09d0f443a10c7ef0144",
     "id": null,
     "metadata": {},
-    "name": "SpanTokenCount_TokenDetailsQuery",
+    "name": "SpanTokenCountDetailsQuery",
     "operationKind": "query",
-    "text": "query SpanTokenCount_TokenDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      tokenCountPrompt\n      tokenCountCompletion\n      tokenPromptDetails {\n        audio\n        cacheRead\n        cacheWrite\n      }\n    }\n    ... on ProjectSession {\n      tokenUsage {\n        prompt\n        completion\n      }\n    }\n    ... on Trace {\n      rootSpan {\n        cumulativeTokenCountPrompt\n        cumulativeTokenCountCompletion\n        id\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query SpanTokenCountDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      tokenCountPrompt\n      tokenCountCompletion\n      tokenPromptDetails {\n        audio\n        cacheRead\n        cacheWrite\n      }\n    }\n    ... on ProjectSession {\n      tokenUsage {\n        prompt\n        completion\n      }\n    }\n    ... on Trace {\n      rootSpan {\n        cumulativeTokenCountPrompt\n        cumulativeTokenCountCompletion\n        id\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f7d2bdeb3efc856fb1883e7337bc225f";
+(node as any).hash = "8cddd261734edaf9fe63c48f77013498";
 
 export default node;
