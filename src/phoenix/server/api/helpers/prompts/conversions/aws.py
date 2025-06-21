@@ -20,9 +20,9 @@ if TYPE_CHECKING:
     )
 
 
-class BedrockToolChoiceConversion:
+class AwsToolChoiceConversion:
     @staticmethod
-    def to_bedrock(
+    def to_aws(
         obj: Union[
             PromptToolChoiceNone,
             PromptToolChoiceZeroOrMore,
@@ -51,7 +51,7 @@ class BedrockToolChoiceConversion:
         assert_never(obj.type)
 
     @staticmethod
-    def from_bedrock(
+    def from_aws(
         obj: ToolChoiceParam,
     ) -> tuple[
         Union[
