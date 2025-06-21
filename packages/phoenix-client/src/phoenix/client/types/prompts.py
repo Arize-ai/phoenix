@@ -38,6 +38,9 @@ from phoenix.client.helpers.sdk.openai.chat import (
 from phoenix.client.helpers.sdk.openai.chat import (
     to_chat_messages_and_kwargs as to_messages_openai,
 )
+from phoenix.client.helpers.sdk.aws.chat import (
+    create_prompt_version_from_aws,
+)
 from phoenix.client.utils.template_formatters import TemplateFormatter
 
 if TYPE_CHECKING:
@@ -272,7 +275,7 @@ class PromptVersion:
             template_format (Literal["F_STRING", "MUSTACHE", "NONE"]): The format of the template
                 to use for the prompt. Defaults to "MUSTACHE".
             description (Optional[str]): A description of the prompt. Defaults to None.
-            model_provider (Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "AWS", "OLLAMA"]):
+            model_provider (Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "OLLAMA"]):
                 The provider of the model to use for the prompt. Defaults to "OPENAI".
 
         Returns:
@@ -280,6 +283,25 @@ class PromptVersion:
         """
         return cls._loads(
             create_prompt_version_from_openai(
+                obj,
+                description=description,
+                template_format=template_format,
+                model_provider=model_provider,
+            )
+        )
+
+    @classmethod
+    def from_aws(
+        cls,
+        obj: CompletionCreateParamsBase,
+        /,
+        *,
+        template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
+        description: Optional[str] = None,
+        model_provider: Literal["AWS"] = "AWS",
+    ) -> Self:
+        return cls._loads(
+            create_prompt_version_from_aws(
                 obj,
                 description=description,
                 template_format=template_format,
