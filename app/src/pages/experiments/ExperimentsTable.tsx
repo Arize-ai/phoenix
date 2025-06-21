@@ -31,6 +31,7 @@ import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
 import {
@@ -324,7 +325,7 @@ export function ExperimentsTable({
       },
     },
     {
-      header: "cost",
+      header: "total cost",
       accessorKey: "costSummary.total.cost",
       meta: {
         textAlign: "right",
@@ -338,17 +339,14 @@ export function ExperimentsTable({
       },
     },
     {
-      header: "tokens",
+      header: "total tokens",
       accessorKey: "costSummary.total.tokens",
       meta: {
         textAlign: "right",
       },
       cell: ({ getValue }) => {
         const value = getValue();
-        if (value === null || typeof value !== "number") {
-          return "--";
-        }
-        return <Text>{`${value}`}</Text>;
+        return <TokenCount>{value as number | null}</TokenCount>;
       },
     },
     {
