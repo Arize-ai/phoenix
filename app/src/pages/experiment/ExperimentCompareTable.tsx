@@ -45,11 +45,6 @@ import {
   ViewSummaryAside,
 } from "@phoenix/components";
 import {
-  Tooltip,
-  TooltipArrow,
-  TooltipTrigger,
-} from "@phoenix/components/tooltip";
-import {
   AnnotationLabel,
   AnnotationTooltip,
 } from "@phoenix/components/annotation";
@@ -71,6 +66,11 @@ import {
 } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import {
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+} from "@phoenix/components/tooltip";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { Truncate } from "@phoenix/components/utility/Truncate";
