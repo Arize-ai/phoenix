@@ -1066,7 +1066,7 @@ const getBaseChatCompletionInput = ({
         }
       : {};
 
-  const bedrockModelParams =
+  const awsModelParams =
     instance.model.provider === "AWS"
       ? {
           region: instance.model.region,
@@ -1080,7 +1080,7 @@ const getBaseChatCompletionInput = ({
       name: instance.model.modelName || "",
       baseUrl: instance.model.baseUrl,
       ...azureModelParams,
-      ...bedrockModelParams,
+      ...awsModelParams,
     },
     invocationParameters: applyProviderInvocationParameterConstraints(
       invocationParameters,
