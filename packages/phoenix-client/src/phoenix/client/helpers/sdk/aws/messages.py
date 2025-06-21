@@ -126,10 +126,10 @@ def create_prompt_version_from_aws(
         system = (
             obj["system"]
             if isinstance(obj["system"], str)
-            else list(map(_TextContentPartConversion.from_anthropic, obj["system"]))
+            else list(map(_TextContentPartConversion.from_aws, obj["system"]))
         )
         messages.append(v1.PromptMessage(role="system", content=system))
-    messages.extend(map(_MessageConversion.from_anthropic, obj["messages"]))
+    messages.extend(map(_MessageConversion.from_aws, obj["messages"]))
     template: v1.PromptChatTemplate = {
         "type": "chat",
         "messages": messages,
@@ -239,6 +239,13 @@ class _InvocationParametersConversion:
                 ans["temperature"] = aws_params["temperature"]
             if "top_p" in aws_params:
                 ans["top_p"] = aws_params["top_p"]
+        elif obj["type"] == "anthropic":
+            anthropic_params: v1.PromptAnthropicInvocationParametersContent
+            anthropic_params = obj["anthropic"]
+            if "max_tokens" in anthropic_params:
+                ans["max_tokens"] = anthropic_params["max_tokens"]
+            if "temperature" in anthropic_params:
+                ans["temperature"] = anthropic_params["temperature"]
         elif obj["type"] == "openai":
             openai_params: v1.PromptOpenAIInvocationParametersContent
             openai_params = obj["openai"]
@@ -402,7 +409,7 @@ class _ToolConversion:
 
     @staticmethod
     def from_aws(
-        obj: Iterable[ToolParam],
+        obj: Iterable[any],
     ) -> Iterator[v1.PromptToolFunction]:
         for tool in obj:
             function = v1.PromptToolFunctionDefinition(
@@ -585,7 +592,7 @@ class _ToolResultContentPartConversion:
 class _ContentConversion:
     @overload
     @staticmethod
-    def to_anthropic(
+    def to_aws(
         parts: Sequence[_ContentPart],
         variables: Mapping[str, str],
         formatter: TemplateFormatter,
@@ -596,7 +603,7 @@ class _ContentConversion:
 
     @overload
     @staticmethod
-    def to_anthropic(
+    def to_aws(
         parts: Sequence[_ContentPart],
         variables: Mapping[str, str],
         formatter: TemplateFormatter,
@@ -606,7 +613,7 @@ class _ContentConversion:
     ) -> Iterator[_BlockParam]: ...
 
     @staticmethod
-    def to_anthropic(
+    def to_aws(
         parts: Sequence[_ContentPart],
         variables: Mapping[str, str],
         formatter: TemplateFormatter,
@@ -616,18 +623,18 @@ class _ContentConversion:
     ) -> Any:
         for part in parts:
             if part["type"] == "text":
-                yield _TextContentPartConversion.to_anthropic(part, variables, formatter)
+                yield _TextContentPartConversion.to_aws(part, variables, formatter)
             elif text_only:
                 continue
             elif part["type"] == "tool_result":
-                yield _ToolResultContentPartConversion.to_anthropic(part, variables, formatter)
+                yield _ToolResultContentPartConversion.to_aws(part, variables, formatter)
             elif part["type"] == "tool_call":
-                yield _ToolCallContentPartConversion.to_anthropic(part, variables, formatter)
+                yield _ToolCallContentPartConversion.to_aws(part, variables, formatter)
             else:
                 assert_never(part)
 
     @staticmethod
-    def from_anthropic(
+    def from_aws(
         obj: Optional[Union[str, Iterable[Union[_BlockParam, ContentBlock]]]],
     ) -> list[_ContentPart]:
         if isinstance(obj, str):
@@ -641,13 +648,13 @@ class _ContentConversion:
         for block in obj or ():
             if isinstance(block, dict):
                 if block["type"] == "text":
-                    content.append(_TextContentPartConversion.from_anthropic(block))
+                    content.append(_TextContentPartConversion.from_aws(block))
                 elif block["type"] == "image":
                     raise NotImplementedError
                 elif block["type"] == "tool_use":
-                    content.append(_ToolCallContentPartConversion.from_anthropic(block))
+                    content.append(_ToolCallContentPartConversion.from_aws(block))
                 elif block["type"] == "tool_result":
-                    content.append(_ToolResultContentPartConversion.from_anthropic(block))
+                    content.append(_ToolResultContentPartConversion.from_aws(block))
                 elif block["type"] == "document":
                     raise NotImplementedError
                 elif block["type"] == "thinking":
@@ -660,10 +667,10 @@ class _ContentConversion:
                 from anthropic.types import TextBlock, ToolUseBlock
 
                 if isinstance(block, TextBlock):
-                    content.append(_TextContentPartConversion.from_anthropic_block(block))
+                    content.append(_TextContentPartConversion.from_aws_block(block))
                     continue
                 if isinstance(block, ToolUseBlock):
-                    content.append(_ToolCallContentPartConversion.from_anthropic_block(block))
+                    content.append(_ToolCallContentPartConversion.from_aws_block(block))
                     continue
                 if _anthropic_version < (0, 47):
                     continue
@@ -680,7 +687,7 @@ class _ContentConversion:
 
 class _RoleConversion:
     @staticmethod
-    def to_anthropic(
+    def to_aws(
         obj: v1.PromptMessage,
     ) -> Literal["user", "assistant"]:
         role = obj["role"]
@@ -703,7 +710,7 @@ class _RoleConversion:
         return role
 
     @staticmethod
-    def from_anthropic(
+    def from_aws(
         obj: MessageParam,
     ) -> Literal["user", "assistant", "tool"]:
         if obj["role"] == "assistant":

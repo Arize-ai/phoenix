@@ -24,7 +24,7 @@ from phoenix.client.helpers.sdk.anthropic.messages import (
 from phoenix.client.helpers.sdk.anthropic.messages import (
     to_chat_messages_and_kwargs as to_messages_anthropic,
 )
-from phoenix.client.helpers.sdk.aws.chat import (
+from phoenix.client.helpers.sdk.aws.messages import (
     create_prompt_version_from_aws,
 )
 from phoenix.client.helpers.sdk.google_generativeai.generate_content import (
