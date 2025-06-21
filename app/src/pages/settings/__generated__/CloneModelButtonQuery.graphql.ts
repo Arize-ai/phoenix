@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<321c591cc3a64e813b2d9a9bef9e9a28>>
+ * @generated SignedSource<<dbb1839a06e52771dbf10fa67d598401>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,6 +21,7 @@ export type CloneModelButtonQuery$data = {
     readonly namePattern?: string;
     readonly provider?: string | null;
     readonly providerKey?: GenerativeProviderKey | null;
+    readonly startTime?: string | null;
     readonly tokenPrices?: ReadonlyArray<{
       readonly costPerMillionTokens: number;
       readonly costPerToken: number;
@@ -87,6 +88,13 @@ v6 = {
 v7 = {
   "alias": null,
   "args": null,
+  "kind": "ScalarField",
+  "name": "startTime",
+  "storageKey": null
+},
+v8 = {
+  "alias": null,
+  "args": null,
   "concreteType": "TokenPrice",
   "kind": "LinkedField",
   "name": "tokenPrices",
@@ -146,7 +154,8 @@ return {
               (v4/*: any*/),
               (v5/*: any*/),
               (v6/*: any*/),
-              (v7/*: any*/)
+              (v7/*: any*/),
+              (v8/*: any*/)
             ],
             "type": "GenerativeModel",
             "abstractKey": null
@@ -187,7 +196,8 @@ return {
               (v4/*: any*/),
               (v5/*: any*/),
               (v6/*: any*/),
-              (v7/*: any*/)
+              (v7/*: any*/),
+              (v8/*: any*/)
             ],
             "type": "GenerativeModel",
             "abstractKey": null
@@ -198,16 +208,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "8a52135c5b5ac9c79eb79ac2f3e0b825",
+    "cacheID": "45cd1db550a23d19841fd50896301189",
     "id": null,
     "metadata": {},
     "name": "CloneModelButtonQuery",
     "operationKind": "query",
-    "text": "query CloneModelButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on GenerativeModel {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      tokenPrices {\n        tokenType\n        kind\n        costPerMillionTokens\n        costPerToken\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query CloneModelButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on GenerativeModel {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      startTime\n      tokenPrices {\n        tokenType\n        kind\n        costPerMillionTokens\n        costPerToken\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "224f274ffdbb1f1028cbd4c61c053f0a";
+(node as any).hash = "cba8eee925e486e55b778eeea3ee350c";
 
 export default node;

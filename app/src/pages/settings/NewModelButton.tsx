@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ConnectionHandler, graphql, useMutation } from "react-relay";
+import { getLocalTimeZone } from "@internationalized/date";
 
 import {
   Alert,
@@ -99,6 +100,11 @@ export function NewModelButton({
                         name: params.name,
                         provider: params.provider,
                         namePattern: params.namePattern,
+                        startTime: params.startTime
+                          ? params.startTime
+                              .toDate(getLocalTimeZone())
+                              .toISOString()
+                          : null,
                         costs: [
                           ...params.promptCosts,
                           ...params.completionCosts,

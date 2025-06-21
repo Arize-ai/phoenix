@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8f9f8c7b0d7682cfbbfa3ba08a6e3db9>>
+ * @generated SignedSource<<4533c405fed825b2e76d309f63c6110f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -131,6 +131,13 @@ return {
                       "args": null,
                       "kind": "ScalarField",
                       "name": "providerKey",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "startTime",
                       "storageKey": null
                     },
                     {

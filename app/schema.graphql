@@ -414,6 +414,7 @@ input CreateModelMutationInput {
   provider: String = null
   namePattern: String!
   costs: [TokenPriceInput!]!
+  startTime: DateTime = null
 }
 
 type CreateModelMutationPayload {
@@ -1261,6 +1262,7 @@ type GenerativeModel implements Node & ModelInterface {
   isOverride: Boolean!
   createdAt: DateTime!
   updatedAt: DateTime!
+  startTime: DateTime
   tokenPrices: [TokenPrice!]!
   costSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
@@ -2703,6 +2705,7 @@ input UpdateModelMutationInput {
   provider: String
   namePattern: String!
   costs: [TokenPriceInput!]!
+  startTime: DateTime = null
 }
 
 type UpdateModelMutationPayload {

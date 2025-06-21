@@ -39,6 +39,7 @@ const GENERATIVE_MODEL_FRAGMENT = graphql`
     provider
     namePattern
     providerKey
+    startTime
     createdAt
     updatedAt
     lastUsedAt
@@ -223,6 +224,22 @@ export function ModelsTable(props: ModelsTableProps) {
         accessorKey: "tokenCost.reasoning",
         cell: ({ row }) => {
           return getRowCost(row.original, "reasoning");
+        },
+      },
+      {
+        header: "start date",
+        accessorKey: "startTime",
+        cell: (props) => {
+          return (
+            <TimestampCell
+              {...props}
+              format={{
+                year: "numeric",
+                month: "numeric",
+                day: "numeric",
+              }}
+            />
+          );
         },
       },
       {

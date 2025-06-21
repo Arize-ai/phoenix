@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bf56dcc7309961494ce3af4177067251>>
+ * @generated SignedSource<<e14fba9d8b97538c74a2cdbba638901c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,6 +21,7 @@ export type EditModelButtonQuery$data = {
     readonly namePattern?: string;
     readonly provider?: string | null;
     readonly providerKey?: GenerativeProviderKey | null;
+    readonly startTime?: string | null;
     readonly tokenPrices?: ReadonlyArray<{
       readonly costPerMillionTokens: number;
       readonly costPerToken: number;
@@ -87,6 +88,13 @@ v6 = {
 v7 = {
   "alias": null,
   "args": null,
+  "kind": "ScalarField",
+  "name": "startTime",
+  "storageKey": null
+},
+v8 = {
+  "alias": null,
+  "args": null,
   "concreteType": "TokenPrice",
   "kind": "LinkedField",
   "name": "tokenPrices",
@@ -146,7 +154,8 @@ return {
               (v4/*: any*/),
               (v5/*: any*/),
               (v6/*: any*/),
-              (v7/*: any*/)
+              (v7/*: any*/),
+              (v8/*: any*/)
             ],
             "type": "GenerativeModel",
             "abstractKey": null
@@ -187,7 +196,8 @@ return {
               (v4/*: any*/),
               (v5/*: any*/),
               (v6/*: any*/),
-              (v7/*: any*/)
+              (v7/*: any*/),
+              (v8/*: any*/)
             ],
             "type": "GenerativeModel",
             "abstractKey": null
@@ -198,16 +208,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d45b90140ef44d4a7f8154b7df52c267",
+    "cacheID": "94035deacbeb699c090c32f1dab0a095",
     "id": null,
     "metadata": {},
     "name": "EditModelButtonQuery",
     "operationKind": "query",
-    "text": "query EditModelButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on GenerativeModel {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      tokenPrices {\n        tokenType\n        kind\n        costPerMillionTokens\n        costPerToken\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query EditModelButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on GenerativeModel {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      startTime\n      tokenPrices {\n        tokenType\n        kind\n        costPerMillionTokens\n        costPerToken\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a30c96a3328266da17ec8ccff0904d69";
+(node as any).hash = "726bd062b9036cbb060000c85c05de8e";
 
 export default node;

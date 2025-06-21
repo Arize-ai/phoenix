@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5afcd29abd84cd659ce0a8687a5ca950>>
+ * @generated SignedSource<<e16917a28aed547e778fc322929f41fa>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,6 +16,7 @@ export type CreateModelMutationInput = {
   name: string;
   namePattern: string;
   provider?: string | null;
+  startTime?: string | null;
 };
 export type TokenPriceInput = {
   costPerMillionTokens: number;
@@ -91,6 +92,13 @@ v3 = [
     "args": null,
     "kind": "ScalarField",
     "name": "providerKey",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "startTime",
     "storageKey": null
   },
   {
@@ -273,12 +281,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5c22b0737f32a63b81dd9cbcb098ef75",
+    "cacheID": "61e376fc08dc96842849bfdb66c929a4",
     "id": null,
     "metadata": {},
     "name": "CloneModelButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation CloneModelButtonMutation(\n  $input: CreateModelMutationInput!\n) {\n  createModel(input: $input) {\n    model {\n      ...ModelsTable_generativeModel\n      id\n    }\n    __typename\n  }\n}\n\nfragment ModelsTable_generativeModel on GenerativeModel {\n  id\n  name\n  provider\n  namePattern\n  providerKey\n  createdAt\n  updatedAt\n  lastUsedAt\n  isOverride\n  tokenPrices {\n    tokenType\n    kind\n    costPerMillionTokens\n    costPerToken\n  }\n}\n"
+    "text": "mutation CloneModelButtonMutation(\n  $input: CreateModelMutationInput!\n) {\n  createModel(input: $input) {\n    model {\n      ...ModelsTable_generativeModel\n      id\n    }\n    __typename\n  }\n}\n\nfragment ModelsTable_generativeModel on GenerativeModel {\n  id\n  name\n  provider\n  namePattern\n  providerKey\n  startTime\n  createdAt\n  updatedAt\n  lastUsedAt\n  isOverride\n  tokenPrices {\n    tokenType\n    kind\n    costPerMillionTokens\n    costPerToken\n  }\n}\n"
   }
 };
 })();

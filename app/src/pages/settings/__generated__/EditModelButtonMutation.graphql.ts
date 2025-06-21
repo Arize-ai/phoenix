@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d05feceda4b0f7abdb7937aa44fc57d5>>
+ * @generated SignedSource<<65aaf2568fe042984452864790261824>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,6 +17,7 @@ export type UpdateModelMutationInput = {
   name: string;
   namePattern: string;
   provider?: string | null;
+  startTime?: string | null;
 };
 export type TokenPriceInput = {
   costPerMillionTokens: number;
@@ -35,6 +36,7 @@ export type EditModelButtonMutation$data = {
       readonly namePattern: string;
       readonly provider: string | null;
       readonly providerKey: GenerativeProviderKey | null;
+      readonly startTime: string | null;
       readonly tokenPrices: ReadonlyArray<{
         readonly costPerMillionTokens: number;
         readonly costPerToken: number;
@@ -118,6 +120,13 @@ v1 = [
           {
             "alias": null,
             "args": null,
+            "kind": "ScalarField",
+            "name": "startTime",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
             "concreteType": "TokenPrice",
             "kind": "LinkedField",
             "name": "tokenPrices",
@@ -186,16 +195,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "9cd6fa8b44af4836f3856ffba17bc1cf",
+    "cacheID": "2cd69e87f89ddd56818276e36454264a",
     "id": null,
     "metadata": {},
     "name": "EditModelButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation EditModelButtonMutation(\n  $input: UpdateModelMutationInput!\n) {\n  updateModel(input: $input) {\n    model {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      tokenPrices {\n        tokenType\n        kind\n        costPerMillionTokens\n        costPerToken\n      }\n    }\n    __typename\n  }\n}\n"
+    "text": "mutation EditModelButtonMutation(\n  $input: UpdateModelMutationInput!\n) {\n  updateModel(input: $input) {\n    model {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      startTime\n      tokenPrices {\n        tokenType\n        kind\n        costPerMillionTokens\n        costPerToken\n      }\n    }\n    __typename\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f4ba2de4c1b86f88b75e1b6e14e6fd05";
+(node as any).hash = "f5f78e4d9841faaa69b7a514f33a3929";
 
 export default node;

@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 from typing import Optional
 
 import strawberry
@@ -41,6 +42,7 @@ class CreateModelMutationInput:
     provider: Optional[str] = None
     name_pattern: str
     costs: list[TokenPriceInput]
+    start_time: Optional[datetime] = None
 
 
 @strawberry.type
@@ -56,6 +58,7 @@ class UpdateModelMutationInput:
     provider: Optional[str]
     name_pattern: str
     costs: list[TokenPriceInput]
+    start_time: Optional[datetime] = None
 
 
 @strawberry.type
@@ -96,6 +99,7 @@ class ModelMutationMixin:
             llm_name_pattern=input.name_pattern,
             is_override=True,
             token_prices=token_prices,
+            start_time=input.start_time,
         )
         async with info.context.db() as session:
             session.add(model)
@@ -148,6 +152,7 @@ class ModelMutationMixin:
             model.provider = input.provider
             model.llm_name_pattern = input.name_pattern
             model.token_prices = token_prices
+            model.start_time = input.start_time
             session.add(model)
             try:
                 await session.flush()
