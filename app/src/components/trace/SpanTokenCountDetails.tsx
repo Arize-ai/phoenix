@@ -1,10 +1,8 @@
 import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { Flex, Text } from "@phoenix/components";
-
 import { SpanTokenCountDetailsQuery } from "./__generated__/SpanTokenCountDetailsQuery.graphql";
-import { TokenCount } from "./TokenCount";
+import { TokenCountDetails } from "./TokenCountDetails";
 
 export function SpanTokenCountDetails(props: { spanNodeId: string }) {
   const data = useLazyLoadQuery<SpanTokenCountDetailsQuery>(
@@ -39,69 +37,60 @@ export function SpanTokenCountDetails(props: { spanNodeId: string }) {
     { nodeId: props.spanNodeId }
   );
 
-  const {
-    tokenCountPrompt,
-    tokenCountCompletion,
-    tokenCountCacheRead,
-    tokenCountCacheWrite,
-    tokenCountAudio,
-  } = useMemo(() => {
+  const tokenData = useMemo(() => {
     switch (data.node.__typename) {
-      case "Span":
+      case "Span": {
+        const prompt = data.node.tokenCountPrompt ?? 0;
+        const completion = data.node.tokenCountCompletion ?? 0;
+        const promptDetails: Record<string, number> = {};
+
+        // Add available prompt details
+        if (data.node.tokenPromptDetails?.audio) {
+          promptDetails.audio = data.node.tokenPromptDetails.audio;
+        }
+        if (data.node.tokenPromptDetails?.cacheRead) {
+          promptDetails["cache read"] = data.node.tokenPromptDetails.cacheRead;
+        }
+        if (data.node.tokenPromptDetails?.cacheWrite) {
+          promptDetails["cache write"] =
+            data.node.tokenPromptDetails.cacheWrite;
+        }
+
         return {
-          tokenCountPrompt: data.node.tokenCountPrompt ?? 0,
-          tokenCountCompletion: data.node.tokenCountCompletion ?? 0,
-          tokenCountCacheRead: data.node.tokenPromptDetails?.cacheRead,
-          tokenCountCacheWrite: data.node.tokenPromptDetails?.cacheWrite,
-          tokenCountAudio: data.node.tokenPromptDetails?.audio,
+          total: prompt + completion,
+          prompt,
+          completion,
+          promptDetails:
+            Object.keys(promptDetails).length > 0 ? promptDetails : undefined,
         };
-      case "ProjectSession":
+      }
+      case "ProjectSession": {
+        const sessionPrompt = data.node.tokenUsage.prompt;
+        const sessionCompletion = data.node.tokenUsage.completion;
         return {
-          tokenCountPrompt: data.node.tokenUsage.prompt,
-          tokenCountCompletion: data.node.tokenUsage.completion,
+          total: sessionPrompt + sessionCompletion,
+          prompt: sessionPrompt,
+          completion: sessionCompletion,
         };
-      case "Trace":
+      }
+      case "Trace": {
+        const tracePrompt = data.node.rootSpan?.cumulativeTokenCountPrompt ?? 0;
+        const traceCompletion =
+          data.node.rootSpan?.cumulativeTokenCountCompletion ?? 0;
         return {
-          tokenCountPrompt: data.node.rootSpan?.cumulativeTokenCountPrompt ?? 0,
-          tokenCountCompletion:
-            data.node.rootSpan?.cumulativeTokenCountCompletion ?? 0,
+          total: tracePrompt + traceCompletion,
+          prompt: tracePrompt,
+          completion: traceCompletion,
         };
+      }
       default:
         return {
-          tokenCountPrompt: 0,
-          tokenCountCompletion: 0,
+          total: 0,
+          prompt: 0,
+          completion: 0,
         };
     }
   }, [data.node]);
 
-  return (
-    <Flex direction="column" gap="size-50">
-      <Flex direction="row" gap="size-100" justifyContent="space-between">
-        <Text>prompt tokens</Text>
-        <TokenCount>{tokenCountPrompt}</TokenCount>
-      </Flex>
-      <Flex direction="row" gap="size-100" justifyContent="space-between">
-        <Text>completion tokens</Text>
-        <TokenCount>{tokenCountCompletion}</TokenCount>
-      </Flex>
-      {tokenCountAudio != null && tokenCountAudio !== 0 && (
-        <Flex direction="row" gap="size-100" justifyContent="space-between">
-          <Text>audio tokens</Text>
-          <TokenCount>{tokenCountAudio}</TokenCount>
-        </Flex>
-      )}
-      {tokenCountCacheRead != null && tokenCountCacheRead !== 0 && (
-        <Flex direction="row" gap="size-100" justifyContent="space-between">
-          <Text>cache read tokens</Text>
-          <TokenCount>{tokenCountCacheRead}</TokenCount>
-        </Flex>
-      )}
-      {tokenCountCacheWrite != null && tokenCountCacheWrite !== 0 && (
-        <Flex direction="row" gap="size-100" justifyContent="space-between">
-          <Text>cache write tokens</Text>
-          <TokenCount>{tokenCountCacheWrite}</TokenCount>
-        </Flex>
-      )}
-    </Flex>
-  );
+  return <TokenCountDetails {...tokenData} />;
 }

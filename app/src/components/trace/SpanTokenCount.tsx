@@ -5,6 +5,7 @@ import {
   Loading,
   RichTooltip,
   TextProps,
+  TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components";
 
@@ -39,6 +40,7 @@ export function SpanTokenCount(props: SpanTokenCountProps) {
         </TokenCount>
       </Pressable>
       <RichTooltip>
+        <TooltipArrow />
         <Suspense fallback={<Loading />}>
           <SpanTokenCountDetails spanNodeId={props.nodeId} />
         </Suspense>
