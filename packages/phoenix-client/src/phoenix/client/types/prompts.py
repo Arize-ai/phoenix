@@ -399,6 +399,7 @@ SDK: TypeAlias = Literal[
     "anthropic",  # https://pypi.org/project/anthropic/
     "google_generativeai",  # https://pypi.org/project/google-generativeai/
     "openai",  # https://pypi.org/project/openai/
+    "boto3",  # https://boto3.amazonaws.com/v1/documentation/api/latest/index.html
 ]
 
 
@@ -429,5 +430,5 @@ def _to_sdk(
     if model_provider == "OLLAMA":
         return "openai"
     if model_provider == "AWS":
-        return "anthropic"
+        return "boto3"
     assert_never(model_provider)
