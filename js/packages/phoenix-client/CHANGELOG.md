@@ -1,5 +1,15 @@
 # @arizeai/phoenix-client
 
+## 2.2.0
+
+### Minor Changes
+
+- 1906611: add getSpan method
+
+### Patch Changes
+
+- 4c52db4: ollama provider added
+
 ## 2.1.1
 
 ### Patch Changes
