@@ -14,6 +14,7 @@ import {
   AnthropicToolChoice,
   findToolChoiceName,
   makeAnthropicToolChoice,
+  makeAwsToolChoice,
   makeOpenAIToolChoice,
   OpenaiToolChoice,
 } from "@phoenix/schemas/toolChoiceSchemas";
@@ -240,7 +241,6 @@ export function ToolChoiceSelector<
             case "DEEPSEEK":
             case "XAI":
             case "OLLAMA":
-            case "AWS":
             case "OPENAI":
               onChange(
                 makeOpenAIToolChoice({
@@ -248,6 +248,14 @@ export function ToolChoiceSelector<
                   function: {
                     name: removeToolNamePrefix(choice),
                   },
+                })
+              );
+              break;
+            case "AWS":
+              onChange(
+                makeAwsToolChoice({
+                  type: "tool",
+                  name: removeToolNamePrefix(choice),
                 })
               );
               break;
@@ -268,12 +276,18 @@ export function ToolChoiceSelector<
             case "DEEPSEEK":
             case "XAI":
             case "OLLAMA":
-            case "AWS":
             case "OPENAI":
               onChange(
                 makeOpenAIToolChoice(
                   choice as (typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER)["OPENAI"][number]
                 )
+              );
+              break;
+            case "AWS":
+              onChange(
+                makeAwsToolChoice({
+                  type: choice as (typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER)["AWS"][number],
+                })
               );
               break;
             case "ANTHROPIC":

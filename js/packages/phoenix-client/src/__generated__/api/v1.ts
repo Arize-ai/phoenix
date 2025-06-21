@@ -1603,7 +1603,7 @@ export interface components {
             /** Api */
             api?: string;
             /** Max Tokens */
-            max_tokens: number;
+            max_tokens?: number;
             /** Temperature */
             temperature?: number;
             /** Top P */

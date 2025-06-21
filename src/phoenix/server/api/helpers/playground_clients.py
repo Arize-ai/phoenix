@@ -678,7 +678,6 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
                 canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
                 label="Max Tokens",
                 default_value=1024,
-                required=True,
             ),
             BoundedFloatInvocationParameter(
                 invocation_name="temperature",
@@ -763,6 +762,20 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         # Add tools if provided
         if tools:
             converse_params["toolConfig"] = {"tools": tools}
+            if (
+                "tool_choice" in invocation_parameters
+                and invocation_parameters["tool_choice"]["type"] != "none"
+            ):
+                converse_params["toolConfig"]["toolChoice"] = {}
+
+                if invocation_parameters["tool_choice"]["type"] == "auto":
+                    converse_params["toolConfig"]["toolChoice"]["auto"] = {}
+                elif invocation_parameters["tool_choice"]["type"] == "any":
+                    converse_params["toolConfig"]["toolChoice"]["any"] = {}
+                else:
+                    converse_params["toolConfig"]["toolChoice"]["tool"] = {
+                        "name": invocation_parameters["tool_choice"]["name"],
+                    }
 
         # Make the streaming API call
         response = self.client.converse_stream(**converse_params)

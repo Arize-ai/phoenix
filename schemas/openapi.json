@@ -5915,9 +5915,6 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "max_tokens"
-        ],
         "title": "PromptAwsInvocationParametersContent"
       },
       "PromptAzureOpenAIInvocationParameters": {

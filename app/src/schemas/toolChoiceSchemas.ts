@@ -21,6 +21,24 @@ export const openAIToolChoiceSchema = schemaForType<ToolChoice>()(
 
 export type OpenaiToolChoice = z.infer<typeof openAIToolChoiceSchema>;
 
+export const awsToolChoiceSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("auto"),
+  }),
+  z.object({
+    type: z.literal("any"),
+  }),
+  z.object({
+    type: z.literal("tool"),
+    name: z.string(),
+  }),
+  z.object({
+    type: z.literal("none"),
+  }),
+]);
+
+export type AwsToolChoice = z.infer<typeof awsToolChoiceSchema>;
+
 /**
  * Anthropic's tool choice schema
  *
@@ -68,6 +86,22 @@ export const anthropicToolChoiceToOpenaiToolChoice =
         return "auto";
     }
   });
+
+export const openAIToolChoiceToAwsToolChoice = openAIToolChoiceSchema.transform((openAI): AwsToolChoice => {
+  if (isObject(openAI)) {
+    return { type: "tool", name: openAI.function.name };
+  }
+  switch (openAI) {
+    case "none":
+      return { type: "none" };
+    case "auto":
+      return { type: "auto" };
+    case "required":
+      return { type: "any" };
+    default:
+      assertUnreachable(openAI);
+  }
+});
 
 export const openAIToolChoiceToAnthropicToolChoice =
   openAIToolChoiceSchema.transform((openAI): AnthropicToolChoice => {
@@ -179,6 +213,9 @@ export const fromOpenAIToolChoice = <T extends ModelProvider>({
     case "OLLAMA":
       return toolChoice as ProviderToToolChoiceMap[T];
     case "AWS":
+      return openAIToolChoiceToAwsToolChoice.parse(
+        toolChoice
+      ) as ProviderToToolChoiceMap[T];
     case "ANTHROPIC":
       return openAIToolChoiceToAnthropicToolChoice.parse(
         toolChoice
@@ -220,6 +257,12 @@ export const makeOpenAIToolChoice = (
 export const makeAnthropicToolChoice = (
   toolChoice: AnthropicToolChoice
 ): AnthropicToolChoice => {
+  return toolChoice;
+};
+
+export const makeAwsToolChoice = (
+  toolChoice: AwsToolChoice
+): AwsToolChoice => {
   return toolChoice;
 };
 
