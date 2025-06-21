@@ -661,7 +661,6 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
             aws_secret_access_key=self.aws_secret_access_key,
             aws_session_token=self.aws_session_token,
         )
-        self.client._client = _HttpxClient({}, self._attributes)  # type: ignore[attr-defined]
 
         self._attributes[LLM_PROVIDER] = "aws"
         self._attributes[LLM_SYSTEM] = "aws"

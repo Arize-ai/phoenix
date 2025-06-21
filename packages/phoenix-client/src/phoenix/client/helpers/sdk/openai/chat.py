@@ -421,6 +421,7 @@ class _InvocationParametersConversion:
         v1.PromptDeepSeekInvocationParameters,
         v1.PromptXAIInvocationParameters,
         v1.PromptOllamaInvocationParameters,
+        v1.PromptAwsInvocationParameters,
     ]:
         content: Union[
             v1.PromptOpenAIInvocationParametersContent,
@@ -428,6 +429,7 @@ class _InvocationParametersConversion:
             v1.PromptDeepSeekInvocationParametersContent,
             v1.PromptXAIInvocationParametersContent,
             v1.PromptOllamaInvocationParametersContent,
+            v1.PromptAwsInvocationParametersContent,
         ]
         if model_provider == "OPENAI":
             content = v1.PromptOpenAIInvocationParametersContent()
@@ -439,6 +441,8 @@ class _InvocationParametersConversion:
             content = v1.PromptXAIInvocationParametersContent()
         elif model_provider == "OLLAMA":
             content = v1.PromptOllamaInvocationParametersContent()
+        elif model_provider == "AWS":
+            content = v1.PromptAwsInvocationParametersContent()
         else:
             assert_never(model_provider)
         if "max_completion_tokens" in obj and obj["max_completion_tokens"] is not None:
@@ -483,6 +487,11 @@ class _InvocationParametersConversion:
             return v1.PromptOllamaInvocationParameters(
                 type="ollama",
                 ollama=content,
+            )
+        elif model_provider == "AWS":
+            return v1.PromptAwsInvocationParameters(
+                type="aws",
+                aws=content,
             )
         else:
             assert_never(model_provider)
