@@ -9,19 +9,19 @@ import {
   TooltipTrigger,
 } from "@phoenix/components";
 
-import { SpanTokenCountDetails } from "./SpanTokenCountDetails";
-import { TokenCount } from "./TokenCount";
+import { TokenCount } from "../trace/TokenCount";
 
-type SpanTokenCountProps = {
+import { ExperimentRunTokenCountDetails } from "./ExperimentRunTokenCountDetails";
+
+type ExperimentRunTokenCountProps = {
   /**
-   * The total number of tokens in the prompt and completion
+   * The total number of tokens in the experiment run
    */
   tokenCountTotal: number;
   /**
-   * The id of the node (span, trace, session, etc.)
+   * The id of the experiment run node
    */
-
-  nodeId: string;
+  experimentRunId: string;
   /**
    * The size of the icon and text
    */
@@ -29,9 +29,9 @@ type SpanTokenCountProps = {
 };
 
 /**
- * Displays the number of tokens in the prompt and completion
+ * Displays the number of tokens in an experiment run with detailed breakdown
  */
-export function SpanTokenCount(props: SpanTokenCountProps) {
+export function ExperimentRunTokenCount(props: ExperimentRunTokenCountProps) {
   return (
     <TooltipTrigger>
       <Pressable>
@@ -42,7 +42,9 @@ export function SpanTokenCount(props: SpanTokenCountProps) {
       <RichTooltip>
         <TooltipArrow />
         <Suspense fallback={<Loading />}>
-          <SpanTokenCountDetails spanNodeId={props.nodeId} />
+          <ExperimentRunTokenCountDetails
+            experimentRunId={props.experimentRunId}
+          />
         </Suspense>
       </RichTooltip>
     </TooltipTrigger>
