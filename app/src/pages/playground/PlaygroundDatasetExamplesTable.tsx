@@ -51,6 +51,11 @@ import { JSONText } from "@phoenix/components/code/JSONText";
 import { CellTop } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import {
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+} from "@phoenix/components/tooltip";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
@@ -274,9 +279,15 @@ function ExampleOutputContent({
         <>
           {hasExperimentRun && (
             <DialogTrigger>
-              <IconButton size="S" aria-label="View experiment run details">
-                <Icon svg={<Icons.ExpandOutline />} />
-              </IconButton>
+              <TooltipTrigger>
+                <IconButton size="S" aria-label="View experiment run details">
+                  <Icon svg={<Icons.ExpandOutline />} />
+                </IconButton>
+                <Tooltip>
+                  <TooltipArrow />
+                  view experiment run
+                </Tooltip>
+              </TooltipTrigger>
               <ModalOverlay>
                 <Modal variant="slideover" size="L">
                   <PlaygroundExperimentRunDetailsDialog
@@ -289,9 +300,15 @@ function ExampleOutputContent({
           {hasSpan && (
             <>
               <DialogTrigger>
-                <IconButton size="S" aria-label="View run trace">
-                  <Icon svg={<Icons.Trace />} />
-                </IconButton>
+                <TooltipTrigger>
+                  <IconButton size="S" aria-label="View run trace">
+                    <Icon svg={<Icons.Trace />} />
+                  </IconButton>
+                  <Tooltip>
+                    <TooltipArrow />
+                    view run trace
+                  </Tooltip>
+                </TooltipTrigger>
                 <ModalOverlay>
                   <Modal size="fullscreen" variant="slideover">
                     <PlaygroundRunTraceDetailsDialog
@@ -811,18 +828,24 @@ export function PlaygroundDatasetExamplesTable({
           <>
             <CellTop
               extra={
-                <IconButton
-                  size="S"
-                  aria-label="View example details"
-                  onPress={() => {
-                    setSearchParams((prev) => {
-                      prev.set("exampleId", row.original.id);
-                      return prev;
-                    });
-                  }}
-                >
-                  <Icon svg={<Icons.ExpandOutline />} />
-                </IconButton>
+                <TooltipTrigger>
+                  <IconButton
+                    size="S"
+                    aria-label="View example details"
+                    onPress={() => {
+                      setSearchParams((prev) => {
+                        prev.set("exampleId", row.original.id);
+                        return prev;
+                      });
+                    }}
+                  >
+                    <Icon svg={<Icons.ExpandOutline />} />
+                  </IconButton>
+                  <Tooltip>
+                    <TooltipArrow />
+                    view example
+                  </Tooltip>
+                </TooltipTrigger>
               }
             >
               <Text

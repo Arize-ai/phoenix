@@ -1030,7 +1030,7 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     );
 
     // Style for tooltips
-    --ac-global-tooltip-background-color: var(--ac-global-color-grey-100);
+    --ac-global-tooltip-background-color: var(--ac-global-color-grey-50);
     --ac-global-tooltip-border-color: var(--ac-global-color-grey-300);
 
     --ac-global-rounding-xsmall: var(--ac-global-dimension-static-size-25);
