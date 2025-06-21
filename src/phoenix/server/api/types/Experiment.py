@@ -172,7 +172,7 @@ class Experiment(Node):
             .join(models.SpanCost, models.SpanCostDetail.span_cost_id == models.SpanCost.id)
             .join(models.Span, models.SpanCost.span_rowid == models.Span.id)
             .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-            .join(models.ExperimentRun, models.ExperimentRun.trace_id == models.Trace.id)
+            .join(models.ExperimentRun, models.ExperimentRun.trace_id == models.Trace.trace_id)
             .where(models.ExperimentRun.experiment_id == experiment_id)
             .group_by(models.SpanCostDetail.token_type, models.SpanCostDetail.is_prompt)
         )

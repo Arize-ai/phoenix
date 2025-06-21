@@ -31,9 +31,8 @@ class SpanCostSummaryByExperimentDataLoader(DataLoader[Key, Result]):
                 coalesce(func.sum(models.SpanCost.total_tokens), 0).label("total_tokens"),
             )
             .select_from(models.ExperimentRun)
-            .join(models.Trace, models.ExperimentRun.trace_id == models.Trace.id)
-            .join(models.Span, models.Span.trace_rowid == models.Trace.id)
-            .join(models.SpanCost, models.Span.id == models.SpanCost.span_rowid)
+            .join(models.Trace, models.ExperimentRun.trace_id == models.Trace.trace_id)
+            .join(models.SpanCost, models.SpanCost.trace_rowid == models.Trace.id)
             .where(models.ExperimentRun.experiment_id.in_(keys))
             .group_by(models.ExperimentRun.experiment_id)
         )
