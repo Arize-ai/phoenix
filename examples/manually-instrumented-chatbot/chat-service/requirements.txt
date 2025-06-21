@@ -89,7 +89,7 @@ typing-extensions==4.11.0
     #   opentelemetry-sdk
     #   pydantic
     #   pydantic-core
-urllib3==2.2.1
+urllib3==2.5.0
     # via requests
 uvicorn==0.29.0
 wrapt==1.16.0

@@ -1,6 +1,11 @@
 name: "Chromatic"
 
-on: push
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "app/**"
 
 permissions:
   contents: read

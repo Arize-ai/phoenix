@@ -8,6 +8,7 @@ import { initializeDatasetTools } from "./datasetTools.js";
 import { initializeExperimentTools } from "./experimentTools.js";
 import { initializePromptTools } from "./promptTools.js";
 import { initializeProjectTools } from "./projectTools.js";
+import { initializeSpanTools } from "./spanTools.js";
 import { initializeReadmeResources } from "./readmeResource.js";
 
 const argv = minimist(process.argv.slice(2));
@@ -41,6 +42,7 @@ initializePromptTools({ client, server });
 initializeExperimentTools({ client, server });
 initializeDatasetTools({ client, server });
 initializeProjectTools({ client, server });
+initializeSpanTools({ client, server });
 
 async function main() {
   // Initialize readme resources first

@@ -35,6 +35,7 @@ import {
   Icons,
   ListBox,
   ListBoxItem,
+  Loading,
   Modal,
   ModalOverlay,
   Popover,
@@ -145,6 +146,7 @@ const annotationTooltipExtraCSS = css`
 `;
 
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
+  const [dialog, setDialog] = useState<ReactNode>(null);
   const { datasetId, experimentIds, displayFullText } = props;
   const [filterCondition, setFilterCondition] = useState("");
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -371,26 +373,24 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         const projectId = run?.trace?.projectId;
         if (traceId && projectId) {
           traceButton = (
-            <DialogTrigger>
-              <Button
-                variant="default"
-                className="trace-button"
-                size="S"
-                aria-label="View run trace"
-                leadingVisual={<Icon svg={<Icons.Trace />} />}
-              >
-                View Trace
-              </Button>
-              <ModalOverlay>
-                <Modal variant="slideover" size="fullscreen">
+            <Button
+              variant="default"
+              className="trace-button"
+              size="S"
+              aria-label="View run trace"
+              leadingVisual={<Icon svg={<Icons.Trace />} />}
+              onPress={() => {
+                setDialog(
                   <TraceDetailsDialog
                     traceId={traceId}
                     projectId={projectId}
                     title={`Experiment Run Trace`}
                   />
-                </Modal>
-              </ModalOverlay>
-            </DialogTrigger>
+                );
+              }}
+            >
+              View Trace
+            </Button>
           );
         }
         const runControls = (
@@ -422,7 +422,11 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         return run ? (
           <CellWithControlsWrap controls={runControls}>
             <PaddedCell>
-              <ExperimentRunOutput {...run} displayFullText={displayFullText} />
+              <ExperimentRunOutput
+                {...run}
+                displayFullText={displayFullText}
+                setDialog={setDialog}
+              />
             </PaddedCell>
           </CellWithControlsWrap>
         ) : (
@@ -615,6 +619,11 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           </table>
         </div>
       </Flex>
+      <ModalOverlay isOpen={!!dialog} onOpenChange={() => setDialog(null)}>
+        <Modal variant="slideover" size="fullscreen">
+          {dialog}
+        </Modal>
+      </ModalOverlay>
     </View>
   );
 }
@@ -735,10 +744,18 @@ function ExperimentRowActionMenu(props: {
 function ExperimentRunOutput(
   props: ExperimentRun & {
     displayFullText: boolean;
+    setDialog: (dialog: ReactNode) => void;
   }
 ) {
-  const { output, error, startTime, endTime, annotations, displayFullText } =
-    props;
+  const {
+    output,
+    error,
+    startTime,
+    endTime,
+    annotations,
+    displayFullText,
+    setDialog,
+  } = props;
   if (error) {
     return <RunError error={error} />;
   }
@@ -768,30 +785,45 @@ function ExperimentRunOutput(
         <li key="run-latency">
           <RunLatency startTime={startTime} endTime={endTime} />
         </li>
-        {annotationsList.map((annotation) => (
-          <li key={annotation.id}>
-            <AnnotationTooltip
-              annotation={annotation}
-              extra={
-                annotation.trace && (
-                  <View paddingTop="size-100">
-                    <div css={annotationTooltipExtraCSS}>
-                      <Icon svg={<Icons.InfoOutline />} />
-                      <span>Click to view evaluator trace</span>
-                    </div>
-                  </View>
-                )
-              }
-            >
-              <AnnotationLabel
+        {annotationsList.map((annotation) => {
+          const traceId = annotation.trace?.traceId;
+          const projectId = annotation.trace?.projectId;
+          const clickable = traceId != null && projectId != null;
+
+          return (
+            <li key={annotation.id}>
+              <AnnotationTooltip
                 annotation={annotation}
-                onClick={() => {
-                  // TODO: Convert to DialogTrigger pattern when needed
-                }}
-              />
-            </AnnotationTooltip>
-          </li>
-        ))}
+                extra={
+                  clickable && (
+                    <View paddingTop="size-100">
+                      <div css={annotationTooltipExtraCSS}>
+                        <Icon svg={<Icons.InfoOutline />} />
+                        <span>Click to view evaluator trace</span>
+                      </div>
+                    </View>
+                  )
+                }
+              >
+                <AnnotationLabel
+                  annotation={annotation}
+                  clickable={clickable}
+                  onClick={() => {
+                    if (clickable) {
+                      setDialog(
+                        <TraceDetailsDialog
+                          title={`Evaluator Trace: ${annotation.name}`}
+                          traceId={traceId}
+                          projectId={projectId}
+                        />
+                      );
+                    }
+                  }}
+                />
+              </AnnotationTooltip>
+            </li>
+          );
+        })}
       </ul>
     </Flex>
   );
@@ -1074,7 +1106,9 @@ function TraceDetailsDialog({
             <DialogCloseButton />
           </DialogTitleExtra>
         </DialogHeader>
-        <TraceDetails traceId={traceId} projectId={projectId} />
+        <Suspense fallback={<Loading />}>
+          <TraceDetails traceId={traceId} projectId={projectId} />
+        </Suspense>
       </DialogContent>
     </Dialog>
   );
