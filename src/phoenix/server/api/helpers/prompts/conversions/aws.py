@@ -68,7 +68,6 @@ class AwsToolChoiceConversion:
             PromptToolChoiceSpecificFunctionTool,
             PromptToolChoiceZeroOrMore,
         )
-        print(obj)
         if obj["type"] == "auto":
 
             choice_zero_or_more = PromptToolChoiceZeroOrMore(type="zero_or_more")

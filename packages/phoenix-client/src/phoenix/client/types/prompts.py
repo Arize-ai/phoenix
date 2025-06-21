@@ -207,6 +207,8 @@ class PromptVersion:
                     formatter=formatter,
                 )
             )
+        if sdk == "boto3":
+            raise NotImplementedError("Boto3 is not supported yet")
         assert_never(sdk)
 
     @classmethod

@@ -5892,14 +5892,6 @@
       },
       "PromptAwsInvocationParametersContent": {
         "properties": {
-          "region": {
-            "type": "string",
-            "title": "Region"
-          },
-          "api": {
-            "type": "string",
-            "title": "Api"
-          },
           "max_tokens": {
             "type": "integer",
             "title": "Max Tokens"
@@ -5915,10 +5907,6 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "region",
-          "api"
-        ],
         "title": "PromptAwsInvocationParametersContent"
       },
       "PromptAzureOpenAIInvocationParameters": {

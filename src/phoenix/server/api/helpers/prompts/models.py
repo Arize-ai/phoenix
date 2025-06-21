@@ -407,8 +407,6 @@ class PromptAnthropicInvocationParameters(DBBaseModel):
 
 
 class PromptAwsInvocationParametersContent(DBBaseModel):
-    region: str
-    api: str
     max_tokens: int = UNDEFINED
     temperature: float = UNDEFINED
     top_p: float = UNDEFINED

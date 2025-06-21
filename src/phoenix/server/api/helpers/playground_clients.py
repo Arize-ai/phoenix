@@ -742,7 +742,6 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         """
         # Build messages in Converse API format
         converse_messages = self._build_converse_messages(messages)
-        print("Converse messages: ", converse_messages)
 
         # Build the request parameters for Converse API
         converse_params = {
@@ -1028,7 +1027,6 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
     ) -> list[dict]:
         """Convert messages to Converse API format."""
         converse_messages = []
-        print("Messages: ", messages)
         for role, content, _id, tool_calls in messages:
             if role == ChatCompletionMessageRole.USER:
                 converse_messages.append({"role": "user", "content": [{"text": content}]})
