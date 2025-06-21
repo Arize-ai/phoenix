@@ -58,11 +58,8 @@ export function formatCost(cost: number): string {
   if (cost === 0) {
     return "$0";
   }
-  if (cost < 0.001) {
-    return "<$0.001";
-  }
   if (cost < 0.01) {
-    return `$${format(".3~f")(cost)}`;
+    return "<$0.01";
   }
   return `$${format(".2f")(cost)}`;
 }
