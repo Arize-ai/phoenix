@@ -56,6 +56,8 @@ export function getSemConvProvider(provider: ModelProvider): string {
       return LLMProvider.ANTHROPIC.toString();
     case "GOOGLE":
       return LLMProvider.GOOGLE.toString();
+    case "AWS":
+      return LLMProvider.AWS.toString();
     case "DEEPSEEK":
       return "deepseek"; // TODO: Add support for DeepSeek to semantic conventions
     case "XAI":
