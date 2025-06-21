@@ -1598,10 +1598,6 @@ export interface components {
         };
         /** PromptAwsInvocationParametersContent */
         PromptAwsInvocationParametersContent: {
-            /** Region */
-            region?: string;
-            /** Api */
-            api?: string;
             /** Max Tokens */
             max_tokens?: number;
             /** Temperature */

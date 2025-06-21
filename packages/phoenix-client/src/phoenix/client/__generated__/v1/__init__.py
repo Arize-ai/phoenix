@@ -222,8 +222,6 @@ class PromptAnthropicThinkingConfigEnabled(TypedDict):
 
 
 class PromptAwsInvocationParametersContent(TypedDict):
-    region: NotRequired[str]
-    api: NotRequired[str]
     max_tokens: NotRequired[int]
     temperature: NotRequired[float]
     top_p: NotRequired[float]

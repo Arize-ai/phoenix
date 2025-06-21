@@ -53,12 +53,12 @@ class AwsToolChoiceConversion:
     @staticmethod
     def from_aws(
         obj: ToolChoiceParam,
-    ) -> (Union[
-            PromptToolChoiceNone,
-            PromptToolChoiceZeroOrMore,
-            PromptToolChoiceOneOrMore,
-            PromptToolChoiceSpecificFunctionTool,
-        ]):
+    ) -> Union[
+        PromptToolChoiceNone,
+        PromptToolChoiceZeroOrMore,
+        PromptToolChoiceOneOrMore,
+        PromptToolChoiceSpecificFunctionTool,
+    ]:
         from phoenix.server.api.helpers.prompts.models import (
             PromptToolChoiceNone,
             PromptToolChoiceOneOrMore,
