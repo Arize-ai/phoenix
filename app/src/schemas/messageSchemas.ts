@@ -458,8 +458,7 @@ type ProviderToMessageMap = {
   DEEPSEEK: OpenAIMessage;
   XAI: OpenAIMessage;
   OLLAMA: OpenAIMessage;
-  AWS: OpenAIMessage;
-  BEDROCK: OpenAIMessage;
+  AWS: AwsMessage;
   ANTHROPIC: AnthropicMessage;
   // Use generic JSON type for unknown message formats / new providers
   GOOGLE: JSONLiteral;
