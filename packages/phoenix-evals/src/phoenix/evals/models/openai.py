@@ -295,7 +295,7 @@ class OpenAIModel(BaseModel):
                     raise PhoenixUnsupportedAudioFormat(f"Unsupported audio format: {format}")
                 messages.append(
                     {
-                        "role": system_role,
+                        "role": "user",
                         "content": [
                             {
                                 "type": "input_audio",
@@ -316,7 +316,7 @@ class OpenAIModel(BaseModel):
                     raise ValueError("Only base64 encoded images or image URLs are supported")
                 messages.append(
                     {
-                        "role": system_role,
+                        "role": "user",
                         "content": [
                             {
                                 "type": "image_url",
