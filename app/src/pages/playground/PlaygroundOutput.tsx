@@ -68,13 +68,13 @@ const getToolCallKey = (
 ): Key => {
   if (
     isStringKeyedObject(toolCall) &&
-    ("id" in toolCall &&
-      (typeof toolCall.id === "string" || typeof toolCall.id === "number"))
+    "id" in toolCall &&
+    (typeof toolCall.id === "string" || typeof toolCall.id === "number")
   ) {
     return toolCall.id;
   } else if (
     isStringKeyedObject(toolCall) &&
-    "toolUse" in toolCall && 
+    "toolUse" in toolCall &&
     isStringKeyedObject(toolCall.toolUse) &&
     "toolUseId" in toolCall.toolUse &&
     (typeof toolCall.toolUse.toolUseId === "string" ||

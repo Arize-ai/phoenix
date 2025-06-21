@@ -64,7 +64,6 @@ export const openAIToolCallsJSONSchema = zodToJsonSchema(
   }
 );
 
-
 export const awsToolCallSchema = z.object({
   toolUse: z.object({
     toolUseId: z.string().describe("The ID of the tool call"),
