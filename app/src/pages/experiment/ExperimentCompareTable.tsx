@@ -66,6 +66,11 @@ import {
 } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import {
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+} from "@phoenix/components/tooltip";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { Truncate } from "@phoenix/components/utility/Truncate";
@@ -296,18 +301,24 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
             <>
               <CellTop
                 extra={
-                  <IconButton
-                    size="S"
-                    onPress={() => {
-                      setDialog(
-                        <ExampleDetailsDialog
-                          exampleId={row.original.example.id}
-                        />
-                      );
-                    }}
-                  >
-                    <Icon svg={<Icons.ExpandOutline />} />
-                  </IconButton>
+                  <TooltipTrigger>
+                    <IconButton
+                      size="S"
+                      onPress={() => {
+                        setDialog(
+                          <ExampleDetailsDialog
+                            exampleId={row.original.example.id}
+                          />
+                        );
+                      }}
+                    >
+                      <Icon svg={<Icons.ExpandOutline />} />
+                    </IconButton>
+                    <Tooltip>
+                      <TooltipArrow />
+                      view example
+                    </Tooltip>
+                  </TooltipTrigger>
                 }
               >
                 <Text
@@ -397,42 +408,54 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         const projectId = run?.trace?.projectId;
         if (traceId && projectId) {
           traceButton = (
-            <IconButton
-              className="trace-button"
-              size="S"
-              aria-label="View run trace"
-              onPress={() => {
-                setDialog(
-                  <TraceDetailsDialog
-                    traceId={traceId}
-                    projectId={projectId}
-                    title={`Experiment Run Trace`}
-                  />
-                );
-              }}
-            >
-              <Icon svg={<Icons.Trace />} />
-            </IconButton>
+            <TooltipTrigger>
+              <IconButton
+                className="trace-button"
+                size="S"
+                aria-label="View run trace"
+                onPress={() => {
+                  setDialog(
+                    <TraceDetailsDialog
+                      traceId={traceId}
+                      projectId={projectId}
+                      title={`Experiment Run Trace`}
+                    />
+                  );
+                }}
+              >
+                <Icon svg={<Icons.Trace />} />
+              </IconButton>
+              <Tooltip>
+                <TooltipArrow />
+                view run trace
+              </Tooltip>
+            </TooltipTrigger>
           );
         }
         const runControls = (
           <>
-            <IconButton
-              className="expand-button"
-              size="S"
-              aria-label="View example run details"
-              onPress={() => {
-                setDialog(
-                  <SelectedExampleDialog
-                    selectedExample={row.original}
-                    datasetId={datasetId}
-                    experimentInfoById={experimentInfoById}
-                  />
-                );
-              }}
-            >
-              <Icon svg={<Icons.ExpandOutline />} />
-            </IconButton>
+            <TooltipTrigger>
+              <IconButton
+                className="expand-button"
+                size="S"
+                aria-label="View example run details"
+                onPress={() => {
+                  setDialog(
+                    <SelectedExampleDialog
+                      selectedExample={row.original}
+                      datasetId={datasetId}
+                      experimentInfoById={experimentInfoById}
+                    />
+                  );
+                }}
+              >
+                <Icon svg={<Icons.ExpandOutline />} />
+              </IconButton>
+              <Tooltip>
+                <TooltipArrow />
+                view experiment run
+              </Tooltip>
+            </TooltipTrigger>
             {traceButton}
           </>
         );
@@ -717,10 +740,16 @@ function ExperimentRowActionMenu(props: {
       }}
     >
       <DialogTrigger>
-        <Button
-          size="S"
-          leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
-        />
+        <TooltipTrigger>
+          <Button
+            size="S"
+            leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
+          />
+          <Tooltip>
+            <TooltipArrow />
+            More actions
+          </Tooltip>
+        </TooltipTrigger>
         <Popover>
           <Dialog>
             {({ close }) => (

@@ -17,6 +17,11 @@ import {
   selectableTableCSS,
 } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import {
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+} from "@phoenix/components/tooltip";
 import { EditModelButton } from "@phoenix/pages/settings/EditModelButton";
 import { getProviderName } from "@phoenix/utils/generativeUtils";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
@@ -271,17 +276,37 @@ export function ModelsTable(props: ModelsTableProps) {
               width="100%"
               justifyContent="end"
             >
-              {isOverride && <EditModelButton modelId={row.original.id} />}
-              <CloneModelButton
-                modelId={row.original.id}
-                connectionId={connectionId}
-              />
               {isOverride && (
-                <DeleteModelButton
+                <TooltipTrigger>
+                  <EditModelButton modelId={row.original.id} />
+                  <Tooltip>
+                    <TooltipArrow />
+                    Edit model
+                  </Tooltip>
+                </TooltipTrigger>
+              )}
+              <TooltipTrigger>
+                <CloneModelButton
                   modelId={row.original.id}
-                  modelName={row.original.name}
                   connectionId={connectionId}
                 />
+                <Tooltip>
+                  <TooltipArrow />
+                  Clone model
+                </Tooltip>
+              </TooltipTrigger>
+              {isOverride && (
+                <TooltipTrigger>
+                  <DeleteModelButton
+                    modelId={row.original.id}
+                    modelName={row.original.name}
+                    connectionId={connectionId}
+                  />
+                  <Tooltip>
+                    <TooltipArrow />
+                    Delete model
+                  </Tooltip>
+                </TooltipTrigger>
               )}
             </Flex>
           );
