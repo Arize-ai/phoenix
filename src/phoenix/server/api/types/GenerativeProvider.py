@@ -39,7 +39,7 @@ class GenerativeProvider:
         GenerativeProviderKey.DEEPSEEK: ["deepseek"],
         GenerativeProviderKey.XAI: ["grok"],
         GenerativeProviderKey.OLLAMA: ["llama", "mistral", "codellama", "phi", "qwen", "gemma"],
-        GenerativeProviderKey.AWS: ["claude", "llama", "mistral", "deepseek", "titan"],
+        GenerativeProviderKey.AWS: ["nova", "titan"],
     }
 
     attribute_provider_to_generative_provider_map: ClassVar[dict[str, GenerativeProviderKey]] = {
