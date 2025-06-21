@@ -92,7 +92,9 @@ describe("getSpanAnnotations", () => {
     });
 
     expect(result.annotations).toHaveLength(2);
-    // The mock returns both annotations, but in real usage this would filter
+    // Note: The mock response doesn't simulate filtering by annotation name,
+    // so we still get 2 annotations even though in real usage with
+    // includeAnnotationNames: ["quality_score"] we would expect only 1
     expect(result.annotations.some((a) => a.name === "quality_score")).toBe(
       true
     );
@@ -106,8 +108,22 @@ describe("getSpanAnnotations", () => {
     });
 
     expect(result.annotations).toHaveLength(2);
-    // The mock returns both annotations, but in real usage this would filter
+    // Note: The mock response doesn't simulate filtering by annotation name,
+    // so we still get 2 annotations even though in real usage with
+    // excludeAnnotationNames: ["note"] we would filter out note annotations
     expect(result.annotations.every((a) => a.name !== "note")).toBe(true);
+  });
+
+  it("should handle empty arrays for include/exclude filters", async () => {
+    const result = await getSpanAnnotations({
+      project: { projectName: "test-project" },
+      spanIds: ["span-456"],
+      includeAnnotationNames: [],
+      excludeAnnotationNames: [],
+    });
+
+    expect(result.annotations).toHaveLength(2);
+    expect(result.nextCursor).toBe("next-cursor-123");
   });
 
   it("should handle pagination with cursor", async () => {

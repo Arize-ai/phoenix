@@ -103,11 +103,11 @@ export async function getSpanAnnotations({
     params.cursor = cursor;
   }
 
-  if (includeAnnotationNames) {
+  if (includeAnnotationNames !== undefined) {
     params.include_annotation_names = includeAnnotationNames;
   }
 
-  if (excludeAnnotationNames) {
+  if (excludeAnnotationNames !== undefined) {
     params.exclude_annotation_names = excludeAnnotationNames;
   }
 
