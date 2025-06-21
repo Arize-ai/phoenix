@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6129b7b23391eda09fdbf5730b892939>>
+ * @generated SignedSource<<d05b3e915e3d246d3c4b019af65f8161>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,6 +16,7 @@ export type CreateModelMutationInput = {
   name: string;
   namePattern: string;
   provider?: string | null;
+  startTime?: string | null;
 };
 export type TokenPriceInput = {
   costPerMillionTokens: number;
@@ -90,6 +91,13 @@ v3 = [
     "args": null,
     "kind": "ScalarField",
     "name": "providerKey",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "startTime",
     "storageKey": null
   },
   {
@@ -263,12 +271,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "4cc2e1c51d39fa4c511b0bd7579c9598",
+    "cacheID": "02f6ae13efbb459e47c5796f21e96e99",
     "id": null,
     "metadata": {},
     "name": "NewModelButtonCreateModelMutation",
     "operationKind": "mutation",
-    "text": "mutation NewModelButtonCreateModelMutation(\n  $input: CreateModelMutationInput!\n) {\n  createModel(input: $input) {\n    model {\n      ...ModelsTable_generativeModel\n      id\n    }\n  }\n}\n\nfragment ModelsTable_generativeModel on GenerativeModel {\n  id\n  name\n  provider\n  namePattern\n  providerKey\n  createdAt\n  updatedAt\n  lastUsedAt\n  isOverride\n  tokenPrices {\n    tokenType\n    kind\n    costPerMillionTokens\n    costPerToken\n  }\n}\n"
+    "text": "mutation NewModelButtonCreateModelMutation(\n  $input: CreateModelMutationInput!\n) {\n  createModel(input: $input) {\n    model {\n      ...ModelsTable_generativeModel\n      id\n    }\n  }\n}\n\nfragment ModelsTable_generativeModel on GenerativeModel {\n  id\n  name\n  provider\n  namePattern\n  providerKey\n  startTime\n  createdAt\n  updatedAt\n  lastUsedAt\n  isOverride\n  tokenPrices {\n    tokenType\n    kind\n    costPerMillionTokens\n    costPerToken\n  }\n}\n"
   }
 };
 })();

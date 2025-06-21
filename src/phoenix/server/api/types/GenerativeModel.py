@@ -29,6 +29,7 @@ class GenerativeModel(Node, ModelInterface):
     updated_at: datetime
     provider_key: Optional[GenerativeProviderKey]
     costs: strawberry.Private[Optional[list[models.TokenPrice]]] = None
+    start_time: Optional[datetime] = None
 
     @strawberry.field
     async def token_prices(self) -> list[TokenPrice]:
@@ -100,6 +101,7 @@ def to_gql_generative_model(model: models.GenerativeModel) -> GenerativeModel:
         is_override=model.is_override,
         created_at=model.created_at,
         updated_at=model.updated_at,
+        start_time=model.start_time,
         provider_key=_semconv_provider_to_gql_generative_provider_key(model.provider)
         if model.provider
         else None,

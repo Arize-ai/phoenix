@@ -1,11 +1,15 @@
 import { useMemo } from "react";
-import { Key } from "react-aria-components";
+import { DateValue, Key } from "react-aria-components";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
+import { parseAbsoluteToLocal } from "@internationalized/date";
 
 import {
   Button,
   ComboBox,
   ComboBoxItem,
+  DateField,
+  DateInput,
+  DateSegment,
   FieldError,
   Flex,
   Form,
@@ -39,6 +43,7 @@ export type ModelFormParams = {
   namePattern: string;
   promptCosts: TokenPrice[];
   completionCosts: TokenPrice[];
+  startTime?: DateValue;
 };
 
 const PROVIDER_OPTIONS: { key: ModelProvider; value: string; label: string }[] =
@@ -130,6 +135,7 @@ export function ModelForm({
   isSubmitting,
   submitButtonText,
   formMode,
+  startDate,
 }: {
   modelName?: string | null;
   modelProvider?: string | null;
@@ -139,6 +145,7 @@ export function ModelForm({
   isSubmitting: boolean;
   submitButtonText: string;
   formMode: "create" | "edit";
+  startDate?: string | null;
 }) {
   const defaultCost = useMemo(() => {
     return Array.isArray(modelCost) && modelCost.length > 0
@@ -162,6 +169,11 @@ export function ModelForm({
   const defaultCompletionCostFields = useMemo(() => {
     return defaultCost.filter((field) => field.kind === "COMPLETION");
   }, [defaultCost]);
+  const defaultStartTime = useMemo(() => {
+    return startDate
+      ? parseAbsoluteToLocal(new Date(startDate).toISOString())
+      : "";
+  }, [startDate]);
   const {
     control,
     handleSubmit,
@@ -173,6 +185,7 @@ export function ModelForm({
       namePattern: modelNamePattern ?? "",
       promptCosts: defaultPromptCostFields,
       completionCosts: defaultCompletionCostFields,
+      startTime: defaultStartTime,
     },
   });
 
@@ -219,7 +232,7 @@ export function ModelForm({
                 value={value}
                 size="S"
               >
-                <Label>Model name</Label>
+                <Label>Model name*</Label>
                 <Input placeholder="e.g., gpt-4, claude-3-sonnet" />
                 {error?.message && <FieldError>{error.message}</FieldError>}
               </TextField>
@@ -261,7 +274,7 @@ export function ModelForm({
                 value={value}
                 size="S"
               >
-                <Label>Name pattern</Label>
+                <Label>Name pattern*</Label>
                 <Input placeholder="e.x. ^gpt-4.*" />
                 {error?.message ? (
                   <FieldError>{error.message}</FieldError>
@@ -272,6 +285,40 @@ export function ModelForm({
                   </Text>
                 )}
               </TextField>
+            )}
+          />
+          <Controller
+            name="startTime"
+            control={control}
+            render={({
+              field: { onChange, onBlur, value },
+              fieldState: { invalid, error },
+            }) => (
+              <DateField
+                value={value}
+                onChange={onChange}
+                onBlur={onBlur}
+                isInvalid={invalid}
+                granularity="day"
+                hideTimeZone
+              >
+                <Label>Start date</Label>
+                <DateInput
+                  style={{
+                    width: "100%",
+                  }}
+                >
+                  {(segment) => <DateSegment segment={segment} />}
+                </DateInput>
+                {error?.message ? (
+                  <FieldError>{error.message}</FieldError>
+                ) : (
+                  <Text slot="description">
+                    Optional start date. If provided, traces ingested on or
+                    after this date will have this model&apos;s cost applied.
+                  </Text>
+                )}
+              </DateField>
             )}
           />
 

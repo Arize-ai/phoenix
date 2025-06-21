@@ -6,6 +6,7 @@ import {
   usePreloadedQuery,
   useQueryLoader,
 } from "react-relay";
+import { getLocalTimeZone } from "@internationalized/date";
 
 import {
   Alert,
@@ -40,6 +41,7 @@ const ModelQuery = graphql`
         provider
         namePattern
         providerKey
+        startTime
         tokenPrices {
           tokenType
           kind
@@ -74,6 +76,7 @@ function EditModelDialogContent({
             provider
             namePattern
             providerKey
+            startTime
             tokenPrices {
               tokenType
               kind
@@ -99,6 +102,7 @@ function EditModelDialogContent({
       modelProvider={modelData.provider}
       modelNamePattern={modelData.namePattern}
       modelCost={modelData.tokenPrices as Mutable<typeof modelData.tokenPrices>}
+      startDate={modelData.startTime}
       onSubmit={(params) => {
         commitUpdateModel({
           variables: {
@@ -107,6 +111,9 @@ function EditModelDialogContent({
               name: params.name,
               provider: params.provider,
               namePattern: params.namePattern,
+              startTime: params.startTime
+                ? params.startTime.toDate(getLocalTimeZone()).toISOString()
+                : null,
               costs: [...params.promptCosts, ...params.completionCosts].map(
                 (cost) => ({
                   tokenType: cost.tokenType,

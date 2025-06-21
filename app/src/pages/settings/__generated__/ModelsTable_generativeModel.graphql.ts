@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<83033f0e613f0f1bb614d49e03e37fe7>>
+ * @generated SignedSource<<99d355bef0c3d2fed7d977919138d90d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,6 +21,7 @@ export type ModelsTable_generativeModel$data = {
   readonly namePattern: string;
   readonly provider: string | null;
   readonly providerKey: GenerativeProviderKey | null;
+  readonly startTime: string | null;
   readonly tokenPrices: ReadonlyArray<{
     readonly costPerMillionTokens: number;
     readonly costPerToken: number;
@@ -40,6 +41,6 @@ const node: ReaderInlineDataFragment = {
   "name": "ModelsTable_generativeModel"
 };
 
-(node as any).hash = "f4e5e68bd29ab6bddfc1867d39b20918";
+(node as any).hash = "5485001486bdf80debebe9fa7f028885";
 
 export default node;
