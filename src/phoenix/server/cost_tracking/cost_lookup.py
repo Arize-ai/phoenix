@@ -1,20 +1,25 @@
-import json
-import os
 import re
 from collections import defaultdict
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Iterator, Optional, Union
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
+
+from phoenix.db import models
 
 
 @dataclass
 class ModelTokenCost:
-    # Cost in USD
+    model_id: int
     input: Optional[float] = None
     output: Optional[float] = None
     cache_write: Optional[float] = None
     cache_read: Optional[float] = None
-    audio: Optional[float] = None
+    prompt_audio: Optional[float] = None
+    completion_audio: Optional[float] = None
+    reasoning: Optional[float] = None
 
 
 class RegexDict:
@@ -211,45 +216,41 @@ class ModelCostLookup:
         return None
 
 
-def create_cost_table(
-    manifest_path: Optional[Union[str, "os.PathLike[str]"]] = None,
-) -> "ModelCostLookup":
-    if manifest_path is None:
-        manifest_path = Path(__file__).with_name("model_cost_manifest.json")
-
-    manifest_path = Path(manifest_path)
-
-    if not manifest_path.exists():
-        raise FileNotFoundError(f"Model cost manifest not found: {manifest_path}")
-
-    with manifest_path.open("r", encoding="utf-8") as fp:
-        try:
-            manifest_entries: list[dict[str, Any]] = json.load(fp)
-        except json.JSONDecodeError as exc:
-            raise ValueError(f"Failed to parse manifest JSON: {manifest_path}") from exc
-
+async def _create_cost_table(session: AsyncSession) -> "ModelCostLookup":
     lookup = ModelCostLookup()
 
-    for entry in manifest_entries:
-        provider: Optional[str] = entry.get("provider")
+    result = await session.execute(
+        select(models.GenerativeModel)
+        .options(joinedload(models.GenerativeModel.token_prices))
+        .order_by(models.GenerativeModel.id)
+    )
+    db_models = result.unique().scalars().all()
 
-        try:
-            pattern = re.compile(entry["regex"])
-        except re.error as exc:
-            raise ValueError(
-                f"Invalid regex in manifest for model {entry.get('model')}: {entry['regex']}"
-            ) from exc
-
-        cost = ModelTokenCost(
-            input=entry.get("input"),
-            output=entry.get("output"),
-            cache_write=entry.get("cache_write"),
-            cache_read=entry.get("cache_read"),
-        )
-
-        lookup.add_pattern(provider, pattern, cost)
+    for model in db_models:
+        token_cost = ModelTokenCost(model_id=model.id)
+        pattern = re.compile(model.llm_name_pattern)
+        for cost in model.token_prices:
+            setattr(token_cost, cost.token_type, cost.base_rate)
+            if model.is_override:
+                lookup.add_override(model.provider, pattern, token_cost)
+            else:
+                lookup.add_pattern(model.provider, pattern, token_cost)
 
     return lookup
 
 
-COST_TABLE = create_cost_table()
+COST_TABLE: Optional[ModelCostLookup] = None
+
+
+async def initialize_cost_table(session: AsyncSession) -> ModelCostLookup:
+    global COST_TABLE
+    if COST_TABLE is None:
+        COST_TABLE = await _create_cost_table(session)
+    return COST_TABLE
+
+
+def get_cost_table() -> ModelCostLookup:
+    global COST_TABLE
+    if COST_TABLE is None:
+        raise RuntimeError("Cost table not initialized")
+    return COST_TABLE

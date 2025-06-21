@@ -8,3 +8,4 @@ export * from "./CellWithControlsWrapper";
 export * from "./LoadMoreRow";
 export * from "./TableEmpty";
 export * from "./TableEmptyWrap";
+export * from "./CellTop";

@@ -25,11 +25,12 @@ import { Icon, Icons, View } from "@phoenix/components";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import { IntCell, TextCell } from "../../components/table";
-import { TokenCount } from "../../components/trace/TokenCount";
+import { TokenCosts } from "../../components/trace/TokenCosts";
 
 import { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
 import {
@@ -140,6 +141,11 @@ export function SessionsTable(props: SessionsTableProps) {
                 }
                 traceLatencyMsP50: traceLatencyMsQuantile(probability: 0.5)
                 traceLatencyMsP99: traceLatencyMsQuantile(probability: 0.99)
+                costSummary {
+                  total {
+                    cost
+                  }
+                }
               }
             }
           }
@@ -151,6 +157,7 @@ export function SessionsTable(props: SessionsTableProps) {
     return data.sessions.edges.map(({ session }) => ({
       ...session,
       tokenCountTotal: session.tokenUsage.total,
+      costTotal: session.costSummary?.total?.cost ?? null,
     }));
   }, [data.sessions]);
   type TableRow = (typeof tableData)[number];
@@ -214,17 +221,25 @@ export function SessionsTable(props: SessionsTableProps) {
       accessorKey: "tokenCountTotal",
       enableSorting: true,
       minSize: 80,
+      cell: ({ getValue }) => {
+        const value = getValue();
+        if (value == null || typeof value !== "number") {
+          return "--";
+        }
+        return <TokenCount size="S">{value as number}</TokenCount>;
+      },
+    },
+    {
+      header: "total cost",
+      accessorKey: "costTotal",
+      enableSorting: true,
+      minSize: 80,
       cell: ({ row, getValue }) => {
         const value = getValue();
         if (value == null || typeof value !== "number") {
           return "--";
         }
-        return (
-          <TokenCount
-            tokenCountTotal={value as number}
-            nodeId={row.original.id}
-          />
-        );
+        return <TokenCosts totalCost={value} nodeId={row.original.id} />;
       },
     },
     {

@@ -12,6 +12,8 @@ import { SettingsAnnotationsPage } from "@phoenix/pages/settings/SettingsAnnotat
 import { settingsAnnotationsPageLoader } from "@phoenix/pages/settings/settingsAnnotationsPageLoader";
 import { SettingsDataPage } from "@phoenix/pages/settings/SettingsDataPage";
 import { SettingsGeneralPage } from "@phoenix/pages/settings/SettingsGeneralPage";
+import { settingsModelsLoader } from "@phoenix/pages/settings/settingsModelsLoader";
+import { SettingsModelsPage } from "@phoenix/pages/settings/SettingsModelsPage";
 
 import {
   DashboardPage,
@@ -67,12 +69,13 @@ import {
   homeLoader,
   LoggedOutPage,
   LoginPage,
-  ModelPage,
+  ModelInferencesPage,
   ModelRoot,
   PlaygroundPage,
   ProfilePage,
   ProjectIndexPage,
   projectLoader,
+  ProjectMetricsPage,
   ProjectPage,
   ProjectSessionsPage,
   ProjectsPage,
@@ -129,8 +132,8 @@ const router = createBrowserRouter(
             handle={{ crumb: () => "model" }}
             element={<ModelRoot />}
           >
-            <Route index element={<ModelPage />} />
-            <Route element={<ModelPage />}>
+            <Route index element={<ModelInferencesPage />} />
+            <Route element={<ModelInferencesPage />}>
               <Route path="dimensions">
                 <Route
                   path=":dimensionId"
@@ -185,6 +188,7 @@ const router = createBrowserRouter(
                   />
                 </Route>
                 <Route path="config" element={<ProjectConfigPage />} />
+                <Route path="metrics" element={<ProjectMetricsPage />} />
               </Route>
             </Route>
           </Route>
@@ -364,6 +368,14 @@ const router = createBrowserRouter(
               }}
             />
             <Route
+              path="models"
+              loader={settingsModelsLoader}
+              element={<SettingsModelsPage />}
+              handle={{
+                crumb: () => "models",
+              }}
+            />
+            <Route
               path="annotations"
               loader={settingsAnnotationsPageLoader}
               element={<SettingsAnnotationsPage />}
@@ -371,6 +383,7 @@ const router = createBrowserRouter(
                 crumb: () => "annotations",
               }}
             />
+
             <Route
               path="data"
               element={<SettingsDataPage />}

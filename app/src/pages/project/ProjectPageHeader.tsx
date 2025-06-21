@@ -13,7 +13,11 @@ import {
 } from "@phoenix/components";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
-import { formatInt, intFormatter } from "@phoenix/utils/numberFormatUtils";
+import {
+  costFormatter,
+  formatInt,
+  intFormatter,
+} from "@phoenix/utils/numberFormatUtils";
 
 import { ProjectPageHeader_stats$key } from "./__generated__/ProjectPageHeader_stats.graphql";
 import { ProjectPageHeaderQuery } from "./__generated__/ProjectPageHeaderQuery.graphql";
@@ -40,6 +44,17 @@ export function ProjectPageHeader(props: {
         tokenCountTotal(timeRange: $timeRange)
         tokenCountPrompt(timeRange: $timeRange)
         tokenCountCompletion(timeRange: $timeRange)
+        costSummary(timeRange: $timeRange) {
+          total {
+            cost
+          }
+          prompt {
+            cost
+          }
+          completion {
+            cost
+          }
+        }
         latencyMsP50: latencyMsQuantile(
           probability: 0.50
           timeRange: $timeRange
@@ -160,6 +175,44 @@ export function ProjectPageHeader(props: {
                           {typeof tokenCountTotal === "number"
                             ? formatInt(tokenCountTotal)
                             : "--"}
+                        </Text>
+                      </Flex>
+                    </Flex>
+                  </View>
+                </HelpTooltip>
+              </TooltipTrigger>
+            </Flex>
+            <Flex direction="column" flex="none">
+              <Text elementType="h3" size="S" color="text-700">
+                Total Cost
+              </Text>
+              <TooltipTrigger delay={0} placement="bottom">
+                <TriggerWrap>
+                  <Text size="L">
+                    {costFormatter(data?.costSummary?.total?.cost ?? 0)}
+                  </Text>
+                </TriggerWrap>
+                <HelpTooltip>
+                  <View width="size-2400">
+                    <Flex direction="column">
+                      <Flex justifyContent="space-between">
+                        <Text>Prompt Cost</Text>
+                        <Text>
+                          {costFormatter(data?.costSummary?.prompt?.cost ?? 0)}
+                        </Text>
+                      </Flex>
+                      <Flex justifyContent="space-between">
+                        <Text>Completion Cost</Text>
+                        <Text>
+                          {costFormatter(
+                            data?.costSummary?.completion?.cost ?? 0
+                          )}
+                        </Text>
+                      </Flex>
+                      <Flex justifyContent="space-between">
+                        <Text>Total Cost</Text>
+                        <Text>
+                          {costFormatter(data?.costSummary?.total?.cost ?? 0)}
                         </Text>
                       </Flex>
                     </Flex>

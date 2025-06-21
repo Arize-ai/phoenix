@@ -5,6 +5,8 @@ import {
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
+import { classNames } from "@arizeai/components";
+
 import { fieldBaseCSS } from "@phoenix/components/field/styles";
 import { SizingProps } from "@phoenix/components/types";
 
@@ -26,9 +28,12 @@ const NumberField = forwardRef(function NumberField(
   return (
     <AriaNumberField
       data-size={size}
-      className="ac-textfield"
-      ref={ref}
       {...otherProps}
+      className={classNames(
+        "ac-textfield react-aria-NumberField",
+        props.className
+      )}
+      ref={ref}
       css={css(fieldBaseCSS, textFieldCSS, numberFieldCSS)}
     />
   );

@@ -49,6 +49,25 @@ export function formatNumber(number: number): string {
 }
 
 /**
+ * Formats a cost value in dollars.
+ * Provides special handling for small and zero costs.
+ * @param cost The cost value in dollars
+ * @returns {string} The formatted cost string with dollar sign
+ */
+export function formatCost(cost: number): string {
+  if (cost === 0) {
+    return "$0";
+  }
+  if (cost < 0.001) {
+    return "<$0.001";
+  }
+  if (cost < 0.01) {
+    return `$${format(".3~f")(cost)}`;
+  }
+  return `$${format(".2f")(cost)}`;
+}
+
+/**
  * A factory function to create a formatter for a number that is tolerant of nulls and undefined values
  * @param {Function} formatFn a format function that takes a number and returns a string
  * @returns {string} textual representation of the value
@@ -66,3 +85,4 @@ export const intFormatter = createNumberFormatter(formatInt);
 export const floatFormatter = createNumberFormatter(formatFloat);
 export const numberFormatter = createNumberFormatter(formatNumber);
 export const percentFormatter = createNumberFormatter(formatPercent);
+export const costFormatter = createNumberFormatter(formatCost);

@@ -5,7 +5,7 @@ import { css } from "@emotion/react";
 
 import { Switch } from "@arizeai/components";
 
-import { Alert, Flex, Heading, Loading, View } from "@phoenix/components";
+import { Alert, Flex, Loading, View } from "@phoenix/components";
 import { experimentCompareLoader } from "@phoenix/pages/experiment/experimentCompareLoader";
 
 import { ExperimentCompareTable } from "./ExperimentCompareTable";
@@ -35,33 +35,30 @@ export function ExperimentComparePage() {
         borderBottomWidth="thin"
         flex="none"
       >
-        <Flex direction="column" gap="size-100">
-          <Heading level={1}>Compare Experiments</Heading>
-          <Flex direction="row" justifyContent="space-between" alignItems="end">
-            <ExperimentMultiSelector
-              dataset={loaderData.dataset}
-              selectedExperimentIds={experimentIds}
-              label="experiments"
-              onChange={(newExperimentIds) => {
-                startTransition(() => {
-                  searchParams.delete("experimentId");
-                  newExperimentIds.forEach((id) => {
-                    searchParams.append("experimentId", id);
-                  });
-                  setSearchParams(searchParams);
+        <Flex direction="row" justifyContent="space-between" alignItems="end">
+          <ExperimentMultiSelector
+            dataset={loaderData.dataset}
+            selectedExperimentIds={experimentIds}
+            label="experiments"
+            onChange={(newExperimentIds) => {
+              startTransition(() => {
+                searchParams.delete("experimentId");
+                newExperimentIds.forEach((id) => {
+                  searchParams.append("experimentId", id);
                 });
-              }}
-            />
-            <Switch
-              onChange={(isSelected) => {
-                setDisplayFullText(isSelected);
-              }}
-              defaultSelected={false}
-              labelPlacement="start"
-            >
-              Full Text
-            </Switch>
-          </Flex>
+                setSearchParams(searchParams);
+              });
+            }}
+          />
+          <Switch
+            onChange={(isSelected) => {
+              setDisplayFullText(isSelected);
+            }}
+            defaultSelected={false}
+            labelPlacement="start"
+          >
+            Full Text
+          </Switch>
         </Flex>
       </View>
       {experimentIdsSelected ? (

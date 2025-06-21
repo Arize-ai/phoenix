@@ -78,9 +78,6 @@ export const tableCSS = css`
           border-bottom: 1px solid var(--ac-global-border-color-default);
         }
       }
-      &:hover {
-        background-color: rgba(var(--ac-global-color-grey-300-rgb), 0.3);
-      }
       & > td {
         padding: var(--ac-global-dimension-size-100)
           var(--ac-global-dimension-size-200);
@@ -105,8 +102,19 @@ export const borderedTableCSS = css`
   }
 `;
 
+export const interactiveTableCSS = css`
+  tbody:not(.is-empty) {
+    tr {
+      &:hover {
+        background-color: var(--ac-hover-background);
+      }
+    }
+  }
+`;
+
 export const selectableTableCSS = css(
   tableCSS,
+  interactiveTableCSS,
   css`
     tbody:not(.is-empty) {
       tr {
@@ -149,5 +157,6 @@ export function getCommonPinningStyles<Row>(
     position: isPinned ? "sticky" : "relative",
     width: column.getSize(),
     zIndex: isPinned ? 1 : 0,
+    backgroundColor: isPinned ? "var(--ac-global-color-grey-100)" : undefined,
   };
 }

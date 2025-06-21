@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import secrets
 from asyncio import gather
 from functools import partial
+from pathlib import Path
 from typing import Optional
 
 import sqlalchemy as sa
+from sqlalchemy import delete, select
 
 from phoenix import config
 from phoenix.auth import (
@@ -26,12 +29,12 @@ from phoenix.config import (
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.enums import ENUM_COLUMNS
-from phoenix.db.models import UserRoleName
 from phoenix.db.types.trace_retention import (
     MaxDaysRule,
     TraceRetentionCronExpression,
     TraceRetentionRule,
 )
+from phoenix.server.cost_tracking.cost_lookup import initialize_cost_table
 from phoenix.server.email.types import WelcomeEmailSender
 from phoenix.server.types import DbSessionFactory
 
@@ -62,6 +65,7 @@ class Facilitator:
             _get_system_user_id,
             partial(_ensure_admins, email_sender=self._email_sender),
             _ensure_default_project_trace_retention_policy,
+            _ensure_model_costs,
         ):
             await fn(self._db)
 
@@ -92,13 +96,13 @@ async def _ensure_user_roles(db: DbSessionFactory) -> None:
     the email "admin@localhost".
     """
     async with db() as session:
-        role_ids: dict[UserRoleName, int] = {
+        role_ids: dict[models.UserRoleName, int] = {
             name: id_
             async for name, id_ in await session.stream(
                 sa.select(models.UserRole.name, models.UserRole.id)
             )
         }
-        existing_roles: list[UserRoleName] = [
+        existing_roles: list[models.UserRoleName] = [
             name
             async for name in await session.stream_scalars(
                 sa.select(sa.distinct(models.UserRole.name)).join_from(models.User, models.UserRole)
@@ -261,3 +265,79 @@ async def _ensure_default_project_trace_retention_policy(db: DbSessionFactory) -
                 }
             ],
         )
+
+
+async def _ensure_model_costs(db: DbSessionFactory) -> None:
+    async with db() as session:
+        with open(
+            Path(__file__).parent.parent / "server" / "cost_tracking" / "model_cost_manifest.json"
+        ) as f:
+            manifest = json.load(f)
+
+        for model_data in manifest:
+            result = await session.execute(
+                select(models.GenerativeModel).where(
+                    models.GenerativeModel.name == model_data["model"]
+                )
+            )
+            existing_model = result.scalar_one_or_none()
+
+            if existing_model is None:
+                model = models.GenerativeModel(
+                    name=model_data["model"],
+                    provider=model_data["provider"],
+                    llm_name_pattern=model_data["regex"],
+                    is_override=False,
+                )
+                session.add(model)
+                await session.flush()
+            else:
+                existing_model.provider = model_data["provider"]
+                existing_model.llm_name_pattern = model_data["regex"]
+                model = existing_model
+                await session.execute(
+                    delete(models.TokenPrice).where(models.TokenPrice.model_id == model.id)
+                )
+
+            prices = []
+            if model_data["input"] is not None:
+                prices.append(
+                    models.TokenPrice(
+                        model_id=model.id,
+                        token_type="input",
+                        is_prompt=True,
+                        base_rate=model_data["input"],
+                    )
+                )
+            if model_data["cache_write"] is not None:
+                prices.append(
+                    models.TokenPrice(
+                        model_id=model.id,
+                        token_type="cache_write",
+                        is_prompt=True,
+                        base_rate=model_data["cache_write"],
+                    )
+                )
+            if model_data["cache_read"] is not None:
+                prices.append(
+                    models.TokenPrice(
+                        model_id=model.id,
+                        token_type="cache_read",
+                        is_prompt=True,
+                        base_rate=model_data["cache_read"],
+                    )
+                )
+            if model_data["output"] is not None:
+                prices.append(
+                    models.TokenPrice(
+                        model_id=model.id,
+                        token_type="output",
+                        is_prompt=False,
+                        base_rate=model_data["output"],
+                    )
+                )
+
+            session.add_all(prices)
+
+        await session.flush()
+        await initialize_cost_table(session)

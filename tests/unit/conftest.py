@@ -22,7 +22,7 @@ from pytest import FixtureRequest
 from pytest_postgresql import factories
 from sqlalchemy import URL, make_url
 from sqlalchemy.dialects import postgresql, sqlite
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine
 from starlette.types import ASGIApp
 
 import phoenix.trace.v1 as pb
@@ -163,21 +163,12 @@ def db(
     dialect: str,
 ) -> DbSessionFactory:
     if dialect == "sqlite":
-        return db_session_factory(request.getfixturevalue("sqlite_engine"))
+        engine = request.getfixturevalue("sqlite_engine")
     elif dialect == "postgresql":
-        return db_session_factory(request.getfixturevalue("postgresql_engine"))
-    raise ValueError(f"Unknown db fixture: {dialect}")
-
-
-def db_session_factory(engine: AsyncEngine) -> DbSessionFactory:
-    db = _db(engine, bypass_lock=True)
-
-    @contextlib.asynccontextmanager
-    async def factory() -> AsyncIterator[AsyncSession]:
-        async with db() as session:
-            yield session
-
-    return DbSessionFactory(db=factory, dialect=engine.dialect.name)
+        engine = request.getfixturevalue("postgresql_engine")
+    else:
+        raise ValueError(f"Unknown db fixture: {dialect}")
+    return DbSessionFactory(db=_db(engine), dialect=dialect)
 
 
 @pytest.fixture

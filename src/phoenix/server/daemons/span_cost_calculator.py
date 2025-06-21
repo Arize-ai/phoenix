@@ -1,0 +1,127 @@
+from __future__ import annotations
+
+import logging
+from asyncio import sleep
+from collections import defaultdict
+from datetime import datetime
+from typing import Any, Mapping, NamedTuple, Optional
+
+from sqlalchemy import inspect
+from typing_extensions import TypeAlias
+
+from phoenix.db import models
+from phoenix.server.cost_tracking.cost_details_calculator import SpanCostDetailsCalculator
+from phoenix.server.cost_tracking.cost_model_lookup import CostModelLookup
+from phoenix.server.daemons.generative_model_store import GenerativeModelStore
+from phoenix.server.types import DaemonTask, DbSessionFactory
+
+logger = logging.getLogger(__name__)
+
+_GenerativeModelId: TypeAlias = int
+
+
+class QueueItem(NamedTuple):
+    span_rowid: int
+    trace_rowid: int
+    attributes: Mapping[str, Any]
+    span_start_time: datetime
+
+
+class SpanCostCalculator(DaemonTask):
+    _SLEEP_INTERVAL = 5  # seconds
+
+    def __init__(
+        self,
+        db: DbSessionFactory,
+        model_store: GenerativeModelStore,
+    ) -> None:
+        super().__init__()
+        self._db = db
+        self._model_store = model_store
+        self._costs: defaultdict[_GenerativeModelId, list[models.SpanCost]] = defaultdict(list)
+        self._queue: list[QueueItem] = []
+
+    async def _run(self) -> None:
+        while self._running:
+            try:
+                await self._insert_costs()
+            except Exception as e:
+                logger.exception(f"Failed to insert costs: {e}")
+            finally:
+                self._costs.clear()
+                self._queue.clear()
+            await sleep(self._SLEEP_INTERVAL)
+
+    async def _insert_costs(self) -> None:
+        if not self._queue:
+            return
+        if not (lookup := self._get_lookup()):
+            return
+        for item in self._queue:
+            cost = self._calculate_cost(item.span_start_time, item.attributes, lookup)
+            if not cost:
+                continue
+            cost.span_rowid = item.span_rowid
+            cost.trace_rowid = item.trace_rowid
+            self._costs[cost.model_id].append(cost)
+        for model_id, costs in self._costs.items():
+            try:
+                async with self._db() as session:
+                    session.add_all(costs)
+            except Exception as e:
+                logger.exception(f"Failed to insert costs for model ID {model_id}: {e}")
+
+    def put_nowait(self, item: QueueItem) -> None:
+        self._queue.append(item)
+
+    def calculate_cost(
+        self,
+        start_time: datetime,
+        attributes: Mapping[str, Any],
+    ) -> Optional[models.SpanCost]:
+        if not attributes:
+            return None
+        if not (lookup := self._get_lookup()):
+            return None
+        return self._calculate_cost(
+            start_time=start_time,
+            attributes=attributes,
+            lookup=lookup,
+        )
+
+    def _get_lookup(
+        self,
+    ) -> Optional[CostModelLookup]:
+        if not (candidates := self._model_store.get_models()):
+            return None
+        return CostModelLookup(candidates)
+
+    @staticmethod
+    def _calculate_cost(
+        start_time: datetime,
+        attributes: Mapping[str, Any],
+        lookup: CostModelLookup,
+    ) -> Optional[models.SpanCost]:
+        if not attributes:
+            return None
+        cost_model = lookup.find_model(
+            start_time=start_time,
+            attributes=attributes,
+        )
+        if not cost_model:
+            return None
+        if not isinstance(inspect(cost_model).attrs.token_prices.loaded_value, list):
+            return None
+
+        calculator = SpanCostDetailsCalculator(cost_model.token_prices)
+        details = calculator.calculate_details(attributes)
+        if not details:
+            return None
+
+        cost = models.SpanCost(
+            model_id=cost_model.id,
+            span_start_time=start_time,
+        )
+        for detail in details:
+            cost.append_detail(detail)
+        return cost

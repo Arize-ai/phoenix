@@ -101,6 +101,12 @@ const modalCSS = css`
       left: 50%;
       transform: translate(-50%, -50%);
       z-index: 1001;
+      // 90% gives a decent amount of padding around the dialog when it would
+      // otherwise be cut off by the edges of the screen
+      max-height: calc(100% - var(--ac-global-dimension-size-800));
+      overflow: auto;
+      // prevent bounce in safari when scrolling
+      overscroll-behavior: contain;
 
       &[data-entering] {
         animation: ${modalZoom} 300ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -121,6 +127,13 @@ const modalCSS = css`
       padding: var(--ac-global-dimension-size-100)
         var(--ac-global-dimension-size-200);
       border-bottom: 1px solid var(--ac-global-border-color-light);
+    }
+
+    & .ac-DialogHeader {
+      position: sticky;
+      top: 0;
+      background: var(--ac-global-background-color-dark);
+      z-index: 1;
     }
   }
 `;

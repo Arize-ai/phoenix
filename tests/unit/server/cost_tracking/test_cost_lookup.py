@@ -17,10 +17,10 @@ def cost_lookup() -> ModelCostLookup:
 
 def test_set_and_get_item(cost_lookup: ModelCostLookup) -> None:
     regex = re.compile(r"gpt-3\.5-turbo")
-    cost_lookup.add_pattern("openai", regex, ModelTokenCost(input=0.02, output=0.02))
+    cost_lookup.add_pattern("openai", regex, ModelTokenCost(model_id=1, input=0.02, output=0.02))
 
     assert cost_lookup.get_cost(provider="openai", model_name="gpt-3.5-turbo") == [
-        ("openai", ModelTokenCost(input=0.02, output=0.02))
+        ("openai", ModelTokenCost(model_id=1, input=0.02, output=0.02))
     ]
 
 
@@ -31,9 +31,11 @@ def test_contains_and_len(cost_lookup: ModelCostLookup) -> None:
     assert cost_lookup.pattern_count() == 0
     assert not cost_lookup.has_model(provider=provider1, model_name=name1)
 
-    cost_lookup.add_pattern("openai", re.compile(r"gpt-4"), ModelTokenCost(input=0.05, output=0.05))
     cost_lookup.add_pattern(
-        "anthropic", re.compile(r"claude-3"), ModelTokenCost(input=0.012, output=0.012)
+        "openai", re.compile(r"gpt-4"), ModelTokenCost(model_id=2, input=0.05, output=0.05)
+    )
+    cost_lookup.add_pattern(
+        "anthropic", re.compile(r"claude-3"), ModelTokenCost(model_id=3, input=0.012, output=0.012)
     )
 
     assert cost_lookup.has_model(provider=provider1, model_name=name1)
@@ -43,16 +45,16 @@ def test_contains_and_len(cost_lookup: ModelCostLookup) -> None:
 
 def test_provider_agnostic_lookup(cost_lookup: ModelCostLookup) -> None:
     cost_lookup.add_pattern(
-        "openai", re.compile(r"gpt-3\.5"), ModelTokenCost(input=0.02, output=0.02)
+        "openai", re.compile(r"gpt-3\.5"), ModelTokenCost(model_id=4, input=0.02, output=0.02)
     )
     cost_lookup.add_pattern(
-        "azure", re.compile(r"gpt-3\.5"), ModelTokenCost(input=0.018, output=0.018)
+        "azure", re.compile(r"gpt-3\.5"), ModelTokenCost(model_id=5, input=0.018, output=0.018)
     )
 
     result = cost_lookup.get_cost(None, "gpt-3.5")
     assert isinstance(result, list)
-    assert ("azure", ModelTokenCost(input=0.018, output=0.018)) in result
-    assert ("openai", ModelTokenCost(input=0.02, output=0.02)) in result
+    assert ("azure", ModelTokenCost(model_id=5, input=0.018, output=0.018)) in result
+    assert ("openai", ModelTokenCost(model_id=4, input=0.02, output=0.02)) in result
 
     assert cost_lookup.has_model(None, "gpt-3.5")
     assert not cost_lookup.has_model(None, "gpt-3.5-turbo")
@@ -62,7 +64,7 @@ def test_deletion(cost_lookup: ModelCostLookup) -> None:
     cost_lookup.add_pattern(
         provider="openai",
         pattern=re.compile(r"gpt-3\.5-turbo"),
-        cost=ModelTokenCost(input=0.02, output=0.02),
+        cost=ModelTokenCost(model_id=6, input=0.02, output=0.02),
     )
 
     cost_lookup.remove_pattern(provider="openai", pattern=re.compile(r"gpt-3\.5-turbo"))
@@ -81,14 +83,14 @@ def test_regex_match_single_provider(cost_lookup: ModelCostLookup) -> None:
     cost_lookup.add_pattern(
         provider="openai",
         pattern=re.compile(r"gpt-3\.5.*"),
-        cost=ModelTokenCost(input=0.02, output=0.02),
+        cost=ModelTokenCost(model_id=7, input=0.02, output=0.02),
     )
 
     assert cost_lookup.get_cost(provider="openai", model_name="gpt-3.5") == [
-        ("openai", ModelTokenCost(input=0.02, output=0.02))
+        ("openai", ModelTokenCost(model_id=7, input=0.02, output=0.02))
     ]
     assert cost_lookup.get_cost(provider="openai", model_name="gpt-3.5-turbo") == [
-        ("openai", ModelTokenCost(input=0.02, output=0.02))
+        ("openai", ModelTokenCost(model_id=7, input=0.02, output=0.02))
     ]
 
 
@@ -97,25 +99,25 @@ def test_regex_match_multiple_providers(cost_lookup: ModelCostLookup) -> None:
     cost_lookup.add_pattern(
         provider="anthropic",
         pattern=re.compile(r"model.*"),
-        cost=ModelTokenCost(input=0.012, output=0.012),
+        cost=ModelTokenCost(model_id=8, input=0.012, output=0.012),
     )
     cost_lookup.add_pattern(
         provider="openai",
         pattern=re.compile(r"model.*"),
-        cost=ModelTokenCost(input=0.02, output=0.02),
+        cost=ModelTokenCost(model_id=9, input=0.02, output=0.02),
     )
 
     results = cost_lookup.get_cost(None, "model-3")
     result_dict = dict(results)
-    assert result_dict["anthropic"] == ModelTokenCost(input=0.012, output=0.012)
-    assert result_dict["openai"] == ModelTokenCost(input=0.02, output=0.02)
+    assert result_dict["anthropic"] == ModelTokenCost(model_id=8, input=0.012, output=0.012)
+    assert result_dict["openai"] == ModelTokenCost(model_id=9, input=0.02, output=0.02)
 
 
 def test_regex_no_match_raises(cost_lookup: ModelCostLookup) -> None:
     cost_lookup.add_pattern(
         provider="openai",
         pattern=re.compile(r"gpt-3\.5.*"),
-        cost=ModelTokenCost(input=0.02, output=0.02),
+        cost=ModelTokenCost(model_id=10, input=0.02, output=0.02),
     )
 
     with pytest.raises(KeyError):
@@ -127,17 +129,17 @@ def test_override_precedence(cost_lookup: ModelCostLookup) -> None:
     cost_lookup.add_pattern(
         provider="openai",
         pattern=re.compile(r"gpt-4"),
-        cost=ModelTokenCost(input=0.06, output=0.06),
+        cost=ModelTokenCost(model_id=11, input=0.06, output=0.06),
     )
 
     cost_lookup.add_override(
         provider="openai",
         pattern=re.compile(r"gpt-4"),
-        cost=ModelTokenCost(input=0.04, output=0.04),
+        cost=ModelTokenCost(model_id=12, input=0.04, output=0.04),
     )
 
     assert cost_lookup.get_cost(provider="openai", model_name="gpt-4") == [
-        ("openai", ModelTokenCost(input=0.04, output=0.04))
+        ("openai", ModelTokenCost(model_id=12, input=0.04, output=0.04))
     ]
 
 
@@ -146,24 +148,24 @@ def test_override_provider_agnostic_lookup(cost_lookup: ModelCostLookup) -> None
     cost_lookup.add_pattern(
         provider="openai",
         pattern=re.compile(r"gpt-3\.5"),
-        cost=ModelTokenCost(input=0.02, output=0.02),
+        cost=ModelTokenCost(model_id=13, input=0.02, output=0.02),
     )
     cost_lookup.add_pattern(
         provider="azure",
         pattern=re.compile(r"gpt-3\.5"),
-        cost=ModelTokenCost(input=0.018, output=0.018),
+        cost=ModelTokenCost(model_id=14, input=0.018, output=0.018),
     )
 
     cost_lookup.add_override(
         provider="openai",
         pattern=re.compile(r"gpt-3\.5"),
-        cost=ModelTokenCost(input=0.015, output=0.015),
+        cost=ModelTokenCost(model_id=15, input=0.015, output=0.015),
     )
 
     results = cost_lookup.get_cost(None, "gpt-3.5")
     result_dict = dict(results)
-    assert result_dict["openai"] == ModelTokenCost(input=0.015, output=0.015)
-    assert result_dict["azure"] == ModelTokenCost(input=0.018, output=0.018)
+    assert result_dict["openai"] == ModelTokenCost(model_id=15, input=0.015, output=0.015)
+    assert result_dict["azure"] == ModelTokenCost(model_id=14, input=0.018, output=0.018)
 
 
 def test_multiple_overrides_priority(cost_lookup: ModelCostLookup) -> None:
@@ -171,23 +173,23 @@ def test_multiple_overrides_priority(cost_lookup: ModelCostLookup) -> None:
     cost_lookup.add_override(
         provider="anthropic",
         pattern=re.compile(r"claude-3"),
-        cost=ModelTokenCost(input=0.03, output=0.03),
+        cost=ModelTokenCost(model_id=16, input=0.03, output=0.03),
     )
     # Higher-priority override added later.
     cost_lookup.add_override(
         provider="anthropic",
         pattern=re.compile(r"claude-3"),
-        cost=ModelTokenCost(input=0.025, output=0.025),
+        cost=ModelTokenCost(model_id=17, input=0.025, output=0.025),
     )
 
     cost_lookup.add_pattern(
         provider="anthropic",
         pattern=re.compile(r"claude-3"),
-        cost=ModelTokenCost(input=0.05, output=0.05),
+        cost=ModelTokenCost(model_id=18, input=0.05, output=0.05),
     )
 
     assert cost_lookup.get_cost(provider="anthropic", model_name="claude-3") == [
-        ("anthropic", ModelTokenCost(input=0.025, output=0.025))
+        ("anthropic", ModelTokenCost(model_id=17, input=0.025, output=0.025))
     ]
 
 
@@ -195,13 +197,13 @@ def test_cache_population(cost_lookup: ModelCostLookup) -> None:
     cost_lookup.add_pattern(
         provider="openai",
         pattern=re.compile(r"gpt-4"),
-        cost=ModelTokenCost(input=0.05, output=0.05),
+        cost=ModelTokenCost(model_id=19, input=0.05, output=0.05),
     )
 
     assert len(cost_lookup._cache) == 0
 
     assert cost_lookup.get_cost(provider="openai", model_name="gpt-4") == [
-        ("openai", ModelTokenCost(input=0.05, output=0.05))
+        ("openai", ModelTokenCost(model_id=19, input=0.05, output=0.05))
     ]
     assert len(cost_lookup._cache) == 1
 
@@ -209,22 +211,26 @@ def test_cache_population(cost_lookup: ModelCostLookup) -> None:
 def test_cache_busted_on_override(cost_lookup: ModelCostLookup) -> None:
     pattern = re.compile(r"gpt-3\.5")
     cost_lookup.add_pattern(
-        provider="openai", pattern=pattern, cost=ModelTokenCost(input=0.02, output=0.02)
+        provider="openai",
+        pattern=pattern,
+        cost=ModelTokenCost(model_id=20, input=0.02, output=0.02),
     )
 
     assert cost_lookup.get_cost(provider="openai", model_name="gpt-3.5") == [
-        ("openai", ModelTokenCost(input=0.02, output=0.02))
+        ("openai", ModelTokenCost(model_id=20, input=0.02, output=0.02))
     ]
     assert cost_lookup._cache
 
     cost_lookup.add_override(
-        provider="openai", pattern=pattern, cost=ModelTokenCost(input=0.015, output=0.015)
+        provider="openai",
+        pattern=pattern,
+        cost=ModelTokenCost(model_id=21, input=0.015, output=0.015),
     )
 
     assert len(cost_lookup._cache) == 0
 
     assert cost_lookup.get_cost(provider="openai", model_name="gpt-3.5") == [
-        ("openai", ModelTokenCost(input=0.015, output=0.015))
+        ("openai", ModelTokenCost(model_id=21, input=0.015, output=0.015))
     ]
     assert cost_lookup._cache
 
@@ -237,17 +243,17 @@ def test_cache_hit_avoids_recompute(cost_lookup: ModelCostLookup) -> None:
     cost_lookup.add_pattern(
         provider="openai",
         pattern=re.compile(r"gpt-4"),
-        cost=ModelTokenCost(input=0.05, output=0.05),
+        cost=ModelTokenCost(model_id=22, input=0.05, output=0.05),
     )
 
     with mock.patch.object(
         ModelCostLookup, "_lookup_cost", wraps=ModelCostLookup._lookup_cost, autospec=True
     ) as spy:
         assert cost_lookup.get_cost(provider="openai", model_name="gpt-4") == [
-            ("openai", ModelTokenCost(input=0.05, output=0.05))
+            ("openai", ModelTokenCost(model_id=22, input=0.05, output=0.05))
         ]
         assert cost_lookup.get_cost(provider="openai", model_name="gpt-4") == [
-            ("openai", ModelTokenCost(input=0.05, output=0.05))
+            ("openai", ModelTokenCost(model_id=22, input=0.05, output=0.05))
         ]
 
         assert spy.call_count == 1

@@ -41,7 +41,8 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
-import { TokenCount } from "@phoenix/components/trace/TokenCount";
+import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
+import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
@@ -230,6 +231,11 @@ export function SpansTable(props: SpansTableProps) {
                   ndcg
                   precision
                   hit
+                }
+                costSummary {
+                  total {
+                    cost
+                  }
                 }
                 ...AnnotationSummaryGroup
               }
@@ -482,8 +488,24 @@ export function SpansTable(props: SpansTableProps) {
           ? span.cumulativeTokenCountTotal
           : span.tokenCountTotal;
         return (
-          <TokenCount tokenCountTotal={tokenCountTotal || 0} nodeId={span.id} />
+          <SpanTokenCount
+            tokenCountTotal={tokenCountTotal || 0}
+            nodeId={span.id}
+          />
         );
+      },
+    },
+    {
+      header: "total cost",
+      accessorKey: "costSummary.total.cost",
+      id: "tokenCostTotal",
+      cell: ({ row, getValue }) => {
+        const value = getValue();
+        if (value === null || typeof value !== "number") {
+          return "--";
+        }
+        const span = row.original;
+        return <TokenCosts totalCost={value} nodeId={span.id} />;
       },
     },
   ];
