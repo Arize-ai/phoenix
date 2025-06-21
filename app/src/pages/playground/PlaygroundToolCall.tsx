@@ -57,8 +57,8 @@ export function PlaygroundToolCall({
 
       case "AWS":
         return {
-          name: validatedToolCall.function.name,
-          input: validatedToolCall.function.arguments,
+          name: validatedToolCall.toolUse.name,
+          input: validatedToolCall.toolUse.input,
         };
 
       case "UNKNOWN": {

@@ -64,19 +64,12 @@ export const openAIToolCallsJSONSchema = zodToJsonSchema(
   }
 );
 
-/**
- * AWS/Bedrock tool call schema
- *
- * NOTE: This schema is not currently used in the frontend.
- * The backend expects OpenAI format tool calls and handles the conversion to Bedrock format internally.
- * This schema is kept for future use when we want to handle Bedrock format directly in the frontend.
- */
+
 export const awsToolCallSchema = z.object({
-  id: z.string().describe("The ID of the tool call"),
-  type: z.literal("function"),
-  function: z.object({
-    name: z.string().describe("The name of the function"),
-    arguments: z.record(z.unknown()).describe("The arguments for the function"),
+  toolUse: z.object({
+    toolUseId: z.string().describe("The ID of the tool call"),
+    name: z.string().describe("The name of the tool"),
+    input: z.record(z.unknown()).describe("The input for the tool"),
   }),
 });
 
@@ -90,19 +83,21 @@ export const awsToolCallsJSONSchema = zodToJsonSchema(awsToolCallsSchema, {
 
 export const openAIToolCallToAws = openAIToolCallSchema.transform(
   (openai): AwsToolCall => ({
-    id: openai.id,
-    type: openai.type,
-    function: openai.function,
+    toolUse: {
+      toolUseId: openai.id,
+      name: openai.function.name,
+      input: openai.function.arguments,
+    },
   })
 );
 
 export const awsToolCallToOpenAI = awsToolCallSchema.transform(
   (aws): OpenAIToolCall => ({
-    id: aws.id,
+    id: aws.toolUse.toolUseId,
     type: "function",
     function: {
-      name: aws.function.name,
-      arguments: aws.function.arguments,
+      name: aws.toolUse.name,
+      arguments: aws.toolUse.input,
     },
   })
 );
@@ -360,11 +355,10 @@ export function createAnthropicToolCall(): AnthropicToolCall {
 
 export function createAwsToolCall(): AwsToolCall {
   return {
-    id: "",
-    type: "function",
-    function: {
+    toolUse: {
+      toolUseId: "",
       name: "",
-      arguments: {},
+      input: {},
     },
   };
 }
