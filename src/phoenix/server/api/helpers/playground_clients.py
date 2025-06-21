@@ -642,9 +642,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         import boto3
 
         super().__init__(model=model, credentials=credentials)
-        if not model.region:
-            raise BadRequest("A region is required for AWS Bedrock models")
-        self.region = model.region
+        self.region = model.region or "us-east-1"
         self.api = "converse"
         self.aws_access_key_id = _get_credential_value(credentials, "AWS_ACCESS_KEY_ID") or getenv(
             "AWS_ACCESS_KEY_ID"
