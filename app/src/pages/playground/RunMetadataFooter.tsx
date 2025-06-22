@@ -16,8 +16,8 @@ import {
 } from "@phoenix/components";
 import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
-import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 
 import { RunMetadataFooterQuery } from "./__generated__/RunMetadataFooterQuery.graphql";
@@ -72,14 +72,19 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
     >
       <Flex direction="row" gap="size-200" justifyContent="space-between">
         <Flex direction="row" gap="size-100" alignItems="center">
+          <LatencyText size="S" latencyMs={data.span.latencyMs || 0} />
           <SpanTokenCount
             tokenCountTotal={data.span.tokenCountTotal || 0}
             nodeId={data.span.id}
+            size="S"
           />
           {totalCost != null && (
-            <TokenCosts totalCost={totalCost} nodeId={data.span.id} />
+            <SpanTokenCosts
+              totalCost={totalCost}
+              spanNodeId={data.span.id}
+              size="S"
+            />
           )}
-          <LatencyText latencyMs={data.span.latencyMs || 0} />
         </Flex>
         <Flex direction="row" gap="size-100" alignItems="center">
           <DialogTrigger>

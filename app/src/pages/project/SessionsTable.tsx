@@ -25,12 +25,12 @@ import { Icon, Icons, View } from "@phoenix/components";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { TokenCount } from "@phoenix/components/trace/TokenCount";
+import { SessionTokenCosts } from "@phoenix/components/trace/SessionTokenCosts";
+import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import { IntCell, TextCell } from "../../components/table";
-import { TokenCosts } from "../../components/trace/TokenCosts";
 
 import { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
 import {
@@ -221,25 +221,33 @@ export function SessionsTable(props: SessionsTableProps) {
       accessorKey: "tokenCountTotal",
       enableSorting: true,
       minSize: 80,
-      cell: ({ getValue }) => {
+      cell: ({ getValue, row }) => {
         const value = getValue();
         if (value == null || typeof value !== "number") {
           return "--";
         }
-        return <TokenCount size="S">{value as number}</TokenCount>;
+        const session = row.original;
+        return (
+          <SessionTokenCount
+            tokenCountTotal={value as number}
+            nodeId={session.id}
+            size="S"
+          />
+        );
       },
     },
     {
       header: "total cost",
-      accessorKey: "costTotal",
+      accessorKey: "costSummary.total.cost",
       enableSorting: true,
       minSize: 80,
       cell: ({ row, getValue }) => {
         const value = getValue();
-        if (value == null || typeof value !== "number") {
+        if (value === null || typeof value !== "number") {
           return "--";
         }
-        return <TokenCosts totalCost={value} nodeId={row.original.id} />;
+        const session = row.original;
+        return <SessionTokenCosts totalCost={value} nodeId={session.id} />;
       },
     },
     {

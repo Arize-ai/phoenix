@@ -337,7 +337,7 @@ export function ExperimentsTable({
         if (value === null || typeof value !== "number") {
           return "--";
         }
-        return <Text>{`$${costFormatter(value)}`}</Text>;
+        return <Text>{`${costFormatter(value)}`}</Text>;
       },
     },
     {
