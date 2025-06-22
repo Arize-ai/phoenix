@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ConnectionHandler, graphql, useMutation } from "react-relay";
+import { graphql, useMutation } from "react-relay";
+import { useRevalidator } from "react-router";
 import { getLocalTimeZone } from "@internationalized/date";
 
 import {
@@ -25,11 +26,10 @@ import { ModelForm, ModelFormParams } from "./ModelForm";
 
 export function NewModelButton({
   onModelCreated,
-  queryId,
 }: {
   onModelCreated?: (model: ModelFormParams) => void;
-  queryId: string;
 }) {
+  const { revalidate } = useRevalidator();
   const [error, setError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const notifySuccess = useNotifySuccess();
@@ -39,15 +39,13 @@ export function NewModelButton({
     graphql`
       mutation NewModelButtonCreateModelMutation(
         $input: CreateModelMutationInput!
-        $connectionId: ID!
       ) {
         createModel(input: $input) {
-          model
-            @prependNode(
-              connections: [$connectionId]
-              edgeTypeName: "GenerativeModelEdge"
-            ) {
-            ...ModelsTable_generativeModel
+          query {
+            generativeModels {
+              id
+            }
+            ...ModelsTable_generativeModels
           }
         }
       }
@@ -90,10 +88,6 @@ export function NewModelButton({
                 onSubmit={(params) => {
                   setError(null);
                   setIsOpen(false);
-                  const connectionId = ConnectionHandler.getConnectionID(
-                    queryId,
-                    "ModelsTable_generativeModels"
-                  );
                   commit({
                     variables: {
                       input: {
@@ -114,7 +108,6 @@ export function NewModelButton({
                           kind: cost.kind,
                         })),
                       },
-                      connectionId,
                     },
                     onCompleted: () => {
                       onModelCreated && onModelCreated(params);
@@ -122,6 +115,7 @@ export function NewModelButton({
                         title: `Model Created`,
                         message: `Model "${params.name}" added successfully`,
                       });
+                      revalidate();
                     },
                     onError: (error) => {
                       const formattedError =

@@ -114,18 +114,7 @@ class Query:
     async def generative_models(
         self,
         info: Info[Context, None],
-        first: Optional[int] = 50,
-        last: Optional[int] = UNSET,
-        after: Optional[CursorString] = UNSET,
-        before: Optional[CursorString] = UNSET,
-    ) -> Connection[GenerativeModel]:
-        args = ConnectionArgs(
-            first=first,
-            after=after if isinstance(after, CursorString) else None,
-            last=last,
-            before=before if isinstance(before, CursorString) else None,
-        )
-
+    ) -> list[GenerativeModel]:
         async with info.context.db() as session:
             result = await session.scalars(
                 select(models.GenerativeModel)
@@ -137,8 +126,7 @@ class Query:
                 .options(joinedload(models.GenerativeModel.token_prices))
             )
 
-        data = [to_gql_generative_model(model) for model in result.unique()]
-        return connection_from_list(data=data, args=args)
+        return [to_gql_generative_model(model) for model in result.unique()]
 
     @strawberry.field
     async def playground_models(self, input: Optional[ModelsInput] = None) -> list[PlaygroundModel]:

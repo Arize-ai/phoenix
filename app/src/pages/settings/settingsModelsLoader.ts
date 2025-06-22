@@ -13,7 +13,6 @@ export async function settingsModelsLoader(_args: LoaderFunctionArgs) {
     RelayEnvironment,
     graphql`
       query settingsModelsLoaderQuery {
-        __id
         ...ModelsTable_generativeModels
       }
     `,

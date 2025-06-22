@@ -6,6 +6,7 @@ import {
   usePreloadedQuery,
   useQueryLoader,
 } from "react-relay";
+import { useRevalidator } from "react-router";
 import { getLocalTimeZone } from "@internationalized/date";
 
 import {
@@ -57,32 +58,23 @@ function CloneModelDialogContent({
   queryReference,
   onModelCloned,
   onClose,
-  connectionId,
 }: {
   queryReference: PreloadedQuery<CloneModelButtonQuery>;
   onModelCloned?: (model: ModelFormParams) => void;
   onClose: () => void;
-  connectionId: string;
 }) {
+  const { revalidate } = useRevalidator();
   const data = usePreloadedQuery<CloneModelButtonQuery>(
     ModelQuery,
     queryReference
   );
   const [commitCloneModel, isCommittingCloneModel] =
     useMutation<CloneModelButtonMutation>(graphql`
-      mutation CloneModelButtonMutation(
-        $input: CreateModelMutationInput!
-        $connectionId: ID!
-      ) {
+      mutation CloneModelButtonMutation($input: CreateModelMutationInput!) {
         createModel(input: $input) {
-          model
-            @prependNode(
-              connections: [$connectionId]
-              edgeTypeName: "GenerativeModelEdge"
-            ) {
-            ...ModelsTable_generativeModel
+          query {
+            ...ModelsTable_generativeModels
           }
-          __typename
         }
       }
     `);
@@ -119,7 +111,6 @@ function CloneModelDialogContent({
                 })
               ),
             },
-            connectionId,
           },
           onCompleted: () => {
             onClose();
@@ -128,6 +119,7 @@ function CloneModelDialogContent({
               title: `Model Cloned`,
               message: `Model "${params.name}" cloned successfully`,
             });
+            revalidate();
           },
           onError: (error) => {
             const formattedError =
@@ -149,11 +141,9 @@ function CloneModelDialogContent({
 export function CloneModelButton({
   modelId,
   onModelCloned,
-  connectionId,
 }: {
   modelId: string;
   onModelCloned?: (model: ModelFormParams) => void;
-  connectionId: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [queryReference, loadQuery, disposeQuery] =
@@ -199,7 +189,6 @@ export function CloneModelButton({
                     queryReference={queryReference}
                     onModelCloned={onModelCloned}
                     onClose={handleClose}
-                    connectionId={connectionId}
                   />
                 ) : (
                   <Loading />

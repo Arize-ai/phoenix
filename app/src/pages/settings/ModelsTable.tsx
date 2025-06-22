@@ -1,10 +1,12 @@
-import { useCallback, useMemo, useRef } from "react";
-import { graphql, readInlineData, usePaginationFragment } from "react-relay";
+import { useMemo } from "react";
+import { graphql, useFragment } from "react-relay";
 import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
+  getFilteredRowModel,
   getSortedRowModel,
+  SortingFn,
   useReactTable,
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
@@ -14,124 +16,167 @@ import { GenerativeProviderIcon } from "@phoenix/components/generative/Generativ
 import { TextCell } from "@phoenix/components/table";
 import {
   getCommonPinningStyles,
-  selectableTableCSS,
+  tableCSS,
 } from "@phoenix/components/table/styles";
-import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import {
+  DEFAULT_FORMAT,
+  TimestampCell,
+} from "@phoenix/components/table/TimestampCell";
 import {
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components/tooltip";
+import { Truncate } from "@phoenix/components/utility/Truncate";
+import {
+  GenerativeModelKind,
+  ModelsTable_generativeModels$data,
+  ModelsTable_generativeModels$key,
+} from "@phoenix/pages/settings/__generated__/ModelsTable_generativeModels.graphql";
 import { EditModelButton } from "@phoenix/pages/settings/EditModelButton";
+import { Mutable } from "@phoenix/typeUtils";
 import { getProviderName } from "@phoenix/utils/generativeUtils";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 
-import {
-  ModelsTable_generativeModel$data,
-  ModelsTable_generativeModel$key,
-} from "./__generated__/ModelsTable_generativeModel.graphql";
-import { ModelsTable_generativeModels$key } from "./__generated__/ModelsTable_generativeModels.graphql";
-import { ModelsTableModelsQuery } from "./__generated__/ModelsTableModelsQuery.graphql";
 import { CloneModelButton } from "./CloneModelButton";
 import { DeleteModelButton } from "./DeleteModelButton";
 
-const PAGE_SIZE = 100;
-
-const GENERATIVE_MODEL_FRAGMENT = graphql`
-  fragment ModelsTable_generativeModel on GenerativeModel @inline {
-    id
-    name
-    provider
-    namePattern
-    providerKey
-    startTime
-    createdAt
-    updatedAt
-    lastUsedAt
-    kind
-    tokenPrices {
-      tokenType
-      kind
-      costPerMillionTokens
-      costPerToken
-    }
-  }
-`;
-
 type ModelsTableProps = {
-  query: ModelsTable_generativeModels$key;
+  modelsRef: ModelsTable_generativeModels$key;
+  kindFilter: "ALL" | GenerativeModelKind;
+  search: string;
 };
 
-function getRowCost(row: ModelsTable_generativeModel$data, tokenType: string) {
+/**
+ * Converts a date into a user search-able string, or undefined, so that tanstack table can filter on it
+ * @param row - the row to get the date from
+ * @returns the date, as a string, in the format of the DEFAULT_FORMAT
+ */
+function filterableDateAccessorFn(row?: string | null | undefined) {
+  return row != null
+    ? new Date(row).toLocaleString([], DEFAULT_FORMAT)
+    : undefined;
+}
+
+/**
+ * Gets the cost of a row for a given token type as a number, or undefined
+ * @param row - the row to get the cost from
+ * @param tokenType - the token type to get the cost for
+ * @returns the cost of the row for the given token type
+ */
+function getRowCostNumber(
+  row: ModelsTable_generativeModels$data["generativeModels"][number],
+  tokenType: string
+) {
   const cost = row.tokenPrices?.find(
     (entry) => entry.tokenType === tokenType
   )?.costPerMillionTokens;
+  return cost;
+}
+
+/**
+ * Gets the cost of a row for a given token type as a string, or "--" if the cost is undefined
+ * @param row - the row to get the cost from
+ * @param tokenType - the token type to get the cost for
+ * @returns the cost of the row for the given token type
+ */
+function getRowCost(
+  row: ModelsTable_generativeModels$data["generativeModels"][number],
+  tokenType: string
+) {
+  const cost = getRowCostNumber(row, tokenType);
   return cost != null ? `${costFormatter(cost)}` : "--";
 }
 
-export function ModelsTable(props: ModelsTableProps) {
-  //we need a reference to the scrolling element for logic down below
-  const tableContainerRef = useRef<HTMLDivElement>(null);
-  const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
-    ModelsTableModelsQuery,
-    ModelsTable_generativeModels$key
-  >(
+/**
+ * Sorts a row by the cost of a given token type, ignoring the user-visible cost string during sort
+ *
+ * undefined values will float to the bottom.
+ *
+ * @param rowA - the first row to sort
+ * @param rowB - the second row to sort
+ * @param columnId - the id of the column to sort by
+ * @returns the difference between the costs of the two rows
+ */
+const sortCostColumnFn: SortingFn<
+  ModelsTable_generativeModels$data["generativeModels"][number]
+> = (rowA, rowB, columnId) => {
+  const costA = getRowCostNumber(rowA.original, columnId);
+  const costB = getRowCostNumber(rowB.original, columnId);
+  if (costA == null || costB == null) {
+    return 0;
+  }
+  return costA - costB;
+};
+
+/**
+ * Creates a column for a given token cost type
+ * @param tokenType - the token type to create a column for
+ * @param header - the header to display for the column
+ * @returns the column definition
+ */
+const makeCostColumn = (tokenType: string, header: string) => {
+  return {
+    header,
+    id: tokenType,
+    accessorFn: (row) => getRowCost(row, tokenType),
+    sortingFn: sortCostColumnFn,
+    sortUndefined: "last",
+    cell: ({ row }) => {
+      return getRowCost(row.original, tokenType);
+    },
+  } satisfies ColumnDef<
+    ModelsTable_generativeModels$data["generativeModels"][number]
+  >;
+};
+
+export function ModelsTable({
+  modelsRef,
+  kindFilter,
+  search,
+}: ModelsTableProps) {
+  const data = useFragment(
     graphql`
-      fragment ModelsTable_generativeModels on Query
-      @refetchable(queryName: "ModelsTableModelsQuery")
-      @argumentDefinitions(
-        after: { type: "String", defaultValue: null }
-        first: { type: "Int", defaultValue: 100 }
-      ) {
-        generativeModels(first: $first, after: $after)
-          @connection(key: "ModelsTable_generativeModels") {
-          __id
-          edges {
-            node {
-              ...ModelsTable_generativeModel
-            }
+      fragment ModelsTable_generativeModels on Query {
+        generativeModels {
+          id
+          name
+          provider
+          namePattern
+          providerKey
+          startTime
+          createdAt
+          updatedAt
+          lastUsedAt
+          kind
+          tokenPrices {
+            tokenType
+            kind
+            costPerMillionTokens
+            costPerToken
           }
         }
       }
     `,
-    props.query
+    modelsRef
   );
 
-  const connectionId = data.generativeModels.__id;
+  const generativeModels = data.generativeModels;
 
   const tableData = useMemo(
-    () =>
-      data.generativeModels.edges.map((edge) => {
-        const node = edge.node;
-        const data = readInlineData<ModelsTable_generativeModel$key>(
-          GENERATIVE_MODEL_FRAGMENT,
-          node
-        );
-        return data;
-      }),
-    [data]
-  );
-
-  const fetchMoreOnBottomReached = useCallback(
-    (containerRefElement?: HTMLDivElement | null) => {
-      if (containerRefElement) {
-        const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
-        //once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
-        if (
-          scrollHeight - scrollTop - clientHeight < 300 &&
-          !isLoadingNext &&
-          hasNext
-        ) {
-          loadNext(PAGE_SIZE);
-        }
-      }
-    },
-    [hasNext, isLoadingNext, loadNext]
+    () => (generativeModels ?? []) as Mutable<typeof generativeModels>,
+    [generativeModels]
   );
 
   type TableRow = (typeof tableData)[number];
   const columns = useMemo(() => {
-    const cols: ColumnDef<TableRow>[] = [
+    const cols = [
+      // invisible column for filtering purposes
+      {
+        id: "kind",
+        enableHiding: true,
+        accessorFn: (row) => row.kind,
+      },
       {
         header: "name",
         accessorKey: "name",
@@ -145,7 +190,9 @@ export function ModelsTable(props: ModelsTableProps) {
               alignItems="center"
               justifyContent="space-between"
             >
-              <span>{model.name}</span>
+              <Truncate maxWidth="100%" title={model.name}>
+                {model.name}
+              </Truncate>
               <View flex="none">
                 {row.original.kind === "CUSTOM" ? (
                   <Token>custom</Token>
@@ -161,7 +208,8 @@ export function ModelsTable(props: ModelsTableProps) {
       },
       {
         header: "provider",
-        accessorKey: "providerKey",
+        accessorFn: (row) => row.providerKey ?? undefined,
+        sortUndefined: "last",
         cell: ({ row }) => {
           const providerKey = row.original.providerKey;
           if (!providerKey) {
@@ -180,60 +228,18 @@ export function ModelsTable(props: ModelsTableProps) {
         header: "name pattern",
         accessorKey: "namePattern",
         cell: TextCell,
-        size: 800,
       },
-      {
-        header: "input cost",
-        accessorKey: "tokenCost.input",
-        cell: ({ row }) => {
-          return getRowCost(row.original, "input");
-        },
-      },
-      {
-        header: "output cost",
-        accessorKey: "tokenCost.output",
-        cell: ({ row }) => {
-          return getRowCost(row.original, "output");
-        },
-      },
-      {
-        header: "cache read cost",
-        accessorKey: "tokenCost.cacheRead",
-        cell: ({ row }) => {
-          return getRowCost(row.original, "cacheRead");
-        },
-      },
-      {
-        header: "cache write cost",
-        accessorKey: "tokenCost.cacheWrite",
-        cell: ({ row }) => {
-          return getRowCost(row.original, "cacheWrite");
-        },
-      },
-      {
-        header: "prompt audio cost",
-        accessorKey: "tokenCost.promptAudio",
-        cell: ({ row }) => {
-          return getRowCost(row.original, "promptAudio");
-        },
-      },
-      {
-        header: "completion audio cost",
-        accessorKey: "tokenCost.completionAudio",
-        cell: ({ row }) => {
-          return getRowCost(row.original, "completionAudio");
-        },
-      },
-      {
-        header: "reasoning cost",
-        accessorKey: "tokenCost.reasoning",
-        cell: ({ row }) => {
-          return getRowCost(row.original, "reasoning");
-        },
-      },
+      makeCostColumn("input", "input cost"),
+      makeCostColumn("output", "output cost"),
+      makeCostColumn("cacheRead", "cache read cost"),
+      makeCostColumn("cacheWrite", "cache write cost"),
+      makeCostColumn("promptAudio", "prompt audio cost"),
+      makeCostColumn("completionAudio", "completion audio cost"),
+      makeCostColumn("reasoning", "reasoning cost"),
       {
         header: "start date",
-        accessorKey: "startTime",
+        sortUndefined: "last",
+        accessorFn: (row) => filterableDateAccessorFn(row.startTime),
         cell: (props) => {
           return (
             <TimestampCell
@@ -249,23 +255,25 @@ export function ModelsTable(props: ModelsTableProps) {
       },
       {
         header: "created at",
-        accessorKey: "createdAt",
+        accessorFn: (row) => filterableDateAccessorFn(row.createdAt),
+        sortUndefined: "last",
         cell: TimestampCell,
       },
       {
         header: "updated at",
-        accessorKey: "updatedAt",
+        accessorFn: (row) => filterableDateAccessorFn(row.updatedAt),
+        sortUndefined: "last",
         cell: TimestampCell,
       },
       {
         header: "last used at",
-        accessorKey: "lastUsedAt",
+        accessorFn: (row) => filterableDateAccessorFn(row.lastUsedAt),
+        sortUndefined: "last",
         cell: TimestampCell,
       },
       {
         id: "actions",
         header: "",
-        size: 5,
         accessorKey: "id",
         cell: ({ row }) => {
           const isCustomModel = row.original.kind === "CUSTOM";
@@ -286,10 +294,7 @@ export function ModelsTable(props: ModelsTableProps) {
                 </TooltipTrigger>
               )}
               <TooltipTrigger>
-                <CloneModelButton
-                  modelId={row.original.id}
-                  connectionId={connectionId}
-                />
+                <CloneModelButton modelId={row.original.id} />
                 <Tooltip>
                   <TooltipArrow />
                   Clone model
@@ -300,7 +305,6 @@ export function ModelsTable(props: ModelsTableProps) {
                   <DeleteModelButton
                     modelId={row.original.id}
                     modelName={row.original.name}
-                    connectionId={connectionId}
                   />
                   <Tooltip>
                     <TooltipArrow />
@@ -312,21 +316,37 @@ export function ModelsTable(props: ModelsTableProps) {
           );
         },
       },
-    ];
+    ] satisfies ColumnDef<TableRow>[];
     return cols;
-  }, [connectionId]);
+  }, []);
+
+  // if this is not memoized, the table will get into an infinite loop
+  const columnFilters = useMemo(() => {
+    return [
+      {
+        id: "kind",
+        value: kindFilter === "ALL" ? "" : kindFilter,
+      },
+    ];
+  }, [kindFilter]);
 
   const table = useReactTable({
     columns,
     data: tableData,
-    initialState: {
+    state: {
+      columnVisibility: {
+        kind: false,
+      },
       columnPinning: {
         left: ["name", "provider"],
         right: ["actions"],
       },
+      globalFilter: search?.trim(),
+      columnFilters,
     },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
   });
 
   const rows = table.getRowModel().rows;
@@ -334,9 +354,9 @@ export function ModelsTable(props: ModelsTableProps) {
 
   if (isEmpty) {
     return (
-      <div>
-        <p>No models found.</p>
-      </div>
+      <Flex width="100%" justifyContent="center" alignItems="center">
+        <p>No models found</p>
+      </Flex>
     );
   }
 
@@ -346,11 +366,9 @@ export function ModelsTable(props: ModelsTableProps) {
         flex: 1 1 auto;
         overflow: auto;
       `}
-      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
-      ref={tableContainerRef}
     >
       <table
-        css={selectableTableCSS}
+        css={tableCSS}
         style={{ width: table.getTotalSize(), minWidth: "100%" }}
       >
         <thead>
@@ -362,20 +380,18 @@ export function ModelsTable(props: ModelsTableProps) {
                   key={header.id}
                   style={{
                     ...getCommonPinningStyles(header.column),
-                    width: header.column.getSize(),
+                    boxSizing: "border-box",
+                    minWidth: header.column.getSize(),
+                    maxWidth: header.column.getSize(),
                   }}
                 >
                   {header.isPlaceholder ? null : (
                     <div
                       {...{
-                        className: header.column.getCanSort()
-                          ? "cursor-pointer"
-                          : "",
-                        ["aria-role"]: header.column.getCanSort()
-                          ? "button"
-                          : null,
+                        className: header.column.getCanSort() ? "sort" : "",
                         onClick: header.column.getToggleSortingHandler(),
                         style: {
+                          textWrap: "nowrap",
                           textAlign: header.column.columnDef.meta?.textAlign,
                         },
                       }}
@@ -413,7 +429,6 @@ export function ModelsTable(props: ModelsTableProps) {
                     align={cell.column.columnDef.meta?.textAlign}
                     style={{
                       ...getCommonPinningStyles(cell.column),
-                      width: cell.column.getSize(),
                     }}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
