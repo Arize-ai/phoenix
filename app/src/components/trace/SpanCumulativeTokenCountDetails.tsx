@@ -11,6 +11,7 @@ export function SpanCumulativeTokenCountDetails(props: { spanNodeId: string }) {
         node(id: $nodeId) {
           __typename
           ... on Span {
+            cumulativeTokenCountTotal
             cumulativeTokenCountPrompt
             cumulativeTokenCountCompletion
           }

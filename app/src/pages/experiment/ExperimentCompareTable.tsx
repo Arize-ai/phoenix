@@ -208,14 +208,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                         tokens
                         cost
                       }
-                      prompt {
-                        tokens
-                        cost
-                      }
-                      completion {
-                        tokens
-                        cost
-                      }
                     }
                     annotations {
                       edges {

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1725d4f00944f793d7e76fb8ee9a7471>>
+ * @generated SignedSource<<d40287dc77a8558575e3c356028c0349>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -42,14 +42,6 @@ export type ExperimentCompareTable_comparisons$data = {
               }>;
             };
             readonly costSummary: {
-              readonly completion: {
-                readonly cost: number | null;
-                readonly tokens: number | null;
-              };
-              readonly prompt: {
-                readonly cost: number | null;
-                readonly tokens: number | null;
-              };
               readonly total: {
                 readonly cost: number | null;
                 readonly tokens: number | null;
@@ -130,23 +122,7 @@ v2 = {
   ],
   "storageKey": null
 },
-v3 = [
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "tokens",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "cost",
-    "storageKey": null
-  }
-],
-v4 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -346,27 +322,22 @@ return {
                               "kind": "LinkedField",
                               "name": "total",
                               "plural": false,
-                              "selections": (v3/*: any*/),
-                              "storageKey": null
-                            },
-                            {
-                              "alias": null,
-                              "args": null,
-                              "concreteType": "CostBreakdown",
-                              "kind": "LinkedField",
-                              "name": "prompt",
-                              "plural": false,
-                              "selections": (v3/*: any*/),
-                              "storageKey": null
-                            },
-                            {
-                              "alias": null,
-                              "args": null,
-                              "concreteType": "CostBreakdown",
-                              "kind": "LinkedField",
-                              "name": "completion",
-                              "plural": false,
-                              "selections": (v3/*: any*/),
+                              "selections": [
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "tokens",
+                                  "storageKey": null
+                                },
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "cost",
+                                  "storageKey": null
+                                }
+                              ],
                               "storageKey": null
                             }
                           ],
@@ -397,7 +368,7 @@ return {
                                   "plural": false,
                                   "selections": [
                                     (v1/*: any*/),
-                                    (v4/*: any*/),
+                                    (v3/*: any*/),
                                     {
                                       "alias": null,
                                       "args": null,
@@ -544,7 +515,7 @@ return {
                       "plural": false,
                       "selections": [
                         (v1/*: any*/),
-                        (v4/*: any*/),
+                        (v3/*: any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -593,6 +564,6 @@ return {
 };
 })();
 
-(node as any).hash = "284bf071e66a6d4401338b2c89e9141c";
+(node as any).hash = "61cd7128e7b057c1d22776135ce38026";
 
 export default node;

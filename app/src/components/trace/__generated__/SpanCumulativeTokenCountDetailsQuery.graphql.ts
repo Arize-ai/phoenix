@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8f2bca0bd47421fff70b9166ed35adac>>
+ * @generated SignedSource<<7ae6f2f0adad6693e46b124bfee49656>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,6 +17,7 @@ export type SpanCumulativeTokenCountDetailsQuery$data = {
     readonly __typename: "Span";
     readonly cumulativeTokenCountCompletion: number | null;
     readonly cumulativeTokenCountPrompt: number | null;
+    readonly cumulativeTokenCountTotal: number | null;
   } | {
     // This will never be '%other', but we need some
     // value in case none of the concrete values match.
@@ -53,6 +54,13 @@ v2 = {
 v3 = {
   "kind": "InlineFragment",
   "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "cumulativeTokenCountTotal",
+      "storageKey": null
+    },
     {
       "alias": null,
       "args": null,
@@ -124,16 +132,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "522400393fe09f9365f62dae2e8c76b3",
+    "cacheID": "c1da825bac7aac7aafa07638290f6f1d",
     "id": null,
     "metadata": {},
     "name": "SpanCumulativeTokenCountDetailsQuery",
     "operationKind": "query",
-    "text": "query SpanCumulativeTokenCountDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      cumulativeTokenCountPrompt\n      cumulativeTokenCountCompletion\n    }\n    id\n  }\n}\n"
+    "text": "query SpanCumulativeTokenCountDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      cumulativeTokenCountTotal\n      cumulativeTokenCountPrompt\n      cumulativeTokenCountCompletion\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "007ef8c10ec14064bfe1b3d4c3b99c88";
+(node as any).hash = "f7a968d87890a07d6e1dd6f06bad6b51";
 
 export default node;
