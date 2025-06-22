@@ -22,6 +22,12 @@ import { SettingsModelsPageQuery } from "@phoenix/pages/settings/__generated__/S
 import { ModelsTable } from "./ModelsTable";
 import { NewModelButton } from "./NewModelButton";
 
+const ModelKindFilterOptions = [
+  { label: "All", value: "ALL" },
+  { label: "Custom", value: "CUSTOM" },
+  { label: "Built-in", value: "BUILT_IN" },
+];
+
 export function SettingsModelsPage() {
   const [kindFilter, setKindFilter] = useState<"ALL" | GenerativeModelKind>(
     "ALL"
@@ -59,23 +65,26 @@ export function SettingsModelsPage() {
           }}
         >
           <Button>
-            <span>
-              Filter by:{" "}
-              <span
-                css={css`
-                  text-transform: capitalize;
-                `}
-              >
-                {kindFilter.toLowerCase()}
-              </span>
+            <span
+              css={css`
+                text-transform: capitalize;
+              `}
+            >
+              {
+                ModelKindFilterOptions.find(
+                  (option) => option.value === kindFilter
+                )?.label
+              }
             </span>
             <SelectChevronUpDownIcon />
           </Button>
           <Popover>
             <ListBox>
-              <SelectItem id="ALL">All</SelectItem>
-              <SelectItem id="CUSTOM">Custom</SelectItem>
-              <SelectItem id="BUILT_IN">Built-in</SelectItem>
+              {ModelKindFilterOptions.map((option) => (
+                <SelectItem key={option.value} id={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
             </ListBox>
           </Popover>
         </Select>
