@@ -11,6 +11,17 @@ export function TraceTokenCostsDetails(props: { traceNodeId: string }) {
         node(id: $nodeId) {
           __typename
           ... on Trace {
+            costSummary {
+              total {
+                cost
+              }
+              prompt {
+                cost
+              }
+              completion {
+                cost
+              }
+            }
             costDetailSummaryEntries {
               tokenType
               isPrompt
@@ -43,14 +54,9 @@ export function TraceTokenCostsDetails(props: { traceNodeId: string }) {
       const promptEntries = details.filter((detail) => detail.isPrompt);
       const completionEntries = details.filter((detail) => !detail.isPrompt);
 
-      const promptTotal = promptEntries.reduce(
-        (sum, detail) => sum + (detail.value.cost || 0),
-        0
-      );
-      const completionTotal = completionEntries.reduce(
-        (sum, detail) => sum + (detail.value.cost || 0),
-        0
-      );
+      const total = data.node.costSummary?.total?.cost ?? 0;
+      const prompt = data.node.costSummary?.prompt?.cost ?? 0;
+      const completion = data.node.costSummary?.completion?.cost ?? 0;
 
       const promptDetails: Record<string, number> = {};
       promptEntries.forEach((detail) => {
@@ -67,9 +73,9 @@ export function TraceTokenCostsDetails(props: { traceNodeId: string }) {
       });
 
       return {
-        total: promptTotal + completionTotal,
-        prompt: promptTotal > 0 ? promptTotal : null,
-        completion: completionTotal > 0 ? completionTotal : null,
+        total,
+        prompt,
+        completion,
         promptDetails:
           Object.keys(promptDetails).length > 0 ? promptDetails : null,
         completionDetails:

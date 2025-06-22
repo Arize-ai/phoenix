@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b7a7501d6c66aa5340bd0f87e82fea96>>
+ * @generated SignedSource<<eb8d2071d4438ea8256ace3e974c7bb9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -24,6 +24,17 @@ export type TraceTokenCostsDetailsQuery$data = {
         readonly tokens: number | null;
       };
     }>;
+    readonly costSummary: {
+      readonly completion: {
+        readonly cost: number | null;
+      };
+      readonly prompt: {
+        readonly cost: number | null;
+      };
+      readonly total: {
+        readonly cost: number | null;
+      };
+    };
   } | {
     // This will never be '%other', but we need some
     // value in case none of the concrete values match.
@@ -58,8 +69,59 @@ v2 = {
   "storageKey": null
 },
 v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "cost",
+  "storageKey": null
+},
+v4 = [
+  (v3/*: any*/)
+],
+v5 = {
   "kind": "InlineFragment",
   "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "SpanCostSummary",
+      "kind": "LinkedField",
+      "name": "costSummary",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "CostBreakdown",
+          "kind": "LinkedField",
+          "name": "total",
+          "plural": false,
+          "selections": (v4/*: any*/),
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "CostBreakdown",
+          "kind": "LinkedField",
+          "name": "prompt",
+          "plural": false,
+          "selections": (v4/*: any*/),
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "CostBreakdown",
+          "kind": "LinkedField",
+          "name": "completion",
+          "plural": false,
+          "selections": (v4/*: any*/),
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    },
     {
       "alias": null,
       "args": null,
@@ -90,13 +152,7 @@ v3 = {
           "name": "value",
           "plural": false,
           "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "cost",
-              "storageKey": null
-            },
+            (v3/*: any*/),
             {
               "alias": null,
               "args": null,
@@ -137,7 +193,7 @@ return {
         "plural": false,
         "selections": [
           (v2/*: any*/),
-          (v3/*: any*/)
+          (v5/*: any*/)
         ],
         "storageKey": null
       }
@@ -160,7 +216,7 @@ return {
         "plural": false,
         "selections": [
           (v2/*: any*/),
-          (v3/*: any*/),
+          (v5/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -174,16 +230,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e03157027624682be5fb0d86667680c3",
+    "cacheID": "095097d0d7519f30af972b9eb61ce73d",
     "id": null,
     "metadata": {},
     "name": "TraceTokenCostsDetailsQuery",
     "operationKind": "query",
-    "text": "query TraceTokenCostsDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Trace {\n      costDetailSummaryEntries {\n        tokenType\n        isPrompt\n        value {\n          cost\n          tokens\n          costPerToken\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query TraceTokenCostsDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Trace {\n      costSummary {\n        total {\n          cost\n        }\n        prompt {\n          cost\n        }\n        completion {\n          cost\n        }\n      }\n      costDetailSummaryEntries {\n        tokenType\n        isPrompt\n        value {\n          cost\n          tokens\n          costPerToken\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2d86a859b1f830d6a3110abab08aee51";
+(node as any).hash = "25ac686401d0a5e21aa7458139e181f0";
 
 export default node;
