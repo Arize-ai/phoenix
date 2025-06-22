@@ -147,7 +147,7 @@ export function ModelsTable({
       {
         header: "name",
         accessorKey: "name",
-        minSize: 300,
+        size: 300,
         cell: ({ row }) => {
           const model = row.original;
           return (
