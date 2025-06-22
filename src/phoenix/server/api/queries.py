@@ -130,8 +130,8 @@ class Query:
             result = await session.scalars(
                 select(models.GenerativeModel)
                 .order_by(
-                    models.GenerativeModel.provider.is_(None),  # null providers last
-                    models.GenerativeModel.provider,
+                    models.GenerativeModel.is_override.desc(),  # display custom models first
+                    models.GenerativeModel.provider.nullslast(),
                     models.GenerativeModel.name,
                 )
                 .options(joinedload(models.GenerativeModel.token_prices))
