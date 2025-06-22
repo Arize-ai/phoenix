@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<99d355bef0c3d2fed7d977919138d90d>>
+ * @generated SignedSource<<a6d6541face182021ccea894c169eed9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,13 +9,14 @@
 // @ts-nocheck
 
 import { ReaderInlineDataFragment } from 'relay-runtime';
+export type GenerativeModelKind = "BUILT_IN" | "CUSTOM";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
 export type TokenKind = "COMPLETION" | "PROMPT";
 import { FragmentRefs } from "relay-runtime";
 export type ModelsTable_generativeModel$data = {
   readonly createdAt: string;
   readonly id: string;
-  readonly isOverride: boolean;
+  readonly kind: GenerativeModelKind;
   readonly lastUsedAt: string | null;
   readonly name: string;
   readonly namePattern: string;
@@ -41,6 +42,6 @@ const node: ReaderInlineDataFragment = {
   "name": "ModelsTable_generativeModel"
 };
 
-(node as any).hash = "5485001486bdf80debebe9fa7f028885";
+(node as any).hash = "a6553f7ef7c7bc775e32859a2637076e";
 
 export default node;

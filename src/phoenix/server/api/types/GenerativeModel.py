@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import Enum
 from typing import Optional
 
 import strawberry
@@ -18,13 +19,19 @@ from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.TokenPrice import TokenKind, TokenPrice
 
 
+@strawberry.enum
+class GenerativeModelKind(Enum):
+    CUSTOM = "CUSTOM"
+    BUILT_IN = "BUILT_IN"
+
+
 @strawberry.type
 class GenerativeModel(Node, ModelInterface):
     id_attr: NodeID[int]
     name: str
     provider: Optional[str]
     name_pattern: str
-    is_override: bool
+    kind: GenerativeModelKind
     created_at: datetime
     updated_at: datetime
     provider_key: Optional[GenerativeProviderKey]
@@ -98,7 +105,7 @@ def to_gql_generative_model(model: models.GenerativeModel) -> GenerativeModel:
         name=model.name,
         provider=model.provider,
         name_pattern=model.llm_name_pattern,
-        is_override=model.is_override,
+        kind=GenerativeModelKind.CUSTOM if model.is_override else GenerativeModelKind.BUILT_IN,
         created_at=model.created_at,
         updated_at=model.updated_at,
         start_time=model.start_time,

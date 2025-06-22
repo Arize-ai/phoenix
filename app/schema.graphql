@@ -1259,7 +1259,7 @@ type GenerativeModel implements Node & ModelInterface {
   providerKey: GenerativeProviderKey
   provider: String
   namePattern: String!
-  isOverride: Boolean!
+  kind: GenerativeModelKind!
   createdAt: DateTime!
   updatedAt: DateTime!
   startTime: DateTime
@@ -1294,6 +1294,11 @@ input GenerativeModelInput {
   endpoint: String
   apiVersion: String
   region: String
+}
+
+enum GenerativeModelKind {
+  CUSTOM
+  BUILT_IN
 }
 
 type GenerativeProvider {

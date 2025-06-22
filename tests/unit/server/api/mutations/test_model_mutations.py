@@ -18,7 +18,7 @@ class TestModelMutations:
             name
             provider
             namePattern
-            isOverride
+            kind
             createdAt
             updatedAt
             tokenPrices {
@@ -38,7 +38,7 @@ class TestModelMutations:
             name
             provider
             namePattern
-            isOverride
+            kind
             createdAt
             updatedAt
             tokenPrices {
@@ -58,7 +58,7 @@ class TestModelMutations:
             name
             provider
             namePattern
-            isOverride
+            kind
             createdAt
             updatedAt
           }
@@ -103,7 +103,7 @@ class TestModelMutations:
         assert created_model.pop("name") == "test-model"
         assert created_model.pop("provider") == "openai"
         assert created_model.pop("namePattern") == "gpt-*"
-        assert created_model.pop("isOverride") is True
+        assert created_model.pop("kind") == "CUSTOM"
         assert isinstance(created_model.pop("createdAt"), str)
         assert isinstance(created_model.pop("updatedAt"), str)
         token_prices = created_model.pop("tokenPrices")
@@ -157,7 +157,7 @@ class TestModelMutations:
         assert updated_model.pop("name") == "updated-test-model"
         assert updated_model.pop("provider") == "anthropic"
         assert updated_model.pop("namePattern") == "claude-*"
-        assert updated_model.pop("isOverride") is True
+        assert updated_model.pop("kind") == "CUSTOM"
         assert isinstance(updated_model.pop("createdAt"), str)
         assert isinstance(updated_model.pop("updatedAt"), str)
         token_prices = updated_model.pop("tokenPrices")
@@ -195,7 +195,7 @@ class TestModelMutations:
         assert deleted_model.pop("name") == "updated-test-model"
         assert deleted_model.pop("provider") == "anthropic"
         assert deleted_model.pop("namePattern") == "claude-*"
-        assert deleted_model.pop("isOverride") is True
+        assert deleted_model.pop("kind") == "CUSTOM"
         assert isinstance(deleted_model.pop("createdAt"), str)
         assert isinstance(deleted_model.pop("updatedAt"), str)
         assert not deleted_model

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d05b3e915e3d246d3c4b019af65f8161>>
+ * @generated SignedSource<<8efc03316e0fbd32f9f3e1eaefea539a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -57,7 +57,14 @@ v2 = [
     "variableName": "input"
   }
 ],
-v3 = [
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "kind",
+  "storageKey": null
+},
+v4 = [
   {
     "alias": null,
     "args": null,
@@ -121,13 +128,7 @@ v3 = [
     "name": "lastUsedAt",
     "storageKey": null
   },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "isOverride",
-    "storageKey": null
-  },
+  (v3/*: any*/),
   {
     "alias": null,
     "args": null,
@@ -143,13 +144,7 @@ v3 = [
         "name": "tokenType",
         "storageKey": null
       },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "kind",
-        "storageKey": null
-      },
+      (v3/*: any*/),
       {
         "alias": null,
         "args": null,
@@ -197,7 +192,7 @@ return {
               {
                 "kind": "InlineDataFragmentSpread",
                 "name": "ModelsTable_generativeModel",
-                "selections": (v3/*: any*/),
+                "selections": (v4/*: any*/),
                 "args": null,
                 "argumentDefinitions": []
               }
@@ -235,7 +230,7 @@ return {
             "kind": "LinkedField",
             "name": "model",
             "plural": false,
-            "selections": (v3/*: any*/),
+            "selections": (v4/*: any*/),
             "storageKey": null
           },
           {
@@ -271,12 +266,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "02f6ae13efbb459e47c5796f21e96e99",
+    "cacheID": "c489175552e0c9bbb23802d67f79da41",
     "id": null,
     "metadata": {},
     "name": "NewModelButtonCreateModelMutation",
     "operationKind": "mutation",
-    "text": "mutation NewModelButtonCreateModelMutation(\n  $input: CreateModelMutationInput!\n) {\n  createModel(input: $input) {\n    model {\n      ...ModelsTable_generativeModel\n      id\n    }\n  }\n}\n\nfragment ModelsTable_generativeModel on GenerativeModel {\n  id\n  name\n  provider\n  namePattern\n  providerKey\n  startTime\n  createdAt\n  updatedAt\n  lastUsedAt\n  isOverride\n  tokenPrices {\n    tokenType\n    kind\n    costPerMillionTokens\n    costPerToken\n  }\n}\n"
+    "text": "mutation NewModelButtonCreateModelMutation(\n  $input: CreateModelMutationInput!\n) {\n  createModel(input: $input) {\n    model {\n      ...ModelsTable_generativeModel\n      id\n    }\n  }\n}\n\nfragment ModelsTable_generativeModel on GenerativeModel {\n  id\n  name\n  provider\n  namePattern\n  providerKey\n  startTime\n  createdAt\n  updatedAt\n  lastUsedAt\n  kind\n  tokenPrices {\n    tokenType\n    kind\n    costPerMillionTokens\n    costPerToken\n  }\n}\n"
   }
 };
 })();
