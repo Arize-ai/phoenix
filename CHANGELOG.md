@@ -1,5 +1,17 @@
 # Changelog
 
+## [10.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.14.0...arize-phoenix-v10.15.0) (2025-06-21)
+
+
+### Features
+
+* bedrock playground client ([#7918](https://github.com/Arize-ai/phoenix/issues/7918)) ([15d7e7a](https://github.com/Arize-ai/phoenix/commit/15d7e7aaa36913e3bb76777653fb29c8f6297340))
+
+
+### Bug Fixes
+
+* restore evaluator traces ([#8215](https://github.com/Arize-ai/phoenix/issues/8215)) ([f13acfb](https://github.com/Arize-ai/phoenix/commit/f13acfb10de6816b0abe17e6a8e6160c3f33676b))
+
 ## [10.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.13.2...arize-phoenix-v10.14.0) (2025-06-20)
 
 
