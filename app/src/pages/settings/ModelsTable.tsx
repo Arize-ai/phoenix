@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 import {
@@ -14,7 +15,7 @@ import { GenerativeProviderIcon } from "@phoenix/components/generative/Generativ
 import { TextCell } from "@phoenix/components/table";
 import {
   getCommonPinningStyles,
-  selectableTableCSS,
+  tableCSS,
 } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import {
@@ -22,6 +23,7 @@ import {
   TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components/tooltip";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import {
   ModelsTable_generativeModels$data,
   ModelsTable_generativeModels$key,
@@ -38,13 +40,21 @@ type ModelsTableProps = {
   modelsRef: ModelsTable_generativeModels$key;
 };
 
-function getRowCost(
+function getRowCostNumber(
   row: ModelsTable_generativeModels$data["generativeModels"][number],
   tokenType: string
 ) {
   const cost = row.tokenPrices?.find(
     (entry) => entry.tokenType === tokenType
   )?.costPerMillionTokens;
+  return cost;
+}
+
+function getRowCost(
+  row: ModelsTable_generativeModels$data["generativeModels"][number],
+  tokenType: string
+) {
+  const cost = getRowCostNumber(row, tokenType);
   return cost != null ? `${costFormatter(cost)}` : "--";
 }
 
@@ -84,11 +94,11 @@ export function ModelsTable({ modelsRef }: ModelsTableProps) {
 
   type TableRow = (typeof tableData)[number];
   const columns = useMemo(() => {
-    const cols: ColumnDef<TableRow>[] = [
+    const cols = [
       {
         header: "name",
         accessorKey: "name",
-        size: 300,
+        minSize: 300,
         cell: ({ row }) => {
           const model = row.original;
           return (
@@ -98,7 +108,9 @@ export function ModelsTable({ modelsRef }: ModelsTableProps) {
               alignItems="center"
               justifyContent="space-between"
             >
-              <span>{model.name}</span>
+              <Truncate maxWidth="100%" title={model.name}>
+                {model.name}
+              </Truncate>
               <View flex="none">
                 {row.original.kind === "CUSTOM" ? (
                   <Token>custom</Token>
@@ -114,7 +126,8 @@ export function ModelsTable({ modelsRef }: ModelsTableProps) {
       },
       {
         header: "provider",
-        accessorKey: "providerKey",
+        accessorFn: (row) => row.providerKey ?? undefined,
+        sortUndefined: "last",
         cell: ({ row }) => {
           const providerKey = row.original.providerKey;
           if (!providerKey) {
@@ -133,92 +146,106 @@ export function ModelsTable({ modelsRef }: ModelsTableProps) {
         header: "name pattern",
         accessorKey: "namePattern",
         cell: TextCell,
-        size: 800,
       },
       {
         header: "input cost",
-        accessorKey: "tokenCost.input",
+        accessorFn: (row) => getRowCostNumber(row, "input"),
+        sortUndefined: "last",
         cell: ({ row }) => {
           return getRowCost(row.original, "input");
         },
       },
       {
         header: "output cost",
-        accessorKey: "tokenCost.output",
+        accessorFn: (row) => getRowCostNumber(row, "output"),
+        sortUndefined: "last",
         cell: ({ row }) => {
           return getRowCost(row.original, "output");
         },
       },
       {
         header: "cache read cost",
-        accessorKey: "tokenCost.cacheRead",
+        accessorFn: (row) => getRowCostNumber(row, "cacheRead"),
+        sortUndefined: "last",
         cell: ({ row }) => {
           return getRowCost(row.original, "cacheRead");
         },
       },
       {
         header: "cache write cost",
-        accessorKey: "tokenCost.cacheWrite",
+        accessorFn: (row) => getRowCostNumber(row, "cacheWrite"),
+        sortUndefined: "last",
         cell: ({ row }) => {
           return getRowCost(row.original, "cacheWrite");
         },
       },
       {
         header: "prompt audio cost",
-        accessorKey: "tokenCost.promptAudio",
+        accessorFn: (row) => getRowCostNumber(row, "promptAudio"),
+        sortUndefined: "last",
         cell: ({ row }) => {
           return getRowCost(row.original, "promptAudio");
         },
       },
       {
         header: "completion audio cost",
-        accessorKey: "tokenCost.completionAudio",
+        accessorFn: (row) => getRowCostNumber(row, "completionAudio"),
+        sortUndefined: "last",
         cell: ({ row }) => {
           return getRowCost(row.original, "completionAudio");
         },
       },
       {
         header: "reasoning cost",
-        accessorKey: "tokenCost.reasoning",
+        accessorFn: (row) => getRowCostNumber(row, "reasoning"),
+        sortUndefined: "last",
         cell: ({ row }) => {
           return getRowCost(row.original, "reasoning");
         },
       },
       {
         header: "start date",
-        accessorKey: "startTime",
+        // move null values to the end of the list
+        sortUndefined: "last",
+        // tanstack table doesn't know how to sort null values, so we need to coalesce to undefined
+        accessorFn: (row) => row.startTime ?? undefined,
         cell: (props) => {
-          return (
-            <TimestampCell
-              {...props}
-              format={{
-                year: "numeric",
-                month: "numeric",
-                day: "numeric",
-              }}
-            />
-          );
+          if (props.row.original.startTime) {
+            return (
+              <TimestampCell
+                {...props}
+                format={{
+                  year: "numeric",
+                  month: "numeric",
+                  day: "numeric",
+                }}
+              />
+            );
+          }
+          return <span>--</span>;
         },
       },
       {
         header: "created at",
-        accessorKey: "createdAt",
+        accessorFn: (row) => row.createdAt ?? undefined,
+        sortUndefined: "last",
         cell: TimestampCell,
       },
       {
         header: "updated at",
-        accessorKey: "updatedAt",
+        accessorFn: (row) => row.updatedAt ?? undefined,
+        sortUndefined: "last",
         cell: TimestampCell,
       },
       {
         header: "last used at",
-        accessorKey: "lastUsedAt",
+        accessorFn: (row) => row.lastUsedAt ?? undefined,
+        sortUndefined: "last",
         cell: TimestampCell,
       },
       {
         id: "actions",
         header: "",
-        size: 5,
         accessorKey: "id",
         cell: ({ row }) => {
           const isCustomModel = row.original.kind === "CUSTOM";
@@ -261,7 +288,7 @@ export function ModelsTable({ modelsRef }: ModelsTableProps) {
           );
         },
       },
-    ];
+    ] satisfies ColumnDef<TableRow>[];
     return cols;
   }, []);
 
@@ -297,7 +324,7 @@ export function ModelsTable({ modelsRef }: ModelsTableProps) {
       `}
     >
       <table
-        css={selectableTableCSS}
+        css={tableCSS}
         style={{ width: table.getTotalSize(), minWidth: "100%" }}
       >
         <thead>
@@ -309,20 +336,18 @@ export function ModelsTable({ modelsRef }: ModelsTableProps) {
                   key={header.id}
                   style={{
                     ...getCommonPinningStyles(header.column),
-                    width: header.column.getSize(),
+                    boxSizing: "border-box",
+                    minWidth: header.column.getSize(),
+                    maxWidth: header.column.getSize(),
                   }}
                 >
                   {header.isPlaceholder ? null : (
                     <div
                       {...{
-                        className: header.column.getCanSort()
-                          ? "cursor-pointer"
-                          : "",
-                        ["aria-role"]: header.column.getCanSort()
-                          ? "button"
-                          : null,
+                        className: header.column.getCanSort() ? "sort" : "",
                         onClick: header.column.getToggleSortingHandler(),
                         style: {
+                          textWrap: "nowrap",
                           textAlign: header.column.columnDef.meta?.textAlign,
                         },
                       }}
@@ -360,7 +385,6 @@ export function ModelsTable({ modelsRef }: ModelsTableProps) {
                     align={cell.column.columnDef.meta?.textAlign}
                     style={{
                       ...getCommonPinningStyles(cell.column),
-                      width: cell.column.getSize(),
                     }}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}

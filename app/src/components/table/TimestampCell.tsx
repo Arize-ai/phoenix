@@ -1,6 +1,6 @@
 import { CellContext } from "@tanstack/react-table";
 
-import { isStringOrNull } from "@phoenix/typeUtils";
+import { isStringOrNullOrUndefined } from "@phoenix/typeUtils";
 
 export const DEFAULT_FORMAT: Intl.DateTimeFormatOptions = {
   year: "numeric",
@@ -18,8 +18,10 @@ export function TimestampCell<TData extends object, TValue>({
   format = DEFAULT_FORMAT,
 }: CellContext<TData, TValue> & { format?: Intl.DateTimeFormatOptions }) {
   const value = getValue();
-  if (!isStringOrNull(value)) {
-    throw new Error("TimestampCell only supports string or null values.");
+  if (!isStringOrNullOrUndefined(value)) {
+    throw new Error(
+      "TimestampCell only supports string, null, or undefined values."
+    );
   }
   const timestamp =
     value != null ? new Date(value).toLocaleString([], format) : "--";
