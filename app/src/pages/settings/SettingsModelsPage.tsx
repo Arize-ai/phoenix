@@ -24,7 +24,7 @@ import { NewModelButton } from "./NewModelButton";
 
 export function SettingsModelsPage() {
   const [kindFilter, setKindFilter] = useState<"ALL" | GenerativeModelKind>(
-    "CUSTOM"
+    "ALL"
   );
   const [search, setSearch] = useState("");
   const data = useLazyLoadQuery<SettingsModelsPageQuery>(
