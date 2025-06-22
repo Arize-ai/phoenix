@@ -130,7 +130,7 @@ class Query:
             result = await session.scalars(
                 select(models.GenerativeModel)
                 .order_by(
-                    models.GenerativeModel.is_override.desc(),
+                    models.GenerativeModel.is_override.desc(),  # display custom models first
                     models.GenerativeModel.provider.nullslast(),
                     models.GenerativeModel.name,
                 )
