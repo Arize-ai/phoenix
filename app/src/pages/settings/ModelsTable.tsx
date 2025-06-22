@@ -47,12 +47,23 @@ type ModelsTableProps = {
   search: string;
 };
 
+/**
+ * Converts a date into a user search-able string, or undefined, so that tanstack table can filter on it
+ * @param row - the row to get the date from
+ * @returns the date, as a string, in the format of the DEFAULT_FORMAT
+ */
 function filterableDateAccessorFn(row?: string | null | undefined) {
   return row != null
     ? new Date(row).toLocaleString([], DEFAULT_FORMAT)
     : undefined;
 }
 
+/**
+ * Gets the cost of a row for a given token type as a number, or undefined
+ * @param row - the row to get the cost from
+ * @param tokenType - the token type to get the cost for
+ * @returns the cost of the row for the given token type
+ */
 function getRowCostNumber(
   row: ModelsTable_generativeModels$data["generativeModels"][number],
   tokenType: string
@@ -63,6 +74,12 @@ function getRowCostNumber(
   return cost;
 }
 
+/**
+ * Gets the cost of a row for a given token type as a string, or "--" if the cost is undefined
+ * @param row - the row to get the cost from
+ * @param tokenType - the token type to get the cost for
+ * @returns the cost of the row for the given token type
+ */
 function getRowCost(
   row: ModelsTable_generativeModels$data["generativeModels"][number],
   tokenType: string
@@ -71,6 +88,16 @@ function getRowCost(
   return cost != null ? `${costFormatter(cost)}` : "--";
 }
 
+/**
+ * Sorts a row by the cost of a given token type, ignoring the user-visible cost string during sort
+ *
+ * undefined values will float to the bottom.
+ *
+ * @param rowA - the first row to sort
+ * @param rowB - the second row to sort
+ * @param columnId - the id of the column to sort by
+ * @returns the difference between the costs of the two rows
+ */
 const sortCostColumnFn: SortingFn<
   ModelsTable_generativeModels$data["generativeModels"][number]
 > = (rowA, rowB, columnId) => {
@@ -82,6 +109,12 @@ const sortCostColumnFn: SortingFn<
   return costA - costB;
 };
 
+/**
+ * Creates a column for a given token cost type
+ * @param tokenType - the token type to create a column for
+ * @param header - the header to display for the column
+ * @returns the column definition
+ */
 const makeCostColumn = (tokenType: string, header: string) => {
   return {
     header,
@@ -205,9 +238,7 @@ export function ModelsTable({
       makeCostColumn("reasoning", "reasoning cost"),
       {
         header: "start date",
-        // move null values to the end of the list
         sortUndefined: "last",
-        // tanstack table doesn't know how to sort null values, so we need to coalesce to undefined
         accessorFn: (row) => filterableDateAccessorFn(row.startTime),
         cell: (props) => {
           return (
