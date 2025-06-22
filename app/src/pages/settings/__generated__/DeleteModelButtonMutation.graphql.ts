@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a6eecf4c2ab53a707a6e37b7d83b3c55>>
+ * @generated SignedSource<<6077b099b313f11ae44b1f0a23f928dd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,17 +9,17 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+import { FragmentRefs } from "relay-runtime";
 export type DeleteModelMutationInput = {
   id: string;
 };
 export type DeleteModelButtonMutation$variables = {
-  connectionId: string;
   input: DeleteModelMutationInput;
 };
 export type DeleteModelButtonMutation$data = {
   readonly deleteModel: {
-    readonly model: {
-      readonly id: string;
+    readonly query: {
+      readonly " $fragmentSpreads": FragmentRefs<"ModelsTable_generativeModels">;
     };
   };
 };
@@ -29,43 +29,37 @@ export type DeleteModelButtonMutation = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "connectionId"
-},
-v1 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "input"
-},
-v2 = [
+var v0 = [
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "input"
+  }
+],
+v1 = [
   {
     "kind": "Variable",
     "name": "input",
     "variableName": "input"
   }
 ],
-v3 = {
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "id",
+  "name": "kind",
   "storageKey": null
 };
 return {
   "fragment": {
-    "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/)
-    ],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "DeleteModelButtonMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v1/*: any*/),
         "concreteType": "DeleteModelMutationPayload",
         "kind": "LinkedField",
         "name": "deleteModel",
@@ -74,12 +68,16 @@ return {
           {
             "alias": null,
             "args": null,
-            "concreteType": "GenerativeModel",
+            "concreteType": "Query",
             "kind": "LinkedField",
-            "name": "model",
+            "name": "query",
             "plural": false,
             "selections": [
-              (v3/*: any*/)
+              {
+                "args": null,
+                "kind": "FragmentSpread",
+                "name": "ModelsTable_generativeModels"
+              }
             ],
             "storageKey": null
           }
@@ -92,16 +90,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [
-      (v1/*: any*/),
-      (v0/*: any*/)
-    ],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "DeleteModelButtonMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v1/*: any*/),
         "concreteType": "DeleteModelMutationPayload",
         "kind": "LinkedField",
         "name": "deleteModel",
@@ -110,33 +105,118 @@ return {
           {
             "alias": null,
             "args": null,
-            "concreteType": "GenerativeModel",
+            "concreteType": "Query",
             "kind": "LinkedField",
-            "name": "model",
+            "name": "query",
             "plural": false,
             "selections": [
-              (v3/*: any*/),
               {
                 "alias": null,
                 "args": null,
-                "filters": null,
-                "handle": "deleteEdge",
-                "key": "",
-                "kind": "ScalarHandle",
-                "name": "id",
-                "handleArgs": [
+                "concreteType": "GenerativeModel",
+                "kind": "LinkedField",
+                "name": "generativeModels",
+                "plural": true,
+                "selections": [
                   {
-                    "items": [
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "id",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "name",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "provider",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "namePattern",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "providerKey",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "startTime",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "createdAt",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "updatedAt",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "lastUsedAt",
+                    "storageKey": null
+                  },
+                  (v2/*: any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "TokenPrice",
+                    "kind": "LinkedField",
+                    "name": "tokenPrices",
+                    "plural": true,
+                    "selections": [
                       {
-                        "kind": "Variable",
-                        "name": "connections.0",
-                        "variableName": "connectionId"
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "tokenType",
+                        "storageKey": null
+                      },
+                      (v2/*: any*/),
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "costPerMillionTokens",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "costPerToken",
+                        "storageKey": null
                       }
                     ],
-                    "kind": "ListValue",
-                    "name": "connections"
+                    "storageKey": null
                   }
-                ]
+                ],
+                "storageKey": null
               }
             ],
             "storageKey": null
@@ -147,16 +227,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "cf26e174e2073217be6d1b1807ac7785",
+    "cacheID": "a1de6e911b9cf52a1773fa3f5dd4cb57",
     "id": null,
     "metadata": {},
     "name": "DeleteModelButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation DeleteModelButtonMutation(\n  $input: DeleteModelMutationInput!\n) {\n  deleteModel(input: $input) {\n    model {\n      id\n    }\n  }\n}\n"
+    "text": "mutation DeleteModelButtonMutation(\n  $input: DeleteModelMutationInput!\n) {\n  deleteModel(input: $input) {\n    query {\n      ...ModelsTable_generativeModels\n    }\n  }\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels {\n    id\n    name\n    provider\n    namePattern\n    providerKey\n    startTime\n    createdAt\n    updatedAt\n    lastUsedAt\n    kind\n    tokenPrices {\n      tokenType\n      kind\n      costPerMillionTokens\n      costPerToken\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1ccbc631eb0ed2f999141b05c7f7bd8c";
+(node as any).hash = "e9d96c88779253d2bd9260a3e62801aa";
 
 export default node;

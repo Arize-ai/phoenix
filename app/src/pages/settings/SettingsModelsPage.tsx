@@ -1,15 +1,22 @@
-import { useLoaderData } from "react-router";
+import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Card } from "@arizeai/components";
 
 import { Flex, Text, View } from "@phoenix/components";
+import { SettingsModelsPageQuery } from "@phoenix/pages/settings/__generated__/SettingsModelsPageQuery.graphql";
 
 import { ModelsTable } from "./ModelsTable";
 import { NewModelButton } from "./NewModelButton";
-import { settingsModelsLoader } from "./settingsModelsLoader";
 
 export function SettingsModelsPage() {
-  const data = useLoaderData<typeof settingsModelsLoader>();
+  const data = useLazyLoadQuery<SettingsModelsPageQuery>(
+    graphql`
+      query SettingsModelsPageQuery {
+        ...ModelsTable_generativeModels
+      }
+    `,
+    {}
+  );
 
   return (
     <View paddingY="size-100">
@@ -21,12 +28,12 @@ export function SettingsModelsPage() {
             <Text color="text-500" size="S">
               All costs shown in USD per 1M tokens
             </Text>
-            <NewModelButton queryId={data.__id} />
+            <NewModelButton />
           </Flex>
         }
         bodyStyle={{ padding: 0 }}
       >
-        <ModelsTable query={data} />
+        <ModelsTable modelsRef={data} />
       </Card>
     </View>
   );

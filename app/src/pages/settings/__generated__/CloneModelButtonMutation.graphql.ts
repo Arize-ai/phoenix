@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<042c2d6d89e8385da5e2f61be6ae76fd>>
+ * @generated SignedSource<<48df834ef0b5476919d973c0106a7ca9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -24,14 +24,12 @@ export type TokenPriceInput = {
   tokenType: string;
 };
 export type CloneModelButtonMutation$variables = {
-  connectionId: string;
   input: CreateModelMutationInput;
 };
 export type CloneModelButtonMutation$data = {
   readonly createModel: {
-    readonly __typename: "CreateModelMutationPayload";
-    readonly model: {
-      readonly " $fragmentSpreads": FragmentRefs<"ModelsTable_generativeModel">;
+    readonly query: {
+      readonly " $fragmentSpreads": FragmentRefs<"ModelsTable_generativeModels">;
     };
   };
 };
@@ -41,149 +39,37 @@ export type CloneModelButtonMutation = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "connectionId"
-},
-v1 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "input"
-},
-v2 = [
+var v0 = [
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "input"
+  }
+],
+v1 = [
   {
     "kind": "Variable",
     "name": "input",
     "variableName": "input"
   }
 ],
-v3 = {
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "kind",
   "storageKey": null
-},
-v4 = [
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "id",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "name",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "provider",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "namePattern",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "providerKey",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "startTime",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "createdAt",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "updatedAt",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "lastUsedAt",
-    "storageKey": null
-  },
-  (v3/*: any*/),
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "TokenPrice",
-    "kind": "LinkedField",
-    "name": "tokenPrices",
-    "plural": true,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "tokenType",
-        "storageKey": null
-      },
-      (v3/*: any*/),
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "costPerMillionTokens",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "costPerToken",
-        "storageKey": null
-      }
-    ],
-    "storageKey": null
-  }
-],
-v5 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "__typename",
-  "storageKey": null
 };
 return {
   "fragment": {
-    "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/)
-    ],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "CloneModelButtonMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v1/*: any*/),
         "concreteType": "CreateModelMutationPayload",
         "kind": "LinkedField",
         "name": "createModel",
@@ -192,22 +78,19 @@ return {
           {
             "alias": null,
             "args": null,
-            "concreteType": "GenerativeModel",
+            "concreteType": "Query",
             "kind": "LinkedField",
-            "name": "model",
+            "name": "query",
             "plural": false,
             "selections": [
               {
-                "kind": "InlineDataFragmentSpread",
-                "name": "ModelsTable_generativeModel",
-                "selections": (v4/*: any*/),
                 "args": null,
-                "argumentDefinitions": []
+                "kind": "FragmentSpread",
+                "name": "ModelsTable_generativeModels"
               }
             ],
             "storageKey": null
-          },
-          (v5/*: any*/)
+          }
         ],
         "storageKey": null
       }
@@ -217,16 +100,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [
-      (v1/*: any*/),
-      (v0/*: any*/)
-    ],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "CloneModelButtonMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v1/*: any*/),
         "concreteType": "CreateModelMutationPayload",
         "kind": "LinkedField",
         "name": "createModel",
@@ -235,57 +115,138 @@ return {
           {
             "alias": null,
             "args": null,
-            "concreteType": "GenerativeModel",
+            "concreteType": "Query",
             "kind": "LinkedField",
-            "name": "model",
+            "name": "query",
             "plural": false,
-            "selections": (v4/*: any*/),
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "filters": null,
-            "handle": "prependNode",
-            "key": "",
-            "kind": "LinkedHandle",
-            "name": "model",
-            "handleArgs": [
+            "selections": [
               {
-                "items": [
+                "alias": null,
+                "args": null,
+                "concreteType": "GenerativeModel",
+                "kind": "LinkedField",
+                "name": "generativeModels",
+                "plural": true,
+                "selections": [
                   {
-                    "kind": "Variable",
-                    "name": "connections.0",
-                    "variableName": "connectionId"
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "id",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "name",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "provider",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "namePattern",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "providerKey",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "startTime",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "createdAt",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "updatedAt",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "lastUsedAt",
+                    "storageKey": null
+                  },
+                  (v2/*: any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "TokenPrice",
+                    "kind": "LinkedField",
+                    "name": "tokenPrices",
+                    "plural": true,
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "tokenType",
+                        "storageKey": null
+                      },
+                      (v2/*: any*/),
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "costPerMillionTokens",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "costPerToken",
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": null
                   }
                 ],
-                "kind": "ListValue",
-                "name": "connections"
-              },
-              {
-                "kind": "Literal",
-                "name": "edgeTypeName",
-                "value": "GenerativeModelEdge"
+                "storageKey": null
               }
-            ]
-          },
-          (v5/*: any*/)
+            ],
+            "storageKey": null
+          }
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "092457dffac7b7ff8b6191492d374173",
+    "cacheID": "c4f5dfd5217a0e899dca2d0933f3d00f",
     "id": null,
     "metadata": {},
     "name": "CloneModelButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation CloneModelButtonMutation(\n  $input: CreateModelMutationInput!\n) {\n  createModel(input: $input) {\n    model {\n      ...ModelsTable_generativeModel\n      id\n    }\n    __typename\n  }\n}\n\nfragment ModelsTable_generativeModel on GenerativeModel {\n  id\n  name\n  provider\n  namePattern\n  providerKey\n  startTime\n  createdAt\n  updatedAt\n  lastUsedAt\n  kind\n  tokenPrices {\n    tokenType\n    kind\n    costPerMillionTokens\n    costPerToken\n  }\n}\n"
+    "text": "mutation CloneModelButtonMutation(\n  $input: CreateModelMutationInput!\n) {\n  createModel(input: $input) {\n    query {\n      ...ModelsTable_generativeModels\n    }\n  }\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels {\n    id\n    name\n    provider\n    namePattern\n    providerKey\n    startTime\n    createdAt\n    updatedAt\n    lastUsedAt\n    kind\n    tokenPrices {\n      tokenType\n      kind\n      costPerMillionTokens\n      costPerToken\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8c7f5945d2ceb11b4a213b458c9ced9d";
+(node as any).hash = "284595333440a52d43452cf3600d1978";
 
 export default node;

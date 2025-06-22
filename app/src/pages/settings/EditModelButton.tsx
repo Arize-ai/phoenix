@@ -6,6 +6,7 @@ import {
   usePreloadedQuery,
   useQueryLoader,
 } from "react-relay";
+import { useRevalidator } from "react-router";
 import { getLocalTimeZone } from "@internationalized/date";
 
 import {
@@ -62,6 +63,7 @@ function EditModelDialogContent({
   onModelEdited?: (model: ModelFormParams) => void;
   onClose: () => void;
 }) {
+  const { revalidate } = useRevalidator();
   const data = usePreloadedQuery<EditModelButtonQuery>(
     ModelQuery,
     queryReference
@@ -130,6 +132,7 @@ function EditModelDialogContent({
               title: `Model Updated`,
               message: `Model "${params.name}" updated successfully`,
             });
+            revalidate();
           },
           onError: (error) => {
             const formattedError =

@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useRef } from "react";
-import { graphql, readInlineData, usePaginationFragment } from "react-relay";
+import { useMemo } from "react";
+import { graphql, useFragment } from "react-relay";
 import {
   ColumnDef,
   flexRender,
@@ -22,111 +22,64 @@ import {
   TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components/tooltip";
+import {
+  ModelsTable_generativeModels$data,
+  ModelsTable_generativeModels$key,
+} from "@phoenix/pages/settings/__generated__/ModelsTable_generativeModels.graphql";
 import { EditModelButton } from "@phoenix/pages/settings/EditModelButton";
+import { Mutable } from "@phoenix/typeUtils";
 import { getProviderName } from "@phoenix/utils/generativeUtils";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 
-import {
-  ModelsTable_generativeModel$data,
-  ModelsTable_generativeModel$key,
-} from "./__generated__/ModelsTable_generativeModel.graphql";
-import { ModelsTable_generativeModels$key } from "./__generated__/ModelsTable_generativeModels.graphql";
-import { ModelsTableModelsQuery } from "./__generated__/ModelsTableModelsQuery.graphql";
 import { CloneModelButton } from "./CloneModelButton";
 import { DeleteModelButton } from "./DeleteModelButton";
 
-const PAGE_SIZE = 100;
-
-const GENERATIVE_MODEL_FRAGMENT = graphql`
-  fragment ModelsTable_generativeModel on GenerativeModel @inline {
-    id
-    name
-    provider
-    namePattern
-    providerKey
-    startTime
-    createdAt
-    updatedAt
-    lastUsedAt
-    kind
-    tokenPrices {
-      tokenType
-      kind
-      costPerMillionTokens
-      costPerToken
-    }
-  }
-`;
-
 type ModelsTableProps = {
-  query: ModelsTable_generativeModels$key;
+  modelsRef: ModelsTable_generativeModels$key;
 };
 
-function getRowCost(row: ModelsTable_generativeModel$data, tokenType: string) {
+function getRowCost(
+  row: ModelsTable_generativeModels$data["generativeModels"][number],
+  tokenType: string
+) {
   const cost = row.tokenPrices?.find(
     (entry) => entry.tokenType === tokenType
   )?.costPerMillionTokens;
   return cost != null ? `${costFormatter(cost)}` : "--";
 }
 
-export function ModelsTable(props: ModelsTableProps) {
-  //we need a reference to the scrolling element for logic down below
-  const tableContainerRef = useRef<HTMLDivElement>(null);
-  const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
-    ModelsTableModelsQuery,
-    ModelsTable_generativeModels$key
-  >(
+export function ModelsTable({ modelsRef }: ModelsTableProps) {
+  const data = useFragment(
     graphql`
-      fragment ModelsTable_generativeModels on Query
-      @refetchable(queryName: "ModelsTableModelsQuery")
-      @argumentDefinitions(
-        after: { type: "String", defaultValue: null }
-        first: { type: "Int", defaultValue: 100 }
-      ) {
-        generativeModels(first: $first, after: $after)
-          @connection(key: "ModelsTable_generativeModels") {
-          __id
-          edges {
-            node {
-              ...ModelsTable_generativeModel
-            }
+      fragment ModelsTable_generativeModels on Query {
+        generativeModels {
+          id
+          name
+          provider
+          namePattern
+          providerKey
+          startTime
+          createdAt
+          updatedAt
+          lastUsedAt
+          kind
+          tokenPrices {
+            tokenType
+            kind
+            costPerMillionTokens
+            costPerToken
           }
         }
       }
     `,
-    props.query
+    modelsRef
   );
 
-  const connectionId = data.generativeModels.__id;
+  const generativeModels = data.generativeModels;
 
   const tableData = useMemo(
-    () =>
-      data.generativeModels.edges.map((edge) => {
-        const node = edge.node;
-        const data = readInlineData<ModelsTable_generativeModel$key>(
-          GENERATIVE_MODEL_FRAGMENT,
-          node
-        );
-        return data;
-      }),
-    [data]
-  );
-
-  const fetchMoreOnBottomReached = useCallback(
-    (containerRefElement?: HTMLDivElement | null) => {
-      if (containerRefElement) {
-        const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
-        //once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
-        if (
-          scrollHeight - scrollTop - clientHeight < 300 &&
-          !isLoadingNext &&
-          hasNext
-        ) {
-          loadNext(PAGE_SIZE);
-        }
-      }
-    },
-    [hasNext, isLoadingNext, loadNext]
+    () => (generativeModels ?? []) as Mutable<typeof generativeModels>,
+    [generativeModels]
   );
 
   type TableRow = (typeof tableData)[number];
@@ -286,10 +239,7 @@ export function ModelsTable(props: ModelsTableProps) {
                 </TooltipTrigger>
               )}
               <TooltipTrigger>
-                <CloneModelButton
-                  modelId={row.original.id}
-                  connectionId={connectionId}
-                />
+                <CloneModelButton modelId={row.original.id} />
                 <Tooltip>
                   <TooltipArrow />
                   Clone model
@@ -300,7 +250,6 @@ export function ModelsTable(props: ModelsTableProps) {
                   <DeleteModelButton
                     modelId={row.original.id}
                     modelName={row.original.name}
-                    connectionId={connectionId}
                   />
                   <Tooltip>
                     <TooltipArrow />
@@ -314,7 +263,7 @@ export function ModelsTable(props: ModelsTableProps) {
       },
     ];
     return cols;
-  }, [connectionId]);
+  }, []);
 
   const table = useReactTable({
     columns,
@@ -346,8 +295,6 @@ export function ModelsTable(props: ModelsTableProps) {
         flex: 1 1 auto;
         overflow: auto;
       `}
-      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
-      ref={tableContainerRef}
     >
       <table
         css={selectableTableCSS}

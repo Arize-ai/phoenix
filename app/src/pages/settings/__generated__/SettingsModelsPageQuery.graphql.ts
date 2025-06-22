@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<27c36b3a43ad927351cf43625421f6d8>>
+ * @generated SignedSource<<ec9fc099084bb5bc89858a3e8cb92886>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,13 +10,13 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type settingsModelsLoaderQuery$variables = Record<PropertyKey, never>;
-export type settingsModelsLoaderQuery$data = {
+export type SettingsModelsPageQuery$variables = Record<PropertyKey, never>;
+export type SettingsModelsPageQuery$data = {
   readonly " $fragmentSpreads": FragmentRefs<"ModelsTable_generativeModels">;
 };
-export type settingsModelsLoaderQuery = {
-  response: settingsModelsLoaderQuery$data;
-  variables: settingsModelsLoaderQuery$variables;
+export type SettingsModelsPageQuery = {
+  response: SettingsModelsPageQuery$data;
+  variables: SettingsModelsPageQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -32,7 +32,7 @@ return {
     "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
-    "name": "settingsModelsLoaderQuery",
+    "name": "SettingsModelsPageQuery",
     "selections": [
       {
         "args": null,
@@ -47,7 +47,7 @@ return {
   "operation": {
     "argumentDefinitions": [],
     "kind": "Operation",
-    "name": "settingsModelsLoaderQuery",
+    "name": "SettingsModelsPageQuery",
     "selections": [
       {
         "alias": null,
@@ -160,16 +160,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f7be80389df6ccf84612d21b0c4e353d",
+    "cacheID": "789d7bd2923968a69db4e192ffa39b5b",
     "id": null,
     "metadata": {},
-    "name": "settingsModelsLoaderQuery",
+    "name": "SettingsModelsPageQuery",
     "operationKind": "query",
-    "text": "query settingsModelsLoaderQuery {\n  ...ModelsTable_generativeModels\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels {\n    id\n    name\n    provider\n    namePattern\n    providerKey\n    startTime\n    createdAt\n    updatedAt\n    lastUsedAt\n    kind\n    tokenPrices {\n      tokenType\n      kind\n      costPerMillionTokens\n      costPerToken\n    }\n  }\n}\n"
+    "text": "query SettingsModelsPageQuery {\n  ...ModelsTable_generativeModels\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels {\n    id\n    name\n    provider\n    namePattern\n    providerKey\n    startTime\n    createdAt\n    updatedAt\n    lastUsedAt\n    kind\n    tokenPrices {\n      tokenType\n      kind\n      costPerMillionTokens\n      costPerToken\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a0f3a13e85b11b62ee06f77c3efabae7";
+(node as any).hash = "e0d338d005f1ab564cbf0c0dde829d20";
 
 export default node;

@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
+import { useRevalidator } from "react-router";
 
 import {
   Button,
@@ -27,22 +28,18 @@ function DeleteModelDialogContent({
   modelId,
   modelName,
   onClose,
-  connectionId,
 }: {
   modelId: string;
   modelName: string;
   onClose: () => void;
-  connectionId: string;
 }) {
+  const { revalidate } = useRevalidator();
   const [commitDeleteModel, isCommittingDeleteModel] =
     useMutation<DeleteModelButtonMutation>(graphql`
-      mutation DeleteModelButtonMutation(
-        $input: DeleteModelMutationInput!
-        $connectionId: ID!
-      ) {
+      mutation DeleteModelButtonMutation($input: DeleteModelMutationInput!) {
         deleteModel(input: $input) {
-          model {
-            id @deleteEdge(connections: [$connectionId])
+          query {
+            ...ModelsTable_generativeModels
           }
         }
       }
@@ -54,7 +51,6 @@ function DeleteModelDialogContent({
     commitDeleteModel({
       variables: {
         input: { id: modelId },
-        connectionId,
       },
       onCompleted: () => {
         notifySuccess({
@@ -62,6 +58,7 @@ function DeleteModelDialogContent({
           message: `The "${modelName}" model has been deleted.`,
         });
         onClose();
+        revalidate();
       },
       onError: (error) => {
         const errorMessages = getErrorMessagesFromRelayMutationError(error);
@@ -73,12 +70,12 @@ function DeleteModelDialogContent({
     });
   }, [
     commitDeleteModel,
-    connectionId,
     modelId,
     modelName,
     notifyError,
     notifySuccess,
     onClose,
+    revalidate,
   ]);
 
   return (
@@ -118,11 +115,9 @@ function DeleteModelDialogContent({
 export function DeleteModelButton({
   modelId,
   modelName,
-  connectionId,
 }: {
   modelId: string;
   modelName: string;
-  connectionId: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -162,7 +157,6 @@ export function DeleteModelButton({
                 modelId={modelId}
                 modelName={modelName}
                 onClose={handleClose}
-                connectionId={connectionId}
               />
             </DialogContent>
           </Dialog>
