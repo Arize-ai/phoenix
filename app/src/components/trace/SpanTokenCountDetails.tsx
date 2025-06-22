@@ -11,6 +11,7 @@ export function SpanTokenCountDetails(props: { spanNodeId: string }) {
         node(id: $nodeId) {
           __typename
           ... on Span {
+            tokenCountTotal
             tokenCountPrompt
             tokenCountCompletion
             tokenPromptDetails {
@@ -29,6 +30,7 @@ export function SpanTokenCountDetails(props: { spanNodeId: string }) {
     if (data.node.__typename === "Span") {
       const prompt = data.node.tokenCountPrompt ?? 0;
       const completion = data.node.tokenCountCompletion ?? 0;
+      const total = data.node.tokenCountTotal ?? 0;
       const promptDetails: Record<string, number> = {};
 
       // Add available prompt details
@@ -43,7 +45,7 @@ export function SpanTokenCountDetails(props: { spanNodeId: string }) {
       }
 
       return {
-        total: prompt + completion,
+        total,
         prompt,
         completion,
         promptDetails:

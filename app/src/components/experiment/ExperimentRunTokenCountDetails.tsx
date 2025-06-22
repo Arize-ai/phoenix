@@ -36,9 +36,10 @@ export function ExperimentRunTokenCountDetails(props: {
     if (data.node.__typename === "ExperimentRun") {
       const prompt = data.node.costSummary?.prompt?.tokens ?? 0;
       const completion = data.node.costSummary?.completion?.tokens ?? 0;
+      const total = data.node.costSummary?.total?.tokens ?? 0;
 
       return {
-        total: prompt + completion,
+        total,
         prompt,
         completion,
       };

@@ -11,7 +11,7 @@ import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/Ann
 import { JSONBlock } from "@phoenix/components/code";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
-import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
+import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
@@ -133,9 +133,9 @@ function RootSpanDetails({
               nodeId={rootSpan.id}
             />
             {rootSpan.costSummary?.total?.cost != null && (
-              <TokenCosts
+              <SpanTokenCosts
                 totalCost={rootSpan.costSummary.total.cost}
-                nodeId={rootSpan.id}
+                spanNodeId={rootSpan.id}
               />
             )}
             {rootSpan.latencyMs != null ? (

@@ -56,9 +56,9 @@ import {
   TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components/tooltip";
+import { SpanTokenCosts } from "@phoenix/components/trace";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
-import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useNotifyError } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
@@ -341,9 +341,9 @@ function ExampleOutputContent({
               tokenCountTotal={span.tokenCountTotal || 0}
               nodeId={span.id}
             />
-            <TokenCosts
+            <SpanTokenCosts
               totalCost={span.costSummary?.total?.cost || 0}
-              nodeId={span.id}
+              spanNodeId={span.id}
             />
           </Flex>
         ) : (

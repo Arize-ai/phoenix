@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c02524ba8d6070472d829ff19b0898fd>>
+ * @generated SignedSource<<b7a7501d6c66aa5340bd0f87e82fea96>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,29 +9,30 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type SpanTokenCountDetailsQuery$variables = {
+export type TraceTokenCostsDetailsQuery$variables = {
   nodeId: string;
 };
-export type SpanTokenCountDetailsQuery$data = {
+export type TraceTokenCostsDetailsQuery$data = {
   readonly node: {
-    readonly __typename: "Span";
-    readonly tokenCountCompletion: number | null;
-    readonly tokenCountPrompt: number | null;
-    readonly tokenCountTotal: number | null;
-    readonly tokenPromptDetails: {
-      readonly audio: number | null;
-      readonly cacheRead: number | null;
-      readonly cacheWrite: number | null;
-    };
+    readonly __typename: "Trace";
+    readonly costDetailSummaryEntries: ReadonlyArray<{
+      readonly isPrompt: boolean;
+      readonly tokenType: string;
+      readonly value: {
+        readonly cost: number | null;
+        readonly costPerToken: number | null;
+        readonly tokens: number | null;
+      };
+    }>;
   } | {
     // This will never be '%other', but we need some
     // value in case none of the concrete values match.
     readonly __typename: "%other";
   };
 };
-export type SpanTokenCountDetailsQuery = {
-  response: SpanTokenCountDetailsQuery$data;
-  variables: SpanTokenCountDetailsQuery$variables;
+export type TraceTokenCostsDetailsQuery = {
+  response: TraceTokenCostsDetailsQuery$data;
+  variables: TraceTokenCostsDetailsQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -62,58 +63,62 @@ v3 = {
     {
       "alias": null,
       "args": null,
-      "kind": "ScalarField",
-      "name": "tokenCountTotal",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "tokenCountPrompt",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "tokenCountCompletion",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "TokenCountPromptDetails",
+      "concreteType": "SpanCostDetailSummaryEntry",
       "kind": "LinkedField",
-      "name": "tokenPromptDetails",
-      "plural": false,
+      "name": "costDetailSummaryEntries",
+      "plural": true,
       "selections": [
         {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
-          "name": "audio",
+          "name": "tokenType",
           "storageKey": null
         },
         {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
-          "name": "cacheRead",
+          "name": "isPrompt",
           "storageKey": null
         },
         {
           "alias": null,
           "args": null,
-          "kind": "ScalarField",
-          "name": "cacheWrite",
+          "concreteType": "CostBreakdown",
+          "kind": "LinkedField",
+          "name": "value",
+          "plural": false,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "cost",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "tokens",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "costPerToken",
+              "storageKey": null
+            }
+          ],
           "storageKey": null
         }
       ],
       "storageKey": null
     }
   ],
-  "type": "Span",
+  "type": "Trace",
   "abstractKey": null
 };
 return {
@@ -121,7 +126,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "SpanTokenCountDetailsQuery",
+    "name": "TraceTokenCostsDetailsQuery",
     "selections": [
       {
         "alias": null,
@@ -144,7 +149,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "SpanTokenCountDetailsQuery",
+    "name": "TraceTokenCostsDetailsQuery",
     "selections": [
       {
         "alias": null,
@@ -169,16 +174,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "fc6d8104f9bf9481330b8b879b7c8e8e",
+    "cacheID": "e03157027624682be5fb0d86667680c3",
     "id": null,
     "metadata": {},
-    "name": "SpanTokenCountDetailsQuery",
+    "name": "TraceTokenCostsDetailsQuery",
     "operationKind": "query",
-    "text": "query SpanTokenCountDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      tokenCountTotal\n      tokenCountPrompt\n      tokenCountCompletion\n      tokenPromptDetails {\n        audio\n        cacheRead\n        cacheWrite\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query TraceTokenCostsDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Trace {\n      costDetailSummaryEntries {\n        tokenType\n        isPrompt\n        value {\n          cost\n          tokens\n          costPerToken\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2f53943dbe7d189d4126be701a017818";
+(node as any).hash = "2d86a859b1f830d6a3110abab08aee51";
 
 export default node;

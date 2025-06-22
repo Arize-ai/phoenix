@@ -1,152 +1,50 @@
-import { Suspense, useMemo } from "react";
-import { graphql, useLazyLoadQuery } from "react-relay";
+import { forwardRef, HTMLAttributes, Ref } from "react";
+import { css } from "@emotion/react";
 
-import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
-
-import { Flex, Loading, Text, TextProps } from "@phoenix/components";
+import { Icon, Icons, Text, TextProps } from "@phoenix/components";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 
-import type { TokenCosts_TokenCostsDetailsQuery } from "./__generated__/TokenCosts_TokenCostsDetailsQuery.graphql";
+const tokenCostsItemCSS = css`
+  display: flex;
+  flex-direction: row;
+  gap: var(--ac-global-dimension-static-size-50);
+  align-items: center;
 
-type TokenCostsProps = {
-  /**
-   * The total cost of the node (span, trace, session, etc.)
-   */
-  totalCost: number;
-  /**
-   * The id of the node (span, trace, session, etc.)
-   */
-  nodeId: string;
-  /**
-   * The size of the icon and text
-   */
+  &[data-size="S"] {
+    font-size: var(--ac-global-font-size-s);
+  }
+  &[data-size="M"] {
+    font-size: var(--ac-global-font-size-m);
+  }
+`;
+
+interface TokenCostsProps extends HTMLAttributes<HTMLDivElement> {
+  children: number | null | undefined;
   size?: TextProps["size"];
-};
+}
 
-/**
- * Displays the cost of the node (span, trace, session, etc.)
- */
-export function TokenCosts(props: TokenCostsProps) {
+function TokenCosts(props: TokenCostsProps, ref: Ref<HTMLDivElement>) {
+  const { children, size = "M", ...otherProps } = props;
+
+  const text = typeof children === "number" ? costFormatter(children) : "--";
   return (
-    <TooltipTrigger delay={500}>
-      <TriggerWrap>
-        <Text size={props.size}>{costFormatter(props.totalCost)}</Text>
-      </TriggerWrap>
-      <Tooltip>
-        <Suspense fallback={<Loading />}>
-          <TokenCostsDetails nodeId={props.nodeId} />
-        </Suspense>
-      </Tooltip>
-    </TooltipTrigger>
+    <div
+      className="token-costs-item"
+      data-size={size}
+      css={tokenCostsItemCSS}
+      ref={ref}
+      {...otherProps}
+    >
+      <Icon
+        svg={<Icons.PriceTagsOutline />}
+        css={css`
+          color: var(--ac-global-text-color-900);
+        `}
+      />
+      <Text size={props.size}>{text}</Text>
+    </div>
   );
 }
 
-function TokenCostsDetails(props: { nodeId: string }) {
-  const data = useLazyLoadQuery<TokenCosts_TokenCostsDetailsQuery>(
-    graphql`
-      query TokenCosts_TokenCostsDetailsQuery($nodeId: ID!) {
-        node(id: $nodeId) {
-          ... on Span {
-            costDetailSummaryEntries {
-              tokenType
-              isPrompt
-              value {
-                cost
-                tokens
-                costPerToken
-              }
-            }
-          }
-          ... on Trace {
-            costDetailSummaryEntries {
-              tokenType
-              isPrompt
-              value {
-                cost
-                tokens
-                costPerToken
-              }
-            }
-          }
-          ... on ProjectSession {
-            costDetailSummaryEntries {
-              tokenType
-              isPrompt
-              value {
-                cost
-                tokens
-                costPerToken
-              }
-            }
-          }
-        }
-      }
-    `,
-    { nodeId: props.nodeId }
-  );
-
-  const { promptDetails, completionDetails } = useMemo(() => {
-    const details = data.node.costDetailSummaryEntries;
-    if (!details) {
-      return {
-        promptDetails: [],
-        completionDetails: [],
-      };
-    }
-    return {
-      promptDetails: details
-        .filter((detail) => detail.isPrompt)
-        .sort((a, b) => a.tokenType.localeCompare(b.tokenType)),
-      completionDetails: details
-        .filter((detail) => !detail.isPrompt)
-        .sort((a, b) => a.tokenType.localeCompare(b.tokenType)),
-    };
-  }, [data.node.costDetailSummaryEntries]);
-
-  return (
-    (promptDetails.length > 0 || completionDetails.length > 0) && (
-      <Flex direction="column" gap="size-50">
-        {promptDetails.length > 0 && (
-          <>
-            <Text weight="heavy">Prompt</Text>
-            {promptDetails.map((detail) =>
-              detail.value.cost != null ? (
-                <Flex
-                  key={detail.tokenType}
-                  direction="row"
-                  gap="size-100"
-                  justifyContent="space-between"
-                >
-                  <Text>{`${detail.tokenType} tokens`}</Text>
-                  <Text>
-                    {detail.value.cost ? costFormatter(detail.value.cost) : "?"}
-                  </Text>
-                </Flex>
-              ) : null
-            )}
-          </>
-        )}
-        {completionDetails.length > 0 && (
-          <>
-            <Text weight="heavy">Completion</Text>
-            {completionDetails.map((detail) =>
-              detail.value.cost != null ? (
-                <Flex
-                  key={detail.tokenType}
-                  direction="row"
-                  gap="size-100"
-                  justifyContent="space-between"
-                >
-                  <Text>{`${detail.tokenType} tokens`}</Text>
-                  <Text>
-                    {detail.value.cost ? costFormatter(detail.value.cost) : "?"}
-                  </Text>
-                </Flex>
-              ) : null
-            )}
-          </>
-        )}
-      </Flex>
-    )
-  );
-}
+const _TokenCosts = forwardRef(TokenCosts);
+export { _TokenCosts as TokenCosts };

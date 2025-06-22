@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c02524ba8d6070472d829ff19b0898fd>>
+ * @generated SignedSource<<801d2ff3a47a185e9fa620adea135193>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,19 +9,22 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type SpanTokenCountDetailsQuery$variables = {
+export type ExperimentRunTokenCostsDetailsQuery$variables = {
   nodeId: string;
 };
-export type SpanTokenCountDetailsQuery$data = {
+export type ExperimentRunTokenCostsDetailsQuery$data = {
   readonly node: {
-    readonly __typename: "Span";
-    readonly tokenCountCompletion: number | null;
-    readonly tokenCountPrompt: number | null;
-    readonly tokenCountTotal: number | null;
-    readonly tokenPromptDetails: {
-      readonly audio: number | null;
-      readonly cacheRead: number | null;
-      readonly cacheWrite: number | null;
+    readonly __typename: "ExperimentRun";
+    readonly costSummary: {
+      readonly completion: {
+        readonly cost: number | null;
+      };
+      readonly prompt: {
+        readonly cost: number | null;
+      };
+      readonly total: {
+        readonly cost: number | null;
+      };
     };
   } | {
     // This will never be '%other', but we need some
@@ -29,9 +32,9 @@ export type SpanTokenCountDetailsQuery$data = {
     readonly __typename: "%other";
   };
 };
-export type SpanTokenCountDetailsQuery = {
-  response: SpanTokenCountDetailsQuery$data;
-  variables: SpanTokenCountDetailsQuery$variables;
+export type ExperimentRunTokenCostsDetailsQuery = {
+  response: ExperimentRunTokenCostsDetailsQuery$data;
+  variables: ExperimentRunTokenCostsDetailsQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -56,64 +59,61 @@ v2 = {
   "name": "__typename",
   "storageKey": null
 },
-v3 = {
+v3 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "cost",
+    "storageKey": null
+  }
+],
+v4 = {
   "kind": "InlineFragment",
   "selections": [
     {
       "alias": null,
       "args": null,
-      "kind": "ScalarField",
-      "name": "tokenCountTotal",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "tokenCountPrompt",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "tokenCountCompletion",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "TokenCountPromptDetails",
+      "concreteType": "SpanCostSummary",
       "kind": "LinkedField",
-      "name": "tokenPromptDetails",
+      "name": "costSummary",
       "plural": false,
       "selections": [
         {
           "alias": null,
           "args": null,
-          "kind": "ScalarField",
-          "name": "audio",
+          "concreteType": "CostBreakdown",
+          "kind": "LinkedField",
+          "name": "total",
+          "plural": false,
+          "selections": (v3/*: any*/),
           "storageKey": null
         },
         {
           "alias": null,
           "args": null,
-          "kind": "ScalarField",
-          "name": "cacheRead",
+          "concreteType": "CostBreakdown",
+          "kind": "LinkedField",
+          "name": "prompt",
+          "plural": false,
+          "selections": (v3/*: any*/),
           "storageKey": null
         },
         {
           "alias": null,
           "args": null,
-          "kind": "ScalarField",
-          "name": "cacheWrite",
+          "concreteType": "CostBreakdown",
+          "kind": "LinkedField",
+          "name": "completion",
+          "plural": false,
+          "selections": (v3/*: any*/),
           "storageKey": null
         }
       ],
       "storageKey": null
     }
   ],
-  "type": "Span",
+  "type": "ExperimentRun",
   "abstractKey": null
 };
 return {
@@ -121,7 +121,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "SpanTokenCountDetailsQuery",
+    "name": "ExperimentRunTokenCostsDetailsQuery",
     "selections": [
       {
         "alias": null,
@@ -132,7 +132,7 @@ return {
         "plural": false,
         "selections": [
           (v2/*: any*/),
-          (v3/*: any*/)
+          (v4/*: any*/)
         ],
         "storageKey": null
       }
@@ -144,7 +144,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "SpanTokenCountDetailsQuery",
+    "name": "ExperimentRunTokenCostsDetailsQuery",
     "selections": [
       {
         "alias": null,
@@ -155,7 +155,7 @@ return {
         "plural": false,
         "selections": [
           (v2/*: any*/),
-          (v3/*: any*/),
+          (v4/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -169,16 +169,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "fc6d8104f9bf9481330b8b879b7c8e8e",
+    "cacheID": "56ebff6ade8d9718931af681ea77b06a",
     "id": null,
     "metadata": {},
-    "name": "SpanTokenCountDetailsQuery",
+    "name": "ExperimentRunTokenCostsDetailsQuery",
     "operationKind": "query",
-    "text": "query SpanTokenCountDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      tokenCountTotal\n      tokenCountPrompt\n      tokenCountCompletion\n      tokenPromptDetails {\n        audio\n        cacheRead\n        cacheWrite\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ExperimentRunTokenCostsDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on ExperimentRun {\n      costSummary {\n        total {\n          cost\n        }\n        prompt {\n          cost\n        }\n        completion {\n          cost\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2f53943dbe7d189d4126be701a017818";
+(node as any).hash = "f99884bcc09d854081aeba2247d70dde";
 
 export default node;

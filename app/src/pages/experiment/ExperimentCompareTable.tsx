@@ -56,7 +56,10 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
-import { ExperimentRunTokenCount } from "@phoenix/components/experiment";
+import {
+  ExperimentRunTokenCount,
+  ExperimentRunTokenCosts,
+} from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
 import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
 import { resizeHandleCSS } from "@phoenix/components/resize";
@@ -794,6 +797,7 @@ function ExperimentRowActionMenu(props: {
 function ExperimentRunMetadata(props: ExperimentRun) {
   const { id, startTime, endTime, costSummary } = props;
   const totalTokens = costSummary?.total?.tokens;
+  const totalCost = costSummary?.total?.cost;
   return (
     <Flex direction="row" gap="size-100">
       <RunLatency startTime={startTime} endTime={endTime} />
@@ -806,6 +810,13 @@ function ExperimentRunMetadata(props: ExperimentRun) {
       ) : (
         <TokenCount size="S">{totalTokens}</TokenCount>
       )}
+      {totalCost != null && id ? (
+        <ExperimentRunTokenCosts
+          totalCost={totalCost}
+          experimentRunId={id}
+          size="S"
+        />
+      ) : null}
     </Flex>
   );
 }

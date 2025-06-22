@@ -24,9 +24,9 @@ export function SpanCumulativeTokenCountDetails(props: { spanNodeId: string }) {
     if (data.node.__typename === "Span") {
       const prompt = data.node.cumulativeTokenCountPrompt ?? 0;
       const completion = data.node.cumulativeTokenCountCompletion ?? 0;
-
+      const total = data.node.cumulativeTokenCountTotal ?? 0;
       return {
-        total: prompt + completion,
+        total,
         prompt,
         completion,
       };
