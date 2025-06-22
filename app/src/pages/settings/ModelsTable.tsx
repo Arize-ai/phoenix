@@ -76,14 +76,8 @@ const sortCostColumnFn: SortingFn<
 > = (rowA, rowB, columnId) => {
   const costA = getRowCostNumber(rowA.original, columnId);
   const costB = getRowCostNumber(rowB.original, columnId);
-  if (costA == null && costB == null) {
+  if (costA == null || costB == null) {
     return 0;
-  }
-  if (costA == null) {
-    return 1;
-  }
-  if (costB == null) {
-    return -1;
   }
   return costA - costB;
 };
@@ -316,7 +310,7 @@ export function ModelsTable({
         left: ["name", "provider"],
         right: ["actions"],
       },
-      globalFilter: search,
+      globalFilter: search?.trim(),
       columnFilters,
     },
     getCoreRowModel: getCoreRowModel(),
