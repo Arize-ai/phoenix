@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e16917a28aed547e778fc322929f41fa>>
+ * @generated SignedSource<<042c2d6d89e8385da5e2f61be6ae76fd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -58,7 +58,14 @@ v2 = [
     "variableName": "input"
   }
 ],
-v3 = [
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "kind",
+  "storageKey": null
+},
+v4 = [
   {
     "alias": null,
     "args": null,
@@ -122,13 +129,7 @@ v3 = [
     "name": "lastUsedAt",
     "storageKey": null
   },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "isOverride",
-    "storageKey": null
-  },
+  (v3/*: any*/),
   {
     "alias": null,
     "args": null,
@@ -144,13 +145,7 @@ v3 = [
         "name": "tokenType",
         "storageKey": null
       },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "kind",
-        "storageKey": null
-      },
+      (v3/*: any*/),
       {
         "alias": null,
         "args": null,
@@ -169,7 +164,7 @@ v3 = [
     "storageKey": null
   }
 ],
-v4 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -205,14 +200,14 @@ return {
               {
                 "kind": "InlineDataFragmentSpread",
                 "name": "ModelsTable_generativeModel",
-                "selections": (v3/*: any*/),
+                "selections": (v4/*: any*/),
                 "args": null,
                 "argumentDefinitions": []
               }
             ],
             "storageKey": null
           },
-          (v4/*: any*/)
+          (v5/*: any*/)
         ],
         "storageKey": null
       }
@@ -244,7 +239,7 @@ return {
             "kind": "LinkedField",
             "name": "model",
             "plural": false,
-            "selections": (v3/*: any*/),
+            "selections": (v4/*: any*/),
             "storageKey": null
           },
           {
@@ -274,19 +269,19 @@ return {
               }
             ]
           },
-          (v4/*: any*/)
+          (v5/*: any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "61e376fc08dc96842849bfdb66c929a4",
+    "cacheID": "092457dffac7b7ff8b6191492d374173",
     "id": null,
     "metadata": {},
     "name": "CloneModelButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation CloneModelButtonMutation(\n  $input: CreateModelMutationInput!\n) {\n  createModel(input: $input) {\n    model {\n      ...ModelsTable_generativeModel\n      id\n    }\n    __typename\n  }\n}\n\nfragment ModelsTable_generativeModel on GenerativeModel {\n  id\n  name\n  provider\n  namePattern\n  providerKey\n  startTime\n  createdAt\n  updatedAt\n  lastUsedAt\n  isOverride\n  tokenPrices {\n    tokenType\n    kind\n    costPerMillionTokens\n    costPerToken\n  }\n}\n"
+    "text": "mutation CloneModelButtonMutation(\n  $input: CreateModelMutationInput!\n) {\n  createModel(input: $input) {\n    model {\n      ...ModelsTable_generativeModel\n      id\n    }\n    __typename\n  }\n}\n\nfragment ModelsTable_generativeModel on GenerativeModel {\n  id\n  name\n  provider\n  namePattern\n  providerKey\n  startTime\n  createdAt\n  updatedAt\n  lastUsedAt\n  kind\n  tokenPrices {\n    tokenType\n    kind\n    costPerMillionTokens\n    costPerToken\n  }\n}\n"
   }
 };
 })();

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4533c405fed825b2e76d309f63c6110f>>
+ * @generated SignedSource<<edbc952a894fa92d7646b4f8cd076a35>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -31,7 +31,14 @@ import ModelsTableModelsQuery_graphql from './ModelsTableModelsQuery.graphql';
 const node: ReaderFragment = (function(){
 var v0 = [
   "generativeModels"
-];
+],
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "kind",
+  "storageKey": null
+};
 return {
   "argumentDefinitions": [
     {
@@ -161,13 +168,7 @@ return {
                       "name": "lastUsedAt",
                       "storageKey": null
                     },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "isOverride",
-                      "storageKey": null
-                    },
+                    (v1/*: any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -183,13 +184,7 @@ return {
                           "name": "tokenType",
                           "storageKey": null
                         },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "kind",
-                          "storageKey": null
-                        },
+                        (v1/*: any*/),
                         {
                           "alias": null,
                           "args": null,
