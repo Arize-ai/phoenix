@@ -57,7 +57,12 @@ from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.ExperimentComparison import ExperimentComparison, RunComparisonItem
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.Functionality import Functionality
-from phoenix.server.api.types.GenerativeModel import GenerativeModel, to_gql_generative_model
+from phoenix.server.api.types.GenerativeModel import (
+    GenerativeModel,
+    GenerativeModelFilter,
+    GenerativeModelSort,
+    to_gql_generative_model,
+)
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
 from phoenix.server.api.types.InferenceModel import InferenceModel
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
@@ -118,6 +123,8 @@ class Query:
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        sort: Optional[GenerativeModelSort] = UNSET,
+        filter: Optional[GenerativeModelFilter] = UNSET,
     ) -> Connection[GenerativeModel]:
         args = ConnectionArgs(
             first=first,
@@ -126,19 +133,27 @@ class Query:
             before=before if isinstance(before, CursorString) else None,
         )
 
-        async with info.context.db() as session:
-            result = await session.scalars(
-                select(models.GenerativeModel)
-                .order_by(
-                    models.GenerativeModel.is_override.desc(),  # display custom models first
-                    models.GenerativeModel.provider.nullslast(),
-                    models.GenerativeModel.name,
-                )
-                .options(joinedload(models.GenerativeModel.token_prices))
+        query = select(models.GenerativeModel).options(
+            joinedload(models.GenerativeModel.token_prices)
+        )
+        if sort:
+            raise NotImplementedError("Custom sorting not yet implemented")
+        else:
+            query = query.order_by(  # apply default ordering
+                models.GenerativeModel.is_override.desc(),  # display custom models first
+                models.GenerativeModel.provider.nulls_last(),
+                models.GenerativeModel.name,
             )
+        if filter:
+            raise NotImplementedError("Custom filtering not yet implemented")
 
-        data = [to_gql_generative_model(model) for model in result.unique()]
-        return connection_from_list(data=data, args=args)
+        async with info.context.db() as session:
+            generative_models = await session.scalars(query)
+
+        return connection_from_list(
+            data=[to_gql_generative_model(model) for model in generative_models.unique()],
+            args=args,
+        )
 
     @strawberry.field
     async def playground_models(self, input: Optional[ModelsInput] = None) -> list[PlaygroundModel]:

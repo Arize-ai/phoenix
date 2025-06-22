@@ -1,9 +1,11 @@
 from datetime import datetime
+from enum import Enum
 from typing import Optional
 
 import strawberry
 from openinference.semconv.trace import OpenInferenceLLMProviderValues
 from sqlalchemy import inspect
+from strawberry import UNSET
 from strawberry.relay import Node, NodeID
 from strawberry.types import Info
 from typing_extensions import assert_never
@@ -13,9 +15,36 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.ModelInterface import ModelInterface
+from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.TokenPrice import TokenKind, TokenPrice
+
+
+@strawberry.input
+class GenerativeModelSortColumn(Enum):
+    PROVIDER = "provider"
+    NAME = "name"
+    CREATED_AT = "created_at"
+    UPDATED_AT = "updated_at"
+
+
+@strawberry.input
+class GenerativeModelSort:
+    col: GenerativeModelSortColumn
+    dir: SortDir
+
+
+@strawberry.enum
+class GenerativeModelKind(Enum):
+    CUSTOM = "CUSTOM"
+    BUILT_IN = "BUILT_IN"
+
+
+@strawberry.input
+class GenerativeModelFilter:
+    kind: Optional[list[GenerativeModelKind]] = UNSET
+    model_name: Optional[str] = UNSET
 
 
 @strawberry.type
@@ -24,7 +53,7 @@ class GenerativeModel(Node, ModelInterface):
     name: str
     provider: Optional[str]
     name_pattern: str
-    is_override: bool
+    kind: GenerativeModelKind
     created_at: datetime
     updated_at: datetime
     provider_key: Optional[GenerativeProviderKey]
@@ -98,7 +127,7 @@ def to_gql_generative_model(model: models.GenerativeModel) -> GenerativeModel:
         name=model.name,
         provider=model.provider,
         name_pattern=model.llm_name_pattern,
-        is_override=model.is_override,
+        kind=GenerativeModelKind.CUSTOM if model.is_override else GenerativeModelKind.BUILT_IN,
         created_at=model.created_at,
         updated_at=model.updated_at,
         start_time=model.start_time,

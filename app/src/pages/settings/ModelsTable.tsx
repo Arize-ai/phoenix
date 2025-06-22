@@ -48,7 +48,7 @@ const GENERATIVE_MODEL_FRAGMENT = graphql`
     createdAt
     updatedAt
     lastUsedAt
-    isOverride
+    kind
     tokenPrices {
       tokenType
       kind
@@ -147,7 +147,7 @@ export function ModelsTable(props: ModelsTableProps) {
             >
               <span>{model.name}</span>
               <View flex="none">
-                {row.original.isOverride ? (
+                {row.original.kind === "CUSTOM" ? (
                   <Token>custom</Token>
                 ) : (
                   <Token color="var(--ac-global-color-blue-500)">
@@ -268,7 +268,7 @@ export function ModelsTable(props: ModelsTableProps) {
         size: 5,
         accessorKey: "id",
         cell: ({ row }) => {
-          const isOverride = row.original.isOverride;
+          const isOverride = row.original.kind === "CUSTOM";
           return (
             <Flex
               direction="row"

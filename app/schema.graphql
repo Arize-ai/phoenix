@@ -1259,7 +1259,7 @@ type GenerativeModel implements Node & ModelInterface {
   providerKey: GenerativeProviderKey
   provider: String
   namePattern: String!
-  isOverride: Boolean!
+  kind: GenerativeModelKind!
   createdAt: DateTime!
   updatedAt: DateTime!
   startTime: DateTime
@@ -1287,6 +1287,11 @@ type GenerativeModelEdge {
   node: GenerativeModel!
 }
 
+input GenerativeModelFilter {
+  kind: [GenerativeModelKind!]
+  modelName: String
+}
+
 input GenerativeModelInput {
   providerKey: GenerativeProviderKey!
   name: String!
@@ -1294,6 +1299,23 @@ input GenerativeModelInput {
   endpoint: String
   apiVersion: String
   region: String
+}
+
+enum GenerativeModelKind {
+  CUSTOM
+  BUILT_IN
+}
+
+input GenerativeModelSort {
+  col: GenerativeModelSortColumn!
+  dir: SortDir!
+}
+
+enum GenerativeModelSortColumn {
+  PROVIDER
+  NAME
+  CREATED_AT
+  UPDATED_AT
 }
 
 type GenerativeProvider {
@@ -2046,7 +2068,7 @@ type PromptVersionTagMutationPayload {
 
 type Query {
   modelProviders: [GenerativeProvider!]!
-  generativeModels(first: Int = 50, last: Int, after: String, before: String): GenerativeModelConnection!
+  generativeModels(first: Int = 50, last: Int, after: String, before: String, sort: GenerativeModelSort, filter: GenerativeModelFilter): GenerativeModelConnection!
   playgroundModels(input: ModelsInput = null): [PlaygroundModel!]!
   modelInvocationParameters(input: ModelsInput = null): [InvocationParameter!]!
   users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
