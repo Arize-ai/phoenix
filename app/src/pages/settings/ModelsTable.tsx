@@ -1,11 +1,12 @@
-/* eslint-disable react/prop-types */
 import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
+  getFilteredRowModel,
   getSortedRowModel,
+  SortingFn,
   useReactTable,
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
@@ -17,7 +18,10 @@ import {
   getCommonPinningStyles,
   tableCSS,
 } from "@phoenix/components/table/styles";
-import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import {
+  DEFAULT_FORMAT,
+  TimestampCell,
+} from "@phoenix/components/table/TimestampCell";
 import {
   Tooltip,
   TooltipArrow,
@@ -25,6 +29,7 @@ import {
 } from "@phoenix/components/tooltip";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import {
+  GenerativeModelKind,
   ModelsTable_generativeModels$data,
   ModelsTable_generativeModels$key,
 } from "@phoenix/pages/settings/__generated__/ModelsTable_generativeModels.graphql";
@@ -38,7 +43,15 @@ import { DeleteModelButton } from "./DeleteModelButton";
 
 type ModelsTableProps = {
   modelsRef: ModelsTable_generativeModels$key;
+  kindFilter: "ALL" | GenerativeModelKind;
+  search: string;
 };
+
+function filterableDateAccessorFn(row?: string | null | undefined) {
+  return row != null
+    ? new Date(row).toLocaleString([], DEFAULT_FORMAT)
+    : undefined;
+}
 
 function getRowCostNumber(
   row: ModelsTable_generativeModels$data["generativeModels"][number],
@@ -58,7 +71,43 @@ function getRowCost(
   return cost != null ? `${costFormatter(cost)}` : "--";
 }
 
-export function ModelsTable({ modelsRef }: ModelsTableProps) {
+const sortCostColumnFn: SortingFn<
+  ModelsTable_generativeModels$data["generativeModels"][number]
+> = (rowA, rowB, columnId) => {
+  const costA = getRowCostNumber(rowA.original, columnId);
+  const costB = getRowCostNumber(rowB.original, columnId);
+  if (costA == null && costB == null) {
+    return 0;
+  }
+  if (costA == null) {
+    return 1;
+  }
+  if (costB == null) {
+    return -1;
+  }
+  return costA - costB;
+};
+
+const makeCostColumn = (tokenType: string, header: string) => {
+  return {
+    header,
+    id: tokenType,
+    accessorFn: (row) => getRowCost(row, tokenType),
+    sortingFn: sortCostColumnFn,
+    sortUndefined: "last",
+    cell: ({ row }) => {
+      return getRowCost(row.original, tokenType);
+    },
+  } satisfies ColumnDef<
+    ModelsTable_generativeModels$data["generativeModels"][number]
+  >;
+};
+
+export function ModelsTable({
+  modelsRef,
+  kindFilter,
+  search,
+}: ModelsTableProps) {
   const data = useFragment(
     graphql`
       fragment ModelsTable_generativeModels on Query {
@@ -95,6 +144,12 @@ export function ModelsTable({ modelsRef }: ModelsTableProps) {
   type TableRow = (typeof tableData)[number];
   const columns = useMemo(() => {
     const cols = [
+      // invisible column for filtering purposes
+      {
+        id: "kind",
+        enableHiding: true,
+        accessorFn: (row) => row.kind,
+      },
       {
         header: "name",
         accessorKey: "name",
@@ -147,99 +202,47 @@ export function ModelsTable({ modelsRef }: ModelsTableProps) {
         accessorKey: "namePattern",
         cell: TextCell,
       },
-      {
-        header: "input cost",
-        accessorFn: (row) => getRowCostNumber(row, "input"),
-        sortUndefined: "last",
-        cell: ({ row }) => {
-          return getRowCost(row.original, "input");
-        },
-      },
-      {
-        header: "output cost",
-        accessorFn: (row) => getRowCostNumber(row, "output"),
-        sortUndefined: "last",
-        cell: ({ row }) => {
-          return getRowCost(row.original, "output");
-        },
-      },
-      {
-        header: "cache read cost",
-        accessorFn: (row) => getRowCostNumber(row, "cacheRead"),
-        sortUndefined: "last",
-        cell: ({ row }) => {
-          return getRowCost(row.original, "cacheRead");
-        },
-      },
-      {
-        header: "cache write cost",
-        accessorFn: (row) => getRowCostNumber(row, "cacheWrite"),
-        sortUndefined: "last",
-        cell: ({ row }) => {
-          return getRowCost(row.original, "cacheWrite");
-        },
-      },
-      {
-        header: "prompt audio cost",
-        accessorFn: (row) => getRowCostNumber(row, "promptAudio"),
-        sortUndefined: "last",
-        cell: ({ row }) => {
-          return getRowCost(row.original, "promptAudio");
-        },
-      },
-      {
-        header: "completion audio cost",
-        accessorFn: (row) => getRowCostNumber(row, "completionAudio"),
-        sortUndefined: "last",
-        cell: ({ row }) => {
-          return getRowCost(row.original, "completionAudio");
-        },
-      },
-      {
-        header: "reasoning cost",
-        accessorFn: (row) => getRowCostNumber(row, "reasoning"),
-        sortUndefined: "last",
-        cell: ({ row }) => {
-          return getRowCost(row.original, "reasoning");
-        },
-      },
+      makeCostColumn("input", "input cost"),
+      makeCostColumn("output", "output cost"),
+      makeCostColumn("cacheRead", "cache read cost"),
+      makeCostColumn("cacheWrite", "cache write cost"),
+      makeCostColumn("promptAudio", "prompt audio cost"),
+      makeCostColumn("completionAudio", "completion audio cost"),
+      makeCostColumn("reasoning", "reasoning cost"),
       {
         header: "start date",
         // move null values to the end of the list
         sortUndefined: "last",
         // tanstack table doesn't know how to sort null values, so we need to coalesce to undefined
-        accessorFn: (row) => row.startTime ?? undefined,
+        accessorFn: (row) => filterableDateAccessorFn(row.startTime),
         cell: (props) => {
-          if (props.row.original.startTime) {
-            return (
-              <TimestampCell
-                {...props}
-                format={{
-                  year: "numeric",
-                  month: "numeric",
-                  day: "numeric",
-                }}
-              />
-            );
-          }
-          return <span>--</span>;
+          return (
+            <TimestampCell
+              {...props}
+              format={{
+                year: "numeric",
+                month: "numeric",
+                day: "numeric",
+              }}
+            />
+          );
         },
       },
       {
         header: "created at",
-        accessorFn: (row) => row.createdAt ?? undefined,
+        accessorFn: (row) => filterableDateAccessorFn(row.createdAt),
         sortUndefined: "last",
         cell: TimestampCell,
       },
       {
         header: "updated at",
-        accessorFn: (row) => row.updatedAt ?? undefined,
+        accessorFn: (row) => filterableDateAccessorFn(row.updatedAt),
         sortUndefined: "last",
         cell: TimestampCell,
       },
       {
         header: "last used at",
-        accessorFn: (row) => row.lastUsedAt ?? undefined,
+        accessorFn: (row) => filterableDateAccessorFn(row.lastUsedAt),
         sortUndefined: "last",
         cell: TimestampCell,
       },
@@ -292,17 +295,33 @@ export function ModelsTable({ modelsRef }: ModelsTableProps) {
     return cols;
   }, []);
 
+  // if this is not memoized, the table will get into an infinite loop
+  const columnFilters = useMemo(() => {
+    return [
+      {
+        id: "kind",
+        value: kindFilter === "ALL" ? "" : kindFilter,
+      },
+    ];
+  }, [kindFilter]);
+
   const table = useReactTable({
     columns,
     data: tableData,
-    initialState: {
+    state: {
+      columnVisibility: {
+        kind: false,
+      },
       columnPinning: {
         left: ["name", "provider"],
         right: ["actions"],
       },
+      globalFilter: search,
+      columnFilters,
     },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
   });
 
   const rows = table.getRowModel().rows;
@@ -310,9 +329,9 @@ export function ModelsTable({ modelsRef }: ModelsTableProps) {
 
   if (isEmpty) {
     return (
-      <div>
-        <p>No models found.</p>
-      </div>
+      <Flex width="100%" justifyContent="center" alignItems="center">
+        <p>No models found</p>
+      </Flex>
     );
   }
 
