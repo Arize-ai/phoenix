@@ -1115,13 +1115,20 @@ class OpenAIStreamingClient(OpenAIBaseStreamingClient):
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=[
         "o1",
+        "o1-pro",
         "o1-2024-12-17",
+        "o1-pro-2025-03-19",
         "o1-mini",
         "o1-mini-2024-09-12",
         "o1-preview",
         "o1-preview-2024-09-12",
+        "o3",
+        "o3-pro",
+        "o3-2025-04-16",
         "o3-mini",
         "o3-mini-2025-01-31",
+        "o4-mini",
+        "o4-mini-2025-04-16",
     ],
 )
 class OpenAIReasoningStreamingClient(OpenAIStreamingClient):
