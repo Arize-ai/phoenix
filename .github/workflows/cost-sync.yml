@@ -8,21 +8,7 @@ on:
   # Will remove this step after testing
   push:
     branches:
-      - jonny/cost-sync
-  pull_request:
-    branches:
-      - jonny/cost-sync
-  # Will remove this step after testing
-
-  schedule:
-    # Run daily at 2 AM UTC
-    - cron: '0 2 * * *'
-  workflow_dispatch:
-  push:
-    paths:
-      - '.github/workflows/sync-openrouter-models.yml'
-      - 'scripts/sync_openrouter_models.py'
-      - 'requirements/sync-models.txt'
+      - jonny/cost-sync 
 
 jobs:
   sync-models:
