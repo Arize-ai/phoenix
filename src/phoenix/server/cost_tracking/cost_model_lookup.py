@@ -27,8 +27,8 @@ class CostModelLookup:
         self._regex_specificity_score: dict[_RegexPatternStr, _RegexSpecificityScore] = {}
 
         for m in self._models:
-            if (pattern_str := m.llm_name_pattern) not in self._regex:
-                self._regex[pattern_str] = re.compile(m.llm_name_pattern)
+            if (pattern_str := m.name_pattern) not in self._regex:
+                self._regex[pattern_str] = re.compile(m.name_pattern)
                 self._regex_specificity_score[pattern_str] = regex_specificity.score(pattern_str)
 
             # For built-in models, use negative ID so that earlier IDs win
@@ -36,7 +36,7 @@ class CostModelLookup:
             tie_breaker = -m.id if m.is_built_in else m.id
 
             self._model_priority[m.id] = (
-                self._regex_specificity_score[m.llm_name_pattern],
+                self._regex_specificity_score[m.name_pattern],
                 m.start_time.timestamp() if m.start_time else 0.0,
                 tie_breaker,
             )
@@ -77,7 +77,7 @@ class CostModelLookup:
                - Within each tier, models are sorted by priority tuple:
                  (start_time.timestamp, regex_specificity_score, tie_breaker)
                - Higher priority models (later in sorted list) are checked first
-            5. **Regex Matching**: The first model whose llm_name_pattern matches the
+            5. **Regex Matching**: The first model whose name_pattern matches the
                model name from attributes is returned
 
         Priority Tuple Components:
@@ -99,41 +99,46 @@ class CostModelLookup:
 
         candidates: list[models.GenerativeModel] = list(self._models)
 
-        # Filter candidates by llm_provider if it exists
+        # Remove candidates by start_time
+        candidates_matched_by_time = [
+            c for c in candidates if not c.start_time or c.start_time <= start_time
+        ]
+        if not candidates_matched_by_time:
+            return None
+        candidates = candidates_matched_by_time
+
+        # Remove candidates by name_pattern
+        candidates_matched_by_name = [
+            c for c in candidates if self._regex[c.name_pattern].match(llm_name)
+        ]
+        if not candidates_matched_by_name:
+            return None
+        candidates = candidates_matched_by_name
+
+        if len(candidates) == 1:
+            return candidates[0]
+
         llm_provider = str(
             get_attribute_value(attributes, SpanAttributes.LLM_PROVIDER) or ""
         ).strip()
-        if llm_provider:
-            candidates = [c for c in candidates if c.provider and c.provider == llm_provider]
-            if not candidates:
-                return None
 
-        # Filter candidates by start_time
-        candidates = [c for c in candidates if not c.start_time or c.start_time <= start_time]
-        if not candidates:
-            return None
+        for is_built_in in (False, True):
+            candidates_subset = [c for c in candidates if c.is_built_in == is_built_in]
+            if llm_provider:
+                provider_specific_candidates = [
+                    c for c in candidates_subset if c.provider and c.provider == llm_provider
+                ]
+                if provider_specific_candidates:
+                    candidates_subset = provider_specific_candidates
 
-        # Look for user-defined candidates that match the llm_name
-        user_defined_candidates = sorted(
-            (c for c in candidates if not c.is_built_in),
-            key=lambda c: self._model_priority[c.id],
-        )
-        if user_defined_candidates:
-            # Start with the highest priority
-            for c in reversed(user_defined_candidates):
-                if c.llm_name_pattern and self._regex[c.llm_name_pattern].match(llm_name):
-                    return c
+            if len(candidates_subset) == 1:
+                return candidates_subset[0]
 
-        # Look for built-in candidates that match the llm_name
-        built_in_candidates = sorted(
-            (c for c in candidates if c.is_built_in),
-            key=lambda c: self._model_priority[c.id],
-        )
-        if built_in_candidates:
-            # Start with the highest priority
-            for c in reversed(built_in_candidates):
-                if c.llm_name_pattern and self._regex[c.llm_name_pattern].match(llm_name):
-                    return c
+            if candidates_subset:
+                return sorted(
+                    candidates_subset,
+                    key=lambda m: self._model_priority[m.id],
+                    reverse=True,
+                )[0]
 
-        # If no candidates matched, return None
         return None
