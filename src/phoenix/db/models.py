@@ -1353,7 +1353,7 @@ class GenerativeModel(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
-    deleted_at: Mapped[Optional[datetime]]
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
 
     token_prices: Mapped[list["TokenPrice"]] = relationship(
         "TokenPrice",
