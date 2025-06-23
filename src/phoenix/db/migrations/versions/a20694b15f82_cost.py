@@ -48,7 +48,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column(
-            "is_override",
+            "is_built_in",
             sa.Boolean,
             nullable=False,
         ),
