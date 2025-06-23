@@ -60,7 +60,8 @@ export const SegmentChart = ({
   return (
     <div style={{ height: `${height}px` }} css={chartContainerCSS}>
       {segments.map((segment, index) => {
-        const percentage = (segment.value / totalValue) * 100;
+        const percentage =
+          totalValue > 0 ? (segment.value / totalValue) * 100 : 0;
         const color = segment.color || getChartColor(index, colors);
         return (
           <div
