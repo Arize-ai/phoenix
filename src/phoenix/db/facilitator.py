@@ -8,11 +8,12 @@ from asyncio import gather
 from datetime import datetime, timedelta, timezone
 from functools import partial
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 import sqlalchemy as sa
 from sqlalchemy import delete, select
-from sqlalchemy.orm import QueryableAttribute
+from sqlalchemy.orm import InstrumentedAttribute
+from sqlalchemy.sql.dml import ReturningDelete
 
 from phoenix import config
 from phoenix.auth import (
@@ -227,8 +228,8 @@ _CHILDLESS_RECORD_DELETION_GRACE_PERIOD_DAYS = 1
 
 def _get_stmt_to_delete_expired_childless_records(
     table: type[models.Base],
-    foreign_key: QueryableAttribute[int],
-) -> sa.Delete:
+    foreign_key: Union[InstrumentedAttribute[int], InstrumentedAttribute[Optional[int]]],
+) -> ReturningDelete[tuple[int]]:
     """
     Creates a SQLAlchemy DELETE statement to permanently remove childless records.
 
@@ -245,10 +246,12 @@ def _get_stmt_to_delete_expired_childless_records(
     cutoff_time = datetime.now(timezone.utc) - timedelta(
         days=_CHILDLESS_RECORD_DELETION_GRACE_PERIOD_DAYS
     )
-    return sa.delete(table).where(
-        table.deleted_at.isnot(None)
-        & (table.deleted_at < cutoff_time)
-        & ~sa.exists().where(table.id == foreign_key)
+    return (
+        sa.delete(table)
+        .where(table.deleted_at.isnot(None))
+        .where(table.deleted_at < cutoff_time)
+        .where(~sa.exists().where(table.id == foreign_key))
+        .returning(table.id)
     )
 
 
@@ -271,7 +274,11 @@ async def _delete_expired_childless_records_on_generative_models(
         models.SpanCost.model_id,
     )
     async with db() as session:
-        await session.execute(stmt)
+        result = (await session.scalars(stmt)).all()
+    if result:
+        logger.info(f"Permanently deleted {len(result)} expired childless GenerativeModel records")
+    else:
+        logger.debug("No expired childless GenerativeModel records found for permanent deletion")
 
 
 async def _delete_expired_childless_records(
