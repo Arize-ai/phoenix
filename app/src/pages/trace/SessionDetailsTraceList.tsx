@@ -10,6 +10,7 @@ import { Flex, Icon, Icons, Link, Text, View } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { JSONBlock } from "@phoenix/components/code";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { SpanCumulativeTokenCosts } from "@phoenix/components/trace/SpanCumulativeTokenCosts";
 import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
@@ -22,7 +23,6 @@ import {
   SessionDetailsQuery$data,
 } from "./__generated__/SessionDetailsQuery.graphql";
 import { EditSpanAnnotationsButton } from "./EditSpanAnnotationsButton";
-import { SpanCumulativeTokenCosts } from "@phoenix/components/trace/SpanCumulativeTokenCosts";
 
 const getUserFromRootSpanAttributes = (attributes: string) => {
   const { json: parsedAttributes } = safelyParseJSON(attributes);
