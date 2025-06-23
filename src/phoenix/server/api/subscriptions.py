@@ -62,10 +62,9 @@ from phoenix.server.api.types.Experiment import to_gql_experiment
 from phoenix.server.api.types.ExperimentRun import to_gql_experiment_run
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
-from phoenix.server.cost_tracking.cost_lookup import get_cost_table
+from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.types import DbSessionFactory
-from phoenix.trace.attributes import get_attribute_value
 from phoenix.utilities.template_formatters import (
     FStringTemplateFormatter,
     MustacheTemplateFormatter,
@@ -383,14 +382,18 @@ class Subscription:
                     and not write_already_in_progress
                 ):
                     result_payloads_stream = _chat_completion_result_payloads(
-                        db=info.context.db, results=_drain_no_wait(results)
+                        db=info.context.db,
+                        results=_drain_no_wait(results),
+                        span_cost_calculator=info.context.span_cost_calculator,
                     )
                     task = _create_task_with_timeout(result_payloads_stream)
                     in_progress.append((None, result_payloads_stream, task))
                     last_write_time = datetime.now()
         if remaining_results := await _drain(results):
             async for result_payload in _chat_completion_result_payloads(
-                db=info.context.db, results=remaining_results
+                db=info.context.db,
+                results=remaining_results,
+                span_cost_calculator=info.context.span_cost_calculator,
             ):
                 yield result_payload
 
@@ -474,6 +477,7 @@ async def _chat_completion_result_payloads(
     *,
     db: DbSessionFactory,
     results: Sequence[ChatCompletionResult],
+    span_cost_calculator: SpanCostCalculator,
 ) -> ChatStream:
     if not results:
         return
@@ -482,13 +486,14 @@ async def _chat_completion_result_payloads(
             if span:
                 session.add(span)
                 await session.flush()
-                span_cost = _calculate_span_cost(
-                    span.attributes,
-                    span.start_time,
-                    span.id,
-                    span.trace_rowid,
+                span_cost = span_cost_calculator.calculate_cost(
+                    start_time=span.start_time,
+                    attributes=span.attributes,
                 )
-                session.add(span_cost) if span_cost else None
+                if span_cost:
+                    span_cost.span_rowid = span.id
+                    span_cost.trace_rowid = span.trace_rowid
+                    session.add(span_cost)
             session.add(run)
         await session.flush()
     for example_id, span, run in results:
@@ -615,55 +620,3 @@ LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
 PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
 LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
 LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
-
-
-def _calculate_span_cost(
-    span_attributes: dict[str, Any],
-    span_start_time: datetime,
-    span_id: int,
-    trace_rowid: int,
-) -> Optional[models.SpanCost]:
-    llm_model_name = get_attribute_value(span_attributes, LLM_MODEL_NAME)
-    if not llm_model_name:
-        return None
-
-    llm_provider = get_attribute_value(span_attributes, LLM_PROVIDER)
-    cost_table = get_cost_table()
-    cost_table_result = cost_table.get_cost(provider=llm_provider, model_name=llm_model_name)
-    if not cost_table_result:
-        return None
-
-    _, token_costs = cost_table_result[0]
-    model_id = token_costs.model_id
-    cost_per_input_token = token_costs.input
-    cost_per_output_token = token_costs.output
-
-    llm_prompt_tokens = get_attribute_value(span_attributes, LLM_TOKEN_COUNT_PROMPT)
-    llm_completion_tokens = get_attribute_value(span_attributes, LLM_TOKEN_COUNT_COMPLETION)
-
-    input_token_cost = (
-        llm_prompt_tokens * cost_per_input_token
-        if llm_prompt_tokens is not None and cost_per_input_token is not None
-        else None
-    )
-    output_token_cost = (
-        llm_completion_tokens * cost_per_output_token
-        if llm_completion_tokens is not None and cost_per_output_token is not None
-        else None
-    )
-
-    costs = [cost for cost in [input_token_cost, output_token_cost] if cost is not None]
-    if not costs:
-        return None
-
-    total_token_cost = sum(costs)
-
-    return models.SpanCost(
-        span_rowid=span_id,
-        span_start_time=span_start_time,
-        trace_rowid=trace_rowid,
-        model_id=model_id,
-        prompt_cost=input_token_cost,
-        completion_cost=output_token_cost,
-        total_cost=total_token_cost,
-    )

@@ -43,9 +43,10 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column(
-            "is_override",
+            "is_built_in",
             sa.Boolean,
             nullable=False,
+            server_default=sa.false(),
         ),
         sa.Column(
             "start_time",

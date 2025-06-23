@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 _GenerativeModelId: TypeAlias = int
 
 
-class QueueItem(NamedTuple):
+class SpanCostCalculatorQueueItem(NamedTuple):
     span_rowid: int
     trace_rowid: int
     attributes: Mapping[str, Any]
@@ -39,7 +39,7 @@ class SpanCostCalculator(DaemonTask):
         self._db = db
         self._model_store = model_store
         self._costs: defaultdict[_GenerativeModelId, list[models.SpanCost]] = defaultdict(list)
-        self._queue: list[QueueItem] = []
+        self._queue: list[SpanCostCalculatorQueueItem] = []
 
     async def _run(self) -> None:
         while self._running:
@@ -71,7 +71,7 @@ class SpanCostCalculator(DaemonTask):
             except Exception as e:
                 logger.exception(f"Failed to insert costs for model ID {model_id}: {e}")
 
-    def put_nowait(self, item: QueueItem) -> None:
+    def put_nowait(self, item: SpanCostCalculatorQueueItem) -> None:
         self._queue.append(item)
 
     def calculate_cost(

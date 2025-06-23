@@ -575,7 +575,7 @@ async def default_model(db: DbSessionFactory) -> models.GenerativeModel:
             name="default-model",
             provider="openai",
             llm_name_pattern="gpt-*",
-            is_override=False,
+            is_built_in=True,
             token_prices=[
                 models.TokenPrice(
                     token_type="input",
@@ -604,7 +604,7 @@ async def custom_model(db: DbSessionFactory) -> models.GenerativeModel:
             name="custom-model",
             provider="anthropic",
             llm_name_pattern="claude-*",
-            is_override=True,
+            is_built_in=True,
             token_prices=[
                 models.TokenPrice(
                     token_type="input",
