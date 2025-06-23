@@ -8,6 +8,7 @@ from sqlalchemy import (
     JSON,
     NUMERIC,
     TIMESTAMP,
+    BigInteger,
     Boolean,
     CheckConstraint,
     ColumnElement,
@@ -440,7 +441,6 @@ class Base(DeclarativeBase):
 
 class ProjectTraceRetentionPolicy(Base):
     __tablename__ = "project_trace_retention_policies"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     cron_expression: Mapped[TraceRetentionCronExpression] = mapped_column(
         _TraceRetentionCronExpression, nullable=False
@@ -1337,6 +1337,7 @@ CostType: TypeAlias = Literal["DEFAULT", "OVERRIDE"]
 
 class GenerativeModel(Base):
     __tablename__ = "generative_models"
+    id: Mapped[int] = mapped_column(sa.BigInteger, primary_key=True)
     name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     provider: Mapped[Optional[str]]
     start_time: Mapped[Optional[datetime]]
@@ -1362,7 +1363,9 @@ class GenerativeModel(Base):
 
 class TokenPrice(Base):
     __tablename__ = "token_prices"
+    id: Mapped[int] = mapped_column(sa.BigInteger, primary_key=True)
     model_id: Mapped[int] = mapped_column(
+        BigInteger,
         ForeignKey("generative_models.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -1563,7 +1566,7 @@ class ProjectAnnotationConfig(Base):
 
 class SpanCost(Base):
     __tablename__ = "span_costs"
-
+    id: Mapped[int] = mapped_column(sa.BigInteger, primary_key=True)
     span_rowid: Mapped[int] = mapped_column(
         ForeignKey("spans.id", ondelete="CASCADE"),
         nullable=False,
@@ -1668,7 +1671,9 @@ class SpanCost(Base):
 
 class SpanCostDetail(Base):
     __tablename__ = "span_cost_details"
+    id: Mapped[int] = mapped_column(sa.BigInteger, primary_key=True)
     span_cost_id: Mapped[int] = mapped_column(
+        BigInteger,
         ForeignKey("span_costs.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

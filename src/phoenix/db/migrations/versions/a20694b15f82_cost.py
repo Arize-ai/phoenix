@@ -23,7 +23,7 @@ def upgrade() -> None:
         "generative_models",
         sa.Column(
             "id",
-            sa.Integer,
+            sa.BigInteger,
             primary_key=True,
         ),
         sa.Column(
@@ -69,7 +69,7 @@ def upgrade() -> None:
         "token_prices",
         sa.Column(
             "id",
-            sa.Integer,
+            sa.BigInteger,
             primary_key=True,
         ),
         sa.Column(
@@ -93,7 +93,7 @@ def upgrade() -> None:
         "span_costs",
         sa.Column(
             "id",
-            sa.Integer,
+            sa.BigInteger,
             primary_key=True,
         ),
         sa.Column(
@@ -134,7 +134,7 @@ def upgrade() -> None:
         "span_cost_details",
         sa.Column(
             "id",
-            sa.Integer,
+            sa.BigInteger,
             primary_key=True,
         ),
         sa.Column(
