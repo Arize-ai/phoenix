@@ -6,18 +6,18 @@ from sqlalchemy.sql.functions import coalesce
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
-from phoenix.db.models import Span, SpanCost
-from phoenix.server.api.dataloaders.types import CostBreakdown, SpanCostSummary
+from phoenix.db.models import Span, SpanCost, SpanCostDetail
+from phoenix.server.api.dataloaders.types import CostBreakdown, SpanCostDetailSummaryEntry
 from phoenix.server.types import DbSessionFactory
 
 SpanRowId: TypeAlias = int
 MaxDepth: TypeAlias = int
 
 Key: TypeAlias = tuple[SpanRowId, Optional[MaxDepth]]
-Result: TypeAlias = SpanCostSummary
+Result: TypeAlias = list[SpanCostDetailSummaryEntry]
 
 
-class SpanCumulativeCostSummaryBySpanIdDataLoader(DataLoader[Key, Result]):
+class SpanCumulativeCostDetailSummaryEntriesBySpanDataLoader(DataLoader[Key, Result]):
     def __init__(self, db: DbSessionFactory) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db
@@ -81,42 +81,49 @@ class SpanCumulativeCostSummaryBySpanIdDataLoader(DataLoader[Key, Result]):
             )
         )
 
-        # Now join with span_costs to get the cost data for all descendant spans
-        cost_stmt = (
+        # Now join with span_costs and span_cost_details to get the detailed cost data
+        cost_detail_stmt = (
             select(
                 descendants.c.root_rowid,
                 descendants.c.max_depth,
-                coalesce(func.sum(SpanCost.prompt_cost), 0).label("prompt_cost"),
-                coalesce(func.sum(SpanCost.completion_cost), 0).label("completion_cost"),
-                coalesce(func.sum(SpanCost.total_cost), 0).label("total_cost"),
-                coalesce(func.sum(SpanCost.prompt_tokens), 0).label("prompt_tokens"),
-                coalesce(func.sum(SpanCost.completion_tokens), 0).label("completion_tokens"),
-                coalesce(func.sum(SpanCost.total_tokens), 0).label("total_tokens"),
+                SpanCostDetail.token_type,
+                SpanCostDetail.is_prompt,
+                coalesce(func.sum(SpanCostDetail.cost), 0).label("cost"),
+                coalesce(func.sum(SpanCostDetail.tokens), 0).label("tokens"),
             )
             .select_from(descendants)
             .outerjoin(SpanCost, SpanCost.span_rowid == descendants.c.id)
-            .group_by(descendants.c.root_rowid, descendants.c.max_depth)
+            .outerjoin(SpanCostDetail, SpanCostDetail.span_cost_id == SpanCost.id)
+            .group_by(
+                descendants.c.root_rowid,
+                descendants.c.max_depth,
+                SpanCostDetail.token_type,
+                SpanCostDetail.is_prompt,
+            )
         )
 
-        results: dict[Key, Result] = {}
+        results: dict[Key, list[SpanCostDetailSummaryEntry]] = {}
         async with self._db() as session:
-            data = await session.stream(cost_stmt)
+            data = await session.stream(cost_detail_stmt)
             async for (
                 root_rowid,
                 max_depth,
-                prompt_cost,
-                completion_cost,
-                total_cost,
-                prompt_tokens,
-                completion_tokens,
-                total_tokens,
+                token_type,
+                is_prompt,
+                cost,
+                tokens,
             ) in data:
                 key = (root_rowid, max_depth)
-                results[key] = SpanCostSummary(
-                    prompt=CostBreakdown(tokens=prompt_tokens, cost=prompt_cost),
-                    completion=CostBreakdown(tokens=completion_tokens, cost=completion_cost),
-                    total=CostBreakdown(tokens=total_tokens, cost=total_cost),
-                )
+                if key not in results:
+                    results[key] = []
+                if token_type is not None and is_prompt is not None:
+                    results[key].append(
+                        SpanCostDetailSummaryEntry(
+                            token_type=token_type,
+                            is_prompt=is_prompt,
+                            value=CostBreakdown(tokens=tokens, cost=cost),
+                        )
+                    )
 
         # Return results in the same order as the input keys
-        return [results.get(key, SpanCostSummary()) for key in keys]
+        return [results.get(key, []) for key in keys]

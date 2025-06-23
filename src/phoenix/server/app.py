@@ -113,7 +113,8 @@ from phoenix.server.api.dataloaders import (
     SpanCostSummaryByProjectDataLoader,
     SpanCostSummaryByProjectSessionDataLoader,
     SpanCostSummaryByTraceDataLoader,
-    SpanCumulativeCostSummaryBySpanIdDataLoader,
+    SpanCumulativeCostDetailSummaryEntriesBySpanDataLoader,
+    SpanCumulativeCostSummaryBySpanDataLoader,
     SpanDatasetExamplesDataLoader,
     SpanDescendantsDataLoader,
     SpanProjectsDataLoader,
@@ -729,9 +730,10 @@ def create_graphql_router(
                 ),
                 span_cost_summary_by_project_session=SpanCostSummaryByProjectSessionDataLoader(db),
                 span_cost_summary_by_trace=SpanCostSummaryByTraceDataLoader(db),
-                span_cumulative_cost_summary_by_span_id=SpanCumulativeCostSummaryBySpanIdDataLoader(
+                span_cumulative_cost_detail_summary_entries_by_span=SpanCumulativeCostDetailSummaryEntriesBySpanDataLoader(
                     db
                 ),
+                span_cumulative_cost_summary_by_span=SpanCumulativeCostSummaryBySpanDataLoader(db),
                 span_dataset_examples=SpanDatasetExamplesDataLoader(db),
                 span_descendants=SpanDescendantsDataLoader(db),
                 span_projects=SpanProjectsDataLoader(db),

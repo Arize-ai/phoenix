@@ -22,7 +22,7 @@ export function SpanCumulativeTokenCostsDetails(props: { spanNodeId: string }) {
                 cost
               }
             }
-            costDetailSummaryEntries {
+            cumulativeCostDetailSummaryEntries {
               tokenType
               isPrompt
               value {
@@ -40,7 +40,7 @@ export function SpanCumulativeTokenCostsDetails(props: { spanNodeId: string }) {
 
   const costData = useMemo(() => {
     if (data.node.__typename === "Span") {
-      const details = data.node.costDetailSummaryEntries;
+      const details = data.node.cumulativeCostDetailSummaryEntries;
       if (!details) {
         return {
           total: null,

@@ -830,25 +830,42 @@ class Span(Node):
 
     @strawberry.field
     async def cumulative_cost_summary(self, info: Info[Context, None]) -> Optional[SpanCostSummary]:
-        cost_summary = await info.context.data_loaders.span_cumulative_cost_summary_by_span_id.load(
-            (self.span_rowid, None),
+        max_depth = 0
+        cost_summary = await info.context.data_loaders.span_cumulative_cost_summary_by_span.load(
+            (self.span_rowid, max_depth),
         )
         if cost_summary is None:
             return None
         return SpanCostSummary(
             prompt=CostBreakdown(
-                tokens=cost_summary.prompt_tokens,
-                cost=cost_summary.prompt_cost,
+                tokens=cost_summary.prompt.tokens,
+                cost=cost_summary.prompt.cost,
             ),
             completion=CostBreakdown(
-                tokens=cost_summary.completion_tokens,
-                cost=cost_summary.completion_cost,
+                tokens=cost_summary.completion.tokens,
+                cost=cost_summary.completion.cost,
             ),
             total=CostBreakdown(
-                tokens=cost_summary.total_tokens,
-                cost=cost_summary.total_cost,
+                tokens=cost_summary.total.tokens,
+                cost=cost_summary.total.cost,
             ),
         )
+
+    @strawberry.field
+    async def cumulative_cost_detail_summary_entries(
+        self, info: Info[Context, None]
+    ) -> list[SpanCostDetailSummaryEntry]:
+        max_depth = 0
+        loader = info.context.data_loaders.span_cumulative_cost_detail_summary_entries_by_span
+        entries = await loader.load((self.span_rowid, max_depth))
+        return [
+            SpanCostDetailSummaryEntry(
+                token_type=entry.token_type,
+                is_prompt=entry.is_prompt,
+                value=CostBreakdown(tokens=entry.value.tokens, cost=entry.value.cost),
+            )
+            for entry in entries
+        ]
 
 
 def _hide_embedding_vectors(attributes: Mapping[str, Any]) -> Mapping[str, Any]:

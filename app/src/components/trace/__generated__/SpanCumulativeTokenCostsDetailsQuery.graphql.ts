@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<18c3e0138a2e3f96bc05e12d175fdedd>>
+ * @generated SignedSource<<1f0a147ef16314dfe3a89f3e18552b3a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,7 +15,7 @@ export type SpanCumulativeTokenCostsDetailsQuery$variables = {
 export type SpanCumulativeTokenCostsDetailsQuery$data = {
   readonly node: {
     readonly __typename: "Span";
-    readonly costDetailSummaryEntries: ReadonlyArray<{
+    readonly cumulativeCostDetailSummaryEntries: ReadonlyArray<{
       readonly isPrompt: boolean;
       readonly tokenType: string;
       readonly value: {
@@ -127,7 +127,7 @@ v5 = {
       "args": null,
       "concreteType": "SpanCostDetailSummaryEntry",
       "kind": "LinkedField",
-      "name": "costDetailSummaryEntries",
+      "name": "cumulativeCostDetailSummaryEntries",
       "plural": true,
       "selections": [
         {
@@ -230,16 +230,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a9acbe9e312f5496a7f71cfebc2185dd",
+    "cacheID": "9887c7151c5fa580f04d289f60f6d207",
     "id": null,
     "metadata": {},
     "name": "SpanCumulativeTokenCostsDetailsQuery",
     "operationKind": "query",
-    "text": "query SpanCumulativeTokenCostsDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      cumulativeCostSummary {\n        total {\n          cost\n        }\n        prompt {\n          cost\n        }\n        completion {\n          cost\n        }\n      }\n      costDetailSummaryEntries {\n        tokenType\n        isPrompt\n        value {\n          cost\n          tokens\n          costPerToken\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query SpanCumulativeTokenCostsDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      cumulativeCostSummary {\n        total {\n          cost\n        }\n        prompt {\n          cost\n        }\n        completion {\n          cost\n        }\n      }\n      cumulativeCostDetailSummaryEntries {\n        tokenType\n        isPrompt\n        value {\n          cost\n          tokens\n          costPerToken\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "32f0bd4709488ed10236319205bbbe88";
+(node as any).hash = "4076bfd245f0ea021783c5b919c597dd";
 
 export default node;

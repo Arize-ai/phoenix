@@ -2250,6 +2250,7 @@ type Span implements Node {
   costSummary: SpanCostSummary
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
   cumulativeCostSummary: SpanCostSummary
+  cumulativeCostDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
 type SpanAnnotation implements Node & Annotation {
