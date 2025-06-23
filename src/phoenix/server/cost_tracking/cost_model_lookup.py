@@ -124,6 +124,10 @@ class CostModelLookup:
 
         for is_built_in in (False, True):
             candidates_subset = [c for c in candidates if c.is_built_in == is_built_in]
+
+            if not candidates_subset:
+                continue
+
             if llm_provider:
                 provider_specific_candidates = [
                     c for c in candidates_subset if c.provider and c.provider == llm_provider
