@@ -97,6 +97,7 @@ class ModelMutationMixin:
             name=input.name,
             provider=input.provider,
             llm_name_pattern=input.name_pattern,
+            is_built_in=False,
             token_prices=token_prices,
             start_time=input.start_time,
         )
