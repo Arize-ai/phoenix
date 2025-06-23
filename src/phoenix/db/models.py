@@ -1379,7 +1379,7 @@ class TokenPrice(Base):
 
     __table_args__ = (
         UniqueConstraint(
-            "model_id",
+            "",
             "token_type",
             "is_prompt",
         ),
@@ -1577,7 +1577,7 @@ class SpanCost(Base):
         nullable=False,
         index=True,
     )
-    model_id: Mapped[int] = mapped_column(
+    model_id: Mapped[Optional[int]] = mapped_column(
         sa.Integer,
         ForeignKey(
             "generative_models.id",
