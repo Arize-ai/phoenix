@@ -1572,13 +1572,13 @@ class SpanCost(Base):
         nullable=False,
         index=True,
     )
-    model_id: Mapped[int] = mapped_column(
+    model_id: Mapped[Optional[int]] = mapped_column(
         sa.Integer,
         ForeignKey(
             "generative_models.id",
-            ondelete="CASCADE",
+            ondelete="SET NULL",
         ),
-        nullable=False,
+        nullable=True,
         index=True,
     )
     total_cost: Mapped[Optional[float]]

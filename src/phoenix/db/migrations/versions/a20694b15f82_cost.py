@@ -118,8 +118,11 @@ def upgrade() -> None:
         sa.Column(
             "model_id",
             sa.Integer,
-            sa.ForeignKey("generative_models.id", ondelete="CASCADE"),
-            nullable=False,
+            sa.ForeignKey(
+                "generative_models.id",
+                ondelete="SET NULL",
+            ),
+            nullable=True,
             index=True,
         ),
         sa.Column(
