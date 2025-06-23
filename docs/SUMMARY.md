@@ -73,11 +73,6 @@
     * [Suppress Tracing](tracing/how-to-tracing/advanced/suppress-tracing.md)
     * [Filter Spans to Export](tracing/how-to-tracing/advanced/modifying-spans.md)
     * [Capture Multimodal Traces](tracing/how-to-tracing/advanced/multimodal-tracing.md)
-* [Concepts: Tracing](tracing/concepts-tracing/README.md)
-  * [How Tracing Works](tracing/concepts-tracing/how-does-tracing-work.md)
-  * [What are Traces](tracing/concepts-tracing/what-are-traces.md)
-  * [Concepts: Annotations](tracing/concepts-tracing/concepts-annotations.md)
-  * [FAQs: Tracing](tracing/concepts-tracing/faqs-tracing.md)
 
 ## 📃 Prompt Engineering
 
