@@ -1336,9 +1336,9 @@ CostType: TypeAlias = Literal["DEFAULT", "OVERRIDE"]
 
 class GenerativeModel(Base):
     __tablename__ = "generative_models"
-    name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
     provider: Mapped[Optional[str]]
-    start_time: Mapped[Optional[datetime]]
+    start_time: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
     llm_name_pattern: Mapped[str] = mapped_column(String, nullable=False)
     is_built_in: Mapped[bool] = mapped_column(
         Boolean,
@@ -1353,12 +1353,23 @@ class GenerativeModel(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
 
     token_prices: Mapped[list["TokenPrice"]] = relationship(
         "TokenPrice",
         back_populates="model",
         cascade="all, delete-orphan",
         uselist=True,
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_generative_models_name",
+            "name",
+            postgresql_where=sa.text("deleted_at IS NULL"),
+            sqlite_where=sa.text("deleted_at IS NULL"),
+            unique=True,
+        ),
     )
 
 
@@ -1576,7 +1587,7 @@ class SpanCost(Base):
         sa.Integer,
         ForeignKey(
             "generative_models.id",
-            ondelete="SET NULL",
+            ondelete="RESTRICT",
         ),
         nullable=True,
         index=True,

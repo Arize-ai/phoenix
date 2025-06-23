@@ -118,6 +118,7 @@ class Query:
         async with info.context.db() as session:
             result = await session.scalars(
                 select(models.GenerativeModel)
+                .where(models.GenerativeModel.deleted_at.is_(None))
                 .order_by(
                     models.GenerativeModel.is_built_in.asc(),  # display custom models first
                     models.GenerativeModel.provider.nullslast(),
@@ -682,6 +683,7 @@ class Query:
             async with info.context.db() as session:
                 stmt = (
                     select(models.GenerativeModel)
+                    .where(models.GenerativeModel.deleted_at.is_(None))
                     .where(models.GenerativeModel.id == node_id)
                     .options(joinedload(models.GenerativeModel.token_prices))
                 )

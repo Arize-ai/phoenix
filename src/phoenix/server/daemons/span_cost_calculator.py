@@ -38,7 +38,9 @@ class SpanCostCalculator(DaemonTask):
         super().__init__()
         self._db = db
         self._model_store = model_store
-        self._costs: defaultdict[_GenerativeModelId, list[models.SpanCost]] = defaultdict(list)
+        self._costs: defaultdict[Optional[_GenerativeModelId], list[models.SpanCost]] = defaultdict(
+            list
+        )
         self._queue: list[SpanCostCalculatorQueueItem] = []
 
     async def _run(self) -> None:
