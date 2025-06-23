@@ -97,6 +97,17 @@ export const textFieldCSS = css`
     --textfield-horizontal-padding: var(--ac-global-dimension-static-size-200);
   }
 
+  &:has(.ac-icon-wrap) {
+    position: relative;
+
+    .react-aria-Input {
+      padding-right: calc(
+        var(--textfield-horizontal-padding) +
+          var(--ac-global-dimension-static-size-200)
+      );
+    }
+  }
+
   .react-aria-Input,
   .react-aria-TextArea {
     margin: 0;
@@ -113,12 +124,21 @@ export const textFieldCSS = css`
     box-sizing: border-box;
     outline-offset: -1px;
     outline: var(--ac-global-border-size-thin) solid transparent;
-    &[data-focused] {
+    &[data-focused]:not([data-invalid]) {
       outline: 1px solid var(--ac-global-input-field-border-color-active);
     }
   }
   .react-aria-Input {
     /* TODO: remove this sizing */
     height: var(--textfield-input-height);
+  }
+
+  .ac-icon-wrap {
+    --alignment-offset: 52%;
+    position: absolute;
+    right: var(--textfield-horizontal-padding);
+    top: var(--alignment-offset);
+    transform: translateY(calc(var(--alignment-offset) * -1));
+    color: var(--ac-global-color-info);
   }
 `;
