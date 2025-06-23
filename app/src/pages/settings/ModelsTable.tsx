@@ -218,8 +218,9 @@ export function ModelsTable({
         cell: TextCell,
       },
       {
-        header: "input cost",
-        accessorKey: "input",
+        header: "prompt cost",
+        id: "input",
+        accessorFn: (row) => getRowCost(row, "input"),
         meta: { textAlign: "right" },
         sortingFn: sortCostColumnFn,
         sortUndefined: "last",
@@ -263,8 +264,9 @@ export function ModelsTable({
         },
       },
       {
-        header: "output cost",
-        accessorKey: "output",
+        header: "completion cost",
+        id: "output",
+        accessorFn: (row) => getRowCost(row, "output"),
         meta: { textAlign: "right" },
         sortingFn: sortCostColumnFn,
         sortUndefined: "last",
@@ -286,7 +288,7 @@ export function ModelsTable({
                       ?.filter((entry) => entry.kind === "COMPLETION")
                       .map((entry) => (
                         <Flex
-                          key={entry.kind}
+                          key={entry.tokenType}
                           direction="row"
                           gap="size-100"
                           justifyContent="space-between"
