@@ -75,6 +75,7 @@ from phoenix.server.api.dataloaders import (
     AnnotationSummaryDataLoader,
     AverageExperimentRunLatencyDataLoader,
     CacheForDataLoaders,
+    CumulativeCostSummaryBySpanIdDataLoader,
     DatasetExampleRevisionsDataLoader,
     DatasetExampleSpansDataLoader,
     DocumentEvaluationsDataLoader,
@@ -643,6 +644,7 @@ def create_graphql_router(
             event_queue=event_queue,
             data_loaders=DataLoaders(
                 average_experiment_run_latency=AverageExperimentRunLatencyDataLoader(db),
+                cumulative_cost_summary_by_span_id=CumulativeCostSummaryBySpanIdDataLoader(db),
                 dataset_example_revisions=DatasetExampleRevisionsDataLoader(db),
                 dataset_example_spans=DatasetExampleSpansDataLoader(db),
                 document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(

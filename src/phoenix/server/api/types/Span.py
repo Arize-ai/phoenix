@@ -828,6 +828,12 @@ class Span(Node):
             for entry in entries
         ]
 
+    @strawberry.field
+    async def cumulative_cost_summary(self, info: Info[Context, None]) -> Optional[SpanCostSummary]:
+        return await info.context.data_loaders.cumulative_cost_summary_by_span_id.load(
+            (self.span_rowid, None),
+        )
+
 
 def _hide_embedding_vectors(attributes: Mapping[str, Any]) -> Mapping[str, Any]:
     if not (

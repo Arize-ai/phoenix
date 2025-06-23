@@ -18,6 +18,7 @@ from phoenix.server.api.dataloaders import (
     AnnotationSummaryDataLoader,
     AverageExperimentRunLatencyDataLoader,
     CacheForDataLoaders,
+    CumulativeCostSummaryBySpanIdDataLoader,
     DatasetExampleRevisionsDataLoader,
     DatasetExampleSpansDataLoader,
     DocumentEvaluationsDataLoader,
@@ -84,6 +85,7 @@ from phoenix.server.types import (
 class DataLoaders:
     annotation_summaries: AnnotationSummaryDataLoader
     average_experiment_run_latency: AverageExperimentRunLatencyDataLoader
+    cumulative_cost_summary_by_span_id: CumulativeCostSummaryBySpanIdDataLoader
     dataset_example_revisions: DatasetExampleRevisionsDataLoader
     dataset_example_spans: DatasetExampleSpansDataLoader
     document_evaluation_summaries: DocumentEvaluationSummaryDataLoader

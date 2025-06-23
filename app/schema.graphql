@@ -2249,6 +2249,7 @@ type Span implements Node {
   invocationParameters: [InvocationParameter!]!
   costSummary: SpanCostSummary
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+  cumulativeCostSummary: SpanCostSummary
 }
 
 type SpanAnnotation implements Node & Annotation {

@@ -38,6 +38,7 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
+import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { TraceTokenCount } from "@phoenix/components/trace/TraceTokenCount";
 import { ISpanItem } from "@phoenix/components/trace/types";
 import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
@@ -224,6 +225,11 @@ export function TracesTable(props: TracesTableProps) {
                 startTime
                 latencyMs
                 cumulativeTokenCountTotal
+                cumulativeCostSummary {
+                  total {
+                    cost
+                  }
+                }
                 parentId
                 input {
                   value: truncatedValue
@@ -271,6 +277,11 @@ export function TracesTable(props: TracesTableProps) {
                       latencyMs
                       parentId
                       cumulativeTokenCountTotal: tokenCountTotal
+                      cumulativeCostSummary {
+                        total {
+                          cost
+                        }
+                      }
                       input {
                         value: truncatedValue
                       }
@@ -649,6 +660,21 @@ export function TracesTable(props: TracesTableProps) {
               tokenCountTotal={value as number}
               nodeId={row.original.trace.id}
             />
+          );
+        },
+      },
+      {
+        header: "total cost",
+        minSize: 80,
+        accessorKey: "cumulativeCostSummary.total.cost",
+        cell: ({ row, getValue }) => {
+          const value = getValue();
+          if (value === null || typeof value !== "number") {
+            return "--";
+          }
+          const span = row.original;
+          return (
+            <SpanTokenCosts totalCost={value} spanNodeId={span.id} size="S" />
           );
         },
       },
