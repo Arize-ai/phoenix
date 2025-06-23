@@ -1379,7 +1379,7 @@ class TokenPrice(Base):
 
     __table_args__ = (
         UniqueConstraint(
-            "",
+            "model_id",
             "token_type",
             "is_prompt",
         ),
