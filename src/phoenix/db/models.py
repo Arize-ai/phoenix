@@ -1350,12 +1350,23 @@ class GenerativeModel(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+    deleted_at: Mapped[Optional[datetime]]
 
     token_prices: Mapped[list["TokenPrice"]] = relationship(
         "TokenPrice",
         back_populates="model",
         cascade="all, delete-orphan",
         uselist=True,
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_name",
+            "name",
+            postgresql_where=sa.text("deleted_at IS NULL"),
+            sqlite_where=sa.text("deleted_at IS NULL"),
+            unique=True,
+        ),
     )
 
 

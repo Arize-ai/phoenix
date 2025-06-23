@@ -5,12 +5,14 @@ import json
 import logging
 import secrets
 from asyncio import gather
+from datetime import datetime, timedelta, timezone
 from functools import partial
 from pathlib import Path
 from typing import Optional
 
 import sqlalchemy as sa
 from sqlalchemy import delete, select
+from sqlalchemy.orm import QueryableAttribute
 
 from phoenix import config
 from phoenix.auth import (
@@ -66,6 +68,8 @@ class Facilitator:
             partial(_ensure_admins, email_sender=self._email_sender),
             _ensure_default_project_trace_retention_policy,
             _ensure_model_costs,
+            _delete_expired_childless_records,
+            _mark_new_childless_records,
         ):
             await fn(self._db)
 
@@ -220,6 +224,135 @@ async def _ensure_admins(
             logger.error(f"Failed to send welcome email: {exc}")
 
 
+def _get_stmt_to_mark_new_childless_records(
+    table: type[models.Base],
+    foreign_key: QueryableAttribute[int],
+) -> sa.Update:
+    """
+    Creates a SQLAlchemy UPDATE statement to mark childless records for deletion.
+
+    Args:
+        table: The table model class that has a deleted_at column
+        foreign_key: The foreign key attribute to check for child relationships
+
+    Returns:
+        An UPDATE statement that sets deleted_at to current timestamp for childless records
+    """  # noqa: E501
+    if not hasattr(table, "deleted_at"):
+        raise TypeError("Table must have a 'deleted_at' column")
+    return (
+        sa.update(table)
+        .where(table.deleted_at.is_(None) & ~sa.exists().filter_by(id=foreign_key))
+        .values(deleted_at=datetime.now(timezone.utc))
+    )
+
+
+async def _mark_new_childless_records_on_generative_models(
+    db: DbSessionFactory,
+) -> None:
+    """
+    Marks childless GenerativeModel records for deletion by setting their deleted_at timestamp.
+
+    This function identifies GenerativeModel records that have no associated SpanCost records
+    and marks them for future deletion by setting their deleted_at field to the current time.
+    """  # noqa: E501
+    stmt = _get_stmt_to_mark_new_childless_records(
+        models.GenerativeModel,
+        models.SpanCost.model_id,
+    )
+    async with db() as session:
+        await session.execute(stmt)
+
+
+async def _mark_new_childless_records(
+    db: DbSessionFactory,
+) -> None:
+    """
+    Marks childless records across all relevant tables for future deletion.
+
+    This function runs the marking process for all table types that support soft deletion,
+    handling any exceptions that occur during the process.
+    """  # noqa: E501
+    exceptions = await gather(
+        _mark_new_childless_records_on_generative_models(db),
+        return_exceptions=True,
+    )
+    for exc in exceptions:
+        if isinstance(exc, Exception):
+            logger.error(f"Failed to mark new childless records: {exc}")
+
+
+_CHILDLESS_RECORD_DELETION_GRACE_PERIOD_DAYS = 1
+
+
+def _get_stmt_to_delete_expired_childless_records(
+    table: type[models.Base],
+    foreign_key: QueryableAttribute[int],
+) -> sa.Delete:
+    """
+    Creates a SQLAlchemy DELETE statement to permanently remove childless records.
+
+    Args:
+        table: The table model class that has a deleted_at column
+        foreign_key: The foreign key attribute to check for child relationships
+
+    Returns:
+        A DELETE statement that removes childless records marked for deletion more than
+        _CHILDLESS_RECORD_DELETION_GRACE_PERIOD_DAYS days ago
+    """  # noqa: E501
+    if not hasattr(table, "deleted_at"):
+        raise TypeError("Table must have a 'deleted_at' column")
+    cutoff_time = datetime.now(timezone.utc) - timedelta(
+        days=_CHILDLESS_RECORD_DELETION_GRACE_PERIOD_DAYS
+    )
+    return sa.delete(table).where(
+        table.deleted_at.isnot(None)
+        & (table.deleted_at < cutoff_time)
+        & ~sa.exists().filter_by(id=foreign_key)
+    )
+
+
+async def _delete_expired_childless_records_on_generative_models(
+    db: DbSessionFactory,
+) -> None:
+    """
+    Permanently deletes childless GenerativeModel records that have been marked for deletion.
+
+    This function removes GenerativeModel records that:
+    - Have been marked for deletion (deleted_at is not NULL)
+    - Were marked more than 1 day ago (grace period expired)
+    - Have no associated SpanCost records (childless)
+
+    This cleanup is necessary to remove orphaned records that may have been left behind
+    due to previous migrations or deletions.
+    """  # noqa: E501
+    stmt = _get_stmt_to_delete_expired_childless_records(
+        models.GenerativeModel,
+        models.SpanCost.model_id,
+    )
+    async with db() as session:
+        await session.execute(stmt)
+
+
+async def _delete_expired_childless_records(
+    db: DbSessionFactory,
+) -> None:
+    """
+    Permanently deletes childless records across all relevant tables.
+
+    This function runs the deletion process for all table types that support soft deletion,
+    handling any exceptions that occur during the process. Only records that have been
+    marked for deletion for more than the grace period (1 day) are permanently removed.
+    """  # noqa: E501
+    exceptions = await gather(
+        _delete_expired_childless_records_on_generative_models(db),
+        return_exceptions=True,
+    )
+    for exc in exceptions:
+        if isinstance(exc, Exception):
+            logger.error(f"Failed to delete childless records: {exc}")
+
+
 async def _ensure_default_project_trace_retention_policy(db: DbSessionFactory) -> None:
     """
     Ensures the default trace retention policy (id=1) exists in the database. Default policy
@@ -276,9 +409,9 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
 
         for model_data in manifest:
             result = await session.execute(
-                select(models.GenerativeModel).where(
-                    models.GenerativeModel.name == model_data["model"]
-                )
+                select(models.GenerativeModel)
+                .where(models.GenerativeModel.deleted_at.is_(None))
+                .where(models.GenerativeModel.name == model_data["model"])
             )
             existing_model = result.scalar_one_or_none()
 

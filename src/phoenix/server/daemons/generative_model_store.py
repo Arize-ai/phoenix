@@ -35,6 +35,7 @@ class GenerativeModelStore(DaemonTask):
     async def _fetch_models(self) -> None:
         stmt = (
             sa.select(models.GenerativeModel)
+            .where(models.GenerativeModel.deleted_at.is_(None))
             .options(joinedload(models.GenerativeModel.token_prices))
             .order_by(models.GenerativeModel.name)
         )

@@ -221,6 +221,7 @@ async def _create_cost_table(session: AsyncSession) -> "ModelCostLookup":
 
     result = await session.execute(
         select(models.GenerativeModel)
+        .where(models.GenerativeModel.deleted_at.is_(None))
         .options(joinedload(models.GenerativeModel.token_prices))
         .order_by(models.GenerativeModel.id)
     )

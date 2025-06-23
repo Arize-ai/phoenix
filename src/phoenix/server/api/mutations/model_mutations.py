@@ -1,7 +1,8 @@
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
+import sqlalchemy as sa
 import strawberry
 from sqlalchemy import delete
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
@@ -132,10 +133,11 @@ class ModelMutationMixin:
         _ensure_valid_regex(input.name_pattern)
         token_prices = [cost.token_prices for cost in input.costs]
         async with info.context.db() as session:
-            model = await session.get(
-                models.GenerativeModel,
-                model_id,
-                options=[joinedload(models.GenerativeModel.token_prices)],
+            model = await session.scalar(
+                sa.select(models.GenerativeModel)
+                .where(models.GenerativeModel.deleted_at.is_(None))
+                .where(models.GenerativeModel.id == model_id)
+                .options(joinedload(models.GenerativeModel.token_prices))
             )
             if model is None:
                 raise NotFound(f'Model "{input.id}" not found')
@@ -178,7 +180,9 @@ class ModelMutationMixin:
 
         async with info.context.db() as session:
             model = await session.scalar(
-                delete(models.GenerativeModel)
+                sa.update(models.GenerativeModel)
+                .values(deleted_at=datetime.now(timezone.utc))
+                .where(models.GenerativeModel.deleted_at.is_(None))
                 .where(models.GenerativeModel.id == model_id)
                 .returning(models.GenerativeModel)
             )

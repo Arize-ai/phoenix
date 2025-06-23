@@ -35,7 +35,6 @@ def upgrade() -> None:
             "name",
             sa.String,
             nullable=False,
-            unique=True,
         ),
         sa.Column(
             "provider",
@@ -69,6 +68,19 @@ def upgrade() -> None:
             server_default=sa.func.now(),
             onupdate=sa.func.now(),
         ),
+        sa.Column(
+            "deleted_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=True,
+        ),
+    )
+    op.create_index(
+        "ix_name",
+        "generative_models",
+        ["name"],
+        unique=True,
+        postgresql_where=sa.text("deleted_at IS NULL"),
+        sqlite_where=sa.text("deleted_at IS NULL"),
     )
     op.create_table(
         "token_prices",
