@@ -56,8 +56,6 @@ from phoenix.server.api.dataloaders import (
     SpanCostSummaryByProjectDataLoader,
     SpanCostSummaryByProjectSessionDataLoader,
     SpanCostSummaryByTraceDataLoader,
-    SpanCumulativeCostDetailSummaryEntriesBySpanDataLoader,
-    SpanCumulativeCostSummaryBySpanDataLoader,
     SpanDatasetExamplesDataLoader,
     SpanDescendantsDataLoader,
     SpanProjectsDataLoader,
@@ -133,10 +131,6 @@ class DataLoaders:
     span_cost_summary_by_project: SpanCostSummaryByProjectDataLoader
     span_cost_summary_by_project_session: SpanCostSummaryByProjectSessionDataLoader
     span_cost_summary_by_trace: SpanCostSummaryByTraceDataLoader
-    span_cumulative_cost_detail_summary_entries_by_span: (
-        SpanCumulativeCostDetailSummaryEntriesBySpanDataLoader
-    )
-    span_cumulative_cost_summary_by_span: SpanCumulativeCostSummaryBySpanDataLoader
     span_dataset_examples: SpanDatasetExamplesDataLoader
     span_descendants: SpanDescendantsDataLoader
     span_fields: TableFieldsDataLoader

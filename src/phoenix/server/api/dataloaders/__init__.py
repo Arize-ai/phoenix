@@ -49,10 +49,6 @@ from .span_cost_summary_by_project import SpanCostSummaryByProjectDataLoader, Sp
 from .span_cost_summary_by_project_session import SpanCostSummaryByProjectSessionDataLoader
 from .span_cost_summary_by_trace import SpanCostSummaryByTraceDataLoader
 from .span_costs import SpanCostsDataLoader
-from .span_cumulative_cost_detail_summary_entries_by_span import (
-    SpanCumulativeCostDetailSummaryEntriesBySpanDataLoader,
-)
-from .span_cumulative_cost_summary_by_span import SpanCumulativeCostSummaryBySpanDataLoader
 from .span_dataset_examples import SpanDatasetExamplesDataLoader
 from .span_descendants import SpanDescendantsDataLoader
 from .span_projects import SpanProjectsDataLoader
@@ -107,8 +103,6 @@ __all__ = [
     "SpanCostSummaryByProjectSessionDataLoader",
     "SpanCostSummaryByTraceDataLoader",
     "SpanCostsDataLoader",
-    "SpanCumulativeCostDetailSummaryEntriesBySpanDataLoader",
-    "SpanCumulativeCostSummaryBySpanDataLoader",
     "SpanDatasetExamplesDataLoader",
     "SpanDescendantsDataLoader",
     "SpanProjectsDataLoader",
