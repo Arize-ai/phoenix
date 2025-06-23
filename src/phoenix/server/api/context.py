@@ -18,7 +18,6 @@ from phoenix.server.api.dataloaders import (
     AnnotationSummaryDataLoader,
     AverageExperimentRunLatencyDataLoader,
     CacheForDataLoaders,
-    CumulativeCostSummaryBySpanIdDataLoader,
     DatasetExampleRevisionsDataLoader,
     DatasetExampleSpansDataLoader,
     DocumentEvaluationsDataLoader,
@@ -57,6 +56,7 @@ from phoenix.server.api.dataloaders import (
     SpanCostSummaryByProjectDataLoader,
     SpanCostSummaryByProjectSessionDataLoader,
     SpanCostSummaryByTraceDataLoader,
+    SpanCumulativeCostSummaryBySpanIdDataLoader,
     SpanDatasetExamplesDataLoader,
     SpanDescendantsDataLoader,
     SpanProjectsDataLoader,
@@ -85,7 +85,6 @@ from phoenix.server.types import (
 class DataLoaders:
     annotation_summaries: AnnotationSummaryDataLoader
     average_experiment_run_latency: AverageExperimentRunLatencyDataLoader
-    cumulative_cost_summary_by_span_id: CumulativeCostSummaryBySpanIdDataLoader
     dataset_example_revisions: DatasetExampleRevisionsDataLoader
     dataset_example_spans: DatasetExampleSpansDataLoader
     document_evaluation_summaries: DocumentEvaluationSummaryDataLoader
@@ -133,6 +132,7 @@ class DataLoaders:
     span_cost_summary_by_project: SpanCostSummaryByProjectDataLoader
     span_cost_summary_by_project_session: SpanCostSummaryByProjectSessionDataLoader
     span_cost_summary_by_trace: SpanCostSummaryByTraceDataLoader
+    span_cumulative_cost_summary_by_span_id: SpanCumulativeCostSummaryBySpanIdDataLoader
     span_dataset_examples: SpanDatasetExamplesDataLoader
     span_descendants: SpanDescendantsDataLoader
     span_fields: TableFieldsDataLoader

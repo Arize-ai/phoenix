@@ -75,7 +75,6 @@ from phoenix.server.api.dataloaders import (
     AnnotationSummaryDataLoader,
     AverageExperimentRunLatencyDataLoader,
     CacheForDataLoaders,
-    CumulativeCostSummaryBySpanIdDataLoader,
     DatasetExampleRevisionsDataLoader,
     DatasetExampleSpansDataLoader,
     DocumentEvaluationsDataLoader,
@@ -114,6 +113,7 @@ from phoenix.server.api.dataloaders import (
     SpanCostSummaryByProjectDataLoader,
     SpanCostSummaryByProjectSessionDataLoader,
     SpanCostSummaryByTraceDataLoader,
+    SpanCumulativeCostSummaryBySpanIdDataLoader,
     SpanDatasetExamplesDataLoader,
     SpanDescendantsDataLoader,
     SpanProjectsDataLoader,
@@ -644,7 +644,6 @@ def create_graphql_router(
             event_queue=event_queue,
             data_loaders=DataLoaders(
                 average_experiment_run_latency=AverageExperimentRunLatencyDataLoader(db),
-                cumulative_cost_summary_by_span_id=CumulativeCostSummaryBySpanIdDataLoader(db),
                 dataset_example_revisions=DatasetExampleRevisionsDataLoader(db),
                 dataset_example_spans=DatasetExampleSpansDataLoader(db),
                 document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(
@@ -730,6 +729,9 @@ def create_graphql_router(
                 ),
                 span_cost_summary_by_project_session=SpanCostSummaryByProjectSessionDataLoader(db),
                 span_cost_summary_by_trace=SpanCostSummaryByTraceDataLoader(db),
+                span_cumulative_cost_summary_by_span_id=SpanCumulativeCostSummaryBySpanIdDataLoader(
+                    db
+                ),
                 span_dataset_examples=SpanDatasetExamplesDataLoader(db),
                 span_descendants=SpanDescendantsDataLoader(db),
                 span_projects=SpanProjectsDataLoader(db),

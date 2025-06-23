@@ -6,7 +6,6 @@ from phoenix.server.api.dataloaders.span_cost_detail_summary_entries_by_project_
 
 from .annotation_summaries import AnnotationSummaryCache, AnnotationSummaryDataLoader
 from .average_experiment_run_latency import AverageExperimentRunLatencyDataLoader
-from .cumulative_cost_summary_by_span_id import CumulativeCostSummaryBySpanIdDataLoader
 from .dataset_example_revisions import DatasetExampleRevisionsDataLoader
 from .dataset_example_spans import DatasetExampleSpansDataLoader
 from .document_evaluation_summaries import (
@@ -50,6 +49,7 @@ from .span_cost_summary_by_project import SpanCostSummaryByProjectDataLoader, Sp
 from .span_cost_summary_by_project_session import SpanCostSummaryByProjectSessionDataLoader
 from .span_cost_summary_by_trace import SpanCostSummaryByTraceDataLoader
 from .span_costs import SpanCostsDataLoader
+from .span_cumulative_cost_summary_by_span_id import SpanCumulativeCostSummaryBySpanIdDataLoader
 from .span_dataset_examples import SpanDatasetExamplesDataLoader
 from .span_descendants import SpanDescendantsDataLoader
 from .span_projects import SpanProjectsDataLoader
@@ -65,7 +65,6 @@ __all__ = [
     "AnnotationSummaryDataLoader",
     "AverageExperimentRunLatencyDataLoader",
     "CacheForDataLoaders",
-    "CumulativeCostSummaryBySpanIdDataLoader",
     "DatasetExampleRevisionsDataLoader",
     "DatasetExampleSpansDataLoader",
     "DocumentEvaluationSummaryDataLoader",
@@ -105,6 +104,7 @@ __all__ = [
     "SpanCostSummaryByProjectSessionDataLoader",
     "SpanCostSummaryByTraceDataLoader",
     "SpanCostsDataLoader",
+    "SpanCumulativeCostSummaryBySpanIdDataLoader",
     "SpanDatasetExamplesDataLoader",
     "SpanDescendantsDataLoader",
     "SpanProjectsDataLoader",

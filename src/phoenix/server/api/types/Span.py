@@ -830,8 +830,24 @@ class Span(Node):
 
     @strawberry.field
     async def cumulative_cost_summary(self, info: Info[Context, None]) -> Optional[SpanCostSummary]:
-        return await info.context.data_loaders.cumulative_cost_summary_by_span_id.load(
+        cost_summary = await info.context.data_loaders.span_cumulative_cost_summary_by_span_id.load(
             (self.span_rowid, None),
+        )
+        if cost_summary is None:
+            return None
+        return SpanCostSummary(
+            prompt=CostBreakdown(
+                tokens=cost_summary.prompt_tokens,
+                cost=cost_summary.prompt_cost,
+            ),
+            completion=CostBreakdown(
+                tokens=cost_summary.completion_tokens,
+                cost=cost_summary.completion_cost,
+            ),
+            total=CostBreakdown(
+                tokens=cost_summary.total_tokens,
+                cost=cost_summary.total_cost,
+            ),
         )
 
 
