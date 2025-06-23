@@ -674,7 +674,12 @@ export function TracesTable(props: TracesTableProps) {
           }
           const span = row.original;
           return (
-            <SpanTokenCosts totalCost={value} spanNodeId={span.id} size="S" />
+            <SpanTokenCosts
+              totalCost={value}
+              spanNodeId={span.id}
+              cumulative={true}
+              size="S"
+            />
           );
         },
       },

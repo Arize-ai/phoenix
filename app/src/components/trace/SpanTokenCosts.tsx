@@ -9,6 +9,7 @@ import {
   TooltipTrigger,
 } from "@phoenix/components";
 
+import { SpanCumulativeTokenCostsDetails } from "./SpanCumulativeTokenCostsDetails";
 import { SpanTokenCostsDetails } from "./SpanTokenCostsDetails";
 import { TokenCosts } from "./TokenCosts";
 
@@ -22,6 +23,10 @@ type SpanTokenCostsProps = {
    */
   spanNodeId: string;
   /**
+   * If true, the costs will include the cumulative costs of all descendant spans in addition to the cost of the span itself. Default is false.
+   */
+  cumulative?: boolean;
+  /**
    * The size of the icon and text
    */
   size?: TextProps["size"];
@@ -31,6 +36,7 @@ type SpanTokenCostsProps = {
  * Displays the cost of a span with detailed breakdown
  */
 export function SpanTokenCosts(props: SpanTokenCostsProps) {
+  const { cumulative = false } = props;
   return (
     <TooltipTrigger>
       <Pressable>
@@ -41,7 +47,11 @@ export function SpanTokenCosts(props: SpanTokenCostsProps) {
       <RichTooltip>
         <TooltipArrow />
         <Suspense fallback={<Loading />}>
-          <SpanTokenCostsDetails spanNodeId={props.spanNodeId} />
+          {cumulative ? (
+            <SpanCumulativeTokenCostsDetails spanNodeId={props.spanNodeId} />
+          ) : (
+            <SpanTokenCostsDetails spanNodeId={props.spanNodeId} />
+          )}
         </Suspense>
       </RichTooltip>
     </TooltipTrigger>
