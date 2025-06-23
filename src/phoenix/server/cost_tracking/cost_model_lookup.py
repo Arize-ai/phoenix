@@ -21,7 +21,7 @@ class CostModelLookup:
     ) -> None:
         self._models = tuple(generative_models)
         self._model_priority: dict[
-            int, tuple[float, _RegexSpecificityScore, _TieBreakerId]
+            int, tuple[_RegexSpecificityScore, float, _TieBreakerId]
         ] = {}  # higher is better
         self._regex: dict[_RegexPatternStr, re.Pattern[Any]] = {}
         self._regex_specificity_score: dict[_RegexPatternStr, _RegexSpecificityScore] = {}
@@ -36,8 +36,8 @@ class CostModelLookup:
             tie_breaker = -m.id if m.is_built_in else m.id
 
             self._model_priority[m.id] = (
-                m.start_time.timestamp() if m.start_time else 0.0,
                 self._regex_specificity_score[m.llm_name_pattern],
+                m.start_time.timestamp() if m.start_time else 0.0,
                 tie_breaker,
             )
 

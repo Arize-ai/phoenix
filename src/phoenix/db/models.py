@@ -1343,8 +1343,6 @@ class GenerativeModel(Base):
     llm_name_pattern: Mapped[str] = mapped_column(String, nullable=False)
     is_built_in: Mapped[bool] = mapped_column(
         Boolean,
-        default=False,
-        server_default=sa.false(),
         nullable=False,
     )
     created_at: Mapped[datetime] = mapped_column(

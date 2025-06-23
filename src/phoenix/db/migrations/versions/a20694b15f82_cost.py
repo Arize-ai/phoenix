@@ -46,7 +46,6 @@ def upgrade() -> None:
             "is_built_in",
             sa.Boolean,
             nullable=False,
-            server_default=sa.false(),
         ),
         sa.Column(
             "start_time",
