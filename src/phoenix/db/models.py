@@ -8,7 +8,6 @@ from sqlalchemy import (
     JSON,
     NUMERIC,
     TIMESTAMP,
-    BigInteger,
     Boolean,
     CheckConstraint,
     ColumnElement,
@@ -1388,7 +1387,6 @@ class TokenPrice(Base):
 
 class PromptLabel(Base):
     __tablename__ = "prompt_labels"
-
     name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     description: Mapped[Optional[str]]
     color: Mapped[str] = mapped_column(String, nullable=True)
@@ -1403,7 +1401,6 @@ class PromptLabel(Base):
 
 class Prompt(Base):
     __tablename__ = "prompts"
-
     source_prompt_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("prompts.id", ondelete="SET NULL"),
         index=True,
@@ -1441,7 +1438,6 @@ class Prompt(Base):
 
 class PromptPromptLabel(Base):
     __tablename__ = "prompts_prompt_labels"
-
     prompt_label_id: Mapped[int] = mapped_column(
         ForeignKey("prompt_labels.id", ondelete="CASCADE"),
         index=True,
@@ -1541,14 +1537,12 @@ class PromptVersionTag(Base):
 
 class AnnotationConfig(Base):
     __tablename__ = "annotation_configs"
-
     name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     config: Mapped[AnnotationConfigType] = mapped_column(_AnnotationConfig, nullable=False)
 
 
 class ProjectAnnotationConfig(Base):
     __tablename__ = "project_annotation_configs"
-
     project_id: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
     )
@@ -1666,9 +1660,7 @@ class SpanCost(Base):
 
 class SpanCostDetail(Base):
     __tablename__ = "span_cost_details"
-
     span_cost_id: Mapped[int] = mapped_column(
-        BigInteger,
         ForeignKey("span_costs.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
