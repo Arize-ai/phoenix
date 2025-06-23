@@ -20,7 +20,7 @@
 
 * [What are Traces](tracing/what-are-traces.md)
 * [How Tracing Works](tracing/how-tracing-works.md)
-* [Annotations](tracing/annotations.md)
+* [Annotations Concepts](tracing/annotations-concepts.md)
 * [FAQs: Tracing](tracing/faqs-tracing.md)
 
 ## 📃 Prompt Engineering
