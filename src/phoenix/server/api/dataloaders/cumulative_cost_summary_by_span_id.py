@@ -50,18 +50,12 @@ class CumulativeCostSummaryBySpanIdDataLoader(DataLoader[Key, Result]):
                 Span.start_time,
                 roots.c.root_rowid,
                 roots.c.max_depth,
-                sa.case(
-                    (Span.id == roots.c.root_rowid, 0),  # root span is depth=0
-                    else_=1,  # children are depth=1
-                ).label("depth"),
+                sa.literal(0).label("depth"),
             )
             .join_from(
                 roots,
                 Span,
-                sa.or_(
-                    Span.id == roots.c.root_rowid,  # Include the root span itself
-                    Span.parent_id == roots.c.span_id,  # Include direct children
-                ),
+                Span.id == roots.c.root_rowid,
             )
             .cte("descendants", recursive=True)
         )
