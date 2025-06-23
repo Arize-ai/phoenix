@@ -282,9 +282,9 @@ export function ModelForm({
                   regexFieldProps.onChange(value);
                 }}
                 onBlur={onBlur}
-                size="S"
+                size="M"
                 description="Regular expression to match model names during trace ingestion"
-                label="Name pattern*"
+                // label="Name pattern*"
               />
             )}
           />
