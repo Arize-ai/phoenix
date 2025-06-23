@@ -418,7 +418,7 @@ class ExperimentRunOutput(TypedDict, total=False):
 
 
 class Base(DeclarativeBase):
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
     # Enforce best practices for naming constraints
     # https://alembic.sqlalchemy.org/en/latest/naming.html#integration-of-naming-conventions-into-operations-autogenerate
     metadata = MetaData(
@@ -440,7 +440,6 @@ class Base(DeclarativeBase):
 
 class ProjectTraceRetentionPolicy(Base):
     __tablename__ = "project_trace_retention_policies"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     cron_expression: Mapped[TraceRetentionCronExpression] = mapped_column(
         _TraceRetentionCronExpression, nullable=False
@@ -1388,7 +1387,6 @@ class TokenPrice(Base):
 
 class PromptLabel(Base):
     __tablename__ = "prompt_labels"
-
     name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     description: Mapped[Optional[str]]
     color: Mapped[str] = mapped_column(String, nullable=True)
@@ -1403,7 +1401,6 @@ class PromptLabel(Base):
 
 class Prompt(Base):
     __tablename__ = "prompts"
-
     source_prompt_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("prompts.id", ondelete="SET NULL"),
         index=True,
@@ -1441,7 +1438,6 @@ class Prompt(Base):
 
 class PromptPromptLabel(Base):
     __tablename__ = "prompts_prompt_labels"
-
     prompt_label_id: Mapped[int] = mapped_column(
         ForeignKey("prompt_labels.id", ondelete="CASCADE"),
         index=True,
@@ -1541,16 +1537,12 @@ class PromptVersionTag(Base):
 
 class AnnotationConfig(Base):
     __tablename__ = "annotation_configs"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     config: Mapped[AnnotationConfigType] = mapped_column(_AnnotationConfig, nullable=False)
 
 
 class ProjectAnnotationConfig(Base):
     __tablename__ = "project_annotation_configs"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
     project_id: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
     )

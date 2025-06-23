@@ -17,13 +17,18 @@ down_revision: Union[str, None] = "6a88424799fe"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+_Integer = sa.Integer().with_variant(
+    sa.BigInteger(),
+    "postgresql",
+)
+
 
 def upgrade() -> None:
     op.create_table(
         "generative_models",
         sa.Column(
             "id",
-            sa.Integer,
+            _Integer,
             primary_key=True,
         ),
         sa.Column(
@@ -69,7 +74,7 @@ def upgrade() -> None:
         "token_prices",
         sa.Column(
             "id",
-            sa.Integer,
+            _Integer,
             primary_key=True,
         ),
         sa.Column(
@@ -93,7 +98,7 @@ def upgrade() -> None:
         "span_costs",
         sa.Column(
             "id",
-            sa.Integer,
+            _Integer,
             primary_key=True,
         ),
         sa.Column(
@@ -134,7 +139,7 @@ def upgrade() -> None:
         "span_cost_details",
         sa.Column(
             "id",
-            sa.Integer,
+            _Integer,
             primary_key=True,
         ),
         sa.Column(
