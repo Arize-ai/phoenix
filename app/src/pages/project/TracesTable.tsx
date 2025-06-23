@@ -36,9 +36,9 @@ import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { SpanCumulativeTokenCosts } from "@phoenix/components/trace/SpanCumulativeTokenCosts";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
-import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { TraceTokenCount } from "@phoenix/components/trace/TraceTokenCount";
 import { ISpanItem } from "@phoenix/components/trace/types";
 import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
@@ -674,10 +674,9 @@ export function TracesTable(props: TracesTableProps) {
           }
           const span = row.original;
           return (
-            <SpanTokenCosts
+            <SpanCumulativeTokenCosts
               totalCost={value}
               spanNodeId={span.id}
-              cumulative={true}
               size="S"
             />
           );

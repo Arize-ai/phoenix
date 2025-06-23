@@ -9,10 +9,10 @@ import {
   TooltipTrigger,
 } from "@phoenix/components";
 
-import { SpanTokenCostsDetails } from "./SpanTokenCostsDetails";
+import { SpanCumulativeTokenCostsDetails } from "./SpanCumulativeTokenCostsDetails";
 import { TokenCosts } from "./TokenCosts";
 
-type SpanTokenCostsProps = {
+type SpanCumulativeTokenCostsProps = {
   /**
    * The total cost of the span
    */
@@ -28,9 +28,9 @@ type SpanTokenCostsProps = {
 };
 
 /**
- * Displays the cost of a span with detailed breakdown
+ * Displays the cumulative cost of a span with detailed breakdown
  */
-export function SpanTokenCosts(props: SpanTokenCostsProps) {
+export function SpanCumulativeTokenCosts(props: SpanCumulativeTokenCostsProps) {
   return (
     <TooltipTrigger>
       <Pressable>
@@ -41,7 +41,7 @@ export function SpanTokenCosts(props: SpanTokenCostsProps) {
       <RichTooltip>
         <TooltipArrow />
         <Suspense fallback={<Loading />}>
-          <SpanTokenCostsDetails spanNodeId={props.spanNodeId} />
+          <SpanCumulativeTokenCostsDetails spanNodeId={props.spanNodeId} />
         </Suspense>
       </RichTooltip>
     </TooltipTrigger>
