@@ -85,6 +85,7 @@ export const SegmentChart = ({ height = 12, segments }: SegmentChartProps) => {
                 dataKey={name}
                 fill={colorByNameMap[name]}
                 stackId="a"
+                isAnimationActive={false}
                 // if there is only one segment, we want to round all corners
                 radius={arr.length > 1 ? radius : DEFAULT_RADIUS}
               />
