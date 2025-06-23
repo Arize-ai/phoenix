@@ -7,14 +7,13 @@ const DEFAULT_RADIUS: [number, number, number, number] = [8, 8, 8, 8];
 export type SegmentChartProps = {
   /**
    * The height of the chart in pixels.
-   * Note: Values less than 12 pixels will cause rendering issues.
-   * @default 12
+   * @default 6
    */
   height?: number;
   /**
    * The total value of the chart
    */
-  totalValue: number;
+  totalValue?: number;
   /**
    * The segments to display in the chart
    */
@@ -34,11 +33,17 @@ export type SegmentChartProps = {
   }[];
 };
 
-export const SegmentChart = ({ height = 12, segments }: SegmentChartProps) => {
+export const SegmentChart = ({
+  height = 6,
+  segments,
+  totalValue: _totalValue,
+}: SegmentChartProps) => {
   const colors = useChartColors();
-
+  // if the total value is not provided, we calculate it from the segments
+  // this is useful for cases where the total value is not known ahead of time
+  const totalValue =
+    _totalValue ?? segments.reduce((acc, segment) => acc + segment.value, 0);
   // Transform the segments into a format that recharts can use
-  const totalValue = segments.reduce((acc, segment) => acc + segment.value, 0);
   const data = [
     segments.reduce(
       (acc, segment) => {
@@ -61,6 +66,7 @@ export const SegmentChart = ({ height = 12, segments }: SegmentChartProps) => {
     <div style={{ width: "100%", height }}>
       <ResponsiveContainer width="100%" height={height}>
         <BarChart
+          style={{ display: "flex" }}
           margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
           data={data}
           barSize="100%"

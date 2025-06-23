@@ -39,7 +39,7 @@ export function RichTokenBreakdown({
       </Flex>
       {/* Segment graph */}
       <SegmentChart
-        height={12}
+        height={6}
         totalValue={totalValue}
         segments={segmentsWithColor}
       />
