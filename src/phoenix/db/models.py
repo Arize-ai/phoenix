@@ -1336,7 +1336,7 @@ CostType: TypeAlias = Literal["DEFAULT", "OVERRIDE"]
 
 class GenerativeModel(Base):
     __tablename__ = "generative_models"
-    name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
     provider: Mapped[Optional[str]]
     start_time: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
     llm_name_pattern: Mapped[str] = mapped_column(String, nullable=False)
