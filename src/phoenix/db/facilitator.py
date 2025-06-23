@@ -226,7 +226,7 @@ async def _ensure_admins(
 _CHILDLESS_RECORD_DELETION_GRACE_PERIOD_DAYS = 1
 
 
-def _get_stmt_to_delete_expired_childless_records(
+def _stmt_to_delete_expired_childless_records(
     table: type[models.Base],
     foreign_key: Union[InstrumentedAttribute[int], InstrumentedAttribute[Optional[int]]],
 ) -> ReturningDelete[tuple[int]]:
@@ -269,7 +269,7 @@ async def _delete_expired_childless_records_on_generative_models(
     This cleanup is necessary to remove orphaned records that may have been left behind
     due to previous migrations or deletions.
     """  # noqa: E501
-    stmt = _get_stmt_to_delete_expired_childless_records(
+    stmt = _stmt_to_delete_expired_childless_records(
         models.GenerativeModel,
         models.SpanCost.model_id,
     )
