@@ -98,7 +98,7 @@ class ModelMutationMixin:
             name=input.name,
             provider=input.provider,
             llm_name_pattern=input.name_pattern,
-            is_override=True,
+            is_built_in=False,
             token_prices=token_prices,
             start_time=input.start_time,
         )
@@ -141,8 +141,8 @@ class ModelMutationMixin:
             )
             if model is None:
                 raise NotFound(f'Model "{input.id}" not found')
-            if not model.is_override:
-                raise BadRequest("Cannot update default model")
+            if model.is_built_in:
+                raise BadRequest("Cannot update built-in model")
 
             await session.execute(
                 delete(models.TokenPrice).where(models.TokenPrice.model_id == model.id)
@@ -188,9 +188,9 @@ class ModelMutationMixin:
             )
             if model is None:
                 raise NotFound(f'Model "{input.id}" not found')
-            if not model.is_override:
+            if model.is_built_in:
                 await session.rollback()
-                raise BadRequest("Cannot delete default model")
+                raise BadRequest("Cannot delete built-in model")
         return DeleteModelMutationPayload(
             model=to_gql_generative_model(model),
             query=Query(),

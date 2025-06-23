@@ -1340,7 +1340,10 @@ class GenerativeModel(Base):
     provider: Mapped[Optional[str]]
     start_time: Mapped[Optional[datetime]]
     llm_name_pattern: Mapped[str] = mapped_column(String, nullable=False)
-    is_override: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    is_built_in: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+    )
     created_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp,
         server_default=func.now(),
@@ -1580,13 +1583,13 @@ class SpanCost(Base):
         nullable=False,
         index=True,
     )
-    model_id: Mapped[int] = mapped_column(
+    model_id: Mapped[Optional[int]] = mapped_column(
         sa.Integer,
         ForeignKey(
             "generative_models.id",
-            ondelete="CASCADE",
+            ondelete="SET NULL",
         ),
-        nullable=False,
+        nullable=True,
         index=True,
     )
     total_cost: Mapped[Optional[float]]

@@ -159,7 +159,7 @@ export function SessionDetails(props: SessionDetailsProps) {
                       mimeType
                     }
                     cumulativeTokenCountTotal
-                    costSummary {
+                    cumulativeCostSummary {
                       total {
                         cost
                       }

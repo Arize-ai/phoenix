@@ -36,7 +36,6 @@ from phoenix.db.types.trace_retention import (
     TraceRetentionCronExpression,
     TraceRetentionRule,
 )
-from phoenix.server.cost_tracking.cost_lookup import initialize_cost_table
 from phoenix.server.email.types import WelcomeEmailSender
 from phoenix.server.types import DbSessionFactory
 
@@ -420,7 +419,7 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
                     name=model_data["model"],
                     provider=model_data["provider"],
                     llm_name_pattern=model_data["regex"],
-                    is_override=False,
+                    is_built_in=True,
                 )
                 session.add(model)
                 await session.flush()
@@ -471,6 +470,3 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
                 )
 
             session.add_all(prices)
-
-        await session.flush()
-        await initialize_cost_table(session)

@@ -120,7 +120,7 @@ class Query:
                 select(models.GenerativeModel)
                 .where(models.GenerativeModel.deleted_at.is_(None))
                 .order_by(
-                    models.GenerativeModel.is_override.desc(),  # display custom models first
+                    models.GenerativeModel.is_built_in.asc(),  # display custom models first
                     models.GenerativeModel.provider.nullslast(),
                     models.GenerativeModel.name,
                 )

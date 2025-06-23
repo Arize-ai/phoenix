@@ -22,7 +22,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     )
@@ -41,7 +41,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     )
@@ -60,7 +60,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     )
@@ -79,7 +79,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     )
@@ -99,7 +99,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     ),
@@ -109,7 +109,7 @@ class TestCostModelLookup:
                         provider="anthropic",
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     ),
@@ -128,7 +128,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     ),
@@ -138,7 +138,7 @@ class TestCostModelLookup:
                         provider="anthropic",
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     ),
@@ -157,7 +157,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     )
@@ -177,7 +177,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     )
@@ -196,7 +196,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     )
@@ -216,7 +216,7 @@ class TestCostModelLookup:
                         provider=None,  # Provider-agnostic
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     )
@@ -235,7 +235,7 @@ class TestCostModelLookup:
                         provider=None,  # Provider-agnostic
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     )
@@ -255,7 +255,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=datetime(2023, 1, 1, tzinfo=timezone.utc),  # Past start time
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     ),
@@ -265,7 +265,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=datetime(2025, 1, 1, tzinfo=timezone.utc),  # Future start time
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     ),
@@ -284,7 +284,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,  # No start_time specified
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     )
@@ -303,7 +303,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,  # No start_time specified
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     )
@@ -322,7 +322,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,  # No start_time specified
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     )
@@ -342,7 +342,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     ),
@@ -352,7 +352,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,
                         llm_name_pattern="gpt-4",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     ),
@@ -371,7 +371,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     ),
@@ -381,7 +381,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,
                         llm_name_pattern="gpt-4",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     ),
@@ -400,7 +400,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     )
@@ -420,7 +420,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     ),
@@ -430,7 +430,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=True,  # Override model
+                        is_built_in=False,  # Override model
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     ),
@@ -449,7 +449,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5-turbo",  # More specific
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     ),
@@ -459,7 +459,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5.*",  # Less specific
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     ),
@@ -478,7 +478,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     ),
@@ -488,7 +488,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     ),
@@ -508,7 +508,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     ),
@@ -518,7 +518,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5.*",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     ),
@@ -528,7 +528,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=True,
+                        is_built_in=False,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     ),
@@ -548,7 +548,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5.*",  # Wildcard pattern
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     )
@@ -567,7 +567,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5.*",  # Wildcard pattern
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     )
@@ -586,7 +586,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5.*",  # Wildcard pattern
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     )
@@ -606,7 +606,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,
                         llm_name_pattern="^gpt-3\\.5-turbo$",  # Anchored pattern
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     )
@@ -625,7 +625,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=None,
                         llm_name_pattern="^gpt-3\\.5-turbo$",  # Anchored pattern
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     )
@@ -645,7 +645,7 @@ class TestCostModelLookup:
                         provider="openai",
                         start_time=datetime(2025, 1, 1, tzinfo=timezone.utc),  # Future start time
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     )
@@ -665,7 +665,7 @@ class TestCostModelLookup:
                         provider=None,  # No provider specified
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     )
@@ -684,7 +684,7 @@ class TestCostModelLookup:
                         provider=None,  # No provider specified
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     )
@@ -703,7 +703,7 @@ class TestCostModelLookup:
                         provider=None,  # No provider specified
                         start_time=None,
                         llm_name_pattern="gpt-3\\.5-turbo",
-                        is_override=False,
+                        is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     )

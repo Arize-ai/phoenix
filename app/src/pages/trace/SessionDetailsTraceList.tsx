@@ -10,8 +10,8 @@ import { Flex, Icon, Icons, Link, Text, View } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { JSONBlock } from "@phoenix/components/code";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { SpanCumulativeTokenCosts } from "@phoenix/components/trace/SpanCumulativeTokenCosts";
 import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
-import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
@@ -132,9 +132,9 @@ function RootSpanDetails({
               tokenCountTotal={rootSpan.cumulativeTokenCountTotal || 0}
               nodeId={rootSpan.id}
             />
-            {rootSpan.costSummary?.total?.cost != null && (
-              <SpanTokenCosts
-                totalCost={rootSpan.costSummary.total.cost}
+            {rootSpan.cumulativeCostSummary?.total?.cost != null && (
+              <SpanCumulativeTokenCosts
+                totalCost={rootSpan.cumulativeCostSummary.total.cost}
                 spanNodeId={rootSpan.id}
               />
             )}

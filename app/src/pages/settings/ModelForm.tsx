@@ -20,6 +20,7 @@ import {
   View,
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
+import { RegexField, useRegexField } from "@phoenix/components/RegexField";
 import { ModelTokenCostControlTable } from "@phoenix/pages/settings/ModelTokenCostControlTable";
 import {
   DEFAULT_TOKEN_COMPLETION_OPTIONS,
@@ -207,6 +208,10 @@ export function ModelForm({
     name: "completionCosts",
   });
 
+  const regexFieldProps = useRegexField({
+    initialValue: modelNamePattern ?? "",
+  });
+
   return (
     <Form onSubmit={handleSubmit(onSubmit)}>
       <View padding="size-200">
@@ -267,24 +272,20 @@ export function ModelForm({
               field: { onChange, onBlur, value },
               fieldState: { invalid, error },
             }) => (
-              <TextField
-                isInvalid={invalid}
-                onChange={onChange}
-                onBlur={onBlur}
+              <RegexField
+                {...regexFieldProps}
                 value={value}
-                size="S"
-              >
-                <Label>Name pattern*</Label>
-                <Input placeholder="e.x. ^gpt-4.*" />
-                {error?.message ? (
-                  <FieldError>{error.message}</FieldError>
-                ) : (
-                  <Text slot="description">
-                    Regular expression to match model names during trace
-                    ingestion
-                  </Text>
-                )}
-              </TextField>
+                isInvalid={invalid || regexFieldProps.isInvalid}
+                error={error?.message || regexFieldProps.error}
+                onChange={(value) => {
+                  onChange(value);
+                  regexFieldProps.onChange(value);
+                }}
+                onBlur={onBlur}
+                size="M"
+                description="Regular expression to match model names during trace ingestion"
+                // label="Name pattern*"
+              />
             )}
           />
           <Controller
