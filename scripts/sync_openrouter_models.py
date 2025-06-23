@@ -157,7 +157,7 @@ def main():
     # Print summary
     print(f"Total models in file: {len(merged_data)}")
     print(f"Models from this sync: {len(transformed_data)}")
-    
+    print(f"{merged_data}") 
     return 0
 
 # Entry point of the script
