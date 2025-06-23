@@ -75,7 +75,7 @@ def upgrade() -> None:
         ),
     )
     op.create_index(
-        "ix_name",
+        "ix_generative_models_name",
         "generative_models",
         ["name"],
         unique=True,
@@ -132,7 +132,7 @@ def upgrade() -> None:
             sa.Integer,
             sa.ForeignKey(
                 "generative_models.id",
-                ondelete="SET NULL",
+                ondelete="RESTRICT",
             ),
             nullable=True,
             index=True,

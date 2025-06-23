@@ -68,7 +68,6 @@ class Facilitator:
             _ensure_default_project_trace_retention_policy,
             _ensure_model_costs,
             _delete_expired_childless_records,
-            _mark_new_childless_records,
         ):
             await fn(self._db)
 
@@ -223,64 +222,6 @@ async def _ensure_admins(
             logger.error(f"Failed to send welcome email: {exc}")
 
 
-def _get_stmt_to_mark_new_childless_records(
-    table: type[models.Base],
-    foreign_key: QueryableAttribute[int],
-) -> sa.Update:
-    """
-    Creates a SQLAlchemy UPDATE statement to mark childless records for deletion.
-
-    Args:
-        table: The table model class that has a deleted_at column
-        foreign_key: The foreign key attribute to check for child relationships
-
-    Returns:
-        An UPDATE statement that sets deleted_at to current timestamp for childless records
-    """  # noqa: E501
-    if not hasattr(table, "deleted_at"):
-        raise TypeError("Table must have a 'deleted_at' column")
-    return (
-        sa.update(table)
-        .where(table.deleted_at.is_(None) & ~sa.exists().filter_by(id=foreign_key))
-        .values(deleted_at=datetime.now(timezone.utc))
-    )
-
-
-async def _mark_new_childless_records_on_generative_models(
-    db: DbSessionFactory,
-) -> None:
-    """
-    Marks childless GenerativeModel records for deletion by setting their deleted_at timestamp.
-
-    This function identifies GenerativeModel records that have no associated SpanCost records
-    and marks them for future deletion by setting their deleted_at field to the current time.
-    """  # noqa: E501
-    stmt = _get_stmt_to_mark_new_childless_records(
-        models.GenerativeModel,
-        models.SpanCost.model_id,
-    )
-    async with db() as session:
-        await session.execute(stmt)
-
-
-async def _mark_new_childless_records(
-    db: DbSessionFactory,
-) -> None:
-    """
-    Marks childless records across all relevant tables for future deletion.
-
-    This function runs the marking process for all table types that support soft deletion,
-    handling any exceptions that occur during the process.
-    """  # noqa: E501
-    exceptions = await gather(
-        _mark_new_childless_records_on_generative_models(db),
-        return_exceptions=True,
-    )
-    for exc in exceptions:
-        if isinstance(exc, Exception):
-            logger.error(f"Failed to mark new childless records: {exc}")
-
-
 _CHILDLESS_RECORD_DELETION_GRACE_PERIOD_DAYS = 1
 
 
@@ -307,7 +248,7 @@ def _get_stmt_to_delete_expired_childless_records(
     return sa.delete(table).where(
         table.deleted_at.isnot(None)
         & (table.deleted_at < cutoff_time)
-        & ~sa.exists().filter_by(id=foreign_key)
+        & ~sa.exists().where(table.id == foreign_key)
     )
 
 
