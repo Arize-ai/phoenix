@@ -41,8 +41,8 @@ class CumulativeCostSummaryBySpanIdDataLoader(DataLoader[Key, Result]):
             .subquery("roots")
         )
 
-        # Initialize the recursive common table expression (CTE) with direct children
-        # of root spans, setting depth=1.
+        # Initialize the recursive common table expression (CTE) with the root span (depth=0)
+        # and its direct children (depth=1).
         descendants = (
             select(
                 Span.id,
@@ -50,9 +50,19 @@ class CumulativeCostSummaryBySpanIdDataLoader(DataLoader[Key, Result]):
                 Span.start_time,
                 roots.c.root_rowid,
                 roots.c.max_depth,
-                sa.literal(1).label("depth"),  # immediate children are depth=1 from root
+                sa.case(
+                    (Span.id == roots.c.root_rowid, 0),  # root span is depth=0
+                    else_=1,  # children are depth=1
+                ).label("depth"),
             )
-            .join_from(roots, Span, Span.parent_id == roots.c.span_id)
+            .join_from(
+                roots,
+                Span,
+                sa.or_(
+                    Span.id == roots.c.root_rowid,  # Include the root span itself
+                    Span.parent_id == roots.c.span_id,  # Include direct children
+                ),
+            )
             .cte("descendants", recursive=True)
         )
 
