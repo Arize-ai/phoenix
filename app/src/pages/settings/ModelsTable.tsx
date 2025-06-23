@@ -11,7 +11,15 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, Token, View } from "@phoenix/components";
+import {
+  Flex,
+  Heading,
+  Icon,
+  IconButton,
+  Icons,
+  Token,
+  View,
+} from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { TextCell } from "@phoenix/components/table";
 import {
@@ -23,6 +31,7 @@ import {
   TimestampCell,
 } from "@phoenix/components/table/TimestampCell";
 import {
+  RichTooltip,
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
@@ -107,27 +116,6 @@ const sortCostColumnFn: SortingFn<
     return 0;
   }
   return costA - costB;
-};
-
-/**
- * Creates a column for a given token cost type
- * @param tokenType - the token type to create a column for
- * @param header - the header to display for the column
- * @returns the column definition
- */
-const makeCostColumn = (tokenType: string, header: string) => {
-  return {
-    header,
-    id: tokenType,
-    accessorFn: (row) => getRowCost(row, tokenType),
-    sortingFn: sortCostColumnFn,
-    sortUndefined: "last",
-    cell: ({ row }) => {
-      return getRowCost(row.original, tokenType);
-    },
-  } satisfies ColumnDef<
-    ModelsTable_generativeModels$data["generativeModels"][number]
-  >;
 };
 
 export function ModelsTable({
@@ -229,13 +217,96 @@ export function ModelsTable({
         accessorKey: "namePattern",
         cell: TextCell,
       },
-      makeCostColumn("input", "input cost"),
-      makeCostColumn("output", "output cost"),
-      makeCostColumn("cacheRead", "cache read cost"),
-      makeCostColumn("cacheWrite", "cache write cost"),
-      makeCostColumn("promptAudio", "prompt audio cost"),
-      makeCostColumn("completionAudio", "completion audio cost"),
-      makeCostColumn("reasoning", "reasoning cost"),
+      {
+        header: "input cost",
+        accessorKey: "input",
+        meta: { textAlign: "right" },
+        sortingFn: sortCostColumnFn,
+        sortUndefined: "last",
+        cell: ({ row }) => {
+          const inputCost = getRowCost(row.original, "input");
+          return (
+            <Flex justifyContent="end" alignItems="center" gap="size-100">
+              <span>{inputCost}</span>
+              <TooltipTrigger delay={0}>
+                <IconButton size="S" aria-label="Input cost details">
+                  <Icon svg={<Icons.MoreHorizontalOutline />} />
+                </IconButton>
+                <RichTooltip>
+                  <Heading level={4} weight="heavy">
+                    Input Cost Breakdown
+                  </Heading>
+                  <View paddingTop="size-100">
+                    {row.original.tokenPrices
+                      ?.filter((entry) => entry.kind === "PROMPT")
+                      .map((entry) => (
+                        <Flex
+                          key={entry.tokenType}
+                          direction="row"
+                          gap="size-100"
+                          justifyContent="space-between"
+                          width="100%"
+                        >
+                          <span>{entry.tokenType.toLocaleLowerCase()}</span>
+                          <span>
+                            {entry.costPerMillionTokens
+                              ? `${costFormatter(entry.costPerMillionTokens)} / 1M`
+                              : "--"}
+                          </span>
+                        </Flex>
+                      )) ?? null}
+                  </View>
+                </RichTooltip>
+              </TooltipTrigger>
+            </Flex>
+          );
+        },
+      },
+      {
+        header: "output cost",
+        accessorKey: "output",
+        meta: { textAlign: "right" },
+        sortingFn: sortCostColumnFn,
+        sortUndefined: "last",
+        cell: ({ row }) => {
+          const outputCost = getRowCost(row.original, "output");
+          return (
+            <Flex justifyContent="end" alignItems="center" gap="size-100">
+              <span>{outputCost}</span>
+              <TooltipTrigger>
+                <IconButton size="S" aria-label="Output cost details">
+                  <Icon svg={<Icons.MoreHorizontalOutline />} />
+                </IconButton>
+                <RichTooltip>
+                  <Heading level={4} weight="heavy">
+                    Output Cost Breakdown
+                  </Heading>
+                  <View paddingTop="size-100">
+                    {row.original.tokenPrices
+                      ?.filter((entry) => entry.kind === "COMPLETION")
+                      .map((entry) => (
+                        <Flex
+                          key={entry.kind}
+                          direction="row"
+                          gap="size-100"
+                          justifyContent="space-between"
+                          width="100%"
+                        >
+                          <span>{entry.tokenType.toLocaleLowerCase()}</span>
+                          <span>
+                            {entry.costPerMillionTokens
+                              ? `${costFormatter(entry.costPerMillionTokens)} / 1M`
+                              : "--"}
+                          </span>
+                        </Flex>
+                      )) ?? null}
+                  </View>
+                </RichTooltip>
+              </TooltipTrigger>
+            </Flex>
+          );
+        },
+      },
       {
         header: "start date",
         sortUndefined: "last",
