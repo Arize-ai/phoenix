@@ -466,7 +466,7 @@ class TestModelMutations:
             operation_name="UpdateModelMutation",
         )
         assert len(result.errors) == 1
-        assert result.errors[0].message == "Cannot update default model"
+        assert result.errors[0].message == "Cannot update built-in model"
         assert result.data is None
 
     async def test_updating_model_to_conflicting_name_fails_with_expected_error(
@@ -561,7 +561,7 @@ class TestModelMutations:
             operation_name="DeleteModelMutation",
         )
         assert len(result.errors) == 1
-        assert result.errors[0].message == "Cannot delete default model"
+        assert result.errors[0].message == "Cannot delete built-in model"
         assert result.data is None
 
 
@@ -604,7 +604,7 @@ async def custom_model(db: DbSessionFactory) -> models.GenerativeModel:
             name="custom-model",
             provider="anthropic",
             llm_name_pattern="claude-*",
-            is_built_in=True,
+            is_built_in=False,
             token_prices=[
                 models.TokenPrice(
                     token_type="input",
