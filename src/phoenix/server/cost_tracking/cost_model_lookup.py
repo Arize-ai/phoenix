@@ -66,19 +66,19 @@ class CostModelLookup:
 
         Model Selection Logic:
             1. **Input Validation**: Returns None if model name is empty or whitespace-only
-            2. **Time Filtering**: Only models with start_time <= start_time or start_time=None
-               are considered
-            3. **Regex Matching**: Only models whose name_pattern matches the
-               model name from attributes are considered
-            4. **Provider Filtering**: If provider is specified in attributes, only models
-               with matching provider are considered. Provider-agnostic models (provider=None)
-               are excluded when a specific provider is given.
-            5. **Priority Selection**: Models are selected based on a two-tier priority system:
-               - User-defined models (is_built_in=False) are checked first
-               - Built-in models (is_built_in=True) are checked second
-               - Within each tier, models are sorted by priority tuple:
-                 (regex_specificity_score, start_time.timestamp, tie_breaker)
-               - Higher priority models (later in sorted list) are checked first
+            2. **Time and Regex Filtering**: Only models that satisfy both conditions:
+               - start_time <= start_time or start_time=None (active models)
+               - name_pattern regex matches the model name from attributes
+            3. **Early Return Optimization**: If only one candidate remains, return it immediately
+            4. **Two-Tier Priority System**: Models are processed in tiers:
+               - User-defined models (is_built_in=False) are processed first
+               - Built-in models (is_built_in=True) are processed second
+               - If a tier has only one model, return it immediately
+            5. **Provider Filtering**: Within each tier, if provider is specified:
+               - Prefer models with matching provider
+               - Fall back to provider-agnostic models if no provider-specific matches exist
+            6. **Priority Selection**: Select the model with the highest priority tuple:
+               (regex_specificity_score, start_time.timestamp, tie_breaker)
 
         Priority Tuple Components:
             - regex_specificity_score: More specific regex patterns have higher priority
@@ -100,32 +100,23 @@ class CostModelLookup:
         if not model_name:
             return None
 
-        provider = str(get_attribute_value(attributes, SpanAttributes.LLM_PROVIDER) or "").strip()
-
-        # 2. start with all models
-        candidates = list(self._models)
-
-        # 3. filter by time: only include models active at the given time
-        # Models with start_time=None are always active
-        # Models with start_time > start_time are not yet active
+        # 2. only include models that are active and match the regex pattern
         candidates = [
-            model for model in candidates if not model.start_time or model.start_time <= start_time
+            model
+            for model in self._models
+            if (not model.start_time or model.start_time <= start_time)
+            and self._regex[model.name_pattern].match(model_name)
         ]
         if not candidates:
             return None
 
-        # 4. filter by name pattern: only include models matching the regex pattern
-        candidates = [
-            model for model in candidates if self._regex[model.name_pattern].match(model_name)
-        ]
-        if not candidates:
-            return None
-
-        # 5. early return: if only one candidate remains, return it
+        # 3. early return: if only one candidate remains, return it
         if len(candidates) == 1:
             return candidates[0]
 
-        # 6. priority-based selection: user-defined models first, then built-in models
+        provider = str(get_attribute_value(attributes, SpanAttributes.LLM_PROVIDER) or "").strip()
+
+        # 4. priority-based selection: user-defined models first, then built-in models
         for is_built_in in (False, True):  # False = user-defined, True = built-in
             # get candidates for current tier (user-defined or built-in)
             tier_candidates = [model for model in candidates if model.is_built_in == is_built_in]
@@ -133,7 +124,11 @@ class CostModelLookup:
             if not tier_candidates:
                 continue  # try next tier
 
-            # 7. provider filtering: if provider specified, prefer provider-specific models
+            # early return: if only one candidate in this tier, return it
+            if len(tier_candidates) == 1:
+                return tier_candidates[0]
+
+            # 5. provider filtering: if provider specified, prefer provider-specific models
             if provider:
                 provider_specific_models = [
                     model
@@ -145,18 +140,9 @@ class CostModelLookup:
                 if provider_specific_models:
                     tier_candidates = provider_specific_models
 
-            # 8. select best model in this tier
-            if tier_candidates:
-                if len(tier_candidates) == 1:
-                    return tier_candidates[0]
+            # 6. select best model in this tier using max for efficiency
+            # find model with highest priority tuple: (regex_specificity, start_time, tie_breaker)
+            return max(tier_candidates, key=lambda model: self._model_priority[model.id])
 
-                # sort by priority tuple: (regex_specificity, start_time, tie_breaker)
-                # higher values = higher priority
-                return sorted(
-                    tier_candidates,
-                    key=lambda model: self._model_priority[model.id],
-                    reverse=True,
-                )[0]
-
-        # 9. no suitable model found
+        # 7. no suitable model found
         return None
