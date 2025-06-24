@@ -212,7 +212,7 @@ export function ModelsTable({
         },
       },
       {
-        header: "name pattern",
+        header: "match pattern",
         accessorKey: "namePattern",
         cell: ({ row }) => {
           const namePattern = row.original.namePattern;
