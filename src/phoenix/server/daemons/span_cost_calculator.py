@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 from asyncio import sleep
-from collections import defaultdict
 from datetime import datetime
 from typing import Any, Mapping, NamedTuple, Optional
 
@@ -37,9 +36,6 @@ class SpanCostCalculator(DaemonTask):
         super().__init__()
         self._db = db
         self._model_store = model_store
-        self._costs: defaultdict[Optional[_GenerativeModelId], list[models.SpanCost]] = defaultdict(
-            list
-        )
         self._queue: list[SpanCostCalculatorQueueItem] = []
 
     async def _run(self) -> None:
@@ -49,30 +45,29 @@ class SpanCostCalculator(DaemonTask):
             except Exception as e:
                 logger.exception(f"Failed to insert costs: {e}")
             finally:
-                self._costs.clear()
                 self._queue.clear()
             await sleep(self._SLEEP_INTERVAL)
 
     async def _insert_costs(self) -> None:
         if not self._queue:
             return
+        costs: list[models.SpanCost] = []
         for item in self._queue:
             try:
                 cost = self.calculate_cost(item.span_start_time, item.attributes)
             except Exception as e:
                 logger.exception(f"Failed to calculate cost for span {item.span_rowid}: {e}")
-                cost = None
+                continue
             if not cost:
                 continue
             cost.span_rowid = item.span_rowid
             cost.trace_rowid = item.trace_rowid
-            self._costs[cost.model_id].append(cost)
-        for model_id, costs in self._costs.items():
-            try:
-                async with self._db() as session:
-                    session.add_all(costs)
-            except Exception as e:
-                logger.exception(f"Failed to insert costs for model ID {model_id}: {e}")
+            costs.append(cost)
+        try:
+            async with self._db() as session:
+                session.add_all(costs)
+        except Exception as e:
+            logger.exception(f"Failed to insert costs: {e}")
 
     def put_nowait(self, item: SpanCostCalculatorQueueItem) -> None:
         self._queue.append(item)
