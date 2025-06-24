@@ -7,7 +7,7 @@
 * [Environments](environments.md)
 * [Phoenix Demo](https://phoenix-demo.arize.com/projects)
 
-## 🔭 Tracing
+## Tracing
 
 * [Overview: Tracing](tracing/llm-traces.md)
 * [Quickstart: Tracing](tracing/llm-traces-1/README.md)
@@ -75,7 +75,7 @@
     * [Filter Spans to Export](tracing/how-to-tracing/advanced/modifying-spans.md)
     * [Capture Multimodal Traces](tracing/how-to-tracing/advanced/multimodal-tracing.md)
 
-## 📃 Prompt Engineering
+## Prompt Engineering
 
 * [Overview: Prompts](prompt-engineering/overview-prompts.md)
   * [Prompt Management](prompt-engineering/overview-prompts/prompt-management.md)
@@ -95,7 +95,7 @@
   * [Using a prompt](prompt-engineering/how-to-prompts/using-a-prompt.md)
 * [Concepts: Prompts](prompt-engineering/concepts-prompts.md)
 
-## 🗄️ Datasets & Experiments
+## Datasets & Experiments
 
 * [Overview: Datasets & Experiments](datasets-and-experiments/overview-datasets.md)
 * [Quickstart: Datasets & Experiments](datasets-and-experiments/quickstart-datasets.md)
@@ -107,7 +107,7 @@
   * [Run Experiments](datasets-and-experiments/how-to-experiments/run-experiments.md)
   * [Using Evaluators](datasets-and-experiments/how-to-experiments/using-evaluators.md)
 
-## 🧠 Evaluation
+## Evaluation
 
 * [Overview: Evals](evaluation/llm-evals/README.md)
   * [Agent Evaluation](evaluation/llm-evals/agent-evaluation.md)
@@ -141,7 +141,7 @@
   * [Evaluators](evaluation/concepts-evals/evaluation.md)
   * [Custom Task Evaluation](evaluation/concepts-evals/building-your-own-evals.md)
 
-## 🔍 Retrieval
+## Retrieval
 
 * [Overview: Retrieval](retrieval/overview-retrieval.md)
 * [Quickstart: Retrieval](retrieval/quickstart-retrieval.md)
@@ -150,7 +150,7 @@
   * [Benchmarking Retrieval](retrieval/concepts-retrieval/benchmarking-retrieval-rag.md)
   * [Retrieval Evals on Document Chunks](retrieval/concepts-retrieval/retrieval-evals-on-document-chunks.md)
 
-## 🌌 inferences
+## inferences
 
 * [Quickstart: Inferences](inferences/phoenix-inferences.md)
 * [How-to: Inferences](inferences/how-to-inferences/README.md)
@@ -167,13 +167,13 @@
 * [Use-Cases: Inferences](inferences/use-cases-inferences/README.md)
   * [Embeddings Analysis](inferences/use-cases-inferences/embeddings-analysis.md)
 
-## 🔌 INTEGRATIONS
+## INTEGRATIONS
 
 * [Phoenix MCP Server](integrations/phoenix-mcp-server.md)
 * [Cleanlab](integrations/cleanlab.md)
 * [Ragas](integrations/ragas.md)
 
-## ⚙️ Settings
+## Settings
 
 * [Access Control (RBAC)](settings/access-control-rbac.md)
 * [API Keys](settings/api-keys.md)
