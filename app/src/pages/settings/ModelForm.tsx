@@ -86,12 +86,14 @@ function ModelProviderComboBox({
   onChange,
   onBlur,
   invalid,
+  description,
 }: {
   value: string;
   onChange: (key: Key | null) => void;
   onBlur: () => void;
   error?: string;
   invalid: boolean;
+  description?: string;
 }) {
   return (
     <ComboBox
@@ -114,6 +116,7 @@ function ModelProviderComboBox({
       isInvalid={invalid}
       size="M"
       allowsCustomValue
+      description={description}
     >
       {PROVIDER_OPTIONS.map((item) => (
         <ComboBoxItem key={item.key} textValue={item.key} id={item.key}>
@@ -238,29 +241,10 @@ export function ModelForm({
                 size="S"
               >
                 <Label>Model name*</Label>
-                <Input placeholder="e.g., gpt-4, claude-3-sonnet" />
+                <Input placeholder="e.g. gpt-4, claude-3-sonnet" />
                 {error?.message && <FieldError>{error.message}</FieldError>}
               </TextField>
             )}
-          />
-
-          <Controller
-            name="provider"
-            control={control}
-            render={({
-              field: { onChange, onBlur, value },
-              fieldState: { invalid, error },
-            }) => {
-              return (
-                <ModelProviderComboBox
-                  value={value ?? ""}
-                  onChange={onChange}
-                  onBlur={onBlur}
-                  error={error?.message}
-                  invalid={invalid}
-                />
-              );
-            }}
           />
           <Controller
             name="namePattern"
@@ -281,12 +265,32 @@ export function ModelForm({
                   onChange(value);
                   regexFieldProps.onChange(value);
                 }}
+                size="S"
                 onBlur={onBlur}
-                size="M"
-                description="Regular expression to match model names during trace ingestion"
-                // label="Name pattern*"
+                placeholder="e.g. ^gpt-4$, ^claude-3-sonnet$"
+                description="Regular expression to match model names during trace ingestion."
+                label="Name pattern*"
               />
             )}
+          />
+          <Controller
+            name="provider"
+            control={control}
+            render={({
+              field: { onChange, onBlur, value },
+              fieldState: { invalid, error },
+            }) => {
+              return (
+                <ModelProviderComboBox
+                  value={value ?? ""}
+                  onChange={onChange}
+                  onBlur={onBlur}
+                  error={error?.message}
+                  invalid={invalid}
+                  description="Only models with this provider will be matched by the name pattern."
+                />
+              );
+            }}
           />
           <Controller
             name="startTime"
