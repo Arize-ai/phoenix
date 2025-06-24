@@ -8,7 +8,7 @@ const chartContainerCSS = css`
   flex-direction: row;
   overflow: hidden;
   border-radius: 8px;
-  gap: 4px;
+  gap: 2px;
 `;
 
 const chartSegmentCSS = css`
