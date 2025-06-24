@@ -8,7 +8,7 @@ In most cases it is simplest to let Phoenix handle cost calculation using its bu
 
 For Phoenix to accurately derive costs for LLM spans, you need to provide token counts in your traces:
 
-* If you are using Phoenix's auto-instrumentation with OpenAI, Anthropic, or other supported instrumentaiton, token counts and model information are automatically captured.
+* If you are using OpenInference auto-instrumentation with OpenAI, Anthropic, or other supported instrumentaiton, token counts and model information are automatically captured.
 * If you are manually instrumenting your code, you should include the appropriate token count attributes in your spans.
 * If you are using OpenTelemetry directly, ensure that your LLM spans include the OpenInference semantic conventions for token counts.
 
