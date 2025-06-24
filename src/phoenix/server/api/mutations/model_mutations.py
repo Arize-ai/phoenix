@@ -97,7 +97,7 @@ class ModelMutationMixin:
         model = models.GenerativeModel(
             name=input.name,
             provider=input.provider,
-            llm_name_pattern=input.name_pattern,
+            name_pattern=input.name_pattern,
             is_built_in=False,
             token_prices=token_prices,
             start_time=input.start_time,
@@ -152,7 +152,7 @@ class ModelMutationMixin:
 
             model.name = input.name
             model.provider = input.provider
-            model.llm_name_pattern = input.name_pattern
+            model.name_pattern = input.name_pattern
             model.token_prices = token_prices
             model.start_time = input.start_time
             session.add(model)

@@ -1339,7 +1339,7 @@ class GenerativeModel(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     provider: Mapped[Optional[str]]
     start_time: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
-    llm_name_pattern: Mapped[str] = mapped_column(String, nullable=False)
+    name_pattern: Mapped[str] = mapped_column(String, nullable=False)
     is_built_in: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
