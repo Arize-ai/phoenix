@@ -12,6 +12,7 @@ class TokenPrice(TypedDict):
     token_type: str
     base_rate: float
     is_prompt: bool
+    source: str
 
 
 # Asynchronously fetch data from a given URL
@@ -71,6 +72,7 @@ def transform_remote_data(data: list[dict[str, Any]]) -> dict[str, Any]:
                     token_type="input",
                     base_rate=prompt_pricing,
                     is_prompt=True,
+                    source="openrouter",
                 )
             )
         if completion_pricing := float(pricing.get("completion", 0)):
@@ -79,6 +81,7 @@ def transform_remote_data(data: list[dict[str, Any]]) -> dict[str, Any]:
                     token_type="output",
                     base_rate=completion_pricing,
                     is_prompt=False,
+                    source="openrouter",
                 )
             )
         # TODO: add image pricing once semantic conventions are finalized
@@ -96,6 +99,7 @@ def transform_remote_data(data: list[dict[str, Any]]) -> dict[str, Any]:
                     token_type="cache_read",
                     base_rate=cache_read_pricing,
                     is_prompt=True,
+                    source="openrouter",
                 )
             )
         if cache_write_pricing := float(pricing.get("input_cache_write", 0)):
@@ -104,6 +108,7 @@ def transform_remote_data(data: list[dict[str, Any]]) -> dict[str, Any]:
                     token_type="cache_write",
                     base_rate=cache_write_pricing,
                     is_prompt=True,
+                    source="openrouter",
                 )
             )
 

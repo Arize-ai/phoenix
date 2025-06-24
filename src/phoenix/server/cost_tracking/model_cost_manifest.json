@@ -1,5 +1,5 @@
 {
-  "last_updated": "2025-06-24T17:45:17.258855Z",
+  "last_updated": "2025-06-24T19:02:07.490983Z",
   "models": [
     {
       "name": "chatgpt-4o-latest",
@@ -9,11 +9,13 @@
         {
           "base_rate": 5e-06,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 1.5e-05,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         }
       ]
@@ -26,11 +28,13 @@
         {
           "base_rate": 8e-06,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 2.4e-05,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         }
       ]
@@ -43,11 +47,13 @@
         {
           "base_rate": 8e-06,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 2.4e-05,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         }
       ]
@@ -128,21 +134,25 @@
         {
           "base_rate": 1e-07,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 4e-07,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         },
         {
           "base_rate": 2.5e-08,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "cache_read"
         },
         {
           "base_rate": 1.833e-07,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "cache_write"
         }
       ]
@@ -155,11 +165,13 @@
         {
           "base_rate": 7.5e-08,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 3e-07,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         }
       ]
@@ -180,11 +192,13 @@
         {
           "base_rate": 5e-07,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 1.5e-06,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         }
       ]
@@ -197,11 +211,13 @@
         {
           "base_rate": 5e-07,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 1.5e-06,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         }
       ]
@@ -218,11 +234,13 @@
         {
           "base_rate": 1e-06,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 2e-06,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         }
       ]
@@ -235,11 +253,13 @@
         {
           "base_rate": 1e-06,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 2e-06,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         }
       ]
@@ -252,11 +272,13 @@
         {
           "base_rate": 3e-06,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 4e-06,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         }
       ]
@@ -273,11 +295,13 @@
         {
           "base_rate": 1.5e-06,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 2e-06,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         }
       ]
@@ -290,11 +314,13 @@
         {
           "base_rate": 3e-05,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 6e-05,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         }
       ]
@@ -311,11 +337,13 @@
         {
           "base_rate": 3e-05,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 6e-05,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         }
       ]
@@ -332,11 +360,13 @@
         {
           "base_rate": 1e-05,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 3e-05,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         }
       ]
@@ -365,11 +395,13 @@
         {
           "base_rate": 1e-05,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 3e-05,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         }
       ]
@@ -386,11 +418,13 @@
         {
           "base_rate": 1e-05,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 3e-05,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         }
       ]
@@ -407,16 +441,19 @@
         {
           "base_rate": 2e-06,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 8e-06,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         },
         {
           "base_rate": 5e-07,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "cache_read"
         }
       ]
@@ -433,16 +470,19 @@
         {
           "base_rate": 4e-07,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 1.6e-06,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         },
         {
           "base_rate": 1e-07,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "cache_read"
         }
       ]
@@ -459,16 +499,19 @@
         {
           "base_rate": 1e-07,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 4e-07,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         },
         {
           "base_rate": 2.5e-08,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "cache_read"
         }
       ]
@@ -485,16 +528,19 @@
         {
           "base_rate": 7.5e-05,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 0.00015,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         },
         {
           "base_rate": 3.75e-05,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "cache_read"
         }
       ]
@@ -511,16 +557,19 @@
         {
           "base_rate": 2.5e-06,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 1e-05,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         },
         {
           "base_rate": 1.25e-06,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "cache_read"
         }
       ]
@@ -533,11 +582,13 @@
         {
           "base_rate": 5e-06,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 1.5e-05,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         }
       ]
@@ -550,16 +601,19 @@
         {
           "base_rate": 2.5e-06,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 1e-05,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         },
         {
           "base_rate": 1.25e-06,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "cache_read"
         }
       ]
@@ -572,16 +626,19 @@
         {
           "base_rate": 2.5e-06,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 1e-05,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         },
         {
           "base_rate": 1.25e-06,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "cache_read"
         }
       ]
@@ -594,16 +651,19 @@
         {
           "base_rate": 1.5e-07,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 6e-07,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         },
         {
           "base_rate": 7.5e-08,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "cache_read"
         }
       ]
@@ -616,16 +676,19 @@
         {
           "base_rate": 1.5e-07,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 6e-07,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         },
         {
           "base_rate": 7.5e-08,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "cache_read"
         }
       ]
@@ -638,16 +701,19 @@
         {
           "base_rate": 1.5e-05,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 6e-05,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         },
         {
           "base_rate": 7.5e-06,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "cache_read"
         }
       ]
@@ -664,16 +730,19 @@
         {
           "base_rate": 1.1e-06,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 4.4e-06,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         },
         {
           "base_rate": 5.5e-07,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "cache_read"
         }
       ]
@@ -686,16 +755,19 @@
         {
           "base_rate": 1.1e-06,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 4.4e-06,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         },
         {
           "base_rate": 5.5e-07,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "cache_read"
         }
       ]
@@ -708,16 +780,19 @@
         {
           "base_rate": 1.5e-05,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 6e-05,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         },
         {
           "base_rate": 7.5e-06,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "cache_read"
         }
       ]
@@ -730,16 +805,19 @@
         {
           "base_rate": 1.5e-05,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 6e-05,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         },
         {
           "base_rate": 7.5e-06,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "cache_read"
         }
       ]
@@ -752,16 +830,19 @@
         {
           "base_rate": 2e-06,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 8e-06,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         },
         {
           "base_rate": 5e-07,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "cache_read"
         }
       ]
@@ -778,16 +859,19 @@
         {
           "base_rate": 1.1e-06,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 4.4e-06,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         },
         {
           "base_rate": 5.5e-07,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "cache_read"
         }
       ]
@@ -804,16 +888,19 @@
         {
           "base_rate": 1.1e-06,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "input"
         },
         {
           "base_rate": 4.4e-06,
           "is_prompt": false,
+          "source": "openrouter",
           "token_type": "output"
         },
         {
           "base_rate": 2.75e-07,
           "is_prompt": true,
+          "source": "openrouter",
           "token_type": "cache_read"
         }
       ]
