@@ -29,7 +29,7 @@ export function RichTokenBreakdown({
     color: segment.color || getChartColor(index, colors),
   }));
   return (
-    <Flex direction="column" gap="size-100">
+    <Flex direction="column" gap="size-150">
       {/* Totals */}
       <Flex direction="row" gap="size-200" justifyContent="space-between">
         <Text weight="heavy">Total {valueLabel}</Text>
