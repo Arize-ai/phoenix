@@ -3,7 +3,6 @@ import zlib
 from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Query
-from google.protobuf.json_format import MessageToJson
 from google.protobuf.message import DecodeError
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
@@ -14,7 +13,7 @@ from sqlalchemy import insert, select
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import Response
 from starlette.status import (
     HTTP_404_NOT_FOUND,
     HTTP_415_UNSUPPORTED_MEDIA_TYPE,
@@ -66,7 +65,7 @@ async def post_traces(
     background_tasks: BackgroundTasks,
     content_type: Optional[str] = Header(default=None),
     content_encoding: Optional[str] = Header(default=None),
-) -> JSONResponse:
+) -> Response:
     if content_type != "application/x-protobuf":
         raise HTTPException(
             detail=f"Unsupported content type: {content_type}",
@@ -91,7 +90,15 @@ async def post_traces(
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
     background_tasks.add_task(_add_spans, req, request.state)
-    return JSONResponse(MessageToJson(ExportTraceServiceResponse()))
+
+    # "The server MUST use the same Content-Type in the response as it received in the request"
+    response_message = ExportTraceServiceResponse()
+    response_bytes = response_message.SerializeToString()
+    return Response(
+        content=response_bytes,
+        media_type="application/x-protobuf",
+        status_code=200,
+    )
 
 
 class TraceAnnotationResult(V1RoutesBaseModel):
