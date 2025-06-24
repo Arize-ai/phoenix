@@ -93,7 +93,7 @@ class TestGenerativeModel(DBSchemaComparisonTest):
             "updated_at",
         }
         index_names = {
-            "ix_generative_models_name",
+            "ix_generative_models_name_is_built_in",
             "ix_generative_models_match_criteria",
         }
         constraint_names = {
@@ -226,6 +226,7 @@ class TestSpanCosts(DBSchemaComparisonTest):
         index_names = {
             "ix_span_costs_span_rowid",
             "ix_span_costs_trace_rowid",
+            "ix_span_costs_span_start_time",
             "ix_span_costs_model_id_span_start_time",
         }
         constraint_names = {

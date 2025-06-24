@@ -83,7 +83,7 @@ def upgrade() -> None:
         sqlite_where=sa.text("deleted_at IS NULL"),
     )
     op.create_index(
-        "ix_generative_models_name",
+        "ix_generative_models_name_is_built_in",
         "generative_models",
         ["name", "is_built_in"],
         unique=True,
@@ -148,6 +148,7 @@ def upgrade() -> None:
             "span_start_time",
             sa.TIMESTAMP(timezone=True),
             nullable=False,
+            index=True,
         ),
         sa.Column("total_cost", sa.Float),
         sa.Column("total_tokens", sa.Float),

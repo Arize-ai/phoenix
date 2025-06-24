@@ -1395,7 +1395,7 @@ class GenerativeModel(Base):
             unique=True,
         ),
         Index(
-            "ix_generative_models_name",
+            "ix_generative_models_name_is_built_in",
             "name",
             "is_built_in",
             postgresql_where=sa.text("deleted_at IS NULL"),
@@ -1613,6 +1613,7 @@ class SpanCost(Base):
     span_start_time: Mapped[datetime] = mapped_column(
         UtcTimeStamp,
         nullable=False,
+        index=True,
     )
     model_id: Mapped[Optional[int]] = mapped_column(
         sa.Integer,
