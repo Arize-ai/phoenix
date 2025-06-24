@@ -54,11 +54,14 @@ class CostModelLookup:
         a specific priority hierarchy to ensure consistent and predictable model selection.
 
         Args:
-            start_time: The timestamp for which to find a model. Models with start_time
-                greater than this value will be excluded.
+            start_time: The timestamp for which to find a model. Must be timezone-aware.
+                Models with start_time greater than this value will be excluded.
             attributes: A mapping containing span attributes. Must include:
                 - SpanAttributes.LLM_MODEL_NAME: The name of the LLM model to match
                 - SpanAttributes.LLM_PROVIDER: (Optional) The provider of the LLM model
+
+        Raises:
+            ValueError: If start_time is not timezone-aware (tzinfo is None)
 
         Returns:
             The most appropriate GenerativeModel that matches the criteria, or None if no
@@ -94,6 +97,9 @@ class CostModelLookup:
             ... )
         """  # noqa: E501
         # 1. extract and validate inputs
+        if start_time.tzinfo is None:
+            raise ValueError("start_time must be timezone-aware")
+
         model_name = str(
             get_attribute_value(attributes, SpanAttributes.LLM_MODEL_NAME) or ""
         ).strip()
@@ -140,7 +146,7 @@ class CostModelLookup:
                 if provider_specific_models:
                     tier_candidates = provider_specific_models
 
-            # 6. select best model in this tier using max for efficiency
+            # 6. select best model in this tier
             # find model with highest priority tuple: (regex_specificity, start_time, tie_breaker)
             return max(tier_candidates, key=lambda model: self._model_priority[model.id])
 
