@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 from datetime import datetime, timezone
 from typing import Any, Mapping, Optional
 
@@ -743,6 +744,264 @@ class TestCostModelLookup:
                 2,  # Provider-specific model should be preferred over provider-agnostic
                 "Provider-specific model should be preferred over provider-agnostic",
                 id="provider_specific_vs_agnostic_priority",
+            ),
+            # Start time priority tests
+            pytest.param(
+                [
+                    models.GenerativeModel(
+                        id=1,
+                        name="early-model",
+                        provider="openai",
+                        start_time=datetime(2023, 1, 1, tzinfo=timezone.utc),  # Early start time
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    ),
+                    models.GenerativeModel(
+                        id=2,
+                        name="late-model",
+                        provider="openai",
+                        start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),  # Later start time
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    ),
+                ],
+                {"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}},
+                datetime(2024, 6, 1, tzinfo=timezone.utc),  # Current time after both start times
+                2,  # Later start time should be preferred
+                "Later start time should be preferred over earlier start time",
+                id="start_time_priority_later_wins",
+            ),
+            pytest.param(
+                [
+                    models.GenerativeModel(
+                        id=1,
+                        name="no-start-time-model",
+                        provider="openai",
+                        start_time=None,  # No start time
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    ),
+                    models.GenerativeModel(
+                        id=2,
+                        name="with-start-time-model",
+                        provider="openai",
+                        start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),  # Has start time
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    ),
+                ],
+                {"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}},
+                datetime(2024, 6, 1, tzinfo=timezone.utc),  # Current time after start time
+                2,  # Model with start time should be preferred over model without start time
+                "Model with start time should be preferred over model without start time",
+                id="start_time_priority_with_start_time_wins",
+            ),
+            # Provider filtering edge cases
+            pytest.param(
+                [
+                    models.GenerativeModel(
+                        id=1,
+                        name="test-model",
+                        provider="openai",
+                        start_time=None,
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    )
+                ],
+                {"llm": {"model_name": "gpt-3.5-turbo", "provider": "   "}},  # Whitespace provider
+                datetime.now(timezone.utc),
+                1,  # Should match when provider is whitespace-only
+                "Model should match when provider is whitespace-only",
+                id="whitespace_provider_in_attributes",
+            ),
+            pytest.param(
+                [
+                    models.GenerativeModel(
+                        id=1,
+                        name="test-model",
+                        provider="OpenAI",  # Capitalized
+                        start_time=None,
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    )
+                ],
+                {"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}},  # Lowercase
+                datetime.now(timezone.utc),
+                1,  # Should match because no provider-specific candidates exist, so fallback to original
+                "Provider matching should fall back to original candidates when no case-sensitive match",
+                id="provider_case_sensitivity",
+            ),
+            # Complex priority scenarios with start time
+            pytest.param(
+                [
+                    models.GenerativeModel(
+                        id=1,
+                        name="early-specific-model",
+                        provider="openai",
+                        start_time=datetime(2023, 1, 1, tzinfo=timezone.utc),  # Early start time
+                        name_pattern="gpt-3\\.5-turbo",  # More specific
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    ),
+                    models.GenerativeModel(
+                        id=2,
+                        name="late-general-model",
+                        provider="openai",
+                        start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),  # Later start time
+                        name_pattern="gpt-3\\.5.*",  # Less specific
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    ),
+                ],
+                {"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}},
+                datetime(2024, 6, 1, tzinfo=timezone.utc),  # Current time after both start times
+                1,  # More specific pattern should win over later start time
+                "Regex specificity should take priority over start time",
+                id="complex_priority_specificity_over_start_time",
+            ),
+            pytest.param(
+                [
+                    models.GenerativeModel(
+                        id=1,
+                        name="early-high-id-model",
+                        provider="openai",
+                        start_time=datetime(2023, 1, 1, tzinfo=timezone.utc),  # Early start time
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    ),
+                    models.GenerativeModel(
+                        id=10,
+                        name="late-low-id-model",
+                        provider="openai",
+                        start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),  # Later start time
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    ),
+                ],
+                {"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}},
+                datetime(2024, 6, 1, tzinfo=timezone.utc),  # Current time after both start times
+                10,  # Later start time should win over lower ID
+                "Later start time should take priority over tie-breaker ID",
+                id="complex_priority_start_time_over_tie_breaker",
+            ),
+            # Model name validation edge cases
+            pytest.param(
+                [
+                    models.GenerativeModel(
+                        id=1,
+                        name="test-model",
+                        provider="openai",
+                        start_time=None,
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    )
+                ],
+                {"llm": {"model_name": None, "provider": "openai"}},  # None model name
+                datetime.now(timezone.utc),
+                None,
+                "None model name should return None",
+                id="none_model_name",
+            ),
+            pytest.param(
+                [
+                    models.GenerativeModel(
+                        id=1,
+                        name="test-model",
+                        provider="openai",
+                        start_time=None,
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    )
+                ],
+                {"llm": {"model_name": 123, "provider": "openai"}},  # Non-string model name
+                datetime.now(timezone.utc),
+                None,
+                "Non-string model name should return None",
+                id="non_string_model_name",
+            ),
+            # User-defined vs built-in priority with start time
+            pytest.param(
+                [
+                    models.GenerativeModel(
+                        id=1,
+                        name="built-in-late-model",
+                        provider="openai",
+                        start_time=datetime(
+                            2024, 6, 1, tzinfo=timezone.utc
+                        ),  # Very late start time
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    ),
+                    models.GenerativeModel(
+                        id=2,
+                        name="user-defined-early-model",
+                        provider="openai",
+                        start_time=datetime(2023, 1, 1, tzinfo=timezone.utc),  # Early start time
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=False,  # User-defined
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    ),
+                ],
+                {"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}},
+                datetime(2024, 12, 1, tzinfo=timezone.utc),  # Current time after both start times
+                2,  # User-defined should win over built-in regardless of start time
+                "User-defined model should take priority over built-in regardless of start time",
+                id="user_defined_vs_built_in_priority",
+            ),
+            # Provider case sensitivity with multiple models
+            pytest.param(
+                [
+                    models.GenerativeModel(
+                        id=1,
+                        name="openai-model",
+                        provider="openai",  # Lowercase
+                        start_time=None,
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    ),
+                    models.GenerativeModel(
+                        id=2,
+                        name="OpenAI-model",
+                        provider="OpenAI",  # Capitalized
+                        start_time=None,
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    ),
+                ],
+                {"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}},  # Lowercase
+                datetime.now(timezone.utc),
+                1,  # Should match the lowercase provider, not the capitalized one
+                "Provider matching should be case sensitive when multiple providers exist",
+                id="provider_case_sensitivity_multiple_models",
             ),
         ],
     )
