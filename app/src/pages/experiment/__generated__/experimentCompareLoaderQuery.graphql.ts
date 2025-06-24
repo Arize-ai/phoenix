@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<80816fa65128701283c65f11a70fe8b8>>
+ * @generated SignedSource<<bc849255bb2c9d6ce94d475bba82c63c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -249,6 +249,7 @@ return {
                         "name": "runs",
                         "plural": true,
                         "selections": [
+                          (v3/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -278,6 +279,42 @@ return {
                             "storageKey": null
                           },
                           (v7/*: any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "SpanCostSummary",
+                            "kind": "LinkedField",
+                            "name": "costSummary",
+                            "plural": false,
+                            "selections": [
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "CostBreakdown",
+                                "kind": "LinkedField",
+                                "name": "total",
+                                "plural": false,
+                                "selections": [
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "tokens",
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "cost",
+                                    "storageKey": null
+                                  }
+                                ],
+                                "storageKey": null
+                              }
+                            ],
+                            "storageKey": null
+                          },
                           {
                             "alias": null,
                             "args": null,
@@ -341,8 +378,7 @@ return {
                               }
                             ],
                             "storageKey": null
-                          },
-                          (v3/*: any*/)
+                          }
                         ],
                         "storageKey": null
                       }
@@ -508,12 +544,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7678ee2e7aebd26e017f98b54516db01",
+    "cacheID": "4a6c06f567bb29b6fef72abec4b5fa7c",
     "id": null,
     "metadata": {},
     "name": "experimentCompareLoaderQuery",
     "operationKind": "query",
-    "text": "query experimentCompareLoaderQuery(\n  $id: ID!\n  $experimentIDs: [ID!]!\n) {\n  ...ExperimentCompareTable_comparisons_2dEeQT\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      ...ExperimentMultiSelector__experiments\n    }\n  }\n}\n\nfragment ExperimentCompareTable_comparisons_2dEeQT on Query {\n  compareExperiments(first: 50, experimentIds: $experimentIDs) {\n    edges {\n      comparison: node {\n        example {\n          id\n          revision {\n            input\n            referenceOutput: output\n          }\n        }\n        runComparisonItems {\n          experimentId\n          runs {\n            output\n            error\n            startTime\n            endTime\n            trace {\n              traceId\n              projectId\n              id\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  score\n                  label\n                  annotatorKind\n                  explanation\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n            id\n          }\n        }\n        id\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      experiments {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            metadata\n            project {\n              id\n            }\n          }\n        }\n      }\n    }\n  }\n}\n\nfragment ExperimentMultiSelector__experiments on Dataset {\n  experiments {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        createdAt\n      }\n    }\n  }\n}\n"
+    "text": "query experimentCompareLoaderQuery(\n  $id: ID!\n  $experimentIDs: [ID!]!\n) {\n  ...ExperimentCompareTable_comparisons_2dEeQT\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      ...ExperimentMultiSelector__experiments\n    }\n  }\n}\n\nfragment ExperimentCompareTable_comparisons_2dEeQT on Query {\n  compareExperiments(first: 50, experimentIds: $experimentIDs) {\n    edges {\n      comparison: node {\n        example {\n          id\n          revision {\n            input\n            referenceOutput: output\n          }\n        }\n        runComparisonItems {\n          experimentId\n          runs {\n            id\n            output\n            error\n            startTime\n            endTime\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  score\n                  label\n                  annotatorKind\n                  explanation\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n        }\n        id\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      experiments {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            metadata\n            project {\n              id\n            }\n          }\n        }\n      }\n    }\n  }\n}\n\nfragment ExperimentMultiSelector__experiments on Dataset {\n  experiments {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        createdAt\n      }\n    }\n  }\n}\n"
   }
 };
 })();

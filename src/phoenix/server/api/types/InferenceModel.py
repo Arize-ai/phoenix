@@ -28,7 +28,7 @@ from .TimeSeries import (
 
 
 @strawberry.type
-class Model:
+class InferenceModel:
     @strawberry.field
     def dimensions(
         self,

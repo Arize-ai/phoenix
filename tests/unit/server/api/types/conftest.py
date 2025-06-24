@@ -52,6 +52,7 @@ def context_factory() -> Callable[[Inferences, Optional[Inferences]], Context]:
             # TODO(persistence): add mock for data_loaders
             data_loaders=None,  # type: ignore[arg-type]
             cache_for_dataloaders=None,
+            span_cost_calculator=None,  # type: ignore[arg-type]
         )
 
     return create_context

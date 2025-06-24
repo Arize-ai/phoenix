@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<398110e543679b851c2128cc3181857c>>
+ * @generated SignedSource<<1d2c5a6937395fe14d8940ca86b8f5fb>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,6 +19,11 @@ export type SpansTable_spans$data = {
   readonly spans: {
     readonly edges: ReadonlyArray<{
       readonly span: {
+        readonly costSummary: {
+          readonly total: {
+            readonly cost: number | null;
+          };
+        } | null;
         readonly cumulativeTokenCountTotal: number | null;
         readonly documentRetrievalMetrics: ReadonlyArray<{
           readonly evaluationName: string;
@@ -445,6 +450,35 @@ return {
                   "storageKey": null
                 },
                 {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "SpanCostSummary",
+                  "kind": "LinkedField",
+                  "name": "costSummary",
+                  "plural": false,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "CostBreakdown",
+                      "kind": "LinkedField",
+                      "name": "total",
+                      "plural": false,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "cost",
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
+                },
+                {
                   "args": null,
                   "kind": "FragmentSpread",
                   "name": "AnnotationSummaryGroup"
@@ -515,6 +549,6 @@ return {
 };
 })();
 
-(node as any).hash = "50778371684f1bd53a53c5bbeb7a6715";
+(node as any).hash = "57172213447c80d4600ee6be8eb67626";
 
 export default node;

@@ -32,6 +32,7 @@ import {
   Flex,
   Heading,
   Icon,
+  IconButton,
   Icons,
   ListBox,
   ListBoxItem,
@@ -55,17 +56,27 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
+import {
+  ExperimentRunTokenCosts,
+  ExperimentRunTokenCount,
+} from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
 import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import {
-  CellWithControlsWrap,
+  CellTop,
   CompactJSONCell,
   LoadMoreRow,
 } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import {
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+} from "@phoenix/components/tooltip";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import { assertUnreachable } from "@phoenix/typeUtils";
@@ -183,6 +194,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 runComparisonItems {
                   experimentId
                   runs {
+                    id
                     output
                     error
                     startTime
@@ -190,6 +202,12 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                     trace {
                       traceId
                       projectId
+                    }
+                    costSummary {
+                      total {
+                        tokens
+                        cost
+                      }
                     }
                     annotations {
                       edges {
@@ -277,28 +295,35 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         accessorKey: "input",
         cell: ({ row }) => {
           return (
-            <CellWithControlsWrap
-              controls={
-                <DialogTrigger>
-                  <Button
-                    size="S"
-                    aria-label="View example details"
-                    leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
-                  >
-                    View Example
-                  </Button>
-                  <ModalOverlay>
-                    <Modal variant="slideover" size="L">
-                      <Suspense>
-                        <ExampleDetailsDialog
-                          exampleId={row.original.example.id}
-                        />
-                      </Suspense>
-                    </Modal>
-                  </ModalOverlay>
-                </DialogTrigger>
-              }
-            >
+            <>
+              <CellTop
+                extra={
+                  <TooltipTrigger>
+                    <IconButton
+                      size="S"
+                      onPress={() => {
+                        setDialog(
+                          <ExampleDetailsDialog
+                            exampleId={row.original.example.id}
+                          />
+                        );
+                      }}
+                    >
+                      <Icon svg={<Icons.ExpandOutline />} />
+                    </IconButton>
+                    <Tooltip>
+                      <TooltipArrow />
+                      view example
+                    </Tooltip>
+                  </TooltipTrigger>
+                }
+              >
+                <Text
+                  size="S"
+                  color="text-500"
+                >{`example ${row.original.example.id}`}</Text>
+              </CellTop>
+
               <PaddedCell>
                 <LargeTextWrap>
                   <JSONText
@@ -308,7 +333,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                   />
                 </LargeTextWrap>
               </PaddedCell>
-            </CellWithControlsWrap>
+            </>
           );
         },
       },
@@ -316,13 +341,20 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         header: "reference output",
         accessorKey: "referenceOutput",
         cell: (props) => (
-          <PaddedCell>
-            {displayFullText ? JSONCell(props) : CompactJSONCell(props)}
-          </PaddedCell>
+          <>
+            <CellTop>
+              <Text size="S" color="text-500">
+                reference
+              </Text>
+            </CellTop>
+            <PaddedCell>
+              {displayFullText ? JSONCell(props) : CompactJSONCell(props)}
+            </PaddedCell>
+          </>
         ),
       },
     ];
-  }, [displayFullText]);
+  }, [displayFullText, setDialog]);
 
   const experimentColumns: ColumnDef<TableRow>[] = useMemo(() => {
     return experimentIds.map((experimentId) => ({
@@ -373,54 +405,63 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         const projectId = run?.trace?.projectId;
         if (traceId && projectId) {
           traceButton = (
-            <Button
-              variant="default"
-              className="trace-button"
-              size="S"
-              aria-label="View run trace"
-              leadingVisual={<Icon svg={<Icons.Trace />} />}
-              onPress={() => {
-                setDialog(
-                  <TraceDetailsDialog
-                    traceId={traceId}
-                    projectId={projectId}
-                    title={`Experiment Run Trace`}
-                  />
-                );
-              }}
-            >
-              View Trace
-            </Button>
+            <TooltipTrigger>
+              <IconButton
+                className="trace-button"
+                size="S"
+                aria-label="View run trace"
+                onPress={() => {
+                  setDialog(
+                    <TraceDetailsDialog
+                      traceId={traceId}
+                      projectId={projectId}
+                      title={`Experiment Run Trace`}
+                    />
+                  );
+                }}
+              >
+                <Icon svg={<Icons.Trace />} />
+              </IconButton>
+              <Tooltip>
+                <TooltipArrow />
+                view run trace
+              </Tooltip>
+            </TooltipTrigger>
           );
         }
         const runControls = (
           <>
-            <DialogTrigger>
-              <Button
-                variant="default"
+            <TooltipTrigger>
+              <IconButton
                 className="expand-button"
                 size="S"
                 aria-label="View example run details"
-                leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
+                onPress={() => {
+                  setDialog(
+                    <SelectedExampleDialog
+                      selectedExample={row.original}
+                      datasetId={datasetId}
+                      experimentInfoById={experimentInfoById}
+                    />
+                  );
+                }}
               >
-                Experiment Run
-              </Button>
-              <ModalOverlay>
-                <Modal variant="slideover" size="fullscreen">
-                  <SelectedExampleDialog
-                    selectedExample={row.original}
-                    datasetId={datasetId}
-                    experimentInfoById={experimentInfoById}
-                  />
-                </Modal>
-              </ModalOverlay>
-            </DialogTrigger>
+                <Icon svg={<Icons.ExpandOutline />} />
+              </IconButton>
+              <Tooltip>
+                <TooltipArrow />
+                view experiment run
+              </Tooltip>
+            </TooltipTrigger>
             {traceButton}
           </>
         );
 
         return run ? (
-          <CellWithControlsWrap controls={runControls}>
+          <>
+            <CellTop extra={runControls}>
+              <ExperimentRunMetadata {...run} />
+            </CellTop>
             <PaddedCell>
               <ExperimentRunOutput
                 {...run}
@@ -428,7 +469,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 setDialog={setDialog}
               />
             </PaddedCell>
-          </CellWithControlsWrap>
+          </>
         ) : (
           <PaddedCell>
             <NotRunText />
@@ -621,7 +662,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       </Flex>
       <ModalOverlay isOpen={!!dialog} onOpenChange={() => setDialog(null)}>
         <Modal variant="slideover" size="fullscreen">
-          {dialog}
+          {/* TODO: move this into the dialogs so the loading state is contained */}
+          <Suspense>{dialog}</Suspense>
         </Modal>
       </ModalOverlay>
     </View>
@@ -695,10 +737,16 @@ function ExperimentRowActionMenu(props: {
       }}
     >
       <DialogTrigger>
-        <Button
-          size="S"
-          leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
-        />
+        <TooltipTrigger>
+          <Button
+            size="S"
+            leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
+          />
+          <Tooltip>
+            <TooltipArrow />
+            More actions
+          </Tooltip>
+        </TooltipTrigger>
         <Popover>
           <Dialog>
             {({ close }) => (
@@ -738,6 +786,32 @@ function ExperimentRowActionMenu(props: {
   );
 }
 
+function ExperimentRunMetadata(props: ExperimentRun) {
+  const { id, startTime, endTime, costSummary } = props;
+  const totalTokens = costSummary?.total?.tokens;
+  const totalCost = costSummary?.total?.cost;
+  return (
+    <Flex direction="row" gap="size-100">
+      <RunLatency startTime={startTime} endTime={endTime} />
+      {totalTokens != null && id ? (
+        <ExperimentRunTokenCount
+          tokenCountTotal={totalTokens}
+          experimentRunId={id}
+          size="S"
+        />
+      ) : (
+        <TokenCount size="S">{totalTokens}</TokenCount>
+      )}
+      {totalCost != null && id ? (
+        <ExperimentRunTokenCosts
+          totalCost={totalCost}
+          experimentRunId={id}
+          size="S"
+        />
+      ) : null}
+    </Flex>
+  );
+}
 /**
  * Display the output of an experiment run.
  */
@@ -747,15 +821,7 @@ function ExperimentRunOutput(
     setDialog: (dialog: ReactNode) => void;
   }
 ) {
-  const {
-    output,
-    error,
-    startTime,
-    endTime,
-    annotations,
-    displayFullText,
-    setDialog,
-  } = props;
+  const { output, error, annotations, displayFullText, setDialog } = props;
   if (error) {
     return <RunError error={error} />;
   }
@@ -782,9 +848,6 @@ function ExperimentRunOutput(
           flex-wrap: wrap;
         `}
       >
-        <li key="run-latency">
-          <RunLatency startTime={startTime} endTime={endTime} />
-        </li>
         {annotationsList.map((annotation) => {
           const traceId = annotation.trace?.traceId;
           const projectId = annotation.trace?.projectId;
@@ -855,7 +918,7 @@ function RunLatency({
   if (latencyMs === null) {
     return null;
   }
-  return <LatencyText latencyMs={latencyMs} />;
+  return <LatencyText size="S" latencyMs={latencyMs} />;
 }
 function NotRunText() {
   return (

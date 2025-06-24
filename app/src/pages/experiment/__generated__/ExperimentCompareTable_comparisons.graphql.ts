@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d86a777f0102e6de79aba282959267c2>>
+ * @generated SignedSource<<d40287dc77a8558575e3c356028c0349>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -41,8 +41,15 @@ export type ExperimentCompareTable_comparisons$data = {
                 };
               }>;
             };
+            readonly costSummary: {
+              readonly total: {
+                readonly cost: number | null;
+                readonly tokens: number | null;
+              };
+            };
             readonly endTime: string;
             readonly error: string | null;
+            readonly id: string;
             readonly output: any | null;
             readonly startTime: string;
             readonly trace: {
@@ -270,6 +277,7 @@ return {
                       "name": "runs",
                       "plural": true,
                       "selections": [
+                        (v1/*: any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -299,6 +307,42 @@ return {
                           "storageKey": null
                         },
                         (v2/*: any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "SpanCostSummary",
+                          "kind": "LinkedField",
+                          "name": "costSummary",
+                          "plural": false,
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "CostBreakdown",
+                              "kind": "LinkedField",
+                              "name": "total",
+                              "plural": false,
+                              "selections": [
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "tokens",
+                                  "storageKey": null
+                                },
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "cost",
+                                  "storageKey": null
+                                }
+                              ],
+                              "storageKey": null
+                            }
+                          ],
+                          "storageKey": null
+                        },
                         {
                           "alias": null,
                           "args": null,
@@ -520,6 +564,6 @@ return {
 };
 })();
 
-(node as any).hash = "197d8138f2229974e8f32af49e5e4261";
+(node as any).hash = "61cd7128e7b057c1d22776135ce38026";
 
 export default node;

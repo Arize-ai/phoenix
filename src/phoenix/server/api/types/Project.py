@@ -28,6 +28,7 @@ from phoenix.server.api.input_types.SpanSort import SpanSort, SpanSortConfig
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
+from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -40,6 +41,7 @@ from phoenix.server.api.types.pagination import (
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span
+from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.TimeSeries import TimeSeries, TimeSeriesDataPoint
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
@@ -176,6 +178,30 @@ class Project(Node):
         )
 
     @strawberry.field
+    async def cost_summary(
+        self,
+        info: Info[Context, None],
+        time_range: Optional[TimeRange] = UNSET,
+        filter_condition: Optional[str] = UNSET,
+    ) -> SpanCostSummary:
+        loader = info.context.data_loaders.span_cost_summary_by_project
+        summary = await loader.load((self.project_rowid, time_range, filter_condition))
+        return SpanCostSummary(
+            prompt=CostBreakdown(
+                tokens=summary.prompt.tokens,
+                cost=summary.prompt.cost,
+            ),
+            completion=CostBreakdown(
+                tokens=summary.completion.tokens,
+                cost=summary.completion.cost,
+            ),
+            total=CostBreakdown(
+                tokens=summary.total.tokens,
+                cost=summary.total.cost,
+            ),
+        )
+
+    @strawberry.field
     async def latency_ms_quantile(
         self,
         info: Info[Context, None],
@@ -238,6 +264,7 @@ class Project(Node):
     ) -> Connection[Span]:
         stmt = (
             select(models.Span.id)
+            .select_from(models.Span)
             .join(models.Trace)
             .where(models.Trace.project_rowid == self.project_rowid)
         )
@@ -408,6 +435,21 @@ class Project(Node):
                     ).subquery()
                 else:
                     assert_never(sort.col)
+                key = sort_subq.c.key
+                stmt = stmt.join(sort_subq, table.id == sort_subq.c.id)
+            elif sort.col is ProjectSessionColumn.costTotal:
+                sort_subq = (
+                    select(
+                        models.Trace.project_session_rowid.label("id"),
+                        func.sum(models.SpanCost.total_cost).label("key"),
+                    )
+                    .join_from(
+                        models.Trace,
+                        models.SpanCost,
+                        models.Trace.id == models.SpanCost.trace_rowid,
+                    )
+                    .group_by(models.Trace.project_session_rowid)
+                ).subquery()
                 key = sort_subq.c.key
                 stmt = stmt.join(sort_subq, table.id == sort_subq.c.id)
             else:
