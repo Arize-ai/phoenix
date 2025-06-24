@@ -22,8 +22,8 @@ importers:
         specifier: 2.0.0-0
         version: 2.0.0-0(@types/react@18.3.10)(eslint@8.57.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@arizeai/openinference-semantic-conventions':
-        specifier: ^0.13.0
-        version: 0.13.0
+        specifier: ^1.1.0
+        version: 1.1.0
       '@arizeai/point-cloud':
         specifier: ^3.0.6
         version: 3.0.6(@react-three/drei@9.108.4(@react-three/fiber@8.0.12(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.139.2))(@types/react@18.3.10)(@types/three@0.149.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.139.2))(@react-three/fiber@8.0.12(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.139.2))(react@18.3.1)(three-stdlib@2.30.4(three@0.139.2))(three@0.139.2)
@@ -378,8 +378,8 @@ packages:
       react: '>=18'
       react-dom: '>=18'
 
-  '@arizeai/openinference-semantic-conventions@0.13.0':
-    resolution: {integrity: sha512-WlpMl6eVSdngM0zb+zdtsyXdIyytIVYElQNe4/NQ4KMsMRfZedlkW0qwHJhpVQuwDzMIg/kZ11JunOWo7mDKSg==}
+  '@arizeai/openinference-semantic-conventions@1.1.0':
+    resolution: {integrity: sha512-rxRYnUWjt28DlVXnWukcQAyGhPYQ3ckmKrjEdUjmUNnvvv4k8Dabbp5h6AEjNy7YzN9jL2smNRJnbLIVtkrLEg==}
 
   '@arizeai/point-cloud@3.0.6':
     resolution: {integrity: sha512-hatFoGJsHAHwZqzZokKqBcHhvyxGyyy9g/CEWpChOckcUkQktgKRT00rrrmiSE7XXHHeUVdkjYruS1R7y16KZg==}
@@ -602,8 +602,8 @@ packages:
   '@codemirror/language@6.10.3':
     resolution: {integrity: sha512-kDqEU5sCP55Oabl6E7m5N+vZRoc0iWqgDVhEKifcHzPzjqCegcO4amfrYVL9PmPZpl4G0yjkpTpUO/Ui8CzO8A==}
 
-  '@codemirror/language@6.11.0':
-    resolution: {integrity: sha512-A7+f++LodNNc1wGgoRDTt78cOwWm9KVezApgjOMp1W4hM0898nsqBXwF+sbePE7ZRcjN7Sa1Z5m2oN27XkmEjQ==}
+  '@codemirror/language@6.11.1':
+    resolution: {integrity: sha512-5kS1U7emOGV84vxC+ruBty5sUgcD0te6dyupyRVG2zaSjhTDM73LhVKUtVwiqSe6QwmEoA4SCiU8AKPFyumAWQ==}
 
   '@codemirror/lint@6.8.1':
     resolution: {integrity: sha512-IZ0Y7S4/bpaunwggW2jYqwLuHj0QtESf5xcROewY6+lDNwZ/NzvR4t+vpYgg9m7V8UXLPYqG+lu3DF470E5Oxg==}
@@ -5733,7 +5733,7 @@ snapshots:
       - eslint
       - supports-color
 
-  '@arizeai/openinference-semantic-conventions@0.13.0': {}
+  '@arizeai/openinference-semantic-conventions@1.1.0': {}
 
   '@arizeai/point-cloud@3.0.6(@react-three/drei@9.108.4(@react-three/fiber@8.0.12(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.139.2))(@types/react@18.3.10)(@types/three@0.149.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.139.2))(@react-three/fiber@8.0.12(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.139.2))(react@18.3.1)(three-stdlib@2.30.4(three@0.139.2))(three@0.139.2)':
     dependencies:
@@ -5994,9 +5994,9 @@ snapshots:
       '@codemirror/view': 6.29.0
       '@lezer/common': 1.2.1
 
-  '@codemirror/autocomplete@6.12.0(@codemirror/language@6.11.0)(@codemirror/state@6.5.2)(@codemirror/view@6.36.4)(@lezer/common@1.2.1)':
+  '@codemirror/autocomplete@6.12.0(@codemirror/language@6.11.1)(@codemirror/state@6.5.2)(@codemirror/view@6.36.4)(@lezer/common@1.2.1)':
     dependencies:
-      '@codemirror/language': 6.11.0
+      '@codemirror/language': 6.11.1
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.36.4
       '@lezer/common': 1.2.1
@@ -6018,7 +6018,7 @@ snapshots:
 
   '@codemirror/commands@6.8.1':
     dependencies:
-      '@codemirror/language': 6.11.0
+      '@codemirror/language': 6.11.1
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.36.4
       '@lezer/common': 1.2.1
@@ -6069,7 +6069,7 @@ snapshots:
       '@lezer/lr': 1.4.2
       style-mod: 4.1.2
 
-  '@codemirror/language@6.11.0':
+  '@codemirror/language@6.11.1':
     dependencies:
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.36.4
@@ -6102,7 +6102,7 @@ snapshots:
 
   '@codemirror/theme-one-dark@6.1.2':
     dependencies:
-      '@codemirror/language': 6.11.0
+      '@codemirror/language': 6.11.1
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.36.4
       '@lezer/highlight': 1.2.1
@@ -9296,9 +9296,9 @@ snapshots:
 
   codemirror@6.0.1(@lezer/common@1.2.1):
     dependencies:
-      '@codemirror/autocomplete': 6.12.0(@codemirror/language@6.11.0)(@codemirror/state@6.5.2)(@codemirror/view@6.36.4)(@lezer/common@1.2.1)
+      '@codemirror/autocomplete': 6.12.0(@codemirror/language@6.11.1)(@codemirror/state@6.5.2)(@codemirror/view@6.36.4)(@lezer/common@1.2.1)
       '@codemirror/commands': 6.8.1
-      '@codemirror/language': 6.11.0
+      '@codemirror/language': 6.11.1
       '@codemirror/lint': 6.8.5
       '@codemirror/search': 6.5.6
       '@codemirror/state': 6.5.2

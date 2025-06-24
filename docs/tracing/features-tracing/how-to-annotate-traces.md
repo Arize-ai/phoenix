@@ -14,7 +14,7 @@ Navigate to the Feedback tab in this demo trace to see how LLM-based evaluations
 
 ## Next Steps
 
-* Learn more about the concepts [concepts-annotations.md](../concepts-tracing/concepts-annotations.md "mention")
+* Learn more about the concepts: [Annotations Concepts](https://app.gitbook.com/s/fqGNxHHFrgwnCxgUBNsJ/tracing/annotations-concepts "mention")
 * Configure Annotation Configs to guide human annotations.
 * How to run [evaluating-phoenix-traces.md](../how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces.md "mention")
 * Learn how to log annotations via the client from your app or in a notebook

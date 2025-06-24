@@ -1,5 +1,31 @@
 # Changelog
 
+## [10.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.14.0...arize-phoenix-v10.15.0) (2025-06-21)
+
+
+### Features
+
+* bedrock playground client ([#7918](https://github.com/Arize-ai/phoenix/issues/7918)) ([15d7e7a](https://github.com/Arize-ai/phoenix/commit/15d7e7aaa36913e3bb76777653fb29c8f6297340))
+
+
+### Bug Fixes
+
+* restore evaluator traces ([#8215](https://github.com/Arize-ai/phoenix/issues/8215)) ([f13acfb](https://github.com/Arize-ai/phoenix/commit/f13acfb10de6816b0abe17e6a8e6160c3f33676b))
+
+## [10.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.13.2...arize-phoenix-v10.14.0) (2025-06-20)
+
+
+### Features
+
+* read OTEL_EXPORTER_OTLP_ENDPOINT when PHOENIX_COLLECTOR_ENDPOINT is missing ([#8095](https://github.com/Arize-ai/phoenix/issues/8095)) ([4cb7e4c](https://github.com/Arize-ai/phoenix/commit/4cb7e4c2cd3b43ee3334c717dc4499634ca12135))
+
+
+### Bug Fixes
+
+* Do not try to fetch admin fragment when creating API keys ([#8131](https://github.com/Arize-ai/phoenix/issues/8131)) ([c254d19](https://github.com/Arize-ai/phoenix/commit/c254d19ffc99cf1c6c5b28d0971549e77c1a0710))
+* Ensure experiment and example dialogs have consistent behavior / styles ([#8141](https://github.com/Arize-ai/phoenix/issues/8141)) ([f8af7a7](https://github.com/Arize-ai/phoenix/commit/f8af7a76ad2d6cf456dfacc1d32ec1d3c8986691))
+* make welcome email just send you to the instance ([#8170](https://github.com/Arize-ai/phoenix/issues/8170)) ([893ed62](https://github.com/Arize-ai/phoenix/commit/893ed62f1b0d088e7016e4a920e0381bd62a9f1c))
+
 ## [10.13.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.13.1...arize-phoenix-v10.13.2) (2025-06-17)
 
 

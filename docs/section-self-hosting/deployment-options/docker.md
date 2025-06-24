@@ -49,7 +49,7 @@ docker run -p 6006:6006 -p 4317:4317 -i -t arizephoenix/phoenix:latest
 
 See  for details on the ports for the container.
 
-Navigate to [http://0.0.0.0:6006](http://0.0.0.0:6006) and you should see your local Arize Phoenix
+Navigate to [http://localhost:6006](http://localhost:6006) and you should see your local Arize Phoenix
 {% endtab %}
 {% endtabs %}
 

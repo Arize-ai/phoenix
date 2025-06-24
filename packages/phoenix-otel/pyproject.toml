@@ -22,14 +22,14 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
 ]
-version = "0.11.0"
+version = "0.12.1"
 dependencies = [
   "opentelemetry-semantic-conventions",
   "opentelemetry-exporter-otlp",
   "opentelemetry-proto>=1.12.0",
   "opentelemetry-sdk",
   "openinference-semantic-conventions>=0.1.17",
-  "openinference-instrumentation>=0.1.32",
+  "openinference-instrumentation>=0.1.34",
   "typing-extensions>=4.5, <5",
   "wrapt",
 ]

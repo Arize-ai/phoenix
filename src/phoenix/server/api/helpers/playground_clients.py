@@ -598,6 +598,465 @@ class OllamaStreamingClient(OpenAIBaseStreamingClient):
 
 
 @register_llm_client(
+    provider_key=GenerativeProviderKey.AWS,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "anthropic.claude-3-5-sonnet-20240620-v1:0",
+        "anthropic.claude-3-7-sonnet-20250219-v1:0",
+        "anthropic.claude-3-haiku-20240307-v1:0",
+        "anthropic.claude-3-5-sonnet-20241022-v2:0",
+        "anthropic.claude-3-5-haiku-20241022-v1:0",
+        "anthropic.claude-opus-4-20250514-v1:0",
+        "anthropic.claude-sonnet-4-20250514-v1:0",
+        "amazon.titan-embed-text-v2:0",
+        "amazon.nova-pro-v1:0",
+        "amazon.nova-premier-v1:0:8k",
+        "amazon.nova-premier-v1:0:20k",
+        "amazon.nova-premier-v1:0:1000k",
+        "amazon.nova-premier-v1:0:mm",
+        "amazon.nova-premier-v1:0",
+        "amazon.nova-lite-v1:0",
+        "amazon.nova-micro-v1:0",
+        "deepseek.r1-v1:0",
+        "mistral.pixtral-large-2502-v1:0",
+        "meta.llama3-1-8b-instruct-v1:0:128k",
+        "meta.llama3-1-8b-instruct-v1:0",
+        "meta.llama3-1-70b-instruct-v1:0:128k",
+        "meta.llama3-1-70b-instruct-v1:0",
+        "meta.llama3-1-405b-instruct-v1:0",
+        "meta.llama3-2-11b-instruct-v1:0",
+        "meta.llama3-2-90b-instruct-v1:0",
+        "meta.llama3-2-1b-instruct-v1:0",
+        "meta.llama3-2-3b-instruct-v1:0",
+        "meta.llama3-3-70b-instruct-v1:0",
+        "meta.llama4-scout-17b-instruct-v1:0",
+        "meta.llama4-maverick-17b-instruct-v1:0",
+    ],
+)
+class BedrockStreamingClient(PlaygroundStreamingClient):
+    def __init__(
+        self,
+        model: GenerativeModelInput,
+        credentials: Optional[list[PlaygroundClientCredential]] = None,
+    ) -> None:
+        import boto3  # type: ignore[import-untyped]
+
+        super().__init__(model=model, credentials=credentials)
+        self.region = model.region or "us-east-1"
+        self.api = "converse"
+        self.aws_access_key_id = _get_credential_value(credentials, "AWS_ACCESS_KEY_ID") or getenv(
+            "AWS_ACCESS_KEY_ID"
+        )
+        self.aws_secret_access_key = _get_credential_value(
+            credentials, "AWS_SECRET_ACCESS_KEY"
+        ) or getenv("AWS_SECRET_ACCESS_KEY")
+        self.aws_session_token = _get_credential_value(credentials, "AWS_SESSION_TOKEN") or getenv(
+            "AWS_SESSION_TOKEN"
+        )
+        self.model_name = model.name
+        self.client = boto3.client(
+            service_name="bedrock-runtime",
+            region_name="us-east-1",  # match the default region in the UI
+            aws_access_key_id=self.aws_access_key_id,
+            aws_secret_access_key=self.aws_secret_access_key,
+            aws_session_token=self.aws_session_token,
+        )
+
+        self._attributes[LLM_PROVIDER] = "aws"
+        self._attributes[LLM_SYSTEM] = "aws"
+
+    @classmethod
+    def dependencies(cls) -> list[Dependency]:
+        return [Dependency(name="boto3")]
+
+    @classmethod
+    def supported_invocation_parameters(cls) -> list[InvocationParameter]:
+        return [
+            IntInvocationParameter(
+                invocation_name="max_tokens",
+                canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
+                label="Max Tokens",
+                default_value=1024,
+            ),
+            BoundedFloatInvocationParameter(
+                invocation_name="temperature",
+                canonical_name=CanonicalParameterName.TEMPERATURE,
+                label="Temperature",
+                default_value=1.0,
+                min_value=0.0,
+                max_value=1.0,
+            ),
+            BoundedFloatInvocationParameter(
+                invocation_name="top_p",
+                canonical_name=CanonicalParameterName.TOP_P,
+                label="Top P",
+                default_value=1.0,
+                min_value=0.0,
+                max_value=1.0,
+            ),
+            JSONInvocationParameter(
+                invocation_name="tool_choice",
+                label="Tool Choice",
+                canonical_name=CanonicalParameterName.TOOL_CHOICE,
+            ),
+        ]
+
+    async def chat_completion_create(
+        self,
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+        ],
+        tools: list[JSONScalarType],
+        **invocation_parameters: Any,
+    ) -> AsyncIterator[ChatCompletionChunk]:
+        import boto3
+
+        if (
+            self.client.meta.region_name != self.region
+        ):  # override the region if it's different from the default
+            self.client = boto3.client(
+                "bedrock-runtime",
+                region_name=self.region,
+                aws_access_key_id=self.aws_access_key_id,
+                aws_secret_access_key=self.aws_secret_access_key,
+                aws_session_token=self.aws_session_token,
+            )
+        if self.api == "invoke":
+            async for chunk in self._handle_invoke_api(messages, tools, invocation_parameters):
+                yield chunk
+        else:
+            async for chunk in self._handle_converse_api(messages, tools, invocation_parameters):
+                yield chunk
+
+    async def _handle_converse_api(
+        self,
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+        ],
+        tools: list[JSONScalarType],
+        invocation_parameters: dict[str, Any],
+    ) -> AsyncIterator[ChatCompletionChunk]:
+        """
+        Handle the converse API.
+        """
+        # Build messages in Converse API format
+        converse_messages = self._build_converse_messages(messages)
+
+        # Build the request parameters for Converse API
+        converse_params: dict[str, Any] = {
+            "modelId": f"us.{self.model_name}",
+            "messages": converse_messages,
+            "inferenceConfig": {
+                "maxTokens": invocation_parameters["max_tokens"],
+                "temperature": invocation_parameters["temperature"],
+                "topP": invocation_parameters["top_p"],
+            },
+        }
+
+        # Add system prompt if available
+        system_prompt = self._extract_system_prompt(messages)
+        if system_prompt:
+            converse_params["system"] = [{"text": system_prompt}]
+
+        # Add tools if provided
+        if tools:
+            converse_params["toolConfig"] = {"tools": tools}
+            if (
+                "tool_choice" in invocation_parameters
+                and invocation_parameters["tool_choice"]["type"] != "none"
+            ):
+                converse_params["toolConfig"]["toolChoice"] = {}
+
+                if invocation_parameters["tool_choice"]["type"] == "auto":
+                    converse_params["toolConfig"]["toolChoice"]["auto"] = {}
+                elif invocation_parameters["tool_choice"]["type"] == "any":
+                    converse_params["toolConfig"]["toolChoice"]["any"] = {}
+                else:
+                    converse_params["toolConfig"]["toolChoice"]["tool"] = {
+                        "name": invocation_parameters["tool_choice"]["name"],
+                    }
+
+        # Make the streaming API call
+        response = self.client.converse_stream(**converse_params)
+
+        # Track active tool calls
+        active_tool_calls = {}  # contentBlockIndex -> {id, name, arguments_buffer}
+
+        # Process the event stream
+        event_stream = response.get("stream")
+
+        for event in event_stream:
+            # Handle content block start events
+            if "contentBlockStart" in event:
+                content_block_start = event["contentBlockStart"]
+                start_event = content_block_start.get("start", {})
+                block_index = content_block_start.get(
+                    "contentBlockIndex", 0
+                )  # Get the actual index
+
+                if "toolUse" in start_event:
+                    tool_use = start_event["toolUse"]
+                    active_tool_calls[block_index] = {  # Use the actual block index
+                        "id": tool_use.get("toolUseId"),
+                        "name": tool_use.get("name"),
+                        "arguments_buffer": "",
+                    }
+
+                    # Yield initial tool call chunk
+                    yield ToolCallChunk(
+                        id=tool_use.get("toolUseId"),
+                        function=FunctionCallChunk(
+                            name=tool_use.get("name"),
+                            arguments="",
+                        ),
+                    )
+
+            # Handle content block delta events
+            elif "contentBlockDelta" in event:
+                content_delta = event["contentBlockDelta"]
+                delta = content_delta.get("delta", {})
+                delta_index = content_delta.get("contentBlockIndex", 0)
+
+                # Handle text delta
+                if "text" in delta:
+                    yield TextChunk(content=delta["text"])
+
+                # Handle tool use delta
+                elif "toolUse" in delta:
+                    tool_delta = delta["toolUse"]
+                    if "input" in tool_delta and delta_index in active_tool_calls:
+                        # Accumulate tool arguments
+                        json_chunk = tool_delta["input"]
+                        active_tool_calls[delta_index]["arguments_buffer"] += json_chunk
+
+                        # Yield incremental argument update
+                        yield ToolCallChunk(
+                            id=active_tool_calls[delta_index]["id"],
+                            function=FunctionCallChunk(
+                                name=active_tool_calls[delta_index]["name"],
+                                arguments=json_chunk,
+                            ),
+                        )
+
+            # Handle content block stop events
+            elif "contentBlockStop" in event:
+                stop_index = event["contentBlockStop"].get("contentBlockIndex", 0)
+                if stop_index in active_tool_calls:
+                    del active_tool_calls[stop_index]
+
+            elif "metadata" in event:
+                self._attributes.update(
+                    {
+                        LLM_TOKEN_COUNT_PROMPT: event.get("metadata")
+                        .get("usage", {})
+                        .get("inputTokens", 0)
+                    }
+                )
+
+                self._attributes.update(
+                    {
+                        LLM_TOKEN_COUNT_COMPLETION: event.get("metadata")
+                        .get("usage", {})
+                        .get("outputTokens", 0)
+                    }
+                )
+
+                self._attributes.update(
+                    {
+                        LLM_TOKEN_COUNT_TOTAL: event.get("metadata")
+                        .get("usage", {})
+                        .get("totalTokens", 0)
+                    }
+                )
+
+    async def _handle_invoke_api(
+        self,
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+        ],
+        tools: list[JSONScalarType],
+        invocation_parameters: dict[str, Any],
+    ) -> AsyncIterator[ChatCompletionChunk]:
+        if "anthropic" not in self.model_name:
+            raise ValueError("Invoke API is only supported for Anthropic models")
+
+        bedrock_messages, system_prompt = self._build_bedrock_messages(messages)
+        bedrock_params = {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": invocation_parameters["max_tokens"],
+            "messages": bedrock_messages,
+            "system": system_prompt,
+            "temperature": invocation_parameters["temperature"],
+            "top_p": invocation_parameters["top_p"],
+            "tools": tools,
+        }
+
+        response = self.client.invoke_model_with_response_stream(
+            modelId=f"us.{self.model_name}",  # or another Claude model
+            contentType="application/json",
+            accept="application/json",
+            body=json.dumps(bedrock_params),
+            trace="ENABLED_FULL",
+        )
+
+        # The response['body'] is an EventStream object
+        event_stream = response["body"]
+
+        # Track active tool calls and their accumulating arguments
+        active_tool_calls: dict[int, dict[str, Any]] = {}  # index -> {id, name, arguments_buffer}
+
+        for event in event_stream:
+            if "chunk" in event:
+                chunk_data = json.loads(event["chunk"]["bytes"].decode("utf-8"))
+
+                # Handle text content
+                if chunk_data.get("type") == "content_block_delta":
+                    delta = chunk_data.get("delta", {})
+                    index = chunk_data.get("index", 0)
+
+                    if delta.get("type") == "text_delta" and "text" in delta:
+                        yield TextChunk(content=delta["text"])
+
+                    elif delta.get("type") == "input_json_delta":
+                        # Accumulate tool arguments
+                        if index in active_tool_calls:
+                            active_tool_calls[index]["arguments_buffer"] += delta.get(
+                                "partial_json", ""
+                            )
+                            # Yield incremental argument update
+                            yield ToolCallChunk(
+                                id=active_tool_calls[index]["id"],
+                                function=FunctionCallChunk(
+                                    name=active_tool_calls[index]["name"],
+                                    arguments=delta.get("partial_json", ""),
+                                ),
+                            )
+
+                # Handle tool call start
+                elif chunk_data.get("type") == "content_block_start":
+                    content_block = chunk_data.get("content_block", {})
+                    index = chunk_data.get("index", 0)
+
+                    if content_block.get("type") == "tool_use":
+                        # Initialize tool call tracking
+                        active_tool_calls[index] = {
+                            "id": content_block.get("id"),
+                            "name": content_block.get("name"),
+                            "arguments_buffer": "",
+                        }
+
+                        # Yield initial tool call chunk
+                        yield ToolCallChunk(
+                            id=content_block.get("id"),
+                            function=FunctionCallChunk(
+                                name=content_block.get("name"),
+                                arguments="",  # Start with empty, will be filled by deltas
+                            ),
+                        )
+
+                # Handle content block stop (tool call complete)
+                elif chunk_data.get("type") == "content_block_stop":
+                    index = chunk_data.get("index", 0)
+                    if index in active_tool_calls:
+                        # Tool call is complete, clean up
+                        del active_tool_calls[index]
+
+                elif chunk_data.get("type") == "message_stop":
+                    self._attributes.update(
+                        {
+                            LLM_TOKEN_COUNT_COMPLETION: chunk_data.get(
+                                "amazon-bedrock-invocationMetrics", {}
+                            ).get("outputTokenCount", 0)
+                        }
+                    )
+
+                    self._attributes.update(
+                        {
+                            LLM_TOKEN_COUNT_PROMPT: chunk_data.get(
+                                "amazon-bedrock-invocationMetrics", {}
+                            ).get("inputTokenCount", 0)
+                        }
+                    )
+
+    def _build_bedrock_messages(
+        self,
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+        ],
+    ) -> tuple[list[dict[str, Any]], str]:
+        bedrock_messages = []
+        system_prompt = ""
+        for role, content, _, _ in messages:
+            if role == ChatCompletionMessageRole.USER:
+                bedrock_messages.append(
+                    {
+                        "role": "user",
+                        "content": content,
+                    }
+                )
+            elif role == ChatCompletionMessageRole.AI:
+                bedrock_messages.append(
+                    {
+                        "role": "assistant",
+                        "content": content,
+                    }
+                )
+            elif role == ChatCompletionMessageRole.SYSTEM:
+                system_prompt += content + "\n"
+        return bedrock_messages, system_prompt
+
+    def _extract_system_prompt(
+        self,
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+        ],
+    ) -> str:
+        """Extract system prompt from messages."""
+        system_prompts = []
+        for role, content, _, _ in messages:
+            if role == ChatCompletionMessageRole.SYSTEM:
+                system_prompts.append(content)
+        return "\n".join(system_prompts)
+
+    def _build_converse_messages(
+        self,
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+        ],
+    ) -> list[dict[str, Any]]:
+        """Convert messages to Converse API format."""
+        converse_messages: list[dict[str, Any]] = []
+        for role, content, _id, tool_calls in messages:
+            if role == ChatCompletionMessageRole.USER:
+                converse_messages.append({"role": "user", "content": [{"text": content}]})
+            elif role == ChatCompletionMessageRole.TOOL:
+                converse_messages.append(
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "toolResult": {
+                                    "toolUseId": _id,
+                                    "content": [{"json": json.loads(content)}],
+                                }
+                            }
+                        ],
+                    }
+                )
+
+            elif role == ChatCompletionMessageRole.AI:
+                # Handle assistant messages with potential tool calls
+                message: dict[str, Any] = {"role": "assistant", "content": []}
+                if content:
+                    message["content"].append({"text": content})
+                if tool_calls:
+                    for tool_call in tool_calls:
+                        message["content"].append(tool_call)
+                converse_messages.append(message)
+        return converse_messages
+
+
+@register_llm_client(
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=[
         PROVIDER_DEFAULT,
@@ -656,13 +1115,20 @@ class OpenAIStreamingClient(OpenAIBaseStreamingClient):
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=[
         "o1",
+        "o1-pro",
         "o1-2024-12-17",
+        "o1-pro-2025-03-19",
         "o1-mini",
         "o1-mini-2024-09-12",
         "o1-preview",
         "o1-preview-2024-09-12",
+        "o3",
+        "o3-pro",
+        "o3-2025-04-16",
         "o3-mini",
         "o3-mini-2025-01-31",
+        "o4-mini",
+        "o4-mini-2025-04-16",
     ],
 )
 class OpenAIReasoningStreamingClient(OpenAIStreamingClient):

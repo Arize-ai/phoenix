@@ -6,8 +6,6 @@
 
 ## 🔭 Tracing
 
-***
-
 * [Cookbooks](cookbooks.md)
 * [Structured Data Extraction](structured-data-extraction.md)
 
