@@ -104,7 +104,7 @@ def to_gql_generative_model(model: models.GenerativeModel) -> GenerativeModel:
     return GenerativeModel(
         id_attr=model.id,
         name=model.name,
-        provider=model.provider,
+        provider=model.provider or None,
         name_pattern=name_pattern
         if isinstance(name_pattern, str)
         else name_pattern.decode("utf-8"),

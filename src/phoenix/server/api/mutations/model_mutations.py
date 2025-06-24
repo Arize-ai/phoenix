@@ -151,8 +151,8 @@ class ModelMutationMixin:
             await session.refresh(model)
 
             model.name = input.name
-            model.provider = input.provider
-            model.name_pattern = input.name_pattern
+            model.provider = input.provider or ""
+            model.name_pattern = re.compile(input.name_pattern)
             model.token_prices = token_prices
             model.start_time = input.start_time
             session.add(model)
