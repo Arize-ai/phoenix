@@ -370,6 +370,12 @@ input ContinuousAnnotationConfigInput {
   upperBound: Float = null
 }
 
+type CostBreakdown {
+  tokens: Float
+  cost: Float
+  costPerToken: Float
+}
+
 input CreateAnnotationConfigInput {
   annotationConfig: AnnotationConfigInput!
 }
@@ -401,6 +407,19 @@ input CreateDatasetInput {
   name: String!
   description: String
   metadata: JSON
+}
+
+input CreateModelMutationInput {
+  name: String!
+  provider: String = null
+  namePattern: String!
+  costs: [TokenPriceInput!]!
+  startTime: DateTime = null
+}
+
+type CreateModelMutationPayload {
+  model: GenerativeModel!
+  query: Query!
 }
 
 input CreateProjectTraceRetentionPolicyInput {
@@ -697,6 +716,15 @@ input DeleteDatasetInput {
 
 input DeleteExperimentsInput {
   experimentIds: [ID!]!
+}
+
+input DeleteModelMutationInput {
+  id: ID!
+}
+
+type DeleteModelMutationPayload {
+  model: GenerativeModel!
+  query: Query!
 }
 
 input DeleteProjectTraceRetentionPolicyInput {
@@ -1047,6 +1075,8 @@ type Experiment implements Node {
   averageRunLatencyMs: Float
   project: Project
   lastUpdatedAt: DateTime
+  costSummary: SpanCostSummary!
+  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
 type ExperimentAnnotationSummary {
@@ -1117,6 +1147,8 @@ type ExperimentRun implements Node {
   annotations(first: Int = 50, last: Int, after: String, before: String): ExperimentRunAnnotationConnection!
   trace: Trace
   example: DatasetExample!
+  costSummary: SpanCostSummary!
+  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
 type ExperimentRunAnnotation implements Node {
@@ -1220,9 +1252,21 @@ input GenerativeCredentialInput {
   value: String!
 }
 
-type GenerativeModel {
+type GenerativeModel implements Node & ModelInterface {
+  """The Globally Unique ID of this object"""
+  id: ID!
   name: String!
-  providerKey: GenerativeProviderKey!
+  providerKey: GenerativeProviderKey
+  provider: String
+  namePattern: String!
+  kind: GenerativeModelKind!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  startTime: DateTime
+  tokenPrices: [TokenPrice!]!
+  costSummary: SpanCostSummary!
+  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+  lastUsedAt: DateTime
 }
 
 input GenerativeModelInput {
@@ -1232,6 +1276,11 @@ input GenerativeModelInput {
   endpoint: String
   apiVersion: String
   region: String
+}
+
+enum GenerativeModelKind {
+  CUSTOM
+  BUILT_IN
 }
 
 type GenerativeProvider {
@@ -1279,6 +1328,36 @@ input Granularity {
 }
 
 scalar Identifier
+
+type InferenceModel {
+  dimensions(first: Int = 50, last: Int, after: String, before: String, include: DimensionFilter, exclude: DimensionFilter): DimensionConnection!
+  primaryInferences: Inferences!
+  referenceInferences: Inferences
+  corpusInferences: Inferences
+  embeddingDimensions(first: Int = 50, last: Int, after: String, before: String): EmbeddingDimensionConnection!
+
+  """Returns exported file names sorted by descending modification time."""
+  exportedFiles: [ExportedFile!]!
+  performanceMetric(
+    metric: PerformanceMetricInput!
+    timeRange: TimeRange
+
+    """The inferences (primary or reference) to query"""
+    inferencesRole: InferencesRole = primary
+  ): Float
+
+  """
+  Returns the time series of the specified metric for data within a time range. Data points are generated starting at the end time and are separated by the sampling interval. Each data point is labeled by the end instant and contains data from their respective evaluation windows.
+  """
+  performanceTimeSeries(
+    metric: PerformanceMetricInput!
+    timeRange: TimeRange!
+    granularity: Granularity!
+
+    """The inferences (primary or reference) to query"""
+    inferencesRole: InferencesRole = primary
+  ): PerformanceTimeSeries!
+}
 
 type Inferences {
   """The start bookend of the data"""
@@ -1383,34 +1462,9 @@ type MissingValueBin {
   name: String
 }
 
-type Model {
-  dimensions(first: Int = 50, last: Int, after: String, before: String, include: DimensionFilter, exclude: DimensionFilter): DimensionConnection!
-  primaryInferences: Inferences!
-  referenceInferences: Inferences
-  corpusInferences: Inferences
-  embeddingDimensions(first: Int = 50, last: Int, after: String, before: String): EmbeddingDimensionConnection!
-
-  """Returns exported file names sorted by descending modification time."""
-  exportedFiles: [ExportedFile!]!
-  performanceMetric(
-    metric: PerformanceMetricInput!
-    timeRange: TimeRange
-
-    """The inferences (primary or reference) to query"""
-    inferencesRole: InferencesRole = primary
-  ): Float
-
-  """
-  Returns the time series of the specified metric for data within a time range. Data points are generated starting at the end time and are separated by the sampling interval. Each data point is labeled by the end instant and contains data from their respective evaluation windows.
-  """
-  performanceTimeSeries(
-    metric: PerformanceMetricInput!
-    timeRange: TimeRange!
-    granularity: Granularity!
-
-    """The inferences (primary or reference) to query"""
-    inferencesRole: InferencesRole = primary
-  ): PerformanceTimeSeries!
+interface ModelInterface {
+  name: String!
+  providerKey: GenerativeProviderKey
 }
 
 enum ModelProvider {
@@ -1459,6 +1513,9 @@ type Mutation {
   Given a list of clusters, export the corresponding data subset in Parquet format. File name is optional, but if specified, should be without file extension. By default the exported file name is current timestamp.
   """
   exportClusters(clusters: [ClusterInput!]!, fileName: String): ExportedFile!
+  createModel(input: CreateModelMutationInput!): CreateModelMutationPayload!
+  updateModel(input: UpdateModelMutationInput!): UpdateModelMutationPayload!
+  deleteModel(input: DeleteModelMutationInput!): DeleteModelMutationPayload!
   deleteProject(id: ID!): Query!
   clearProject(input: ClearProjectInput!): Query!
   createProjectTraceRetentionPolicy(input: CreateProjectTraceRetentionPolicyInput!): ProjectTraceRetentionPolicyMutationPayload!
@@ -1596,6 +1653,11 @@ type PerformanceTimeSeries implements TimeSeries {
   data: [TimeSeriesDataPoint!]!
 }
 
+type PlaygroundModel implements ModelInterface {
+  name: String!
+  providerKey: GenerativeProviderKey!
+}
+
 type Point2D {
   x: Float!
   y: Float!
@@ -1622,6 +1684,7 @@ type Project implements Node {
   tokenCountTotal(timeRange: TimeRange, filterCondition: String): Float!
   tokenCountPrompt(timeRange: TimeRange, filterCondition: String): Float!
   tokenCountCompletion(timeRange: TimeRange, filterCondition: String): Float!
+  costSummary(timeRange: TimeRange, filterCondition: String): SpanCostSummary!
   latencyMsQuantile(probability: Float!, timeRange: TimeRange): Float
   spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String): Float
   trace(traceId: ID!): Trace
@@ -1701,6 +1764,8 @@ type ProjectSession implements Node {
   tokenUsage: TokenUsage!
   traces(first: Int = 50, last: Int, after: String, before: String): TraceConnection!
   traceLatencyMsQuantile(probability: Float!): Float
+  costSummary: SpanCostSummary!
+  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
 enum ProjectSessionColumn {
@@ -1708,6 +1773,7 @@ enum ProjectSessionColumn {
   endTime
   tokenCountTotal
   numTraces
+  costTotal
 }
 
 """A connection to a list of items."""
@@ -1967,7 +2033,8 @@ type PromptVersionTagMutationPayload {
 
 type Query {
   modelProviders: [GenerativeProvider!]!
-  models(input: ModelsInput = null): [GenerativeModel!]!
+  generativeModels: [GenerativeModel!]!
+  playgroundModels(input: ModelsInput = null): [PlaygroundModel!]!
   modelInvocationParameters(input: ModelsInput = null): [InvocationParameter!]!
   users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
   userRoles: [UserRole!]!
@@ -1980,7 +2047,7 @@ type Query {
   compareExperiments(experimentIds: [ID!]!, first: Int = 50, after: String, filterCondition: String): ExperimentComparisonConnection!
   validateExperimentRunFilterCondition(condition: String!, experimentIds: [ID!]!): ValidationResult!
   functionality: Functionality!
-  model: Model!
+  model: InferenceModel!
   node(id: ID!): Node!
   viewer: User
   prompts(first: Int = 50, last: Int, after: String, before: String): PromptConnection!
@@ -2014,6 +2081,7 @@ type Query {
   """
   dbStorageCapacityBytes: Float
   dbTableStats: [DbTableStats!]!
+  validateRegularExpression(regex: String!): ValidationResult!
 }
 
 input RemoveAnnotationConfigFromProjectInput {
@@ -2179,6 +2247,10 @@ type Span implements Node {
 
   """Invocation parameters for the span"""
   invocationParameters: [InvocationParameter!]!
+  costSummary: SpanCostSummary
+  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+  cumulativeCostSummary: SpanCostSummary
+  cumulativeCostDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
 type SpanAnnotation implements Node & Annotation {
@@ -2257,6 +2329,7 @@ enum SpanColumn {
   cumulativeTokenCountTotal
   cumulativeTokenCountPrompt
   cumulativeTokenCountCompletion
+  tokenCostTotal
 }
 
 """A connection to a list of items."""
@@ -2271,6 +2344,18 @@ type SpanConnection {
 type SpanContext {
   traceId: ID!
   spanId: ID!
+}
+
+type SpanCostDetailSummaryEntry {
+  tokenType: String!
+  isPrompt: Boolean!
+  value: CostBreakdown!
+}
+
+type SpanCostSummary {
+  prompt: CostBreakdown!
+  completion: CostBreakdown!
+  total: CostBreakdown!
 }
 
 type SpanCountTimeSeries implements TimeSeries {
@@ -2408,10 +2493,28 @@ type TokenCountPromptDetails {
   audio: Int
 }
 
+enum TokenKind {
+  PROMPT
+  COMPLETION
+}
+
+type TokenPrice {
+  tokenType: String!
+  kind: TokenKind!
+  costPerMillionTokens: Float!
+  costPerToken: Float!
+}
+
+input TokenPriceInput {
+  tokenType: String!
+  costPerMillionTokens: Float!
+  kind: TokenKind!
+}
+
 type TokenUsage {
-  prompt: Int!
-  completion: Int!
-  total: Int!
+  prompt: Float!
+  completion: Float!
+  total: Float!
 }
 
 type ToolCallChunk implements ChatCompletionSubscriptionPayload {
@@ -2484,6 +2587,8 @@ type Trace implements Node {
 
   """Annotations associated with the trace."""
   traceAnnotations(sort: TraceAnnotationSort = null): [TraceAnnotation!]!
+  costSummary: SpanCostSummary!
+  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
 type TraceAnnotation implements Node {
@@ -2581,6 +2686,20 @@ input UpdateAnnotationConfigInput {
 type UpdateAnnotationConfigPayload {
   query: Query!
   annotationConfig: AnnotationConfig!
+}
+
+input UpdateModelMutationInput {
+  id: ID!
+  name: String!
+  provider: String
+  namePattern: String!
+  costs: [TokenPriceInput!]!
+  startTime: DateTime = null
+}
+
+type UpdateModelMutationPayload {
+  model: GenerativeModel!
+  query: Query!
 }
 
 type User implements Node {

@@ -28,7 +28,7 @@ def normalize_datetime(
     """
     if not isinstance(dt, datetime):
         return None
-    if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+    if not is_timezone_aware(dt):
         dt = dt.replace(tzinfo=tz if tz else _LOCAL_TIMEZONE)
     return dt.astimezone(timezone.utc)
 
@@ -106,3 +106,10 @@ def right_open_time_range(
         floor_to_minute(min_time) if min_time else None,
         floor_to_minute(max_time + timedelta(minutes=1)) if max_time else None,
     )
+
+
+def is_timezone_aware(dt: datetime) -> bool:
+    """
+    Returns True if the datetime is timezone-aware, False otherwise.
+    """
+    return dt.tzinfo is not None and dt.tzinfo.utcoffset(dt) is not None

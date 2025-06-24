@@ -138,7 +138,7 @@ export function MetricSelector({
   const [, startTransition] = useTransition();
   const data = useFragment<MetricSelector_dimensions$key>(
     graphql`
-      fragment MetricSelector_dimensions on Model {
+      fragment MetricSelector_dimensions on InferenceModel {
         numericDimensions: dimensions(include: { dataTypes: [numeric] }) {
           edges {
             node {
