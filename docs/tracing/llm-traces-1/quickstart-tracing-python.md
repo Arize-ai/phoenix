@@ -41,7 +41,7 @@ Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](
 import os
 
 # Update this with your self-hosted endpoint
-PHOENIX_ENDPOINT = "http://0.0.0.0:6006/v1/traces"
+PHOENIX_ENDPOINT = "http://localhost:6006/v1/traces"
 ```
 
 {% hint style="warning" %}
