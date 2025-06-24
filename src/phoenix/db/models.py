@@ -43,7 +43,7 @@ from sqlalchemy.orm import (
 from sqlalchemy.sql import Values, column, compiler, expression, literal, roles, union_all
 from sqlalchemy.sql.compiler import SQLCompiler
 from sqlalchemy.sql.functions import coalesce
-from typing_extensions import TypeAlias, assert_never
+from typing_extensions import TypeAlias
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
@@ -425,13 +425,9 @@ class _RegexStr(TypeDecorator[re.Pattern[str]]):
         if not isinstance(value, re.Pattern):
             raise TypeError(f"Expected a regex pattern, got {type(value)}")
         pattern = value.pattern
-        if isinstance(pattern, str):
-            return pattern
-        elif isinstance(pattern, bytes):
-            # Convert bytes to string, assuming UTF-8 encoding
-            return pattern.decode("utf-8")
-        else:
-            assert_never(pattern)
+        if not isinstance(pattern, str):
+            raise ValueError(f"Expected a string, got {type(pattern)}")
+        return pattern
 
     def process_result_value(self, value: Optional[str], _: Dialect) -> Optional[re.Pattern[str]]:
         if value is None:

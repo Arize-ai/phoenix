@@ -92,12 +92,12 @@ class ModelMutationMixin:
             raise BadRequest("input cost is required")
         if "output" not in cost_types:
             raise BadRequest("output cost is required")
-        _ensure_valid_regex(input.name_pattern)
+        name_pattern = _compile_regular_expression(input.name_pattern)
         token_prices = [cost.token_prices for cost in input.costs]
         model = models.GenerativeModel(
             name=input.name,
             provider=input.provider,
-            name_pattern=input.name_pattern,
+            name_pattern=name_pattern,
             is_built_in=False,
             token_prices=token_prices,
             start_time=input.start_time,
@@ -130,7 +130,7 @@ class ModelMutationMixin:
             raise BadRequest("input cost is required")
         if "output" not in cost_types:
             raise BadRequest("output cost is required")
-        _ensure_valid_regex(input.name_pattern)
+        name_pattern = _compile_regular_expression(input.name_pattern)
         token_prices = [cost.token_prices for cost in input.costs]
         async with info.context.db() as session:
             model = await session.scalar(
@@ -152,7 +152,7 @@ class ModelMutationMixin:
 
             model.name = input.name
             model.provider = input.provider or ""
-            model.name_pattern = re.compile(input.name_pattern)
+            model.name_pattern = name_pattern
             model.token_prices = token_prices
             model.start_time = input.start_time
             session.add(model)
@@ -197,11 +197,12 @@ class ModelMutationMixin:
         )
 
 
-def _ensure_valid_regex(maybe_regex: str) -> None:
+def _compile_regular_expression(maybe_regex: str) -> re.Pattern[str]:
     """
+    Compile the given string as a regular expression.
     Raises a BadRequest error if the given string is not a valid regex.
     """
     try:
-        re.compile(maybe_regex)
+        return re.compile(maybe_regex)
     except re.error as error:
         raise BadRequest(f"Invalid regex: {str(error)}")
