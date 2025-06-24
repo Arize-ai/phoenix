@@ -234,6 +234,7 @@ export function ModelsTable({
                   <Icon svg={<Icons.MoreHorizontalOutline />} />
                 </IconButton>
                 <RichTooltip>
+                  <TooltipArrow />
                   <Heading level={4} weight="heavy">
                     Input Cost Breakdown
                   </Heading>
@@ -280,6 +281,7 @@ export function ModelsTable({
                   <Icon svg={<Icons.MoreHorizontalOutline />} />
                 </IconButton>
                 <RichTooltip>
+                  <TooltipArrow />
                   <Heading level={4} weight="heavy">
                     Output Cost Breakdown
                   </Heading>
