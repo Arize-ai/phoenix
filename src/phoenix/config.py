@@ -135,8 +135,11 @@ ENV_PHOENIX_DANGEROUSLY_DISABLE_MIGRATIONS = "PHOENIX_DANGEROUSLY_DISABLE_MIGRAT
 """
 Whether or not to disable migrations. Defaults to None / False.
 
-This should only be used by developers working on the Phoenix server that need to be
-switching between branches without having to run migrations.
+This should only be used by developers working on the Phoenix server that need
+to be switching between branches without having to run migrations.
+
+This can also be useful if a migration fails and you want to put the applicaiton
+in a recoverable state.
 """
 
 # Phoenix server OpenTelemetry instrumentation environment variables
