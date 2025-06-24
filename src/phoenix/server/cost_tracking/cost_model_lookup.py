@@ -62,7 +62,7 @@ class CostModelLookup:
                 - SpanAttributes.LLM_PROVIDER: (Optional) The provider of the LLM model
 
         Raises:
-            ValueError: If start_time is not timezone-aware (tzinfo is None)
+            TypeError: If start_time is not timezone-aware (tzinfo is None)
 
         Returns:
             The most appropriate GenerativeModel that matches the criteria, or None if no
