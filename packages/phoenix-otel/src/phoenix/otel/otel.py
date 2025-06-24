@@ -72,6 +72,7 @@ def register(
     protocol: Optional[Literal["http/protobuf", "grpc"]] = None,
     verbose: bool = True,
     auto_instrument: bool = False,
+    **kwargs: Any,
 ) -> _TracerProvider:
     """
     Creates an OpenTelemetry TracerProvider for enabling OpenInference tracing.
@@ -98,11 +99,28 @@ def register(
         verbose (bool): If True, configuration details will be printed to stdout.
         auto_instrument (bool): If True, automatically instruments all installed OpenInference
             libraries.
+        **kwargs: Additional keyword arguments passed to the TracerProvider constructor.
     """
 
+    # Handle resource creation and ensure project name is always included
+    tracer_provider_kwargs = kwargs.copy()
     project_name = project_name or get_env_project_name()
-    resource = Resource.create({PROJECT_NAME: project_name})
-    tracer_provider = TracerProvider(resource=resource, verbose=False, protocol=protocol)
+
+    if "resource" not in tracer_provider_kwargs:
+        # No resource provided, create one with project name
+        tracer_provider_kwargs["resource"] = Resource.create({PROJECT_NAME: project_name})
+    else:
+        # Resource provided, merge project name into it
+        existing_resource = tracer_provider_kwargs["resource"]
+        # Create project resource without default attributes to avoid overriding user attributes
+        project_attributes = {PROJECT_NAME: project_name}
+        project_resource = Resource(attributes=project_attributes)
+        tracer_provider_kwargs["resource"] = existing_resource.merge(project_resource)
+
+    # Ensure TracerProvider verbose is False (register handles its own verbose output)
+    tracer_provider_kwargs["verbose"] = False
+
+    tracer_provider = TracerProvider(protocol=protocol, **tracer_provider_kwargs)
     span_processor: SpanProcessor
     if batch:
         span_processor = BatchSpanProcessor(endpoint=endpoint, headers=headers, protocol=protocol)
