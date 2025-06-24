@@ -1,0 +1,158 @@
+---
+description: Core documentation structure guidelines that apply to all documentation tasks. Always loaded to ensure consistent organization and formatting.
+globs: 
+alwaysApply: true
+---
+# Documentation Structure Guidelines
+
+This document outlines the standard structure for Arize's documentation.
+
+**Important:** This documentation is for **Arize Phoenix ONLY**. Do not include Phoenix code or implementation details unless explicitly part of an Arize feature that leverages Phoenix.
+
+**Note**: These rules and guidelines should only be followed if applicable to the specific documentation being created or updated. Not all guidelines will apply to every page or situation.
+
+## General Documentation Guidelines
+
+**IMPORTANT:** Before creating any new documentation:
+1. Review existing files in the target directory
+2. Follow the same structure and naming patterns as similar documents
+3. Use existing files as templates for new content
+4. If unsure, refer to similar documentation in the same category
+5. Maintain consistent formatting and style with surrounding documentation
+
+For example:
+- If adding a new cookbook, check other cookbook files
+- If adding API documentation, follow existing API doc patterns
+- If adding evaluation docs, match the structure of similar evaluation guides
+
+## Evaluation Documentation Structure
+
+**NEW DOCUMENTATION MUST FOLLOW EXISTING PATTERNS**
+
+When creating new evaluation documentation, strictly adhere to the established structure, pathing, and formatting found in existing evaluation docs. Use these as templates:
+
+### Reference Examples:
+- **Quickstart Format**: `docs/evaluation/evals.md` - Follow this structure for all evaluation quickstarts
+- **Concept Explanations**: `docs/evaluation/concepts-evals/llm-as-a-judge.md` - Use this pattern for conceptual evaluation topics
+- **Feature Deep-dives**: `docs/evaluation/concepts-evals/evals-with-explanations.md` - Follow this format for specific evaluation features
+
+### Evaluation Documentation Patterns:
+
+1. **File Organization**:
+   - Main evaluation docs in `docs/evaluation/`
+   - Concept explanations in `docs/evaluation/concepts-evals/`
+   - How-to guides in `docs/evaluation/how-to-evals/`
+
+2. **Naming Conventions**:
+   - Use descriptive, kebab-case filenames
+   - Start with action words for how-to guides
+   - Use concept-focused names for explanatory content
+
+3. **Content Structure**:
+   - **Quickstarts**: Installation → Data Preparation → Implementation → Results Analysis
+   - **Concepts**: Overview → How It Works → Examples → Additional Resources
+   - **Features**: Introduction → Code Examples → Visual Examples → Implementation Notes
+
+4. **Code Examples**:
+   - Always include imports at the top
+   - Use consistent variable naming (`df`, `eval_model`, `evaluator`)
+   - Include both basic and advanced usage patterns
+   - Provide explanations for key parameters
+
+5. **Visual Elements**:
+   - Include screenshots for UI features
+   - Use code blocks with appropriate language tags
+   - Include explanatory comments in code
+   - Use consistent formatting for outputs
+
+**DO NOT DEVIATE** from these established patterns when creating new evaluation documentation. Consistency is critical for user experience and maintainability.
+
+## Top-Level Organization
+
+The documentation structure is defined in [SUMMARY.md](mdc:docs/SUMMARY.md). This serves as the source of truth for:
+
+- Main sections and their hierarchy
+- Page organization within each section
+- Navigation structure
+- Section icons (🧪, 🧠, 🔭, 📈)
+
+**Always check SUMMARY.md** to understand:
+1. Where new documentation should be placed
+2. How similar content is organized
+3. What naming patterns are used in that section
+4. How navigation is structured
+
+## Page Structure
+
+Each documentation page should follow this structure:
+
+1. **Title & Overview**
+   - Clear, descriptive title
+   - Brief overview/purpose
+   - Key benefits/features
+
+2. **Prerequisites**
+   - Required setup
+   - Dependencies
+   - Access requirements
+
+3. **Main Content**
+   - Step-by-step instructions
+   - Code examples
+   - Screenshots/diagrams
+   - Best practices
+
+4. **Additional Resources**
+   - Related documentation
+   - Example notebooks
+   - Community resources
+
+## Content Consistency
+
+When adding new documentation:
+1. Use consistent terminology across all docs
+2. Follow established naming conventions
+3. Use the same formatting for similar content types
+4. Maintain consistent voice and tone
+5. Reference related documentation in the same way
+6. Use standard templates for common content types
+
+## Content Guidelines
+
+1. **Code Examples**
+   - Include complete, runnable examples
+   - Show both basic and advanced usage
+   - Use consistent formatting
+   - Include comments for clarity
+
+2. **Navigation**
+   - Clear hierarchy
+   - Consistent breadcrumbs
+   - Related links
+   - Next steps
+
+3. **Visual Elements**
+   - Screenshots for UI features
+   - Diagrams for concepts
+   - Videos for complex workflows
+   - Icons for categories (🧪, 🧠, 🔭, 📈)
+
+4. **Metadata**
+   - SEO-optimized titles
+   - Clear descriptions
+   - Relevant keywords
+   - Last updated date
+
+## Version Control
+
+1. **Documentation Versions**
+   - Version-specific content
+   - Migration guides
+   - Deprecation notices
+   - Breaking changes
+
+2. **Change Management**
+   - Changelog entries
+   - Update notifications
+   - Version compatibility
+   - Release notes
