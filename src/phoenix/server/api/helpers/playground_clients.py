@@ -1373,12 +1373,6 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
     provider_key=GenerativeProviderKey.ANTHROPIC,
     model_names=[
         PROVIDER_DEFAULT,
-        "claude-sonnet-4-0",
-        "claude-sonnet-4-20250514",
-        "claude-opus-4-0",
-        "claude-opus-4-20250514",
-        "claude-3-7-sonnet-latest",
-        "claude-3-7-sonnet-20250219",
         "claude-3-5-sonnet-latest",
         "claude-3-5-haiku-latest",
         "claude-3-5-sonnet-20241022",
@@ -1589,6 +1583,10 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
 @register_llm_client(
     provider_key=GenerativeProviderKey.ANTHROPIC,
     model_names=[
+        "claude-sonnet-4-0",
+        "claude-sonnet-4-20250514",
+        "claude-opus-4-0",
+        "claude-opus-4-20250514",
         "claude-3-7-sonnet-latest",
         "claude-3-7-sonnet-20250219",
     ],
