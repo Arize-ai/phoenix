@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from dataclasses import asdict, field
 from datetime import datetime, timezone
 from itertools import chain, islice
@@ -72,6 +73,8 @@ from phoenix.utilities.template_formatters import (
     NoOpFormatter,
     TemplateFormatter,
 )
+
+logger = logging.getLogger(__name__)
 
 initialize_playground_clients()
 
@@ -450,10 +453,14 @@ class ChatCompletionMutationMixin:
             session.add(trace)
             session.add(span)
             await session.flush()
-            span_cost = info.context.span_cost_calculator.calculate_cost(
-                start_time=span.start_time,
-                attributes=span.attributes,
-            )
+            try:
+                span_cost = info.context.span_cost_calculator.calculate_cost(
+                    start_time=span.start_time,
+                    attributes=span.attributes,
+                )
+            except Exception as e:
+                logger.exception(f"Failed to calculate cost for span {span.id}: {e}")
+                span_cost = None
             if span_cost:
                 span_cost.span_rowid = span.id
                 span_cost.trace_rowid = trace.id

@@ -174,10 +174,14 @@ class Subscription:
             db_span = get_db_span(span, db_trace)
             session.add(db_span)
             await session.flush()
-            span_cost = info.context.span_cost_calculator.calculate_cost(
-                start_time=db_span.start_time,
-                attributes=span.attributes,
-            )
+            try:
+                span_cost = info.context.span_cost_calculator.calculate_cost(
+                    start_time=db_span.start_time,
+                    attributes=span.attributes,
+                )
+            except Exception as e:
+                logger.exception(f"Failed to calculate cost for span {db_span.id}: {e}")
+                span_cost = None
             if span_cost:
                 span_cost.span_rowid = db_span.id
                 span_cost.trace_rowid = db_span.trace_rowid
@@ -486,10 +490,14 @@ async def _chat_completion_result_payloads(
             if span:
                 session.add(span)
                 await session.flush()
-                span_cost = span_cost_calculator.calculate_cost(
-                    start_time=span.start_time,
-                    attributes=span.attributes,
-                )
+                try:
+                    span_cost = span_cost_calculator.calculate_cost(
+                        start_time=span.start_time,
+                        attributes=span.attributes,
+                    )
+                except Exception as e:
+                    logger.exception(f"Failed to calculate cost for span {span.id}: {e}")
+                    span_cost = None
                 if span_cost:
                     span_cost.span_rowid = span.id
                     span_cost.trace_rowid = span.trace_rowid

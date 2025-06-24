@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import logging
 from asyncio import sleep
+from datetime import datetime
+from typing import Any, Mapping, Optional
 
 import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 
 from phoenix.db import models
+from phoenix.server.cost_tracking.cost_model_lookup import CostModelLookup
 from phoenix.server.types import DaemonTask, DbSessionFactory
 
 logger = logging.getLogger(__name__)
@@ -19,10 +22,14 @@ class GenerativeModelStore(DaemonTask):
     ) -> None:
         super().__init__()
         self._db = db
-        self._generative_models: tuple[models.GenerativeModel, ...] = ()
+        self._lookup = CostModelLookup()
 
-    def get_models(self) -> tuple[models.GenerativeModel, ...]:
-        return self._generative_models
+    def find_model(
+        self,
+        start_time: datetime,
+        attributes: Mapping[str, Any],
+    ) -> Optional[models.GenerativeModel]:
+        return self._lookup.find_model(start_time, attributes)
 
     async def _run(self) -> None:
         while self._running:
@@ -41,4 +48,4 @@ class GenerativeModelStore(DaemonTask):
         )
         async with self._db() as session:
             result = await session.scalars(stmt)
-        self._generative_models = tuple(result.unique())
+        self._lookup = CostModelLookup(result.unique())

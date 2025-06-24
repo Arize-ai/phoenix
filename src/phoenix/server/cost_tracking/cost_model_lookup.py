@@ -5,6 +5,7 @@ from typing import Any, Iterable, Mapping, Optional
 from openinference.semconv.trace import SpanAttributes
 from typing_extensions import TypeAlias
 
+from phoenix.datetime_utils import is_timezone_aware
 from phoenix.db import models
 from phoenix.server.cost_tracking import regex_specificity
 from phoenix.trace.attributes import get_attribute_value
@@ -17,7 +18,7 @@ _TieBreakerId: TypeAlias = int
 class CostModelLookup:
     def __init__(
         self,
-        generative_models: Iterable[models.GenerativeModel],
+        generative_models: Iterable[models.GenerativeModel] = (),
     ) -> None:
         self._models = tuple(generative_models)
         self._model_priority: dict[
@@ -97,8 +98,8 @@ class CostModelLookup:
             ... )
         """  # noqa: E501
         # 1. extract and validate inputs
-        if start_time.tzinfo is None:
-            raise ValueError("start_time must be timezone-aware")
+        if not is_timezone_aware(start_time):
+            raise TypeError("start_time must be timezone-aware")
 
         model_name = str(
             get_attribute_value(attributes, SpanAttributes.LLM_MODEL_NAME) or ""
@@ -147,7 +148,6 @@ class CostModelLookup:
                     tier_candidates = provider_specific_models
 
             # 6. select best model in this tier
-            # find model with highest priority tuple: (regex_specificity, start_time, tie_breaker)
             return max(tier_candidates, key=lambda model: self._model_priority[model.id])
 
         # 7. no suitable model found

@@ -11,7 +11,6 @@ from typing_extensions import TypeAlias
 
 from phoenix.db import models
 from phoenix.server.cost_tracking.cost_details_calculator import SpanCostDetailsCalculator
-from phoenix.server.cost_tracking.cost_model_lookup import CostModelLookup
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.types import DaemonTask, DbSessionFactory
 
@@ -57,10 +56,12 @@ class SpanCostCalculator(DaemonTask):
     async def _insert_costs(self) -> None:
         if not self._queue:
             return
-        if not (lookup := self._get_lookup()):
-            return
         for item in self._queue:
-            cost = self._calculate_cost(item.span_start_time, item.attributes, lookup)
+            try:
+                cost = self.calculate_cost(item.span_start_time, item.attributes)
+            except Exception as e:
+                logger.exception(f"Failed to calculate cost for span {item.span_rowid}: {e}")
+                cost = None
             if not cost:
                 continue
             cost.span_rowid = item.span_rowid
@@ -83,30 +84,7 @@ class SpanCostCalculator(DaemonTask):
     ) -> Optional[models.SpanCost]:
         if not attributes:
             return None
-        if not (lookup := self._get_lookup()):
-            return None
-        return self._calculate_cost(
-            start_time=start_time,
-            attributes=attributes,
-            lookup=lookup,
-        )
-
-    def _get_lookup(
-        self,
-    ) -> Optional[CostModelLookup]:
-        if not (candidates := self._model_store.get_models()):
-            return None
-        return CostModelLookup(candidates)
-
-    @staticmethod
-    def _calculate_cost(
-        start_time: datetime,
-        attributes: Mapping[str, Any],
-        lookup: CostModelLookup,
-    ) -> Optional[models.SpanCost]:
-        if not attributes:
-            return None
-        cost_model = lookup.find_model(
+        cost_model = self._model_store.find_model(
             start_time=start_time,
             attributes=attributes,
         )
