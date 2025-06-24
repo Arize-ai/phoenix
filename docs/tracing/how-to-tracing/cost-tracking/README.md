@@ -73,8 +73,8 @@ To add pricing for a model not in the built-in table:
    - **Model Name**: Human-readable name for the model
    - **Name Pattern**: Regex pattern to match the model name in traces
    - **Provider**: Model provider (optional)
-   - **Prompt (Input) Price**: Cost per 1M input tokens
-   - **Completion (Output) Price**: Cost per 1M output tokens
+   - **Prompt (Input) Cost**: Cost per 1M input tokens
+   - **Completion (Output) Cost**: Cost per 1M output tokens
    - **Start Date**: When this pricing becomes effective (optional)
 
 ### Advanced pricing configuration
