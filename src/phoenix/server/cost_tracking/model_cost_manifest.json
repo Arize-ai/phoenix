@@ -9,51 +9,6 @@
     "regex":"(?i)^(chatgpt-4o-latest)$"
   },
   {
-    "model":"claude-1.1",
-    "provider":null,
-    "input":0.000008,
-    "output":0.000024,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(claude-1.1)$"
-  },
-  {
-    "model":"claude-1.2",
-    "provider":null,
-    "input":0.000008,
-    "output":0.000024,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(claude-1.2)$"
-  },
-  {
-    "model":"claude-1.3",
-    "provider":null,
-    "input":0.000008,
-    "output":0.000024,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(claude-1.3)$"
-  },
-  {
-    "model":"claude-2.0",
-    "provider":null,
-    "input":0.000008,
-    "output":0.000024,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(claude-2.0)$"
-  },
-  {
-    "model":"claude-2.1",
-    "provider":null,
-    "input":0.000008,
-    "output":0.000024,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(claude-2.1)$"
-  },
-  {
     "model":"claude-3-5-haiku-20241022",
     "provider":null,
     "input":0.0000008,
@@ -99,7 +54,7 @@
     "regex":"(?i)^(claude-3-sonnet-20240229|anthropic\\.claude-3-sonnet-20240229-v1:0|claude-3-sonnet@20240229)$"
   },
   {
-    "model":"claude-3.5-haiku-latest",
+    "model":"claude-3-5-haiku-latest",
     "provider":null,
     "input":0.0000008,
     "output":0.000004,
@@ -108,7 +63,7 @@
     "regex":"(?i)^(claude-3-5-haiku-latest)$"
   },
   {
-    "model":"claude-3.5-sonnet-20241022",
+    "model":"claude-3-5-sonnet-20241022",
     "provider":null,
     "input":0.000003,
     "output":0.000015,
@@ -117,7 +72,7 @@
     "regex":"(?i)^(claude-3-5-sonnet-20241022|anthropic\\.claude-3-5-sonnet-20241022-v2:0|claude-3-5-sonnet-V2@20241022)$"
   },
   {
-    "model":"claude-3.5-sonnet-latest",
+    "model":"claude-3-5-sonnet-latest",
     "provider":null,
     "input":0.000003,
     "output":0.000015,
@@ -126,7 +81,7 @@
     "regex":"(?i)^(claude-3-5-sonnet-latest)$"
   },
   {
-    "model":"claude-3.7-sonnet-20250219",
+    "model":"claude-3-7-sonnet-20250219",
     "provider":null,
     "input":0.000003,
     "output":0.000015,
@@ -135,7 +90,7 @@
     "regex":"(?i)^(claude-3.7-sonnet-20250219|anthropic\\.claude-3.7-sonnet-20250219-v1:0|claude-3-7-sonnet-V1@20250219)$"
   },
   {
-    "model":"claude-3.7-sonnet-latest",
+    "model":"claude-3-7-sonnet-latest",
     "provider":null,
     "input":0.000003,
     "output":0.000015,
@@ -162,42 +117,6 @@
     "regex":"(?i)^(claude-instant-1.2)$"
   },
   {
-    "model":"gemini-1.0-pro",
-    "provider":null,
-    "input":0.000000125,
-    "output":0.000000375,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gemini-1.0-pro)(@[a-zA-Z0-9]+)?$"
-  },
-  {
-    "model":"gemini-1.0-pro-001",
-    "provider":null,
-    "input":0.000000125,
-    "output":0.000000375,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gemini-1.0-pro-001)(@[a-zA-Z0-9]+)?$"
-  },
-  {
-    "model":"gemini-1.0-pro-latest",
-    "provider":null,
-    "input":0.00000025,
-    "output":0.0000005,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gemini-1.0-pro-latest)(@[a-zA-Z0-9]+)?$"
-  },
-  {
-    "model":"gemini-1.5-pro-latest",
-    "provider":null,
-    "input":0.0000025,
-    "output":0.0000075,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gemini-1.5-pro-latest)(@[a-zA-Z0-9]+)?$"
-  },
-  {
     "model":"gemini-2.0-flash",
     "provider":null,
     "input":0.0000001,
@@ -214,24 +133,6 @@
     "cache_write":null,
     "cache_read":null,
     "regex":"(?i)^(gemini-2.0-flash-001)(@[a-zA-Z0-9]+)?$"
-  },
-  {
-    "model":"gemini-2.0-flash-lite-preview",
-    "provider":null,
-    "input":0.000000075,
-    "output":0.0000003,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gemini-2.0-flash-lite-preview)(@[a-zA-Z0-9]+)?$"
-  },
-  {
-    "model":"gemini-2.0-flash-lite-preview-02-05",
-    "provider":null,
-    "input":0.000000075,
-    "output":0.0000003,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gemini-2.0-flash-lite-preview-02-05)(@[a-zA-Z0-9]+)?$"
   },
   {
     "model":"gemini-pro",
@@ -387,15 +288,6 @@
     "regex":"(?i)^(gpt-4-32k-0613)$"
   },
   {
-    "model":"gpt-4-preview",
-    "provider":null,
-    "input":0.00001,
-    "output":0.00003,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4-preview)$"
-  },
-  {
     "model":"gpt-4-turbo",
     "provider":null,
     "input":0.00001,
@@ -421,15 +313,6 @@
     "cache_write":null,
     "cache_read":null,
     "regex":"(?i)^(gpt-4-turbo-preview)$"
-  },
-  {
-    "model":"gpt-4-turbo-vision",
-    "provider":null,
-    "input":0.00001,
-    "output":0.00003,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4(-\\d{4})?-vision-preview)$"
   },
   {
     "model":"gpt-4.1",
