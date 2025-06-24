@@ -62,6 +62,7 @@
   * [Annotate Traces](tracing/how-to-tracing/feedback-and-annotations/README.md)
     * [Annotating in the UI](tracing/how-to-tracing/feedback-and-annotations/annotating-in-the-ui.md)
     * [Annotating via the Client](tracing/how-to-tracing/feedback-and-annotations/capture-feedback.md)
+    * [Annotating Auto-Instrumented Spans](tracing/how-to-tracing/feedback-and-annotations/annotating-auto-instrumented-spans.md)
     * [Running Evals on Traces](tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces.md)
     * [Log Evaluation Results](tracing/how-to-tracing/feedback-and-annotations/llm-evaluations.md)
   * [Importing & Exporting Traces](tracing/how-to-tracing/importing-and-exporting-traces/README.md)
