@@ -166,6 +166,7 @@ class TestTokenPrices(DBSchemaComparisonTest):
             index_names.update(
                 {
                     "pk_token_prices",
+                    "uq_token_prices_model_id_token_type_is_prompt",
                 }
             )
         elif db_backend == "sqlite":
@@ -302,6 +303,7 @@ class TestSpanCostDetails(DBSchemaComparisonTest):
             index_names.update(
                 {
                     "pk_span_cost_details",
+                    "uq_span_cost_details_span_cost_id_token_type_is_prompt",
                 }
             )
         elif db_backend == "sqlite":
