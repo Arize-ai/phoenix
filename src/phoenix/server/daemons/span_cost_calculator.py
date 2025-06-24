@@ -44,8 +44,6 @@ class SpanCostCalculator(DaemonTask):
                 await self._insert_costs()
             except Exception as e:
                 logger.exception(f"Failed to insert costs: {e}")
-            finally:
-                self._queue.clear()
             await sleep(self._SLEEP_INTERVAL)
 
     async def _insert_costs(self) -> None:
@@ -68,6 +66,9 @@ class SpanCostCalculator(DaemonTask):
                 session.add_all(costs)
         except Exception as e:
             logger.exception(f"Failed to insert costs: {e}")
+        finally:
+            # Clear the queue after processing
+            self._queue.clear()
 
     def put_nowait(self, item: SpanCostCalculatorQueueItem) -> None:
         self._queue.append(item)
