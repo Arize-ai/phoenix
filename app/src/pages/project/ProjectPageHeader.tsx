@@ -9,6 +9,7 @@ import {
   RichTooltip,
   Text,
   TextErrorBoundaryFallback,
+  TooltipArrow,
   TooltipTrigger,
   View,
 } from "@phoenix/components";
@@ -149,6 +150,7 @@ export function ProjectPageHeader(props: {
                   <Text size="L">{intFormatter(tokenCountTotal)}</Text>
                 </Focusable>
                 <RichTooltip placement="bottom">
+                  <TooltipArrow />
                   <View width="size-3600">
                     <RichTokenBreakdown
                       valueLabel="tokens"
@@ -158,10 +160,12 @@ export function ProjectPageHeader(props: {
                         {
                           name: "Prompt",
                           value: tokenCountPrompt,
+                          color: "rgba(254, 119, 99, 1)",
                         },
                         {
                           name: "Completion",
                           value: tokenCountCompletion,
+                          color: "rgba(98, 104, 239, 1)",
                         },
                       ]}
                     />
@@ -180,6 +184,7 @@ export function ProjectPageHeader(props: {
                   </Text>
                 </Focusable>
                 <RichTooltip placement="bottom">
+                  <TooltipArrow />
                   <View width="size-3600">
                     <RichTokenBreakdown
                       valueLabel="cost"
@@ -189,10 +194,12 @@ export function ProjectPageHeader(props: {
                         {
                           name: "Prompt",
                           value: data?.costSummary?.prompt?.cost ?? 0,
+                          color: "rgba(254, 119, 99, 1)",
                         },
                         {
                           name: "Completion",
                           value: data?.costSummary?.completion?.cost ?? 0,
+                          color: "rgba(98, 104, 239, 1)",
                         },
                       ]}
                     />
