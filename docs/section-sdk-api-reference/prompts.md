@@ -16,6 +16,10 @@ description: REST API methods for interacting with Phoenix prompts
 [Broken link](broken-reference)
 {% endopenapi-operation %}
 
+{% openapi-operation spec="restapi" path="/v1/prompt_versions/{prompt_version_id}" method="get" %}
+[Broken link](broken-reference)
+{% endopenapi-operation %}
+
 {% openapi-operation spec="restapi" path="/v1/prompts/{prompt_identifier}/tags/{tag_name}" method="get" %}
 [Broken link](broken-reference)
 {% endopenapi-operation %}
@@ -29,9 +33,5 @@ description: REST API methods for interacting with Phoenix prompts
 {% endopenapi-operation %}
 
 {% openapi-operation spec="restapi" path="/v1/prompt_versions/{prompt_version_id}/tags" method="get" %}
-[Broken link](broken-reference)
-{% endopenapi-operation %}
-
-{% openapi-operation spec="restapi" path="/v1/prompt_versions/{prompt_version_id}" method="get" %}
 [Broken link](broken-reference)
 {% endopenapi-operation %}

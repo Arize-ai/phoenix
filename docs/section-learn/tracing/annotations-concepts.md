@@ -1,21 +1,21 @@
-# Concepts: Annotations
+# Annotations
 
 ### Annotation Types
 
 Depending on what you want to do with your annotations, you may want to configure a rubric for what your annotation represents - e.g. is it a **category**, number with a range (**continuous**), or **freeform**.
 
-* annotation type: \
-  \- **Categorical:** Predefined labels for selection. (e.x. 👍 or 👎) \
-  \- **Continuous:**  a score across a specified range. (e.g. confidence score 0-100) \
+* Annotation type:\
+  \- **Categorical:** Predefined labels for selection. (e.x. 👍 or 👎)\
+  \- **Continuous:** a score across a specified range. (e.g. confidence score 0-100)\
   \- **Freeform:** Open-ended text comments. (e.g. "correct")
 * Optimize the direction based on your goal:\
-  \- **Maximize:** higher scores are better. (e.g. confidence) \
-  \- **Minimize:**  lower scores are better. (e.g. hallucinations) \
+  \- **Maximize:** higher scores are better. (e.g. confidence)\
+  \- **Minimize:** lower scores are better. (e.g. hallucinations)\
   \- **None:** direction optimization does not apply. (e.g. tone)
 
 <figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/annotation_types.png" alt=""><figcaption><p>Different types of annotations change the way human annotators provide feedback</p></figcaption></figure>
 
-See [annotating-in-the-ui.md](../how-to-tracing/feedback-and-annotations/annotating-in-the-ui.md "mention")for more details
+See for more details
 
 ### Annotation Targets
 
@@ -42,14 +42,14 @@ Phoenix also supports specialized evaluation metrics for retrieval systems, incl
 
 Human feedback allows you to understand how your users are experiencing your application and helps draw attention to problematic traces. Phoenix makes it easy to collect feedback for traces and view it in the context of the trace, as well as filter all your traces based on the feedback annotations you send. Before anything else, you want to know if your users or customers are happy with your product. This can be as straightforward as adding :thumbsup: :thumbsdown: buttons to your application, and logging the result as annotations.
 
-For more information on how to wire up your application to collect feedback from your users, see [capture-feedback.md](../how-to-tracing/feedback-and-annotations/capture-feedback.md "mention")
+For more information on how to wire up your application to collect feedback from your users, see&#x20;
 
 ### Evaluations from LLMs
 
-When you have large amounts of data it can be immensely efficient and valuable to leverage LLM judges via `evals` to produce labels and scores to annotate your traces with. Phoenix's [evals library](../../evaluation/llm-evals/) as well as other third-party eval libraries can be leveraged to annotate your spans with evaluations. For details see:
+When you have large amounts of data it can be immensely efficient and valuable to leverage LLM judges via `evals` to produce labels and scores to annotate your traces with. Phoenix's evals library as well as other third-party eval libraries can be leveraged to annotate your spans with evaluations. For details see:
 
-* [evals.md](../../evaluation/evals.md "mention") to generate evaluation results
-* [llm-evaluations.md](../how-to-tracing/feedback-and-annotations/llm-evaluations.md "mention") to add evaluation results to spans
+* &#x20;to generate evaluation results
+* &#x20;to add evaluation results to spans
 
 ### Human Annotations
 
@@ -63,7 +63,7 @@ Annotations can help you share valuable insight about how your application is pe
 
 ### Track Improvements during Experimentation
 
-Since Phoenix datasets preserve the annotations, you can track whether or not changes to your application (e.g. [experimentation](../../datasets-and-experiments/how-to-experiments/#how-to-run-experiments)) produce better results (e.g. better scores / labels). Phoenix [evaluators](../../datasets-and-experiments/how-to-experiments/using-evaluators.md) have access to the example metadata at evaluation time, making it possible to track improvements / regressions over previous generations (e.g. the previous annotations).
+Since Phoenix datasets preserve the annotations, you can track whether or not changes to your application (e.g. experimentation) produce better results (e.g. better scores / labels). Phoenix evaluators have access to the example metadata at evaluation time, making it possible to track improvements / regressions over previous generations (e.g. the previous annotations).
 
 ### Train an LLM Judge
 
@@ -81,7 +81,7 @@ Since Phoenix datasets preserve the annotations in the example metadata, you can
 
 Phoenix supports three types of annotators: Human, LLM, and Code.
 
-<table data-header-hidden><thead><tr><th width="104.390625"></th><th width="134.921875"></th><th></th><th></th><th></th></tr></thead><tbody><tr><td><strong>Annotator  Kind</strong></td><td><strong>Source</strong></td><td><strong>Purpose</strong></td><td><strong>Strengths</strong></td><td><strong>Use Case</strong></td></tr><tr><td><strong>Human</strong></td><td>Manual review</td><td>Expert judgment and quality assurance</td><td>High accuracy, nuanced understanding</td><td>Manual QA, edge cases, subjective evaluation</td></tr><tr><td><strong>LLM</strong></td><td>Language model output</td><td>Scalable evaluation of application responses</td><td>Fast, scalable, consistent across examples</td><td>Large-scale output scoring, pattern review</td></tr><tr><td><strong>Code</strong></td><td>Programmatic evaluators</td><td>Automated assessment based on rules/metrics</td><td>Objective, repeatable, useful in experiments</td><td>Model benchmarking, regression testing</td></tr></tbody></table>
+<table data-header-hidden><thead><tr><th width="104.390625"></th><th width="134.921875"></th><th></th><th></th><th></th></tr></thead><tbody><tr><td><strong>Annotator Kind</strong></td><td><strong>Source</strong></td><td><strong>Purpose</strong></td><td><strong>Strengths</strong></td><td><strong>Use Case</strong></td></tr><tr><td><strong>Human</strong></td><td>Manual review</td><td>Expert judgment and quality assurance</td><td>High accuracy, nuanced understanding</td><td>Manual QA, edge cases, subjective evaluation</td></tr><tr><td><strong>LLM</strong></td><td>Language model output</td><td>Scalable evaluation of application responses</td><td>Fast, scalable, consistent across examples</td><td>Large-scale output scoring, pattern review</td></tr><tr><td><strong>Code</strong></td><td>Programmatic evaluators</td><td>Automated assessment based on rules/metrics</td><td>Objective, repeatable, useful in experiments</td><td>Model benchmarking, regression testing</td></tr></tbody></table>
 
 ### Annotation Source
 
@@ -91,8 +91,8 @@ The combination of these interfaces creates a powerful feedback loop: human anno
 
 ### Annotation Configuration
 
-Annotation configurations in Phoenix are designed to maximize efficiency for human annotators. The system allows you to define the structure of annotations (categorical or continuous values, with appropriate bounds and options) and pair these with keyboard shortcuts (hotkeys) to enable rapid annotation.&#x20;
+Annotation configurations in Phoenix are designed to maximize efficiency for human annotators. The system allows you to define the structure of annotations (categorical or continuous values, with appropriate bounds and options) and pair these with keyboard shortcuts (hotkeys) to enable rapid annotation.
 
-For example, a categorical annotation might be configured with specific labels that can be quickly assigned using number keys, while a continuous annotation might use arrow keys for fine-grained scoring. This combination of structured configurations and hotkey support allows annotators to provide feedback quickly, significantly reducing the effort required for manual annotation tasks.&#x20;
+For example, a categorical annotation might be configured with specific labels that can be quickly assigned using number keys, while a continuous annotation might use arrow keys for fine-grained scoring. This combination of structured configurations and hotkey support allows annotators to provide feedback quickly, significantly reducing the effort required for manual annotation tasks.
 
 The primary goal is to streamline the annotation workflow, enabling human annotators to process large volumes of data efficiently while maintaining quality and consistency in their feedback.

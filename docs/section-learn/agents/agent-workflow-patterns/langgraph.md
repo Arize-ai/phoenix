@@ -61,7 +61,7 @@ A linear sequence of prompt steps, where the output of one becomes the input to 
 
 **Use case:** Multistep reasoning, query rewriting, or building up answers gradually.
 
-📓 [View notebook](https://github.com/Arize-ai/phoenix/tree/main/tutorials/agents/langgraph/langgraph_promptchaining)
+📓 [View notebook](https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/langgraph/langgraph_promptchaining.ipynb)
 
 <figure><img src="../../.gitbook/assets/prompt_chaining.png" alt=""><figcaption></figcaption></figure>
 
@@ -79,7 +79,7 @@ With the `Send` API, LangGraph lets you:
 
 This improves reliability and reduces bottlenecks in linear pipelines.
 
-📓 [View notebook](https://github.com/Arize-ai/phoenix/tree/main/tutorials/agents/langgraph/langgraph_parallel)
+📓 [View notebook](https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/langgraph/langgraph_parallel.ipynb)
 
 <figure><img src="../../.gitbook/assets/parallel.png" alt=""><figcaption></figcaption></figure>
 
@@ -91,7 +91,7 @@ Routes an input to the most appropriate follow-up node based on its type or inte
 
 LangGraph routers enable domain-specific delegation — e.g., classify an incoming query as "billing", "technical support", or "FAQ", and send it to a specialized sub-agent. Each route can have its own tools, memory, and context. Use structured output with a routing schema to make classification more reliable.
 
-📓 [View notebook](https://github.com/Arize-ai/phoenix/tree/main/tutorials/agents/langgraph/langgraph_router)
+📓 [View notebook](https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/langgraph/langgraph_router.ipynb)
 
 <figure><img src="../../.gitbook/assets/router.png" alt=""><figcaption></figcaption></figure>
 
@@ -101,7 +101,7 @@ One LLM generates content, another LLM evaluates it, and the loop repeats until 
 
 **Use case:** Improving code, jokes, summaries, or any generative output with measurable quality.
 
-📓 [View notebook](https://github.com/Arize-ai/phoenix/tree/main/tutorials/agents/langgraph/langgraph_evaluator)
+📓 [View notebook](https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/langgraph/langgraph_evaluator.ipynb)
 
 <figure><img src="../../.gitbook/assets/evaluator.png" alt=""><figcaption></figcaption></figure>
 
@@ -117,6 +117,6 @@ You can also incorporate agents like `PDF_Reader` or a `WebSearcher`, and the or
 
 ⚠️ **Caution:** Feedback loops or improper edge handling can cause workers to echo each other or create infinite loops. Use strict conditional routing to avoid this.
 
-📓 [View notebook](https://github.com/Arize-ai/phoenix/tree/main/tutorials/agents/langgraph/langgraph_orchcestrator)
+📓 [View notebook](https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/langgraph/langgraph_orchestrator.ipynb)
 
 <figure><img src="../../.gitbook/assets/orchestrator.png" alt=""><figcaption></figcaption></figure>

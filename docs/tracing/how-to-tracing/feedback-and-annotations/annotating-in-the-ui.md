@@ -12,7 +12,7 @@ To annotate data in the UI, you first will want to setup a rubric for how to ann
 
 <summary>Annotation Types</summary>
 
-* annotation type: \
+* Annotation Type: \
   \- **Categorical:** Predefined labels for selection. (e.x. 👍 or 👎) \
   \- **Continuous:**  a score across a specified range. (e.g. confidence score 0-100) \
   \- **Freeform:** Open-ended text comments. (e.g. "correct")
