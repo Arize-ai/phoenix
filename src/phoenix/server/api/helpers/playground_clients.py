@@ -1477,15 +1477,16 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
 
                     token_counts: dict[str, Any] = {}
                     if prompt_tokens := (
-                        usage.input_tokens
-                        + getattr(usage, "cache_creation_input_tokens", 0)
-                        + getattr(usage, "cache_read_input_tokens", 0)
+                        (usage.input_tokens or 0)
+                        + (getattr(usage, "cache_creation_input_tokens", 0) or 0)
+                        + (getattr(usage, "cache_read_input_tokens", 0) or 0)
                     ):
                         token_counts[LLM_TOKEN_COUNT_PROMPT] = prompt_tokens
-                    if getattr(usage, "cache_creation_input_tokens", None):
-                        token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE] = (
-                            usage.cache_creation_input_tokens
-                        )
+                    if cache_creation_tokens := getattr(usage, "cache_creation_input_tokens", None):
+                        if cache_creation_tokens is not None:
+                            token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE] = (
+                                cache_creation_tokens
+                            )
                     self._attributes.update(token_counts)
                 elif isinstance(event, anthropic_streaming.TextEvent):
                     yield TextChunk(content=event.text)
@@ -1494,10 +1495,11 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                     output_token_counts: dict[str, Any] = {}
                     if usage.output_tokens:
                         output_token_counts[LLM_TOKEN_COUNT_COMPLETION] = usage.output_tokens
-                    if getattr(usage, "cache_read_input_tokens", None):
-                        output_token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] = (
-                            usage.cache_read_input_tokens
-                        )
+                    if cache_read_tokens := getattr(usage, "cache_read_input_tokens", None):
+                        if cache_read_tokens is not None:
+                            output_token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] = (
+                                cache_read_tokens
+                            )
                     self._attributes.update(output_token_counts)
                 elif (
                     isinstance(event, anthropic_streaming.ContentBlockStopEvent)
