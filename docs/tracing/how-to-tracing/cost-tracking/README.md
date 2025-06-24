@@ -106,7 +106,7 @@ Once configured, Phoenix automatically displays cost information throughout the 
 Phoenix automatically tracks costs for traced experiments, providing detailed cost analysis across experiment runs:
 
 - **Total experiment cost**: Sum of all LLM costs across all experiment runs
-- **Cost per experiment run**: Individual cost for each dataset example run through an experment
+- **Cost per experiment run**: Individual cost for each dataset example run through an experiment
 Experiment costs are automatically calculated when you:
 1. Run experiments on datasets through Phoenix
 2. Include proper token count and model information in your traced LLM calls
