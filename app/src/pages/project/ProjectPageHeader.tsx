@@ -1,23 +1,22 @@
 import { ReactNode, startTransition, useEffect } from "react";
+import { Focusable } from "react-aria";
 import { graphql, useRefetchableFragment } from "react-relay";
 import { css } from "@emotion/react";
-
-import { HelpTooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
 import {
   ErrorBoundary,
   Flex,
+  RichTooltip,
   Text,
   TextErrorBoundaryFallback,
+  TooltipArrow,
+  TooltipTrigger,
   View,
 } from "@phoenix/components";
+import { RichTokenBreakdown } from "@phoenix/components/RichTokenCostBreakdown";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
-import {
-  costFormatter,
-  formatInt,
-  intFormatter,
-} from "@phoenix/utils/numberFormatUtils";
+import { costFormatter, intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { ProjectPageHeader_stats$key } from "./__generated__/ProjectPageHeader_stats.graphql";
 import { ProjectPageHeaderQuery } from "./__generated__/ProjectPageHeaderQuery.graphql";
@@ -146,78 +145,66 @@ export function ProjectPageHeader(props: {
               <Text elementType="h3" size="S" color="text-700">
                 Total Tokens
               </Text>
-              <TooltipTrigger delay={0} placement="bottom">
-                <TriggerWrap>
+              <TooltipTrigger delay={0}>
+                <Focusable>
                   <Text size="L">{intFormatter(tokenCountTotal)}</Text>
-                </TriggerWrap>
-                <HelpTooltip>
-                  <View width="size-2400">
-                    <Flex direction="column">
-                      <Flex justifyContent="space-between">
-                        <Text>Prompt Tokens</Text>
-                        <Text>
-                          {typeof tokenCountPrompt === "number"
-                            ? formatInt(tokenCountPrompt)
-                            : "--"}
-                        </Text>
-                      </Flex>
-                      <Flex justifyContent="space-between">
-                        <Text>Completion Tokens</Text>
-                        <Text>
-                          {typeof tokenCountCompletion === "number"
-                            ? formatInt(tokenCountCompletion)
-                            : "--"}
-                        </Text>
-                      </Flex>
-                      <Flex justifyContent="space-between">
-                        <Text>Total Tokens</Text>
-                        <Text>
-                          {typeof tokenCountTotal === "number"
-                            ? formatInt(tokenCountTotal)
-                            : "--"}
-                        </Text>
-                      </Flex>
-                    </Flex>
+                </Focusable>
+                <RichTooltip placement="bottom">
+                  <TooltipArrow />
+                  <View width="size-3600">
+                    <RichTokenBreakdown
+                      valueLabel="tokens"
+                      totalValue={tokenCountTotal}
+                      formatter={intFormatter}
+                      segments={[
+                        {
+                          name: "Prompt",
+                          value: tokenCountPrompt,
+                          color: "rgba(254, 119, 99, 1)",
+                        },
+                        {
+                          name: "Completion",
+                          value: tokenCountCompletion,
+                          color: "rgba(98, 104, 239, 1)",
+                        },
+                      ]}
+                    />
                   </View>
-                </HelpTooltip>
+                </RichTooltip>
               </TooltipTrigger>
             </Flex>
             <Flex direction="column" flex="none">
               <Text elementType="h3" size="S" color="text-700">
                 Total Cost
               </Text>
-              <TooltipTrigger delay={0} placement="bottom">
-                <TriggerWrap>
+              <TooltipTrigger delay={0}>
+                <Focusable>
                   <Text size="L">
                     {costFormatter(data?.costSummary?.total?.cost ?? 0)}
                   </Text>
-                </TriggerWrap>
-                <HelpTooltip>
-                  <View width="size-2400">
-                    <Flex direction="column">
-                      <Flex justifyContent="space-between">
-                        <Text>Prompt Cost</Text>
-                        <Text>
-                          {costFormatter(data?.costSummary?.prompt?.cost ?? 0)}
-                        </Text>
-                      </Flex>
-                      <Flex justifyContent="space-between">
-                        <Text>Completion Cost</Text>
-                        <Text>
-                          {costFormatter(
-                            data?.costSummary?.completion?.cost ?? 0
-                          )}
-                        </Text>
-                      </Flex>
-                      <Flex justifyContent="space-between">
-                        <Text>Total Cost</Text>
-                        <Text>
-                          {costFormatter(data?.costSummary?.total?.cost ?? 0)}
-                        </Text>
-                      </Flex>
-                    </Flex>
+                </Focusable>
+                <RichTooltip placement="bottom">
+                  <TooltipArrow />
+                  <View width="size-3600">
+                    <RichTokenBreakdown
+                      valueLabel="cost"
+                      totalValue={data?.costSummary?.total?.cost ?? 0}
+                      formatter={costFormatter}
+                      segments={[
+                        {
+                          name: "Prompt",
+                          value: data?.costSummary?.prompt?.cost ?? 0,
+                          color: "rgba(254, 119, 99, 1)",
+                        },
+                        {
+                          name: "Completion",
+                          value: data?.costSummary?.completion?.cost ?? 0,
+                          color: "rgba(98, 104, 239, 1)",
+                        },
+                      ]}
+                    />
                   </View>
-                </HelpTooltip>
+                </RichTooltip>
               </TooltipTrigger>
             </Flex>
             <Flex direction="column" flex="none">

@@ -14,7 +14,7 @@ type MaybeNumberFormatFn = (maybeNumber: MaybeNumber) => string;
 export function formatInt(int: number): string {
   const absInt = Math.abs(int);
   if (absInt < 1000000) return format(",")(int);
-  return format("0.2s")(int);
+  return format("0.2s")(int).replace("G", "B").replace("k", "K");
 }
 
 /**
