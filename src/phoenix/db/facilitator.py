@@ -8,11 +8,11 @@ from asyncio import gather
 from datetime import datetime, timedelta, timezone
 from functools import partial
 from pathlib import Path
-from typing import Optional, Union
+from typing import NamedTuple, Optional, Union
 
 import sqlalchemy as sa
-from sqlalchemy import delete, select
-from sqlalchemy.orm import InstrumentedAttribute
+from sqlalchemy import select
+from sqlalchemy.orm import InstrumentedAttribute, joinedload
 from sqlalchemy.sql.dml import ReturningDelete
 
 from phoenix import config
@@ -347,22 +347,97 @@ async def _ensure_default_project_trace_retention_policy(db: DbSessionFactory) -
         )
 
 
+_COST_MODEL_MANIFEST: Path = (
+    Path(__file__).parent.parent / "server" / "cost_tracking" / "model_cost_manifest.json"
+)
+
+
+class _TokenTypeKey(NamedTuple):
+    """
+    Composite key for uniquely identifying token price configurations.
+
+    Token prices are differentiated by both their type (e.g., "input", "output", "audio")
+    and whether they represent prompt tokens (input to the model) or completion tokens
+    (output from the model). Some token types like "audio" can exist in both categories.
+
+    Attributes:
+        token_type: The category of token (e.g., "input", "output", "audio", "cache_write")
+        is_prompt: True if these are prompt/input tokens, False if completion/output tokens
+    """
+
+    token_type: str
+    is_prompt: bool
+
+
 async def _ensure_model_costs(db: DbSessionFactory) -> None:
+    """
+    Ensures that built-in generative models and their token pricing information are up-to-date
+    in the database based on the model cost manifest file.
+
+    This function performs a comprehensive synchronization between the database and the manifest:
+
+    1. **Model Management**: Creates new built-in models from the manifest or updates existing ones
+    2. **Token Price Synchronization**: Ensures all token prices match the manifest rates
+    3. **Cleanup**: Soft-deletes built-in models no longer present in the manifest
+
+    The function handles different token types including:
+    - Input tokens (prompt): Standard input tokens for generation
+    - Cache write tokens (prompt): Tokens written to cache systems
+    - Cache read tokens (prompt): Tokens read from cache systems
+    - Output tokens (non-prompt): Generated response tokens
+    - Audio tokens (both prompt and non-prompt): Audio processing tokens
+
+    Token prices are uniquely identified by (token_type, is_prompt) pairs to handle
+    cases like audio tokens that can be both prompt and non-prompt.
+
+    Args:
+        db (DbSessionFactory): Database session factory for database operations
+
+    Returns:
+        None
+
+    Raises:
+        FileNotFoundError: If the model cost manifest file is not found
+        json.JSONDecodeError: If the manifest file contains invalid JSON
+        ValueError: If manifest data is malformed or missing required fields
+    """
+    # Load the authoritative model cost data from the manifest file
+    with open(_COST_MODEL_MANIFEST) as f:
+        manifest = json.load(f)
+
+    # Define all supported token types with their prompt/non-prompt classification
+    # This determines how tokens are categorized for billing purposes
+    token_types: list[_TokenTypeKey] = [
+        _TokenTypeKey("input", True),  # Standard input tokens
+        _TokenTypeKey("cache_write", True),  # Tokens written to cache
+        _TokenTypeKey("cache_read", True),  # Tokens read from cache
+        _TokenTypeKey("output", False),  # Generated output tokens
+        _TokenTypeKey("audio", True),  # Audio input tokens
+        _TokenTypeKey("audio", False),  # Audio output tokens
+    ]
+
     async with db() as session:
-        with open(
-            Path(__file__).parent.parent / "server" / "cost_tracking" / "model_cost_manifest.json"
-        ) as f:
-            manifest = json.load(f)
+        # Fetch all existing built-in models with their token prices eagerly loaded
+        # Using .unique() to deduplicate models when multiple token prices are joined
+        built_in_models = {
+            omodel.name: omodel
+            for omodel in (
+                await session.scalars(
+                    select(models.GenerativeModel)
+                    .where(models.GenerativeModel.deleted_at.is_(None))
+                    .where(models.GenerativeModel.is_built_in.is_(True))
+                    .options(joinedload(models.GenerativeModel.token_prices))
+                )
+            ).unique()
+        }
 
+        # Process each model in the manifest
         for model_data in manifest:
-            result = await session.execute(
-                select(models.GenerativeModel)
-                .where(models.GenerativeModel.deleted_at.is_(None))
-                .where(models.GenerativeModel.name == model_data["model"])
-            )
-            existing_model = result.scalar_one_or_none()
-
-            if existing_model is None:
+            # Remove model from built_in_models dict (for cleanup tracking)
+            # or create new model if not found
+            model = built_in_models.pop(model_data["model"], None)
+            if model is None:
+                # Create new built-in model from manifest data
                 model = models.GenerativeModel(
                     name=model_data["model"],
                     provider=model_data["provider"],
@@ -370,51 +445,53 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
                     is_built_in=True,
                 )
                 session.add(model)
-                await session.flush()
             else:
-                existing_model.provider = model_data["provider"]
-                existing_model.name_pattern = model_data["regex"]
-                model = existing_model
-                await session.execute(
-                    delete(models.TokenPrice).where(models.TokenPrice.model_id == model.id)
-                )
+                # Update existing model's metadata from manifest
+                model.provider = model_data["provider"]
+                model.name_pattern = model_data["regex"]
 
-            prices = []
-            if model_data["input"] is not None:
-                prices.append(
-                    models.TokenPrice(
-                        model_id=model.id,
-                        token_type="input",
-                        is_prompt=True,
-                        base_rate=model_data["input"],
-                    )
-                )
-            if model_data["cache_write"] is not None:
-                prices.append(
-                    models.TokenPrice(
-                        model_id=model.id,
-                        token_type="cache_write",
-                        is_prompt=True,
-                        base_rate=model_data["cache_write"],
-                    )
-                )
-            if model_data["cache_read"] is not None:
-                prices.append(
-                    models.TokenPrice(
-                        model_id=model.id,
-                        token_type="cache_read",
-                        is_prompt=True,
-                        base_rate=model_data["cache_read"],
-                    )
-                )
-            if model_data["output"] is not None:
-                prices.append(
-                    models.TokenPrice(
-                        model_id=model.id,
-                        token_type="output",
-                        is_prompt=False,
-                        base_rate=model_data["output"],
-                    )
-                )
+            # Create lookup table for existing token prices by (token_type, is_prompt)
+            # Using pop() during iteration allows us to track which prices are no longer needed
+            token_prices = {
+                _TokenTypeKey(token_price.token_type, token_price.is_prompt): token_price
+                for token_price in model.token_prices
+            }
 
-            session.add_all(prices)
+            # Synchronize token prices for all supported token types
+            for token_type, is_prompt in token_types:
+                # Skip if this token type has no rate in the manifest
+                if not (base_rate := model_data.get(token_type)):
+                    continue
+
+                key = _TokenTypeKey(token_type, is_prompt)
+                # Remove from tracking dict and get existing price (if any)
+                if not (token_price := token_prices.pop(key, None)):
+                    # Create new token price if it doesn't exist
+                    token_price = models.TokenPrice(
+                        token_type=token_type,
+                        is_prompt=is_prompt,
+                        base_rate=base_rate,
+                    )
+                    model.token_prices.append(token_price)
+                elif token_price.base_rate != base_rate:
+                    # Update existing price if rate has changed
+                    token_price.base_rate = base_rate
+
+            # Remove any token prices that are no longer in the manifest
+            # These are prices that weren't popped from the token_prices dict above
+            for token_price in token_prices.values():
+                model.token_prices.remove(token_price)
+
+    # Clean up built-in models that are no longer in the manifest
+    # These are models that weren't popped from built_in_models dict above
+    remaining_models = list(built_in_models.values())
+    if not remaining_models:
+        return
+
+    # Soft delete obsolete built-in models
+    async with db() as session:
+        await session.execute(
+            sa.update(models.GenerativeModel)
+            .values(deleted_at=sa.func.now())
+            .where(models.GenerativeModel.id.in_([m.id for m in remaining_models]))
+        )
