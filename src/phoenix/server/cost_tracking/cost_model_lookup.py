@@ -93,78 +93,70 @@ class CostModelLookup:
             ...     attributes={"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}}
             ... )
         """  # noqa: E501
-        # Step 1: Extract and validate the model name from attributes
-        llm_name = str(get_attribute_value(attributes, SpanAttributes.LLM_MODEL_NAME) or "").strip()
-        if not llm_name:
+        # 1. extract and validate inputs
+        model_name = str(
+            get_attribute_value(attributes, SpanAttributes.LLM_MODEL_NAME) or ""
+        ).strip()
+        if not model_name:
             return None
 
-        # Step 2: Start with all available models as candidates
-        candidates: list[models.GenerativeModel] = list(self._models)
+        provider = str(get_attribute_value(attributes, SpanAttributes.LLM_PROVIDER) or "").strip()
 
-        # Step 3: Filter candidates by start_time - exclude models that are not yet active
-        # Models with start_time=None are always included (they're always active)
-        # Models with start_time > start_time are excluded (they haven't started yet)
-        candidates_matched_by_time = [
-            c for c in candidates if not c.start_time or c.start_time <= start_time
+        # 2. start with all models
+        candidates = list(self._models)
+
+        # 3. filter by time: only include models active at the given time
+        # Models with start_time=None are always active
+        # Models with start_time > start_time are not yet active
+        candidates = [
+            model for model in candidates if not model.start_time or model.start_time <= start_time
         ]
-        if not candidates_matched_by_time:
+        if not candidates:
             return None
-        candidates = candidates_matched_by_time
 
-        # Step 4: Filter candidates by regex pattern matching
-        # Only include models whose name_pattern regex matches the provided model name
-        candidates_matched_by_name = [
-            c for c in candidates if self._regex[c.name_pattern].match(llm_name)
+        # 4. filter by name pattern: only include models matching the regex pattern
+        candidates = [
+            model for model in candidates if self._regex[model.name_pattern].match(model_name)
         ]
-        if not candidates_matched_by_name:
+        if not candidates:
             return None
-        candidates = candidates_matched_by_name
 
-        # Step 5: Early return if only one candidate remains
+        # 5. early return: if only one candidate remains, return it
         if len(candidates) == 1:
             return candidates[0]
 
-        # Step 6: Extract provider from attributes (if specified)
-        llm_provider = str(
-            get_attribute_value(attributes, SpanAttributes.LLM_PROVIDER) or ""
-        ).strip()
+        # 6. priority-based selection: user-defined models first, then built-in models
+        for is_built_in in (False, True):  # False = user-defined, True = built-in
+            # get candidates for current tier (user-defined or built-in)
+            tier_candidates = [model for model in candidates if model.is_built_in == is_built_in]
 
-        # Step 7: Apply priority-based selection in two tiers
-        # First check user-defined models (is_built_in=False), then built-in models
-        # (is_built_in=True)
-        for is_built_in in (False, True):
-            # Filter candidates to current tier (user-defined or built-in)
-            candidates_subset = [c for c in candidates if c.is_built_in == is_built_in]
+            if not tier_candidates:
+                continue  # try next tier
 
-            if not candidates_subset:
-                continue
-
-            # Step 8: Apply provider filtering if provider is specified in attributes
-            # If a specific provider is given, prefer provider-specific models over
-            # provider-agnostic ones, but only if provider-specific models are available
-            if llm_provider:
-                provider_specific_candidates = [
-                    c for c in candidates_subset if c.provider and c.provider == llm_provider
+            # 7. provider filtering: if provider specified, prefer provider-specific models
+            if provider:
+                provider_specific_models = [
+                    model
+                    for model in tier_candidates
+                    if model.provider and model.provider == provider
                 ]
-                # Only use provider-specific candidates if any exist
-                # This allows fallback to provider-agnostic models when no provider-specific
-                # match exists
-                if provider_specific_candidates:
-                    candidates_subset = provider_specific_candidates
+                # only use provider-specific models if any exist
+                # this allows fallback to provider-agnostic models when no match
+                if provider_specific_models:
+                    tier_candidates = provider_specific_models
 
-            # Step 9: Early return if only one candidate in current tier
-            if len(candidates_subset) == 1:
-                return candidates_subset[0]
+            # 8. select best model in this tier
+            if tier_candidates:
+                if len(tier_candidates) == 1:
+                    return tier_candidates[0]
 
-            # Step 10: Sort remaining candidates by priority and return the highest priority
-            # one. Priority tuple: (regex_specificity_score, start_time.timestamp, tie_breaker)
-            # Higher values in the tuple = higher priority
-            if candidates_subset:
+                # sort by priority tuple: (regex_specificity, start_time, tie_breaker)
+                # higher values = higher priority
                 return sorted(
-                    candidates_subset,
-                    key=lambda m: self._model_priority[m.id],
+                    tier_candidates,
+                    key=lambda model: self._model_priority[model.id],
                     reverse=True,
                 )[0]
 
-        # Step 11: No suitable model found
+        # 9. no suitable model found
         return None
