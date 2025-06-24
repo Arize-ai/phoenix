@@ -4,62 +4,31 @@ title: TS - Launch Phoenix
 
 {% tabs %}
 {% tab title="Phoenix Cloud" %}
-**Sign up for Phoenix:**
+1. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
+2. Grab your API key from the Keys option on the left bar.
+3. In your code, configure environment variables for your endpoint and API key:
 
-Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
+```sh
+# .env, or shell environment
 
-**Set your Phoenix endpoint and API Key:**
-
-```bash
-export PHOENIX_COLLECTOR_ENDPOINT="https://app.phoenix.arize.com/v1/traces"
-export OTEL_EXPORTER_OTLP_HEADERS="api_key=YOUR_PHOENIX_API_KEY"
-```
-
-Your **Phoenix API key** can be found on the Keys section of your [dashboard](https://app.phoenix.arize.com).
-{% endtab %}
-
-{% tab title="Command Line" %}
-**Launch your local Phoenix instance:**
-
-```bash
-pip install arize-phoenix
-phoenix serve
-```
-
-This will expose the Phoenix on `localhost:6006`
-
-For details on customizing a local terminal deployment, see [Terminal Setup](https://arize.com/docs/phoenix/setup/environments#terminal).
-
-**Set your Phoenix endpoint and API Key:**
-
-```bash
-export PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006/v1/traces"
-export PHOENIX_API_KEY="YOUR PHOENIX API KEY" # only necessary if you've enabled auth
+# Add Phoenix API Key for tracing
+PHOENIX_API_KEY="ADD YOUR PHOENIX API KEY"
+# And Collector Endpoint for Phoenix Cloud
+PHOENIX_COLLECTOR_ENDPOINT="ADD YOUR PHOENIX HOSTNAME"
 ```
 {% endtab %}
 
-{% tab title="Docker" %}
-**Pull latest Phoenix image from** [**Docker Hub**](https://hub.docker.com/r/arizephoenix/phoenix)**:**
+{% tab title="Self-Hosted Phoenix" %}
+1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, see [self-hosting](https://arize.com/docs/phoenix/self-hosting).
+2. In your code, configure environment variables for your endpoint and API key:
 
-```bash
-docker pull arizephoenix/phoenix:latest
+```sh
+# .env, or shell environment
+​
+# Collector Endpoint for your self hosted Phoenix, like localhost
+PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
+# (optional) If authentication enabled, add Phoenix API Key for tracing
+PHOENIX_API_KEY="ADD YOUR API KEY"
 ```
-
-**Run your containerized instance:**
-
-```bash
-docker run -p 6006:6006 arizephoenix/phoenix:latest
-```
-
-This will expose the Phoenix on `localhost:6006`
-
-**Set your Phoenix endpoint and API Key:**
-
-```bash
-export PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006/v1/traces"
-export PHOENIX_API_KEY="YOUR PHOENIX API KEY" # only necessary if you've enabled auth
-```
-
-For more info on using Phoenix with Docker, see [Docker](https://arize.com/docs/phoenix/self-hosting/deployment-options/docker).
 {% endtab %}
 {% endtabs %}

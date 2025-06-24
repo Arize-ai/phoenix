@@ -1,10 +1,10 @@
 # Mastra Tracing
 
-### Launch Phoenix
+## Launch Phoenix
 
 {% include "../../.gitbook/includes/ts-launch-phoenix.md" %}
 
-### Setup
+## Setup
 
 **Install packages:**
 
@@ -45,7 +45,7 @@ export const mastra = new Mastra({
 
 From here you can use Mastra as normal. All agents, workflows, and tool calls will be automatically traced.
 
-### Example Agent Walkthrough
+## Example Agent Walkthrough
 
 Here is a full project example to get you started:
 
