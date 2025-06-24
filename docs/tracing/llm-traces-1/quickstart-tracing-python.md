@@ -15,17 +15,28 @@ This example uses options 1 and 2.
 {% tabs %}
 {% tab title="Using Phoenix Cloud" %}
 1. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
-2. Grab your API key from the Keys option on the left bar.
+2. Click `Create Space`, then follow the prompts to create and launch your space.
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-cloud.png" %}
+The Phoenix Cloud Management Console
+{% endembed %}
+
+**From your new Phoenix Space**
+
+1. Create your API key from the Settings page
+2. Copy your `Hostname` from the Settings page
 3. In your code, set your endpoint and API key:
 
 ```python
 import os
 
 # Add Phoenix API Key for tracing
-PHOENIX_API_KEY = "ADD YOUR API KEY"
-PHOENIX_ENDPOINT = "https://app.phoenix.arize.com/v1/traces"
+os.environ["PHOENIX_API_KEY"] = "ADD YOUR PHOENIX API KEY"
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "ADD YOUR PHOENIX HOSTNAME"
 
-os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
+# If you created your Phoenix Cloud instance before June 24th, 2025,
+# you also need to set the API key as a header
+os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={os.getenv('PHOENIX_API_KEY')}"
 ```
 
 {% hint style="warning" %}
@@ -41,7 +52,7 @@ Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](
 import os
 
 # Update this with your self-hosted endpoint
-PHOENIX_ENDPOINT = "http://localhost:6006/v1/traces"
+os.environ["PHOENIX_COLLECTOR_ENDPOINT] = "http://localhost:6006/v1/traces"
 ```
 
 {% hint style="warning" %}
@@ -65,7 +76,6 @@ from phoenix.otel import register
 tracer_provider = register(
   project_name="my-llm-app", # Default is 'default'
   auto_instrument=True, # See 'Trace all calls made to a library' below
-  endpoint=PHOENIX_ENDPOINT,
 )
 tracer = tracer_provider.get_tracer(__name__)
 ```

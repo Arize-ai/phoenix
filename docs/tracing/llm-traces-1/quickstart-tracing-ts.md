@@ -20,9 +20,9 @@ This example uses options 2 and 3.
 <pre class="language-sh"><code class="lang-sh"><strong># .env, or shell environment
 </strong>
 # Add Phoenix API Key for tracing
-PHOENIX_API_KEY="ADD YOUR API KEY"
+PHOENIX_API_KEY="ADD YOUR PHOENIX API KEY"
 # And Collector Endpoint for Phoenix Cloud
-PHOENIX_COLLECTOR_ENDPOINT="https://app.phoenix.arize.com"
+PHOENIX_COLLECTOR_ENDPOINT="ADD YOUR PHOENIX HOSTNAME"
 </code></pre>
 
 ### Using Self-hosted Phoenix
@@ -41,7 +41,7 @@ PHOENIX_API_KEY="ADD YOUR API KEY"
 
 ## Connect to Phoenix <a href="#connect-your-app" id="connect-your-app"></a>
 
-To collect traces from your application, you must configure an OpenTelemetry TracerProvider to send traces to Phoenix.&#x20;
+To collect traces from your application, you must configure an OpenTelemetry TracerProvider to send traces to Phoenix.
 
 ```bash
 # npm, pnpm, yarn, etc
@@ -169,7 +169,7 @@ registerInstrumentations({
 {% endtabs %}
 
 {% hint style="info" %}
-Your project can be configured for CommonJS or ESM via many methods. It can depend on your installed runtime (Node, Deno, etc), as well as configuration within your \`package.json\`. Consult your runtime documentation for more details.&#x20;
+Your project can be configured for CommonJS or ESM via many methods. It can depend on your installed runtime (Node, Deno, etc), as well as configuration within your \`package.json\`. Consult your runtime documentation for more details.
 {% endhint %}
 
 Finally, in your app code, invoke OpenAI:
