@@ -139,7 +139,7 @@ This should only be used by developers working on the Phoenix server that need
 to be switching between branches without having to run migrations.
 
 This can also be useful if a migration fails and you want to put the applicaiton
-in a recoverable state.
+in a running state.
 """
 
 # Phoenix server OpenTelemetry instrumentation environment variables
