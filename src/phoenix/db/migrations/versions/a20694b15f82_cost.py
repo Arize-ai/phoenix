@@ -91,7 +91,7 @@ def upgrade() -> None:
         ),
         sa.Column(
             "model_id",
-            sa.Integer,
+            _Integer,
             sa.ForeignKey("generative_models.id", ondelete="CASCADE"),
             nullable=False,
             index=True,
@@ -115,21 +115,21 @@ def upgrade() -> None:
         ),
         sa.Column(
             "span_rowid",
-            sa.Integer,
+            _Integer,
             sa.ForeignKey("spans.id", ondelete="CASCADE"),
             nullable=False,
             index=True,
         ),
         sa.Column(
             "trace_rowid",
-            sa.Integer,
+            _Integer,
             sa.ForeignKey("traces.id", ondelete="CASCADE"),
             nullable=False,
             index=True,
         ),
         sa.Column(
             "model_id",
-            sa.Integer,
+            _Integer,
             sa.ForeignKey(
                 "generative_models.id",
                 ondelete="RESTRICT",
@@ -159,7 +159,7 @@ def upgrade() -> None:
         ),
         sa.Column(
             "span_cost_id",
-            sa.Integer,
+            _Integer,
             sa.ForeignKey("span_costs.id", ondelete="CASCADE"),
             nullable=False,
             index=True,
