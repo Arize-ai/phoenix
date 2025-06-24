@@ -1491,14 +1491,14 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                     yield TextChunk(content=event.text)
                 elif isinstance(event, anthropic_streaming.MessageStopEvent):
                     usage = event.message.usage
-                    token_counts: dict[str, Any] = {}
+                    output_token_counts: dict[str, Any] = {}
                     if usage.output_tokens:
-                        token_counts[LLM_TOKEN_COUNT_COMPLETION] = usage.output_tokens
+                        output_token_counts[LLM_TOKEN_COUNT_COMPLETION] = usage.output_tokens
                     if getattr(usage, "cache_read_input_tokens", None):
-                        token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] = (
+                        output_token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] = (
                             usage.cache_read_input_tokens
                         )
-                    self._attributes.update(token_counts)
+                    self._attributes.update(output_token_counts)
                 elif (
                     isinstance(event, anthropic_streaming.ContentBlockStopEvent)
                     and event.content_block.type == "tool_use"
