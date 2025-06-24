@@ -99,6 +99,15 @@
     "regex":"(?i)^(claude-3-7-sonnet-latest)$"
   },
   {
+    "model":"claude-sonnet-4-20250514",
+    "provider":null,
+    "input":3e-06,
+    "output":1.5e-05,
+    "cache_write":3.75e-06,
+    "cache_read":3e-07,
+    "regex":"(?i)^(claude-sonnet-4-20250514|anthropic\\.claude-sonnet-4-20250514-v1:0|claude-sonnet-4@20250514)$"
+  },
+  {
     "model":"claude-instant-1",
     "provider":null,
     "input":0.00000163,
