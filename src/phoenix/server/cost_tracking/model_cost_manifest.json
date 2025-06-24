@@ -1,668 +1,984 @@
-[
-  {
-    "model":"chatgpt-4o-latest",
-    "provider":null,
-    "input":0.000005,
-    "output":0.000015,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(chatgpt-4o-latest)$"
-  },
-  {
-    "model":"claude-1.1",
-    "provider":null,
-    "input":0.000008,
-    "output":0.000024,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(claude-1.1)$"
-  },
-  {
-    "model":"claude-1.2",
-    "provider":null,
-    "input":0.000008,
-    "output":0.000024,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(claude-1.2)$"
-  },
-  {
-    "model":"claude-1.3",
-    "provider":null,
-    "input":0.000008,
-    "output":0.000024,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(claude-1.3)$"
-  },
-  {
-    "model":"claude-2.0",
-    "provider":null,
-    "input":0.000008,
-    "output":0.000024,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(claude-2.0)$"
-  },
-  {
-    "model":"claude-2.1",
-    "provider":null,
-    "input":0.000008,
-    "output":0.000024,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(claude-2.1)$"
-  },
-  {
-    "model":"claude-3-5-haiku-20241022",
-    "provider":null,
-    "input":0.0000008,
-    "output":0.000004,
-    "cache_write":0.00000008,
-    "cache_read":0.000001,
-    "regex":"(?i)^(claude-3-5-haiku-20241022|anthropic\\.claude-3-5-haiku-20241022-v1:0|claude-3-5-haiku-V1@20241022)$"
-  },
-  {
-    "model":"claude-3-5-sonnet-20240620",
-    "provider":null,
-    "input":0.000003,
-    "output":0.000015,
-    "cache_write":0.0000003,
-    "cache_read":0.00000375,
-    "regex":"(?i)^(claude-3-5-sonnet-20240620|anthropic\\.claude-3-5-sonnet-20240620-v1:0|claude-3-5-sonnet@20240620)$"
-  },
-  {
-    "model":"claude-3-haiku-20240307",
-    "provider":null,
-    "input":0.00000025,
-    "output":0.00000125,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(claude-3-haiku-20240307|anthropic\\.claude-3-haiku-20240307-v1:0|claude-3-haiku@20240307)$"
-  },
-  {
-    "model":"claude-3-opus-20240229",
-    "provider":null,
-    "input":0.000015,
-    "output":0.000075,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(claude-3-opus-20240229|anthropic\\.claude-3-opus-20240229-v1:0|claude-3-opus@20240229)$"
-  },
-  {
-    "model":"claude-3-sonnet-20240229",
-    "provider":null,
-    "input":0.000003,
-    "output":0.000015,
-    "cache_write":0.0000003,
-    "cache_read":0.00000375,
-    "regex":"(?i)^(claude-3-sonnet-20240229|anthropic\\.claude-3-sonnet-20240229-v1:0|claude-3-sonnet@20240229)$"
-  },
-  {
-    "model":"claude-3.5-haiku-latest",
-    "provider":null,
-    "input":0.0000008,
-    "output":0.000004,
-    "cache_write":0.00000008,
-    "cache_read":0.000001,
-    "regex":"(?i)^(claude-3-5-haiku-latest)$"
-  },
-  {
-    "model":"claude-3.5-sonnet-20241022",
-    "provider":null,
-    "input":0.000003,
-    "output":0.000015,
-    "cache_write":0.0000003,
-    "cache_read":0.00000375,
-    "regex":"(?i)^(claude-3-5-sonnet-20241022|anthropic\\.claude-3-5-sonnet-20241022-v2:0|claude-3-5-sonnet-V2@20241022)$"
-  },
-  {
-    "model":"claude-3.5-sonnet-latest",
-    "provider":null,
-    "input":0.000003,
-    "output":0.000015,
-    "cache_write":0.0000003,
-    "cache_read":0.00000375,
-    "regex":"(?i)^(claude-3-5-sonnet-latest)$"
-  },
-  {
-    "model":"claude-3.7-sonnet-20250219",
-    "provider":null,
-    "input":0.000003,
-    "output":0.000015,
-    "cache_write":0.0000003,
-    "cache_read":0.00000375,
-    "regex":"(?i)^(claude-3.7-sonnet-20250219|anthropic\\.claude-3.7-sonnet-20250219-v1:0|claude-3-7-sonnet-V1@20250219)$"
-  },
-  {
-    "model":"claude-3.7-sonnet-latest",
-    "provider":null,
-    "input":0.000003,
-    "output":0.000015,
-    "cache_write":0.0000003,
-    "cache_read":0.00000375,
-    "regex":"(?i)^(claude-3-7-sonnet-latest)$"
-  },
-  {
-    "model":"claude-instant-1",
-    "provider":null,
-    "input":0.00000163,
-    "output":0.00000551,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(claude-instant-1)$"
-  },
-  {
-    "model":"claude-instant-1.2",
-    "provider":null,
-    "input":0.00000163,
-    "output":0.00000551,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(claude-instant-1.2)$"
-  },
-  {
-    "model":"gemini-1.0-pro",
-    "provider":null,
-    "input":0.000000125,
-    "output":0.000000375,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gemini-1.0-pro)(@[a-zA-Z0-9]+)?$"
-  },
-  {
-    "model":"gemini-1.0-pro-001",
-    "provider":null,
-    "input":0.000000125,
-    "output":0.000000375,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gemini-1.0-pro-001)(@[a-zA-Z0-9]+)?$"
-  },
-  {
-    "model":"gemini-1.0-pro-latest",
-    "provider":null,
-    "input":0.00000025,
-    "output":0.0000005,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gemini-1.0-pro-latest)(@[a-zA-Z0-9]+)?$"
-  },
-  {
-    "model":"gemini-1.5-pro-latest",
-    "provider":null,
-    "input":0.0000025,
-    "output":0.0000075,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gemini-1.5-pro-latest)(@[a-zA-Z0-9]+)?$"
-  },
-  {
-    "model":"gemini-2.0-flash",
-    "provider":null,
-    "input":0.0000001,
-    "output":0.0000004,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gemini-2.0-flash)(@[a-zA-Z0-9]+)?$"
-  },
-  {
-    "model":"gemini-2.0-flash-001",
-    "provider":null,
-    "input":0.0000001,
-    "output":0.0000004,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gemini-2.0-flash-001)(@[a-zA-Z0-9]+)?$"
-  },
-  {
-    "model":"gemini-2.0-flash-lite-preview",
-    "provider":null,
-    "input":0.000000075,
-    "output":0.0000003,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gemini-2.0-flash-lite-preview)(@[a-zA-Z0-9]+)?$"
-  },
-  {
-    "model":"gemini-2.0-flash-lite-preview-02-05",
-    "provider":null,
-    "input":0.000000075,
-    "output":0.0000003,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gemini-2.0-flash-lite-preview-02-05)(@[a-zA-Z0-9]+)?$"
-  },
-  {
-    "model":"gemini-pro",
-    "provider":null,
-    "input":0.000000125,
-    "output":0.000000375,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gemini-pro)(@[a-zA-Z0-9]+)?$"
-  },
-  {
-    "model":"gpt-3.5-turbo",
-    "provider":null,
-    "input":0.0000005,
-    "output":0.0000015,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-)(35|3.5)(-turbo)$"
-  },
-  {
-    "model":"gpt-3.5-turbo-0125",
-    "provider":null,
-    "input":0.0000005,
-    "output":0.0000015,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-)(35|3.5)(-turbo-0125)$"
-  },
-  {
-    "model":"gpt-3.5-turbo-0301",
-    "provider":null,
-    "input":0.000002,
-    "output":0.000002,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-)(35|3.5)(-turbo-0301)$"
-  },
-  {
-    "model":"gpt-3.5-turbo-0613",
-    "provider":null,
-    "input":0.0000015,
-    "output":0.000002,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-)(35|3.5)(-turbo-0613)$"
-  },
-  {
-    "model":"gpt-3.5-turbo-1106",
-    "provider":null,
-    "input":0.000001,
-    "output":0.000002,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-)(35|3.5)(-turbo-1106)$"
-  },
-  {
-    "model":"gpt-3.5-turbo-16k",
-    "provider":null,
-    "input":0.0000005,
-    "output":0.0000015,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-)(35|3.5)(-turbo-16k)$"
-  },
-  {
-    "model":"gpt-3.5-turbo-16k-0613",
-    "provider":null,
-    "input":0.000003,
-    "output":0.000004,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-)(35|3.5)(-turbo-16k-0613)$"
-  },
-  {
-    "model":"gpt-3.5-turbo-instruct",
-    "provider":null,
-    "input":0.0000015,
-    "output":0.000002,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-)(35|3.5)(-turbo-instruct)$"
-  },
-  {
-    "model":"gpt-4",
-    "provider":null,
-    "input":0.00003,
-    "output":0.00006,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4)$"
-  },
-  {
-    "model":"gpt-4-0125-preview",
-    "provider":null,
-    "input":0.00001,
-    "output":0.00003,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4-0125-preview)$"
-  },
-  {
-    "model":"gpt-4-0314",
-    "provider":null,
-    "input":0.00003,
-    "output":0.00006,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4-0314)$"
-  },
-  {
-    "model":"gpt-4-0613",
-    "provider":null,
-    "input":0.00003,
-    "output":0.00006,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4-0613)$"
-  },
-  {
-    "model":"gpt-4-1106-preview",
-    "provider":null,
-    "input":0.00001,
-    "output":0.00003,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4-1106-preview)$"
-  },
-  {
-    "model":"gpt-4-32k",
-    "provider":null,
-    "input":0.00006,
-    "output":0.00012,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4-32k)$"
-  },
-  {
-    "model":"gpt-4-32k-0314",
-    "provider":null,
-    "input":0.00006,
-    "output":0.00012,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4-32k-0314)$"
-  },
-  {
-    "model":"gpt-4-32k-0613",
-    "provider":null,
-    "input":0.00006,
-    "output":0.00012,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4-32k-0613)$"
-  },
-  {
-    "model":"gpt-4-preview",
-    "provider":null,
-    "input":0.00001,
-    "output":0.00003,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4-preview)$"
-  },
-  {
-    "model":"gpt-4-turbo",
-    "provider":null,
-    "input":0.00001,
-    "output":0.00003,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4-turbo)$"
-  },
-  {
-    "model":"gpt-4-turbo-2024-04-09",
-    "provider":null,
-    "input":0.00001,
-    "output":0.00003,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4-turbo-2024-04-09)$"
-  },
-  {
-    "model":"gpt-4-turbo-preview",
-    "provider":null,
-    "input":0.00001,
-    "output":0.00003,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4-turbo-preview)$"
-  },
-  {
-    "model":"gpt-4-turbo-vision",
-    "provider":null,
-    "input":0.00001,
-    "output":0.00003,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4(-\\d{4})?-vision-preview)$"
-  },
-  {
-    "model":"gpt-4.1",
-    "provider":null,
-    "input":0.000002,
-    "output":0.000008,
-    "cache_write":0.0000005,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4.1)$"
-  },
-  {
-    "model":"gpt-4.1-2025-04-14",
-    "provider":null,
-    "input":0.000002,
-    "output":0.000008,
-    "cache_write":0.0000005,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4.1-2025-04-14)$"
-  },
-  {
-    "model":"gpt-4.1-mini",
-    "provider":null,
-    "input":0.0000004,
-    "output":0.0000016,
-    "cache_write":0.0000001,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4.1-mini)$"
-  },
-  {
-    "model":"gpt-4.1-mini-2025-04-14",
-    "provider":null,
-    "input":0.0000004,
-    "output":0.0000016,
-    "cache_write":0.0000001,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4.1-mini-2025-04-14)$"
-  },
-  {
-    "model":"gpt-4.1-nano",
-    "provider":null,
-    "input":0.0000001,
-    "output":0.0000004,
-    "cache_write":0.000000025,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4.1-nano)$"
-  },
-  {
-    "model":"gpt-4.1-nano-2025-04-14",
-    "provider":null,
-    "input":0.0000001,
-    "output":0.0000004,
-    "cache_write":0.000000025,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4.1-nano-2025-04-14)$"
-  },
-  {
-    "model":"gpt-4.5-preview",
-    "provider":null,
-    "input":0.000075,
-    "output":0.00015,
-    "cache_write":0.0000375,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4.5-preview)$"
-  },
-  {
-    "model":"gpt-4.5-preview-2025-02-27",
-    "provider":null,
-    "input":0.000075,
-    "output":0.00015,
-    "cache_write":0.0000375,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4.5-preview-2025-02-27)$"
-  },
-  {
-    "model":"gpt-4o",
-    "provider":null,
-    "input":0.0000025,
-    "output":0.00001,
-    "cache_write":0.00000125,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4o)$"
-  },
-  {
-    "model":"gpt-4o-2024-05-13",
-    "provider":null,
-    "input":0.000005,
-    "output":0.000015,
-    "cache_write":null,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4o-2024-05-13)$"
-  },
-  {
-    "model":"gpt-4o-2024-08-06",
-    "provider":null,
-    "input":0.0000025,
-    "output":0.00001,
-    "cache_write":0.00000125,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4o-2024-08-06)$"
-  },
-  {
-    "model":"gpt-4o-2024-11-20",
-    "provider":null,
-    "input":0.0000025,
-    "output":0.00001,
-    "cache_write":0.00000125,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4o-2024-11-20)$"
-  },
-  {
-    "model":"gpt-4o-mini",
-    "provider":null,
-    "input":0.00000015,
-    "output":0.0000006,
-    "cache_write":0.000000075,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4o-mini)$"
-  },
-  {
-    "model":"gpt-4o-mini-2024-07-18",
-    "provider":null,
-    "input":0.00000015,
-    "output":0.0000006,
-    "cache_write":0.000000075,
-    "cache_read":null,
-    "regex":"(?i)^(gpt-4o-mini-2024-07-18)$"
-  },
-  {
-    "model":"o1",
-    "provider":null,
-    "input":0.000015,
-    "output":0.00006,
-    "cache_write":0.0000075,
-    "cache_read":null,
-    "regex":"(?i)^(o1)$"
-  },
-  {
-    "model":"o1-2024-12-17",
-    "provider":null,
-    "input":0.000015,
-    "output":0.00006,
-    "cache_write":0.0000075,
-    "cache_read":null,
-    "regex":"(?i)^(o1-2024-12-17)$"
-  },
-  {
-    "model":"o1-mini",
-    "provider":null,
-    "input":0.0000011,
-    "output":0.0000044,
-    "cache_write":0.00000055,
-    "cache_read":null,
-    "regex":"(?i)^(o1-mini)$"
-  },
-  {
-    "model":"o1-mini-2024-09-12",
-    "provider":null,
-    "input":0.0000011,
-    "output":0.0000044,
-    "cache_write":0.00000055,
-    "cache_read":null,
-    "regex":"(?i)^(o1-mini-2024-09-12)$"
-  },
-  {
-    "model":"o1-preview",
-    "provider":null,
-    "input":0.000015,
-    "output":0.00006,
-    "cache_write":0.0000075,
-    "cache_read":null,
-    "regex":"(?i)^(o1-preview)$"
-  },
-  {
-    "model":"o1-preview-2024-09-12",
-    "provider":null,
-    "input":0.000015,
-    "output":0.00006,
-    "cache_write":0.0000075,
-    "cache_read":null,
-    "regex":"(?i)^(o1-preview-2024-09-12)$"
-  },
-  {
-    "model":"o3",
-    "provider":null,
-    "input":0.00001,
-    "output":0.00004,
-    "cache_write":0.0000025,
-    "cache_read":null,
-    "regex":"(?i)^(o3)$"
-  },
-  {
-    "model":"o3-2025-04-16",
-    "provider":null,
-    "input":0.00001,
-    "output":0.00004,
-    "cache_write":0.0000025,
-    "cache_read":null,
-    "regex":"(?i)^(o3-2025-04-16)$"
-  },
-  {
-    "model":"o3-mini",
-    "provider":null,
-    "input":0.0000011,
-    "output":0.0000044,
-    "cache_write":0.00000055,
-    "cache_read":null,
-    "regex":"(?i)^(o3-mini)$"
-  },
-  {
-    "model":"o3-mini-2025-01-31",
-    "provider":null,
-    "input":0.0000011,
-    "output":0.0000044,
-    "cache_write":0.00000055,
-    "cache_read":null,
-    "regex":"(?i)^(o3-mini-2025-01-31)$"
-  },
-  {
-    "model":"o4-mini",
-    "provider":null,
-    "input":0.0000011,
-    "output":0.0000044,
-    "cache_write":0.000000275,
-    "cache_read":null,
-    "regex":"(?i)^(o4-mini)$"
-  },
-  {
-    "model":"o4-mini-2025-04-16",
-    "provider":null,
-    "input":0.0000011,
-    "output":0.0000044,
-    "cache_write":0.000000275,
-    "cache_read":null,
-    "regex":"(?i)^(o4-mini-2025-04-16)$"
-  }
-]
+{
+  "last_updated": "2025-06-24T19:40:25.910224Z",
+  "models": [
+    {
+      "name": "chatgpt-4o-latest",
+      "name_pattern": "^chatgpt-4o-latest$",
+      "openrouter_id": "openai/chatgpt-4o-latest",
+      "token_prices": [
+        {
+          "base_rate": 5e-06,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.5e-05,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "claude-2.0",
+      "name_pattern": "^claude-2.0$",
+      "openrouter_id": "anthropic/claude-2.0",
+      "token_prices": [
+        {
+          "base_rate": 8e-06,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2.4e-05,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "claude-2.1",
+      "name_pattern": "^(claude-2.1)$",
+      "openrouter_id": "anthropic/claude-2.1",
+      "token_prices": [
+        {
+          "base_rate": 8e-06,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2.4e-05,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "claude-3-5-haiku-20241022",
+      "name_pattern": "^(claude-3-5-haiku-20241022|anthropic\\.claude-3-5-haiku-20241022-v1:0|claude-3-5-haiku-V1@20241022)$",
+      "openrouter_id": "anthropic/claude-3.5-haiku-20241022",
+      "token_prices": [
+        {
+          "base_rate": 8e-07,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4e-06,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        },
+        {
+          "base_rate": 8e-08,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 1e-06,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "claude-3-5-sonnet-20240620",
+      "name_pattern": "^(claude-3-5-sonnet-20240620|anthropic\\.claude-3-5-sonnet-20240620-v1:0|claude-3-5-sonnet@20240620)$",
+      "openrouter_id": "anthropic/claude-3.5-sonnet-20240620",
+      "token_prices": [
+        {
+          "base_rate": 3e-06,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.5e-05,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-07,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 3.75e-06,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "litellm_id": "claude-3-haiku-20240307",
+      "name": "claude-3-haiku-20240307",
+      "name_pattern": "^(claude-3-haiku-20240307|anthropic\\.claude-3-haiku-20240307-v1:0|claude-3-haiku@20240307)$"
+    },
+    {
+      "litellm_id": "claude-3-opus-20240229",
+      "name": "claude-3-opus-20240229",
+      "name_pattern": "^(claude-3-opus-20240229|anthropic\\.claude-3-opus-20240229-v1:0|claude-3-opus@20240229)$"
+    },
+    {
+      "name": "claude-3-sonnet-20240229",
+      "name_pattern": "^(claude-3-sonnet-20240229|anthropic\\.claude-3-sonnet-20240229-v1:0|claude-3-sonnet@20240229)$"
+    },
+    {
+      "litellm_id": "claude-3-5-haiku-latest",
+      "name": "claude-3.5-haiku-latest",
+      "name_pattern": "^claude-3-5-haiku-latest$"
+    },
+    {
+      "name": "claude-3.5-sonnet-20240620",
+      "name_pattern": "^(claude-3-5-sonnet-20240620|anthropic\\.claude-3-5-sonnet-20240620-v2:0|claude-3-5-sonnet-V2@20240620)$",
+      "openrouter_id": "anthropic/claude-3.5-sonnet-20240620",
+      "token_prices": [
+        {
+          "base_rate": 3e-06,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.5e-05,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-07,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 3.75e-06,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "litellm_id": "claude-3-5-sonnet-latest",
+      "name": "claude-3.5-sonnet-latest",
+      "name_pattern": "^claude-3-5-sonnet-latest$"
+    },
+    {
+      "name": "claude-3.7-sonnet-20250219",
+      "name_pattern": "^(claude-3-7-sonnet-20250219|anthropic\\.claude-3-7-sonnet-20250219-v1:0|claude-3-7-sonnet-V1@20250219)$",
+      "litellm_id": "claude-3-7-sonnet-20250219"
+    },
+    {
+      "name": "claude-3.7-sonnet-latest",
+      "name_pattern": "^(claude-3-7-sonnet-latest)$",
+      "litellm_id": "claude-3-7-sonnet-latest"
+    },
+    {
+      "name": "gemini-1.5-pro-latest",
+      "name_pattern": "^(gemini-1.5-pro-latest)(@[a-zA-Z0-9]+)?$",
+      "openrouter_id": "google/gemini-pro-1.5"
+    },
+    {
+      "name": "gemini-2.0-flash",
+      "name_pattern": "^(gemini-2.0-flash)(@[a-zA-Z0-9]+)?$",
+      "litellm_id": "gemini-2.0-flash"
+    },
+    {
+      "name": "gemini-2.0-flash-001",
+      "name_pattern": "^(gemini-2.0-flash-001)(@[a-zA-Z0-9]+)?$",
+      "openrouter_id": "google/gemini-2.0-flash-001",
+      "token_prices": [
+        {
+          "base_rate": 1e-07,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4e-07,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.5e-08,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 1.833e-07,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "gemini-2.0-flash-lite-preview",
+      "name_pattern": "^(gemini-2.0-flash-lite-preview)(@[a-zA-Z0-9]+)?$",
+      "openrouter_id": "google/gemini-2.0-flash-lite-001",
+      "token_prices": [
+        {
+          "base_rate": 7.5e-08,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 3e-07,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gemini-2.0-flash-lite-preview-02-05",
+      "name_pattern": "^(gemini-2.0-flash-lite-preview-02-05)(@[a-zA-Z0-9]+)?$",
+      "litellm_id": "google/gemini-2.5-flash-lite-preview-06-17"
+    },
+    {
+      "name": "gemini-pro",
+      "name_pattern": "^(gemini-pro)(@[a-zA-Z0-9]+)?$",
+      "openrouter_id": "gemini-pro"
+    },
+    {
+      "name": "gpt-3.5-turbo",
+      "name_pattern": "^(gpt-)(35|3.5)(-turbo)$",
+      "openrouter_id": "openai/gpt-3.5-turbo",
+      "token_prices": [
+        {
+          "base_rate": 5e-07,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.5e-06,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gpt-3.5-turbo-0125",
+      "name_pattern": "^(gpt-)(35|3.5)(-turbo-0125)$",
+      "openrouter_id": "openai/gpt-3.5-turbo-0125",
+      "token_prices": [
+        {
+          "base_rate": 5e-07,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.5e-06,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gpt-3.5-turbo-0301",
+      "name_pattern": "^(gpt-)(35|3.5)(-turbo-0301)$"
+    },
+    {
+      "name": "gpt-3.5-turbo-0613",
+      "name_pattern": "^(gpt-)(35|3.5)(-turbo-0613)$",
+      "openrouter_id": "openai/gpt-3.5-turbo-0613",
+      "token_prices": [
+        {
+          "base_rate": 1e-06,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2e-06,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gpt-3.5-turbo-1106",
+      "name_pattern": "^(gpt-)(35|3.5)(-turbo-1106)$",
+      "openrouter_id": "openai/gpt-3.5-turbo-1106",
+      "token_prices": [
+        {
+          "base_rate": 1e-06,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2e-06,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gpt-3.5-turbo-16k",
+      "name_pattern": "^(gpt-)(35|3.5)(-turbo-16k)$",
+      "openrouter_id": "openai/gpt-3.5-turbo-16k",
+      "token_prices": [
+        {
+          "base_rate": 3e-06,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4e-06,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gpt-3.5-turbo-16k-0613",
+      "name_pattern": "^(gpt-)(35|3.5)(-turbo-16k-0613)$"
+    },
+    {
+      "name": "gpt-3.5-turbo-instruct",
+      "name_pattern": "^(gpt-)(35|3.5)(-turbo-instruct)$",
+      "openrouter_id": "openai/gpt-3.5-turbo-instruct",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-06,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2e-06,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gpt-4",
+      "name_pattern": "^(gpt-4)$",
+      "openrouter_id": "openai/gpt-4",
+      "token_prices": [
+        {
+          "base_rate": 3e-05,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 6e-05,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gpt-4-0125-preview",
+      "name_pattern": "^(gpt-4-0125-preview)$"
+    },
+    {
+      "name": "gpt-4-0314",
+      "name_pattern": "^(gpt-4-0314)$",
+      "openrouter_id": "openai/gpt-4-0314",
+      "token_prices": [
+        {
+          "base_rate": 3e-05,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 6e-05,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gpt-4-0613",
+      "name_pattern": "^(gpt-4-0613)$"
+    },
+    {
+      "name": "gpt-4-1106-preview",
+      "name_pattern": "^(gpt-4-1106-preview)$",
+      "openrouter_id": "openai/gpt-4-1106-preview",
+      "token_prices": [
+        {
+          "base_rate": 1e-05,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 3e-05,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gpt-4-32k",
+      "name_pattern": "^(gpt-4-32k)$"
+    },
+    {
+      "name": "gpt-4-32k-0314",
+      "name_pattern": "^(gpt-4-32k-0314)$"
+    },
+    {
+      "name": "gpt-4-32k-0613",
+      "name_pattern": "^(gpt-4-32k-0613)$"
+    },
+    {
+      "name": "gpt-4-preview",
+      "name_pattern": "^(gpt-4-preview)$"
+    },
+    {
+      "name": "gpt-4-turbo",
+      "name_pattern": "^(gpt-4-turbo)$",
+      "openrouter_id": "openai/gpt-4-turbo",
+      "token_prices": [
+        {
+          "base_rate": 1e-05,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 3e-05,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gpt-4-turbo-2024-04-09",
+      "name_pattern": "^(gpt-4-turbo-2024-04-09)$"
+    },
+    {
+      "name": "gpt-4-turbo-preview",
+      "name_pattern": "^(gpt-4-turbo-preview)$",
+      "openrouter_id": "openai/gpt-4-turbo-preview",
+      "token_prices": [
+        {
+          "base_rate": 1e-05,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 3e-05,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gpt-4-turbo-vision",
+      "name_pattern": "^(gpt-4(-\\d{4})?-vision-preview)$"
+    },
+    {
+      "name": "gpt-4.1",
+      "name_pattern": "^(gpt-4.1)$",
+      "openrouter_id": "openai/gpt-4.1",
+      "token_prices": [
+        {
+          "base_rate": 2e-06,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 8e-06,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5e-07,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "gpt-4.1-2025-04-14",
+      "name_pattern": "^(gpt-4.1-2025-04-14)$"
+    },
+    {
+      "name": "gpt-4.1-mini",
+      "name_pattern": "^(gpt-4.1-mini)$",
+      "openrouter_id": "openai/gpt-4.1-mini",
+      "token_prices": [
+        {
+          "base_rate": 4e-07,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.6e-06,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1e-07,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "gpt-4.1-mini-2025-04-14",
+      "name_pattern": "^(gpt-4.1-mini-2025-04-14)$"
+    },
+    {
+      "name": "gpt-4.1-nano",
+      "name_pattern": "^(gpt-4.1-nano)$",
+      "openrouter_id": "openai/gpt-4.1-nano",
+      "token_prices": [
+        {
+          "base_rate": 1e-07,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4e-07,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.5e-08,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "gpt-4.1-nano-2025-04-14",
+      "name_pattern": "^(gpt-4.1-nano-2025-04-14)$"
+    },
+    {
+      "name": "gpt-4.5-preview",
+      "name_pattern": "^(gpt-4.5-preview)$",
+      "openrouter_id": "openai/gpt-4.5-preview",
+      "token_prices": [
+        {
+          "base_rate": 7.5e-05,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00015,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3.75e-05,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "gpt-4.5-preview-2025-02-27",
+      "name_pattern": "^(gpt-4.5-preview-2025-02-27)$"
+    },
+    {
+      "name": "gpt-4o",
+      "name_pattern": "^(gpt-4o)$",
+      "openrouter_id": "openai/gpt-4o",
+      "token_prices": [
+        {
+          "base_rate": 2.5e-06,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1e-05,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.25e-06,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "gpt-4o-2024-05-13",
+      "name_pattern": "^(gpt-4o-2024-05-13)$",
+      "openrouter_id": "openai/gpt-4o-2024-05-13",
+      "token_prices": [
+        {
+          "base_rate": 5e-06,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.5e-05,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gpt-4o-2024-08-06",
+      "name_pattern": "^(gpt-4o-2024-08-06)$",
+      "openrouter_id": "openai/gpt-4o-2024-08-06",
+      "token_prices": [
+        {
+          "base_rate": 2.5e-06,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1e-05,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.25e-06,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "gpt-4o-2024-11-20",
+      "name_pattern": "^(gpt-4o-2024-11-20)$",
+      "openrouter_id": "openai/gpt-4o-2024-11-20",
+      "token_prices": [
+        {
+          "base_rate": 2.5e-06,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1e-05,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.25e-06,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "gpt-4o-mini",
+      "name_pattern": "^(gpt-4o-mini)$",
+      "openrouter_id": "openai/gpt-4o-mini",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-07,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 6e-07,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        },
+        {
+          "base_rate": 7.5e-08,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "gpt-4o-mini-2024-07-18",
+      "name_pattern": "^(gpt-4o-mini-2024-07-18)$",
+      "openrouter_id": "openai/gpt-4o-mini-2024-07-18",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-07,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 6e-07,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        },
+        {
+          "base_rate": 7.5e-08,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "o1",
+      "name_pattern": "^(o1)$",
+      "openrouter_id": "openai/o1",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-05,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 6e-05,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        },
+        {
+          "base_rate": 7.5e-06,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "o1-2024-12-17",
+      "name_pattern": "^(o1-2024-12-17)$"
+    },
+    {
+      "name": "o1-mini",
+      "name_pattern": "^(o1-mini)$",
+      "openrouter_id": "openai/o1-mini",
+      "token_prices": [
+        {
+          "base_rate": 1.1e-06,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4.4e-06,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5.5e-07,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "o1-mini-2024-09-12",
+      "name_pattern": "^(o1-mini-2024-09-12)$",
+      "openrouter_id": "openai/o1-mini-2024-09-12",
+      "token_prices": [
+        {
+          "base_rate": 1.1e-06,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4.4e-06,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5.5e-07,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "o1-preview",
+      "name_pattern": "^(o1-preview)$",
+      "openrouter_id": "openai/o1-preview",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-05,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 6e-05,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        },
+        {
+          "base_rate": 7.5e-06,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "o1-preview-2024-09-12",
+      "name_pattern": "^(o1-preview-2024-09-12)$",
+      "openrouter_id": "openai/o1-preview-2024-09-12",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-05,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 6e-05,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        },
+        {
+          "base_rate": 7.5e-06,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "o3",
+      "name_pattern": "^(o3)$",
+      "openrouter_id": "openai/o3",
+      "token_prices": [
+        {
+          "base_rate": 2e-06,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 8e-06,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5e-07,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "o3-2025-04-16",
+      "name_pattern": "^(o3-2025-04-16)$"
+    },
+    {
+      "name": "o3-mini",
+      "name_pattern": "^(o3-mini)$",
+      "openrouter_id": "openai/o3-mini",
+      "token_prices": [
+        {
+          "base_rate": 1.1e-06,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4.4e-06,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5.5e-07,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "o3-mini-2025-01-31",
+      "name_pattern": "^(o3-mini-2025-01-31)$"
+    },
+    {
+      "name": "o4-mini",
+      "name_pattern": "^(o4-mini)$",
+      "openrouter_id": "openai/o4-mini",
+      "token_prices": [
+        {
+          "base_rate": 1.1e-06,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4.4e-06,
+          "is_prompt": false,
+          "source": "openrouter",
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.75e-07,
+          "is_prompt": true,
+          "source": "openrouter",
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "o4-mini-2025-04-16",
+      "name_pattern": "^(o4-mini-2025-04-16)$"
+    }
+  ]
+}

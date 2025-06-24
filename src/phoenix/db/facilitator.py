@@ -432,44 +432,48 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
         }
 
         # Process each model in the manifest
-        for model_data in manifest:
+        for model_data in manifest["models"]:
+            if "token_prices" not in model_data:
+                continue
             # Remove model from built_in_models dict (for cleanup tracking)
             # or create new model if not found
-            model = built_in_models.pop(model_data["model"], None)
+            model = built_in_models.pop(model_data["name"], None)
             if model is None:
                 # Create new built-in model from manifest data
                 model = models.GenerativeModel(
-                    name=model_data["model"],
-                    provider=model_data["provider"],
-                    name_pattern=model_data["regex"],
+                    name=model_data["name"],
+                    provider=None,
+                    name_pattern=model_data["name_pattern"],
                     is_built_in=True,
                 )
                 session.add(model)
             else:
                 # Update existing model's metadata from manifest
-                model.provider = model_data["provider"]
-                model.name_pattern = model_data["regex"]
+                model.name_pattern = model_data["name_pattern"]
 
             # Create lookup table for existing token prices by (token_type, is_prompt)
             # Using pop() during iteration allows us to track which prices are no longer needed
-            token_prices = {
+            existing_token_prices = {
                 _TokenTypeKey(token_price.token_type, token_price.is_prompt): token_price
                 for token_price in model.token_prices
             }
 
             # Synchronize token prices for all supported token types
-            for token_type, is_prompt in token_types:
+            for manifest_token_price in model_data["token_prices"]:
                 # Skip if this token type has no rate in the manifest
-                if not (base_rate := model_data.get(token_type)):
+                if not (base_rate := manifest_token_price.get("base_rate")):
                     continue
 
-                key = _TokenTypeKey(token_type, is_prompt)
+                key = _TokenTypeKey(
+                    manifest_token_price["token_type"],
+                    manifest_token_price["is_prompt"],
+                )
                 # Remove from tracking dict and get existing price (if any)
-                if not (token_price := token_prices.pop(key, None)):
+                if not (token_price := existing_token_prices.pop(key, None)):
                     # Create new token price if it doesn't exist
                     token_price = models.TokenPrice(
-                        token_type=token_type,
-                        is_prompt=is_prompt,
+                        token_type=manifest_token_price["token_type"],
+                        is_prompt=manifest_token_price["is_prompt"],
                         base_rate=base_rate,
                     )
                     model.token_prices.append(token_price)
@@ -479,7 +483,7 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
 
             # Remove any token prices that are no longer in the manifest
             # These are prices that weren't popped from the token_prices dict above
-            for token_price in token_prices.values():
+            for token_price in existing_token_prices.values():
                 model.token_prices.remove(token_price)
 
     # Clean up built-in models that are no longer in the manifest
