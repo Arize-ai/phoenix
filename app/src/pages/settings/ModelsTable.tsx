@@ -276,7 +276,7 @@ export function ModelsTable({
           return (
             <Flex justifyContent="end" alignItems="center" gap="size-100">
               <span>{outputCost}</span>
-              <TooltipTrigger>
+              <TooltipTrigger delay={0}>
                 <IconButton size="S" aria-label="Output cost details">
                   <Icon svg={<Icons.MoreHorizontalOutline />} />
                 </IconButton>
