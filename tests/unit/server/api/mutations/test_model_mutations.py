@@ -1,3 +1,4 @@
+import re
 from typing import Any
 
 import pytest
@@ -242,7 +243,7 @@ class TestModelMutations:
             pytest.param(
                 {
                     "input": {
-                        "name": "default-model",
+                        "name": "custom-model",
                         "provider": "openai",
                         "namePattern": "gpt-*",
                         "costs": [
@@ -259,8 +260,8 @@ class TestModelMutations:
                         ],
                     }
                 },
-                "Model with name 'default-model' already exists",
-                id="duplicate-default-model",
+                "Model with name 'custom-model' already exists",
+                id="duplicate-custom-model",
             ),
             pytest.param(
                 {
@@ -292,7 +293,7 @@ class TestModelMutations:
         gql_client: AsyncGraphQLClient,
         variables: dict[str, Any],
         expected_error_message: str,
-        default_model: models.GenerativeModel,
+        custom_model: models.GenerativeModel,
     ) -> None:
         result = await gql_client.execute(
             query=self.QUERY,
@@ -469,43 +470,6 @@ class TestModelMutations:
         assert result.errors[0].message == "Cannot update built-in model"
         assert result.data is None
 
-    async def test_updating_model_to_conflicting_name_fails_with_expected_error(
-        self,
-        gql_client: AsyncGraphQLClient,
-        default_model: models.GenerativeModel,
-        custom_model: models.GenerativeModel,
-    ) -> None:
-        model_id = str(GlobalID(GenerativeModel.__name__, str(custom_model.id)))
-        variables = {
-            "input": {
-                "id": model_id,
-                "name": "default-model",  # conflicts with the default_model name
-                "provider": "anthropic",
-                "namePattern": "claude-*",
-                "costs": [
-                    {
-                        "tokenType": "input",
-                        "kind": "PROMPT",
-                        "costPerMillionTokens": 0.003 * 1_000_000,
-                    },
-                    {
-                        "tokenType": "output",
-                        "kind": "COMPLETION",
-                        "costPerMillionTokens": 0.004 * 1_000_000,
-                    },
-                ],
-            }
-        }
-
-        result = await gql_client.execute(
-            query=self.QUERY,
-            variables=variables,
-            operation_name="UpdateModelMutation",
-        )
-        assert len(result.errors) == 1
-        assert result.errors[0].message == "Model with name 'default-model' already exists"
-        assert result.data is None
-
     @pytest.mark.parametrize(
         "variables,expected_error_message",
         [
@@ -574,7 +538,7 @@ async def default_model(db: DbSessionFactory) -> models.GenerativeModel:
         model = models.GenerativeModel(
             name="default-model",
             provider="openai",
-            name_pattern="gpt-*",
+            name_pattern=re.compile("gpt-*"),
             is_built_in=True,
             token_prices=[
                 models.TokenPrice(
@@ -603,7 +567,7 @@ async def custom_model(db: DbSessionFactory) -> models.GenerativeModel:
         model = models.GenerativeModel(
             name="custom-model",
             provider="anthropic",
-            name_pattern="claude-*",
+            name_pattern=re.compile("claude-*"),
             is_built_in=False,
             token_prices=[
                 models.TokenPrice(

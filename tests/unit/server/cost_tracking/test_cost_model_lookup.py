@@ -1,4 +1,5 @@
 # ruff: noqa: E501
+import re
 from datetime import datetime, timezone
 from typing import Any, Mapping, Optional
 
@@ -22,7 +23,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -41,7 +42,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -60,7 +61,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -79,7 +80,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -99,7 +100,7 @@ class TestCostModelLookup:
                         name="openai-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -109,7 +110,7 @@ class TestCostModelLookup:
                         name="anthropic-model",
                         provider="anthropic",
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -128,7 +129,7 @@ class TestCostModelLookup:
                         name="openai-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -138,7 +139,7 @@ class TestCostModelLookup:
                         name="anthropic-model",
                         provider="anthropic",
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -157,7 +158,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -176,7 +177,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -196,7 +197,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -215,7 +216,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -235,7 +236,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider=None,  # Provider-agnostic
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -254,7 +255,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider=None,  # Provider-agnostic
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -274,7 +275,7 @@ class TestCostModelLookup:
                         name="past-model",
                         provider="openai",
                         start_time=datetime(2023, 1, 1, tzinfo=timezone.utc),  # Past start time
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -284,7 +285,7 @@ class TestCostModelLookup:
                         name="future-model",
                         provider="openai",
                         start_time=datetime(2025, 1, 1, tzinfo=timezone.utc),  # Future start time
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -303,7 +304,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider="openai",
                         start_time=None,  # No start_time specified
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -322,7 +323,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider="openai",
                         start_time=None,  # No start_time specified
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -341,7 +342,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider="openai",
                         start_time=None,  # No start_time specified
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -361,7 +362,7 @@ class TestCostModelLookup:
                         name="gpt-3.5-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -371,7 +372,7 @@ class TestCostModelLookup:
                         name="gpt-4-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-4",
+                        name_pattern=re.compile("gpt-4"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -390,7 +391,7 @@ class TestCostModelLookup:
                         name="gpt-3.5-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -400,7 +401,7 @@ class TestCostModelLookup:
                         name="gpt-4-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-4",
+                        name_pattern=re.compile("gpt-4"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -419,7 +420,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -439,7 +440,7 @@ class TestCostModelLookup:
                         name="non-override-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -449,7 +450,7 @@ class TestCostModelLookup:
                         name="override-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=False,  # Override model
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -468,7 +469,7 @@ class TestCostModelLookup:
                         name="specific-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",  # More specific
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),  # More specific
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -478,7 +479,7 @@ class TestCostModelLookup:
                         name="general-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-3\\.5.*",  # Less specific
+                        name_pattern=re.compile("gpt-3\\.5.*"),  # Less specific
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -497,7 +498,7 @@ class TestCostModelLookup:
                         name="low-id-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -507,7 +508,7 @@ class TestCostModelLookup:
                         name="high-id-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -527,7 +528,7 @@ class TestCostModelLookup:
                         name="model1",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -537,7 +538,7 @@ class TestCostModelLookup:
                         name="model2",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-3\\.5.*",
+                        name_pattern=re.compile("gpt-3\\.5.*"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -547,7 +548,7 @@ class TestCostModelLookup:
                         name="model3",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=False,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -567,7 +568,7 @@ class TestCostModelLookup:
                         name="wildcard-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-3\\.5.*",  # Wildcard pattern
+                        name_pattern=re.compile("gpt-3\\.5.*"),  # Wildcard pattern
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -586,7 +587,7 @@ class TestCostModelLookup:
                         name="wildcard-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-3\\.5.*",  # Wildcard pattern
+                        name_pattern=re.compile("gpt-3\\.5.*"),  # Wildcard pattern
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -605,7 +606,7 @@ class TestCostModelLookup:
                         name="wildcard-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-3\\.5.*",  # Wildcard pattern
+                        name_pattern=re.compile("gpt-3\\.5.*"),  # Wildcard pattern
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -625,7 +626,7 @@ class TestCostModelLookup:
                         name="anchored-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="^gpt-3\\.5-turbo$",  # Anchored pattern
+                        name_pattern=re.compile("^gpt-3\\.5-turbo$"),  # Anchored pattern
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -644,7 +645,7 @@ class TestCostModelLookup:
                         name="anchored-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="^gpt-3\\.5-turbo$",  # Anchored pattern
+                        name_pattern=re.compile("^gpt-3\\.5-turbo$"),  # Anchored pattern
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -664,7 +665,7 @@ class TestCostModelLookup:
                         name="future-model",
                         provider="openai",
                         start_time=datetime(2025, 1, 1, tzinfo=timezone.utc),  # Future start time
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -684,7 +685,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider=None,  # No provider specified
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -703,7 +704,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider=None,  # No provider specified
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -723,7 +724,7 @@ class TestCostModelLookup:
                         name="provider-agnostic-model",
                         provider=None,  # Provider-agnostic
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -733,7 +734,7 @@ class TestCostModelLookup:
                         name="openai-specific-model",
                         provider="openai",  # Provider-specific
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -753,7 +754,7 @@ class TestCostModelLookup:
                         name="early-model",
                         provider="openai",
                         start_time=datetime(2023, 1, 1, tzinfo=timezone.utc),  # Early start time
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -763,7 +764,7 @@ class TestCostModelLookup:
                         name="late-model",
                         provider="openai",
                         start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),  # Later start time
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -782,7 +783,7 @@ class TestCostModelLookup:
                         name="no-start-time-model",
                         provider="openai",
                         start_time=None,  # No start time
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -792,7 +793,7 @@ class TestCostModelLookup:
                         name="with-start-time-model",
                         provider="openai",
                         start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),  # Has start time
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -812,7 +813,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -831,7 +832,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider="OpenAI",  # Capitalized
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -851,7 +852,7 @@ class TestCostModelLookup:
                         name="early-specific-model",
                         provider="openai",
                         start_time=datetime(2023, 1, 1, tzinfo=timezone.utc),  # Early start time
-                        name_pattern="gpt-3\\.5-turbo",  # More specific
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),  # More specific
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -861,7 +862,7 @@ class TestCostModelLookup:
                         name="late-general-model",
                         provider="openai",
                         start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),  # Later start time
-                        name_pattern="gpt-3\\.5.*",  # Less specific
+                        name_pattern=re.compile("gpt-3\\.5.*"),  # Less specific
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -880,7 +881,7 @@ class TestCostModelLookup:
                         name="early-high-id-model",
                         provider="openai",
                         start_time=datetime(2023, 1, 1, tzinfo=timezone.utc),  # Early start time
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -890,7 +891,7 @@ class TestCostModelLookup:
                         name="late-low-id-model",
                         provider="openai",
                         start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),  # Later start time
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -910,7 +911,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -929,7 +930,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider="openai",
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -951,7 +952,7 @@ class TestCostModelLookup:
                         start_time=datetime(
                             2024, 6, 1, tzinfo=timezone.utc
                         ),  # Very late start time
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -961,7 +962,7 @@ class TestCostModelLookup:
                         name="user-defined-early-model",
                         provider="openai",
                         start_time=datetime(2023, 1, 1, tzinfo=timezone.utc),  # Early start time
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=False,  # User-defined
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -981,7 +982,7 @@ class TestCostModelLookup:
                         name="openai-model",
                         provider="openai",  # Lowercase
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -991,7 +992,7 @@ class TestCostModelLookup:
                         name="OpenAI-model",
                         provider="OpenAI",  # Capitalized
                         start_time=None,
-                        name_pattern="gpt-3\\.5-turbo",
+                        name_pattern=re.compile("gpt-3\\.5-turbo"),
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),

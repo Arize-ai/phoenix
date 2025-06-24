@@ -39,7 +39,7 @@ def upgrade() -> None:
         sa.Column(
             "provider",
             sa.String,
-            nullable=True,
+            nullable=False,
         ),
         sa.Column(
             "name_pattern",
@@ -75,9 +75,17 @@ def upgrade() -> None:
         ),
     )
     op.create_index(
-        "ix_generative_models_name",
+        "ix_generative_models_match_criteria",
         "generative_models",
-        ["name"],
+        ["name_pattern", "provider", "is_built_in"],
+        unique=True,
+        postgresql_where=sa.text("deleted_at IS NULL"),
+        sqlite_where=sa.text("deleted_at IS NULL"),
+    )
+    op.create_index(
+        "ix_generative_models_name_is_built_in",
+        "generative_models",
+        ["name", "is_built_in"],
         unique=True,
         postgresql_where=sa.text("deleted_at IS NULL"),
         sqlite_where=sa.text("deleted_at IS NULL"),
@@ -135,7 +143,6 @@ def upgrade() -> None:
                 ondelete="RESTRICT",
             ),
             nullable=True,
-            index=True,
         ),
         sa.Column(
             "span_start_time",
@@ -149,6 +156,11 @@ def upgrade() -> None:
         sa.Column("prompt_tokens", sa.Float),
         sa.Column("completion_cost", sa.Float),
         sa.Column("completion_tokens", sa.Float),
+    )
+    op.create_index(
+        "ix_span_costs_model_id_span_start_time",
+        "span_costs",
+        ["model_id", "span_start_time"],
     )
     op.create_table(
         "span_cost_details",

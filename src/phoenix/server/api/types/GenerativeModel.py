@@ -100,11 +100,13 @@ class GenerativeModel(Node, ModelInterface):
 
 def to_gql_generative_model(model: models.GenerativeModel) -> GenerativeModel:
     costs_are_loaded = isinstance(inspect(model).attrs.token_prices.loaded_value, list)
+    name_pattern = model.name_pattern.pattern
+    assert isinstance(name_pattern, str)
     return GenerativeModel(
         id_attr=model.id,
         name=model.name,
-        provider=model.provider,
-        name_pattern=model.name_pattern,
+        provider=model.provider or None,
+        name_pattern=name_pattern,
         kind=GenerativeModelKind.BUILT_IN if model.is_built_in else GenerativeModelKind.CUSTOM,
         created_at=model.created_at,
         updated_at=model.updated_at,

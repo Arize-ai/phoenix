@@ -282,7 +282,7 @@ class TestEnsureModelCosts:
         # Verify model 1 details
         model1 = built_in_models["test-model-1"]
         assert model1.provider == "test-provider"
-        assert model1.name_pattern == r"(?i)^(test-model-1)$"
+        assert model1.name_pattern.pattern == r"(?i)^(test-model-1)$"
         assert model1.is_built_in is True
         assert model1.deleted_at is None
 
@@ -303,7 +303,7 @@ class TestEnsureModelCosts:
         # Verify model 2 details (minimal pricing due to None values)
         model2 = built_in_models["test-model-2"]
         assert model2.provider == "another-provider"
-        assert model2.name_pattern == r"(?i)^(test-model-2|alt-name-2)$"
+        assert model2.name_pattern.pattern == r"(?i)^(test-model-2|alt-name-2)$"
 
         actual_prices_2 = self._extract_token_prices(model2)
         expected_prices_2 = {
@@ -361,7 +361,7 @@ class TestEnsureModelCosts:
         # Verify model 1 updates
         model1_updated = built_in_models["test-model-1"]
         assert model1_updated.provider == "updated-provider"
-        assert model1_updated.name_pattern == r"(?i)^(test-model-1|new-alias)$"
+        assert model1_updated.name_pattern.pattern == r"(?i)^(test-model-1|new-alias)$"
 
         actual_prices_1_updated = self._extract_token_prices(model1_updated)
         expected_prices_1_updated = {
@@ -429,7 +429,7 @@ class TestEnsureModelCosts:
         # Verify final model 2 state
         final_model2 = active_models["test-model-2"]
         assert final_model2.provider == "final-provider"
-        assert final_model2.name_pattern == r"(?i)^(final-model-2)$"
+        assert final_model2.name_pattern.pattern == r"(?i)^(final-model-2)$"
 
         actual_prices_final = self._extract_token_prices(final_model2)
         expected_prices_final = {
