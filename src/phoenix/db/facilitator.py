@@ -444,6 +444,7 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
             if name in seen_names:
                 logger.warning(f"Skipping model '{name}' with duplicate name in manifest")
                 continue
+            seen_names.add(name)
             regex = str(model_data.get("regex") or "").strip()
             try:
                 pattern = re.compile(regex)
