@@ -161,6 +161,153 @@ class TestRegister:
         output = str(mock_print.call_args)
         assert "OpenTelemetry Tracing Details" in output
 
+    def test_register_with_custom_resource_no_project_name(self):
+        """Test that project name is merged into custom resource when no project_name is provided."""
+        custom_resource = Resource.create(
+            {"service.name": "my-service", "service.version": "1.0.0"}
+        )
+
+        with patch("phoenix.otel.otel.get_env_project_name", return_value="env-project"):
+            tracer_provider = register(resource=custom_resource, verbose=False)
+
+        # Should have both custom attributes and project name
+        assert tracer_provider.resource.attributes.get("service.name") == "my-service"
+        assert tracer_provider.resource.attributes.get("service.version") == "1.0.0"
+        assert tracer_provider.resource.attributes.get(PROJECT_NAME) == "env-project"
+
+    def test_register_with_custom_resource_and_project_name(self):
+        """Test that explicit project name is merged into custom resource."""
+        custom_resource = Resource.create(
+            {"service.name": "my-service", "service.version": "1.0.0"}
+        )
+
+        tracer_provider = register(
+            project_name="explicit-project", resource=custom_resource, verbose=False
+        )
+
+        # Should have both custom attributes and explicit project name
+        assert tracer_provider.resource.attributes.get("service.name") == "my-service"
+        assert tracer_provider.resource.attributes.get("service.version") == "1.0.0"
+        assert tracer_provider.resource.attributes.get(PROJECT_NAME) == "explicit-project"
+
+    def test_register_with_custom_resource_overrides_project_name(self):
+        """Test that project name in custom resource gets overridden by explicit project_name."""
+        custom_resource = Resource.create(
+            {"service.name": "my-service", PROJECT_NAME: "resource-project"}
+        )
+
+        tracer_provider = register(
+            project_name="explicit-project", resource=custom_resource, verbose=False
+        )
+
+        # Explicit project name should override the one in resource
+        assert tracer_provider.resource.attributes.get("service.name") == "my-service"
+        assert tracer_provider.resource.attributes.get(PROJECT_NAME) == "explicit-project"
+
+    def test_register_passes_through_kwargs_to_tracer_provider(self):
+        """Test that additional kwargs are passed through to TracerProvider."""
+        from opentelemetry.sdk.trace.id_generator import IdGenerator
+        from opentelemetry.sdk.trace.sampling import ALWAYS_OFF
+
+        # Create a mock id generator
+        mock_id_generator = Mock(spec=IdGenerator)
+
+        tracer_provider = register(
+            project_name="test-project",
+            sampler=ALWAYS_OFF,
+            id_generator=mock_id_generator,
+            verbose=False,
+        )
+
+        # Check that the sampler was passed through
+        assert tracer_provider.sampler == ALWAYS_OFF
+
+        # Check that the id_generator was passed through
+        assert tracer_provider.id_generator == mock_id_generator
+
+    def test_register_with_custom_id_generator(self):
+        """Test register with a custom ID generator."""
+        from opentelemetry.sdk.trace.id_generator import IdGenerator
+
+        class CustomIdGenerator(IdGenerator):
+            def generate_span_id(self):
+                return 0x1234567890ABCDEF
+
+            def generate_trace_id(self):
+                return 0x12345678901234567890123456789012
+
+        custom_id_gen = CustomIdGenerator()
+
+        tracer_provider = register(
+            project_name="test-project", id_generator=custom_id_gen, verbose=False
+        )
+
+        # Verify the custom ID generator was set
+        assert tracer_provider.id_generator == custom_id_gen
+
+    def test_register_with_span_limits(self):
+        """Test register with custom span limits."""
+        from opentelemetry.sdk.trace import SpanLimits
+
+        custom_limits = SpanLimits(max_attributes=50, max_events=20, max_links=10)
+
+        tracer_provider = register(
+            project_name="test-project", span_limits=custom_limits, verbose=False
+        )
+
+        # Verify the span limits were set
+        assert tracer_provider._span_limits == custom_limits
+        assert tracer_provider._span_limits.max_attributes == 50
+        assert tracer_provider._span_limits.max_events == 20
+        assert tracer_provider._span_limits.max_links == 10
+
+    def test_register_with_multiple_kwargs(self):
+        """Test register with multiple kwargs including resource."""
+        from opentelemetry.sdk.trace.id_generator import IdGenerator
+        from opentelemetry.sdk.trace import SpanLimits
+        from opentelemetry.sdk.trace.sampling import TraceIdRatioBasedSampler
+
+        custom_resource = Resource.create(
+            {"service.name": "test-service", "deployment.environment": "testing"}
+        )
+
+        custom_sampler = TraceIdRatioBasedSampler(0.5)
+        custom_limits = SpanLimits(max_attributes=100)
+        mock_id_generator = Mock(spec=IdGenerator)
+
+        tracer_provider = register(
+            project_name="multi-test-project",
+            resource=custom_resource,
+            sampler=custom_sampler,
+            span_limits=custom_limits,
+            id_generator=mock_id_generator,
+            verbose=False,
+        )
+
+        # Verify all kwargs were passed through
+        assert tracer_provider.sampler == custom_sampler
+        assert tracer_provider._span_limits == custom_limits
+        assert tracer_provider.id_generator == mock_id_generator
+
+        # Verify resource was merged with project name
+        assert tracer_provider.resource.attributes.get("service.name") == "test-service"
+        assert tracer_provider.resource.attributes.get("deployment.environment") == "testing"
+        assert tracer_provider.resource.attributes.get(PROJECT_NAME) == "multi-test-project"
+
+    def test_register_tracer_provider_verbose_is_always_false(self):
+        """Test that TracerProvider verbose is always False even when register verbose=True."""
+        with patch("phoenix.otel.otel.TracerProvider") as mock_tracer_provider:
+            mock_instance = Mock()
+            mock_tracer_provider.return_value = mock_instance
+            mock_instance._default_processor = True
+            mock_instance._tracing_details.return_value = "test details"
+
+            register(verbose=True)
+
+            # Verify TracerProvider was called with verbose=False
+            call_args = mock_tracer_provider.call_args
+            assert call_args.kwargs["verbose"] == False
+
 
 class TestTracerProvider:
     def test_tracer_provider_creation(self):
