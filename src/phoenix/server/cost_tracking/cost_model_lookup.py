@@ -66,23 +66,23 @@ class CostModelLookup:
 
         Model Selection Logic:
             1. **Input Validation**: Returns None if model name is empty or whitespace-only
-            2. **Provider Filtering**: If provider is specified in attributes, only models
+            2. **Time Filtering**: Only models with start_time <= start_time or start_time=None
+               are considered
+            3. **Regex Matching**: Only models whose name_pattern matches the
+               model name from attributes are considered
+            4. **Provider Filtering**: If provider is specified in attributes, only models
                with matching provider are considered. Provider-agnostic models (provider=None)
                are excluded when a specific provider is given.
-            3. **Time Filtering**: Only models with start_time <= start_time or start_time=None
-               are considered
-            4. **Priority Selection**: Models are selected based on a three-tier priority system:
+            5. **Priority Selection**: Models are selected based on a two-tier priority system:
                - User-defined models (is_built_in=False) are checked first
                - Built-in models (is_built_in=True) are checked second
                - Within each tier, models are sorted by priority tuple:
-                 (start_time.timestamp, regex_specificity_score, tie_breaker)
+                 (regex_specificity_score, start_time.timestamp, tie_breaker)
                - Higher priority models (later in sorted list) are checked first
-            5. **Regex Matching**: The first model whose name_pattern matches the
-               model name from attributes is returned
 
         Priority Tuple Components:
-            - start_time.timestamp: Models with later start times have higher priority
             - regex_specificity_score: More specific regex patterns have higher priority
+            - start_time.timestamp: Models with later start times have higher priority
             - tie_breaker: For built-in models, uses negative ID (lower IDs win);
               for user-defined models, uses positive ID (higher IDs win)
 
@@ -92,14 +92,18 @@ class CostModelLookup:
             ...     start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
             ...     attributes={"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}}
             ... )
-        """
+        """  # noqa: E501
+        # Step 1: Extract and validate the model name from attributes
         llm_name = str(get_attribute_value(attributes, SpanAttributes.LLM_MODEL_NAME) or "").strip()
         if not llm_name:
             return None
 
+        # Step 2: Start with all available models as candidates
         candidates: list[models.GenerativeModel] = list(self._models)
 
-        # Remove candidates by start_time
+        # Step 3: Filter candidates by start_time - exclude models that are not yet active
+        # Models with start_time=None are always included (they're always active)
+        # Models with start_time > start_time are excluded (they haven't started yet)
         candidates_matched_by_time = [
             c for c in candidates if not c.start_time or c.start_time <= start_time
         ]
@@ -107,7 +111,8 @@ class CostModelLookup:
             return None
         candidates = candidates_matched_by_time
 
-        # Remove candidates by name_pattern
+        # Step 4: Filter candidates by regex pattern matching
+        # Only include models whose name_pattern regex matches the provided model name
         candidates_matched_by_name = [
             c for c in candidates if self._regex[c.name_pattern].match(llm_name)
         ]
@@ -115,29 +120,45 @@ class CostModelLookup:
             return None
         candidates = candidates_matched_by_name
 
+        # Step 5: Early return if only one candidate remains
         if len(candidates) == 1:
             return candidates[0]
 
+        # Step 6: Extract provider from attributes (if specified)
         llm_provider = str(
             get_attribute_value(attributes, SpanAttributes.LLM_PROVIDER) or ""
         ).strip()
 
+        # Step 7: Apply priority-based selection in two tiers
+        # First check user-defined models (is_built_in=False), then built-in models
+        # (is_built_in=True)
         for is_built_in in (False, True):
+            # Filter candidates to current tier (user-defined or built-in)
             candidates_subset = [c for c in candidates if c.is_built_in == is_built_in]
 
             if not candidates_subset:
                 continue
 
+            # Step 8: Apply provider filtering if provider is specified in attributes
+            # If a specific provider is given, prefer provider-specific models over
+            # provider-agnostic ones, but only if provider-specific models are available
             if llm_provider:
                 provider_specific_candidates = [
                     c for c in candidates_subset if c.provider and c.provider == llm_provider
                 ]
+                # Only use provider-specific candidates if any exist
+                # This allows fallback to provider-agnostic models when no provider-specific
+                # match exists
                 if provider_specific_candidates:
                     candidates_subset = provider_specific_candidates
 
+            # Step 9: Early return if only one candidate in current tier
             if len(candidates_subset) == 1:
                 return candidates_subset[0]
 
+            # Step 10: Sort remaining candidates by priority and return the highest priority
+            # one. Priority tuple: (regex_specificity_score, start_time.timestamp, tie_breaker)
+            # Higher values in the tuple = higher priority
             if candidates_subset:
                 return sorted(
                     candidates_subset,
@@ -145,4 +166,5 @@ class CostModelLookup:
                     reverse=True,
                 )[0]
 
+        # Step 11: No suitable model found
         return None
