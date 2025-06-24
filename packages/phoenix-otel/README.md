@@ -211,3 +211,27 @@ batch_processor = BatchSpanProcessor(
 )
 tracer_provider.add_span_processor(batch_processor)
 ```
+
+## Passing TracerProvider kwargs
+
+Both `phoenix.otel.TracerProvider` and `register()` accept all the same keyword arguments as the standard OpenTelemetry `TracerProvider`. This allows you to configure advanced features like custom ID generators, sampling, and span limits.
+
+```python
+from opentelemetry.sdk.extension.aws.trace import AwsXRayIdGenerator
+from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
+from phoenix.otel import register, TracerProvider
+
+# Configure directly with register()
+tracer_provider = register(
+    project_name="my-app",
+    id_generator=AwsXRayIdGenerator(),  # AWS X-Ray compatible IDs
+    sampler=TraceIdRatioBased(0.1),     # Sample 10% of traces
+)
+
+# Or configure TracerProvider directly
+tracer_provider = TracerProvider(
+    project_name="my-app",
+    id_generator=AwsXRayIdGenerator(),
+    sampler=TraceIdRatioBased(0.5)
+)
+```
