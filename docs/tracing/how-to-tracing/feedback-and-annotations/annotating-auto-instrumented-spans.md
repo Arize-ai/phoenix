@@ -25,6 +25,7 @@ You can use the captured span contexts to implement custom feedback logic. The c
 
 ```python
 from openinference.instrumentation import capture_span_context
+from opentelemetry.trace.span import format_span_id
 from phoenix.client import Client
 
 client = Client()
