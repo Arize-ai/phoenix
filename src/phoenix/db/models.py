@@ -415,7 +415,7 @@ class _TokenCustomization(TypeDecorator[TokenPriceCustomization]):
 
 
 class _RegexStr(TypeDecorator[re.Pattern[str]]):
-    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
     impl = String
 
