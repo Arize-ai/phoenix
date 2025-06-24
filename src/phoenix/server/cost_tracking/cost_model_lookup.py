@@ -24,13 +24,10 @@ class CostModelLookup:
         self._model_priority: dict[
             int, tuple[_RegexSpecificityScore, float, _TieBreakerId]
         ] = {}  # higher is better
-        self._regex: dict[_RegexPatternStr, re.Pattern[Any]] = {}
-        self._regex_specificity_score: dict[_RegexPatternStr, _RegexSpecificityScore] = {}
+        self._regex_specificity_score: dict[re.Pattern[str], _RegexSpecificityScore] = {}
 
         for m in self._models:
-            if (pattern_str := m.name_pattern) not in self._regex:
-                self._regex[pattern_str] = re.compile(m.name_pattern)
-                self._regex_specificity_score[pattern_str] = regex_specificity.score(pattern_str)
+            self._regex_specificity_score[m.name_pattern] = regex_specificity.score(m.name_pattern)
 
             # For built-in models, use negative ID so that earlier IDs win
             # For user-defined models, use positive ID so later IDs win
@@ -112,7 +109,7 @@ class CostModelLookup:
             model
             for model in self._models
             if (not model.start_time or model.start_time <= start_time)
-            and self._regex[model.name_pattern].match(model_name)
+            and model.name_pattern.match(model_name)
         ]
         if not candidates:
             return None

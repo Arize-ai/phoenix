@@ -30,6 +30,9 @@ Examples:
 """
 
 import re
+from typing import Union
+
+from typing_extensions import assert_never
 
 # Scoring weights for different regex pattern elements
 FULL_ANCHOR = 10000  # ^pattern$ - highest specificity
@@ -53,7 +56,7 @@ NEGATIVE_SHORTHANDS = "DWS"  # \D \W \S - non-digit, non-word, non-space
 META_CHARS = "()^$"  # Regex metacharacters that don't affect scoring
 
 
-def score(pattern: str) -> int:
+def score(regex: Union[str, re.Pattern[str]]) -> int:
     """
     Score a regex pattern for specificity.
 
@@ -66,7 +69,7 @@ def score(pattern: str) -> int:
     - Pattern length - slight bonus for longer patterns
 
     Args:
-        pattern: The regex pattern string to score. Must be a valid regex.
+        regex: The regex pattern string to score. Must be a valid regex.
 
     Returns:
         An integer score where:
@@ -96,13 +99,14 @@ def score(pattern: str) -> int:
         The scoring algorithm is designed for cost tracking scenarios
         where more specific patterns should be prioritized over general ones.
     """
-    if not pattern:
-        return 1
-
-    try:
-        re.compile(pattern)
-    except re.error as e:
-        raise ValueError(f"Invalid regex pattern '{pattern}': {e}")
+    if isinstance(regex, str):
+        pattern = regex
+    elif isinstance(regex.pattern, str):
+        pattern = regex.pattern
+    elif isinstance(regex.pattern, bytes):
+        pattern = regex.pattern.decode("utf-8")
+    else:
+        assert_never(regex.pattern)
 
     score_value = 0
 

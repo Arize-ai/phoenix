@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timezone
 from typing import Any, Iterable, Literal, Optional, Sequence, TypedDict, cast
 
@@ -42,7 +43,7 @@ from sqlalchemy.orm import (
 from sqlalchemy.sql import Values, column, compiler, expression, literal, roles, union_all
 from sqlalchemy.sql.compiler import SQLCompiler
 from sqlalchemy.sql.functions import coalesce
-from typing_extensions import TypeAlias
+from typing_extensions import TypeAlias, assert_never
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
@@ -411,6 +412,31 @@ class _TokenCustomization(TypeDecorator[TokenPriceCustomization]):
         self, value: Optional[dict[str, Any]], _: Dialect
     ) -> Optional[TokenPriceCustomization]:
         return TokenPriceCustomizationParser.parse(value)
+
+
+class _RegexStr(TypeDecorator[re.Pattern[str]]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = String
+
+    def process_bind_param(self, value: Optional[re.Pattern[str]], _: Dialect) -> Optional[str]:
+        if value is None:
+            return None
+        if not isinstance(value, re.Pattern):
+            raise TypeError(f"Expected a regex pattern, got {type(value)}")
+        pattern = value.pattern
+        if isinstance(pattern, str):
+            return pattern
+        elif isinstance(pattern, bytes):
+            # Convert bytes to string, assuming UTF-8 encoding
+            return pattern.decode("utf-8")
+        else:
+            assert_never(pattern)
+
+    def process_result_value(self, value: Optional[str], _: Dialect) -> Optional[re.Pattern[str]]:
+        if value is None:
+            return None
+        return re.compile(value)
 
 
 class ExperimentRunOutput(TypedDict, total=False):
@@ -1337,9 +1363,9 @@ CostType: TypeAlias = Literal["DEFAULT", "OVERRIDE"]
 class GenerativeModel(Base):
     __tablename__ = "generative_models"
     name: Mapped[str] = mapped_column(String, nullable=False)
-    provider: Mapped[Optional[str]]
+    provider: Mapped[str]
     start_time: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
-    name_pattern: Mapped[str] = mapped_column(String, nullable=False)
+    name_pattern: Mapped[re.Pattern] = mapped_column(_RegexStr, nullable=False)
     is_built_in: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
@@ -1364,8 +1390,18 @@ class GenerativeModel(Base):
 
     __table_args__ = (
         Index(
+            "ix_generative_models_match_criteria",
+            "name_pattern",
+            "provider",
+            "is_built_in",
+            postgresql_where=sa.text("deleted_at IS NULL"),
+            sqlite_where=sa.text("deleted_at IS NULL"),
+            unique=True,
+        ),
+        Index(
             "ix_generative_models_name",
             "name",
+            "is_built_in",
             postgresql_where=sa.text("deleted_at IS NULL"),
             sqlite_where=sa.text("deleted_at IS NULL"),
             unique=True,
@@ -1581,7 +1617,6 @@ class SpanCost(Base):
     span_start_time: Mapped[datetime] = mapped_column(
         UtcTimeStamp,
         nullable=False,
-        index=True,
     )
     model_id: Mapped[Optional[int]] = mapped_column(
         sa.Integer,
@@ -1590,7 +1625,6 @@ class SpanCost(Base):
             ondelete="RESTRICT",
         ),
         nullable=True,
-        index=True,
     )
     total_cost: Mapped[Optional[float]]
     total_tokens: Mapped[Optional[float]]
@@ -1654,6 +1688,14 @@ class SpanCost(Base):
         back_populates="span_cost",
         cascade="all, delete-orphan",
         uselist=True,
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_span_costs_model_id_span_start_time",
+            "model_id",
+            "span_start_time",
+        ),
     )
 
     def append_detail(self, detail: "SpanCostDetail") -> None:

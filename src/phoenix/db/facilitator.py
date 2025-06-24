@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import secrets
 from asyncio import gather
 from datetime import datetime, timedelta, timezone
@@ -431,24 +432,47 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
             ).unique()
         }
 
+        seen_names: set[str] = set()
+        seen_patterns: set[tuple[re.Pattern[str], str]] = set()
+
         # Process each model in the manifest
         for model_data in manifest:
+            name = str(model_data.get("model") or "").strip()
+            if not name:
+                logger.warning("Skipping model with empty name in manifest")
+                continue
+            if name in seen_names:
+                logger.warning(f"Skipping model '{name}' with duplicate name in manifest")
+                continue
+            regex = str(model_data.get("regex") or "").strip()
+            try:
+                pattern = re.compile(regex)
+            except re.error as e:
+                logger.warning(f"Skipping model '{name}' with invalid regex: {e}")
+                continue
+            provider = str(model_data.get("provider") or "").strip()
+            if (pattern, provider) in seen_patterns:
+                logger.warning(
+                    f"Skipping model '{name}' with duplicate name_pattern/provider combination"
+                )
+                continue
+            seen_patterns.add((pattern, provider))
             # Remove model from built_in_models dict (for cleanup tracking)
             # or create new model if not found
             model = built_in_models.pop(model_data["model"], None)
             if model is None:
                 # Create new built-in model from manifest data
                 model = models.GenerativeModel(
-                    name=model_data["model"],
-                    provider=model_data["provider"],
-                    name_pattern=model_data["regex"],
+                    name=name,
+                    provider=provider,
+                    name_pattern=pattern,
                     is_built_in=True,
                 )
                 session.add(model)
             else:
                 # Update existing model's metadata from manifest
-                model.provider = model_data["provider"]
-                model.name_pattern = model_data["regex"]
+                model.provider = provider
+                model.name_pattern = pattern
 
             # Create lookup table for existing token prices by (token_type, is_prompt)
             # Using pop() during iteration allows us to track which prices are no longer needed
