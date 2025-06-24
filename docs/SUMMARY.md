@@ -128,6 +128,7 @@
     * [Agent Path Convergence](evaluation/how-to-evals/running-pre-tested-evals/agent-path-convergence.md)
     * [Agent Planning](evaluation/how-to-evals/running-pre-tested-evals/agent-planning.md)
     * [Agent Reflection](evaluation/how-to-evals/running-pre-tested-evals/agent-reflection.md)
+    * [Session-Level Evaluations](evaluation/how-to-evals/running-pre-tested-evals/session-level-evaluations.md)
     * [Audio Emotion Detection](evaluation/how-to-evals/running-pre-tested-evals/audio-emotion-detection.md)
   * [Eval Models](evaluation/how-to-evals/evaluation-models.md)
   * [Build an Eval](evaluation/how-to-evals/bring-your-own-evaluator.md)
