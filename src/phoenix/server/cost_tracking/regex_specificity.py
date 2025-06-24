@@ -101,6 +101,10 @@ def score(regex: Union[str, re.Pattern[str]]) -> int:
     """
     if isinstance(regex, str):
         pattern = regex
+        try:
+            re.compile(pattern)  # Validate regex
+        except re.error as e:
+            raise ValueError(f"Invalid regex pattern: {pattern}") from e
     elif isinstance(regex.pattern, str):
         pattern = regex.pattern
     elif isinstance(regex.pattern, bytes):
