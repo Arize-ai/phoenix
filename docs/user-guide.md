@@ -44,7 +44,7 @@ Either as a part of experiments or a standalone feature, evaluations help you un
 
 ![](https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/playground_3.gif)
 
-Prompt engineering is critical how a model behaves. While there are other methods such as fine-tuning to change behavior, prompt engineering is the simplest way to get started and often times has the best ROI.
+Prompt engineering is critical to how a model behaves. While there are other methods such as fine-tuning to change behavior, prompt engineering is the simplest way to get started and often times has the best ROI.
 
 * [overview-prompts.md](prompt-engineering/overview-prompts.md "mention")
 
