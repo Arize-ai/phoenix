@@ -463,6 +463,35 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
         yield LLM_TOKEN_COUNT_COMPLETION, usage.completion_tokens
         yield LLM_TOKEN_COUNT_TOTAL, usage.total_tokens
 
+        if hasattr(usage, "prompt_tokens_details") and usage.prompt_tokens_details is not None:
+            prompt_details = usage.prompt_tokens_details
+            if (
+                hasattr(prompt_details, "cached_tokens")
+                and prompt_details.cached_tokens is not None
+            ):
+                yield LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ, prompt_details.cached_tokens
+            if hasattr(prompt_details, "audio_tokens") and prompt_details.audio_tokens is not None:
+                yield LLM_TOKEN_COUNT_PROMPT_DETAILS_AUDIO, prompt_details.audio_tokens
+
+        if (
+            hasattr(usage, "completion_tokens_details")
+            and usage.completion_tokens_details is not None
+        ):
+            completion_details = usage.completion_tokens_details
+            if (
+                hasattr(completion_details, "reasoning_tokens")
+                and completion_details.reasoning_tokens is not None
+            ):
+                yield (
+                    LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING,
+                    completion_details.reasoning_tokens,
+                )
+            if (
+                hasattr(completion_details, "audio_tokens")
+                and completion_details.audio_tokens is not None
+            ):
+                yield LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO, completion_details.audio_tokens
+
 
 def _get_credential_value(
     credentials: Optional[list[PlaygroundClientCredential]], env_var_name: str
@@ -1258,6 +1287,35 @@ class OpenAIReasoningStreamingClient(OpenAIStreamingClient):
         yield LLM_TOKEN_COUNT_COMPLETION, usage.completion_tokens
         yield LLM_TOKEN_COUNT_TOTAL, usage.total_tokens
 
+        if hasattr(usage, "prompt_tokens_details") and usage.prompt_tokens_details is not None:
+            prompt_details = usage.prompt_tokens_details
+            if (
+                hasattr(prompt_details, "cached_tokens")
+                and prompt_details.cached_tokens is not None
+            ):
+                yield LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ, prompt_details.cached_tokens
+            if hasattr(prompt_details, "audio_tokens") and prompt_details.audio_tokens is not None:
+                yield LLM_TOKEN_COUNT_PROMPT_DETAILS_AUDIO, prompt_details.audio_tokens
+
+        if (
+            hasattr(usage, "completion_tokens_details")
+            and usage.completion_tokens_details is not None
+        ):
+            completion_details = usage.completion_tokens_details
+            if (
+                hasattr(completion_details, "reasoning_tokens")
+                and completion_details.reasoning_tokens is not None
+            ):
+                yield (
+                    LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING,
+                    completion_details.reasoning_tokens,
+                )
+            if (
+                hasattr(completion_details, "audio_tokens")
+                and completion_details.audio_tokens is not None
+            ):
+                yield LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO, completion_details.audio_tokens
+
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.AZURE_OPENAI,
@@ -1315,12 +1373,6 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
     provider_key=GenerativeProviderKey.ANTHROPIC,
     model_names=[
         PROVIDER_DEFAULT,
-        "claude-sonnet-4-0",
-        "claude-sonnet-4-20250514",
-        "claude-opus-4-0",
-        "claude-opus-4-20250514",
-        "claude-3-7-sonnet-latest",
-        "claude-3-7-sonnet-20250219",
         "claude-3-5-sonnet-latest",
         "claude-3-5-haiku-latest",
         "claude-3-5-sonnet-20241022",
@@ -1421,15 +1473,34 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         async with await throttled_stream(**anthropic_params) as stream:
             async for event in stream:
                 if isinstance(event, anthropic_types.RawMessageStartEvent):
-                    self._attributes.update(
-                        {LLM_TOKEN_COUNT_PROMPT: event.message.usage.input_tokens}
-                    )
+                    usage = event.message.usage
+
+                    token_counts: dict[str, Any] = {}
+                    if prompt_tokens := (
+                        (usage.input_tokens or 0)
+                        + (getattr(usage, "cache_creation_input_tokens", 0) or 0)
+                        + (getattr(usage, "cache_read_input_tokens", 0) or 0)
+                    ):
+                        token_counts[LLM_TOKEN_COUNT_PROMPT] = prompt_tokens
+                    if cache_creation_tokens := getattr(usage, "cache_creation_input_tokens", None):
+                        if cache_creation_tokens is not None:
+                            token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE] = (
+                                cache_creation_tokens
+                            )
+                    self._attributes.update(token_counts)
                 elif isinstance(event, anthropic_streaming.TextEvent):
                     yield TextChunk(content=event.text)
                 elif isinstance(event, anthropic_streaming.MessageStopEvent):
-                    self._attributes.update(
-                        {LLM_TOKEN_COUNT_COMPLETION: event.message.usage.output_tokens}
-                    )
+                    usage = event.message.usage
+                    output_token_counts: dict[str, Any] = {}
+                    if usage.output_tokens:
+                        output_token_counts[LLM_TOKEN_COUNT_COMPLETION] = usage.output_tokens
+                    if cache_read_tokens := getattr(usage, "cache_read_input_tokens", None):
+                        if cache_read_tokens is not None:
+                            output_token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] = (
+                                cache_read_tokens
+                            )
+                    self._attributes.update(output_token_counts)
                 elif (
                     isinstance(event, anthropic_streaming.ContentBlockStopEvent)
                     and event.content_block.type == "tool_use"
@@ -1514,6 +1585,10 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
 @register_llm_client(
     provider_key=GenerativeProviderKey.ANTHROPIC,
     model_names=[
+        "claude-sonnet-4-0",
+        "claude-sonnet-4-20250514",
+        "claude-opus-4-0",
+        "claude-opus-4-20250514",
         "claude-3-7-sonnet-latest",
         "claude-3-7-sonnet-20250219",
     ],
@@ -1698,6 +1773,15 @@ LLM_SYSTEM = SpanAttributes.LLM_SYSTEM
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
 LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
+LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ = SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ
+LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE = (
+    SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE
+)
+LLM_TOKEN_COUNT_PROMPT_DETAILS_AUDIO = SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_AUDIO
+LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING = (
+    SpanAttributes.LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING
+)
+LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO
 
 
 class _HttpxClient(wrapt.ObjectProxy):  # type: ignore
