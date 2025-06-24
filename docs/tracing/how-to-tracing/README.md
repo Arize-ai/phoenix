@@ -78,7 +78,7 @@ How to log evaluation results to annotate traces with evals
 * [Saving Traces](importing-and-exporting-traces/extract-data-from-spans.md)
 * [Loading Traces](importing-and-exporting-traces/importing-existing-traces.md)
 
-## [Cost Tracking](cost-tracking/)
+## [Cost Tracking](cost-tracking/README.md)
 
 How to track token-based costs for your LLM applications
 
