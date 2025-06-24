@@ -28,7 +28,7 @@ def normalize_datetime(
     """
     if not isinstance(dt, datetime):
         return None
-    if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+    if not is_timezone_aware(dt):
         dt = dt.replace(tzinfo=tz if tz else _LOCAL_TIMEZONE)
     return dt.astimezone(timezone.utc)
 
