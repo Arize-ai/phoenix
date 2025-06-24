@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Focusable } from "react-aria";
 import { graphql, useFragment } from "react-relay";
 import {
   ColumnDef,
@@ -21,7 +22,6 @@ import {
   View,
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
-import { TextCell } from "@phoenix/components/table";
 import {
   getCommonPinningStyles,
   tableCSS,
@@ -196,14 +196,13 @@ export function ModelsTable({
       },
       {
         header: "provider",
-        accessorFn: (row) => row.providerKey ?? undefined,
+        accessorFn: (row) => row.provider ?? undefined,
         sortUndefined: "last",
         cell: ({ row }) => {
           const providerKey = row.original.providerKey;
           if (!providerKey) {
             return <span>{row.original.provider || "--"}</span>;
           }
-
           return (
             <Flex direction="row" gap="size-100" alignItems="center">
               <GenerativeProviderIcon provider={providerKey} height={18} />
@@ -215,7 +214,43 @@ export function ModelsTable({
       {
         header: "name pattern",
         accessorKey: "namePattern",
-        cell: TextCell,
+        cell: ({ row }) => {
+          const namePattern = row.original.namePattern;
+          const provider = row.original.providerKey;
+          return (
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <span>
+                <Truncate maxWidth="100%" title={namePattern}>
+                  {namePattern}
+                </Truncate>
+              </span>
+              {provider && (
+                <TooltipTrigger delay={0}>
+                  <Focusable>
+                    <Token
+                      role="button"
+                      color="var(--ac-global-color-grey-300)"
+                    >
+                      <Flex direction="row" gap="size-100" alignItems="center">
+                        <GenerativeProviderIcon
+                          provider={provider}
+                          height={18}
+                        />
+                        <span>{getProviderName(provider)}</span>
+                      </Flex>
+                    </Token>
+                  </Focusable>
+                  <Tooltip>
+                    <TooltipArrow />
+                    The preceding name pattern match will only be applied on
+                    incoming traces with {getProviderName(provider)} set as the
+                    provider.
+                  </Tooltip>
+                </TooltipTrigger>
+              )}
+            </Flex>
+          );
+        },
       },
       {
         header: "prompt cost",
@@ -251,7 +286,7 @@ export function ModelsTable({
                         >
                           <span>{entry.tokenType.toLocaleLowerCase()}</span>
                           <span>
-                            {entry.costPerMillionTokens
+                            {entry.costPerMillionTokens != null
                               ? `${costFormatter(entry.costPerMillionTokens)} / 1M`
                               : "--"}
                           </span>
@@ -298,7 +333,7 @@ export function ModelsTable({
                         >
                           <span>{entry.tokenType.toLocaleLowerCase()}</span>
                           <span>
-                            {entry.costPerMillionTokens
+                            {entry.costPerMillionTokens != null
                               ? `${costFormatter(entry.costPerMillionTokens)} / 1M`
                               : "--"}
                           </span>
@@ -411,9 +446,10 @@ export function ModelsTable({
     state: {
       columnVisibility: {
         kind: false,
+        provider: false,
       },
       columnPinning: {
-        left: ["name", "provider"],
+        left: ["name"],
         right: ["actions"],
       },
       globalFilter: search?.trim(),
