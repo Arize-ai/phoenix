@@ -3,7 +3,6 @@ import ssl
 from email.message import EmailMessage
 from pathlib import Path
 from typing import Literal
-from urllib.parse import urljoin
 
 from anyio import to_thread
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -49,9 +48,10 @@ class SimpleEmailSender:
         template_name = "welcome.html"
 
         template = self.env.get_template(template_name)
+
         html_content = template.render(
             name=name,
-            welcome_url=urljoin(str(get_env_root_url()), "forgot-password"),
+            welcome_url=str(get_env_root_url()),
         )
 
         msg = EmailMessage()

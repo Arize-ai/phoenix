@@ -1,5 +1,6 @@
 import inspect
 import os
+import re
 import sys
 import warnings
 from enum import Enum
@@ -16,7 +17,7 @@ from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
     OTLPSpanExporter as _HTTPSpanExporter,
 )
-from opentelemetry.sdk.resources import Resource  # type: ignore
+from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import SpanProcessor
 from opentelemetry.sdk.trace.export import BatchSpanProcessor as _BatchSpanProcessor
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor as _SimpleSpanProcessor
@@ -71,6 +72,7 @@ def register(
     protocol: Optional[Literal["http/protobuf", "grpc"]] = None,
     verbose: bool = True,
     auto_instrument: bool = False,
+    **kwargs: Any,
 ) -> _TracerProvider:
     """
     Creates an OpenTelemetry TracerProvider for enabling OpenInference tracing.
@@ -97,11 +99,28 @@ def register(
         verbose (bool): If True, configuration details will be printed to stdout.
         auto_instrument (bool): If True, automatically instruments all installed OpenInference
             libraries.
+        **kwargs: Additional keyword arguments passed to the TracerProvider constructor.
     """
 
+    # Handle resource creation and ensure project name is always included
+    tracer_provider_kwargs = kwargs.copy()
     project_name = project_name or get_env_project_name()
-    resource = Resource.create({PROJECT_NAME: project_name})
-    tracer_provider = TracerProvider(resource=resource, verbose=False, protocol=protocol)
+
+    if "resource" not in tracer_provider_kwargs:
+        # No resource provided, create one with project name
+        tracer_provider_kwargs["resource"] = Resource.create({PROJECT_NAME: project_name})
+    else:
+        # Resource provided, merge project name into it
+        existing_resource = tracer_provider_kwargs["resource"]
+        # Create project resource without default attributes to avoid overriding user attributes
+        project_attributes = {PROJECT_NAME: project_name}
+        project_resource = Resource(attributes=project_attributes)
+        tracer_provider_kwargs["resource"] = existing_resource.merge(project_resource)
+
+    # Ensure TracerProvider verbose is False (register handles its own verbose output)
+    tracer_provider_kwargs["verbose"] = False
+
+    tracer_provider = TracerProvider(protocol=protocol, **tracer_provider_kwargs)
     span_processor: SpanProcessor
     if batch:
         span_processor = BatchSpanProcessor(endpoint=endpoint, headers=headers, protocol=protocol)
@@ -399,13 +418,13 @@ class HTTPSpanExporter(_HTTPSpanExporter):
         if not bound_args.arguments.get("headers"):
             env_headers = get_env_client_headers()
             auth_header = get_env_phoenix_auth_header()
-            headers = {
+            inferred_headers = {
                 **(env_headers or dict()),
                 **(auth_header or dict()),
             }
-            bound_args.arguments["headers"] = headers if headers else None
+            bound_args.arguments["headers"] = inferred_headers if inferred_headers else None
         else:
-            headers = dict()
+            headers: Dict[str, str] = dict()
             for header_field, value in bound_args.arguments["headers"].items():
                 headers[header_field.lower()] = value
 
@@ -452,13 +471,13 @@ class GRPCSpanExporter(_GRPCSpanExporter):
         if not bound_args.arguments.get("headers"):
             env_headers = get_env_client_headers()
             auth_header = get_env_phoenix_auth_header()
-            headers = {
+            inferred_headers = {
                 **(env_headers or dict()),
                 **(auth_header or dict()),
             }
-            bound_args.arguments["headers"] = headers if headers else None
+            bound_args.arguments["headers"] = inferred_headers if inferred_headers else None
         else:
-            headers = dict()
+            headers: Dict[str, str] = dict()
             for header_field, value in bound_args.arguments["headers"].items():
                 headers[header_field.lower()] = value
 
@@ -509,12 +528,24 @@ def _construct_http_endpoint(parsed_endpoint: ParseResult) -> ParseResult:
     return parsed_endpoint._replace(path="/v1/traces")
 
 
+def _construct_phoenix_cloud_endpoint(parsed_endpoint: ParseResult) -> ParseResult:
+    space_pattern = r"^/s/([a-zA-Z0-9_-]+)"
+
+    match = re.match(space_pattern, parsed_endpoint.path)
+    if match:
+        space_id = match.group(1)
+        new_path = f"/s/{space_id}/v1/traces"
+        return parsed_endpoint._replace(path=new_path)
+    else:
+        return parsed_endpoint._replace(path="/v1/traces")
+
+
 def _construct_grpc_endpoint(parsed_endpoint: ParseResult) -> ParseResult:
     return parsed_endpoint._replace(netloc=f"{parsed_endpoint.hostname}:{get_env_grpc_port()}")
 
 
 _KNOWN_PROVIDERS = {
-    "app.phoenix.arize.com": _construct_http_endpoint,
+    "app.phoenix.arize.com": _construct_phoenix_cloud_endpoint,
 }
 
 

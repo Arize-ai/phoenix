@@ -30,6 +30,8 @@ jobs:
         run: |
           echo "VERSION=${GITHUB_REF#refs/tags/arize-phoenix-v}" >> $GITHUB_ENV
           echo "VERSION=${GITHUB_REF#refs/tags/arize-phoenix-v}" >> $GITHUB_OUTPUT
+          echo "MAJOR_VERSION=$(echo ${GITHUB_REF#refs/tags/arize-phoenix-v} | cut -d. -f1)" >> $GITHUB_ENV
+          echo "MINOR_VERSION=$(echo ${GITHUB_REF#refs/tags/arize-phoenix-v} | cut -d. -f2)" >> $GITHUB_ENV
 
       - name: Set BASE_IMAGE environment variable
         id: set-base-image
@@ -73,12 +75,14 @@ jobs:
           sbom: true
           provenance: mode=max
           tags: |
+            ${{ matrix.variant == 'root' && format('{0}/{1}:version-{2}', env.REGISTRY, env.IMAGE_NAME, env.MAJOR_VERSION) || '' }}
+            ${{ matrix.variant == 'root' && format('{0}/{1}:version-{2}.{3}', env.REGISTRY, env.IMAGE_NAME, env.MAJOR_VERSION, env.MINOR_VERSION) || '' }}
             ${{ matrix.variant == 'root' && format('{0}/{1}:version-{2}', env.REGISTRY, env.IMAGE_NAME, env.VERSION) || '' }}
-            ${{ matrix.variant == 'nonroot' && format('{0}/{1}:version-{2}-{3}', env.REGISTRY, env.IMAGE_NAME, env.VERSION, matrix.variant) || '' }}
-            ${{ matrix.variant == 'debug' && format('{0}/{1}:version-{2}-{3}', env.REGISTRY, env.IMAGE_NAME, env.VERSION, matrix.variant) || '' }}
             ${{ matrix.variant == 'root' && format('{0}/{1}:latest', env.REGISTRY, env.IMAGE_NAME) || '' }}
-            ${{ matrix.variant == 'nonroot' && format('{0}/{1}:latest-nonroot', env.REGISTRY, env.IMAGE_NAME) || '' }}
-            ${{ matrix.variant == 'debug' && format('{0}/{1}:latest-debug', env.REGISTRY, env.IMAGE_NAME) || '' }}
+            ${{ matrix.variant != 'root' && format('{0}/{1}:version-{2}-{3}', env.REGISTRY, env.IMAGE_NAME, env.MAJOR_VERSION, matrix.variant) || '' }}
+            ${{ matrix.variant != 'root' && format('{0}/{1}:version-{2}.{3}-{4}', env.REGISTRY, env.IMAGE_NAME, env.MAJOR_VERSION, env.MINOR_VERSION, matrix.variant) || '' }}
+            ${{ matrix.variant != 'root' && format('{0}/{1}:version-{2}-{3}', env.REGISTRY, env.IMAGE_NAME, env.VERSION, matrix.variant) || '' }}
+            ${{ matrix.variant != 'root' && format('{0}/{1}:latest-{2}', env.REGISTRY, env.IMAGE_NAME, matrix.variant) || '' }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             BASE_IMAGE=${{ env.BASE_IMAGE }}

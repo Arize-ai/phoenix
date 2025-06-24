@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-import { LLMProvider } from "@arizeai/openinference-semantic-conventions";
-
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { getTemplateFormatUtils } from "@phoenix/components/templateEditor/templateEditorUtils";
 import { TemplateFormat } from "@phoenix/components/templateEditor/types";
@@ -13,6 +11,7 @@ import {
 } from "@phoenix/constants/generativeConstants";
 import {
   createAnthropicToolDefinition,
+  createAwsToolDefinition,
   createOpenAIToolDefinition,
   detectToolDefinitionProvider,
 } from "@phoenix/schemas";
@@ -156,6 +155,7 @@ export function processAttributeToolCalls({
         case "AZURE_OPENAI":
         case "DEEPSEEK":
         case "XAI":
+        case "AWS":
         case "OLLAMA":
           return {
             id: tool_call.id ?? "",
@@ -334,12 +334,14 @@ export function openInferenceModelProviderToPhoenixModelProvider(
   if (provider == null) {
     return null;
   }
-  const maybeProvider = provider.toLowerCase() as LLMProvider;
+  const maybeProvider = provider.toLowerCase();
   switch (maybeProvider) {
     case "openai":
       return "OPENAI";
     case "anthropic":
       return "ANTHROPIC";
+    case "aws":
+      return "AWS";
     case "google":
       return "GOOGLE";
     case "azure":
@@ -873,6 +875,8 @@ export const getToolName = (tool: Tool): string | null => {
       return validatedToolDefinition.function.name;
     case "ANTHROPIC":
       return validatedToolDefinition.name;
+    case "AWS":
+      return validatedToolDefinition.toolSpec.name;
     case "UNKNOWN":
       return null;
     default:
@@ -908,6 +912,11 @@ export const createToolForProvider = ({
         id: generateToolId(),
         definition: createAnthropicToolDefinition(toolNumber),
       };
+    case "AWS":
+      return {
+        id: generateToolId(),
+        definition: createAwsToolDefinition(toolNumber),
+      };
     // TODO(apowell): #5348 Add Google tool definition
     case "GOOGLE":
       return {
@@ -932,6 +941,7 @@ export const createToolCallForProvider = (
     case "AZURE_OPENAI":
     case "DEEPSEEK":
     case "XAI":
+    case "AWS":
     case "OLLAMA":
       return createOpenAIToolCall();
     case "ANTHROPIC":
@@ -1055,6 +1065,13 @@ const getBaseChatCompletionInput = ({
         }
       : {};
 
+  const awsModelParams =
+    instance.model.provider === "AWS"
+      ? {
+          region: instance.model.region,
+        }
+      : {};
+
   return {
     messages: instanceMessages.map(toGqlChatCompletionMessage),
     model: {
@@ -1062,6 +1079,7 @@ const getBaseChatCompletionInput = ({
       name: instance.model.modelName || "",
       baseUrl: instance.model.baseUrl,
       ...azureModelParams,
+      ...awsModelParams,
     },
     invocationParameters: applyProviderInvocationParameterConstraints(
       invocationParameters,

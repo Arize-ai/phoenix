@@ -1,6 +1,6 @@
-# Phoenix OTEL API Reference
+# Phoenix OTEL Reference
 
-Welcome to the Phoenix OTEL API reference documentation. This package provides a lightweight wrapper around OpenTelemetry primitives with Phoenix-aware defaults.
+Welcome to the Phoenix OTEL reference documentation. This package provides a lightweight wrapper around OpenTelemetry primitives with Phoenix-aware defaults.
 
 ## Overview
 
@@ -55,6 +55,6 @@ api/otel
 ## External Links
 
 - [Main Phoenix Documentation](https://arize.com/docs/phoenix)
-- [Phoenix API Reference](https://arize-phoenix.readthedocs.io/)
+- [Python Reference](https://arize-phoenix.readthedocs.io/)
 - [GitHub Repository](https://github.com/Arize-ai/phoenix)
 - [PyPI Package](https://pypi.org/project/arize-phoenix-otel/) 

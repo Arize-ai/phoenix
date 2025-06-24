@@ -1,5 +1,86 @@
 # Changelog
 
+## [10.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.14.0...arize-phoenix-v10.15.0) (2025-06-21)
+
+
+### Features
+
+* bedrock playground client ([#7918](https://github.com/Arize-ai/phoenix/issues/7918)) ([15d7e7a](https://github.com/Arize-ai/phoenix/commit/15d7e7aaa36913e3bb76777653fb29c8f6297340))
+
+
+### Bug Fixes
+
+* restore evaluator traces ([#8215](https://github.com/Arize-ai/phoenix/issues/8215)) ([f13acfb](https://github.com/Arize-ai/phoenix/commit/f13acfb10de6816b0abe17e6a8e6160c3f33676b))
+
+## [10.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.13.2...arize-phoenix-v10.14.0) (2025-06-20)
+
+
+### Features
+
+* read OTEL_EXPORTER_OTLP_ENDPOINT when PHOENIX_COLLECTOR_ENDPOINT is missing ([#8095](https://github.com/Arize-ai/phoenix/issues/8095)) ([4cb7e4c](https://github.com/Arize-ai/phoenix/commit/4cb7e4c2cd3b43ee3334c717dc4499634ca12135))
+
+
+### Bug Fixes
+
+* Do not try to fetch admin fragment when creating API keys ([#8131](https://github.com/Arize-ai/phoenix/issues/8131)) ([c254d19](https://github.com/Arize-ai/phoenix/commit/c254d19ffc99cf1c6c5b28d0971549e77c1a0710))
+* Ensure experiment and example dialogs have consistent behavior / styles ([#8141](https://github.com/Arize-ai/phoenix/issues/8141)) ([f8af7a7](https://github.com/Arize-ai/phoenix/commit/f8af7a76ad2d6cf456dfacc1d32ec1d3c8986691))
+* make welcome email just send you to the instance ([#8170](https://github.com/Arize-ai/phoenix/issues/8170)) ([893ed62](https://github.com/Arize-ai/phoenix/commit/893ed62f1b0d088e7016e4a920e0381bd62a9f1c))
+
+## [10.13.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.13.1...arize-phoenix-v10.13.2) (2025-06-17)
+
+
+### Bug Fixes
+
+* chunk deletion of project sessions ([#8133](https://github.com/Arize-ai/phoenix/issues/8133)) ([af5fec4](https://github.com/Arize-ai/phoenix/commit/af5fec44c5a8007b82c0093e2f930e0e107da7f4))
+* revert ([#8136](https://github.com/Arize-ai/phoenix/issues/8136)) ([964d59b](https://github.com/Arize-ai/phoenix/commit/964d59be7cf8c85aa2a8f2c6ad2538c1f32619cc))
+* span prompt template export ([#8110](https://github.com/Arize-ai/phoenix/issues/8110)) ([8ffb200](https://github.com/Arize-ai/phoenix/commit/8ffb2005e12f8728ee5e49a72fc1a6d708159456))
+
+## [10.13.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.13.0...arize-phoenix-v10.13.1) (2025-06-17)
+
+
+### Documentation
+
+* add google adk ([#8127](https://github.com/Arize-ai/phoenix/issues/8127)) ([993f324](https://github.com/Arize-ai/phoenix/commit/993f324ce5961e3cda74528f9ef1ab1571d45d12))
+
+## [10.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.12.0...arize-phoenix-v10.13.0) (2025-06-17)
+
+
+### Features
+
+* fullstory ([#8120](https://github.com/Arize-ai/phoenix/issues/8120)) ([e619db9](https://github.com/Arize-ai/phoenix/commit/e619db97e9e61432d913ddd5ec6cce6a5fa19f5f))
+* **helm:** enhanced service configurability and docs ([#8063](https://github.com/Arize-ai/phoenix/issues/8063)) ([15dfe28](https://github.com/Arize-ai/phoenix/commit/15dfe2828ac8df69c09b646fc7ce9a8cadb65f52))
+
+
+### Bug Fixes
+
+* exp empty select ([#8111](https://github.com/Arize-ai/phoenix/issues/8111)) ([e3f08fe](https://github.com/Arize-ai/phoenix/commit/e3f08fe93e8553218ca83084983e6c3f7a535277))
+
+## [10.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.11.0...arize-phoenix-v10.12.0) (2025-06-13)
+
+
+### Features
+
+* Add `log_spans` to client and REST API ([#8005](https://github.com/Arize-ai/phoenix/issues/8005)) ([5a838ab](https://github.com/Arize-ai/phoenix/commit/5a838abf587db2ae707e39b1eca9d93c0c83323d))
+* allow filtering of sessions by session_id ([#8038](https://github.com/Arize-ai/phoenix/issues/8038)) ([565ab78](https://github.com/Arize-ai/phoenix/commit/565ab788cdafe600aeb3f4ea8cd0cdf513f7250c))
+* **helm:** enable zero downtime rollouts ([#8072](https://github.com/Arize-ai/phoenix/issues/8072)) ([ca3547c](https://github.com/Arize-ai/phoenix/commit/ca3547cf294bd027eeea0031f50b54f3480aa2d8))
+
+
+### Bug Fixes
+
+* **playground:** stream processing should not skip the rest of a chunk if usage is present ([#8090](https://github.com/Arize-ai/phoenix/issues/8090)) ([f588ce5](https://github.com/Arize-ai/phoenix/commit/f588ce54ca665e7f310d760099ce69b3a4bf238b))
+
+## [10.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.10.0...arize-phoenix-v10.11.0) (2025-06-12)
+
+
+### Features
+
+* dataset-filter ([#7982](https://github.com/Arize-ai/phoenix/issues/7982)) ([d576f73](https://github.com/Arize-ai/phoenix/commit/d576f7342d8f48bb51cc09010d936579a7242c3a))
+
+
+### Bug Fixes
+
+* change session filter query to remove the join to `project_sessions` table ([#8028](https://github.com/Arize-ai/phoenix/issues/8028)) ([9132b80](https://github.com/Arize-ai/phoenix/commit/9132b8091266e89f19d0f71c45b19f3e25deaf6e))
+
 ## [10.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.9.2...arize-phoenix-v10.10.0) (2025-06-09)
 
 

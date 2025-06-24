@@ -61,6 +61,11 @@ export const Video: React.FC<VideoProps> = ({
   preload = "none",
   className,
 }) => {
+  // disable video in CI to prevent bandwidth issues
+  if (process.env.NODE_ENV === "test") {
+    return null;
+  }
+
   return (
     <video
       css={videoCSS}

@@ -11,6 +11,7 @@ import {
   DeepSeekInvocationParameters,
   XAIInvocationParameters,
   OllamaInvocationParameters,
+  AwsInvocationParameters,
   PromptChatMessage,
 } from "../types/prompts";
 import { assertUnreachable } from "../utils/assertUnreachable";
@@ -120,6 +121,11 @@ interface OllamaPromptVersionInput extends PromptVersionInputBase {
   invocationParameters?: OllamaInvocationParameters;
 }
 
+interface AwsPromptVersionInput extends PromptVersionInputBase {
+  modelProvider: "AWS";
+  invocationParameters?: AwsInvocationParameters;
+}
+
 type PromptVersionInput =
   | OpenAIPromptVersionInput
   | AzureOpenAIPromptVersionInput
@@ -127,7 +133,8 @@ type PromptVersionInput =
   | GooglePromptVersionInput
   | DeepSeekPromptVersionInput
   | XAIPromptVersionInput
-  | OllamaPromptVersionInput;
+  | OllamaPromptVersionInput
+  | AwsPromptVersionInput;
 
 /**
  * A helper function to construct a prompt version declaratively.
@@ -257,6 +264,22 @@ export function promptVersion(params: PromptVersionInput): PromptVersionData {
         invocation_parameters: {
           type: "ollama",
           ollama: invocation_parameters ?? {},
+        },
+      };
+    case "AWS":
+      return {
+        description,
+        model_provider,
+        model_name,
+        template_type: "CHAT",
+        template_format,
+        template: {
+          type: "chat",
+          messages: templateMessages,
+        },
+        invocation_parameters: {
+          type: "aws",
+          aws: invocation_parameters ?? {},
         },
       };
     default:

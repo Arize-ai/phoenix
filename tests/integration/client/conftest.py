@@ -1,9 +1,9 @@
+import asyncio
 import os
 from collections.abc import Iterator
 from contextlib import ExitStack
 from secrets import token_hex
-from time import sleep
-from typing import Any
+from typing import Any, Optional
 from unittest import mock
 
 import pytest
@@ -21,7 +21,7 @@ from smtpdfix import AuthController, Config, SMTPDFix
 from smtpdfix.certs import Cert, _generate_certs
 from typing_extensions import TypeAlias
 
-from .._helpers import _AdminSecret, _gql, _grpc_span_exporter, _server, _start_span
+from .._helpers import _AdminSecret, _get, _gql, _grpc_span_exporter, _server, _start_span
 
 
 @pytest.fixture(scope="package")
@@ -97,24 +97,33 @@ def _span_ids(
     assert (spans := memory.get_finished_spans())
     headers = {"authorization": f"Bearer {_admin_secret}"}
     assert _grpc_span_exporter(headers=headers).export(spans) is SpanExportResult.SUCCESS
-    sleep(0.1)
     span1, span2 = spans
     assert (sc1 := span1.get_span_context())  # type: ignore[no-untyped-call]
     span_id1 = format_span_id(sc1.span_id)
     assert (sc2 := span2.get_span_context())  # type: ignore[no-untyped-call]
     span_id2 = format_span_id(sc2.span_id)
-    res, _ = _gql(_admin_secret, query=QUERY, operation_name="GetSpanIds")
-    gids = {e["node"]["spanId"]: e["node"]["id"] for e in res["data"]["node"]["spans"]["edges"]}
-    assert span_id1 in gids
-    assert span_id2 in gids
-    return (span_id1, gids[span_id1]), (span_id2, gids[span_id2])
+    span_ids = [span_id1, span_id2]
+
+    def query_fn() -> Optional[tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]]]:
+        res, _ = _gql(
+            _admin_secret,
+            query=QUERY,
+            operation_name="GetSpanIds",
+            variables={"filterCondition": f"span_id in {span_ids}"},
+        )
+        gids = {e["node"]["spanId"]: e["node"]["id"] for e in res["data"]["node"]["spans"]["edges"]}
+        if span_id1 in gids and span_id2 in gids:
+            return (span_id1, gids[span_id1]), (span_id2, gids[span_id2])
+        return None
+
+    return asyncio.run(_get(query_fn, error_msg="spans not found"))
 
 
 QUERY = """
-query GetSpanIds {
+query GetSpanIds ($filterCondition: String) {
   node(id: "UHJvamVjdDox") {
     ... on Project {
-      spans {
+      spans (filterCondition: $filterCondition) {
         edges {
           node {
             id

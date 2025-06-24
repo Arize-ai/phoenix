@@ -1991,6 +1991,89 @@
             "description": "Unprocessable Entity"
           }
         }
+      },
+      "post": {
+        "tags": [
+          "spans"
+        ],
+        "summary": "Create spans",
+        "description": "Submit spans to be inserted into a project. If any spans are invalid or duplicates, no spans will be inserted.",
+        "operationId": "createSpans",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSpansRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateSpansResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/v1/span_annotations": {
@@ -3892,6 +3975,42 @@
         ],
         "title": "CreatePromptResponseBody"
       },
+      "CreateSpansRequestBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/Span"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateSpansRequestBody"
+      },
+      "CreateSpansResponseBody": {
+        "properties": {
+          "total_received": {
+            "type": "integer",
+            "title": "Total Received",
+            "description": "Total number of spans received"
+          },
+          "total_queued": {
+            "type": "integer",
+            "title": "Total Queued",
+            "description": "Number of spans successfully queued for insertion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_received",
+          "total_queued"
+        ],
+        "title": "CreateSpansResponseBody"
+      },
       "CreateUserRequestBody": {
         "properties": {
           "user": {
@@ -4949,7 +5068,8 @@
           "GOOGLE",
           "DEEPSEEK",
           "XAI",
-          "OLLAMA"
+          "OLLAMA",
+          "AWS"
         ],
         "title": "ModelProvider"
       },
@@ -5751,6 +5871,44 @@
         ],
         "title": "PromptAnthropicThinkingConfigEnabled"
       },
+      "PromptAwsInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "aws",
+            "title": "Type"
+          },
+          "aws": {
+            "$ref": "#/components/schemas/PromptAwsInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "aws"
+        ],
+        "title": "PromptAwsInvocationParameters"
+      },
+      "PromptAwsInvocationParametersContent": {
+        "properties": {
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptAwsInvocationParametersContent"
+      },
       "PromptAzureOpenAIInvocationParameters": {
         "properties": {
           "type": {
@@ -6498,6 +6656,9 @@
               },
               {
                 "$ref": "#/components/schemas/PromptOllamaInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptAwsInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -6505,6 +6666,7 @@
               "propertyName": "type",
               "mapping": {
                 "anthropic": "#/components/schemas/PromptAnthropicInvocationParameters",
+                "aws": "#/components/schemas/PromptAwsInvocationParameters",
                 "azure_openai": "#/components/schemas/PromptAzureOpenAIInvocationParameters",
                 "deepseek": "#/components/schemas/PromptDeepSeekInvocationParameters",
                 "google": "#/components/schemas/PromptGoogleInvocationParameters",
@@ -6628,6 +6790,9 @@
               },
               {
                 "$ref": "#/components/schemas/PromptOllamaInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptAwsInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -6635,6 +6800,7 @@
               "propertyName": "type",
               "mapping": {
                 "anthropic": "#/components/schemas/PromptAnthropicInvocationParameters",
+                "aws": "#/components/schemas/PromptAwsInvocationParameters",
                 "azure_openai": "#/components/schemas/PromptAzureOpenAIInvocationParameters",
                 "deepseek": "#/components/schemas/PromptDeepSeekInvocationParameters",
                 "google": "#/components/schemas/PromptGoogleInvocationParameters",
@@ -6806,7 +6972,8 @@
           "id": {
             "type": "string",
             "title": "Id",
-            "description": "Span Global ID, distinct from the OpenTelemetry span ID"
+            "description": "Span Global ID, distinct from the OpenTelemetry span ID",
+            "default": ""
           },
           "name": {
             "type": "string",
@@ -6874,7 +7041,6 @@
         },
         "type": "object",
         "required": [
-          "id",
           "name",
           "context",
           "span_kind",

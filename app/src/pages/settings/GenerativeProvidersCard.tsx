@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 import {
   ColumnDef,
@@ -8,17 +8,26 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
-import { Card, Dialog, DialogContainer } from "@arizeai/components";
+import { Card } from "@arizeai/components";
 
 import {
   Button,
   CredentialField,
   CredentialInput,
+  Dialog,
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+  DialogTrigger,
   Flex,
   Form,
   Icon,
   Icons,
   Label,
+  Modal,
+  ModalOverlay,
   Text,
   View,
 } from "@phoenix/components";
@@ -26,6 +35,7 @@ import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { ProviderToCredentialsConfigMap } from "@phoenix/constants/generativeConstants";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
+import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import {
   GenerativeProvidersCard_data$data,
@@ -37,9 +47,6 @@ export function GenerativeProvidersCard({
 }: {
   query: GenerativeProvidersCard_data$key;
 }) {
-  const [selectedProvider, setSelectedProvider] = useState<
-    GenerativeProvidersCard_data$data["modelProviders"][number] | null
-  >(null);
   const credentials = useCredentialsContext((state) => state);
   const data = useFragment<GenerativeProvidersCard_data$key>(
     graphql`
@@ -101,6 +108,9 @@ export function GenerativeProvidersCard({
 
           // Check if any credentials are set locally
           const credentialRequirements = row.original.credentialRequirements;
+          if (!isModelProvider(row.original.key)) {
+            return <Text color="warning">unknown provider key</Text>;
+          }
           const providerCredentials = credentials[row.original.key];
           const hasLocalCredentials = credentialRequirements.every(
             ({ envVarName, isRequired }) => {
@@ -129,13 +139,17 @@ export function GenerativeProvidersCard({
               gap="size-100"
               width="100%"
             >
-              <Button
-                size="S"
-                leadingVisual={<Icon svg={<Icons.EditOutline />} />}
-                onPress={() => {
-                  setSelectedProvider(row.original);
-                }}
-              />
+              <DialogTrigger>
+                <Button
+                  size="S"
+                  leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+                />
+                <ModalOverlay>
+                  <Modal size="M">
+                    <ProviderCredentialsDialog provider={row.original} />
+                  </Modal>
+                </ModalOverlay>
+              </DialogTrigger>
             </Flex>
           );
         },
@@ -192,59 +206,48 @@ export function GenerativeProvidersCard({
           })}
         </tbody>
       </table>
-      <DialogContainer
-        type="modal"
-        isDismissable={true}
-        onDismiss={() => setSelectedProvider(null)}
-      >
-        {selectedProvider && (
-          <Dialog
-            title={`Configure ${selectedProvider.name} Credentials`}
-            size="S"
-          >
-            <View padding="size-200">
-              <View paddingBottom="size-100">
-                <Text size="XS">
-                  Set the credentials for the {selectedProvider.name} API. These
-                  credentials will be stored entirely in your browser and will
-                  only be sent to the server during API requests.
-                </Text>
-              </View>
-              <Form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  setSelectedProvider(null);
-                }}
-              >
-                <ProviderCredentials provider={selectedProvider.key} />
-                <View paddingTop="size-200">
-                  <Flex direction="row" justifyContent="end" gap="size-100">
-                    <Button
-                      variant="default"
-                      size="S"
-                      onPress={() => {
-                        setSelectedProvider(null);
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="primary"
-                      size="S"
-                      onPress={() => {
-                        setSelectedProvider(null);
-                      }}
-                    >
-                      Save Credentials
-                    </Button>
-                  </Flex>
-                </View>
-              </Form>
-            </View>
-          </Dialog>
-        )}
-      </DialogContainer>
     </Card>
+  );
+}
+
+function ProviderCredentialsDialog({
+  provider,
+}: {
+  provider: GenerativeProvidersCard_data$data["modelProviders"][number];
+}) {
+  return (
+    <Dialog>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Configure {provider.name} Credentials</DialogTitle>
+          <DialogTitleExtra>
+            <DialogCloseButton slot="close" />
+          </DialogTitleExtra>
+        </DialogHeader>
+        <View padding="size-200">
+          <View paddingBottom="size-100">
+            <Text size="XS">
+              Set the credentials for the {provider.name} API. These credentials
+              will be stored entirely in your browser and will only be sent to
+              the server during API requests.
+            </Text>
+          </View>
+          <Form>
+            <ProviderCredentials provider={provider.key} />
+            <View paddingTop="size-200">
+              <Flex direction="row" justifyContent="end" gap="size-100">
+                <Button variant="default" size="S" slot="close">
+                  Cancel
+                </Button>
+                <Button variant="primary" size="S" slot="close">
+                  Save Credentials
+                </Button>
+              </Flex>
+            </View>
+          </Form>
+        </View>
+      </DialogContent>
+    </Dialog>
   );
 }
 

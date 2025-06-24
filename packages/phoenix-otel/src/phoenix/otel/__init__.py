@@ -1,4 +1,4 @@
-from opentelemetry.sdk.resources import Resource  # type: ignore
+from opentelemetry.sdk.resources import Resource
 
 from .otel import (
     PROJECT_NAME,

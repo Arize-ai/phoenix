@@ -64,6 +64,43 @@ export const openAIToolCallsJSONSchema = zodToJsonSchema(
   }
 );
 
+export const awsToolCallSchema = z.object({
+  toolUse: z.object({
+    toolUseId: z.string().describe("The ID of the tool call"),
+    name: z.string().describe("The name of the tool"),
+    input: z.record(z.unknown()).describe("The input for the tool"),
+  }),
+});
+
+export type AwsToolCall = z.infer<typeof awsToolCallSchema>;
+
+export const awsToolCallsSchema = z.array(awsToolCallSchema);
+
+export const awsToolCallsJSONSchema = zodToJsonSchema(awsToolCallsSchema, {
+  removeAdditionalStrategy: "passthrough",
+});
+
+export const openAIToolCallToAws = openAIToolCallSchema.transform(
+  (openai): AwsToolCall => ({
+    toolUse: {
+      toolUseId: openai.id,
+      name: openai.function.name,
+      input: openai.function.arguments,
+    },
+  })
+);
+
+export const awsToolCallToOpenAI = awsToolCallSchema.transform(
+  (aws): OpenAIToolCall => ({
+    id: aws.toolUse.toolUseId,
+    type: "function",
+    function: {
+      name: aws.toolUse.name,
+      arguments: aws.toolUse.input,
+    },
+  })
+);
+
 /**
  * The schema for an Anthropic tool call, this is what a message that calls a tool looks like
  */
@@ -146,6 +183,7 @@ export const openAIToolCallToAnthropic = openAIToolCallSchema.transform(
 export const llmProviderToolCallSchema = z.union([
   openAIToolCallSchema,
   anthropicToolCallSchema,
+  awsToolCallSchema,
   jsonLiteralSchema,
 ]);
 
@@ -169,6 +207,10 @@ type ToolCallWithProvider =
       provider: Extract<ModelProvider, "ANTHROPIC">;
       validatedToolCall: AnthropicToolCall;
     }
+  | {
+      provider: Extract<ModelProvider, "AWS">;
+      validatedToolCall: AwsToolCall;
+    }
   | { provider: "UNKNOWN"; validatedToolCall: null };
 
 /**
@@ -188,6 +230,13 @@ export const detectToolCallProvider = (
   if (anthropicSuccess) {
     return { provider: "ANTHROPIC", validatedToolCall: anthropicData };
   }
+
+  const { success: awsSuccess, data: awsData } =
+    awsToolCallSchema.safeParse(toolCall);
+  if (awsSuccess) {
+    return { provider: "AWS", validatedToolCall: awsData };
+  }
+
   return { provider: "UNKNOWN", validatedToolCall: null };
 };
 
@@ -197,6 +246,7 @@ type ProviderToToolCallMap = {
   DEEPSEEK: OpenAIToolCall;
   XAI: OpenAIToolCall;
   OLLAMA: OpenAIToolCall;
+  AWS: AwsToolCall;
   ANTHROPIC: AnthropicToolCall;
   // Use generic JSON type for unknown tool formats / new providers
   GOOGLE: JSONLiteral;
@@ -217,6 +267,8 @@ export const toOpenAIToolCall = (
       return validatedToolCall;
     case "ANTHROPIC":
       return anthropicToolCallToOpenAI.parse(validatedToolCall);
+    case "AWS":
+      return awsToolCallToOpenAI.parse(validatedToolCall);
     case "UNKNOWN":
       return null;
     default:
@@ -244,6 +296,8 @@ export const fromOpenAIToolCall = <T extends ModelProvider>({
     case "XAI":
     case "OLLAMA":
       return toolCall as ProviderToToolCallMap[T];
+    case "AWS":
+      return openAIToolCallToAws.parse(toolCall) as ProviderToToolCallMap[T];
     case "ANTHROPIC":
       return openAIToolCallToAnthropic.parse(
         toolCall
@@ -295,6 +349,16 @@ export function createAnthropicToolCall(): AnthropicToolCall {
     type: "tool_use",
     name: "",
     input: {},
+  };
+}
+
+export function createAwsToolCall(): AwsToolCall {
+  return {
+    toolUse: {
+      toolUseId: "",
+      name: "",
+      input: {},
+    },
   };
 }
 

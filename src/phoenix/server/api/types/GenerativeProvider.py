@@ -17,6 +17,7 @@ class GenerativeProviderKey(Enum):
     DEEPSEEK = "DeepSeek"
     XAI = "xAI"
     OLLAMA = "Ollama"
+    AWS = "AWS Bedrock"
 
 
 @strawberry.type
@@ -38,6 +39,7 @@ class GenerativeProvider:
         GenerativeProviderKey.DEEPSEEK: ["deepseek"],
         GenerativeProviderKey.XAI: ["grok"],
         GenerativeProviderKey.OLLAMA: ["llama", "mistral", "codellama", "phi", "qwen", "gemma"],
+        GenerativeProviderKey.AWS: ["nova", "titan"],
     }
 
     attribute_provider_to_generative_provider_map: ClassVar[dict[str, GenerativeProviderKey]] = {
@@ -45,6 +47,7 @@ class GenerativeProvider:
         OpenInferenceLLMProviderValues.ANTHROPIC.value: GenerativeProviderKey.ANTHROPIC,
         OpenInferenceLLMProviderValues.AZURE.value: GenerativeProviderKey.AZURE_OPENAI,
         OpenInferenceLLMProviderValues.GOOGLE.value: GenerativeProviderKey.GOOGLE,
+        OpenInferenceLLMProviderValues.AWS.value: GenerativeProviderKey.AWS,
         # Note: DeepSeek uses OpenAI compatibility but we can't duplicate the key in the dict
         # The provider will be determined through model name prefix matching instead
         # Note: xAI uses OpenAI compatibility but we can't duplicate the key in the dict
@@ -58,26 +61,36 @@ class GenerativeProvider:
     E.x. OpenAI requires a single API key
     """
     model_provider_to_credential_requirements_map: ClassVar[
-        dict[GenerativeProviderKey, GenerativeProviderCredentialConfig]
+        dict[GenerativeProviderKey, list[GenerativeProviderCredentialConfig]]
     ] = {
-        GenerativeProviderKey.AZURE_OPENAI: GenerativeProviderCredentialConfig(
-            env_var_name="AZURE_OPENAI_API_KEY", is_required=True
-        ),
-        GenerativeProviderKey.ANTHROPIC: GenerativeProviderCredentialConfig(
-            env_var_name="ANTHROPIC_API_KEY", is_required=True
-        ),
-        GenerativeProviderKey.OPENAI: GenerativeProviderCredentialConfig(
-            env_var_name="OPENAI_API_KEY", is_required=True
-        ),
-        GenerativeProviderKey.GOOGLE: GenerativeProviderCredentialConfig(
-            env_var_name="GEMINI_API_KEY", is_required=True
-        ),
-        GenerativeProviderKey.DEEPSEEK: GenerativeProviderCredentialConfig(
-            env_var_name="DEEPSEEK_API_KEY", is_required=True
-        ),
-        GenerativeProviderKey.XAI: GenerativeProviderCredentialConfig(
-            env_var_name="XAI_API_KEY", is_required=True
-        ),
+        GenerativeProviderKey.AZURE_OPENAI: [
+            GenerativeProviderCredentialConfig(
+                env_var_name="AZURE_OPENAI_API_KEY", is_required=True
+            )
+        ],
+        GenerativeProviderKey.ANTHROPIC: [
+            GenerativeProviderCredentialConfig(env_var_name="ANTHROPIC_API_KEY", is_required=True)
+        ],
+        GenerativeProviderKey.OPENAI: [
+            GenerativeProviderCredentialConfig(env_var_name="OPENAI_API_KEY", is_required=True)
+        ],
+        GenerativeProviderKey.GOOGLE: [
+            GenerativeProviderCredentialConfig(env_var_name="GEMINI_API_KEY", is_required=True)
+        ],
+        GenerativeProviderKey.DEEPSEEK: [
+            GenerativeProviderCredentialConfig(env_var_name="DEEPSEEK_API_KEY", is_required=True)
+        ],
+        GenerativeProviderKey.XAI: [
+            GenerativeProviderCredentialConfig(env_var_name="XAI_API_KEY", is_required=True)
+        ],
+        GenerativeProviderKey.OLLAMA: [],
+        GenerativeProviderKey.AWS: [
+            GenerativeProviderCredentialConfig(env_var_name="AWS_ACCESS_KEY_ID", is_required=True),
+            GenerativeProviderCredentialConfig(
+                env_var_name="AWS_SECRET_ACCESS_KEY", is_required=True
+            ),
+            GenerativeProviderCredentialConfig(env_var_name="AWS_SESSION_TOKEN", is_required=False),
+        ],
     }
 
     @strawberry.field
@@ -110,7 +123,7 @@ class GenerativeProvider:
         credential_requirements = self.model_provider_to_credential_requirements_map.get(self.key)
         if credential_requirements is None:
             return []
-        return [credential_requirements]
+        return self.model_provider_to_credential_requirements_map[self.key]
 
     @strawberry.field(description="Whether the credentials are set on the server for the provider")  # type: ignore
     async def credentials_set(self) -> bool:

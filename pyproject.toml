@@ -34,7 +34,7 @@ dependencies = [
   "typing-extensions>=4.6",
   "scipy",
   "wrapt>=1.17.2",
-  "protobuf>=3.20.2, <6.0",
+  "protobuf>=4.25.8, <6.0",
   "grpcio",
   "grpc-interceptor",
   "tqdm",
@@ -72,7 +72,7 @@ dev = [
   "hatch",
   "tox==4.18.1",
   "tox-uv==1.11.3",
-  "uv==0.4.8",
+  "uv==0.7.12",
   "jupyter",
   "nbqa",
   "ruff==0.6.9",
@@ -142,6 +142,7 @@ container = [
   "fast-hdbscan>=0.2.0",
   "numba>=0.60.0",  # https://github.com/astral-sh/uv/issues/6281
   "umap-learn",
+  "boto3",
 ]
 test = [
 ]

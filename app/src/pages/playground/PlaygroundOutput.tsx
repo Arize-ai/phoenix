@@ -68,9 +68,19 @@ const getToolCallKey = (
 ): Key => {
   if (
     isStringKeyedObject(toolCall) &&
+    "id" in toolCall &&
     (typeof toolCall.id === "string" || typeof toolCall.id === "number")
   ) {
     return toolCall.id;
+  } else if (
+    isStringKeyedObject(toolCall) &&
+    "toolUse" in toolCall &&
+    isStringKeyedObject(toolCall.toolUse) &&
+    "toolUseId" in toolCall.toolUse &&
+    (typeof toolCall.toolUse.toolUseId === "string" ||
+      typeof toolCall.toolUse.toolUseId === "number")
+  ) {
+    return toolCall.toolUse.toolUseId;
   }
   return JSON.stringify(toolCall);
 };
@@ -94,16 +104,23 @@ function PlaygroundOutputMessage({
       {content != null && !Array.isArray(content) && (
         <ConnectedMarkdownBlock>{content}</ConnectedMarkdownBlock>
       )}
-      {toolCalls && toolCalls.length > 0
-        ? toolCalls.map((toolCall) => {
-            return (
-              <PlaygroundToolCall
-                key={getToolCallKey(toolCall)}
-                toolCall={toolCall}
-              />
-            );
-          })
-        : null}
+      <View
+        paddingX="size-200"
+        paddingY="size-200"
+        borderTopWidth="thin"
+        borderTopColor="blue-500"
+      >
+        {toolCalls && toolCalls.length > 0
+          ? toolCalls.map((toolCall) => {
+              return (
+                <PlaygroundToolCall
+                  key={getToolCallKey(toolCall)}
+                  toolCall={toolCall}
+                />
+              );
+            })
+          : null}
+      </View>
     </Card>
   );
 }

@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.11.0...arize-phoenix-otel-v0.12.0) (2025-06-24)
+
+
+### Features
+
+* **otel:** support tracer provider arguments ([6b337d9](https://github.com/Arize-ai/phoenix/commit/6b337d9195e176f12e1bd799447ea5f8fbe1734e))
+* **otel:** support tracer provider arguments ([#8270](https://github.com/Arize-ai/phoenix/issues/8270)) ([613cdd8](https://github.com/Arize-ai/phoenix/commit/613cdd85923a85d413d2e42546458b0c3a6e7e63))
+
+## [0.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.10.3...arize-phoenix-otel-v0.11.0) (2025-06-18)
+
+
+### Features
+
+* **auth:** logout ([#7985](https://github.com/Arize-ai/phoenix/issues/7985)) ([63128c5](https://github.com/Arize-ai/phoenix/commit/63128c5328222147fe5c5103d8dd3576d5534bc2))
+* Enable phoenix cloud spaces ([#8108](https://github.com/Arize-ai/phoenix/issues/8108)) ([f7c2bca](https://github.com/Arize-ai/phoenix/commit/f7c2bca26e7617da472bb48b91ce696c7c1dc378))
+* read OTEL_EXPORTER_OTLP_ENDPOINT when PHOENIX_COLLECTOR_ENDPOINT is missing ([#8095](https://github.com/Arize-ai/phoenix/issues/8095)) ([4cb7e4c](https://github.com/Arize-ai/phoenix/commit/4cb7e4c2cd3b43ee3334c717dc4499634ca12135))
+
+
+### Documentation
+
+* phoenix-otel documentation header styling - Update conf.py header… ([#7936](https://github.com/Arize-ai/phoenix/issues/7936)) ([0173e7f](https://github.com/Arize-ai/phoenix/commit/0173e7f5e187fe0f4f1c15311a56b878117803a9))
+* Readthedocs improvements on naming and structure ([#8009](https://github.com/Arize-ai/phoenix/issues/8009)) ([76a4b92](https://github.com/Arize-ai/phoenix/commit/76a4b9282ff8476757ee1c0b3c85a7767208795b))
+
 ## [0.10.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.10.2...arize-phoenix-otel-v0.10.3) (2025-06-04)
 
 
