@@ -366,14 +366,14 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
                 model = models.GenerativeModel(
                     name=model_data["model"],
                     provider=model_data["provider"],
-                    llm_name_pattern=model_data["regex"],
+                    name_pattern=model_data["regex"],
                     is_built_in=True,
                 )
                 session.add(model)
                 await session.flush()
             else:
                 existing_model.provider = model_data["provider"]
-                existing_model.llm_name_pattern = model_data["regex"]
+                existing_model.name_pattern = model_data["regex"]
                 model = existing_model
                 await session.execute(
                     delete(models.TokenPrice).where(models.TokenPrice.model_id == model.id)

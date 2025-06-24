@@ -104,7 +104,7 @@ def to_gql_generative_model(model: models.GenerativeModel) -> GenerativeModel:
         id_attr=model.id,
         name=model.name,
         provider=model.provider,
-        name_pattern=model.llm_name_pattern,
+        name_pattern=model.name_pattern,
         kind=GenerativeModelKind.BUILT_IN if model.is_built_in else GenerativeModelKind.CUSTOM,
         created_at=model.created_at,
         updated_at=model.updated_at,

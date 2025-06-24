@@ -5,6 +5,7 @@ from typing import Any, Iterable, Mapping, Optional
 from openinference.semconv.trace import SpanAttributes
 from typing_extensions import TypeAlias
 
+from phoenix.datetime_utils import is_timezone_aware
 from phoenix.db import models
 from phoenix.server.cost_tracking import regex_specificity
 from phoenix.trace.attributes import get_attribute_value
@@ -17,7 +18,7 @@ _TieBreakerId: TypeAlias = int
 class CostModelLookup:
     def __init__(
         self,
-        generative_models: Iterable[models.GenerativeModel],
+        generative_models: Iterable[models.GenerativeModel] = (),
     ) -> None:
         self._models = tuple(generative_models)
         self._model_priority: dict[
@@ -27,8 +28,8 @@ class CostModelLookup:
         self._regex_specificity_score: dict[_RegexPatternStr, _RegexSpecificityScore] = {}
 
         for m in self._models:
-            if (pattern_str := m.llm_name_pattern) not in self._regex:
-                self._regex[pattern_str] = re.compile(m.llm_name_pattern)
+            if (pattern_str := m.name_pattern) not in self._regex:
+                self._regex[pattern_str] = re.compile(m.name_pattern)
                 self._regex_specificity_score[pattern_str] = regex_specificity.score(pattern_str)
 
             # For built-in models, use negative ID so that earlier IDs win
@@ -36,7 +37,7 @@ class CostModelLookup:
             tie_breaker = -m.id if m.is_built_in else m.id
 
             self._model_priority[m.id] = (
-                self._regex_specificity_score[m.llm_name_pattern],
+                self._regex_specificity_score[m.name_pattern],
                 m.start_time.timestamp() if m.start_time else 0.0,
                 tie_breaker,
             )
@@ -54,11 +55,14 @@ class CostModelLookup:
         a specific priority hierarchy to ensure consistent and predictable model selection.
 
         Args:
-            start_time: The timestamp for which to find a model. Models with start_time
-                greater than this value will be excluded.
+            start_time: The timestamp for which to find a model. Must be timezone-aware.
+                Models with start_time greater than this value will be excluded.
             attributes: A mapping containing span attributes. Must include:
                 - SpanAttributes.LLM_MODEL_NAME: The name of the LLM model to match
                 - SpanAttributes.LLM_PROVIDER: (Optional) The provider of the LLM model
+
+        Raises:
+            TypeError: If start_time is not timezone-aware (tzinfo is None)
 
         Returns:
             The most appropriate GenerativeModel that matches the criteria, or None if no
@@ -66,23 +70,23 @@ class CostModelLookup:
 
         Model Selection Logic:
             1. **Input Validation**: Returns None if model name is empty or whitespace-only
-            2. **Provider Filtering**: If provider is specified in attributes, only models
-               with matching provider are considered. Provider-agnostic models (provider=None)
-               are excluded when a specific provider is given.
-            3. **Time Filtering**: Only models with start_time <= start_time or start_time=None
-               are considered
-            4. **Priority Selection**: Models are selected based on a three-tier priority system:
-               - User-defined models (is_built_in=False) are checked first
-               - Built-in models (is_built_in=True) are checked second
-               - Within each tier, models are sorted by priority tuple:
-                 (start_time.timestamp, regex_specificity_score, tie_breaker)
-               - Higher priority models (later in sorted list) are checked first
-            5. **Regex Matching**: The first model whose llm_name_pattern matches the
-               model name from attributes is returned
+            2. **Time and Regex Filtering**: Only models that satisfy both conditions:
+               - start_time <= start_time or start_time=None (active models)
+               - name_pattern regex matches the model name from attributes
+            3. **Early Return Optimization**: If only one candidate remains, return it immediately
+            4. **Two-Tier Priority System**: Models are processed in tiers:
+               - User-defined models (is_built_in=False) are processed first
+               - Built-in models (is_built_in=True) are processed second
+               - If a tier has only one model, return it immediately
+            5. **Provider Filtering**: Within each tier, if provider is specified:
+               - Prefer models with matching provider
+               - Fall back to provider-agnostic models if no provider-specific matches exist
+            6. **Priority Selection**: Select the model with the highest priority tuple:
+               (regex_specificity_score, start_time.timestamp, tie_breaker)
 
         Priority Tuple Components:
-            - start_time.timestamp: Models with later start times have higher priority
             - regex_specificity_score: More specific regex patterns have higher priority
+            - start_time.timestamp: Models with later start times have higher priority
             - tie_breaker: For built-in models, uses negative ID (lower IDs win);
               for user-defined models, uses positive ID (higher IDs win)
 
@@ -92,48 +96,59 @@ class CostModelLookup:
             ...     start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
             ...     attributes={"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}}
             ... )
-        """
-        llm_name = str(get_attribute_value(attributes, SpanAttributes.LLM_MODEL_NAME) or "").strip()
-        if not llm_name:
+        """  # noqa: E501
+        # 1. extract and validate inputs
+        if not is_timezone_aware(start_time):
+            raise TypeError("start_time must be timezone-aware")
+
+        model_name = str(
+            get_attribute_value(attributes, SpanAttributes.LLM_MODEL_NAME) or ""
+        ).strip()
+        if not model_name:
             return None
 
-        candidates: list[models.GenerativeModel] = list(self._models)
-
-        # Filter candidates by llm_provider if it exists
-        llm_provider = str(
-            get_attribute_value(attributes, SpanAttributes.LLM_PROVIDER) or ""
-        ).strip()
-        if llm_provider:
-            candidates = [c for c in candidates if c.provider and c.provider == llm_provider]
-            if not candidates:
-                return None
-
-        # Filter candidates by start_time
-        candidates = [c for c in candidates if not c.start_time or c.start_time <= start_time]
+        # 2. only include models that are active and match the regex pattern
+        candidates = [
+            model
+            for model in self._models
+            if (not model.start_time or model.start_time <= start_time)
+            and self._regex[model.name_pattern].match(model_name)
+        ]
         if not candidates:
             return None
 
-        # Look for user-defined candidates that match the llm_name
-        user_defined_candidates = sorted(
-            (c for c in candidates if not c.is_built_in),
-            key=lambda c: self._model_priority[c.id],
-        )
-        if user_defined_candidates:
-            # Start with the highest priority
-            for c in reversed(user_defined_candidates):
-                if c.llm_name_pattern and self._regex[c.llm_name_pattern].match(llm_name):
-                    return c
+        # 3. early return: if only one candidate remains, return it
+        if len(candidates) == 1:
+            return candidates[0]
 
-        # Look for built-in candidates that match the llm_name
-        built_in_candidates = sorted(
-            (c for c in candidates if c.is_built_in),
-            key=lambda c: self._model_priority[c.id],
-        )
-        if built_in_candidates:
-            # Start with the highest priority
-            for c in reversed(built_in_candidates):
-                if c.llm_name_pattern and self._regex[c.llm_name_pattern].match(llm_name):
-                    return c
+        provider = str(get_attribute_value(attributes, SpanAttributes.LLM_PROVIDER) or "").strip()
 
-        # If no candidates matched, return None
+        # 4. priority-based selection: user-defined models first, then built-in models
+        for is_built_in in (False, True):  # False = user-defined, True = built-in
+            # get candidates for current tier (user-defined or built-in)
+            tier_candidates = [model for model in candidates if model.is_built_in == is_built_in]
+
+            if not tier_candidates:
+                continue  # try next tier
+
+            # early return: if only one candidate in this tier, return it
+            if len(tier_candidates) == 1:
+                return tier_candidates[0]
+
+            # 5. provider filtering: if provider specified, prefer provider-specific models
+            if provider:
+                provider_specific_models = [
+                    model
+                    for model in tier_candidates
+                    if model.provider and model.provider == provider
+                ]
+                # only use provider-specific models if any exist
+                # this allows fallback to provider-agnostic models when no match
+                if provider_specific_models:
+                    tier_candidates = provider_specific_models
+
+            # 6. select best model in this tier
+            return max(tier_candidates, key=lambda model: self._model_priority[model.id])
+
+        # 7. no suitable model found
         return None

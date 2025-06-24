@@ -42,7 +42,7 @@ def upgrade() -> None:
             nullable=True,
         ),
         sa.Column(
-            "llm_name_pattern",
+            "name_pattern",
             sa.String,
             nullable=False,
         ),

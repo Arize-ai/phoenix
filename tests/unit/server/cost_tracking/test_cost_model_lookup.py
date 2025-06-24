@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 from datetime import datetime, timezone
 from typing import Any, Mapping, Optional
 
@@ -21,7 +22,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider="openai",
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -40,7 +41,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider="openai",
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -59,7 +60,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider="openai",
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -78,7 +79,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider="openai",
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -98,7 +99,7 @@ class TestCostModelLookup:
                         name="openai-model",
                         provider="openai",
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -108,7 +109,7 @@ class TestCostModelLookup:
                         name="anthropic-model",
                         provider="anthropic",
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -127,7 +128,7 @@ class TestCostModelLookup:
                         name="openai-model",
                         provider="openai",
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -137,7 +138,7 @@ class TestCostModelLookup:
                         name="anthropic-model",
                         provider="anthropic",
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -156,7 +157,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider="openai",
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -164,8 +165,27 @@ class TestCostModelLookup:
                 ],
                 {"llm": {"model_name": "gpt-3.5-turbo", "provider": "azure"}},
                 datetime.now(timezone.utc),
-                None,
-                "Provider mismatch should return None",
+                1,  # Provider-agnostic model should match when no provider-specific model available
+                "Provider-agnostic model should match when no provider-specific model available",
+                id="provider_agnostic_azure",
+            ),
+            pytest.param(
+                [
+                    models.GenerativeModel(
+                        id=1,
+                        name="test-model",
+                        provider="openai",
+                        start_time=None,
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    )
+                ],
+                {"llm": {"model_name": "gpt-3.5-turbo", "provider": "azure"}},
+                datetime.now(timezone.utc),
+                1,  # Should fall back to available model when provider doesn't match
+                "Provider mismatch should fall back to available model",
                 id="provider_mismatch",
             ),
             # Empty provider in attributes tests
@@ -176,7 +196,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider="openai",
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -195,7 +215,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider="openai",
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -215,7 +235,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider=None,  # Provider-agnostic
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -234,7 +254,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider=None,  # Provider-agnostic
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -254,7 +274,7 @@ class TestCostModelLookup:
                         name="past-model",
                         provider="openai",
                         start_time=datetime(2023, 1, 1, tzinfo=timezone.utc),  # Past start time
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -264,7 +284,7 @@ class TestCostModelLookup:
                         name="future-model",
                         provider="openai",
                         start_time=datetime(2025, 1, 1, tzinfo=timezone.utc),  # Future start time
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -283,7 +303,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider="openai",
                         start_time=None,  # No start_time specified
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -302,7 +322,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider="openai",
                         start_time=None,  # No start_time specified
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -321,7 +341,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider="openai",
                         start_time=None,  # No start_time specified
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -341,7 +361,7 @@ class TestCostModelLookup:
                         name="gpt-3.5-model",
                         provider="openai",
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -351,7 +371,7 @@ class TestCostModelLookup:
                         name="gpt-4-model",
                         provider="openai",
                         start_time=None,
-                        llm_name_pattern="gpt-4",
+                        name_pattern="gpt-4",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -370,7 +390,7 @@ class TestCostModelLookup:
                         name="gpt-3.5-model",
                         provider="openai",
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -380,7 +400,7 @@ class TestCostModelLookup:
                         name="gpt-4-model",
                         provider="openai",
                         start_time=None,
-                        llm_name_pattern="gpt-4",
+                        name_pattern="gpt-4",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -399,7 +419,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider="openai",
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -419,7 +439,7 @@ class TestCostModelLookup:
                         name="non-override-model",
                         provider="openai",
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -429,7 +449,7 @@ class TestCostModelLookup:
                         name="override-model",
                         provider="openai",
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=False,  # Override model
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -448,7 +468,7 @@ class TestCostModelLookup:
                         name="specific-model",
                         provider="openai",
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5-turbo",  # More specific
+                        name_pattern="gpt-3\\.5-turbo",  # More specific
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -458,7 +478,7 @@ class TestCostModelLookup:
                         name="general-model",
                         provider="openai",
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5.*",  # Less specific
+                        name_pattern="gpt-3\\.5.*",  # Less specific
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -477,7 +497,7 @@ class TestCostModelLookup:
                         name="low-id-model",
                         provider="openai",
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -487,7 +507,7 @@ class TestCostModelLookup:
                         name="high-id-model",
                         provider="openai",
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -507,7 +527,7 @@ class TestCostModelLookup:
                         name="model1",
                         provider="openai",
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -517,7 +537,7 @@ class TestCostModelLookup:
                         name="model2",
                         provider="openai",
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5.*",
+                        name_pattern="gpt-3\\.5.*",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -527,7 +547,7 @@ class TestCostModelLookup:
                         name="model3",
                         provider="openai",
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=False,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -547,7 +567,7 @@ class TestCostModelLookup:
                         name="wildcard-model",
                         provider="openai",
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5.*",  # Wildcard pattern
+                        name_pattern="gpt-3\\.5.*",  # Wildcard pattern
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -566,7 +586,7 @@ class TestCostModelLookup:
                         name="wildcard-model",
                         provider="openai",
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5.*",  # Wildcard pattern
+                        name_pattern="gpt-3\\.5.*",  # Wildcard pattern
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -585,7 +605,7 @@ class TestCostModelLookup:
                         name="wildcard-model",
                         provider="openai",
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5.*",  # Wildcard pattern
+                        name_pattern="gpt-3\\.5.*",  # Wildcard pattern
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -605,7 +625,7 @@ class TestCostModelLookup:
                         name="anchored-model",
                         provider="openai",
                         start_time=None,
-                        llm_name_pattern="^gpt-3\\.5-turbo$",  # Anchored pattern
+                        name_pattern="^gpt-3\\.5-turbo$",  # Anchored pattern
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -624,7 +644,7 @@ class TestCostModelLookup:
                         name="anchored-model",
                         provider="openai",
                         start_time=None,
-                        llm_name_pattern="^gpt-3\\.5-turbo$",  # Anchored pattern
+                        name_pattern="^gpt-3\\.5-turbo$",  # Anchored pattern
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -644,7 +664,7 @@ class TestCostModelLookup:
                         name="future-model",
                         provider="openai",
                         start_time=datetime(2025, 1, 1, tzinfo=timezone.utc),  # Future start time
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -664,7 +684,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider=None,  # No provider specified
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -672,8 +692,8 @@ class TestCostModelLookup:
                 ],
                 {"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}},
                 datetime.now(timezone.utc),
-                None,  # Provider-agnostic model doesn't match when specific provider is given
-                "Provider-agnostic model should not match when specific provider is given",
+                1,  # Provider-agnostic model should match when no provider-specific model available
+                "Provider-agnostic model should match when no provider-specific model available",
                 id="provider_agnostic_openai",
             ),
             pytest.param(
@@ -683,7 +703,7 @@ class TestCostModelLookup:
                         name="test-model",
                         provider=None,  # No provider specified
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
@@ -691,28 +711,297 @@ class TestCostModelLookup:
                 ],
                 {"llm": {"model_name": "gpt-3.5-turbo", "provider": "anthropic"}},
                 datetime.now(timezone.utc),
-                None,  # Provider-agnostic model doesn't match when specific provider is given
-                "Provider-agnostic model should not match when specific provider is given",
+                1,  # Provider-agnostic model should match when no provider-specific model available
+                "Provider-agnostic model should match when no provider-specific model available",
                 id="provider_agnostic_anthropic",
+            ),
+            # Provider-specific vs provider-agnostic priority test
+            pytest.param(
+                [
+                    models.GenerativeModel(
+                        id=1,
+                        name="provider-agnostic-model",
+                        provider=None,  # Provider-agnostic
+                        start_time=None,
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    ),
+                    models.GenerativeModel(
+                        id=2,
+                        name="openai-specific-model",
+                        provider="openai",  # Provider-specific
+                        start_time=None,
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    ),
+                ],
+                {"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}},
+                datetime.now(timezone.utc),
+                2,  # Provider-specific model should be preferred over provider-agnostic
+                "Provider-specific model should be preferred over provider-agnostic",
+                id="provider_specific_vs_agnostic_priority",
+            ),
+            # Start time priority tests
+            pytest.param(
+                [
+                    models.GenerativeModel(
+                        id=1,
+                        name="early-model",
+                        provider="openai",
+                        start_time=datetime(2023, 1, 1, tzinfo=timezone.utc),  # Early start time
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    ),
+                    models.GenerativeModel(
+                        id=2,
+                        name="late-model",
+                        provider="openai",
+                        start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),  # Later start time
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    ),
+                ],
+                {"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}},
+                datetime(2024, 6, 1, tzinfo=timezone.utc),  # Current time after both start times
+                2,  # Later start time should be preferred
+                "Later start time should be preferred over earlier start time",
+                id="start_time_priority_later_wins",
+            ),
+            pytest.param(
+                [
+                    models.GenerativeModel(
+                        id=1,
+                        name="no-start-time-model",
+                        provider="openai",
+                        start_time=None,  # No start time
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    ),
+                    models.GenerativeModel(
+                        id=2,
+                        name="with-start-time-model",
+                        provider="openai",
+                        start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),  # Has start time
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    ),
+                ],
+                {"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}},
+                datetime(2024, 6, 1, tzinfo=timezone.utc),  # Current time after start time
+                2,  # Model with start time should be preferred over model without start time
+                "Model with start time should be preferred over model without start time",
+                id="start_time_priority_with_start_time_wins",
+            ),
+            # Provider filtering edge cases
+            pytest.param(
+                [
+                    models.GenerativeModel(
+                        id=1,
+                        name="test-model",
+                        provider="openai",
+                        start_time=None,
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    )
+                ],
+                {"llm": {"model_name": "gpt-3.5-turbo", "provider": "   "}},  # Whitespace provider
+                datetime.now(timezone.utc),
+                1,  # Should match when provider is whitespace-only
+                "Model should match when provider is whitespace-only",
+                id="whitespace_provider_in_attributes",
             ),
             pytest.param(
                 [
                     models.GenerativeModel(
                         id=1,
                         name="test-model",
-                        provider=None,  # No provider specified
+                        provider="OpenAI",  # Capitalized
                         start_time=None,
-                        llm_name_pattern="gpt-3\\.5-turbo",
+                        name_pattern="gpt-3\\.5-turbo",
                         is_built_in=True,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                     )
                 ],
-                {"llm": {"model_name": "gpt-3.5-turbo", "provider": "azure"}},
+                {"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}},  # Lowercase
                 datetime.now(timezone.utc),
-                None,  # Provider-agnostic model doesn't match when specific provider is given
-                "Provider-agnostic model should not match when specific provider is given",
-                id="provider_agnostic_azure",
+                1,  # Should match because no provider-specific candidates exist, so fallback to original
+                "Provider matching should fall back to original candidates when no case-sensitive match",
+                id="provider_case_sensitivity",
+            ),
+            # Complex priority scenarios with start time
+            pytest.param(
+                [
+                    models.GenerativeModel(
+                        id=1,
+                        name="early-specific-model",
+                        provider="openai",
+                        start_time=datetime(2023, 1, 1, tzinfo=timezone.utc),  # Early start time
+                        name_pattern="gpt-3\\.5-turbo",  # More specific
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    ),
+                    models.GenerativeModel(
+                        id=2,
+                        name="late-general-model",
+                        provider="openai",
+                        start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),  # Later start time
+                        name_pattern="gpt-3\\.5.*",  # Less specific
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    ),
+                ],
+                {"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}},
+                datetime(2024, 6, 1, tzinfo=timezone.utc),  # Current time after both start times
+                1,  # More specific pattern should win over later start time
+                "Regex specificity should take priority over start time",
+                id="complex_priority_specificity_over_start_time",
+            ),
+            pytest.param(
+                [
+                    models.GenerativeModel(
+                        id=1,
+                        name="early-high-id-model",
+                        provider="openai",
+                        start_time=datetime(2023, 1, 1, tzinfo=timezone.utc),  # Early start time
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    ),
+                    models.GenerativeModel(
+                        id=10,
+                        name="late-low-id-model",
+                        provider="openai",
+                        start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),  # Later start time
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    ),
+                ],
+                {"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}},
+                datetime(2024, 6, 1, tzinfo=timezone.utc),  # Current time after both start times
+                10,  # Later start time should win over lower ID
+                "Later start time should take priority over tie-breaker ID",
+                id="complex_priority_start_time_over_tie_breaker",
+            ),
+            # Model name validation edge cases
+            pytest.param(
+                [
+                    models.GenerativeModel(
+                        id=1,
+                        name="test-model",
+                        provider="openai",
+                        start_time=None,
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    )
+                ],
+                {"llm": {"model_name": None, "provider": "openai"}},  # None model name
+                datetime.now(timezone.utc),
+                None,
+                "None model name should return None",
+                id="none_model_name",
+            ),
+            pytest.param(
+                [
+                    models.GenerativeModel(
+                        id=1,
+                        name="test-model",
+                        provider="openai",
+                        start_time=None,
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    )
+                ],
+                {"llm": {"model_name": 123, "provider": "openai"}},  # Non-string model name
+                datetime.now(timezone.utc),
+                None,
+                "Non-string model name should return None",
+                id="non_string_model_name",
+            ),
+            # User-defined vs built-in priority with start time
+            pytest.param(
+                [
+                    models.GenerativeModel(
+                        id=1,
+                        name="built-in-late-model",
+                        provider="openai",
+                        start_time=datetime(
+                            2024, 6, 1, tzinfo=timezone.utc
+                        ),  # Very late start time
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    ),
+                    models.GenerativeModel(
+                        id=2,
+                        name="user-defined-early-model",
+                        provider="openai",
+                        start_time=datetime(2023, 1, 1, tzinfo=timezone.utc),  # Early start time
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=False,  # User-defined
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    ),
+                ],
+                {"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}},
+                datetime(2024, 12, 1, tzinfo=timezone.utc),  # Current time after both start times
+                2,  # User-defined should win over built-in regardless of start time
+                "User-defined model should take priority over built-in regardless of start time",
+                id="user_defined_vs_built_in_priority",
+            ),
+            # Provider case sensitivity with multiple models
+            pytest.param(
+                [
+                    models.GenerativeModel(
+                        id=1,
+                        name="openai-model",
+                        provider="openai",  # Lowercase
+                        start_time=None,
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    ),
+                    models.GenerativeModel(
+                        id=2,
+                        name="OpenAI-model",
+                        provider="OpenAI",  # Capitalized
+                        start_time=None,
+                        name_pattern="gpt-3\\.5-turbo",
+                        is_built_in=True,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    ),
+                ],
+                {"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}},  # Lowercase
+                datetime.now(timezone.utc),
+                1,  # Should match the lowercase provider, not the capitalized one
+                "Provider matching should be case sensitive when multiple providers exist",
+                id="provider_case_sensitivity_multiple_models",
             ),
         ],
     )

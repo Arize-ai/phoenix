@@ -27,9 +27,6 @@ Examples:
     >>> score(".*")         # Wildcard: -198
     >>> score("[a-z]+")     # Class + multiple: 350
     >>> score("\\d{3}")     # Shorthand + exact quantifier: 350
-
-Author: Phoenix Team
-License: Apache 2.0
 """
 
 import re
