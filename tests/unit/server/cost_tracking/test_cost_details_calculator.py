@@ -32,10 +32,20 @@ class TestSpanCostDetailsCalculator:
 
     - Basic functionality with aggregated token counts
     - Detailed token processing with specific token types
+    - Fallback behavior when token types don't have specific calculators
     - Edge cases (floats, negatives, invalid types)
     - Mixed scenarios (some token types have calculators, others don't)
     - Error conditions (missing required token types)
     - Zero cost rate behavior
+    - Token accounting edge cases (detailed tokens exceeding totals)
+    - Missing or malformed data handling
+
+    **Key Testing Areas:**
+    - Fallback calculation: Token types without specific calculators fall back to
+      "input" (for prompt tokens) or "output" (for completion tokens)
+    - Remaining token calculation: When detailed tokens are less than total tokens
+    - Cost-per-token edge cases: Proper handling of None vs 0.0 values
+    - Data validation: Graceful handling of invalid or missing token data
 
     Test Strategy:
     1. Parametrized tests cover the main functionality with various scenarios
@@ -141,8 +151,8 @@ class TestSpanCostDetailsCalculator:
                     }
                 },
                 {
-                    "audio": _Cost(tokens=20),
-                    "video": _Cost(tokens=80),
+                    "audio": _Cost(tokens=20, cost=0.02, cost_per_token=0.001),
+                    "video": _Cost(tokens=80, cost=0.08, cost_per_token=0.001),
                 },
                 {
                     "output": _Cost(tokens=50, cost=0.1, cost_per_token=0.002),
@@ -174,13 +184,23 @@ class TestSpanCostDetailsCalculator:
                     }
                 },
                 {
-                    "image": _Cost(tokens=30),
-                    "audio": _Cost(tokens=40),
-                    "video": _Cost(tokens=50),
-                    "document": _Cost(tokens=80),
+                    "image": _Cost(
+                        tokens=30, cost=0.03, cost_per_token=0.001
+                    ),  # Falls back to input calculator
+                    "audio": _Cost(
+                        tokens=40, cost=0.04, cost_per_token=0.001
+                    ),  # Falls back to input calculator
+                    "video": _Cost(
+                        tokens=50, cost=0.05, cost_per_token=0.001
+                    ),  # Falls back to input calculator
+                    "document": _Cost(
+                        tokens=80, cost=0.08, cost_per_token=0.001
+                    ),  # Falls back to input calculator
                 },
                 {
-                    "reasoning": _Cost(tokens=60),
+                    "reasoning": _Cost(
+                        tokens=60, cost=0.12, cost_per_token=0.002
+                    ),  # Falls back to output calculator
                     "output": _Cost(tokens=40, cost=0.08, cost_per_token=0.002),
                 },
                 [
@@ -209,9 +229,13 @@ class TestSpanCostDetailsCalculator:
                     }
                 },
                 {
-                    "image": _Cost(tokens=30),
+                    "image": _Cost(
+                        tokens=30, cost=0.03, cost_per_token=0.001
+                    ),  # Falls back to input calculator
                     "audio": _Cost(tokens=40, cost=0.02, cost_per_token=0.0005),
-                    "video": _Cost(tokens=30),
+                    "video": _Cost(
+                        tokens=30, cost=0.03, cost_per_token=0.001
+                    ),  # Falls back to input calculator
                 },
                 {
                     "reasoning": _Cost(tokens=25, cost=0.075, cost_per_token=0.003),
@@ -243,8 +267,12 @@ class TestSpanCostDetailsCalculator:
                     }
                 },
                 {
-                    "image": _Cost(tokens=10),
-                    "audio": _Cost(tokens=20),
+                    "image": _Cost(
+                        tokens=10, cost=0.01, cost_per_token=0.001
+                    ),  # Falls back to input calculator
+                    "audio": _Cost(
+                        tokens=20, cost=0.02, cost_per_token=0.001
+                    ),  # Falls back to input calculator
                     "input": _Cost(tokens=70, cost=0.07, cost_per_token=0.001),
                 },
                 {
@@ -273,8 +301,12 @@ class TestSpanCostDetailsCalculator:
                     }
                 },
                 {
-                    "image": _Cost(tokens=0),
-                    "audio": _Cost(tokens=0),
+                    "image": _Cost(
+                        tokens=0, cost=0.0, cost_per_token=None
+                    ),  # Falls back to input calculator, but 0 tokens
+                    "audio": _Cost(
+                        tokens=0, cost=0.0, cost_per_token=None
+                    ),  # Falls back to input calculator, but 0 tokens
                     "input": _Cost(tokens=100, cost=0.1, cost_per_token=0.001),
                 },
                 {
@@ -333,12 +365,20 @@ class TestSpanCostDetailsCalculator:
                     }
                 },
                 {
-                    "image": _Cost(tokens=30),
-                    "audio": _Cost(tokens=30),
+                    "image": _Cost(
+                        tokens=30, cost=0.03, cost_per_token=0.001
+                    ),  # Falls back to input calculator
+                    "audio": _Cost(
+                        tokens=30, cost=0.03, cost_per_token=0.001
+                    ),  # Falls back to input calculator
                 },
                 {
-                    "reasoning": _Cost(tokens=15),
-                    "video": _Cost(tokens=15),
+                    "reasoning": _Cost(
+                        tokens=15, cost=0.03, cost_per_token=0.002
+                    ),  # Falls back to output calculator
+                    "video": _Cost(
+                        tokens=15, cost=0.03, cost_per_token=0.002
+                    ),  # Falls back to output calculator
                 },
                 [
                     models.TokenPrice(token_type="input", is_prompt=True, base_rate=0.001),
@@ -366,12 +406,20 @@ class TestSpanCostDetailsCalculator:
                     }
                 },
                 {
-                    "image": _Cost(tokens=3000),
-                    "audio": _Cost(tokens=4000),
-                    "video": _Cost(tokens=3000),
+                    "image": _Cost(
+                        tokens=3000, cost=3.0, cost_per_token=0.001
+                    ),  # Falls back to input calculator
+                    "audio": _Cost(
+                        tokens=4000, cost=4.0, cost_per_token=0.001
+                    ),  # Falls back to input calculator
+                    "video": _Cost(
+                        tokens=3000, cost=3.0, cost_per_token=0.001
+                    ),  # Falls back to input calculator
                 },
                 {
-                    "reasoning": _Cost(tokens=2000),
+                    "reasoning": _Cost(
+                        tokens=2000, cost=4.0, cost_per_token=0.002
+                    ),  # Falls back to output calculator
                     "output": _Cost(tokens=3000, cost=6.0, cost_per_token=0.002),
                 },
                 [
@@ -420,6 +468,220 @@ class TestSpanCostDetailsCalculator:
                     models.TokenPrice(token_type="reasoning", is_prompt=False, base_rate=0.003),
                 ],
                 id="all_calculators_scenario",
+            ),
+            # Additional missing test cases
+            pytest.param(
+                {
+                    "llm": {
+                        "token_count": {
+                            "prompt": 100,
+                            "completion": 50,
+                            "prompt_details": {
+                                "image": 30,
+                            },
+                            "completion_details": {
+                                "reasoning": 20,
+                            },
+                        }
+                    }
+                },
+                {
+                    "image": _Cost(
+                        tokens=30, cost=0.03, cost_per_token=0.001
+                    ),  # Falls back to input
+                    "input": _Cost(tokens=70, cost=0.07, cost_per_token=0.001),  # Remaining tokens
+                },
+                {
+                    "reasoning": _Cost(
+                        tokens=20, cost=0.04, cost_per_token=0.002
+                    ),  # Falls back to output
+                    "output": _Cost(tokens=30, cost=0.06, cost_per_token=0.002),  # Remaining tokens
+                },
+                [
+                    models.TokenPrice(token_type="input", is_prompt=True, base_rate=0.001),
+                    models.TokenPrice(token_type="output", is_prompt=False, base_rate=0.002),
+                ],
+                id="detailed_tokens_with_remaining",
+            ),
+            pytest.param(
+                {
+                    "llm": {
+                        "token_count": {
+                            "prompt": 50,
+                            # Missing completion
+                        }
+                    }
+                },
+                {
+                    "input": _Cost(tokens=50, cost=0.05, cost_per_token=0.001),
+                },
+                {},  # No completion details
+                [
+                    models.TokenPrice(token_type="input", is_prompt=True, base_rate=0.001),
+                    models.TokenPrice(token_type="output", is_prompt=False, base_rate=0.002),
+                ],
+                id="only_prompt_tokens",
+            ),
+            pytest.param(
+                {
+                    "llm": {
+                        "token_count": {
+                            "completion": 30,
+                            # Missing prompt
+                        }
+                    }
+                },
+                {},  # No prompt details
+                {
+                    "output": _Cost(tokens=30, cost=0.06, cost_per_token=0.002),
+                },
+                [
+                    models.TokenPrice(token_type="input", is_prompt=True, base_rate=0.001),
+                    models.TokenPrice(token_type="output", is_prompt=False, base_rate=0.002),
+                ],
+                id="only_completion_tokens",
+            ),
+            pytest.param(
+                {
+                    "llm": {
+                        "token_count": {
+                            "prompt": 50,
+                            "completion": 30,
+                            "prompt_details": {},  # Empty details dict
+                            "completion_details": {},  # Empty details dict
+                        }
+                    }
+                },
+                {
+                    "input": _Cost(tokens=50, cost=0.05, cost_per_token=0.001),
+                },
+                {
+                    "output": _Cost(tokens=30, cost=0.06, cost_per_token=0.002),
+                },
+                [
+                    models.TokenPrice(token_type="input", is_prompt=True, base_rate=0.001),
+                    models.TokenPrice(token_type="output", is_prompt=False, base_rate=0.002),
+                ],
+                id="empty_details_dicts",
+            ),
+            pytest.param(
+                {
+                    "llm": {
+                        "token_count": {
+                            "prompt": 50,
+                            "completion": 30,
+                            "prompt_details": "not_a_dict",  # Invalid type
+                            "completion_details": None,  # Invalid type
+                        }
+                    }
+                },
+                {
+                    "input": _Cost(tokens=50, cost=0.05, cost_per_token=0.001),
+                },
+                {
+                    "output": _Cost(tokens=30, cost=0.06, cost_per_token=0.002),
+                },
+                [
+                    models.TokenPrice(token_type="input", is_prompt=True, base_rate=0.001),
+                    models.TokenPrice(token_type="output", is_prompt=False, base_rate=0.002),
+                ],
+                id="invalid_details_types",
+            ),
+            pytest.param(
+                {
+                    "llm": {
+                        "token_count": {
+                            "prompt": 100,
+                            "completion": 50,
+                            "prompt_details": {
+                                "image": 50,
+                                "audio": 60,  # Sum exceeds prompt total
+                            },
+                            "completion_details": {
+                                "reasoning": 40,
+                                "video": 20,  # Sum exceeds completion total
+                            },
+                        }
+                    }
+                },
+                {
+                    "image": _Cost(
+                        tokens=50, cost=0.05, cost_per_token=0.001
+                    ),  # Falls back to input
+                    "audio": _Cost(
+                        tokens=60, cost=0.06, cost_per_token=0.001
+                    ),  # Falls back to input
+                },
+                {
+                    "reasoning": _Cost(
+                        tokens=40, cost=0.08, cost_per_token=0.002
+                    ),  # Falls back to output
+                    "video": _Cost(
+                        tokens=20, cost=0.04, cost_per_token=0.002
+                    ),  # Falls back to output
+                },
+                [
+                    models.TokenPrice(token_type="input", is_prompt=True, base_rate=0.001),
+                    models.TokenPrice(token_type="output", is_prompt=False, base_rate=0.002),
+                ],
+                id="detailed_tokens_exceed_totals",
+            ),
+            # Zero cost rate scenarios
+            pytest.param(
+                {
+                    "llm": {
+                        "token_count": {
+                            "prompt": 100,
+                            "completion": 50,
+                        }
+                    }
+                },
+                {
+                    "input": _Cost(
+                        tokens=100, cost=0.0, cost_per_token=None
+                    ),  # 0.0 cost means None cost_per_token
+                },
+                {
+                    "output": _Cost(
+                        tokens=50, cost=0.0, cost_per_token=None
+                    ),  # 0.0 cost means None cost_per_token
+                },
+                [
+                    models.TokenPrice(token_type="input", is_prompt=True, base_rate=0.0),
+                    models.TokenPrice(token_type="output", is_prompt=False, base_rate=0.0),
+                ],
+                id="zero_cost_rates",
+            ),
+            pytest.param(
+                {
+                    "llm": {
+                        "token_count": {
+                            "prompt": 100,
+                            "completion": 50,
+                            "prompt_details": {
+                                "image": 100,
+                            },
+                            "completion_details": {
+                                "output": 50,
+                            },
+                        }
+                    }
+                },
+                {
+                    "image": _Cost(
+                        tokens=100, cost=0.0, cost_per_token=0.0
+                    ),  # Falls back to input with 0 rate, so cost_per_token is 0.0
+                },
+                {
+                    "output": _Cost(tokens=50, cost=0.1, cost_per_token=0.002),
+                },
+                [
+                    models.TokenPrice(
+                        token_type="input", is_prompt=True, base_rate=0.0
+                    ),  # Zero rate
+                    models.TokenPrice(token_type="output", is_prompt=False, base_rate=0.002),
+                ],
+                id="zero_cost_rate_with_fallback",
             ),
         ],
     )
@@ -512,3 +774,79 @@ class TestSpanCostDetailsCalculator:
                     models.TokenPrice(token_type="input", is_prompt=True, base_rate=0.001),
                 ]
             )
+
+    def test_missing_token_count_section(self) -> None:
+        """
+        Test handling of spans without token count data.
+
+        This test verifies that the calculator gracefully handles:
+        - Missing llm.token_count entirely
+        - Malformed token_count structure
+        - Non-dict token_count values
+        """
+        calculator = SpanCostDetailsCalculator(
+            [
+                models.TokenPrice(token_type="input", is_prompt=True, base_rate=0.001),
+                models.TokenPrice(token_type="output", is_prompt=False, base_rate=0.002),
+            ]
+        )
+
+        # Test missing llm.token_count entirely
+        result = calculator.calculate_details({"llm": {}})
+        assert result == []
+
+        # Test missing llm section entirely
+        result = calculator.calculate_details({"other": "data"})
+        assert result == []
+
+        # Test non-dict token_count
+        result = calculator.calculate_details({"llm": {"token_count": "not_a_dict"}})
+        assert result == []
+
+        result = calculator.calculate_details({"llm": {"token_count": None}})
+        assert result == []
+
+        result = calculator.calculate_details({"llm": {"token_count": 123}})
+        assert result == []
+
+    def test_cost_per_token_edge_cases(self) -> None:
+        """
+        Test edge cases for cost_per_token calculation.
+
+        This test verifies proper handling of:
+        - Cost per token when cost is None (no calculator available)
+        - Cost per token when cost is 0 but tokens > 0
+        - Cost per token when both cost and tokens are 0
+        """
+        # Create calculator without specific calculators for image/audio
+        calculator = SpanCostDetailsCalculator(
+            [
+                models.TokenPrice(token_type="input", is_prompt=True, base_rate=0.001),
+                models.TokenPrice(token_type="output", is_prompt=False, base_rate=0.002),
+            ]
+        )
+
+        # Test case where we have tokens but cost is calculated (fallback behavior)
+        result = calculator.calculate_details(
+            {
+                "llm": {
+                    "token_count": {
+                        "prompt": 100,
+                        "completion": 50,
+                        "prompt_details": {"image": 50},
+                        "completion_details": {"reasoning": 25},
+                    }
+                }
+            }
+        )
+
+        # Verify that all details have proper cost_per_token calculations
+        for detail in result:
+            if detail.tokens and detail.tokens > 0:
+                if detail.cost is not None and detail.cost > 0:
+                    assert detail.cost_per_token is not None
+                    assert detail.cost_per_token == detail.cost / detail.tokens
+                elif detail.cost == 0.0:
+                    assert detail.cost_per_token == 0.0
+            else:
+                assert detail.cost_per_token is None

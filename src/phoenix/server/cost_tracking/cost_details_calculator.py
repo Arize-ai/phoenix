@@ -21,14 +21,23 @@ class SpanCostDetailsCalculator:
     This calculator processes both detailed token counts (from span attributes) and
     aggregated token totals to provide comprehensive cost analysis for prompt and
     completion tokens. It handles multiple token types (e.g., "input", "output",
-    "system", "user", etc.) and calculates costs using configured pricing models.
+    "image", "audio", "video", "document", "reasoning", etc.) and calculates costs
+    using configured pricing models with fallback behavior.
+
+    **Fallback Behavior:**
+    - If a specific token type has a configured calculator, it uses that calculator
+    - If no specific calculator exists, it falls back to the default calculator:
+      - Prompt tokens (is_prompt=True) fall back to "input" calculator
+      - Completion tokens (is_prompt=False) fall back to "output" calculator
+
+    This ensures all token types get cost calculations even if not explicitly configured.
 
     The calculator expects token prices to include at least:
-    - An "input" token type for prompt tokens
-    - An "output" token type for completion tokens
+    - An "input" token type for prompt tokens (used as fallback for unconfigured prompt token types)
+    - An "output" token type for completion tokens (used as fallback for unconfigured completion token types)
 
     Additional token types can be configured for more granular cost tracking.
-    """
+    """  # noqa: E501
 
     def __init__(
         self,
@@ -73,14 +82,23 @@ class SpanCostDetailsCalculator:
         This method processes token usage in two phases:
         1. **Detailed token processing**: Extracts specific token counts from span attributes
            (e.g., "llm.token_count.prompt_details", "llm.token_count.completion_details")
-           and calculates costs for each token type found.
+           and calculates costs for each token type found. Uses fallback behavior for
+           token types without specific calculators.
 
         2. **Aggregated token processing**: For default token types ("input"/"output") that
            weren't found in detailed processing, calculates remaining tokens by subtracting
            detailed counts from total aggregated tokens.
 
+        **Fallback Calculation Logic:**
+        - For each token type in detailed processing:
+          - If a specific calculator exists for the token type, use it
+          - Otherwise, fall back to the default calculator ("input" for prompt tokens,
+            "output" for completion tokens)
+        - This ensures all token types receive cost calculations regardless of
+          specific calculator configuration
+
         Args:
-            span: The span containing token usage data and attributes for cost calculation.
+            attributes: Dictionary containing span attributes with token usage data.
 
         Returns:
             List of SpanCostDetail objects containing token counts, costs, and cost-per-token
@@ -88,8 +106,9 @@ class SpanCostDetailsCalculator:
 
         Note:
             - Token counts are validated and converted to non-negative integers
-            - Costs are calculated only if a calculator exists for the token type
+            - All token types receive cost calculations via fallback mechanism
             - Cost-per-token is calculated only when both cost and token count are positive
+            - If cost is 0.0, cost-per-token will be None (not 0.0) due to falsy evaluation
         """
         prompt_details: dict[_TokenType, models.SpanCostDetail] = {}
         completion_details: dict[_TokenType, models.SpanCostDetail] = {}
@@ -108,15 +127,19 @@ class SpanCostDetailsCalculator:
                         continue
                     tokens = max(0, int(token_count))
 
-                    # Calculate cost if calculator exists for this token type
-                    cost = (
-                        calculators[token_type].calculate_cost(attributes, tokens)
-                        if token_type in calculators
-                        else None
-                    )
+                    # Calculate cost using specific calculator or fallback to default
+                    if token_type in calculators:
+                        # Use specific calculator for this token type
+                        calculator = calculators[token_type]
+                    else:
+                        # Fallback to default calculator: "input" for prompts,
+                        # "output" for completions
+                        key = "input" if is_prompt else "output"
+                        calculator = calculators[key]
+                    cost = calculator.calculate_cost(attributes, tokens)
 
                     # Calculate cost per token (avoid division by zero)
-                    cost_per_token = cost / tokens if cost and tokens else None
+                    cost_per_token = cost / tokens if tokens else None
 
                     detail = models.SpanCostDetail(
                         token_type=token_type,
@@ -148,12 +171,8 @@ class SpanCostDetailsCalculator:
             if tokens <= 0:
                 continue
 
-            # Calculate cost if calculator exists for this token type
-            cost = (
-                calculators[token_type].calculate_cost(attributes, tokens)
-                if token_type in calculators
-                else None
-            )
+            # Calculate cost using guaranteed default calculator (input/output are required)
+            cost = calculators[token_type].calculate_cost(attributes, tokens)
 
             # Calculate cost per token (avoid division by zero)
             cost_per_token = cost / tokens if cost and tokens else None
