@@ -109,11 +109,12 @@ class SpanCostDetailsCalculator:
                     tokens = max(0, int(token_count))
 
                     # Calculate cost if calculator exists for this token type
-                    cost = (
-                        calculators[token_type].calculate_cost(attributes, tokens)
-                        if token_type in calculators
-                        else None
-                    )
+                    if token_type in calculators:
+                        calculator = calculators[token_type]
+                    else:
+                        key = "input" if is_prompt else "output"
+                        calculator = calculators[key]
+                    cost = calculator.calculate_cost(attributes, tokens)
 
                     # Calculate cost per token (avoid division by zero)
                     cost_per_token = cost / tokens if cost and tokens else None
