@@ -10,60 +10,13 @@ Background + demo on datasets
 
 ## Launch Phoenix
 
-### Using Phoenix Cloud
+### Python
 
-1. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
-2. Grab your API key from the Keys option on the left bar.
-3. In your code, set your endpoint and API key:
+{% include "../.gitbook/includes/launch-phoenix-python.md" %}
 
-{% tabs %}
-{% tab title="Python" %}
+### TypeScript
 
-```python
-import os
-
-PHOENIX_API_KEY = "ADD YOUR API KEY"
-os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
-```
-
-{% endtab %}
-
-{% tab title="Typescript" %}
-
-```typescript
-const PHOENIX_API_KEY = "ADD YOUR API KEY";
-process.env["PHOENIX_CLIENT_HEADERS"] = `api_key=${PHOENIX_API_KEY}`;
-process.env["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com";
-```
-
-{% endtab %}
-{% endtabs %}
-
-### Using Self-hosted Phoenix
-
-1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, [see self-hosting](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/0gWR4qoGzdz04iSgPlsU/).
-2. In your code, set your endpoint:
-
-{% tabs %}
-{% tab title="Python" %}
-
-```python
-import os
-
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "Your Phoenix Endpoint"
-```
-
-{% endtab %}
-
-{% tab title="Typescript" %}
-
-```typescript
-process.env["PHOENIX_COLLECTOR_ENDPOINT"] = "Your Phoenix Endpoint"
-```
-
-{% endtab %}
-{% endtabs %}
+{% include "../.gitbook/includes/launch-phoenix-ts.md" %}
 
 ## Datasets
 
@@ -71,7 +24,6 @@ Upload a dataset.
 
 {% tabs %}
 {% tab title="Python" %}
-
 ```python
 import pandas as pd
 import phoenix as px
@@ -94,11 +46,9 @@ dataset = phoenix_client.upload_dataset(
     metadata_keys=["metadata"],
 )
 ```
-
 {% endtab %}
 
 {% tab title="Typescript" %}
-
 ```typescript
 import { createClient } from "@arizeai/phoenix-client";
 import { createDataset } from "@arizeai/phoenix-client/datasets";
@@ -124,7 +74,6 @@ const { datasetId } = await createDataset({
   examples: examples
 });
 ```
-
 {% endtab %}
 {% endtabs %}
 
@@ -134,7 +83,6 @@ Create a task to evaluate.
 
 {% tabs %}
 {% tab title="Python" %}
-
 ```python
 from openai import OpenAI
 from phoenix.experiments.types import Example
@@ -152,11 +100,9 @@ def task(example: Example) -> str:
     )
     return response.choices[0].message.content
 ```
-
 {% endtab %}
 
 {% tab title="Typescript" %}
-
 ```typescript
 import { OpenAI } from "openai";
 import { type RunExperimentParams } from "@arizeai/phoenix-client/experiments";
@@ -181,7 +127,6 @@ const task: RunExperimentParams["task"] = async (example) => {
   return response.choices[0]?.message?.content || "";
 };
 ```
-
 {% endtab %}
 {% endtabs %}
 
@@ -191,17 +136,14 @@ Use pre-built evaluators to grade task output with code...
 
 {% tabs %}
 {% tab title="Python" %}
-
 ```python
 from phoenix.experiments.evaluators import ContainsAnyKeyword
 
 contains_keyword = ContainsAnyKeyword(keywords=["Y Combinator", "YC"])
 ```
-
 {% endtab %}
 
 {% tab title="Typescript" %}
-
 ```typescript
 import { asEvaluator } from "@arizeai/phoenix-client/experiments";
 
@@ -227,7 +169,6 @@ const containsKeyword = asEvaluator({
   }
 });
 ```
-
 {% endtab %}
 {% endtabs %}
 
@@ -235,7 +176,6 @@ or LLMs.
 
 {% tabs %}
 {% tab title="Python" %}
-
 ```python
 from phoenix.experiments.evaluators import ConcisenessEvaluator
 from phoenix.evals.models import OpenAIModel
@@ -243,11 +183,9 @@ from phoenix.evals.models import OpenAIModel
 model = OpenAIModel(model="gpt-4o")
 conciseness = ConcisenessEvaluator(model=model)
 ```
-
 {% endtab %}
 
 {% tab title="Typescript" %}
-
 ```typescript
 import { asEvaluator } from "@arizeai/phoenix-client/experiments";
 import { OpenAI } from "openai";
@@ -286,7 +224,6 @@ const conciseness = asEvaluator({
   }
 });
 ```
-
 {% endtab %}
 {% endtabs %}
 
@@ -294,7 +231,6 @@ Define custom evaluators with code...
 
 {% tabs %}
 {% tab title="Python" %}
-
 ```python
 from typing import Any, Dict
 
@@ -307,11 +243,9 @@ def jaccard_similarity(output: str, expected: Dict[str, Any]) -> float:
     all_words = actual_words.union(expected_words)
     return len(words_in_common) / len(all_words)
 ```
-
 {% endtab %}
 
 {% tab title="Typescript" %}
-
 ```typescript
 import { asEvaluator } from "@arizeai/phoenix-client/experiments";
 
@@ -345,7 +279,6 @@ const jaccardSimilarity = asEvaluator({
   }
 });
 ```
-
 {% endtab %}
 {% endtabs %}
 
@@ -353,7 +286,6 @@ or LLMs.
 
 {% tabs %}
 {% tab title="Python" %}
-
 ```python
 from phoenix.experiments.evaluators import create_evaluator
 from typing import Any, Dict
@@ -383,11 +315,9 @@ def accuracy(input: Dict[str, Any], output: str, expected: Dict[str, Any]) -> fl
     response_message_content = response.choices[0].message.content.lower().strip()
     return 1.0 if response_message_content == "accurate" else 0.0
 ```
-
 {% endtab %}
 
 {% tab title="Typescript" %}
-
 ```typescript
 import { asEvaluator } from "@arizeai/phoenix-client/experiments";
 import { OpenAI } from "openai";
@@ -440,7 +370,6 @@ const accuracy = asEvaluator({
   }
 });
 ```
-
 {% endtab %}
 {% endtabs %}
 
@@ -450,7 +379,6 @@ Run an experiment and evaluate the results.
 
 {% tabs %}
 {% tab title="Python" %}
-
 ```python
 from phoenix.experiments import run_experiment
 
@@ -461,11 +389,9 @@ experiment = run_experiment(
     evaluators=[jaccard_similarity, accuracy],
 )
 ```
-
 {% endtab %}
 
 {% tab title="Typescript" %}
-
 ```typescript
 import { runExperiment } from "@arizeai/phoenix-client/experiments";
 
@@ -480,7 +406,6 @@ const experiment = await runExperiment({
 
 console.log("Initial experiment completed with ID:", experiment.id);
 ```
-
 {% endtab %}
 {% endtabs %}
 
@@ -488,17 +413,14 @@ Run more evaluators after the fact.
 
 {% tabs %}
 {% tab title="Python" %}
-
 ```python
 from phoenix.experiments import evaluate_experiment
 
 experiment = evaluate_experiment(experiment, evaluators=[contains_keyword, conciseness])
 ```
-
 {% endtab %}
 
 {% tab title="Typescript" %}
-
 ```typescript
 import { evaluateExperiment } from "@arizeai/phoenix-client/experiments";
 
@@ -511,7 +433,6 @@ const updatedEvaluation = await evaluateExperiment({
 
 console.log("Additional evaluations completed for experiment:", experiment.id);
 ```
-
 {% endtab %}
 {% endtabs %}
 
