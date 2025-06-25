@@ -32,10 +32,20 @@ class TestSpanCostDetailsCalculator:
 
     - Basic functionality with aggregated token counts
     - Detailed token processing with specific token types
+    - Fallback behavior when token types don't have specific calculators
     - Edge cases (floats, negatives, invalid types)
     - Mixed scenarios (some token types have calculators, others don't)
     - Error conditions (missing required token types)
     - Zero cost rate behavior
+    - Token accounting edge cases (detailed tokens exceeding totals)
+    - Missing or malformed data handling
+
+    **Key Testing Areas:**
+    - Fallback calculation: Token types without specific calculators fall back to
+      "input" (for prompt tokens) or "output" (for completion tokens)
+    - Remaining token calculation: When detailed tokens are less than total tokens
+    - Cost-per-token edge cases: Proper handling of None vs 0.0 values
+    - Data validation: Graceful handling of invalid or missing token data
 
     Test Strategy:
     1. Parametrized tests cover the main functionality with various scenarios
