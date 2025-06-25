@@ -421,6 +421,9 @@ serviceAccount:
   name: ""
   # -- Annotations to add to the ServiceAccount
   annotations: {}
+  # -- Image pull secrets for private container registries
+  # -- List of Kubernetes secrets to use for pulling images from private registries
+  imagePullSecrets: []
 
 # -- Health check configuration
 healthChecks:
