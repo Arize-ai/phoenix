@@ -149,7 +149,6 @@ class SpanCostDetailsCalculator:
             if tokens <= 0:
                 continue
 
-            # Calculate cost if calculator exists for this token type
             # input/output are guaranteed to exist
             cost = calculators[token_type].calculate_cost(attributes, tokens)
 
