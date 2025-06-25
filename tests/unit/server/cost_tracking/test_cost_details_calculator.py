@@ -659,8 +659,8 @@ class TestSpanCostDetailsCalculator:
                 },
                 {
                     "image": _Cost(
-                        tokens=100, cost=0.0, cost_per_token=None
-                    ),  # Falls back to input with 0 rate, so cost_per_token is None
+                        tokens=100, cost=0.0, cost_per_token=0.0
+                    ),  # Falls back to input with 0 rate, so cost_per_token is 0.0
                 },
                 {
                     "output": _Cost(tokens=50, cost=0.1, cost_per_token=0.002),

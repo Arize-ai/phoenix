@@ -117,7 +117,7 @@ class SpanCostDetailsCalculator:
                     cost = calculator.calculate_cost(attributes, tokens)
 
                     # Calculate cost per token (avoid division by zero)
-                    cost_per_token = cost / tokens if cost and tokens else None
+                    cost_per_token = cost / tokens if tokens else None
 
                     detail = models.SpanCostDetail(
                         token_type=token_type,
