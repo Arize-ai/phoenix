@@ -40,9 +40,9 @@ from opentelemetry.trace import Status, StatusCode, Tracer
 
 from phoenix.client.resources.datasets import Dataset
 from phoenix.config import get_base_url, get_env_client_headers
-from phoenix.evals.executors import get_executor_on_sync_context
 from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.utils import get_tqdm_progress_bar_formatter
+from phoenix.client.utils.concurrency import AsyncExecutor, SyncExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -672,15 +672,12 @@ class Experiments:
             lambda fn, limiter: limiter.limit(fn), rate_limiters, sync_run_task
         )
 
-        # Use sync executor for sync operation (no async function provided)
-        executor = get_executor_on_sync_context(
-            rate_limited_sync_run_task,
-            rate_limited_sync_run_task,  # Use same function since we want sync-only
-            run_sync=True,  # Force sync execution
+        executor = SyncExecutor(
+            generation_fn=rate_limited_sync_run_task,
+            tqdm_bar_format=get_tqdm_progress_bar_formatter("running tasks"),
             max_retries=0,
             exit_on_error=False,
             fallback_return_value=None,
-            tqdm_bar_format=get_tqdm_progress_bar_formatter("running tasks"),
             concurrency=concurrency,
             timeout=timeout,
         )
@@ -904,15 +901,12 @@ class Experiments:
         )
 
         # Use sync executor for sync operation
-        executor = get_executor_on_sync_context(
-            rate_limited_sync_evaluate_run,
-            rate_limited_sync_evaluate_run,  # Use same function since we want sync-only
-            run_sync=True,  # Force sync execution
+        executor = SyncExecutor(
+            generation_fn=rate_limited_sync_evaluate_run,
             max_retries=0,
             exit_on_error=False,
             fallback_return_value=None,
             tqdm_bar_format=get_tqdm_progress_bar_formatter("running experiment evaluations"),
-            concurrency=concurrency,
         )
 
         eval_runs, _execution_details = executor.run(evaluation_input)
@@ -1156,15 +1150,13 @@ class AsyncExperiments:
         )
 
         # Use async executor for async operation
-        executor = get_executor_on_sync_context(
-            rate_limited_async_run_task,  # dummy sync function - not used
-            rate_limited_async_run_task,
-            run_sync=False,  # Force async execution
+        executor = AsyncExecutor(
+            generation_fn=rate_limited_async_run_task,
+            concurrency=concurrency,
+            tqdm_bar_format=get_tqdm_progress_bar_formatter("running tasks"),
             max_retries=0,
             exit_on_error=False,
             fallback_return_value=None,
-            tqdm_bar_format=get_tqdm_progress_bar_formatter("running tasks"),
-            concurrency=concurrency,
             timeout=timeout,
         )
 
@@ -1387,15 +1379,14 @@ class AsyncExperiments:
         )
 
         # Use async executor for async operation
-        executor = get_executor_on_sync_context(
-            rate_limited_async_evaluate_run,  # dummy sync function - not used
-            rate_limited_async_evaluate_run,
-            run_sync=False,  # Force async execution
+        executor = AsyncExecutor(
+            generation_fn=rate_limited_async_evaluate_run,
+            concurrency=concurrency,
+            tqdm_bar_format=get_tqdm_progress_bar_formatter("running experiment evaluations"),
             max_retries=0,
             exit_on_error=False,
             fallback_return_value=None,
-            tqdm_bar_format=get_tqdm_progress_bar_formatter("running experiment evaluations"),
-            concurrency=concurrency,
+            timeout=timeout,
         )
 
         eval_runs, _execution_details = await executor.execute(evaluation_input)
