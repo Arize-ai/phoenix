@@ -69,6 +69,8 @@
     * [Import Existing Traces](tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces.md)
     * [Export Data & Query Spans](tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans.md)
     * [Exporting Annotated Spans](tracing/how-to-tracing/importing-and-exporting-traces/exporting-annotated-spans.md)
+  * [Cost Tracking](tracing/how-to-tracing/cost-tracking/README.md)
+  
   * [Advanced](tracing/how-to-tracing/advanced/README.md)
     * [Mask Span Attributes](tracing/how-to-tracing/advanced/masking-span-attributes.md)
     * [Suppress Tracing](tracing/how-to-tracing/advanced/suppress-tracing.md)
