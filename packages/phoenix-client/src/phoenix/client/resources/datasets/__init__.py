@@ -6,10 +6,9 @@ from collections import Counter
 from collections.abc import Iterable, Mapping
 from copy import deepcopy
 from datetime import datetime
-from functools import cached_property
 from io import BytesIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, BinaryIO, Iterator, Literal, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Any, BinaryIO, Iterator, Literal, Optional, Union
 from urllib.parse import quote
 
 import httpx
@@ -84,18 +83,8 @@ class Dataset:
         return self._examples_data["version_id"]
 
     @property
-    def examples(self) -> Mapping[str, v1.DatasetExample]:
-        """Mapping of example IDs to examples (experiments interface)."""
-        return self._examples_mapping
-
-    @cached_property
-    def _examples_mapping(self) -> dict[str, v1.DatasetExample]:
-        """Cached mapping of example IDs to examples for experiments compatibility."""
-        return {example["id"]: example for example in self._examples_data["examples"]}
-
-    @property
-    def examples_list(self) -> list[v1.DatasetExample]:
-        """List of examples in this version (client interface)."""
+    def examples(self) -> list[v1.DatasetExample]:
+        """List of examples in this version."""
         return list(self._examples_data["examples"])
 
     @property
@@ -136,17 +125,11 @@ class Dataset:
 
     def __iter__(self) -> Iterator[v1.DatasetExample]:
         """Iterate over examples."""
-        return iter(self.examples.values())
-
-    @cached_property
-    def _keys(self) -> tuple[str, ...]:
-        """Cached tuple of example IDs for indexed access."""
-        return tuple(example["id"] for example in self._examples_data["examples"])
+        return iter(self.examples)
 
     def __getitem__(self, index: int) -> v1.DatasetExample:
-        """Get example by index (experiments-compatible)."""
-        example_id = self._keys[index]
-        return self.examples[example_id]
+        """Get example by index."""
+        return self.examples[index]
 
     def to_dataframe(self) -> "pd.DataFrame":
         """
@@ -190,7 +173,7 @@ class Dataset:
                 "output": deepcopy(example["output"]),
                 "metadata": deepcopy(example["metadata"]),
             }
-            for example in self.examples.values()
+            for example in self.examples
         ]
 
         return pd.DataFrame.from_records(records).set_index("example_id")  # pyright: ignore[reportUnknownMemberType]
@@ -379,7 +362,7 @@ class Datasets:
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.DatasetVersion]:
         """
-        Get dataset versions as a list of dictionaries.
+        } dataset versions as a list of dictionaries.
 
         Args:
             dataset: A dataset identifier - can be a dataset ID string, name string,
