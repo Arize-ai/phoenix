@@ -56,6 +56,7 @@ def main():
 
     # Save the token
     token_path = Path("../keys/gmail_token.json")
+    token_path.parent.mkdir(exist_ok=True, parents=True)
 
     # Convert credentials to dictionary format
     token_data = {
