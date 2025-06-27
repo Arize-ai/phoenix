@@ -209,6 +209,8 @@ class TestChatCompletionSubscription:
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
         assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == token_count_completion
+        assert attributes.pop(LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ) == 0
+        assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING) == 0
         assert attributes.pop(INPUT_VALUE)
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
         assert attributes.pop(OUTPUT_VALUE)
@@ -484,6 +486,8 @@ class TestChatCompletionSubscription:
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
         assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == token_count_completion
+        assert attributes.pop(LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ) == 0
+        assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING) == 0
         assert attributes.pop(INPUT_VALUE)
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
         assert attributes.pop(OUTPUT_VALUE)
@@ -636,6 +640,8 @@ class TestChatCompletionSubscription:
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
         assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == token_count_completion
+        assert attributes.pop(LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ) == 0
+        assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING) == 0
         assert attributes.pop(INPUT_VALUE)
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
         assert attributes.pop(OUTPUT_VALUE)
@@ -1094,6 +1100,8 @@ class TestChatCompletionOverDatasetSubscription:
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
         assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == token_count_completion
+        assert attributes.pop(LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ) == 0
+        assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING) == 0
         assert attributes.pop(INPUT_VALUE)
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
         assert attributes.pop(OUTPUT_VALUE)
@@ -1181,6 +1189,8 @@ class TestChatCompletionOverDatasetSubscription:
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
         assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == token_count_completion
+        assert attributes.pop(LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ) == 0
+        assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING) == 0
         assert attributes.pop(INPUT_VALUE)
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
         assert attributes.pop(OUTPUT_VALUE)
@@ -1410,6 +1420,10 @@ LLM_INVOCATION_PARAMETERS = SpanAttributes.LLM_INVOCATION_PARAMETERS
 LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
+LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ = SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ
+LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING = (
+    SpanAttributes.LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING
+)
 LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
 LLM_PROVIDER = SpanAttributes.LLM_PROVIDER

@@ -5068,7 +5068,8 @@
           "GOOGLE",
           "DEEPSEEK",
           "XAI",
-          "OLLAMA"
+          "OLLAMA",
+          "AWS"
         ],
         "title": "ModelProvider"
       },
@@ -5870,6 +5871,44 @@
         ],
         "title": "PromptAnthropicThinkingConfigEnabled"
       },
+      "PromptAwsInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "aws",
+            "title": "Type"
+          },
+          "aws": {
+            "$ref": "#/components/schemas/PromptAwsInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "aws"
+        ],
+        "title": "PromptAwsInvocationParameters"
+      },
+      "PromptAwsInvocationParametersContent": {
+        "properties": {
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptAwsInvocationParametersContent"
+      },
       "PromptAzureOpenAIInvocationParameters": {
         "properties": {
           "type": {
@@ -6617,6 +6656,9 @@
               },
               {
                 "$ref": "#/components/schemas/PromptOllamaInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptAwsInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -6624,6 +6666,7 @@
               "propertyName": "type",
               "mapping": {
                 "anthropic": "#/components/schemas/PromptAnthropicInvocationParameters",
+                "aws": "#/components/schemas/PromptAwsInvocationParameters",
                 "azure_openai": "#/components/schemas/PromptAzureOpenAIInvocationParameters",
                 "deepseek": "#/components/schemas/PromptDeepSeekInvocationParameters",
                 "google": "#/components/schemas/PromptGoogleInvocationParameters",
@@ -6747,6 +6790,9 @@
               },
               {
                 "$ref": "#/components/schemas/PromptOllamaInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptAwsInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -6754,6 +6800,7 @@
               "propertyName": "type",
               "mapping": {
                 "anthropic": "#/components/schemas/PromptAnthropicInvocationParameters",
+                "aws": "#/components/schemas/PromptAwsInvocationParameters",
                 "azure_openai": "#/components/schemas/PromptAzureOpenAIInvocationParameters",
                 "deepseek": "#/components/schemas/PromptDeepSeekInvocationParameters",
                 "google": "#/components/schemas/PromptGoogleInvocationParameters",

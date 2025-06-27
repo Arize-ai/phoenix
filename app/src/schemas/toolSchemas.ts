@@ -131,11 +131,53 @@ export const anthropicToolDefinitionJSONSchema = zodToJsonSchema(
   }
 );
 
+export const awsToolDefinitionSchema = z.object({
+  toolSpec: z.object({
+    name: z.string(),
+    description: z.string().min(1),
+    inputSchema: z.object({
+      json: jsonSchemaZodSchema,
+    }),
+  }),
+});
+
+export type AwsToolDefinition = z.infer<typeof awsToolDefinitionSchema>;
+
+export const awsToolDefinitionJSONSchema = zodToJsonSchema(
+  awsToolDefinitionSchema,
+  {
+    removeAdditionalStrategy: "passthrough",
+  }
+);
+
 /**
  * --------------------------------
  * Conversion Schemas
  * --------------------------------
  */
+
+export const awsToolToOpenAI = awsToolDefinitionSchema.transform(
+  (aws): OpenAIToolDefinition => ({
+    type: "function",
+    function: {
+      name: aws.toolSpec.name,
+      description: aws.toolSpec.description,
+      parameters: aws.toolSpec.inputSchema.json,
+    },
+  })
+);
+
+export const openAIToolToAws = openAIToolDefinitionSchema.transform(
+  (openai): AwsToolDefinition => ({
+    toolSpec: {
+      name: openai.function.name,
+      description: openai.function.description ?? openai.function.name,
+      inputSchema: {
+        json: openai.function.parameters,
+      },
+    },
+  })
+);
 
 /**
  * Parse incoming object as an Anthropic tool call and immediately convert to OpenAI format
@@ -176,6 +218,7 @@ export const openAIToolToAnthropic = openAIToolDefinitionSchema.transform(
 export const llmProviderToolDefinitionSchema = z.union([
   openAIToolDefinitionSchema,
   anthropicToolDefinitionSchema,
+  awsToolDefinitionSchema,
   jsonLiteralSchema,
 ]);
 
@@ -191,6 +234,10 @@ type ToolDefinitionWithProvider =
   | {
       provider: Extract<ModelProvider, "ANTHROPIC">;
       validatedToolDefinition: AnthropicToolDefinition;
+    }
+  | {
+      provider: Extract<ModelProvider, "AWS">;
+      validatedToolDefinition: AwsToolDefinition;
     }
   | {
       provider: "UNKNOWN";
@@ -220,6 +267,15 @@ export const detectToolDefinitionProvider = (
       validatedToolDefinition: anthropicData,
     };
   }
+
+  const { success: awsSuccess, data: awsData } =
+    awsToolDefinitionSchema.safeParse(toolDefinition);
+  if (awsSuccess) {
+    return {
+      provider: "AWS",
+      validatedToolDefinition: awsData,
+    };
+  }
   return { provider: "UNKNOWN", validatedToolDefinition: null };
 };
 
@@ -232,6 +288,7 @@ type ProviderToToolDefinitionMap = {
   DEEPSEEK: OpenAIToolDefinition;
   XAI: OpenAIToolDefinition;
   OLLAMA: OpenAIToolDefinition;
+  AWS: AwsToolDefinition;
 };
 
 /**
@@ -248,6 +305,8 @@ export const toOpenAIToolDefinition = (
       return validatedToolDefinition;
     case "ANTHROPIC":
       return anthropicToolToOpenAI.parse(validatedToolDefinition);
+    case "AWS":
+      return awsToolToOpenAI.parse(validatedToolDefinition);
     case "UNKNOWN":
       return null;
     default:
@@ -276,6 +335,10 @@ export const fromOpenAIToolDefinition = <T extends ModelProvider>({
       return openAIToolToAnthropic.parse(
         toolDefinition
       ) as ProviderToToolDefinitionMap[T];
+    case "AWS":
+      return openAIToolToAws.parse(
+        toolDefinition
+      ) as ProviderToToolDefinitionMap[T];
     // TODO(apowell): #5348 Add Google tool calls schema - https://github.com/Arize-ai/phoenix/issues/5348
     case "GOOGLE":
       return toolDefinition as ProviderToToolDefinitionMap[T];
@@ -296,7 +359,7 @@ export function createOpenAIToolDefinition(
     type: "function",
     function: {
       name: `new_function_${toolNumber}`,
-      description: "",
+      description: "a description",
       parameters: {
         type: "object",
         properties: {
@@ -320,7 +383,7 @@ export function createAnthropicToolDefinition(
 ): AnthropicToolDefinition {
   return {
     name: `new_function_${toolNumber}`,
-    description: "",
+    description: "a description",
     input_schema: {
       type: "object",
       properties: {
@@ -329,6 +392,26 @@ export function createAnthropicToolDefinition(
         },
       },
       required: [],
+    },
+  };
+}
+
+export function createAwsToolDefinition(toolNumber: number): AwsToolDefinition {
+  return {
+    toolSpec: {
+      name: `new_function_${toolNumber}`,
+      description: "a description",
+      inputSchema: {
+        json: {
+          type: "object",
+          properties: {
+            new_arg: {
+              type: "string",
+            },
+          },
+          required: [],
+        },
+      },
     },
   };
 }

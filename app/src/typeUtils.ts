@@ -25,6 +25,15 @@ export function isStringOrNull(value: unknown): value is string | null {
 }
 
 /**
+ * A type guard for checking if a value is a string or null
+ */
+export function isStringOrNullOrUndefined(
+  value: unknown
+): value is string | null | undefined {
+  return isStringOrNull(value) || value === undefined;
+}
+
+/**
  * A type guard for checking if a value is a string array
  */
 export function isStringArray(value: unknown): value is string[] {

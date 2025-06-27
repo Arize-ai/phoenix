@@ -64,6 +64,7 @@ export const comboBoxPopoverCSS = css(
       max-height: inherit;
       min-height: unset;
       border: none;
+      overflow: auto;
     }
   `
 );

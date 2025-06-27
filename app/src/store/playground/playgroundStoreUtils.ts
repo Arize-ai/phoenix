@@ -50,6 +50,24 @@ export const convertInstanceToolsToProvider = ({
           definition,
         };
       }
+      case "AWS": {
+        // Keep AWS tool definitions in OpenAI format
+        // The backend will handle the conversion to AWS format
+        const maybeOpenAIToolDefinition = toOpenAIToolDefinition(
+          tool.definition
+        );
+
+        const definition = maybeOpenAIToolDefinition
+          ? fromOpenAIToolDefinition({
+              toolDefinition: maybeOpenAIToolDefinition,
+              targetProvider: provider,
+            })
+          : tool.definition;
+        return {
+          ...tool,
+          definition,
+        };
+      }
       // TODO(apowell): #5348 Add Google tool definition
       case "GOOGLE":
         return tool;
@@ -88,6 +106,15 @@ export const convertMessageToolCallsToProvider = ({
         return maybeOpenAIToolCall != null
           ? fromOpenAIToolCall({
               toolCall: maybeOpenAIToolCall,
+              targetProvider: provider,
+            })
+          : toolCall;
+      }
+      case "AWS": {
+        const maybeAwsToolCall = toOpenAIToolCall(toolCall);
+        return maybeAwsToolCall != null
+          ? fromOpenAIToolCall({
+              toolCall: maybeAwsToolCall,
               targetProvider: provider,
             })
           : toolCall;

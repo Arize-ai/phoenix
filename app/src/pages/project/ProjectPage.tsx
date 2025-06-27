@@ -21,6 +21,7 @@ import {
   ConnectedLastNTimeRangePicker,
   useTimeRange,
 } from "@phoenix/components/datetime";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
@@ -81,7 +82,7 @@ export function ProjectPage() {
   );
 }
 
-const TABS = ["spans", "traces", "sessions", "config"] as const;
+const TABS = ["spans", "traces", "sessions", "config", "metrics"] as const;
 
 /**
  * Type guard for the tab path in the URL
@@ -95,6 +96,7 @@ const TAB_INDEX_MAP: Record<(typeof TABS)[number], number> = {
   traces: 1,
   sessions: 2,
   config: 3,
+  metrics: 4,
 };
 
 export function ProjectPageContent({
@@ -149,6 +151,7 @@ export function ProjectPageContent({
     ProjectPageQueriesProjectConfigQuery
   );
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
+  const showMetricsTab = useFeatureFlag("projectMetricsTab");
   useEffect(() => {
     if (tabIndex === 0) {
       loadSpansQuery({
@@ -205,6 +208,9 @@ export function ProjectPageContent({
         } else if (index === 3) {
           // navigate to the config tab
           navigate(`${rootPath}/config`);
+        } else if (index === 4) {
+          // navigate to the metrics tab
+          navigate(`${rootPath}/metrics`);
         } else {
           // navigate to the spans tab
           navigate(`${rootPath}/spans`);
@@ -247,6 +253,7 @@ export function ProjectPageContent({
               <Tab id="traces">Traces</Tab>
               <Tab id="sessions">Sessions</Tab>
               <Tab id="config">Config</Tab>
+              {showMetricsTab ? <Tab id="metrics">Metrics</Tab> : null}
             </TabList>
             <LazyTabPanel padded={false} id="spans">
               <Outlet />
@@ -258,6 +265,9 @@ export function ProjectPageContent({
               <Outlet />
             </LazyTabPanel>
             <LazyTabPanel padded={false} id="config">
+              <Outlet />
+            </LazyTabPanel>
+            <LazyTabPanel padded={false} id="metrics">
               <Outlet />
             </LazyTabPanel>
           </Tabs>

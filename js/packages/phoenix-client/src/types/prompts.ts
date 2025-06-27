@@ -10,7 +10,8 @@ export type PromptModelProvider =
   | "GOOGLE"
   | "DEEPSEEK"
   | "XAI"
-  | "OLLAMA";
+  | "OLLAMA"
+  | "AWS";
 
 /**
  * Supported prompt provider SDKs
@@ -127,6 +128,12 @@ export type XAIInvocationParameters =
  */
 export type OllamaInvocationParameters =
   components["schemas"]["PromptOllamaInvocationParametersContent"];
+
+/**
+ * The invocation parameters for a prompt version for AWS.
+ */
+export type AwsInvocationParameters =
+  components["schemas"]["PromptAwsInvocationParametersContent"];
 
 /**
  * The format of the prompt template message(s).

@@ -8,6 +8,7 @@ from itertools import islice
 from time import perf_counter
 from typing import Any, Optional, cast
 
+from openinference.semconv.trace import SpanAttributes
 from typing_extensions import TypeAlias
 
 import phoenix.trace.v1 as pb
@@ -17,11 +18,19 @@ from phoenix.db.insertion.evaluation import (
     InsertEvaluationError,
     insert_evaluation,
 )
-from phoenix.db.insertion.helpers import DataManipulation, DataManipulationEvent
+from phoenix.db.insertion.helpers import (
+    DataManipulation,
+    DataManipulationEvent,
+    should_calculate_span_cost,
+)
 from phoenix.db.insertion.span import SpanInsertionEvent, insert_span
 from phoenix.db.insertion.span_annotation import SpanAnnotationQueueInserter
 from phoenix.db.insertion.trace_annotation import TraceAnnotationQueueInserter
 from phoenix.db.insertion.types import Insertables, Precursors
+from phoenix.server.daemons.span_cost_calculator import (
+    SpanCostCalculator,
+    SpanCostCalculatorQueueItem,
+)
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.types import CanPutItem, DbSessionFactory
 from phoenix.trace.schemas import Span
@@ -42,6 +51,7 @@ class BulkInserter:
         db: DbSessionFactory,
         *,
         event_queue: CanPutItem[DmlEvent],
+        span_cost_calculator: SpanCostCalculator,
         initial_batch_of_spans: Optional[Iterable[tuple[Span, str]]] = None,
         initial_batch_of_evaluations: Optional[Iterable[pb.Evaluation]] = None,
         sleep: float = 0.1,
@@ -78,6 +88,7 @@ class BulkInserter:
         self._retry_delay_sec = retry_delay_sec
         self._retry_allowance = retry_allowance
         self._queue_inserters = _QueueInserters(db, self._retry_delay_sec, self._retry_allowance)
+        self._span_cost_calculator = span_cost_calculator
 
     async def __aenter__(
         self,
@@ -175,6 +186,7 @@ class BulkInserter:
 
     async def _insert_spans(self, spans: list[tuple[Span, str]]) -> None:
         project_ids = set()
+        span_cost_calculator_queue: list[SpanCostCalculatorQueueItem] = []
         for i in range(0, len(spans), self._max_ops_per_transaction):
             try:
                 start = perf_counter()
@@ -198,6 +210,16 @@ class BulkInserter:
                             )
                         if result is not None:
                             project_ids.add(result.project_rowid)
+                            if should_calculate_span_cost(span.attributes):
+                                span_cost_calculator_queue.append(
+                                    SpanCostCalculatorQueueItem(
+                                        span_rowid=result.span_rowid,
+                                        trace_rowid=result.trace_rowid,
+                                        attributes=span.attributes,
+                                        span_start_time=span.start_time,
+                                    )
+                                )
+
                 if self._enable_prometheus:
                     from phoenix.server.prometheus import BULK_LOADER_INSERTION_TIME
 
@@ -209,6 +231,8 @@ class BulkInserter:
                     BULK_LOADER_EXCEPTIONS.inc()
                 logger.exception("Failed to insert spans")
         self._event_queue.put(SpanInsertEvent(tuple(project_ids)))
+        for item in span_cost_calculator_queue:
+            self._span_cost_calculator.put_nowait(item)
 
     async def _insert_evaluations(self, evaluations: list[pb.Evaluation]) -> None:
         for i in range(0, len(evaluations), self._max_ops_per_transaction):
@@ -292,3 +316,18 @@ class _QueueInserters:
     @_enqueue.register(Insertables.DocumentAnnotation)
     async def _(self, item: Precursors.DocumentAnnotation) -> None:
         await self._document_annotations.enqueue(item)
+
+
+LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
+LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
+LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
+LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO
+LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING = (
+    SpanAttributes.LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING
+)
+LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
+LLM_TOKEN_COUNT_PROMPT_DETAILS_AUDIO = SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_AUDIO
+LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ = SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ
+LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE = (
+    SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE
+)

@@ -196,6 +196,7 @@ class _InvocationParametersConversion:
             v1.PromptDeepSeekInvocationParameters,
             v1.PromptXAIInvocationParameters,
             v1.PromptOllamaInvocationParameters,
+            v1.PromptAwsInvocationParameters,
         ],
     ) -> _InvocationParameters:
         ans: _InvocationParameters = {}
@@ -305,6 +306,15 @@ class _InvocationParametersConversion:
                 ans["top_p"] = anthropic_params["top_p"]
             if "stop_sequences" in anthropic_params:
                 ans["stop"] = list(anthropic_params["stop_sequences"])
+        elif obj["type"] == "aws":
+            aws_params: v1.PromptAwsInvocationParametersContent
+            aws_params = obj["aws"]
+            if "max_tokens" in aws_params:
+                ans["max_tokens"] = aws_params["max_tokens"]
+            if "temperature" in aws_params:
+                ans["temperature"] = aws_params["temperature"]
+            if "top_p" in aws_params:
+                ans["top_p"] = aws_params["top_p"]
         elif obj["type"] == "google":
             google_params: v1.PromptGoogleInvocationParametersContent
             google_params = obj["google"]

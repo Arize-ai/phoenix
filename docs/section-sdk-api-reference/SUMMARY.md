@@ -29,6 +29,8 @@
 
 ***
 
+* [Annotation Configs](annotation-configs.md)
+* [Annotations](annotations.md)
 * [Datasets](datasets.md)
 * [Experiments](experiments.md)
 * [Spans](spans.md)

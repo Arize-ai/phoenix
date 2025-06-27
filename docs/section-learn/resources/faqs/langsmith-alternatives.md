@@ -1,6 +1,12 @@
-# Langsmith alternatives? Arize Phoenix vs LangSmith: key differences
+---
+description: >-
+  A feature comparison guide for AI engineers looking for developer-friendly
+  LangSmith alternatives.
+---
 
-## What is the difference between Arize Phoenix and LangSmith
+# Open Source LangSmith Alternative: Arize Phoenix vs. LangSmith
+
+## What is the difference between Arize Phoenix and LangSmith?
 
 LangSmith is another LLM Observability and Evaluation platform that serves as an alternative to Arize Phoenix. Both platforms support the baseline tracing, evaluation, prompt management, and experimentation features, but there are a few key differences to be aware of:\
 

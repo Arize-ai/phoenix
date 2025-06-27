@@ -157,12 +157,7 @@ export const AnnotationConfigDialog = ({
               })(e);
             }}
           >
-            <View
-              minWidth="200px"
-              padding="size-200"
-              maxHeight="620px"
-              overflow="auto"
-            >
+            <View minWidth="200px" padding="size-200">
               <Flex
                 direction="column"
                 gap="size-200"

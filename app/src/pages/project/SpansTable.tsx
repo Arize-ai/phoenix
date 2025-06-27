@@ -39,9 +39,11 @@ import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
-import { TokenCount } from "@phoenix/components/trace/TokenCount";
+import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
+import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
@@ -196,8 +198,8 @@ export function SpansTable(props: SpansTableProps) {
                 statusCode
                 startTime
                 latencyMs
-                tokenCountTotal
-                cumulativeTokenCountTotal
+                tokenCountTotal @skip(if: $rootSpansOnly)
+                cumulativeTokenCountTotal @include(if: $rootSpansOnly)
                 spanId
                 trace {
                   id
@@ -230,6 +232,16 @@ export function SpansTable(props: SpansTableProps) {
                   ndcg
                   precision
                   hit
+                }
+                costSummary @skip(if: $rootSpansOnly) {
+                  total {
+                    cost
+                  }
+                }
+                cumulativeCostSummary @include(if: $rootSpansOnly) {
+                  total {
+                    cost
+                  }
                 }
                 ...AnnotationSummaryGroup
               }
@@ -481,8 +493,39 @@ export function SpansTable(props: SpansTableProps) {
         const tokenCountTotal = rootSpansOnly
           ? span.cumulativeTokenCountTotal
           : span.tokenCountTotal;
+
+        if (rootSpansOnly) {
+          return (
+            <SpanCumulativeTokenCount
+              tokenCountTotal={tokenCountTotal || 0}
+              nodeId={span.id}
+            />
+          );
+        }
+
         return (
-          <TokenCount tokenCountTotal={tokenCountTotal || 0} nodeId={span.id} />
+          <SpanTokenCount
+            tokenCountTotal={tokenCountTotal || 0}
+            nodeId={span.id}
+          />
+        );
+      },
+    },
+    {
+      header: rootSpansOnly ? "cumulative cost" : "total cost",
+      accessorKey: rootSpansOnly
+        ? "cumulativeCostSummary.total.cost"
+        : "costSummary.total.cost",
+      id: "tokenCostTotal",
+      enableSorting: rootSpansOnly ? false : true, // TODO: add sorting for cumulative cost
+      cell: ({ row, getValue }) => {
+        const value = getValue();
+        if (value === null || typeof value !== "number") {
+          return "--";
+        }
+        const span = row.original;
+        return (
+          <SpanTokenCosts totalCost={value} spanNodeId={span.id} size="S" />
         );
       },
     },

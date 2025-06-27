@@ -9,6 +9,7 @@ In this guide, we share practical workflows using a variety of agent frameworks,
 * [**Google GenAI SDK**](agents/agent-workflow-patterns/google-genai-sdk.md)
 * [**OpenAI Agents**](agents/agent-workflow-patterns/openai-agents.md)
 * [**LangGraph**](agents/agent-workflow-patterns/langgraph.md)
+* [**Smolagents**](agents/agent-workflow-patterns/smolagents.md)
 
 Each section highlights how to use these tools effectively—showing what’s possible, where they shine, and where a simpler solution might serve you better. Whether you're orchestrating deterministic workflows or building dynamic agentic systems, the goal is to help you choose the right tool for your context and build with confidence.
 

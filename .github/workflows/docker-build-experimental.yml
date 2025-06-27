@@ -6,6 +6,7 @@ on:
     branches:
       - feat/version-10
       - feat/openid-only
+      - feat/cost
 
 jobs:
   push_to_registry:

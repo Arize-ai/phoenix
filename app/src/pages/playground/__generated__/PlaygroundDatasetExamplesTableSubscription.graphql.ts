@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cab1f1a8831b7127a8c85028a69943b6>>
+ * @generated SignedSource<<510c3911fb9ca78f67f92fb4d166d28c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type CanonicalParameterName = "ANTHROPIC_EXTENDED_THINKING" | "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "REASONING_EFFORT" | "RESPONSE_FORMAT" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOOL_CHOICE" | "TOP_P";
 export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
-export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
+export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionOverDatasetInput = {
   credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
@@ -39,6 +39,7 @@ export type GenerativeModelInput = {
   endpoint?: string | null;
   name: string;
   providerKey: GenerativeProviderKey;
+  region?: string | null;
 };
 export type InvocationParameterInput = {
   canonicalName?: CanonicalParameterName | null;
@@ -78,6 +79,11 @@ export type PlaygroundDatasetExamplesTableSubscription$data = {
       readonly context: {
         readonly traceId: string;
       };
+      readonly costSummary: {
+        readonly total: {
+          readonly cost: number | null;
+        };
+      } | null;
       readonly id: string;
       readonly latencyMs: number | null;
       readonly project: {
@@ -244,6 +250,35 @@ v4 = [
               {
                 "alias": null,
                 "args": null,
+                "concreteType": "SpanCostSummary",
+                "kind": "LinkedField",
+                "name": "costSummary",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "CostBreakdown",
+                    "kind": "LinkedField",
+                    "name": "total",
+                    "plural": false,
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "cost",
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  }
+                ],
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
                 "kind": "ScalarField",
                 "name": "latencyMs",
                 "storageKey": null
@@ -330,16 +365,16 @@ return {
     "selections": (v4/*: any*/)
   },
   "params": {
-    "cacheID": "bb84c1ad8f99fe16260cf38ec9dee07b",
+    "cacheID": "ed5cf79756539b68e872382d93dadf51",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableSubscription",
     "operationKind": "subscription",
-    "text": "subscription PlaygroundDatasetExamplesTableSubscription(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    __typename\n    ... on TextChunk {\n      content\n      datasetExampleId\n    }\n    ... on ToolCallChunk {\n      id\n      datasetExampleId\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionExperiment {\n      experiment {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      datasetExampleId\n      span {\n        id\n        tokenCountTotal\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n      experimentRun {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      datasetExampleId\n      message\n    }\n  }\n}\n"
+    "text": "subscription PlaygroundDatasetExamplesTableSubscription(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    __typename\n    ... on TextChunk {\n      content\n      datasetExampleId\n    }\n    ... on ToolCallChunk {\n      id\n      datasetExampleId\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionExperiment {\n      experiment {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      datasetExampleId\n      span {\n        id\n        tokenCountTotal\n        costSummary {\n          total {\n            cost\n          }\n        }\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n      experimentRun {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      datasetExampleId\n      message\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b6c2a6c5c219eec0eb92826f7df62d24";
+(node as any).hash = "aba769379240f23e45f266a2adc2e951";
 
 export default node;
