@@ -16,7 +16,7 @@ export async function traceRedirectLoader({ params }: LoaderFunctionArgs) {
     RelayEnvironment,
     graphql`
       query traceRedirectLoaderQuery($traceOtelId: String!) {
-        trace: searchTraceByOtelId(traceId: $traceOtelId) {
+        trace: getTraceByOtelId(traceId: $traceOtelId) {
           project {
             id
           }

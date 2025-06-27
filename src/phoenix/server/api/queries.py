@@ -1006,7 +1006,7 @@ class Query:
             return ValidationResult(is_valid=False, error_message=str(error))
 
     @strawberry.field
-    async def search_span_by_otel_id(
+    async def get_span_by_otel_id(
         self,
         info: Info[Context, None],
         span_id: str,
@@ -1019,7 +1019,7 @@ class Query:
         return None
 
     @strawberry.field
-    async def search_trace_by_otel_id(
+    async def get_trace_by_otel_id(
         self,
         info: Info[Context, None],
         trace_id: str,
@@ -1032,7 +1032,7 @@ class Query:
         return None
 
     @strawberry.field
-    async def search_session_by_otel_id(
+    async def get_session_by_otel_id(
         self,
         info: Info[Context, None],
         session_id: str,

@@ -16,7 +16,7 @@ export async function sessionRedirectLoader({ params }: LoaderFunctionArgs) {
     RelayEnvironment,
     graphql`
       query sessionRedirectLoaderQuery($sessionOtelId: String!) {
-        session: searchSessionByOtelId(sessionId: $sessionOtelId) {
+        session: getSessionByOtelId(sessionId: $sessionOtelId) {
           projectId
           id
         }

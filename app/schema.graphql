@@ -2082,9 +2082,9 @@ type Query {
   dbStorageCapacityBytes: Float
   dbTableStats: [DbTableStats!]!
   validateRegularExpression(regex: String!): ValidationResult!
-  searchSpanByOtelId(spanId: String!): Span
-  searchTraceByOtelId(traceId: String!): Trace
-  searchSessionByOtelId(sessionId: String!): ProjectSession
+  getSpanByOtelId(spanId: String!): Span
+  getTraceByOtelId(traceId: String!): Trace
+  getSessionByOtelId(sessionId: String!): ProjectSession
 }
 
 input RemoveAnnotationConfigFromProjectInput {

@@ -16,7 +16,7 @@ export async function spanRedirectLoader({ params }: LoaderFunctionArgs) {
     RelayEnvironment,
     graphql`
       query spanRedirectLoaderQuery($spanOtelId: String!) {
-        span: searchSpanByOtelId(spanId: $spanOtelId) {
+        span: getSpanByOtelId(spanId: $spanOtelId) {
           trace {
             id
             traceId

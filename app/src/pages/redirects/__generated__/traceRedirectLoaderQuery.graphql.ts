@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fa65d1fff52504254bf82f340e0d603e>>
+ * @generated SignedSource<<6c168e2885aedd4eb71a19eb3a1c0fd4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -70,7 +70,7 @@ return {
         "args": (v1/*: any*/),
         "concreteType": "Trace",
         "kind": "LinkedField",
-        "name": "searchTraceByOtelId",
+        "name": "getTraceByOtelId",
         "plural": false,
         "selections": [
           (v3/*: any*/)
@@ -92,7 +92,7 @@ return {
         "args": (v1/*: any*/),
         "concreteType": "Trace",
         "kind": "LinkedField",
-        "name": "searchTraceByOtelId",
+        "name": "getTraceByOtelId",
         "plural": false,
         "selections": [
           (v3/*: any*/),
@@ -103,16 +103,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a64c2d8c8e876bd2b9d047bdbf63d844",
+    "cacheID": "6e8acff3fd035f125c0a261b55f43015",
     "id": null,
     "metadata": {},
     "name": "traceRedirectLoaderQuery",
     "operationKind": "query",
-    "text": "query traceRedirectLoaderQuery(\n  $traceOtelId: String!\n) {\n  trace: searchTraceByOtelId(traceId: $traceOtelId) {\n    project {\n      id\n    }\n    id\n  }\n}\n"
+    "text": "query traceRedirectLoaderQuery(\n  $traceOtelId: String!\n) {\n  trace: getTraceByOtelId(traceId: $traceOtelId) {\n    project {\n      id\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e87a90ccfc3febb650672a34293a0693";
+(node as any).hash = "4453100bcd3c636081232e19ee101eb9";
 
 export default node;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<140a5bfa0ef42be2a88a2c2f31dbd2da>>
+ * @generated SignedSource<<cf4637802a046af2cbdbd95b5ec11d30>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -93,7 +93,7 @@ return {
         "args": (v1/*: any*/),
         "concreteType": "Span",
         "kind": "LinkedField",
-        "name": "searchSpanByOtelId",
+        "name": "getSpanByOtelId",
         "plural": false,
         "selections": [
           (v3/*: any*/),
@@ -116,7 +116,7 @@ return {
         "args": (v1/*: any*/),
         "concreteType": "Span",
         "kind": "LinkedField",
-        "name": "searchSpanByOtelId",
+        "name": "getSpanByOtelId",
         "plural": false,
         "selections": [
           (v3/*: any*/),
@@ -128,16 +128,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "8b0a16997883d754fe04488196c1a9dd",
+    "cacheID": "cd2918b96efc3acda940d88b7553dbf4",
     "id": null,
     "metadata": {},
     "name": "spanRedirectLoaderQuery",
     "operationKind": "query",
-    "text": "query spanRedirectLoaderQuery(\n  $spanOtelId: String!\n) {\n  span: searchSpanByOtelId(spanId: $spanOtelId) {\n    trace {\n      id\n      traceId\n    }\n    project {\n      id\n    }\n    id\n  }\n}\n"
+    "text": "query spanRedirectLoaderQuery(\n  $spanOtelId: String!\n) {\n  span: getSpanByOtelId(spanId: $spanOtelId) {\n    trace {\n      id\n      traceId\n    }\n    project {\n      id\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f08968c54f9ccc3bc9a0e5e12f3bdda6";
+(node as any).hash = "b52161c67dc9fd7dc749dd87bbd1eb27";
 
 export default node;
