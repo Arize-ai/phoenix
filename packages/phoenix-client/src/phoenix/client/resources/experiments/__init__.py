@@ -31,9 +31,9 @@ from opentelemetry.trace import Status, StatusCode, Tracer
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
-from phoenix.client.utils.concurrency import AsyncExecutor, SyncExecutor
+from phoenix.client.utils.executors import AsyncExecutor, SyncExecutor
+from phoenix.client.utils.rate_limiters import RateLimiter
 from phoenix.config import get_base_url, get_env_client_headers
-from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.utils import get_tqdm_progress_bar_formatter
 
 from .types import (
