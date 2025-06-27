@@ -144,13 +144,13 @@
     "regex":"(?i)^(gemini-2\\.5-flash)(@[a-zA-Z0-9]+)?$"
   },
   {
-    "model":"gemini-2.5-flash-lite",
+    "model":"gemini-2.0-flash-lite",
     "provider":null,
     "input": 0.075e-06,
     "output":0.3e-06,
     "cache_write":null,
     "cache_read":null,
-    "regex":"(?i)^(gemini-2\\.5-flash-lite)(@[a-zA-Z0-9]+)?$"
+    "regex":"(?i)^(gemini-2\\.0-flash-lite)(@[a-zA-Z0-9]+)?$"
   },
   {
     "model":"gemini-2.0-flash",
