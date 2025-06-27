@@ -5,7 +5,6 @@ import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 import { traceRedirectLoaderQuery } from "./__generated__/traceRedirectLoaderQuery.graphql";
 
-
 export async function traceRedirectLoader({ params }: LoaderFunctionArgs) {
   const { trace_otel_id } = params;
 

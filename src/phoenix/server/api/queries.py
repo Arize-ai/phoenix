@@ -1031,6 +1031,25 @@ class Query:
             return Trace(trace_rowid=trace_rowid)
         return None
 
+    @strawberry.field
+    async def search_session_by_otel_id(
+        self,
+        info: Info[Context, None],
+        session_id: str,
+    ) -> Optional[ProjectSession]:
+        stmt = select(models.ProjectSession).where(models.ProjectSession.session_id == session_id)
+        async with info.context.db() as session:
+            session_row = await session.scalar(stmt)
+        if session_row:
+            return ProjectSession(
+                id_attr=session_row.id,
+                session_id=session_row.session_id,
+                project_rowid=session_row.project_id,
+                start_time=session_row.start_time,
+                end_time=session_row.end_time,
+            )
+        return None
+
 def _consolidate_sqlite_db_table_stats(
     stats: Iterable[tuple[str, int]],
 ) -> Iterator[tuple[str, int]]:
