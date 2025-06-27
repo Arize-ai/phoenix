@@ -519,4 +519,5 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
             sa.update(models.GenerativeModel)
             .values(deleted_at=sa.func.now())
             .where(models.GenerativeModel.id.in_([m.id for m in remaining_models]))
+            .where(~sa.exists().where(models.GenerativeModel.id == models.SpanCost.model_id))
         )
