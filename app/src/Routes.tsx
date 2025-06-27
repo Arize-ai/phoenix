@@ -44,6 +44,7 @@ import { promptVersionLoader } from "./pages/prompt/promptVersionLoader";
 import { promptVersionsLoader } from "./pages/prompt/promptVersionsLoader";
 import { PromptVersionsPage } from "./pages/prompt/PromptVersionsPage";
 import { spanRedirectLoader } from "./pages/redirects/spanRedirectLoader";
+import { traceRedirectLoader } from "./pages/redirects/traceRedirectLoader";
 import { settingsDataPageLoader } from "./pages/settings/settingsDataPageLoader";
 import { sessionLoader } from "./pages/trace/sessionLoader";
 import { SessionPage } from "./pages/trace/SessionPage";
@@ -397,6 +398,11 @@ const router = createBrowserRouter(
           <Route
             path="/redirects/spans/:span_otel_id"
             loader={spanRedirectLoader}
+            errorElement={<ErrorElement />}
+          />
+          <Route
+            path="/redirects/traces/:trace_otel_id"
+            loader={traceRedirectLoader}
             errorElement={<ErrorElement />}
           />
         </Route>

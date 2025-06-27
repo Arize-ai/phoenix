@@ -1018,6 +1018,19 @@ class Query:
             return Span(span_rowid=span_rowid)
         return None
 
+    @strawberry.field
+    async def search_trace_by_otel_id(
+        self,
+        info: Info[Context, None],
+        trace_id: str,
+    ) -> Optional[Trace]:
+        stmt = select(models.Trace.id).where(models.Trace.trace_id == trace_id)
+        async with info.context.db() as session:
+            trace_rowid = await session.scalar(stmt)
+        if trace_rowid:
+            return Trace(trace_rowid=trace_rowid)
+        return None
+
 def _consolidate_sqlite_db_table_stats(
     stats: Iterable[tuple[str, int]],
 ) -> Iterator[tuple[str, int]]:

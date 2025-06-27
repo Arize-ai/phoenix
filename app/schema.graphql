@@ -2083,6 +2083,7 @@ type Query {
   dbTableStats: [DbTableStats!]!
   validateRegularExpression(regex: String!): ValidationResult!
   searchSpanByOtelId(spanId: String!): Span
+  searchTraceByOtelId(traceId: String!): Trace
 }
 
 input RemoveAnnotationConfigFromProjectInput {
