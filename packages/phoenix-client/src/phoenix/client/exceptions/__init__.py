@@ -1,6 +1,10 @@
 from typing import Optional, Sequence, TypedDict
 
 
+class PhoenixException(Exception):
+    pass
+
+
 class InvalidSpanInfo(TypedDict):
     """Information about an invalid span."""
 
@@ -16,7 +20,7 @@ class DuplicateSpanInfo(TypedDict):
     trace_id: str
 
 
-class SpanCreationError(Exception):
+class SpanCreationError(PhoenixException):
     """Raised when some spans fail to be queued for creation."""
 
     def __init__(

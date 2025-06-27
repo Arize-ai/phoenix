@@ -7,6 +7,7 @@ from typing import Any, Callable, Coroutine, Optional, Tuple, Type, TypeVar
 from typing_extensions import ParamSpec
 
 from phoenix.client.exceptions import PhoenixException
+from phoenix.evals.utils import printif
 
 ParameterSpec = ParamSpec("ParameterSpec")
 GenericType = TypeVar("GenericType")
@@ -90,8 +91,9 @@ class AdaptiveTokenBucket:
         original_rate = self.rate
 
         self.rate = original_rate * self.rate_reduction_factor
-        if verbose:
-            print(f"Reducing rate from {original_rate} to {self.rate} after rate limit error")
+        printif(
+            verbose, f"Reducing rate from {original_rate} to {self.rate} after rate limit error"
+        )
 
         self.rate = max(self.rate, self.minimum_rate)
 
