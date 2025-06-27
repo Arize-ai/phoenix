@@ -1,5 +1,12 @@
 # Changelog
 
+## [11.1.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.1.0...arize-phoenix-v11.1.1) (2025-06-27)
+
+
+### Bug Fixes
+
+* **cost:** add models for gemini 2.5 ([#8316](https://github.com/Arize-ai/phoenix/issues/8316)) ([2a0c137](https://github.com/Arize-ai/phoenix/commit/2a0c137791a0d20de4def8d63e84b3faa830cf57))
+
 ## [11.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.0.0...arize-phoenix-v11.1.0) (2025-06-26)
 
 
