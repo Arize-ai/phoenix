@@ -29,6 +29,7 @@ from opentelemetry.sdk.trace import Span
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.trace import Status, StatusCode, Tracer
 
+from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
 from phoenix.client.utils.concurrency import AsyncExecutor, SyncExecutor
 from phoenix.config import get_base_url, get_env_client_headers
@@ -37,30 +38,17 @@ from phoenix.evals.utils import get_tqdm_progress_bar_formatter
 
 from .types import (
     DRY_RUN,
-    AnnotatorKind,
     EvaluationResult,
     Evaluator,
     EvaluatorName,
     Evaluators,
-    Example,
-    ExampleId,
-    ExampleInput,
-    ExampleMetadata,
-    ExampleOutput,
     Experiment,
     ExperimentEvaluationRun,
-    ExperimentId,
     ExperimentRun,
-    ExperimentRunId,
     ExperimentTask,
     FunctionEvaluator,
-    JSONSerializable,
     RateLimitErrors,
-    RepetitionNumber,
-    TaskOutput,
     TestCase,
-    TraceId,
-    _dry_run_id,
 )
 
 logger = logging.getLogger(__name__)
@@ -68,7 +56,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_TIMEOUT_IN_SECONDS = 60
 
 
-def create_evaluator(name: Optional[str] = None, kind: str = "CODE") -> Callable:
+def create_evaluator(name: Optional[str] = None, kind: str = "CODE") -> Callable[[Callable[..., Any]], Evaluator]:
     """Create an evaluator from a function."""
 
     def wrapper(func: Callable[..., Any]) -> Evaluator:
@@ -179,13 +167,13 @@ def _validate_task_signature(sig: inspect.Signature) -> None:
             )
 
 
-def _bind_task_signature(sig: inspect.Signature, example: Example) -> inspect.BoundArguments:
+def _bind_task_signature(sig: inspect.Signature, example: v1.DatasetExample) -> inspect.BoundArguments:
     """Bind task function signature to example data."""
     parameter_mapping = {
-        "input": example.input,
-        "expected": example.output,
-        "reference": example.output,
-        "metadata": example.metadata,
+        "input": example["input"],
+        "expected": example["output"],
+        "reference": example["output"],
+        "metadata": example["metadata"],
         "example": example,
     }
     params = sig.parameters
@@ -217,17 +205,6 @@ def _print_experiment_error(
         traceback.format_exception(type(display_error), display_error, display_error.__traceback__)
     )
     print("\033[91m" + formatted_exception + "\033[0m")  # prints in red
-
-
-def _convert_to_example(client_example: dict[str, Any]) -> Example:
-    """Convert client dataset example to experiments Example."""
-    return Example(
-        id=client_example["id"],
-        input=client_example["input"],
-        output=client_example["output"],
-        metadata=client_example["metadata"],
-        updated_at=datetime.now(timezone.utc),
-    )
 
 
 class Experiments:
@@ -383,7 +360,7 @@ class Experiments:
             examples_to_process = list(dataset.examples)
 
         test_cases = [
-            TestCase(example=_convert_to_example(ex), repetition_number=rep)
+            TestCase(example=ex, repetition_number=rep)
             for ex, rep in product(examples_to_process, range(1, repetitions + 1))
         ]
 
@@ -490,7 +467,7 @@ class Experiments:
     ) -> Optional[ExperimentRun]:
         """Run a single task on an example."""
         example, repetition_number = test_case.example, test_case.repetition_number
-        cache_key = (example.id, repetition_number)
+        cache_key = (example["id"], repetition_number)
 
         # Check if we have a cached result
         if cache_key in task_result_cache:
@@ -499,7 +476,7 @@ class Experiments:
                 start_time=datetime.now(timezone.utc),
                 end_time=datetime.now(timezone.utc),
                 experiment_id=experiment.id,
-                dataset_example_id=example.id,
+                dataset_example_id=example["id"],
                 repetition_number=repetition_number,
                 output=output,
                 error=None,
@@ -548,14 +525,14 @@ class Experiments:
                 error = exc
                 _print_experiment_error(
                     exc,
-                    example_id=example.id,
+                    example_id=example["id"],
                     repetition_number=repetition_number,
                     kind="task",
                 )
 
             output = jsonify(output)
             span.set_attribute(
-                SpanAttributes.INPUT_VALUE, json.dumps(example.input, ensure_ascii=False)
+                SpanAttributes.INPUT_VALUE, json.dumps(example["input"], ensure_ascii=False)
             )
             span.set_attribute(
                 SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value
@@ -579,7 +556,7 @@ class Experiments:
             start_time=_decode_unix_nano(cast(int, span.start_time)),
             end_time=_decode_unix_nano(cast(int, span.end_time)),
             experiment_id=experiment.id,
-            dataset_example_id=example.id,
+            dataset_example_id=example["id"],
             repetition_number=repetition_number,
             output=output,
             error=repr(error) if error else None,
@@ -610,7 +587,7 @@ class Experiments:
         evaluators_by_name: Mapping[EvaluatorName, Evaluator],
         tracer: Tracer,
         resource: Resource,
-        dry_run: Union[bool, int],
+        dry_run: bool,
         timeout: Optional[int],
         rate_limit_errors: Optional[RateLimitErrors],
     ) -> list[ExperimentEvaluationRun]:
@@ -630,7 +607,7 @@ class Experiments:
             errors = tuple(filter(None, rate_limit_errors))
         rate_limiters = [RateLimiter(rate_limit_error=error) for error in errors]
 
-        def sync_evaluate_run(obj: tuple[ExperimentRun, Evaluator]) -> ExperimentEvaluationRun:
+        def sync_evaluate_run(obj: tuple[ExperimentRun, Evaluator]) -> Optional[ExperimentEvaluationRun]:
             run, evaluator = obj
             return self._run_single_evaluation_sync(
                 run, evaluator, tracer, resource, dry_run, timeout
@@ -860,7 +837,7 @@ class AsyncExperiments:
             examples_to_process = list(dataset.examples)
 
         test_cases = [
-            TestCase(example=_convert_to_example(ex), repetition_number=rep)
+            TestCase(example=ex, repetition_number=rep)
             for ex, rep in product(examples_to_process, range(1, repetitions + 1))
         ]
 
@@ -971,7 +948,7 @@ class AsyncExperiments:
     ) -> Optional[ExperimentRun]:
         """Run a single task on an example (async version)."""
         example, repetition_number = test_case.example, test_case.repetition_number
-        cache_key = (example.id, repetition_number)
+        cache_key = (example["id"], repetition_number)
 
         # Check if we have a cached result
         if cache_key in task_result_cache:
@@ -980,7 +957,7 @@ class AsyncExperiments:
                 start_time=datetime.now(timezone.utc),
                 end_time=datetime.now(timezone.utc),
                 experiment_id=experiment.id,
-                dataset_example_id=example.id,
+                dataset_example_id=example["id"],
                 repetition_number=repetition_number,
                 output=output,
                 error=None,
@@ -1026,14 +1003,14 @@ class AsyncExperiments:
                 error = exc
                 _print_experiment_error(
                     exc,
-                    example_id=example.id,
+                    example_id=example["id"],
                     repetition_number=repetition_number,
                     kind="task",
                 )
 
             output = jsonify(output)
             span.set_attribute(
-                SpanAttributes.INPUT_VALUE, json.dumps(example.input, ensure_ascii=False)
+                SpanAttributes.INPUT_VALUE, json.dumps(example["input"], ensure_ascii=False)
             )
             span.set_attribute(
                 SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value
@@ -1057,7 +1034,7 @@ class AsyncExperiments:
             start_time=_decode_unix_nano(cast(int, span.start_time)),
             end_time=_decode_unix_nano(cast(int, span.end_time)),
             experiment_id=experiment.id,
-            dataset_example_id=example.id,
+            dataset_example_id=example["id"],
             repetition_number=repetition_number,
             output=output,
             error=repr(error) if error else None,
@@ -1111,7 +1088,7 @@ class AsyncExperiments:
 
         async def async_evaluate_run(
             obj: tuple[ExperimentRun, Evaluator],
-        ) -> ExperimentEvaluationRun:
+        ) -> Optional[ExperimentEvaluationRun]:
             run, evaluator = obj
             return await self._run_single_evaluation_async(
                 run, evaluator, tracer, resource, dry_run, timeout
@@ -1196,5 +1173,3 @@ class AsyncExperiments:
                 eval_run = replace(eval_run, id=resp.json()["data"]["id"])
             except HTTPStatusError:
                 pass  # Continue even if evaluation storage fails
-
-        return eval_run
