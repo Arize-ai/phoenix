@@ -17,6 +17,7 @@ export async function spanRedirectLoader({ params }: LoaderFunctionArgs) {
     graphql`
       query spanRedirectLoaderQuery($spanOtelId: String!) {
         span: getSpanByOtelId(spanId: $spanOtelId) {
+          id
           trace {
             id
             traceId
@@ -34,7 +35,9 @@ export async function spanRedirectLoader({ params }: LoaderFunctionArgs) {
 
   if (response?.span) {
     const { id, trace, project } = response.span;
-    return redirect(`/projects/${project.id}/spans/${trace.traceId}?selectedSpanNodeId={id}`);
+    return redirect(
+      `/projects/${project.id}/spans/${trace.traceId}?selectedSpanNodeId=${id}`
+    );
   } else {
     throw new Error(`Span with id "${span_otel_id}" not found`);
   }
