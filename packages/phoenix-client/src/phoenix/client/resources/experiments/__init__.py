@@ -1,10 +1,3 @@
-"""
-Experiments client resource for running experiments and evaluations.
-
-This module provides methods for running experiments and evaluations on datasets
-using the Phoenix client.
-"""
-
 import functools
 import inspect
 import json
@@ -39,19 +32,16 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.trace import Status, StatusCode, Tracer
 
 from phoenix.client.resources.datasets import Dataset
+from phoenix.client.utils.concurrency import AsyncExecutor, SyncExecutor
 from phoenix.config import get_base_url, get_env_client_headers
 from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.utils import get_tqdm_progress_bar_formatter
-from phoenix.client.utils.concurrency import AsyncExecutor, SyncExecutor
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT_IN_SECONDS = 60
-
-# Constants
 DRY_RUN = "DRY_RUN"
 
-# Type aliases
 JSONSerializable = Optional[Union[dict[str, Any], list[Any], str, int, float, bool]]
 ExperimentId = str
 DatasetId = str
@@ -328,18 +318,6 @@ def get_func_name(func: Callable[..., Any]) -> str:
     return getattr(func, "__name__", str(func))
 
 
-def get_dataset_experiments_url(dataset_id: str) -> str:
-    """Get URL for dataset experiments page."""
-    base_url = get_base_url()
-    return f"{base_url}/datasets/{dataset_id}/experiments"
-
-
-def get_experiment_url(dataset_id: str, experiment_id: str) -> str:
-    """Get URL for specific experiment page."""
-    base_url = get_base_url()
-    return f"{base_url}/datasets/{dataset_id}/experiments/{experiment_id}"
-
-
 def jsonify(obj: Any) -> Any:
     """Convert object to JSON-serializable format."""
     if obj is None:
@@ -520,6 +498,12 @@ class Experiments:
     def __init__(self, client: httpx.Client) -> None:
         self._client = client
 
+    def get_dataset_experiments_url(self, dataset_id: str) -> str:
+        return f"{self._client.base_url}/v1/datasets/{dataset_id}/experiments"
+
+    def get_experiment_url(self, dataset_id: str, experiment_id: str) -> str:
+        return f"{self._client.base_url}/v1/datasets/{dataset_id}/experiments/{experiment_id}"
+
     def run_experiment(
         self,
         *,
@@ -621,8 +605,8 @@ class Experiments:
             example_ids = [ex["id"] for ex in sampled_examples]
             print(f"🌵️ This is a dry-run for these example IDs:\n{chr(10).join(example_ids)}")
         else:
-            dataset_experiments_url = get_dataset_experiments_url(dataset_id=dataset.id)
-            experiment_compare_url = get_experiment_url(
+            dataset_experiments_url = self.get_dataset_experiments_url(dataset_id=dataset.id)
+            experiment_compare_url = self.get_experiment_url(
                 dataset_id=dataset.id,
                 experiment_id=experiment.id,
             )
@@ -796,7 +780,7 @@ class Experiments:
                 if isinstance(_output, Awaitable):
                     raise RuntimeError(
                         "Task is async and cannot be run within sync implementation. "
-                        "Use AsyncExperiments instead."
+                        "Use the AsyncClient instead."
                     )
                 else:
                     output = _output
@@ -1000,6 +984,12 @@ class AsyncExperiments:
     def __init__(self, client: httpx.AsyncClient) -> None:
         self._client = client
 
+    def get_dataset_experiments_url(self, dataset_id: str) -> str:
+        return f"{self._client.base_url}/v1/datasets/{dataset_id}/experiments"
+
+    def get_experiment_url(self, dataset_id: str, experiment_id: str) -> str:
+        return f"{self._client.base_url}/v1/datasets/{dataset_id}/experiments/{experiment_id}"
+
     async def run_experiment(
         self,
         *,
@@ -1098,8 +1088,8 @@ class AsyncExperiments:
             example_ids = [ex["id"] for ex in sampled_examples]
             print(f"🌵️ This is a dry-run for these example IDs:\n{chr(10).join(example_ids)}")
         else:
-            dataset_experiments_url = get_dataset_experiments_url(dataset_id=dataset.id)
-            experiment_compare_url = get_experiment_url(
+            dataset_experiments_url = self.get_dataset_experiments_url(dataset_id=dataset.id)
+            experiment_compare_url = self.get_experiment_url(
                 dataset_id=dataset.id,
                 experiment_id=experiment.id,
             )
