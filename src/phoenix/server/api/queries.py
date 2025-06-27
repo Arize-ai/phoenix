@@ -1050,6 +1050,7 @@ class Query:
             )
         return None
 
+
 def _consolidate_sqlite_db_table_stats(
     stats: Iterable[tuple[str, int]],
 ) -> Iterator[tuple[str, int]]:
