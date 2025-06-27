@@ -132,7 +132,7 @@
     "output":10.00e-06,
     "cache_write":null,
     "cache_read":null,
-    "regex":"(?i)^(gemini-2\\.5-pro)(@[a-zA-Z0-9]+)?$"
+    "regex":"(?i)^(gemini-2.5-pro)(@[a-zA-Z0-9]+)?$"
   },
   {
     "model":"gemini-2.5-flash",
@@ -141,7 +141,7 @@
     "output":2.50e-06,
     "cache_write":null,
     "cache_read":null,
-    "regex":"(?i)^(gemini-2\\.5-flash)(@[a-zA-Z0-9]+)?$"
+    "regex":"(?i)^(gemini-2.5-flash)(@[a-zA-Z0-9]+)?$"
   },
   {
     "model":"gemini-2.0-flash-lite",
@@ -150,7 +150,7 @@
     "output":0.300e-06,
     "cache_write":null,
     "cache_read":null,
-    "regex":"(?i)^(gemini-2\\.0-flash-lite)(@[a-zA-Z0-9]+)?$"
+    "regex":"(?i)^(gemini-2.0-flash-lite)(@[a-zA-Z0-9]+)?$"
   },
   {
     "model":"gemini-2.0-flash",
