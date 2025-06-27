@@ -1,5 +1,12 @@
 # Changelog
 
+## [11.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.0.0...arize-phoenix-v11.1.0) (2025-06-26)
+
+
+### Features
+
+* **helm:** add support for imagePullSecrets to the helm chart ([#8300](https://github.com/Arize-ai/phoenix/issues/8300)) ([c305e4a](https://github.com/Arize-ai/phoenix/commit/c305e4a7c38fd98af4bd7c4c23f9f21777a8efbe)), closes [#8299](https://github.com/Arize-ai/phoenix/issues/8299)
+
 ## [11.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.15.0...arize-phoenix-v11.0.0) (2025-06-25)
 
 
