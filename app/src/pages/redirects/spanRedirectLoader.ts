@@ -33,8 +33,8 @@ export async function spanRedirectLoader({ params }: LoaderFunctionArgs) {
   ).toPromise();
 
   if (response?.span) {
-    const { trace, project } = response.span;
-    return redirect(`/projects/${project.id}/spans/${trace.traceId}`);
+    const { id, trace, project } = response.span;
+    return redirect(`/projects/${project.id}/spans/${trace.traceId}?selectedSpanNodeId={id}`);
   } else {
     throw new Error(`Span with id "${span_otel_id}" not found`);
   }
