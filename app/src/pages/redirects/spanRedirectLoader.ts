@@ -32,6 +32,6 @@ export async function spanRedirectLoader({ params }: LoaderFunctionArgs) {
     const { trace, project } = response.span;
     return redirect(`/projects/${project.id}/spans/${trace.traceId}`);
   } else {
-    throw new Response("Not Found", { status: 404 });
+    throw new Error(`Span with id "${span_otel_id}" not found`);
   }
 }

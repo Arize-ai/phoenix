@@ -397,6 +397,7 @@ const router = createBrowserRouter(
           <Route
             path="/redirects/spans/:span_otel_id"
             loader={spanRedirectLoader}
+            errorElement={<ErrorElement />}
           />
         </Route>
       </Route>
