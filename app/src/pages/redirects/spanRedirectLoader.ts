@@ -8,6 +8,10 @@ import { spanRedirectLoaderQuery } from "./__generated__/spanRedirectLoaderQuery
 export async function spanRedirectLoader({ params }: LoaderFunctionArgs) {
   const { span_otel_id } = params;
 
+  if (!span_otel_id) {
+    throw new Error("Span redirect requires a span ID");
+  }
+
   const response = await fetchQuery<spanRedirectLoaderQuery>(
     RelayEnvironment,
     graphql`
@@ -24,7 +28,7 @@ export async function spanRedirectLoader({ params }: LoaderFunctionArgs) {
       }
     `,
     {
-      spanOtelId: span_otel_id as string,
+      spanOtelId: span_otel_id,
     }
   ).toPromise();
 

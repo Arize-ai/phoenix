@@ -1011,11 +1011,9 @@ class Query:
         info: Info[Context, None],
         span_id: str,
     ) -> Optional[Span]:
-        print(f"Searching for span with ID: {span_id}")
         stmt = select(models.Span.id).where(models.Span.span_id == span_id)
         async with info.context.db() as session:
             span_rowid = await session.scalar(stmt)
-        print(f"Found span with ID: {span_rowid}")
         if span_rowid:
             return Span(span_rowid=span_rowid)
         return None
