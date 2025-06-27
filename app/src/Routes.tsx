@@ -96,6 +96,7 @@ import {
   SupportPage,
   TracePage,
 } from "./pages";
+import { spanRedirectLoader } from "./pages/redirects/spanRedirectLoader";
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path="/" errorElement={<ErrorElement />}>
@@ -393,6 +394,10 @@ const router = createBrowserRouter(
               loader={settingsDataPageLoader}
             />
           </Route>
+          <Route
+            path="/redirects/spans/:span_otel_id"
+            loader={spanRedirectLoader}
+          />
         </Route>
       </Route>
     </Route>

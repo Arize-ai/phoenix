@@ -1006,7 +1006,11 @@ class Query:
             return ValidationResult(is_valid=False, error_message=str(error))
 
     @strawberry.field
-    async def search_span_by_otel_id(self, info: Info[Context, None], span_id: str) -> Optional[Span]:
+    async def search_span_by_otel_id(
+        self,
+        info: Info[Context, None],
+        span_id: str,
+    ) -> Optional[Span]:
         print(f"Searching for span with ID: {span_id}")
         stmt = select(models.Span.id).where(models.Span.span_id == span_id)
         async with info.context.db() as session:

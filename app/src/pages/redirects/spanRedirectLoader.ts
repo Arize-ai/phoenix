@@ -1,0 +1,37 @@
+import { fetchQuery, graphql } from "react-relay";
+import { LoaderFunctionArgs, redirect } from "react-router";
+
+import RelayEnvironment from "@phoenix/RelayEnvironment";
+
+import { spanRedirectLoaderQuery } from "./__generated__/spanRedirectLoaderQuery.graphql";
+
+export async function spanRedirectLoader({ params }: LoaderFunctionArgs) {
+  const { span_otel_id } = params;
+
+  const response = await fetchQuery<spanRedirectLoaderQuery>(
+    RelayEnvironment,
+    graphql`
+      query spanRedirectLoaderQuery($spanOtelId: String!) {
+        span: searchSpanByOtelId(spanId: $spanOtelId) {
+          trace {
+            id
+            traceId
+          }
+          project {
+            id
+          }
+        }
+      }
+    `,
+    {
+      spanOtelId: span_otel_id as string,
+    }
+  ).toPromise();
+
+  if (response?.span) {
+    const { trace, project } = response.span;
+    return redirect(`/projects/${project.id}/spans/${trace.traceId}`);
+  } else {
+    throw new Response("Not Found", { status: 404 });
+  }
+}
