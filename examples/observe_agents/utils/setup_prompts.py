@@ -148,14 +148,6 @@ Analyze the email content and extract any meeting or event details. Return a JSO
     "requires_response": boolean       // whether a response is needed
 }
 
-Look for:
-- Meeting invitations or requests
-- Date and time mentions (convert to ISO format, assume current year if not specified)
-- Duration information
-- Attendee information
-- Location details
-- Calendar-related keywords
-
 If no event information is found, set has_event to false and other fields to null.
 For date/time parsing, be flexible with formats and make reasonable assumptions about timezone (use local time)."""
 

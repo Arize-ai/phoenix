@@ -17,6 +17,7 @@ from agents import Agent, Runner
 from calendar_agent import CALENDAR_AGENT  # type: ignore
 from dotenv import load_dotenv
 from mail_agent import MAIL_AGENT  # type: ignore
+from openinference.instrumentation.openai_agents import OpenAIAgentsInstrumentor
 
 import phoenix as px
 from phoenix.otel import register
@@ -24,11 +25,12 @@ from phoenix.otel import register
 load_dotenv()
 
 tracer_provider = register(
-    auto_instrument=True,
+    auto_instrument=False,
     endpoint=os.getenv("PHOENIX_COLLECTOR_ENDPOINT"),
-    project_name="observe-agents",
+    project_name=os.getenv("PHOENIX_PROJECT_NAME", "observe-agents"),
     verbose=False,
 )
+OpenAIAgentsInstrumentor().instrument(tracer_provider=tracer_provider)
 tracer = tracer_provider.get_tracer(__name__)
 
 MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
@@ -86,6 +88,12 @@ COORDINATOR_AGENT = Agent(
     handoffs=[agent for agent in [MAIL_AGENT, CALENDAR_AGENT] if agent is not None],
     model=MODEL,
 )
+
+
+def run_coordinator_agent(user_input: str) -> str:
+    result = Runner.run_sync(COORDINATOR_AGENT, user_input)
+    return result.final_output
+
 
 # ---------------------------------------------------------------------------
 # CLI entry-point

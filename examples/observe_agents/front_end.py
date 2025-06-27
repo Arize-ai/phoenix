@@ -185,7 +185,9 @@ def render_feedback_ui(message_index: int, span_id: Optional[str] = None):
         if st.button(
             "👍 Good", key=f"good_{message_index}", help="Response was helpful and accurate"
         ):
-            success = log_feedback_to_phoenix(span_id, "good", 1.0, "User rated response as good")
+            success = log_feedback_to_phoenix(
+                span_id, "helpful", 1.0, "User rated response as good"
+            )
             if success:
                 st.session_state[feedback_key] = True
                 st.rerun()
@@ -196,7 +198,9 @@ def render_feedback_ui(message_index: int, span_id: Optional[str] = None):
             key=f"okay_{message_index}",
             help="Response was acceptable but could be better",
         ):
-            success = log_feedback_to_phoenix(span_id, "okay", 0.5, "User rated response as okay")
+            success = log_feedback_to_phoenix(
+                span_id, "somewhat_helpful", 0.5, "User rated response as okay"
+            )
             if success:
                 st.session_state[feedback_key] = True
                 st.rerun()
@@ -205,7 +209,9 @@ def render_feedback_ui(message_index: int, span_id: Optional[str] = None):
         if st.button(
             "👎 Bad", key=f"bad_{message_index}", help="Response was unhelpful or incorrect"
         ):
-            success = log_feedback_to_phoenix(span_id, "bad", 0.0, "User rated response as bad")
+            success = log_feedback_to_phoenix(
+                span_id, "unhelpful", 0.0, "User rated response as bad"
+            )
             if success:
                 st.session_state[feedback_key] = True
                 st.rerun()
