@@ -1,5 +1,36 @@
 # Changelog
 
+## [11.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.0.0...arize-phoenix-v11.1.0) (2025-06-26)
+
+
+### Features
+
+* **helm:** add support for imagePullSecrets to the helm chart ([#8300](https://github.com/Arize-ai/phoenix/issues/8300)) ([c305e4a](https://github.com/Arize-ai/phoenix/commit/c305e4a7c38fd98af4bd7c4c23f9f21777a8efbe)), closes [#8299](https://github.com/Arize-ai/phoenix/issues/8299)
+
+## [11.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.15.0...arize-phoenix-v11.0.0) (2025-06-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **cost:** release cost ([#8291](https://github.com/Arize-ai/phoenix/issues/8291))
+
+### Features
+
+* **cost:** model costs ([#7834](https://github.com/Arize-ai/phoenix/issues/7834)) ([298a7b6](https://github.com/Arize-ai/phoenix/commit/298a7b6a6e42d898d9846cca372ddeccb65cc386))
+* **cost:** release cost ([#8291](https://github.com/Arize-ai/phoenix/issues/8291)) ([bb38b91](https://github.com/Arize-ai/phoenix/commit/bb38b91ab0bbbdb9dee796de0a6eb5d59fd76d00))
+* Update openai reasoning models ([#8246](https://github.com/Arize-ai/phoenix/issues/8246)) ([1d67f1c](https://github.com/Arize-ai/phoenix/commit/1d67f1c19ca0562011ab384202bc8264c84b932d))
+
+
+### Bug Fixes
+
+* **cost:** fallback to input/output base rate for unrecognized token types ([#8295](https://github.com/Arize-ai/phoenix/issues/8295)) ([24301b9](https://github.com/Arize-ai/phoenix/commit/24301b939695beba2465d68b10d01dc52db9545a))
+* Use correct response body content type ([#8284](https://github.com/Arize-ai/phoenix/issues/8284)) ([f527990](https://github.com/Arize-ai/phoenix/commit/f527990417292c1df31a6a1b61b82e2a0fe6fb8b))
+
+
+### Documentation
+
+* migration guide ([#8292](https://github.com/Arize-ai/phoenix/issues/8292)) ([3c030f4](https://github.com/Arize-ai/phoenix/commit/3c030f4ea73229c2f384dc20fea8894f8f464ce5))
+
 ## [10.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v10.14.0...arize-phoenix-v10.15.0) (2025-06-21)
 
 

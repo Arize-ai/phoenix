@@ -6,6 +6,8 @@
 
 Let's work through a Text2SQL use case where we are starting from scratch without a nice and clean dataset of questions, SQL queries, or expected responses.
 
+note: this is based on a tutorial originally authored by [Ankur Goyal](https://www.braintrust.dev/docs/cookbook/recipes/Text2SQL-Data)
+
 ```shell
 pip install 'arize-phoenix>=4.6.0' openai duckdb datasets pyarrow pydantic nest_asyncio openinference-instrumentation-openai --quiet
 ```

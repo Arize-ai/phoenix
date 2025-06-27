@@ -198,8 +198,8 @@ export function SpansTable(props: SpansTableProps) {
                 statusCode
                 startTime
                 latencyMs
-                tokenCountTotal
-                cumulativeTokenCountTotal
+                tokenCountTotal @skip(if: $rootSpansOnly)
+                cumulativeTokenCountTotal @include(if: $rootSpansOnly)
                 spanId
                 trace {
                   id
@@ -233,7 +233,12 @@ export function SpansTable(props: SpansTableProps) {
                   precision
                   hit
                 }
-                costSummary {
+                costSummary @skip(if: $rootSpansOnly) {
+                  total {
+                    cost
+                  }
+                }
+                cumulativeCostSummary @include(if: $rootSpansOnly) {
                   total {
                     cost
                   }
@@ -507,9 +512,12 @@ export function SpansTable(props: SpansTableProps) {
       },
     },
     {
-      header: "total cost",
-      accessorKey: "costSummary.total.cost",
+      header: rootSpansOnly ? "cumulative cost" : "total cost",
+      accessorKey: rootSpansOnly
+        ? "cumulativeCostSummary.total.cost"
+        : "costSummary.total.cost",
       id: "tokenCostTotal",
+      enableSorting: rootSpansOnly ? false : true, // TODO: add sorting for cumulative cost
       cell: ({ row, getValue }) => {
         const value = getValue();
         if (value === null || typeof value !== "number") {
