@@ -137,6 +137,14 @@ describe("convertMessageToolCallsToProvider", () => {
         [{ test: "test" }],
       ],
     ],
+    AWS: [
+      [
+        "return tools as they are for aws bedrock",
+        "AWS",
+        [{ test: "test" }],
+        [{ test: "test" }],
+      ],
+    ],
     AZURE_OPENAI: [
       [
         "convert from anthropic to openai",
@@ -412,6 +420,14 @@ describe("convertMessageToolCallsToProvider", () => {
       [
         "return tools as they are for ollama",
         "OLLAMA",
+        [{ id: 1, definition: { test: "test" } }],
+        [{ id: 1, definition: { test: "test" } }],
+      ],
+    ],
+    AWS: [
+      [
+        "return tools as they are for aws",
+        "AWS",
         [{ id: 1, definition: { test: "test" } }],
         [{ id: 1, definition: { test: "test" } }],
       ],

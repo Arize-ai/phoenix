@@ -20,6 +20,7 @@ Phoenix MCP Server is an implementation of the Model Context Protocol for the Ar
 You can use Phoenix MCP Server for:
 
 - **Projects Management**: List and explore projects that organize your observability data
+- **Spans & Annotations**: Retrieve spans and their annotations for analysis and debugging
 - **Prompts Management**: Create, list, update, and iterate on prompts
 - **Datasets**: Explore datasets, and syntesize new examples
 - **Experiments**: Pull experiment results and visualize them with the help of an LLM

@@ -17,6 +17,12 @@ Phoenix MCP Server supports:
 
 {% tabs %}
 {% tab title="Connect via Cursor" %}
+#### Via Cursor Deeplink:
+
+[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/install-mcp?name=phoenix\&config=eyJjb21tYW5kIjoibnB4IC15IEBhcml6ZWFpL3Bob2VuaXgtbWNwQGxhdGVzdCAtLWJhc2VVcmwgaHR0cHM6Ly9hcHAucGhvZW5peC5hcml6ZS5jb20gLS1hcGlLZXkgIn0%3D)
+
+#### Manually:
+
 From the Cursor Settings page, navigate to the MCP section, and click "Add new global MCP server"
 
 <figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/mcp-1.png" alt=""><figcaption></figcaption></figure>

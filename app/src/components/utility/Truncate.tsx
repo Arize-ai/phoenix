@@ -10,12 +10,14 @@ const truncateCSS = css`
 export const Truncate = ({
   children,
   maxWidth,
+  title,
 }: {
   children: React.ReactNode;
   maxWidth: CSSProperties["maxWidth"];
+  title?: string;
 }) => {
   return (
-    <div css={truncateCSS} style={{ maxWidth }}>
+    <div css={truncateCSS} style={{ maxWidth }} title={title}>
       {children}
     </div>
   );

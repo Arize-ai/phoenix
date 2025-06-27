@@ -15,7 +15,7 @@ import {
 } from "@arizeai/components";
 
 import { Button, Flex, Heading, Icon, Icons } from "@phoenix/components";
-import { TokenCount } from "@phoenix/components/trace/TokenCount";
+import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
 import { LatencyText } from "./LatencyText";
@@ -293,7 +293,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
             {typeof tokenCountTotal === "number" &&
             tokenCountTotal > 0 &&
             showMetricsInTraceTree ? (
-              <TokenCount
+              <SpanTokenCount
                 tokenCountTotal={tokenCountTotal}
                 nodeId={node.span.id}
               />

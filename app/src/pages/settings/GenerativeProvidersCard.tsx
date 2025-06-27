@@ -35,6 +35,7 @@ import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { ProviderToCredentialsConfigMap } from "@phoenix/constants/generativeConstants";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
+import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import {
   GenerativeProvidersCard_data$data,
@@ -107,6 +108,9 @@ export function GenerativeProvidersCard({
 
           // Check if any credentials are set locally
           const credentialRequirements = row.original.credentialRequirements;
+          if (!isModelProvider(row.original.key)) {
+            return <Text color="warning">unknown provider key</Text>;
+          }
           const providerCredentials = credentials[row.original.key];
           const hasLocalCredentials = credentialRequirements.every(
             ({ envVarName, isRequired }) => {

@@ -1,9 +1,13 @@
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
+import { HelpTooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
+
 import { Flex, Text, View } from "@phoenix/components";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { TokenCount } from "@phoenix/components/trace/TokenCount";
+import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
+
+import { costFormatter } from "../../utils/numberFormatUtils";
 
 import {
   SessionDetailsQuery,
@@ -13,12 +17,14 @@ import { SessionDetailsTraceList } from "./SessionDetailsTraceList";
 
 function SessionDetailsHeader({
   traceCount,
+  costSummary,
   tokenUsage,
   latencyP50,
   sessionId,
 }: {
   traceCount: number;
   tokenUsage?: NonNullable<SessionDetailsQuery$data["session"]>["tokenUsage"];
+  costSummary?: NonNullable<SessionDetailsQuery$data["session"]>["costSummary"];
   latencyP50?: number | null;
   sessionId: string;
 }) {
@@ -40,11 +46,47 @@ function SessionDetailsHeader({
             <Text elementType={"h3"} color={"text-700"}>
               Total Tokens
             </Text>
-            <TokenCount
+            <SessionTokenCount
               tokenCountTotal={tokenUsage.total}
               nodeId={sessionId}
               size="L"
             />
+          </Flex>
+        ) : null}
+        {costSummary != null ? (
+          <Flex direction="column" flex="none">
+            <Text elementType="h3" size="S" color="text-700">
+              Total Cost
+            </Text>
+            <TooltipTrigger delay={0} placement="bottom">
+              <TriggerWrap>
+                <Text size="L">
+                  {costFormatter(costSummary.total?.cost ?? 0)}
+                </Text>
+              </TriggerWrap>
+              <HelpTooltip>
+                <View width="size-2400">
+                  <Flex direction="column">
+                    <Flex justifyContent="space-between">
+                      <Text>Prompt Cost</Text>
+                      <Text>
+                        {costFormatter(costSummary.prompt?.cost ?? 0)}
+                      </Text>
+                    </Flex>
+                    <Flex justifyContent="space-between">
+                      <Text>Completion Cost</Text>
+                      <Text>
+                        {costFormatter(costSummary.completion?.cost ?? 0)}
+                      </Text>
+                    </Flex>
+                    <Flex justifyContent="space-between">
+                      <Text>Total Cost</Text>
+                      <Text>{costFormatter(costSummary.total?.cost ?? 0)}</Text>
+                    </Flex>
+                  </Flex>
+                </View>
+              </HelpTooltip>
+            </TooltipTrigger>
           </Flex>
         ) : null}
         {latencyP50 != null ? (
@@ -78,6 +120,23 @@ export function SessionDetails(props: SessionDetailsProps) {
             tokenUsage {
               total
             }
+            costSummary {
+              total {
+                cost
+                tokens
+                costPerToken
+              }
+              prompt {
+                cost
+                tokens
+                costPerToken
+              }
+              completion {
+                cost
+                tokens
+                costPerToken
+              }
+            }
             sessionId
             latencyP50: traceLatencyMsQuantile(probability: 0.50)
             traces {
@@ -100,6 +159,11 @@ export function SessionDetails(props: SessionDetailsProps) {
                       mimeType
                     }
                     cumulativeTokenCountTotal
+                    cumulativeCostSummary {
+                      total {
+                        cost
+                      }
+                    }
                     latencyMs
                     startTime
                     spanId
@@ -135,6 +199,7 @@ export function SessionDetails(props: SessionDetailsProps) {
     >
       <SessionDetailsHeader
         traceCount={data.session.numTraces ?? 0}
+        costSummary={data.session.costSummary}
         tokenUsage={data.session.tokenUsage}
         latencyP50={data.session.latencyP50}
         sessionId={sessionId}

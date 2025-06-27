@@ -3,9 +3,9 @@ import strawberry
 
 @strawberry.type
 class TokenUsage:
-    prompt: int = 0
-    completion: int = 0
+    prompt: float = 0
+    completion: float = 0
 
     @strawberry.field
-    async def total(self) -> int:
+    async def total(self) -> float:
         return self.prompt + self.completion

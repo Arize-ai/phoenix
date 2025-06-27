@@ -70,6 +70,10 @@ export type ModelConfig = {
   baseUrl?: string | null;
   endpoint?: string | null;
   apiVersion?: string | null;
+  /**
+   * The region of the deployment (e.x. us-east-1 for AWS Bedrock)
+   */
+  region?: string | null;
   invocationParameters: InvocationParameterInput[];
   supportedInvocationParameters: InvocationParameter[];
 };

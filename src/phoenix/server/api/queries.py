@@ -1,3 +1,4 @@
+import re
 from collections import defaultdict
 from datetime import datetime
 from typing import Iterable, Iterator, Optional, Union, cast
@@ -21,12 +22,6 @@ from phoenix.config import (
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.helpers import SupportedSQLDialect, exclude_experiment_projects
-from phoenix.db.models import DatasetExample as OrmExample
-from phoenix.db.models import DatasetExampleRevision as OrmRevision
-from phoenix.db.models import DatasetVersion as OrmVersion
-from phoenix.db.models import Experiment as OrmExperiment
-from phoenix.db.models import ExperimentRun as OrmExperimentRun
-from phoenix.db.models import Trace as OrmTrace
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
@@ -62,12 +57,13 @@ from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.ExperimentComparison import ExperimentComparison, RunComparisonItem
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.Functionality import Functionality
-from phoenix.server.api.types.GenerativeModel import GenerativeModel
+from phoenix.server.api.types.GenerativeModel import GenerativeModel, to_gql_generative_model
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
+from phoenix.server.api.types.InferenceModel import InferenceModel
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
-from phoenix.server.api.types.Model import Model
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
+from phoenix.server.api.types.PlaygroundModel import PlaygroundModel
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
 from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
@@ -115,20 +111,39 @@ class Query:
         ]
 
     @strawberry.field
-    async def models(self, input: Optional[ModelsInput] = None) -> list[GenerativeModel]:
+    async def generative_models(
+        self,
+        info: Info[Context, None],
+    ) -> list[GenerativeModel]:
+        async with info.context.db() as session:
+            result = await session.scalars(
+                select(models.GenerativeModel)
+                .where(models.GenerativeModel.deleted_at.is_(None))
+                .order_by(
+                    models.GenerativeModel.is_built_in.asc(),  # display custom models first
+                    models.GenerativeModel.provider.nullslast(),
+                    models.GenerativeModel.name,
+                )
+                .options(joinedload(models.GenerativeModel.token_prices))
+            )
+
+        return [to_gql_generative_model(model) for model in result.unique()]
+
+    @strawberry.field
+    async def playground_models(self, input: Optional[ModelsInput] = None) -> list[PlaygroundModel]:
         if input is not None and input.provider_key is not None:
             supported_model_names = PLAYGROUND_CLIENT_REGISTRY.list_models(input.provider_key)
             supported_models = [
-                GenerativeModel(name=model_name, provider_key=input.provider_key)
+                PlaygroundModel(name=model_name, provider_key=input.provider_key)
                 for model_name in supported_model_names
             ]
             return supported_models
 
         registered_models = PLAYGROUND_CLIENT_REGISTRY.list_all_models()
-        all_models: list[GenerativeModel] = []
+        all_models: list[PlaygroundModel] = []
         for provider_key, model_name in registered_models:
             if model_name is not None and provider_key is not None:
-                all_models.append(GenerativeModel(name=model_name, provider_key=provider_key))
+                all_models.append(PlaygroundModel(name=model_name, provider_key=provider_key))
         return all_models
 
     @strawberry.field
@@ -330,7 +345,7 @@ class Query:
             )
 
         experiment_ids_ = [
-            from_global_id_with_expected_type(experiment_id, OrmExperiment.__name__)
+            from_global_id_with_expected_type(experiment_id, models.Experiment.__name__)
             for experiment_id in experiment_ids
         ]
         if len(set(experiment_ids_)) != len(experiment_ids_):
@@ -340,18 +355,18 @@ class Query:
             validation_result = (
                 await session.execute(
                     select(
-                        func.count(distinct(OrmVersion.dataset_id)),
-                        func.max(OrmVersion.dataset_id),
-                        func.max(OrmVersion.id),
-                        func.count(OrmExperiment.id),
+                        func.count(distinct(models.DatasetVersion.dataset_id)),
+                        func.max(models.DatasetVersion.dataset_id),
+                        func.max(models.DatasetVersion.id),
+                        func.count(models.Experiment.id),
                     )
-                    .select_from(OrmVersion)
+                    .select_from(models.DatasetVersion)
                     .join(
-                        OrmExperiment,
-                        OrmExperiment.dataset_version_id == OrmVersion.id,
+                        models.Experiment,
+                        models.Experiment.dataset_version_id == models.DatasetVersion.id,
                     )
                     .where(
-                        OrmExperiment.id.in_(experiment_ids_),
+                        models.Experiment.id.in_(experiment_ids_),
                     )
                 )
             ).first()
@@ -365,29 +380,33 @@ class Query:
                 raise ValueError("Unable to resolve one or more experiment IDs.")
 
             revision_ids = (
-                select(func.max(OrmRevision.id))
-                .join(OrmExample, OrmExample.id == OrmRevision.dataset_example_id)
+                select(func.max(models.DatasetExampleRevision.id))
+                .join(
+                    models.DatasetExample,
+                    models.DatasetExample.id == models.DatasetExampleRevision.dataset_example_id,
+                )
                 .where(
                     and_(
-                        OrmRevision.dataset_version_id <= version_id,
-                        OrmExample.dataset_id == dataset_id,
+                        models.DatasetExampleRevision.dataset_version_id <= version_id,
+                        models.DatasetExample.dataset_id == dataset_id,
                     )
                 )
-                .group_by(OrmRevision.dataset_example_id)
+                .group_by(models.DatasetExampleRevision.dataset_example_id)
                 .scalar_subquery()
             )
             examples_query = (
-                select(OrmExample)
-                .distinct(OrmExample.id)
+                select(models.DatasetExample)
+                .distinct(models.DatasetExample.id)
                 .join(
-                    OrmRevision,
+                    models.DatasetExampleRevision,
                     onclause=and_(
-                        OrmExample.id == OrmRevision.dataset_example_id,
-                        OrmRevision.id.in_(revision_ids),
-                        OrmRevision.revision_kind != "DELETE",
+                        models.DatasetExample.id
+                        == models.DatasetExampleRevision.dataset_example_id,
+                        models.DatasetExampleRevision.id.in_(revision_ids),
+                        models.DatasetExampleRevision.revision_kind != "DELETE",
                     ),
                 )
-                .order_by(OrmExample.id.desc())
+                .order_by(models.DatasetExample.id.desc())
             )
 
             if filter_condition:
@@ -401,18 +420,20 @@ class Query:
 
             ExampleID: TypeAlias = int
             ExperimentID: TypeAlias = int
-            runs: defaultdict[ExampleID, defaultdict[ExperimentID, list[OrmExperimentRun]]] = (
+            runs: defaultdict[ExampleID, defaultdict[ExperimentID, list[models.ExperimentRun]]] = (
                 defaultdict(lambda: defaultdict(list))
             )
             async for run in await session.stream_scalars(
-                select(OrmExperimentRun)
+                select(models.ExperimentRun)
                 .where(
                     and_(
-                        OrmExperimentRun.dataset_example_id.in_(example.id for example in examples),
-                        OrmExperimentRun.experiment_id.in_(experiment_ids_),
+                        models.ExperimentRun.dataset_example_id.in_(
+                            example.id for example in examples
+                        ),
+                        models.ExperimentRun.experiment_id.in_(experiment_ids_),
                     )
                 )
-                .options(joinedload(OrmExperimentRun.trace).load_only(OrmTrace.trace_id))
+                .options(joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id))
             ):
                 runs[run.dataset_example_id][run.experiment_id].append(run)
 
@@ -460,7 +481,7 @@ class Query:
             compile_sqlalchemy_filter_condition(
                 filter_condition=condition,
                 experiment_ids=[
-                    from_global_id_with_expected_type(experiment_id, OrmExperiment.__name__)
+                    from_global_id_with_expected_type(experiment_id, models.Experiment.__name__)
                     for experiment_id in experiment_ids
                 ],
             )
@@ -482,8 +503,8 @@ class Query:
         )
 
     @strawberry.field
-    def model(self) -> Model:
-        return Model()
+    def model(self) -> InferenceModel:
+        return InferenceModel()
 
     @strawberry.field
     async def node(self, id: GlobalID, info: Info[Context, None]) -> Node:
@@ -658,6 +679,18 @@ class Query:
                 if not trace_annotation:
                     raise NotFound(f"Unknown trace annotation: {id}")
             return to_gql_trace_annotation(trace_annotation)
+        elif type_name == GenerativeModel.__name__:
+            async with info.context.db() as session:
+                stmt = (
+                    select(models.GenerativeModel)
+                    .where(models.GenerativeModel.deleted_at.is_(None))
+                    .where(models.GenerativeModel.id == node_id)
+                    .options(joinedload(models.GenerativeModel.token_prices))
+                )
+                model = await session.scalar(stmt)
+                if not model:
+                    raise NotFound(f"Unknown model: {id}")
+            return to_gql_generative_model(model)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field
@@ -963,6 +996,14 @@ class Query:
             DbTableStats(table_name=table_name, num_bytes=num_bytes)
             for table_name, num_bytes in stats
         ]
+
+    @strawberry.field
+    def validate_regular_expression(self, regex: str) -> ValidationResult:
+        try:
+            re.compile(regex)
+            return ValidationResult(is_valid=True, error_message=None)
+        except re.error as error:
+            return ValidationResult(is_valid=False, error_message=str(error))
 
 
 def _consolidate_sqlite_db_table_stats(
