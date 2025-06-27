@@ -1005,6 +1005,16 @@ class Query:
         except re.error as error:
             return ValidationResult(is_valid=False, error_message=str(error))
 
+    @strawberry.field
+    async def search_span_by_otel_id(self, info: Info[Context, None], span_id: str) -> Optional[Span]:
+        print(f"Searching for span with ID: {span_id}")
+        stmt = select(models.Span.id).where(models.Span.span_id == span_id)
+        async with info.context.db() as session:
+            span_rowid = await session.scalar(stmt)
+        print(f"Found span with ID: {span_rowid}")
+        if span_rowid:
+            return Span(span_rowid=span_rowid)
+        return None
 
 def _consolidate_sqlite_db_table_stats(
     stats: Iterable[tuple[str, int]],
