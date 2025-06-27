@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d9513fcfcb5ae84831757a9b51de479c>>
+ * @generated SignedSource<<0697add693a7184604cd893ab5452d58>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -82,6 +82,11 @@ return {
       "name": "first"
     },
     {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "sessionId"
+    },
+    {
       "defaultValue": {
         "col": "startTime",
         "dir": "desc"
@@ -139,6 +144,11 @@ return {
           "kind": "Variable",
           "name": "filterIoSubstring",
           "variableName": "filterIoSubstring"
+        },
+        {
+          "kind": "Variable",
+          "name": "sessionId",
+          "variableName": "sessionId"
         },
         {
           "kind": "Variable",
@@ -331,6 +341,6 @@ return {
 };
 })();
 
-(node as any).hash = "827cd1cd4207ee9d2803d2768d0a52ab";
+(node as any).hash = "c52b6e8a736a75aaebe4f63f960ad9c1";
 
 export default node;

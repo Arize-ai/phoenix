@@ -6,7 +6,9 @@ from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-# Environment variables specific to the subpackage
+ENV_OTEL_EXPORTER_OTLP_ENDPOINT = "OTEL_EXPORTER_OTLP_ENDPOINT"
+
+# Phoenix environment variables
 ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT"
 ENV_PHOENIX_GRPC_PORT = "PHOENIX_GRPC_PORT"
 ENV_PHOENIX_PROJECT_NAME = "PHOENIX_PROJECT_NAME"
@@ -20,7 +22,7 @@ See https://opentelemetry.io/docs/specs/otlp/#otlpgrpc-default-port"""
 
 
 def get_env_collector_endpoint() -> Optional[str]:
-    return os.getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT)
+    return os.getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT) or os.getenv(ENV_OTEL_EXPORTER_OTLP_ENDPOINT)
 
 
 def get_env_project_name() -> str:

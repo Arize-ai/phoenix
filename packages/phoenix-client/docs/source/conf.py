@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.join(BASE_DIR, "src", "phoenix"))
 
 # -- Project information -----------------------------------------------------
 
-project = "Phoenix Client API Reference"
+project = "Phoenix Client Reference"
 copyright = "2025, Arize AI"
 author = "Arize AI"
 
@@ -98,7 +98,7 @@ html_show_sphinx = False
 
 html_theme_options = {
     "logo": {
-        "text": "Phoenix Client API",
+        "text": "Phoenix Client",
         "image_light": "logo.png",
         "image_dark": "logo.png",
     },
@@ -115,8 +115,8 @@ html_theme_options = {
         },
     ],
     "external_links": [
-        {"name": "Main Phoenix Docs", "url": "https://arize.com/docs/phoenix"},
-        {"name": "Phoenix API Reference", "url": "https://arize-phoenix.readthedocs.io/"},
+        {"name": "Phoenix Docs", "url": "https://arize.com/docs/phoenix"},
+        {"name": "Python Reference", "url": "https://arize-phoenix.readthedocs.io/"},
     ],
     "navbar_align": "content",
     "navbar_start": ["navbar-logo"],

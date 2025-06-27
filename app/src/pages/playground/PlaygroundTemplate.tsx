@@ -1,15 +1,23 @@
-import React, { Suspense, useCallback, useState } from "react";
+import { Suspense, useCallback } from "react";
 
 import {
   Card,
   Content,
-  DialogContainer,
   Tooltip,
   TooltipTrigger,
   TriggerWrap,
 } from "@arizeai/components";
 
-import { Button, Flex, Icon, Icons, Loading } from "@phoenix/components";
+import {
+  Button,
+  DialogTrigger,
+  Flex,
+  Icon,
+  Icons,
+  Loading,
+  Modal,
+  ModalOverlay,
+} from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
@@ -24,7 +32,6 @@ import { PlaygroundInstanceProps } from "./types";
 interface PlaygroundTemplateProps extends PlaygroundInstanceProps {}
 
 export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
-  const [dialog, setDialog] = useState<React.ReactNode>(null);
   const instanceId = props.playgroundInstanceId;
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const addMessage = usePlaygroundContext((state) => state.addMessage);
@@ -109,11 +116,7 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
               <ModelSupportedParamsFetcher instanceId={instanceId} />
             </Suspense>
             <ModelConfigButton {...props} />
-            <SaveButton
-              instanceId={instanceId}
-              setDialog={setDialog}
-              dirty={dirty}
-            />
+            <SaveButton instanceId={instanceId} dirty={dirty} />
             {instances.length > 1 ? <DeleteButton {...props} /> : null}
           </Flex>
         }
@@ -126,14 +129,6 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
           "Completion Template"
         )}
       </Card>
-      <DialogContainer
-        isDismissable
-        onDismiss={() => {
-          setDialog(null);
-        }}
-      >
-        {dialog}
-      </DialogContainer>
     </>
   );
 }
@@ -161,37 +156,21 @@ function DeleteButton(props: PlaygroundInstanceProps) {
 
 type SaveButtonProps = {
   instanceId: number;
-  setDialog: (dialog: React.ReactNode) => void;
   dirty?: boolean;
 };
 
-function SaveButton({ instanceId, setDialog, dirty }: SaveButtonProps) {
+function SaveButton({ instanceId, dirty }: SaveButtonProps) {
   const instance = usePlaygroundContext((state) =>
     state.instances.find((instance) => instance.id === instanceId)
   );
   if (!instance) {
     throw new Error(`Instance ${instanceId} not found`);
   }
-
-  const onSave = () => {
-    setDialog(
-      <UpsertPromptFromTemplateDialog
-        instanceId={instanceId}
-        setDialog={setDialog}
-        selectedPromptId={instance.prompt?.id}
-      />
-    );
-  };
-
   return (
-    <>
+    <DialogTrigger>
       <TooltipTrigger delay={100} offset={5} placement="top">
         <TriggerWrap>
-          <Button
-            variant={dirty ? "primary" : undefined}
-            size="S"
-            onPress={onSave}
-          >
+          <Button variant={dirty ? "primary" : undefined} size="S">
             Save
           </Button>
         </TriggerWrap>
@@ -199,6 +178,14 @@ function SaveButton({ instanceId, setDialog, dirty }: SaveButtonProps) {
           <Content>Save this prompt</Content>
         </Tooltip>
       </TooltipTrigger>
-    </>
+      <ModalOverlay>
+        <Modal>
+          <UpsertPromptFromTemplateDialog
+            instanceId={instanceId}
+            selectedPromptId={instance.prompt?.id}
+          />
+        </Modal>
+      </ModalOverlay>
+    </DialogTrigger>
   );
 }

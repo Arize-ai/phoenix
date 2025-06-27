@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { css } from "@emotion/react";
 
@@ -34,59 +34,62 @@ const messagesContainerCSS = css`
   gap: var(--ac-global-dimension-size-100);
 `;
 
+// Use a fixed base date for consistent storybook renders
+const BASE_DATE = new Date("2024-01-15T10:00:00Z");
+
 const DEMO_MESSAGES: Message[] = [
   {
     id: "1",
     text: "Hey there! How are you?",
-    timestamp: new Date(Date.now() - 60000 * 25),
+    timestamp: new Date(BASE_DATE.getTime() - 60000 * 25),
     isOutgoing: false,
   },
   {
     id: "2",
     text: "I'm doing great, thanks for asking! How about you?",
-    timestamp: new Date(Date.now() - 60000 * 24),
+    timestamp: new Date(BASE_DATE.getTime() - 60000 * 24),
     isOutgoing: true,
   },
   {
     id: "3",
     text: "Pretty good! Just working on some new features.",
-    timestamp: new Date(Date.now() - 60000 * 23),
+    timestamp: new Date(BASE_DATE.getTime() - 60000 * 23),
     isOutgoing: false,
   },
   {
     id: "4",
     text: "That sounds interesting! What kind of features are you working on?",
-    timestamp: new Date(Date.now() - 60000 * 22),
+    timestamp: new Date(BASE_DATE.getTime() - 60000 * 22),
     isOutgoing: true,
   },
   {
     id: "5",
     text: "We're building a new chat interface with real-time updates",
-    timestamp: new Date(Date.now() - 60000 * 20),
+    timestamp: new Date(BASE_DATE.getTime() - 60000 * 20),
     isOutgoing: false,
   },
   {
     id: "6",
     text: "It will support rich media, file sharing, and thread replies",
-    timestamp: new Date(Date.now() - 60000 * 19),
+    timestamp: new Date(BASE_DATE.getTime() - 60000 * 19),
     isOutgoing: false,
   },
   {
     id: "7",
     text: "Wow, that's awesome! When do you think it will be ready?",
-    timestamp: new Date(Date.now() - 60000 * 15),
+    timestamp: new Date(BASE_DATE.getTime() - 60000 * 15),
     isOutgoing: true,
   },
   {
     id: "8",
     text: "We're aiming to launch a beta version next week",
-    timestamp: new Date(Date.now() - 60000 * 10),
+    timestamp: new Date(BASE_DATE.getTime() - 60000 * 10),
     isOutgoing: false,
   },
   {
     id: "9",
     text: "I'll make sure you get early access to try it out! 😊",
-    timestamp: new Date(Date.now() - 60000 * 9),
+    timestamp: new Date(BASE_DATE.getTime() - 60000 * 9),
     isOutgoing: false,
   },
 ];

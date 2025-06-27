@@ -10,7 +10,7 @@ import React, {
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { useNavigate, useSearchParams } from "react-router";
+import { useNavigate } from "react-router";
 import {
   CellContext,
   ColumnDef,
@@ -21,22 +21,23 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import {
-  ActionMenu,
-  Card,
-  CardProps,
-  Dialog,
-  DialogContainer,
-  Item,
-} from "@arizeai/components";
+import { Card, CardProps } from "@arizeai/components";
 
 import {
   Button,
   CopyToClipboardButton,
+  Dialog,
+  DialogCloseButton,
+  DialogTrigger,
   Flex,
   Heading,
   Icon,
   Icons,
+  ListBox,
+  ListBoxItem,
+  Modal,
+  ModalOverlay,
+  Popover,
   Text,
   View,
   ViewSummaryAside,
@@ -47,6 +48,12 @@ import {
 } from "@phoenix/components/annotation";
 import { JSONBlock } from "@phoenix/components/code";
 import { JSONText } from "@phoenix/components/code/JSONText";
+import {
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+} from "@phoenix/components/dialog";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
 import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
 import { resizeHandleCSS } from "@phoenix/components/resize";
@@ -59,7 +66,6 @@ import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { Truncate } from "@phoenix/components/utility/Truncate";
-import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
@@ -141,7 +147,6 @@ const annotationTooltipExtraCSS = css`
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const { datasetId, experimentIds, displayFullText } = props;
   const [filterCondition, setFilterCondition] = useState("");
-  const [, setSearchParams] = useSearchParams();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<
@@ -263,7 +268,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     [data]
   );
 
-  const [dialog, setDialog] = useState<ReactNode>(null);
   const baseColumns: ColumnDef<TableRow>[] = useMemo(() => {
     return [
       {
@@ -273,27 +277,24 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           return (
             <CellWithControlsWrap
               controls={
-                <Button
-                  size="S"
-                  aria-label="View example details"
-                  leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
-                  onPress={() => {
-                    startTransition(() => {
-                      setDialog(
-                        <Suspense>
-                          <ExampleDetailsDialog
-                            exampleId={row.original.example.id}
-                            onDismiss={() => {
-                              setDialog(null);
-                            }}
-                          />
-                        </Suspense>
-                      );
-                    });
-                  }}
-                >
-                  View Example
-                </Button>
+                <DialogTrigger>
+                  <Button
+                    size="S"
+                    aria-label="View example details"
+                    leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
+                  >
+                    View Example
+                  </Button>
+                  <ModalOverlay>
+                    <Modal variant="slideover" size="L">
+                      <Suspense>
+                        <ExampleDetailsDialog
+                          exampleId={row.original.example.id}
+                        />
+                      </Suspense>
+                    </Modal>
+                  </ModalOverlay>
+                </DialogTrigger>
               }
             >
               <PaddedCell>
@@ -370,50 +371,50 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         const projectId = run?.trace?.projectId;
         if (traceId && projectId) {
           traceButton = (
-            <Button
-              variant="default"
-              className="trace-button"
-              size="S"
-              aria-label="View run trace"
-              leadingVisual={<Icon svg={<Icons.Trace />} />}
-              onPress={() => {
-                startTransition(() => {
-                  setDialog(
-                    <TraceDetailsDialog
-                      traceId={traceId}
-                      projectId={projectId}
-                      title={`Experiment Run Trace`}
-                    />
-                  );
-                });
-              }}
-            >
-              View Trace
-            </Button>
+            <DialogTrigger>
+              <Button
+                variant="default"
+                className="trace-button"
+                size="S"
+                aria-label="View run trace"
+                leadingVisual={<Icon svg={<Icons.Trace />} />}
+              >
+                View Trace
+              </Button>
+              <ModalOverlay>
+                <Modal variant="slideover" size="fullscreen">
+                  <TraceDetailsDialog
+                    traceId={traceId}
+                    projectId={projectId}
+                    title={`Experiment Run Trace`}
+                  />
+                </Modal>
+              </ModalOverlay>
+            </DialogTrigger>
           );
         }
         const runControls = (
           <>
-            <Button
-              variant="default"
-              className="expand-button"
-              size="S"
-              aria-label="View example run details"
-              leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
-              onPress={() => {
-                startTransition(() => {
-                  setDialog(
-                    <SelectedExampleDialog
-                      selectedExample={row.original}
-                      datasetId={datasetId}
-                      experimentInfoById={experimentInfoById}
-                    />
-                  );
-                });
-              }}
-            >
-              Experiment Run
-            </Button>
+            <DialogTrigger>
+              <Button
+                variant="default"
+                className="expand-button"
+                size="S"
+                aria-label="View example run details"
+                leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
+              >
+                Experiment Run
+              </Button>
+              <ModalOverlay>
+                <Modal variant="slideover" size="fullscreen">
+                  <SelectedExampleDialog
+                    selectedExample={row.original}
+                    datasetId={datasetId}
+                    experimentInfoById={experimentInfoById}
+                  />
+                </Modal>
+              </ModalOverlay>
+            </DialogTrigger>
             {traceButton}
           </>
         );
@@ -421,11 +422,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         return run ? (
           <CellWithControlsWrap controls={runControls}>
             <PaddedCell>
-              <ExperimentRunOutput
-                {...run}
-                displayFullText={displayFullText}
-                setDialog={setDialog}
-              />
+              <ExperimentRunOutput {...run} displayFullText={displayFullText} />
             </PaddedCell>
           </CellWithControlsWrap>
         ) : (
@@ -616,19 +613,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               />
             )}
           </table>
-          <DialogContainer
-            isDismissable
-            type="slideOver"
-            onDismiss={() => {
-              setDialog(null);
-              setSearchParams((searchParams) => {
-                searchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
-                return searchParams;
-              });
-            }}
-          >
-            {dialog}
-          </DialogContainer>
         </div>
       </Flex>
     </View>
@@ -701,33 +685,46 @@ function ExperimentRowActionMenu(props: {
         e.stopPropagation();
       }}
     >
-      <ActionMenu
-        buttonSize="compact"
-        align="end"
-        onAction={(firedAction) => {
-          const action = firedAction as ExperimentRowAction;
-          switch (action) {
-            case ExperimentRowAction.GO_TO_EXAMPLE: {
-              return navigate(`/datasets/${datasetId}/examples/${exampleId}`);
-            }
-            default: {
-              assertUnreachable(action);
-            }
-          }
-        }}
-      >
-        <Item key={ExperimentRowAction.GO_TO_EXAMPLE}>
-          <Flex
-            direction={"row"}
-            gap="size-75"
-            justifyContent={"start"}
-            alignItems={"center"}
-          >
-            <Icon svg={<Icons.ExternalLinkOutline />} />
-            <Text>Go to example</Text>
-          </Flex>
-        </Item>
-      </ActionMenu>
+      <DialogTrigger>
+        <Button
+          size="S"
+          leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
+        />
+        <Popover>
+          <Dialog>
+            {({ close }) => (
+              <ListBox
+                style={{ minHeight: "auto" }}
+                onAction={(firedAction) => {
+                  const action = firedAction as ExperimentRowAction;
+                  switch (action) {
+                    case ExperimentRowAction.GO_TO_EXAMPLE: {
+                      navigate(`/datasets/${datasetId}/examples/${exampleId}`);
+                      break;
+                    }
+                    default: {
+                      assertUnreachable(action);
+                    }
+                  }
+                  close();
+                }}
+              >
+                <ListBoxItem id={ExperimentRowAction.GO_TO_EXAMPLE}>
+                  <Flex
+                    direction="row"
+                    gap="size-75"
+                    justifyContent="start"
+                    alignItems="center"
+                  >
+                    <Icon svg={<Icons.ExternalLinkOutline />} />
+                    <Text>Go to example</Text>
+                  </Flex>
+                </ListBoxItem>
+              </ListBox>
+            )}
+          </Dialog>
+        </Popover>
+      </DialogTrigger>
     </div>
   );
 }
@@ -738,18 +735,10 @@ function ExperimentRowActionMenu(props: {
 function ExperimentRunOutput(
   props: ExperimentRun & {
     displayFullText: boolean;
-    setDialog: (dialog: ReactNode) => void;
   }
 ) {
-  const {
-    output,
-    error,
-    startTime,
-    endTime,
-    annotations,
-    displayFullText,
-    setDialog,
-  } = props;
+  const { output, error, startTime, endTime, annotations, displayFullText } =
+    props;
   if (error) {
     return <RunError error={error} />;
   }
@@ -797,18 +786,7 @@ function ExperimentRunOutput(
               <AnnotationLabel
                 annotation={annotation}
                 onClick={() => {
-                  const trace = annotation.trace;
-                  if (trace) {
-                    startTransition(() => {
-                      setDialog(
-                        <TraceDetailsDialog
-                          traceId={trace.traceId}
-                          projectId={trace.projectId}
-                          title={`Evaluator Trace: ${annotation.name}`}
-                        />
-                      );
-                    });
-                  }
+                  // TODO: Convert to DialogTrigger pattern when needed
                 }}
               />
             </AnnotationTooltip>
@@ -890,175 +868,181 @@ function SelectedExampleDialog({
   experimentInfoById: ExperimentInfoMap;
 }) {
   return (
-    <Dialog
-      title={`Comparing Experiments for Example: ${selectedExample.id}`}
-      size="fullscreen"
-      extra={
-        <ExperimentRowActionMenu
-          datasetId={datasetId}
-          exampleId={selectedExample.id}
-        />
-      }
-    >
-      <PanelGroup direction="vertical" autoSaveId="example-compare-panel-group">
-        <Panel defaultSize={35}>
-          <div
-            css={css`
-              overflow-y: auto;
-              height: 100%;
-            `}
-          >
-            <View overflow="hidden" padding="size-200">
-              <Flex direction="row" gap="size-200" flex="1 1 auto">
-                <View width="50%">
-                  <Card
-                    title="Input"
-                    {...defaultCardProps}
-                    bodyStyle={{
-                      padding: 0,
-                      maxHeight: "300px",
-                      overflowY: "auto",
-                    }}
-                    extra={
-                      <CopyToClipboardButton
-                        text={JSON.stringify(selectedExample.input)}
-                      />
-                    }
-                  >
-                    <JSONBlock
-                      value={JSON.stringify(selectedExample.input, null, 2)}
-                    />
-                  </Card>
-                </View>
-                <View width="50%">
-                  <Card
-                    title="Reference Output"
-                    {...defaultCardProps}
-                    extra={
-                      <CopyToClipboardButton
-                        text={JSON.stringify(selectedExample.referenceOutput)}
-                      />
-                    }
-                    bodyStyle={{
-                      padding: 0,
-                      maxHeight: "300px",
-                      overflowY: "auto",
-                    }}
-                  >
-                    <JSONBlock
-                      value={JSON.stringify(
-                        selectedExample.referenceOutput,
-                        null,
-                        2
-                      )}
-                    />
-                  </Card>
-                </View>
-              </Flex>
-            </View>
-          </div>
-        </Panel>
-        <PanelResizeHandle css={resizeHandleCSS} />
-        <Panel defaultSize={65}>
-          <Flex direction="column" height="100%">
-            <View
-              paddingStart="size-200"
-              paddingEnd="size-200"
-              paddingTop="size-100"
-              paddingBottom="size-100"
-              borderBottomColor="dark"
-              borderBottomWidth="thin"
-              flex="none"
-            >
-              <Heading level={2}>Experiments</Heading>
-            </View>
+    <Dialog>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{`Comparing Experiments for Example: ${selectedExample.id}`}</DialogTitle>
+          <DialogTitleExtra>
+            <ExperimentRowActionMenu
+              datasetId={datasetId}
+              exampleId={selectedExample.id}
+            />
+            <DialogCloseButton />
+          </DialogTitleExtra>
+        </DialogHeader>
+        <PanelGroup
+          direction="vertical"
+          autoSaveId="example-compare-panel-group"
+        >
+          <Panel defaultSize={35}>
             <div
               css={css`
                 overflow-y: auto;
                 height: 100%;
-                padding: var(--ac-global-dimension-static-size-200);
               `}
             >
-              <ul
+              <View overflow="hidden" padding="size-200">
+                <Flex direction="row" gap="size-200" flex="1 1 auto">
+                  <View width="50%">
+                    <Card
+                      title="Input"
+                      {...defaultCardProps}
+                      extra={
+                        <CopyToClipboardButton
+                          text={JSON.stringify(selectedExample.input)}
+                        />
+                      }
+                      bodyStyle={{
+                        padding: 0,
+                        maxHeight: "300px",
+                        overflowY: "auto",
+                      }}
+                    >
+                      <JSONBlock
+                        value={JSON.stringify(selectedExample.input, null, 2)}
+                      />
+                    </Card>
+                  </View>
+                  <View width="50%">
+                    <Card
+                      title="Reference Output"
+                      {...defaultCardProps}
+                      extra={
+                        <CopyToClipboardButton
+                          text={JSON.stringify(selectedExample.referenceOutput)}
+                        />
+                      }
+                      bodyStyle={{
+                        padding: 0,
+                        maxHeight: "300px",
+                        overflowY: "auto",
+                      }}
+                    >
+                      <JSONBlock
+                        value={JSON.stringify(
+                          selectedExample.referenceOutput,
+                          null,
+                          2
+                        )}
+                      />
+                    </Card>
+                  </View>
+                </Flex>
+              </View>
+            </div>
+          </Panel>
+          <PanelResizeHandle css={resizeHandleCSS} />
+          <Panel defaultSize={65}>
+            <Flex direction="column" height="100%">
+              <View
+                paddingStart="size-200"
+                paddingEnd="size-200"
+                paddingTop="size-100"
+                paddingBottom="size-100"
+                borderBottomColor="dark"
+                borderBottomWidth="thin"
+                flex="none"
+              >
+                <Heading level={2}>Experiments</Heading>
+              </View>
+              <div
                 css={css`
-                  display: flex;
-                  flex-direction: column;
-                  gap: var(--ac-global-dimension-static-size-200);
+                  overflow-y: auto;
+                  height: 100%;
+                  padding: var(--ac-global-dimension-static-size-200);
                 `}
               >
-                {selectedExample.runComparisonItems.map((runItem) => {
-                  const experiment = experimentInfoById[runItem.experimentId];
-                  return (
-                    <li key={runItem.experimentId}>
-                      <Card
-                        {...defaultCardProps}
-                        title={experiment?.name}
-                        titleExtra={
-                          <SequenceNumberToken
-                            sequenceNumber={experiment?.sequenceNumber || 0}
-                          />
-                        }
-                      >
-                        <ul>
-                          {runItem.runs.map((run, index) => (
-                            <li key={index}>
-                              <Flex direction="row">
-                                <View flex>
-                                  {run.error ? (
-                                    <View padding="size-200">
-                                      <RunError error={run.error} />
-                                    </View>
-                                  ) : (
-                                    <JSONBlock
-                                      value={JSON.stringify(
-                                        run.output,
-                                        null,
-                                        2
-                                      )}
+                <ul
+                  css={css`
+                    display: flex;
+                    flex-direction: column;
+                    gap: var(--ac-global-dimension-static-size-200);
+                  `}
+                >
+                  {selectedExample.runComparisonItems.map((runItem) => {
+                    const experiment = experimentInfoById[runItem.experimentId];
+                    return (
+                      <li key={runItem.experimentId}>
+                        <Card
+                          {...defaultCardProps}
+                          title={experiment?.name}
+                          titleExtra={
+                            <SequenceNumberToken
+                              sequenceNumber={experiment?.sequenceNumber || 0}
+                            />
+                          }
+                        >
+                          <ul>
+                            {runItem.runs.map((run, index) => (
+                              <li key={index}>
+                                <Flex direction="row">
+                                  <View flex>
+                                    {run.error ? (
+                                      <View padding="size-200">
+                                        <RunError error={run.error} />
+                                      </View>
+                                    ) : (
+                                      <JSONBlock
+                                        value={JSON.stringify(
+                                          run.output,
+                                          null,
+                                          2
+                                        )}
+                                      />
+                                    )}
+                                  </View>
+                                  <ViewSummaryAside width="size-3000">
+                                    <RunLatency
+                                      startTime={run.startTime}
+                                      endTime={run.endTime}
                                     />
-                                  )}
-                                </View>
-                                <ViewSummaryAside width="size-3000">
-                                  <RunLatency
-                                    startTime={run.startTime}
-                                    endTime={run.endTime}
-                                  />
-                                  <ul
-                                    css={css`
-                                      margin-top: var(
-                                        --ac-global-dimension-static-size-100
-                                      );
-                                      display: flex;
-                                      flex-direction: column;
-                                      justify-content: flex-start;
-                                      align-items: flex-end;
-                                      gap: var(
-                                        --ac-global-dimension-static-size-100
-                                      );
-                                    `}
-                                  >
-                                    {run.annotations?.edges.map((edge) => (
-                                      <li key={edge.annotation.id}>
-                                        <AnnotationLabel
-                                          annotation={edge.annotation}
-                                        />
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </ViewSummaryAside>
-                              </Flex>
-                            </li>
-                          ))}
-                        </ul>
-                      </Card>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          </Flex>
-        </Panel>
-      </PanelGroup>
+                                    <ul
+                                      css={css`
+                                        margin-top: var(
+                                          --ac-global-dimension-static-size-100
+                                        );
+                                        display: flex;
+                                        flex-direction: column;
+                                        justify-content: flex-start;
+                                        align-items: flex-end;
+                                        gap: var(
+                                          --ac-global-dimension-static-size-100
+                                        );
+                                      `}
+                                    >
+                                      {run.annotations?.edges.map((edge) => (
+                                        <li key={edge.annotation.id}>
+                                          <AnnotationLabel
+                                            annotation={edge.annotation}
+                                          />
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </ViewSummaryAside>
+                                </Flex>
+                              </li>
+                            ))}
+                          </ul>
+                        </Card>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            </Flex>
+          </Panel>
+        </PanelGroup>
+      </DialogContent>
     </Dialog>
   );
 }
@@ -1074,18 +1058,24 @@ function TraceDetailsDialog({
 }) {
   const navigate = useNavigate();
   return (
-    <Dialog
-      title={title}
-      size="fullscreen"
-      extra={
-        <Button
-          onPress={() => navigate(`/projects/${projectId}/traces/${traceId}`)}
-        >
-          View Trace in Project
-        </Button>
-      }
-    >
-      <TraceDetails traceId={traceId} projectId={projectId} />
+    <Dialog>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogTitleExtra>
+            <Button
+              size="S"
+              onPress={() =>
+                navigate(`/projects/${projectId}/traces/${traceId}`)
+              }
+            >
+              View Trace in Project
+            </Button>
+            <DialogCloseButton />
+          </DialogTitleExtra>
+        </DialogHeader>
+        <TraceDetails traceId={traceId} projectId={projectId} />
+      </DialogContent>
     </Dialog>
   );
 }

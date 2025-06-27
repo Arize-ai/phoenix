@@ -3,10 +3,16 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { css } from "@emotion/react";
 
-import { Card, CardProps, Dialog, DialogContainer } from "@arizeai/components";
+import { Card, CardProps } from "@arizeai/components";
 
 import {
   CopyToClipboardButton,
+  Dialog,
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
   Flex,
   Heading,
   LinkButton,
@@ -24,13 +30,7 @@ import { ExampleExperimentRunsTable } from "./ExampleExperimentRunsTable";
 /**
  * A Slide-over that shows the details of a dataset example.
  */
-export function ExampleDetailsDialog({
-  exampleId,
-  onDismiss,
-}: {
-  exampleId: string;
-  onDismiss: () => void;
-}) {
+export function ExampleDetailsDialog({ exampleId }: { exampleId: string }) {
   const [fetchKey, setFetchKey] = useState(0);
   const data = useLazyLoadQuery<ExampleDetailsDialogQuery>(
     graphql`
@@ -83,12 +83,11 @@ export function ExampleDetailsDialog({
   const { input, output, metadata } = revision;
   const notifySuccess = useNotifySuccess();
   return (
-    <DialogContainer type="slideOver" isDismissable onDismiss={onDismiss}>
-      <Dialog
-        size="XL"
-        title={`Example: ${exampleId}`}
-        extra={
-          <Flex direction="row" gap="size-100">
+    <Dialog>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Example: {exampleId}</DialogTitle>
+          <DialogTitleExtra>
             {sourceSpanInfo ? (
               <LinkButton
                 size="S"
@@ -108,9 +107,9 @@ export function ExampleDetailsDialog({
                 setFetchKey((key) => key + 1);
               }}
             />
-          </Flex>
-        }
-      >
+            <DialogCloseButton />
+          </DialogTitleExtra>
+        </DialogHeader>
         <PanelGroup direction="vertical" autoSaveId="example-panel-group">
           <Panel defaultSize={65}>
             <div
@@ -120,13 +119,7 @@ export function ExampleDetailsDialog({
               `}
             >
               <Flex direction="row" justifyContent="center">
-                <View
-                  width="900px"
-                  paddingStart="auto"
-                  paddingEnd="auto"
-                  paddingTop="size-200"
-                  paddingBottom="size-200"
-                >
+                <View width="900px" padding="size-200">
                   <Flex direction="column" gap="size-200">
                     <Card
                       title="Input"
@@ -172,8 +165,8 @@ export function ExampleDetailsDialog({
             </Flex>
           </Panel>
         </PanelGroup>
-      </Dialog>
-    </DialogContainer>
+      </DialogContent>
+    </Dialog>
   );
 }
 

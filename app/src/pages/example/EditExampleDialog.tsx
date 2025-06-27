@@ -3,11 +3,17 @@ import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Card, CardProps, Dialog } from "@arizeai/components";
+import { Card, CardProps } from "@arizeai/components";
 
 import {
   Alert,
   Button,
+  Dialog,
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
   FieldError,
   Flex,
   Icon,
@@ -63,7 +69,7 @@ export function EditExampleDialog(props: EditExampleDialogProps) {
   });
 
   const onSubmit = useCallback(
-    (updatedExample: ExamplePatch) => {
+    (updatedExample: ExamplePatch, close: () => void) => {
       setSubmitError(null);
       if (!isJSONObjectString(updatedExample?.input)) {
         return setError("input", {
@@ -97,6 +103,7 @@ export function EditExampleDialog(props: EditExampleDialogProps) {
         },
         onCompleted: () => {
           onCompleted();
+          close();
         },
         onError: (error) => {
           setSubmitError(error.message);
@@ -106,155 +113,168 @@ export function EditExampleDialog(props: EditExampleDialogProps) {
     [commit, exampleId, setError, onCompleted]
   );
   return (
-    <Dialog
-      size="fullscreen"
-      title={`Edit Example: ${exampleId}`}
-      extra={
-        <Button
-          variant="primary"
-          size="S"
-          isDisabled={!isValid || isCommitting}
-          leadingVisual={
-            <Icon
-              svg={
-                isCommitting ? <Icons.LoadingOutline /> : <Icons.SaveOutline />
+    <Dialog>
+      {({ close }) => (
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Example: {exampleId}</DialogTitle>
+            <DialogTitleExtra>
+              <Button
+                variant="primary"
+                size="S"
+                isDisabled={!isValid || isCommitting}
+                leadingVisual={
+                  <Icon
+                    svg={
+                      isCommitting ? (
+                        <Icons.LoadingOutline />
+                      ) : (
+                        <Icons.SaveOutline />
+                      )
+                    }
+                  />
+                }
+                onPress={() =>
+                  handleSubmit((updatedExample) =>
+                    onSubmit(updatedExample, close)
+                  )()
+                }
+              >
+                Save Changes
+              </Button>
+              <DialogCloseButton />
+            </DialogTitleExtra>
+          </DialogHeader>
+          <div
+            css={css`
+              overflow-y: auto;
+              padding: var(--ac-global-dimension-size-400);
+              /* Make widths configurable */
+              .dataset-picker {
+                width: 100%;
+                .ac-dropdown--picker,
+                .ac-dropdown-button {
+                  width: 100%;
+                }
               }
-            />
-          }
-          onPress={() => handleSubmit(onSubmit)()}
-        >
-          Save Changes
-        </Button>
-      }
-    >
-      <div
-        css={css`
-          overflow-y: auto;
-          padding: var(--ac-global-dimension-size-400);
-          /* Make widths configurable */
-          .dataset-picker {
-            width: 100%;
-            .ac-dropdown--picker,
-            .ac-dropdown-button {
-              width: 100%;
-            }
-          }
-        `}
-      >
-        <Flex direction="row" justifyContent="center">
-          <View width="900px" paddingStart="auto" paddingEnd="auto">
-            <Flex direction="column" gap="size-200">
-              {submitError ? (
-                <Alert variant="danger">{submitError}</Alert>
-              ) : null}
+            `}
+          >
+            <Flex direction="row" justifyContent="center">
+              <View width="900px" paddingStart="auto" paddingEnd="auto">
+                <Flex direction="column" gap="size-200">
+                  {submitError ? (
+                    <Alert variant="danger">{submitError}</Alert>
+                  ) : null}
 
-              <Controller
-                control={control}
-                name={"input"}
-                render={({
-                  field: { onChange, onBlur, value },
-                  fieldState: { invalid, error },
-                }) => (
-                  <Card
-                    title="Input"
-                    subTitle="The input to the LLM, retriever, program, etc."
-                    {...defaultCardProps}
-                  >
-                    {invalid ? (
-                      <Alert variant="danger" banner>
-                        {error?.message}
-                      </Alert>
-                    ) : null}
-                    <JSONEditor
-                      value={value}
-                      onChange={onChange}
-                      onBlur={onBlur}
-                    />
-                  </Card>
-                )}
-              />
-              <Controller
-                control={control}
-                name={"output"}
-                render={({
-                  field: { onChange, onBlur, value },
-                  fieldState: { invalid, error },
-                }) => (
-                  <Card
-                    title="Output"
-                    subTitle="The output of the LLM or program to be used as an expected output"
-                    {...defaultCardProps}
-                    backgroundColor="green-100"
-                    borderColor="green-700"
-                  >
-                    {invalid ? (
-                      <Alert variant="danger" banner>
-                        {error?.message}
-                      </Alert>
-                    ) : null}
-                    <JSONEditor
-                      value={value}
-                      onChange={onChange}
-                      onBlur={onBlur}
-                    />
-                  </Card>
-                )}
-              />
-              <Controller
-                control={control}
-                name={"metadata"}
-                render={({
-                  field: { onChange, onBlur, value },
-                  fieldState: { invalid, error },
-                }) => (
-                  <Card
-                    title="Metadata"
-                    subTitle="All data from the span to use during experimentation or evaluation"
-                    {...defaultCardProps}
-                  >
-                    {invalid ? (
-                      <Alert variant="danger" banner>
-                        {error?.message}
-                      </Alert>
-                    ) : null}
-                    <JSONEditor
-                      value={value}
-                      onChange={onChange}
-                      onBlur={onBlur}
-                    />
-                  </Card>
-                )}
-              />
-              <Controller
-                control={control}
-                name={"description"}
-                render={({
-                  field: { onChange, onBlur, value },
-                  fieldState: { invalid, error },
-                }) => (
-                  <TextField
-                    value={value}
-                    onChange={onChange}
-                    onBlur={onBlur}
-                    isInvalid={invalid}
-                  >
-                    <Label>Revision Description</Label>
-                    <TextArea />
-                    {error ? (
-                      <FieldError>{error?.message}</FieldError>
-                    ) : (
-                      <Text slot="description">
-                        A description of the changes made in this revision. Will
-                        be displayed in the version history.
-                      </Text>
+                  <Controller
+                    control={control}
+                    name={"input"}
+                    render={({
+                      field: { onChange, onBlur, value },
+                      fieldState: { invalid, error },
+                    }) => (
+                      <Card
+                        title="Input"
+                        subTitle="The input to the LLM, retriever, program, etc."
+                        {...defaultCardProps}
+                      >
+                        {invalid ? (
+                          <Alert variant="danger" banner>
+                            {error?.message}
+                          </Alert>
+                        ) : null}
+                        <JSONEditor
+                          value={value}
+                          onChange={onChange}
+                          onBlur={onBlur}
+                        />
+                      </Card>
                     )}
-                  </TextField>
-                )}
-              />
+                  />
+                  <Controller
+                    control={control}
+                    name={"output"}
+                    render={({
+                      field: { onChange, onBlur, value },
+                      fieldState: { invalid, error },
+                    }) => (
+                      <Card
+                        title="Output"
+                        subTitle="The output of the LLM or program to be used as an expected output"
+                        {...defaultCardProps}
+                        backgroundColor="green-100"
+                        borderColor="green-700"
+                      >
+                        {invalid ? (
+                          <Alert variant="danger" banner>
+                            {error?.message}
+                          </Alert>
+                        ) : null}
+                        <JSONEditor
+                          value={value}
+                          onChange={onChange}
+                          onBlur={onBlur}
+                        />
+                      </Card>
+                    )}
+                  />
+                  <Controller
+                    control={control}
+                    name={"metadata"}
+                    render={({
+                      field: { onChange, onBlur, value },
+                      fieldState: { invalid, error },
+                    }) => (
+                      <Card
+                        title="Metadata"
+                        subTitle="All data from the span to use during experimentation or evaluation"
+                        {...defaultCardProps}
+                      >
+                        {invalid ? (
+                          <Alert variant="danger" banner>
+                            {error?.message}
+                          </Alert>
+                        ) : null}
+                        <JSONEditor
+                          value={value}
+                          onChange={onChange}
+                          onBlur={onBlur}
+                        />
+                      </Card>
+                    )}
+                  />
+                  <Controller
+                    control={control}
+                    name={"description"}
+                    render={({
+                      field: { onChange, onBlur, value },
+                      fieldState: { invalid, error },
+                    }) => (
+                      <TextField
+                        value={value}
+                        onChange={onChange}
+                        onBlur={onBlur}
+                        isInvalid={invalid}
+                      >
+                        <Label>Revision Description</Label>
+                        <TextArea />
+                        {error ? (
+                          <FieldError>{error?.message}</FieldError>
+                        ) : (
+                          <Text slot="description">
+                            A description of the changes made in this revision.
+                            Will be displayed in the version history.
+                          </Text>
+                        )}
+                      </TextField>
+                    )}
+                  />
+                </Flex>
+              </View>
             </Flex>
-          </View>
-        </Flex>
-      </div>
+          </div>
+        </DialogContent>
+      )}
     </Dialog>
   );
 }

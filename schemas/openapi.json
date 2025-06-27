@@ -1991,6 +1991,89 @@
             "description": "Unprocessable Entity"
           }
         }
+      },
+      "post": {
+        "tags": [
+          "spans"
+        ],
+        "summary": "Create spans",
+        "description": "Submit spans to be inserted into a project. If any spans are invalid or duplicates, no spans will be inserted.",
+        "operationId": "createSpans",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSpansRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateSpansResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/v1/span_annotations": {
@@ -3891,6 +3974,42 @@
           "data"
         ],
         "title": "CreatePromptResponseBody"
+      },
+      "CreateSpansRequestBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/Span"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateSpansRequestBody"
+      },
+      "CreateSpansResponseBody": {
+        "properties": {
+          "total_received": {
+            "type": "integer",
+            "title": "Total Received",
+            "description": "Total number of spans received"
+          },
+          "total_queued": {
+            "type": "integer",
+            "title": "Total Queued",
+            "description": "Number of spans successfully queued for insertion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_received",
+          "total_queued"
+        ],
+        "title": "CreateSpansResponseBody"
       },
       "CreateUserRequestBody": {
         "properties": {
@@ -6806,7 +6925,8 @@
           "id": {
             "type": "string",
             "title": "Id",
-            "description": "Span Global ID, distinct from the OpenTelemetry span ID"
+            "description": "Span Global ID, distinct from the OpenTelemetry span ID",
+            "default": ""
           },
           "name": {
             "type": "string",
@@ -6874,7 +6994,6 @@
         },
         "type": "object",
         "required": [
-          "id",
           "name",
           "context",
           "span_kind",

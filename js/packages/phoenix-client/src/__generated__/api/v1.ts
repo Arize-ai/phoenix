@@ -351,7 +351,11 @@ export interface paths {
          */
         get: operations["getSpans"];
         put?: never;
-        post?: never;
+        /**
+         * Create spans
+         * @description Submit spans to be inserted into a project. If any spans are invalid or duplicates, no spans will be inserted.
+         */
+        post: operations["createSpans"];
         delete?: never;
         options?: never;
         head?: never;
@@ -822,6 +826,24 @@ export interface components {
         /** CreatePromptResponseBody */
         CreatePromptResponseBody: {
             data: components["schemas"]["PromptVersion"];
+        };
+        /** CreateSpansRequestBody */
+        CreateSpansRequestBody: {
+            /** Data */
+            data: components["schemas"]["Span"][];
+        };
+        /** CreateSpansResponseBody */
+        CreateSpansResponseBody: {
+            /**
+             * Total Received
+             * @description Total number of spans received
+             */
+            total_received: number;
+            /**
+             * Total Queued
+             * @description Number of spans successfully queued for insertion
+             */
+            total_queued: number;
         };
         /** CreateUserRequestBody */
         CreateUserRequestBody: {
@@ -1941,8 +1963,9 @@ export interface components {
             /**
              * Id
              * @description Span Global ID, distinct from the OpenTelemetry span ID
+             * @default
              */
-            id: string;
+            id?: string;
             /**
              * Name
              * @description Name of the span operation
@@ -3530,6 +3553,69 @@ export interface operations {
                 };
                 content: {
                     "text/plain": string;
+                };
+            };
+        };
+    };
+    createSpans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSpansRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateSpansResponseBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

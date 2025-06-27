@@ -24,6 +24,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+ENV_OTEL_EXPORTER_OTLP_ENDPOINT = "OTEL_EXPORTER_OTLP_ENDPOINT"
+
 # Phoenix environment variables
 ENV_PHOENIX_PORT = "PHOENIX_PORT"
 ENV_PHOENIX_GRPC_PORT = "PHOENIX_GRPC_PORT"
@@ -49,6 +51,11 @@ be accessible by both the Phoenix server and the notebook environment.
 ENV_PHOENIX_PROJECT_NAME = "PHOENIX_PROJECT_NAME"
 """
 The project name to use when logging traces and evals. defaults to 'default'.
+"""
+ENV_PHOENIX_FULLSTORY_ORG = "PHOENIX_FULLSTORY_ORG"
+"""
+The FullStory organization ID for web analytics tracking. When set, FullStory tracking
+will be enabled in the Phoenix web interface.
 """
 ENV_PHOENIX_SQL_DATABASE_URL = "PHOENIX_SQL_DATABASE_URL"
 """
@@ -1271,7 +1278,7 @@ def get_env_host_root_path() -> str:
 
 
 def get_env_collector_endpoint() -> Optional[str]:
-    return getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT)
+    return getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT) or getenv(ENV_OTEL_EXPORTER_OTLP_ENDPOINT)
 
 
 def get_env_project_name() -> str:
@@ -1518,6 +1525,16 @@ def get_env_allowed_origins() -> Optional[list[str]]:
         return None
 
     return allowed_origins.split(",")
+
+
+def get_env_fullstory_org() -> Optional[str]:
+    """
+    Get the FullStory organization ID from environment variables.
+
+    Returns:
+        Optional[str]: The FullStory organization ID if set, None otherwise.
+    """
+    return getenv(ENV_PHOENIX_FULLSTORY_ORG)
 
 
 def verify_server_environment_variables() -> None:
