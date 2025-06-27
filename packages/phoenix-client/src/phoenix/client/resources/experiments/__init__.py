@@ -516,7 +516,6 @@ class Experiments:
         rate_limit_errors: Optional[RateLimitErrors] = None,
         dry_run: Union[bool, int] = False,
         print_summary: bool = True,
-        concurrency: int = 3,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> dict[str, Any]:
         """
@@ -538,8 +537,6 @@ class Experiments:
                 examples of the given size. Defaults to False.
             print_summary: Whether to print a summary of the experiment and evaluation results.
                 Defaults to True.
-            concurrency: Specifies the concurrency for task execution. Defaults to 3.
-            timeout: The timeout for the task execution in seconds. Defaults to 60.
 
         Returns:
             A dictionary containing the experiment results.
@@ -596,7 +593,6 @@ class Experiments:
         print("🧪 Experiment started.")
 
         if dry_run:
-            # For dry run, sample some examples
             examples_list = list(dataset.examples.values())
             sample_size = min(
                 len(examples_list), int(dry_run) if isinstance(dry_run, int) and dry_run > 1 else 1
@@ -613,7 +609,6 @@ class Experiments:
             print(f"📺 View dataset experiments: {dataset_experiments_url}")
             print(f"🔗 View this experiment: {experiment_compare_url}")
 
-        # Convert dataset examples to test cases
         if dry_run:
             examples_to_process = [
                 ex for ex in dataset.examples.values() if ex["id"] in example_ids
@@ -626,7 +621,6 @@ class Experiments:
             for ex, rep in product(examples_to_process, range(1, repetitions + 1))
         ]
 
-        # Create task result cache
         task_result_cache: dict[tuple[str, int], Any] = {}
 
         # Setup rate limiting
@@ -662,8 +656,6 @@ class Experiments:
             max_retries=0,
             exit_on_error=False,
             fallback_return_value=None,
-            concurrency=concurrency,
-            timeout=timeout,
         )
 
         task_runs, _execution_details = executor.run(test_cases)
@@ -706,13 +698,13 @@ class Experiments:
                 bool(dry_run),
                 timeout,
                 rate_limit_errors,
-                concurrency,
             )
             result["evaluation_runs"] = eval_runs
 
         if print_summary:
             print(
-                f"Experiment completed with {len(result['task_runs'])} task runs and {len(result['evaluation_runs'])} evaluation runs"
+                f"Experiment completed with {len(result['task_runs'])} task runs and "
+                f"{len(result['evaluation_runs'])} evaluation runs"
             )
 
         return result
@@ -726,7 +718,7 @@ class Experiments:
         tracer: Tracer,
         resource: Resource,
         root_span_name: str,
-        dry_run: bool,
+        dry_run: Union[bool, int],
         timeout: Optional[int],
         task_result_cache: dict[tuple[str, int], Any],
     ) -> Optional[ExperimentRun]:
@@ -852,10 +844,9 @@ class Experiments:
         evaluators_by_name: Mapping[EvaluatorName, Evaluator],
         tracer: Tracer,
         resource: Resource,
-        dry_run: bool,
+        dry_run: Union[bool, int],
         timeout: Optional[int],
         rate_limit_errors: Optional[RateLimitErrors],
-        concurrency: int,
     ) -> list[ExperimentEvaluationRun]:
         """Run evaluations on task runs."""
         print("🧠 Evaluation started.")
@@ -1079,7 +1070,6 @@ class AsyncExperiments:
         print("🧪 Experiment started.")
 
         if dry_run:
-            # For dry run, sample some examples
             examples_list = list(dataset.examples.values())
             sample_size = min(
                 len(examples_list), int(dry_run) if isinstance(dry_run, int) and dry_run > 1 else 1
@@ -1096,7 +1086,6 @@ class AsyncExperiments:
             print(f"📺 View dataset experiments: {dataset_experiments_url}")
             print(f"🔗 View this experiment: {experiment_compare_url}")
 
-        # Convert dataset examples to test cases
         if dry_run:
             examples_to_process = [
                 ex for ex in dataset.examples.values() if ex["id"] in example_ids
@@ -1109,7 +1098,6 @@ class AsyncExperiments:
             for ex, rep in product(examples_to_process, range(1, repetitions + 1))
         ]
 
-        # Create task result cache
         task_result_cache: dict[tuple[str, int], Any] = {}
 
         # Setup rate limiting
@@ -1139,7 +1127,6 @@ class AsyncExperiments:
             lambda fn, limiter: limiter.alimit(fn), rate_limiters, async_run_task
         )
 
-        # Use async executor for async operation
         executor = AsyncExecutor(
             generation_fn=rate_limited_async_run_task,
             concurrency=concurrency,
@@ -1197,7 +1184,8 @@ class AsyncExperiments:
 
         if print_summary:
             print(
-                f"Experiment completed with {len(result['task_runs'])} task runs and {len(result['evaluation_runs'])} evaluation runs"
+                f"Experiment completed with {len(result['task_runs'])} task runs and "
+                f"{len(result['evaluation_runs'])} evaluation runs"
             )
 
         return result
@@ -1211,7 +1199,7 @@ class AsyncExperiments:
         tracer: Tracer,
         resource: Resource,
         root_span_name: str,
-        dry_run: bool,
+        dry_run: Union[bool, int],
         timeout: Optional[int],
         task_result_cache: dict[tuple[str, int], Any],
     ) -> Optional[ExperimentRun]:
@@ -1368,7 +1356,6 @@ class AsyncExperiments:
             lambda fn, limiter: limiter.alimit(fn), rate_limiters, async_evaluate_run
         )
 
-        # Use async executor for async operation
         executor = AsyncExecutor(
             generation_fn=rate_limited_async_evaluate_run,
             concurrency=concurrency,
