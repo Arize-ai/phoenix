@@ -7,6 +7,8 @@ from enum import Enum
 from typing import Any, Callable, Optional, Union
 import inspect
 
+# Import the dataset example type
+from phoenix.client.__generated__ import v1
 
 # Type aliases
 JSONSerializable = Optional[Union[dict[str, Any], list[Any], str, int, float, bool]]
@@ -41,17 +43,8 @@ def _dry_run_id() -> str:
 
 
 @dataclass(frozen=True)
-class Example:
-    id: ExampleId
-    updated_at: datetime
-    input: Mapping[str, JSONSerializable] = field(default_factory=dict)
-    output: Mapping[str, JSONSerializable] = field(default_factory=dict)
-    metadata: Mapping[str, JSONSerializable] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
 class TestCase:
-    example: Example
+    example: v1.DatasetExample
     repetition_number: RepetitionNumber
 
 
@@ -104,8 +97,8 @@ class ExperimentEvaluationRun:
 
 # Task and Evaluator types
 ExperimentTask = Union[
-    Callable[[Example], TaskOutput],
-    Callable[[Example], Awaitable[TaskOutput]],
+    Callable[[v1.DatasetExample], TaskOutput],
+    Callable[[v1.DatasetExample], Awaitable[TaskOutput]],
     Callable[..., JSONSerializable],
     Callable[..., Awaitable[JSONSerializable]],
 ]
