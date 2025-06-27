@@ -1011,7 +1011,7 @@ class Query:
         info: Info[Context, None],
         span_id: str,
     ) -> Optional[Span]:
-        stmt = select(models.Span.id).where(models.Span.span_id == span_id)
+        stmt = select(models.Span.id).filter_by(span_id=span_id)
         async with info.context.db() as session:
             span_rowid = await session.scalar(stmt)
         if span_rowid:
