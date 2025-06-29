@@ -8,7 +8,7 @@ from phoenix.otel import register
 
 load_dotenv()
 
-tracer_provider = register(auto_instrument=True, endpoint="http://localhost:6006/v1/traces")
+tracer_provider = register(auto_instrument=True)
 
 
 async def run(mcp_server: MCPServer):
@@ -31,7 +31,7 @@ async def main():
         name="Financial Analysis Server",
         params={
             "command": "fastmcp",
-            "args": ["run", "./tutorials/mcp/tracing_between_mcp_client_and_server/server.py"],
+            "args": ["run", "./server.py"],
         },
         client_session_timeout_seconds=30,
     ) as server:
