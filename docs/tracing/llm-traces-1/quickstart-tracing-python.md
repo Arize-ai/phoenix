@@ -47,7 +47,7 @@ Input and output attributes are set automatically based on `my_func`'s parameter
 
 ## Trace all calls made to a library
 
-Phoenix can also capture all calls made to supported libraries automatically. Just install the [respective OpenInference library](../integrations-tracing/):
+Phoenix can also capture all calls made to supported libraries automatically. Just install the [respective OpenInference library](broken-reference):
 
 ```
 pip install openinference-instrumentation-openai

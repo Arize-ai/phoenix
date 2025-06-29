@@ -10,7 +10,7 @@ During the development phase, Phoenix offers essential tools for debugging, expe
 
 {% tabs %}
 {% tab title="Traces" %}
-#### Traces for Debugging
+**Traces for Debugging**
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/tracing.mp4" %}
 
@@ -20,7 +20,7 @@ Phoenix's tracing and span analysis capabilities are invaluable during the proto
 {% endtab %}
 
 {% tab title="Experimentation" %}
-#### Experimentation
+**Experimentation**
 
 ![](https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/experiments.gif)
 
@@ -30,7 +30,7 @@ Leverage experiments to measure prompt and model performance. Typically during t
 {% endtab %}
 
 {% tab title="Evaluation" %}
-#### Evaluation
+**Evaluation**
 
 ![Evaluation Framework GIF](https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/evals-docs.gif)
 
@@ -40,7 +40,7 @@ Either as a part of experiments or a standalone feature, evaluations help you un
 {% endtab %}
 
 {% tab title="Prompt Engineering" %}
-#### Prompt Engineering
+**Prompt Engineering**
 
 ![](https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/playground_3.gif)
 
@@ -54,7 +54,7 @@ Instrument prompt and prompt variable collection to associate iterations of your
 {% endtab %}
 
 {% tab title="Search & Retrieval" %}
-#### Search & Retrieval Embeddings Visualizer
+**Search & Retrieval Embeddings Visualizer**
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/embedding_rag.mp4" %}
 
@@ -70,7 +70,7 @@ In the testing and staging environment, Phoenix supports comprehensive evaluatio
 
 {% tabs %}
 {% tab title="Iterate via Experiments" %}
-#### Iterate via Experiments
+**Iterate via Experiments**
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/experiments.mp4" %}
 
@@ -80,7 +80,7 @@ With a stable set of test cases and evaluations defined, you can now easily iter
 {% endtab %}
 
 {% tab title="Evals Testing" %}
-#### Evals Testing
+**Evals Testing**
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/evals.mp4" %}
 
@@ -90,7 +90,7 @@ Phoenix's flexible evaluation framework supports thorough testing of LLM outputs
 {% endtab %}
 
 {% tab title="Curate Data" %}
-#### Curate Data
+**Curate Data**
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/datasets%20ex.mp4" %}
 
@@ -100,13 +100,13 @@ Phoenix assists in curating high-quality data for testing and fine-tuning. It pr
 {% endtab %}
 
 {% tab title="Guardrails" %}
-#### Guardrails
+**Guardrails**
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/guardrails.png" %}
 
 Add guardrails to your application to prevent malicious and erroneous inputs and outputs. Guardrails will be visualized in Phoenix, and can be attached to spans and traces in the same fashion as evaluation metrics.
 
-* [guardrails-ai.md](tracing/integrations-tracing/guardrails-ai.md "mention")
+* [Broken link](broken-reference "mention")
 {% endtab %}
 {% endtabs %}
 
@@ -116,7 +116,7 @@ In production, Phoenix works hand-in-hand with Arize, which focuses on the produ
 
 {% tabs %}
 {% tab title="Traces in Production" %}
-#### Traces in Production
+**Traces in Production**
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/tracing.mp4" %}
 
@@ -126,7 +126,7 @@ Phoenix and Arize use the same collector frameworks in development and productio
 {% endtab %}
 
 {% tab title="Evals for Production" %}
-#### Evals for Production
+**Evals for Production**
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/evals.mp4" %}
 
@@ -136,7 +136,7 @@ Phoenix's evaluation framework can be used to generate ongoing assessments of LL
 {% endtab %}
 
 {% tab title="Fine-tuning" %}
-#### Fine-tuning
+**Fine-tuning**
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/ExportForFinetuning.mp4" %}
 

@@ -95,7 +95,7 @@ Our program is now ready to trace calls made by an llm library, but it will not 
 
 ## Trace all calls made to a library
 
-Phoenix can capture all calls made to supported libraries automatically. Just install the [respective OpenInference library](../integrations-tracing/#javascript):
+Phoenix can capture all calls made to supported libraries automatically. Just install the [respective OpenInference library](broken-reference):
 
 ```bash
 # npm, pnpm, yarn, etc

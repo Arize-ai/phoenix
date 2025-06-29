@@ -2,7 +2,7 @@
 
 ### Using context to customize spans <a href="#what-are-context-attributes" id="what-are-context-attributes"></a>
 
-In order to customize spans that are created via [auto-instrumentation](../../integrations-tracing/), The Otel Context can be used to set span attributes created during a block of code (think child spans or spans under that block of code). Our [`openinference`](https://github.com/Arize-ai/openinference/tree/main) packages offer convenient tools to write and read from the OTel Context. The benefit of this approach is that OpenInference auto [instrumentors](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) will pass (e.g. inherit) these attributes to all spans underneath a parent trace.
+In order to customize spans that are created via [auto-instrumentation](broken-reference), The Otel Context can be used to set span attributes created during a block of code (think child spans or spans under that block of code). Our [`openinference`](https://github.com/Arize-ai/openinference/tree/main) packages offer convenient tools to write and read from the OTel Context. The benefit of this approach is that OpenInference auto [instrumentors](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) will pass (e.g. inherit) these attributes to all spans underneath a parent trace.
 
 Supported Context Attributes include:
 
@@ -64,7 +64,7 @@ def call_fn(*args, **kwargs):
 {% endtab %}
 
 {% tab title="JS" %}
-We provide a `setSession` function which allows you to set a sessionId on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference [auto instrumentations](../../integrations-tracing/#javascript) will then pick up these attributes and add them to any spans created within the `context.with` callback.
+We provide a `setSession` function which allows you to set a sessionId on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference [auto instrumentations](broken-reference) will then pick up these attributes and add them to any spans created within the `context.with` callback.
 
 <pre class="language-typescript"><code class="lang-typescript"><strong>import { context } from "@opentelemetry/api"
 </strong>import { setSession } from "@openinference-core"
@@ -106,7 +106,7 @@ def call_fn(*args, **kwargs):
 {% endtab %}
 
 {% tab title="JS" %}
-We provide a `setUser` function which allows you to set a userId on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference [auto instrumentations](../../integrations-tracing/#javascript) will then pick up these attributes and add them to any spans created within the `context.with` callback.
+We provide a `setUser` function which allows you to set a userId on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference [auto instrumentations](broken-reference) will then pick up these attributes and add them to any spans created within the `context.with` callback.
 
 ```typescript
 import { context } from "@opentelemetry/api"
@@ -154,7 +154,7 @@ def call_fn(*args, **kwargs):
 {% endtab %}
 
 {% tab title="JS" %}
-We provide a `setMetadata` function which allows you to set a metadata attributes on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference [auto instrumentations](../../integrations-tracing/#javascript) will then pick up these attributes and add them to any spans created within the `context.with` callback. Metadata attributes will be serialized to a JSON string when stored on context and will be propagated to spans in the same way.
+We provide a `setMetadata` function which allows you to set a metadata attributes on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference [auto instrumentations](broken-reference) will then pick up these attributes and add them to any spans created within the `context.with` callback. Metadata attributes will be serialized to a JSON string when stored on context and will be propagated to spans in the same way.
 
 ```typescript
 import { context } from "@opentelemetry/api"
@@ -198,7 +198,7 @@ def call_fn(*args, **kwargs):
 {% endtab %}
 
 {% tab title="JS" %}
-We provide a `setTags` function which allows you to set a list of string tags on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference [auto instrumentations](../../integrations-tracing/#javascript) will then pick up these attributes and add them to any spans created within the `context.with` callback. Tags, like metadata, will be serialized to a JSON string when stored on context and will be propagated to spans in the same way.
+We provide a `setTags` function which allows you to set a list of string tags on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference [auto instrumentations](broken-reference) will then pick up these attributes and add them to any spans created within the `context.with` callback. Tags, like metadata, will be serialized to a JSON string when stored on context and will be propagated to spans in the same way.
 
 ```typescript
 import { context } from "@opentelemetry/api"
@@ -303,7 +303,7 @@ def call_fn(*args, **kwargs):
 {% endtab %}
 
 {% tab title="JS" %}
-We provide a `setAttributes` function which allows you to add a set of attributes to context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference [auto instrumentations](../../integrations-tracing/#javascript) will then pick up these attributes and add them to any spans created within the `context.with` callback. Attributes set on context using `setAttributes` must be valid span [attribute values](https://opentelemetry.io/docs/specs/otel/common/#attribute).
+We provide a `setAttributes` function which allows you to add a set of attributes to context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference [auto instrumentations](broken-reference) will then pick up these attributes and add them to any spans created within the `context.with` callback. Attributes set on context using `setAttributes` must be valid span [attribute values](https://opentelemetry.io/docs/specs/otel/common/#attribute).
 
 <pre class="language-typescript"><code class="lang-typescript"><strong>import { context } from "@opentelemetry/api"
 </strong>import { setAttributes } from "@openinference-core"

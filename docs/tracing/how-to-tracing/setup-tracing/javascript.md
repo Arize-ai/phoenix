@@ -94,7 +94,7 @@ console.log("👀 OpenInference initialized");
 
 This basic setup has will instrument chat completions via native calls to the OpenAI client.
 
-As shown above with OpenAI, you can register additional instrumentation libraries with the OpenTelemetry provider in order to generate telemetry data for your dependencies. For more information, see [Integrations](../../integrations-tracing/).
+As shown above with OpenAI, you can register additional instrumentation libraries with the OpenTelemetry provider in order to generate telemetry data for your dependencies. For more information, see [Integrations](broken-reference).
 
 **Picking the right span processor**
 
