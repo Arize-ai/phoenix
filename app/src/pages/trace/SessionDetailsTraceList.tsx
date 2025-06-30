@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { isNumber, isString } from "lodash";
+import { debounce, isNumber, isString } from "lodash";
 import { css } from "@emotion/react";
 
 import {
@@ -283,6 +283,11 @@ export function SessionDetailsTraceList({
     [hasNext, isLoadingNext, loadNext]
   );
 
+  const debouncedFetchMoreOnBottomReached = useMemo(
+    () => debounce(fetchMoreOnBottomReached, 100),
+    [fetchMoreOnBottomReached]
+  );
+
   return (
     <div
       css={css`
@@ -290,7 +295,9 @@ export function SessionDetailsTraceList({
         flex: 1 1 auto;
         overflow: auto;
       `}
-      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+      onScroll={(e) =>
+        debouncedFetchMoreOnBottomReached(e.target as HTMLDivElement)
+      }
     >
       {sessionRootSpans.map(({ traceId, rootSpan }, index) => (
         <View
@@ -322,6 +329,11 @@ export function SessionDetailsTraceList({
           borderBottomColor={"dark"}
           borderBottomWidth={"thin"}
           padding="size-200"
+          ref={(el) => {
+            if (el) {
+              el.scrollIntoView({ behavior: "smooth" });
+            }
+          }}
         >
           <Loading />
         </View>
