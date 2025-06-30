@@ -27,6 +27,10 @@
 
 * [Prompts Concepts](prompt-engineering/prompts-concepts.md)
 
+## 📃 Context Engineering
+
+* [Context Engineering Basics](context-engineering/prompts-concepts.md)
+
 ## 🗄️ Datasets and Experiments
 
 * [Datasets Concepts](datasets-and-experiments/datasets-concepts.md)
