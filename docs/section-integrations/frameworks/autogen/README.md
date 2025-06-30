@@ -13,5 +13,5 @@ description: >-
 
 ### Featured Tutorials&#x20;
 
-<table data-view="cards"><thead><tr><th></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td><a href="https://arize.com/blog/what-is-autogen/">What is AutoGen?</a></td><td><a href="../../.gitbook/assets/What-is-Autogen_-diagram.jpg">What-is-Autogen_-diagram.jpg</a></td></tr><tr><td><a href="https://www.youtube.com/watch?v=fuvcV8o5wb0">AI Agents Masterclass w/ Chi Wang</a></td><td><a href="../../.gitbook/assets/agentMasterclassChiWang.png">agentMasterclassChiWang.png</a></td></tr><tr><td></td><td></td></tr></tbody></table>
+<table data-view="cards"><thead><tr><th></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td><a href="https://arize.com/blog/what-is-autogen/">What is AutoGen?</a></td><td><a href="../../.gitbook/assets/What-is-Autogen_-diagram.jpg">What-is-Autogen_-diagram.jpg</a></td></tr><tr><td><a href="https://www.youtube.com/watch?v=fuvcV8o5wb0">AI Agents Masterclass w/ Chi Wang</a></td><td><a href="../../.gitbook/assets/agentMasterclassChiWang.png">agentMasterclassChiWang.png</a></td></tr></tbody></table>
 

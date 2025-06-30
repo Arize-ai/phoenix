@@ -12,4 +12,4 @@ description: >-
 
 ### Featured Tutorials&#x20;
 
-<table data-view="cards"><thead><tr><th></th><th data-hidden data-card-cover data-type="files"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td><a href="https://arize.com/blog/langgraph/">Tracing and Evaluating LangGraph</a></td><td><a href="../../.gitbook/assets/Introduction-to-LangGraph.jpg">Introduction-to-LangGraph.jpg</a></td><td><a href="https://arize.com/blog/langgraph/">https://arize.com/blog/langgraph/</a></td></tr><tr><td></td><td></td><td></td></tr></tbody></table>
+<table data-view="cards"><thead><tr><th></th><th data-hidden data-card-cover data-type="files"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td><a href="https://arize.com/blog/langgraph/">Tracing and Evaluating LangGraph</a></td><td><a href="../../.gitbook/assets/Introduction-to-LangGraph.jpg">Introduction-to-LangGraph.jpg</a></td><td><a href="https://arize.com/blog/langgraph/">https://arize.com/blog/langgraph/</a></td></tr></tbody></table>
