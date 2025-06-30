@@ -48,7 +48,7 @@ class Granularity:
             )
         if isinstance(self.evaluation_window_minutes, int) and self.evaluation_window_minutes <= 0:
             raise BadRequest(
-                "evaluation_window_minutes must be greater than 0, got 0.",
+                f"evaluation_window_minutes must be greater than 0, got {self.evaluation_window_minutes}.",
             )
 
 
