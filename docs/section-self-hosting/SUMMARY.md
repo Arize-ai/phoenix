@@ -14,10 +14,10 @@
 
 ## Features
 
-* [Provisioning](provisioning.md)
-* [Authentication](authentication.md)
-* [Email](email.md)
-* [Management](management.md)
+* [Provisioning](features/provisioning.md)
+* [Authentication](features/authentication.md)
+* [Email](features/email.md)
+* [Management](features/management.md)
 * [Data Retention](https://arize.com/docs/phoenix/settings/data-retention)
 
 ## Upgrade
@@ -30,4 +30,4 @@
 
 ## Misc
 
-* [FAQs](frequently-asked-questions.md)
+* [FAQs](misc/frequently-asked-questions.md)
