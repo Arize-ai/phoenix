@@ -12,7 +12,6 @@ class TokenPrice(TypedDict):
     token_type: str
     base_rate: float
     is_prompt: bool
-    source: str
 
 
 # Asynchronously fetch data from a given URL
@@ -25,7 +24,8 @@ async def fetch_data(url: str) -> Optional[dict[str, Any]]:
                 # Raise an error if the response status is not OK
                 resp.raise_for_status()
                 # Parse the response JSON
-                resp_json = await resp.json()
+                resp_text = await resp.text()
+                resp_json = json.loads(resp_text)
                 print("Fetched data from URL successfully.")
                 assert isinstance(resp_json, dict)
                 return resp_json
@@ -71,7 +71,6 @@ def transform_remote_data(data: dict[str, Any]) -> dict[str, Any]:
                     token_type="input",
                     base_rate=input_cost,
                     is_prompt=True,
-                    source="litellm",
                 )
             )
 
@@ -81,7 +80,6 @@ def transform_remote_data(data: dict[str, Any]) -> dict[str, Any]:
                     token_type="output",
                     base_rate=output_cost,
                     is_prompt=False,
-                    source="litellm",
                 )
             )
 
@@ -92,7 +90,6 @@ def transform_remote_data(data: dict[str, Any]) -> dict[str, Any]:
                     token_type="cache_read",
                     base_rate=cache_read_cost,
                     is_prompt=True,
-                    source="litellm",
                 )
             )
 
@@ -102,7 +99,6 @@ def transform_remote_data(data: dict[str, Any]) -> dict[str, Any]:
                     token_type="cache_write",
                     base_rate=cache_creation_cost,
                     is_prompt=True,
-                    source="litellm",
                 )
             )
 
@@ -135,7 +131,6 @@ def merge_data(local_data: dict[str, Any], remote_data: dict[str, Any]) -> dict[
             # (to avoid overwriting OpenRouter data)
             if "openrouter_id" not in models[idx]:
                 models[idx]["token_prices"] = token_prices
-                models[idx]["litellm_id"] = model_id
                 updated_models.add(model_id)
         else:
             # Add new model if it doesn't exist
@@ -143,7 +138,6 @@ def merge_data(local_data: dict[str, Any], remote_data: dict[str, Any]) -> dict[
                 "name": model_id,
                 "name_pattern": f"(?i)^({model_id})$",
                 "token_prices": token_prices,
-                "litellm_id": model_id
             }
             models.append(new_model)
             updated_models.add(model_id)
