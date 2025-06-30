@@ -19,7 +19,6 @@ export async function spanRedirectLoader({ params }: LoaderFunctionArgs) {
         span: getSpanByOtelId(spanId: $spanOtelId) {
           id
           trace {
-            id
             traceId
           }
           project {
