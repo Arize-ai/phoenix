@@ -1,10 +1,13 @@
 from collections.abc import Iterator
 from datetime import datetime, timedelta
 from itertools import accumulate, repeat, takewhile
+from typing import Optional
 
 import strawberry
+from strawberry import UNSET
 
 from phoenix.core import model_schema
+from phoenix.server.api.exceptions import BadRequest
 
 
 @strawberry.input(
@@ -19,7 +22,8 @@ from phoenix.core import model_schema
     )
 )
 class Granularity:
-    evaluation_window_minutes: int = strawberry.field(
+    evaluation_window_minutes: Optional[int] = strawberry.field(
+        default=UNSET,
         description=(
             "Specifies the length of time by which the data are grouped for aggregation. Each point"
             " in a time-series will have the same evaluation_window, but the evaluation_window for"
@@ -35,6 +39,17 @@ class Granularity:
             " the end time of the time range."
         ),
     )
+
+    def __post_init__(self) -> None:
+        if isinstance(self.sampling_interval_minutes, int) and self.sampling_interval_minutes <= 0:
+            raise BadRequest(
+                "sampling_interval_minutes must be greater than 0, got "
+                f"{self.sampling_interval_minutes}.",
+            )
+        if isinstance(self.evaluation_window_minutes, int) and self.evaluation_window_minutes <= 0:
+            raise BadRequest(
+                "evaluation_window_minutes must be greater than 0, got 0.",
+            )
 
 
 def to_timestamps(

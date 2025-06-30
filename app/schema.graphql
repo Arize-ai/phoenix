@@ -1319,7 +1319,7 @@ input Granularity {
   """
   Specifies the length of time by which the data are grouped for aggregation. Each point in a time-series will have the same evaluation_window, but the evaluation_window for each point can overlap in real time. For example, when the points are 24 hours apart but the eval window is 72 hours, it means that each point in the time-series is aggregating 72 hours worth of data ending at the point's timestamp.
   """
-  evaluationWindowMinutes: Int!
+  evaluationWindowMinutes: Int
 
   """
   Specifies the time interval between each point in the time-series. All points in the time-series are separated by the same length of time, and are generated starting from the end time of the time range.
@@ -1712,9 +1712,8 @@ type Project implements Node {
   traceRetentionPolicy: ProjectTraceRetentionPolicy!
   createdAt: DateTime!
   updatedAt: DateTime!
-
-  """Hourly span count for the project."""
-  spanCountTimeSeries(timeRange: TimeRange): SpanCountTimeSeries!
+  spanCountTimeSeries(timeRange: TimeRange, granularity: Granularity): SpanCountTimeSeries!
+  traceCountTimeSeries(timeRange: TimeRange, granularity: Granularity): TraceCountTimeSeries!
 }
 
 enum ProjectColumn {
@@ -2630,6 +2629,10 @@ type TraceConnection {
 
   """Contains the nodes in this connection"""
   edges: [TraceEdge!]!
+}
+
+type TraceCountTimeSeries implements TimeSeries {
+  data: [TimeSeriesDataPoint!]!
 }
 
 """An edge in a connection."""

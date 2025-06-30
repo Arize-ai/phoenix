@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import operator
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Optional
 
 import strawberry
@@ -18,8 +18,9 @@ from typing_extensions import assert_never
 
 from phoenix.datetime_utils import right_open_time_range
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.helpers import SupportedSQLDialect, get_time_interval_bucket_boundaries
 from phoenix.server.api.context import Context
+from phoenix.server.api.input_types.Granularity import Granularity
 from phoenix.server.api.input_types.ProjectSessionSort import (
     ProjectSessionColumn,
     ProjectSessionSort,
@@ -45,6 +46,7 @@ from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.TimeSeries import TimeSeries, TimeSeriesDataPoint
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
+from phoenix.server.api.utils import get_parameters_for_simple_time_series
 from phoenix.trace.dsl import SpanFilter
 
 DEFAULT_PAGE_SIZE = 30
@@ -707,88 +709,78 @@ class Project(Node):
             )
         return updated_at
 
-    @strawberry.field(
-        description="Hourly span count for the project.",
-    )  # type: ignore
+    @strawberry.field
     async def span_count_time_series(
         self,
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
+        granularity: Optional[Granularity] = UNSET,
     ) -> SpanCountTimeSeries:
-        """Returns a time series of span counts grouped by hour for the project.
-
-        This field provides hourly aggregated span counts, which can be useful for
-        visualizing span activity over time. The data points represent the number
-        of spans that started in each hour.
-
-        Args:
-            info: The GraphQL info object containing context information.
-            time_range: Optional time range to filter the spans. If provided, only
-                spans that started within this range will be counted.
-
-        Returns:
-            A SpanCountTimeSeries object containing data points with timestamps
-            (rounded to the nearest hour) and corresponding span counts.
-
-        Notes:
-            - The timestamps are rounded down to the nearest hour.
-            - If a time range is provided, the start time is rounded down to the
-              nearest hour, and the end time is rounded up to the nearest hour.
-            - The SQL query is optimized for both PostgreSQL and SQLite databases.
-        """
-        # Determine the appropriate SQL function to truncate timestamps to hours
-        # based on the database dialect
-        if info.context.db.dialect is SupportedSQLDialect.POSTGRESQL:
-            # PostgreSQL uses date_trunc for timestamp truncation
-            hour = func.date_trunc("hour", models.Span.start_time)
-        elif info.context.db.dialect is SupportedSQLDialect.SQLITE:
-            # SQLite uses strftime for timestamp formatting
-            hour = func.strftime("%Y-%m-%dT%H:00:00.000+00:00", models.Span.start_time)
-        else:
-            assert_never(info.context.db.dialect)
-
-        # Build the base query to count spans grouped by hour
+        stop_time, interval_seconds = get_parameters_for_simple_time_series(time_range, granularity)
+        timestamp_column = models.Span.start_time
+        _, bucket_stop_time = get_time_interval_bucket_boundaries(
+            timestamp_column=timestamp_column,
+            stop_time=stop_time,
+            interval_seconds=interval_seconds,
+            dialect=info.context.db.dialect,
+        )
         stmt = (
-            select(hour, func.count())
+            select(bucket_stop_time, func.count(models.Span.id))
             .join(models.Trace)
             .where(models.Trace.project_rowid == self.project_rowid)
-            .group_by(hour)
-            .order_by(hour)
+            .where(timestamp_column < stop_time)
+            .group_by(bucket_stop_time)
+            .order_by(bucket_stop_time)
         )
-
-        # Apply time range filtering if provided
-        if time_range:
-            if t := time_range.start:
-                # Round down to nearest hour for the start time
-                start = t.replace(minute=0, second=0, microsecond=0)
-                stmt = stmt.where(start <= models.Span.start_time)
-            if t := time_range.end:
-                # Round up to nearest hour for the end time
-                # If the time is already at the start of an hour, use it as is
-                if t.minute == 0 and t.second == 0 and t.microsecond == 0:
-                    end = t
-                else:
-                    # Otherwise, round up to the next hour
-                    end = t.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
-                stmt = stmt.where(models.Span.start_time < end)
-
-        # Execute the query and convert the results to a time series
+        if time_range and time_range.start:
+            stmt = stmt.where(time_range.start <= timestamp_column)
         async with info.context.db() as session:
-            data = await session.stream(stmt)
-            return SpanCountTimeSeries(
-                data=[
-                    TimeSeriesDataPoint(
-                        timestamp=_as_datetime(t),
-                        value=v,
-                    )
-                    async for t, v in data
-                ]
-            )
+            data = [
+                TimeSeriesDataPoint(timestamp=_as_datetime(t), value=v)
+                async for t, v in await session.stream(stmt)
+            ]
+        return SpanCountTimeSeries(data=data)
+
+    @strawberry.field
+    async def trace_count_time_series(
+        self,
+        info: Info[Context, None],
+        time_range: Optional[TimeRange] = UNSET,
+        granularity: Optional[Granularity] = UNSET,
+    ) -> TraceCountTimeSeries:
+        stop_time, interval_seconds = get_parameters_for_simple_time_series(time_range, granularity)
+        timestamp_column = models.Trace.start_time
+        _, bucket_stop_time = get_time_interval_bucket_boundaries(
+            timestamp_column=timestamp_column,
+            stop_time=stop_time,
+            interval_seconds=interval_seconds,
+            dialect=info.context.db.dialect,
+        )
+        stmt = (
+            select(bucket_stop_time, func.count(models.Trace.id))
+            .filter_by(project_rowid=self.project_rowid)
+            .where(timestamp_column < stop_time)
+            .group_by(bucket_stop_time)
+            .order_by(bucket_stop_time)
+        )
+        if time_range and time_range.start:
+            stmt = stmt.where(time_range.start <= timestamp_column)
+        async with info.context.db() as session:
+            data = [
+                TimeSeriesDataPoint(timestamp=_as_datetime(t), value=v)
+                async for t, v in await session.stream(stmt)
+            ]
+        return TraceCountTimeSeries(data=data)
 
 
 @strawberry.type
 class SpanCountTimeSeries(TimeSeries):
     """A time series of span count"""
+
+
+@strawberry.type
+class TraceCountTimeSeries(TimeSeries):
+    """A time series of trace count"""
 
 
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")
