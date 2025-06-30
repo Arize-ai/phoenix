@@ -22,7 +22,7 @@ from typing import (
 
 from tqdm.auto import tqdm
 
-from phoenix.evals.exceptions import PhoenixException
+from phoenix.client.exceptions import PhoenixException
 
 logger = logging.getLogger(__name__)
 
