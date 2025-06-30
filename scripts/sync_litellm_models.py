@@ -16,7 +16,7 @@ class TokenPrice(TypedDict):
 
 
 # Asynchronously fetch data from a given URL
-async def fetch_data(url: str) -> Optional[list[dict[str, Any]]]:
+async def fetch_data(url: str) -> Optional[dict[str, Any]]:
     try:
         # Create an asynchronous session
         async with aiohttp.ClientSession() as session:
@@ -27,10 +27,8 @@ async def fetch_data(url: str) -> Optional[list[dict[str, Any]]]:
                 # Parse the response JSON
                 resp_json = await resp.json()
                 print("Fetched data from URL successfully.")
-                # Return the 'data' field from the JSON response
-                data = resp_json.get("data", resp_json)
-                assert isinstance(data, list)
-                return data
+                assert isinstance(resp_json, dict)
+                return resp_json
     except Exception as e:
         # Print an error message if fetching data fails
         print(f"Error fetching data from URL: {e}")
@@ -38,81 +36,78 @@ async def fetch_data(url: str) -> Optional[list[dict[str, Any]]]:
 
 
 # Transform the remote data into a generic structure
-def transform_remote_data(data: list[dict[str, Any]]) -> dict[str, Any]:
+def transform_remote_data(data: dict[str, Any]) -> dict[str, Any]:
     """
-    Transform OpenRouter API data into a generic model format.
+    Transform LiteLLM data into a generic model format.
 
-    Output format:
+    LiteLLM format:
     {
-        "model_id": {
-            "provider": "provider_name",
+        "model_name": {
             "max_tokens": int,
+            "max_input_tokens": int,
+            "max_output_tokens": int,
             "input_cost_per_token": float,
-            "max_output_tokens": int (optional),
             "output_cost_per_token": float,
-            "input_cost_per_image": float (optional),
-            "supports_vision": bool (optional)
+            "litellm_provider": str,
+            "mode": str,
+            "supports_function_calling": bool,
+            "supports_vision": bool
         }
     }
     """
     transformed = {}
 
-    for row in data:
-        # Create a unique model identifier
-        model_id = row["id"]
-
-        # Build the generic model object
-        if "pricing" not in row:
+    for model_id, model_info in data.items():
+        # Skip if no pricing information
+        if "input_cost_per_token" not in model_info or "output_cost_per_token" not in model_info:
             continue
-        pricing = row["pricing"]
-        model_info = []
-        if prompt_pricing := float(pricing.get("prompt", 0)):
-            model_info.append(
+
+        # Build the token price list
+        token_prices = []
+
+        if input_cost := float(model_info.get("input_cost_per_token", 0)):
+            token_prices.append(
                 TokenPrice(
                     token_type="input",
-                    base_rate=prompt_pricing,
+                    base_rate=input_cost,
                     is_prompt=True,
-                    source="openrouter",
-                )
-            )
-        if completion_pricing := float(pricing.get("completion", 0)):
-            model_info.append(
-                TokenPrice(
-                    token_type="output",
-                    base_rate=completion_pricing,
-                    is_prompt=False,
-                    source="openrouter",
-                )
-            )
-        # TODO: add image pricing once semantic conventions are finalized
-        # if image_pricing := float(pricing.get("image", 0)):
-        #     model_info.append(
-        #         TokenPrice(
-        #             token_type="image",
-        #             base_rate=image_pricing,
-        #             is_prompt=False,
-        #         )
-        #     )
-        if cache_read_pricing := float(pricing.get("input_cache_read", 0)):
-            model_info.append(
-                TokenPrice(
-                    token_type="cache_read",
-                    base_rate=cache_read_pricing,
-                    is_prompt=True,
-                    source="openrouter",
-                )
-            )
-        if cache_write_pricing := float(pricing.get("input_cache_write", 0)):
-            model_info.append(
-                TokenPrice(
-                    token_type="cache_write",
-                    base_rate=cache_write_pricing,
-                    is_prompt=True,
-                    source="openrouter",
+                    source="litellm",
                 )
             )
 
-        transformed[model_id] = model_info
+        if output_cost := float(model_info.get("output_cost_per_token", 0)):
+            token_prices.append(
+                TokenPrice(
+                    token_type="output",
+                    base_rate=output_cost,
+                    is_prompt=False,
+                    source="litellm",
+                )
+            )
+
+        # Check for cache pricing if available
+        if cache_read_cost := float(model_info.get("cache_read_input_token_cost", 0)):
+            token_prices.append(
+                TokenPrice(
+                    token_type="cache_read",
+                    base_rate=cache_read_cost,
+                    is_prompt=True,
+                    source="litellm",
+                )
+            )
+
+        if cache_creation_cost := float(model_info.get("cache_creation_input_token_cost", 0)):
+            token_prices.append(
+                TokenPrice(
+                    token_type="cache_write",
+                    base_rate=cache_creation_cost,
+                    is_prompt=True,
+                    source="litellm",
+                )
+            )
+
+        if token_prices:
+            transformed[model_id] = token_prices
 
     return transformed
 
@@ -124,35 +119,38 @@ def merge_data(local_data: dict[str, Any], remote_data: dict[str, Any]) -> dict[
     """
     merged = deepcopy(local_data)
     models = merged.get("models", [])
-    
-    # Create a mapping of openrouter_id to indices for faster lookup
-    openrouter_index_map = {}
+
+    # Create a mapping of model names to indices for faster lookup
+    model_index_map = {}
     for idx, model in enumerate(models):
-        if "openrouter_id" in model:
-            openrouter_index_map[model["openrouter_id"]] = idx
-    
+        model_index_map[model["name"]] = idx
+
     # Update existing models and track which ones were updated
     updated_models = set()
-    for openrouter_id, token_prices in remote_data.items():
-        if openrouter_id in openrouter_index_map:
-            # Update existing model
-            idx = openrouter_index_map[openrouter_id]
-            models[idx]["token_prices"] = token_prices
-            updated_models.add(openrouter_id)
+    for model_id, token_prices in remote_data.items():
+        # Try to find a matching model by name
+        if model_id in model_index_map:
+            idx = model_index_map[model_id]
+            # Only update if the model doesn't have an openrouter_id
+            # (to avoid overwriting OpenRouter data)
+            if "openrouter_id" not in models[idx]:
+                models[idx]["token_prices"] = token_prices
+                models[idx]["litellm_id"] = model_id
+                updated_models.add(model_id)
         else:
             # Add new model if it doesn't exist
             new_model = {
-                "name": openrouter_id,
-                "name_pattern": f"(?i)^({openrouter_id})$",
+                "name": model_id,
+                "name_pattern": f"(?i)^({model_id})$",
                 "token_prices": token_prices,
-                "openrouter_id": openrouter_id
+                "litellm_id": model_id
             }
             models.append(new_model)
-            updated_models.add(openrouter_id)
-    
+            updated_models.add(model_id)
+
     merged["models"] = models
-    print(f"Updated/added {len(updated_models)} models from OpenRouter")
-    
+    print(f"Updated/added {len(updated_models)} models from LiteLLM")
+
     return merged
 
 
@@ -201,20 +199,20 @@ def main() -> int:
     local_file_path = (
         Path(__file__).parent / "../src/phoenix/server/cost_tracking/model_cost_manifest.json"
     )
-    url = "https://openrouter.ai/api/v1/models"
+    url = "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
 
     # Load existing local data
     data = load_local_data(local_file_path)
 
     # Fetch and transform remote data
-    openrouter_models = asyncio.run(fetch_data(url))
-    if not openrouter_models:
-        print("Failed to fetch model data from API")
+    litellm_models = asyncio.run(fetch_data(url))
+    if not litellm_models:
+        print("Failed to fetch model data from LiteLLM")
         return 1
 
     # Transform the fetched data into generic format
-    transformed_data = transform_remote_data(openrouter_models)
-    print(f"Found {len(transformed_data)} models with pricing from OpenRouter")
+    transformed_data = transform_remote_data(litellm_models)
+    print(f"Found {len(transformed_data)} models with pricing from LiteLLM")
 
     # Merge with existing data
     merged_data = merge_data(data, transformed_data)
@@ -222,11 +220,14 @@ def main() -> int:
     # Write the updated data back to file if there are changes
     if has_diff(data, merged_data):
         write_to_file(local_file_path, merged_data)
+        print("Model data updated successfully")
+    else:
+        print("No changes detected")
 
     # Print summary
     print(f"Total models in file: {len(merged_data.get('models', []))}")
     print(f"Models from this sync: {len(transformed_data)}")
-    
+
     return 0
 
 

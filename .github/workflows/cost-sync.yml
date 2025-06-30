@@ -1,4 +1,4 @@
-name: Sync OpenRouter Models
+name: Sync Model Pricing Data
 
 permissions:
   contents: write
@@ -8,11 +8,11 @@ on:
   # Will remove this step after testing
   push:
     branches:
-      - jonny/cost-sync 
+      - xander/cost-sync
 
 jobs:
   sync-models:
-    name: Sync OpenRouter Model Data
+    name: Sync Model Pricing Data
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,8 +35,8 @@ jobs:
         run: |
           uv pip install --system -r requirements/sync-models.txt
       
-      - name: Run sync script
-        id: sync
+      - name: Run OpenRouter sync script
+        id: sync-openrouter
         run: |
           # Capture output for PR body
           OUTPUT=$(python scripts/sync_openrouter_models.py 2>&1)
@@ -46,24 +46,39 @@ jobs:
           if echo "$OUTPUT" | grep -q "Total models in file:"; then
             TOTAL_MODELS=$(echo "$OUTPUT" | grep "Total models in file:" | sed 's/Total models in file: //')
             SYNCED_MODELS=$(echo "$OUTPUT" | grep "Models from this sync:" | sed 's/Models from this sync: //')
-            echo "total_models=$TOTAL_MODELS" >> $GITHUB_OUTPUT
-            echo "synced_models=$SYNCED_MODELS" >> $GITHUB_OUTPUT
+            echo "total_models_openrouter=$TOTAL_MODELS" >> $GITHUB_OUTPUT
+            echo "synced_models_openrouter=$SYNCED_MODELS" >> $GITHUB_OUTPUT
           fi
           
           # Check if file was updated
           TIMESTAMP=$(date -u +"%Y-%m-%d")
           echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
       
+      - name: Run LiteLLM sync script
+        id: sync-litellm
+        run: |
+          # Capture output for PR body
+          OUTPUT=$(python scripts/sync_litellm_models.py 2>&1)
+          echo "$OUTPUT"
+          
+          # Extract summary info if available
+          if echo "$OUTPUT" | grep -q "Total models in file:"; then
+            TOTAL_MODELS=$(echo "$OUTPUT" | grep "Total models in file:" | sed 's/Total models in file: //')
+            SYNCED_MODELS=$(echo "$OUTPUT" | grep "Models from this sync:" | sed 's/Models from this sync: //')
+            echo "total_models_litellm=$TOTAL_MODELS" >> $GITHUB_OUTPUT
+            echo "synced_models_litellm=$SYNCED_MODELS" >> $GITHUB_OUTPUT
+          fi
+      
       - name: Check for changes
         id: verify-changed-files
         run: |
-          if git diff --exit-code model_prices_and_context_window.json; then
+          if git diff --exit-code src/phoenix/server/cost_tracking/model_cost_manifest.json; then
             echo "changed=false" >> $GITHUB_OUTPUT
           else
             echo "changed=true" >> $GITHUB_OUTPUT
             # Get a summary of changes
-            ADDED=$(git diff model_prices_and_context_window.json | grep -c '^+' || true)
-            REMOVED=$(git diff model_prices_and_context_window.json | grep -c '^-' || true)
+            ADDED=$(git diff src/phoenix/server/cost_tracking/model_cost_manifest.json | grep -c '^+' || true)
+            REMOVED=$(git diff src/phoenix/server/cost_tracking/model_cost_manifest.json | grep -c '^-' || true)
             echo "lines_added=$ADDED" >> $GITHUB_OUTPUT
             echo "lines_removed=$REMOVED" >> $GITHUB_OUTPUT
           fi
@@ -73,24 +88,34 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore: update OpenRouter model data (${{ steps.sync.outputs.timestamp }})"
-          title: "chore: update OpenRouter model data (${{ steps.sync.outputs.timestamp }})"
+          commit-message: "chore: update model pricing data (${{ steps.sync-openrouter.outputs.timestamp }})"
+          title: "chore: update model pricing data (${{ steps.sync-openrouter.outputs.timestamp }})"
           body: |
-            ## OpenRouter Model Data Update
+            ## Model Pricing Data Update
             
-            This PR updates the OpenRouter model pricing and capabilities data.
+            This PR updates the model pricing and capabilities data from both OpenRouter and LiteLLM.
             
             ### Summary
-            - **Date**: ${{ steps.sync.outputs.timestamp }}
-            - **Total models**: ${{ steps.sync.outputs.total_models || 'N/A' }}
-            - **Models synced**: ${{ steps.sync.outputs.synced_models || 'N/A' }}
+            - **Date**: ${{ steps.sync-openrouter.outputs.timestamp }}
+            
+            #### OpenRouter
+            - **Total models after sync**: ${{ steps.sync-openrouter.outputs.total_models_openrouter || 'N/A' }}
+            - **Models synced**: ${{ steps.sync-openrouter.outputs.synced_models_openrouter || 'N/A' }}
+            
+            #### LiteLLM
+            - **Total models after sync**: ${{ steps.sync-litellm.outputs.total_models_litellm || 'N/A' }}
+            - **Models synced**: ${{ steps.sync-litellm.outputs.synced_models_litellm || 'N/A' }}
+            
+            #### Overall Changes
             - **Lines changed**: +${{ steps.verify-changed-files.outputs.lines_added }} / -${{ steps.verify-changed-files.outputs.lines_removed }}
             
             ### Changes
-            The `model_prices_and_context_window.json` file has been updated with the latest model information from the OpenRouter API.
+            The `src/phoenix/server/cost_tracking/model_cost_manifest.json` file has been updated with the latest model information from:
+            - OpenRouter API
+            - LiteLLM's model_prices_and_context_window.json
             
-            This change was automatically generated by the sync-openrouter-models workflow.
-          branch: update-openrouter-models-${{ steps.sync.outputs.timestamp }}
+            This change was automatically generated by the sync-model-pricing workflow.
+          branch: update-model-pricing-${{ steps.sync-openrouter.outputs.timestamp }}
           base: main
           delete-branch: true
           labels: |
