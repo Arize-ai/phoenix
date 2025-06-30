@@ -181,7 +181,7 @@ class SpanSort:
                 expr = desc(expr)
             return SpanSortConfig(
                 stmt=stmt.order_by(nulls_last(expr)),
-                orm_expression=expr,
+                orm_expression=col.as_orm_expression(joined_table),
                 dir=self.dir,
                 column_name=col.column_name,
                 column_data_type=col.data_type,
