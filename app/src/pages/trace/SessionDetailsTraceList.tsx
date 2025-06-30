@@ -93,10 +93,8 @@ function RootSpanMessage({
 
 type SessionTraceRootSpan = NonNullable<
   NonNullable<
-    NonNullable<
-      SessionDetailsTraceList_traces$data["traces"]["edges"][number]["trace"]
-    >["rootSpan"]
-  >
+    SessionDetailsTraceList_traces$data["traces"]["edges"][number]["trace"]
+  >["rootSpan"]
 >;
 
 type RootSpanProps = {
@@ -214,12 +212,10 @@ export function SessionDetailsTraceList({
       fragment SessionDetailsTraceList_traces on ProjectSession
       @refetchable(queryName: "SessionDetailsTraceListRefetchQuery")
       @argumentDefinitions(
-        first: { type: "Int", defaultValue: 100 }
+        first: { type: "Int", defaultValue: 50 }
         after: { type: "String", defaultValue: null }
-        before: { type: "String", defaultValue: null }
-        last: { type: "Int", defaultValue: null }
       ) {
-        traces(first: $first, after: $after, before: $before, last: $last)
+        traces(first: $first, after: $after)
           @connection(key: "SessionDetailsTraceList_traces") {
           edges {
             trace: node {
