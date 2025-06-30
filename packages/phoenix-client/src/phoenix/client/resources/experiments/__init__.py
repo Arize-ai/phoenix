@@ -669,7 +669,10 @@ class Experiments:
 
             if result:
                 span.set_attributes(
-                    {"evaluation.score": result.get("score"), "evaluation.label": result.get("label")}
+                    {
+                        "evaluation.score": result.get("score"),
+                        "evaluation.label": result.get("label"),
+                    }
                 )
             span.set_attribute(
                 SpanAttributes.OPENINFERENCE_SPAN_KIND, OpenInferenceSpanKindValues.EVALUATOR.value
@@ -1152,7 +1155,10 @@ class AsyncExperiments:
 
             if result:
                 span.set_attributes(
-                    {"evaluation.score": result.get("score"), "evaluation.label": result.get("label")}
+                    {
+                        "evaluation.score": result.get("score"),
+                        "evaluation.label": result.get("label"),
+                    }
                 )
             span.set_attribute(
                 SpanAttributes.OPENINFERENCE_SPAN_KIND, OpenInferenceSpanKindValues.EVALUATOR.value
