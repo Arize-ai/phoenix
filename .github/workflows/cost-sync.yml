@@ -118,7 +118,4 @@ jobs:
           branch: update-model-pricing-${{ steps.sync-openrouter.outputs.timestamp }}
           base: main
           delete-branch: true
-          labels: |
-            automated
-            dependencies
-            data-update
+
