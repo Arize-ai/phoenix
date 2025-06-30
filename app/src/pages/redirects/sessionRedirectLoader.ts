@@ -6,7 +6,7 @@ import RelayEnvironment from "@phoenix/RelayEnvironment";
 import { sessionRedirectLoaderQuery } from "./__generated__/sessionRedirectLoaderQuery.graphql";
 
 export async function sessionRedirectLoader({ params }: LoaderFunctionArgs) {
-  const { session_otel_id } = params;
+  const { sessionOtelId: session_otel_id } = params;
 
   if (!session_otel_id) {
     throw new Error("Session redirect requires a session ID");
