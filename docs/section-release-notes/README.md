@@ -238,7 +238,7 @@ You can now delete experiments directly from the action menu, making it quicker 
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/new_integrations.gif" %}
 
-In the New Project tab, we've added quick setup to instrument your application for **BeeAI**, **SmolAgents**, and the **OpenAI Agents SDK**. Easily configure these integrations with streamlined instructions. Check out all Phoenix[ tracing integrations](https://app.gitbook.com/s/ShR775Rt7OzHRfy5j2Ks/tracing/integrations-tracing) here.
+In the New Project tab, we've added quick setup to instrument your application for **BeeAI**, **SmolAgents**, and the **OpenAI Agents SDK**. Easily configure these integrations with streamlined instructions. Check out all Phoenix[ tracing integrations](broken-reference) here.
 
 ***
 
@@ -258,7 +258,7 @@ We've added the ability to resize Span, Trace, and Session tables. Resizing pref
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/openai_sdk_rn.gif" %}
 
-We've introduced the **OpenAI Agents SDK** for Python which provides enhanced visibility into agent behavior and performance. For more details on a quick setup, check out our [docs](https://app.gitbook.com/s/ShR775Rt7OzHRfy5j2Ks/tracing/integrations-tracing/openai-agents-sdk).
+We've introduced the **OpenAI Agents SDK** for Python which provides enhanced visibility into agent behavior and performance. For more details on a quick setup, check out our [docs](broken-reference).
 
 ```bash
 pip install openinference-instrumentation-openai-agents openai-agents
