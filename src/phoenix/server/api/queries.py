@@ -1032,7 +1032,7 @@ class Query:
         return None
 
     @strawberry.field
-    async def get_session_by_otel_id(
+    async def get_project_session_by_otel_id(
         self,
         info: Info[Context, None],
         session_id: str,
