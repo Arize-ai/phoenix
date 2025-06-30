@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { debounce, isNumber, isString } from "lodash";
+import { isNumber, isString, throttle } from "lodash";
 import { css } from "@emotion/react";
 
 import {
@@ -274,7 +274,7 @@ export function SessionDetailsTraceList({
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
         const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
-        const withinRange = scrollHeight - scrollTop - clientHeight < 300;
+        const withinRange = scrollHeight - scrollTop - clientHeight < 1024;
         if (withinRange && !isLoadingNext && hasNext) {
           loadNext(SESSION_DETAILS_PAGE_SIZE);
         }
@@ -284,7 +284,7 @@ export function SessionDetailsTraceList({
   );
 
   const debouncedFetchMoreOnBottomReached = useMemo(
-    () => debounce(fetchMoreOnBottomReached, 100),
+    () => throttle(fetchMoreOnBottomReached, 100),
     [fetchMoreOnBottomReached]
   );
 
@@ -329,11 +329,6 @@ export function SessionDetailsTraceList({
           borderBottomColor={"dark"}
           borderBottomWidth={"thin"}
           padding="size-200"
-          ref={(el) => {
-            if (el) {
-              el.scrollIntoView({ behavior: "smooth" });
-            }
-          }}
         >
           <Loading />
         </View>

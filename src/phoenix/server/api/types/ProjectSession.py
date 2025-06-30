@@ -108,8 +108,6 @@ class ProjectSession(Node):
             select(models.Trace)
             .filter_by(project_session_rowid=self.id_attr)
             .order_by(models.Trace.start_time)
-            # TODO: limit to first + 1 to determine whether there's a next page
-            # and then fetch the next page, including it in the response
         )
         async with info.context.db() as session:
             traces = await session.stream_scalars(stmt)
