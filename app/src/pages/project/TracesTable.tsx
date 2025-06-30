@@ -667,7 +667,7 @@ export function TracesTable(props: TracesTableProps) {
         header: "total cost",
         minSize: 80,
         accessorKey: "cumulativeCostSummary.total.cost",
-        enableSorting: false,
+        id: "cumulativeTokenCostTotal",
         cell: ({ row, getValue }) => {
           const value = getValue();
           if (value === null || typeof value !== "number") {

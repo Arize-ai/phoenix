@@ -516,8 +516,7 @@ export function SpansTable(props: SpansTableProps) {
       accessorKey: rootSpansOnly
         ? "cumulativeCostSummary.total.cost"
         : "costSummary.total.cost",
-      id: "tokenCostTotal",
-      enableSorting: rootSpansOnly ? false : true, // TODO: add sorting for cumulative cost
+      id: rootSpansOnly ? "cumulativeTokenCostTotal" : "tokenCostTotal",
       cell: ({ row, getValue }) => {
         const value = getValue();
         if (value === null || typeof value !== "number") {
