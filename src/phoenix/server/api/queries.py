@@ -1005,6 +1005,45 @@ class Query:
         except re.error as error:
             return ValidationResult(is_valid=False, error_message=str(error))
 
+    @strawberry.field
+    async def get_span_by_otel_id(
+        self,
+        info: Info[Context, None],
+        span_id: str,
+    ) -> Optional[Span]:
+        stmt = select(models.Span.id).filter_by(span_id=span_id)
+        async with info.context.db() as session:
+            span_rowid = await session.scalar(stmt)
+        if span_rowid:
+            return Span(span_rowid=span_rowid)
+        return None
+
+    @strawberry.field
+    async def get_trace_by_otel_id(
+        self,
+        info: Info[Context, None],
+        trace_id: str,
+    ) -> Optional[Trace]:
+        stmt = select(models.Trace.id).where(models.Trace.trace_id == trace_id)
+        async with info.context.db() as session:
+            trace_rowid = await session.scalar(stmt)
+        if trace_rowid:
+            return Trace(trace_rowid=trace_rowid)
+        return None
+
+    @strawberry.field
+    async def get_project_session_by_otel_id(
+        self,
+        info: Info[Context, None],
+        session_id: str,
+    ) -> Optional[ProjectSession]:
+        stmt = select(models.ProjectSession).where(models.ProjectSession.session_id == session_id)
+        async with info.context.db() as session:
+            session_row = await session.scalar(stmt)
+        if session_row:
+            return to_gql_project_session(session_row)
+        return None
+
 
 def _consolidate_sqlite_db_table_stats(
     stats: Iterable[tuple[str, int]],
