@@ -116,8 +116,8 @@ LABEL: "factual" or "hallucinated"
 
 EXPLANATION:"""
 
-TOOL_CALLING_SELECTION_PROMPT_RAILS_MAP = OrderedDict({True: "correct", False: "incorrect"})
-TOOL_CALLING_SELECTION_PROMPT_BASE_TEMPLATE = """
+TOOL_SELECTION_PROMPT_RAILS_MAP = OrderedDict({True: "correct", False: "incorrect"})
+TOOL_SELECTION_PROMPT_BASE_TEMPLATE = """
 You are an evaluation assistant assessing whether a tool call correctly matches a user's question. 
 Your task is to decide if the tool selected is the best choice to answer the question,
 using only the list of available tools provided below. You are not responsible for checking the 
