@@ -7,7 +7,6 @@ import strawberry
 from strawberry import UNSET
 
 from phoenix.core import model_schema
-from phoenix.server.api.exceptions import BadRequest
 
 
 @strawberry.input(
@@ -39,17 +38,6 @@ class Granularity:
             " the end time of the time range."
         ),
     )
-
-    def __post_init__(self) -> None:
-        if isinstance(self.sampling_interval_minutes, int) and self.sampling_interval_minutes <= 0:
-            raise BadRequest(
-                "sampling_interval_minutes must be greater than 0, got "
-                f"{self.sampling_interval_minutes}.",
-            )
-        if isinstance(self.evaluation_window_minutes, int) and self.evaluation_window_minutes <= 0:
-            raise BadRequest(
-                f"evaluation_window_minutes must be greater than 0, got {self.evaluation_window_minutes}.",
-            )
 
 
 def to_timestamps(
