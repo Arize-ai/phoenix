@@ -6,6 +6,7 @@ import { HelpTooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 import { Flex, Text, View } from "@phoenix/components";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
+import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 
 import { costFormatter } from "../../utils/numberFormatUtils";
 
@@ -113,7 +114,7 @@ export function SessionDetails(props: SessionDetailsProps) {
   const { sessionId } = props;
   const data = useLazyLoadQuery<SessionDetailsQuery>(
     graphql`
-      query SessionDetailsQuery($id: ID!) {
+      query SessionDetailsQuery($id: ID!, $first: Int) {
         session: node(id: $id) {
           ... on ProjectSession {
             numTraces
@@ -139,45 +140,14 @@ export function SessionDetails(props: SessionDetailsProps) {
             }
             sessionId
             latencyP50: traceLatencyMsQuantile(probability: 0.50)
-            traces {
-              edges {
-                trace: node {
-                  id
-                  traceId
-                  rootSpan {
-                    id
-                    attributes
-                    project {
-                      id
-                    }
-                    input {
-                      value
-                      mimeType
-                    }
-                    output {
-                      value
-                      mimeType
-                    }
-                    cumulativeTokenCountTotal
-                    cumulativeCostSummary {
-                      total {
-                        cost
-                      }
-                    }
-                    latencyMs
-                    startTime
-                    spanId
-                    ...AnnotationSummaryGroup
-                  }
-                }
-              }
-            }
+            ...SessionDetailsTraceList_traces @arguments(first: $first)
           }
         }
       }
     `,
     {
       id: sessionId,
+      first: SESSION_DETAILS_PAGE_SIZE,
     },
     {
       fetchPolicy: "store-and-network",
@@ -204,7 +174,7 @@ export function SessionDetails(props: SessionDetailsProps) {
         latencyP50={data.session.latencyP50}
         sessionId={sessionId}
       />
-      <SessionDetailsTraceList traces={data.session.traces} />
+      <SessionDetailsTraceList tracesRef={data.session} />
     </main>
   );
 }
