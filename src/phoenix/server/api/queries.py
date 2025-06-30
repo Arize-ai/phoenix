@@ -1041,13 +1041,7 @@ class Query:
         async with info.context.db() as session:
             session_row = await session.scalar(stmt)
         if session_row:
-            return ProjectSession(
-                id_attr=session_row.id,
-                session_id=session_row.session_id,
-                project_rowid=session_row.project_id,
-                start_time=session_row.start_time,
-                end_time=session_row.end_time,
-            )
+            return to_gql_project_session(session_row)
         return None
 
 

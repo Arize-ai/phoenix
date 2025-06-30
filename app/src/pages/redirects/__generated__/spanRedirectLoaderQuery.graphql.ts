@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f2be308f938fb02c817b74e178a223e6>>
+ * @generated SignedSource<<486274aaa402dfbe49e8cf5c24bce557>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,7 +19,6 @@ export type spanRedirectLoaderQuery$data = {
       readonly id: string;
     };
     readonly trace: {
-      readonly id: string;
       readonly traceId: string;
     };
   } | null;
@@ -37,71 +36,72 @@ var v0 = [
     "name": "spanOtelId"
   }
 ],
-v1 = {
+v1 = [
+  {
+    "kind": "Variable",
+    "name": "spanId",
+    "variableName": "spanOtelId"
+  }
+],
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v2 = [
-  {
-    "alias": "span",
-    "args": [
-      {
-        "kind": "Variable",
-        "name": "spanId",
-        "variableName": "spanOtelId"
-      }
-    ],
-    "concreteType": "Span",
-    "kind": "LinkedField",
-    "name": "getSpanByOtelId",
-    "plural": false,
-    "selections": [
-      (v1/*: any*/),
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "Trace",
-        "kind": "LinkedField",
-        "name": "trace",
-        "plural": false,
-        "selections": [
-          (v1/*: any*/),
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "traceId",
-            "storageKey": null
-          }
-        ],
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "Project",
-        "kind": "LinkedField",
-        "name": "project",
-        "plural": false,
-        "selections": [
-          (v1/*: any*/)
-        ],
-        "storageKey": null
-      }
-    ],
-    "storageKey": null
-  }
-];
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "traceId",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "Project",
+  "kind": "LinkedField",
+  "name": "project",
+  "plural": false,
+  "selections": [
+    (v2/*: any*/)
+  ],
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "spanRedirectLoaderQuery",
-    "selections": (v2/*: any*/),
+    "selections": [
+      {
+        "alias": "span",
+        "args": (v1/*: any*/),
+        "concreteType": "Span",
+        "kind": "LinkedField",
+        "name": "getSpanByOtelId",
+        "plural": false,
+        "selections": [
+          (v2/*: any*/),
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "Trace",
+            "kind": "LinkedField",
+            "name": "trace",
+            "plural": false,
+            "selections": [
+              (v3/*: any*/)
+            ],
+            "storageKey": null
+          },
+          (v4/*: any*/)
+        ],
+        "storageKey": null
+      }
+    ],
     "type": "Query",
     "abstractKey": null
   },
@@ -110,19 +110,46 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "spanRedirectLoaderQuery",
-    "selections": (v2/*: any*/)
+    "selections": [
+      {
+        "alias": "span",
+        "args": (v1/*: any*/),
+        "concreteType": "Span",
+        "kind": "LinkedField",
+        "name": "getSpanByOtelId",
+        "plural": false,
+        "selections": [
+          (v2/*: any*/),
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "Trace",
+            "kind": "LinkedField",
+            "name": "trace",
+            "plural": false,
+            "selections": [
+              (v3/*: any*/),
+              (v2/*: any*/)
+            ],
+            "storageKey": null
+          },
+          (v4/*: any*/)
+        ],
+        "storageKey": null
+      }
+    ]
   },
   "params": {
-    "cacheID": "78e356ab24f3b9af35b23a6d6f934937",
+    "cacheID": "2985bb05472ca7556d8aa675123a98e3",
     "id": null,
     "metadata": {},
     "name": "spanRedirectLoaderQuery",
     "operationKind": "query",
-    "text": "query spanRedirectLoaderQuery(\n  $spanOtelId: String!\n) {\n  span: getSpanByOtelId(spanId: $spanOtelId) {\n    id\n    trace {\n      id\n      traceId\n    }\n    project {\n      id\n    }\n  }\n}\n"
+    "text": "query spanRedirectLoaderQuery(\n  $spanOtelId: String!\n) {\n  span: getSpanByOtelId(spanId: $spanOtelId) {\n    id\n    trace {\n      traceId\n      id\n    }\n    project {\n      id\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "39d4d65a07ea9899ffa3ef7a64054c05";
+(node as any).hash = "a80ec47ffd0bc1b23a4641393a324120";
 
 export default node;

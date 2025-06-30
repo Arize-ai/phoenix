@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<98500ad00d463bc25be29cac652c9e1a>>
+ * @generated SignedSource<<c147ffdebaa3780f82bcb4189a5691cc>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -43,7 +43,7 @@ v1 = [
     ],
     "concreteType": "ProjectSession",
     "kind": "LinkedField",
-    "name": "getSessionByOtelId",
+    "name": "getProjectSessionByOtelId",
     "plural": false,
     "selections": [
       {
@@ -82,16 +82,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "286cc5e30393d1ea91509978bc0a5f26",
+    "cacheID": "4bb8960df96b198310aada6cff07b536",
     "id": null,
     "metadata": {},
     "name": "sessionRedirectLoaderQuery",
     "operationKind": "query",
-    "text": "query sessionRedirectLoaderQuery(\n  $sessionOtelId: String!\n) {\n  session: getSessionByOtelId(sessionId: $sessionOtelId) {\n    projectId\n    id\n  }\n}\n"
+    "text": "query sessionRedirectLoaderQuery(\n  $sessionOtelId: String!\n) {\n  session: getProjectSessionByOtelId(sessionId: $sessionOtelId) {\n    projectId\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "370c1ce71b5c55902c1dfcc1a129e9e5";
+(node as any).hash = "a5fa7aeac5b76471c9ac7fcf2ae8e05f";
 
 export default node;

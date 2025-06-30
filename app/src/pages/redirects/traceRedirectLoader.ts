@@ -6,7 +6,7 @@ import RelayEnvironment from "@phoenix/RelayEnvironment";
 import { traceRedirectLoaderQuery } from "./__generated__/traceRedirectLoaderQuery.graphql";
 
 export async function traceRedirectLoader({ params }: LoaderFunctionArgs) {
-  const { traceOtelId: trace_otel_id } = params;
+  const { trace_otel_id } = params;
 
   if (!trace_otel_id) {
     throw new Error("Trace redirect requires a trace ID");
@@ -24,7 +24,7 @@ export async function traceRedirectLoader({ params }: LoaderFunctionArgs) {
       }
     `,
     {
-      traceOtelId,
+      traceOtelId: trace_otel_id,
     }
   ).toPromise();
 

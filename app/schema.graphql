@@ -2084,7 +2084,7 @@ type Query {
   validateRegularExpression(regex: String!): ValidationResult!
   getSpanByOtelId(spanId: String!): Span
   getTraceByOtelId(traceId: String!): Trace
-  getSessionByOtelId(sessionId: String!): ProjectSession
+  getProjectSessionByOtelId(sessionId: String!): ProjectSession
 }
 
 input RemoveAnnotationConfigFromProjectInput {
