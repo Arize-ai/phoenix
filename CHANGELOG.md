@@ -1,5 +1,14 @@
 # Changelog
 
+## [11.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.1.1...arize-phoenix-v11.2.0) (2025-06-30)
+
+
+### Features
+
+* **cost:** sort on traces table ([#8255](https://github.com/Arize-ai/phoenix/issues/8255)) ([6cec5d9](https://github.com/Arize-ai/phoenix/commit/6cec5d9128e2ffe25a90875bffd3852932f36ede))
+* Paginate session details view ([#8328](https://github.com/Arize-ai/phoenix/issues/8328)) ([50b568b](https://github.com/Arize-ai/phoenix/commit/50b568bbfc84edac88ffb3d35415522851ded5a1))
+* Redirect from otel ids ([#8320](https://github.com/Arize-ai/phoenix/issues/8320)) ([d27ea0d](https://github.com/Arize-ai/phoenix/commit/d27ea0d7394dc4547114fcd07ce8db042f930ecc))
+
 ## [11.1.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.1.0...arize-phoenix-v11.1.1) (2025-06-27)
 
 
