@@ -661,7 +661,7 @@ class Experiments:
             )
             try:
                 # For simplicity, just pass output to evaluator
-                result = evaluator.evaluate(output=experiment_run.output)
+                result = evaluator.evaluate(output=experiment_run["output"])
             except BaseException as exc:
                 span.record_exception(exc)
                 status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
@@ -669,7 +669,7 @@ class Experiments:
 
             if result:
                 span.set_attributes(
-                    {"evaluation.score": result.score, "evaluation.label": result.label}
+                    {"evaluation.score": result.get("score"), "evaluation.label": result.get("label")}
                 )
             span.set_attribute(
                 SpanAttributes.OPENINFERENCE_SPAN_KIND, OpenInferenceSpanKindValues.EVALUATOR.value
@@ -677,7 +677,7 @@ class Experiments:
             span.set_status(status)
 
         eval_run = ExperimentEvaluationRun(
-            experiment_run_id=experiment_run.id,
+            experiment_run_id=experiment_run["id"],
             start_time=_decode_unix_nano(cast(int, span.start_time)),
             end_time=_decode_unix_nano(cast(int, span.end_time)),
             name=evaluator.name,
@@ -1144,7 +1144,7 @@ class AsyncExperiments:
             )
             try:
                 # For simplicity, just pass output to evaluator
-                result = await evaluator.async_evaluate(output=experiment_run.output)
+                result = await evaluator.async_evaluate(output=experiment_run["output"])
             except BaseException as exc:
                 span.record_exception(exc)
                 status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
@@ -1152,7 +1152,7 @@ class AsyncExperiments:
 
             if result:
                 span.set_attributes(
-                    {"evaluation.score": result.score, "evaluation.label": result.label}
+                    {"evaluation.score": result.get("score"), "evaluation.label": result.get("label")}
                 )
             span.set_attribute(
                 SpanAttributes.OPENINFERENCE_SPAN_KIND, OpenInferenceSpanKindValues.EVALUATOR.value
@@ -1160,7 +1160,7 @@ class AsyncExperiments:
             span.set_status(status)
 
         eval_run = ExperimentEvaluationRun(
-            experiment_run_id=experiment_run.id,
+            experiment_run_id=experiment_run["id"],
             start_time=_decode_unix_nano(cast(int, span.start_time)),
             end_time=_decode_unix_nano(cast(int, span.end_time)),
             name=evaluator.name,
