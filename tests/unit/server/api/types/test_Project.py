@@ -1805,7 +1805,7 @@ class TestProject:
                 # Handle empty results
                 if expected_summary.empty:
                     assert actual_summary.empty, f"Expected empty summary for {obj}"
-                    return
+                    continue
 
                 actual_summary["timestamp"] = pd.to_datetime(actual_summary["timestamp"])
 
