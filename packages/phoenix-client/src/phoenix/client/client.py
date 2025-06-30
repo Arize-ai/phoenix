@@ -220,8 +220,8 @@ class AsyncClient:
     @property
     def experiments(self) -> AsyncExperiments:
         """
-        Returns an instance of the Asynchronous Experiments class for interacting with experiment-related
-        API endpoints.
+        Returns an instance of the Asynchronous Experiments class for interacting with
+        experiment-related API endpoints.
         """
         return self._experiments
 
