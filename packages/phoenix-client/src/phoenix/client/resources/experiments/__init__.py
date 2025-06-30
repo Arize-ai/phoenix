@@ -33,8 +33,6 @@ from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
 from phoenix.client.utils.executors import AsyncExecutor, SyncExecutor
 from phoenix.client.utils.rate_limiters import RateLimiter
-from phoenix.config import get_base_url, get_env_client_headers
-from phoenix.evals.utils import get_tqdm_progress_bar_formatter
 
 from .types import (
     DRY_RUN,
@@ -54,6 +52,13 @@ from .types import (
 logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT_IN_SECONDS = 60
+
+
+def get_tqdm_progress_bar_formatter(title: str) -> str:
+    return (
+        title + " |{bar}| {n_fmt}/{total_fmt} ({percentage:3.1f}%) "
+        "| ⏳ {elapsed}<{remaining} | {rate_fmt}{postfix}"
+    )
 
 
 def create_evaluator(
@@ -120,18 +125,22 @@ def _evaluators_by_name(obj: Optional[Evaluators]) -> Mapping[EvaluatorName, Eva
     return evaluators_by_name
 
 
-def _get_tracer(project_name: Optional[str] = None) -> tuple[Tracer, Resource]:
+def _get_tracer(
+    project_name: Optional[str] = None,
+    base_url: Optional[str] = None,
+    headers: Optional[Mapping[str, str]] = None,
+) -> tuple[Tracer, Resource]:
     """Create a tracer for experiment runs."""
     resource = Resource({ResourceAttributes.PROJECT_NAME: project_name} if project_name else {})
     tracer_provider = trace_sdk.TracerProvider(resource=resource)
     span_processor = (
         SimpleSpanProcessor(
             OTLPSpanExporter(
-                endpoint=urljoin(f"{get_base_url()}", "v1/traces"),
-                headers=get_env_client_headers(),
+                endpoint=urljoin(f"{base_url}", "v1/traces"),
+                headers=dict(headers or {}),
             )
         )
-        if project_name
+        if project_name and base_url
         else _NoOpProcessor()
     )
     tracer_provider.add_span_processor(span_processor)
@@ -244,6 +253,8 @@ class Experiments:
 
     def __init__(self, client: httpx.Client) -> None:
         self._client = client
+        self._base_url = str(client.base_url)
+        self._headers = dict(client.headers)
 
     def get_dataset_experiments_url(self, dataset_id: str) -> str:
         return f"{self._client.base_url}/v1/datasets/{dataset_id}/experiments"
@@ -340,7 +351,9 @@ class Experiments:
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }
 
-        tracer, resource = _get_tracer(experiment["project_name"])
+        tracer, resource = _get_tracer(
+            experiment["project_name"], self._base_url, self._headers
+        )
         root_span_name = f"Task: {get_func_name(task)}"
 
         print("🧪 Experiment started.")
@@ -727,6 +740,8 @@ class AsyncExperiments:
 
     def __init__(self, client: httpx.AsyncClient) -> None:
         self._client = client
+        self._base_url = str(client.base_url)
+        self._headers = dict(client.headers)
 
     def get_dataset_experiments_url(self, dataset_id: str) -> str:
         return f"{self._client.base_url}/v1/datasets/{dataset_id}/experiments"
@@ -823,7 +838,9 @@ class AsyncExperiments:
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }
 
-        tracer, resource = _get_tracer(experiment["project_name"])
+        tracer, resource = _get_tracer(
+            experiment["project_name"], self._base_url, self._headers
+        )
         root_span_name = f"Task: {get_func_name(task)}"
 
         print("🧪 Experiment started.")
