@@ -1,12 +1,22 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
+import { graphql, usePaginationFragment } from "react-relay";
 import { isNumber, isString } from "lodash";
+import { css } from "@emotion/react";
 
 import {
   SemanticAttributePrefixes,
   UserAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
 
-import { Flex, Icon, Icons, Link, Text, View } from "@phoenix/components";
+import {
+  Flex,
+  Icon,
+  Icons,
+  Link,
+  Loading,
+  Text,
+  View,
+} from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { JSONBlock } from "@phoenix/components/code";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -14,14 +24,16 @@ import { SpanCumulativeTokenCosts } from "@phoenix/components/trace/SpanCumulati
 import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
+import {
+  SessionDetailsTraceList_traces$data,
+  SessionDetailsTraceList_traces$key,
+} from "@phoenix/pages/trace/__generated__/SessionDetailsTraceList_traces.graphql";
+import { MimeType } from "@phoenix/pages/trace/__generated__/SpanDetailsQuery.graphql";
+import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
-import {
-  MimeType,
-  SessionDetailsQuery$data,
-} from "./__generated__/SessionDetailsQuery.graphql";
 import { EditSpanAnnotationsButton } from "./EditSpanAnnotationsButton";
 
 const getUserFromRootSpanAttributes = (attributes: string) => {
@@ -81,8 +93,10 @@ function RootSpanMessage({
 
 type SessionTraceRootSpan = NonNullable<
   NonNullable<
-    SessionDetailsQuery$data["session"]["traces"]
-  >["edges"][number]["trace"]["rootSpan"]
+    NonNullable<
+      SessionDetailsTraceList_traces$data["traces"]["edges"][number]["trace"]
+    >["rootSpan"]
+  >
 >;
 
 type RootSpanProps = {
@@ -191,25 +205,93 @@ function RootSpanInputOutput({ rootSpan }: RootSpanProps) {
 }
 
 export function SessionDetailsTraceList({
-  traces,
+  tracesRef,
 }: {
-  traces: SessionDetailsQuery$data["session"]["traces"];
+  tracesRef: SessionDetailsTraceList_traces$key;
 }) {
+  const { data, loadNext, isLoadingNext, hasNext } = usePaginationFragment(
+    graphql`
+      fragment SessionDetailsTraceList_traces on ProjectSession
+      @refetchable(queryName: "SessionDetailsTraceListRefetchQuery")
+      @argumentDefinitions(
+        first: { type: "Int", defaultValue: 100 }
+        after: { type: "String", defaultValue: null }
+        before: { type: "String", defaultValue: null }
+        last: { type: "Int", defaultValue: null }
+      ) {
+        traces(first: $first, after: $after, before: $before, last: $last)
+          @connection(key: "SessionDetailsTraceList_traces") {
+          edges {
+            trace: node {
+              id
+              traceId
+              rootSpan {
+                id
+                attributes
+                project {
+                  id
+                }
+                input {
+                  value
+                  mimeType
+                }
+                output {
+                  value
+                  mimeType
+                }
+                cumulativeTokenCountTotal
+                cumulativeCostSummary {
+                  total {
+                    cost
+                  }
+                }
+                latencyMs
+                startTime
+                spanId
+                ...AnnotationSummaryGroup
+              }
+            }
+          }
+        }
+      }
+    `,
+    tracesRef
+  );
+
   const sessionRootSpans = useMemo(() => {
-    const edges = traces?.edges || [];
-    return edges
-      .map(({ trace }) => trace)
+    return data.traces?.edges
       .filter(
         (
           trace
         ): trace is typeof trace & {
-          rootSpan: NonNullable<typeof trace.rootSpan>;
-        } => trace.rootSpan !== null
-      );
-  }, [traces]);
+          trace: { rootSpan: NonNullable<typeof trace.trace.rootSpan> };
+        } => trace.trace.rootSpan !== null
+      )
+      .map(({ trace }) => trace);
+  }, [data]);
+
+  const fetchMoreOnBottomReached = useCallback(
+    (containerRefElement?: HTMLDivElement | null) => {
+      if (containerRefElement) {
+        const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
+        const withinRange = scrollHeight - scrollTop - clientHeight < 300;
+        if (withinRange && !isLoadingNext && hasNext) {
+          loadNext(SESSION_DETAILS_PAGE_SIZE);
+        }
+      }
+    },
+    [hasNext, isLoadingNext, loadNext]
+  );
 
   return (
-    <View height={"100%"} flex={"1 1 auto"} overflow={"auto"}>
+    <div
+      css={css`
+        height: 100%;
+        flex: 1 1 auto;
+        overflow: auto;
+      `}
+      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+    >
       {sessionRootSpans.map(({ traceId, rootSpan }, index) => (
         <View
           borderBottomColor={"dark"}
@@ -235,6 +317,15 @@ export function SessionDetailsTraceList({
           </Flex>
         </View>
       ))}
-    </View>
+      {isLoadingNext && (
+        <View
+          borderBottomColor={"dark"}
+          borderBottomWidth={"thin"}
+          padding="size-200"
+        >
+          <Loading />
+        </View>
+      )}
+    </div>
   );
 }
