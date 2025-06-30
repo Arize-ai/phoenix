@@ -406,17 +406,6 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
     with open(_COST_MODEL_MANIFEST) as f:
         manifest = json.load(f)
 
-    # Define all supported token types with their prompt/non-prompt classification
-    # This determines how tokens are categorized for billing purposes
-    token_types: list[_TokenTypeKey] = [
-        _TokenTypeKey("input", True),  # Standard input tokens
-        _TokenTypeKey("cache_write", True),  # Tokens written to cache
-        _TokenTypeKey("cache_read", True),  # Tokens read from cache
-        _TokenTypeKey("output", False),  # Generated output tokens
-        _TokenTypeKey("audio", True),  # Audio input tokens
-        _TokenTypeKey("audio", False),  # Audio output tokens
-    ]
-
     async with db() as session:
         # Fetch all existing built-in models with their token prices eagerly loaded
         # Using .unique() to deduplicate models when multiple token prices are joined
