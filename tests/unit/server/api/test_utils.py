@@ -4,6 +4,7 @@ from typing import Optional
 import pytest
 from freezegun import freeze_time
 
+from phoenix.datetime_utils import is_timezone_aware
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.Granularity import Granularity
 from phoenix.server.api.input_types.TimeRange import TimeRange
@@ -53,30 +54,6 @@ class TestGetParametersForSimpleTimeSeries:
             ),
             pytest.param(
                 TimeRange(
-                    start=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
-                    end=None,
-                ),
-                None,
-                3600,  # Default hourly granularity
-                datetime(
-                    2023, 1, 1, 13, 0, 0, tzinfo=timezone.utc
-                ),  # Calculated based on start + interval
-                id="Time range with start only",
-            ),
-            pytest.param(
-                TimeRange(
-                    start=datetime(2023, 1, 1, 11, 30, 0, tzinfo=timezone.utc),
-                    end=None,
-                ),
-                Granularity(evaluation_window_minutes=17, sampling_interval_minutes=17),
-                1020,  # 17 minutes * 60 seconds
-                datetime(
-                    2023, 1, 1, 12, 38, 0, tzinfo=timezone.utc
-                ),  # Calculated: 11:30 + (1 + 60//17) * 17min = 11:30 + 4*17min = 11:30 + 68min = 12:38  # noqa: E501
-                id="Time range with start only - custom granularity",
-            ),
-            pytest.param(
-                TimeRange(
                     start=None,
                     end=datetime(2023, 1, 1, 13, 0, 0, tzinfo=timezone.utc),
                 ),
@@ -114,16 +91,6 @@ class TestGetParametersForSimpleTimeSeries:
                 datetime(2023, 1, 1, 13, 0, 0, tzinfo=timezone.utc),  # Rounded to minute
                 id="Time range with seconds and microseconds - rounded to minute",
             ),
-            pytest.param(
-                TimeRange(
-                    start=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
-                    end=None,
-                ),
-                Granularity(evaluation_window_minutes=127, sampling_interval_minutes=127),
-                7620,  # 127 minutes * 60 seconds
-                datetime(2023, 1, 1, 14, 7, 0, tzinfo=timezone.utc),  # Next 127-minute boundary
-                id="Time range with large interval (127 minutes)",
-            ),
         ],
     )
     @freeze_time("2023-01-01 12:30:00", tz_offset=0)
@@ -147,18 +114,20 @@ class TestGetParametersForSimpleTimeSeries:
 
         # Assert
         # Check that interval_seconds is calculated correctly
-        assert interval_seconds == expected_interval_seconds
+        assert (
+            interval_seconds == expected_interval_seconds
+        ), "interval_seconds should match expected value"
 
         # Check that stop_time is a proper datetime
         assert isinstance(stop_time, datetime)
-        assert stop_time.tzinfo is not None
+        assert is_timezone_aware(stop_time), "stop_time should be timezone-aware"
 
         # Check that stop_time is rounded to the nearest minute
-        assert stop_time.second == 0
-        assert stop_time.microsecond == 0
+        assert stop_time.second == 0, "stop_time should have seconds set to 0"
+        assert stop_time.microsecond == 0, "stop_time should have microseconds set to 0"
 
         # Check the specific stop_time value for each test case
-        assert stop_time == expected_stop_time
+        assert stop_time == expected_stop_time, "stop_time should match expected value"
 
     def test_get_parameters_for_simple_time_series_invalid_granularity(self) -> None:
         """Test that the function raises BadRequest when evaluation_window_minutes != sampling_interval_minutes.

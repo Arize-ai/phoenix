@@ -1,10 +1,8 @@
 from collections.abc import Iterator
 from datetime import datetime, timedelta
 from itertools import accumulate, repeat, takewhile
-from typing import Optional
 
 import strawberry
-from strawberry import UNSET
 
 from phoenix.core import model_schema
 
@@ -21,8 +19,7 @@ from phoenix.core import model_schema
     )
 )
 class Granularity:
-    evaluation_window_minutes: Optional[int] = strawberry.field(
-        default=UNSET,
+    evaluation_window_minutes: int = strawberry.field(
         description=(
             "Specifies the length of time by which the data are grouped for aggregation. Each point"
             " in a time-series will have the same evaluation_window, but the evaluation_window for"

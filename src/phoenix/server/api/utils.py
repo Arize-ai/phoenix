@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import delete
 
+from phoenix.datetime_utils import is_timezone_aware
 from phoenix.db import models
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.Granularity import Granularity
@@ -98,12 +99,9 @@ def get_parameters_for_simple_time_series(
 
     # Calculate the end time based on the time range
     if time_range and time_range.end:
+        if not is_timezone_aware(time_range.end):
+            raise BadRequest("end time must be timezone-aware")
         stop_time = time_range.end
-    elif time_range and time_range.start:
-        diff = datetime.now(tz=timezone.utc) - time_range.start
-        stop_time = time_range.start + timedelta(
-            seconds=(1 + diff.total_seconds() // interval_seconds) * interval_seconds
-        )
     else:
         stop_time = datetime.now(tz=timezone.utc)
 

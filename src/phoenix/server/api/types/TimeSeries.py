@@ -78,8 +78,7 @@ def get_timeseries_data(
             start_time=time_range.start,
             end_time=time_range.stop,
             evaluation_window=timedelta(
-                minutes=granularity.evaluation_window_minutes
-                or granularity.sampling_interval_minutes,
+                minutes=granularity.evaluation_window_minutes,
             ),
             sampling_interval=timedelta(
                 minutes=granularity.sampling_interval_minutes,
