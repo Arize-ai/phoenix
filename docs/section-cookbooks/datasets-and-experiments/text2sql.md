@@ -300,10 +300,6 @@ print(await generate_query("what are the best sci-fi movies in the 2000s?"))
 
 Looking much better! Finally, let's add a scoring function that compares the results, if they exist, with the expected results.
 
-
-
-
-
 ```python
 experiment = run_experiment(
     ds, task=task, evaluators=[has_results, no_error], experiment_metadata=CONFIG
