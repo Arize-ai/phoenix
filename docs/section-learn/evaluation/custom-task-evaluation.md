@@ -4,6 +4,8 @@
 
 The LLM Evals library is designed to support the building of any custom Eval templates.
 
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/How_Do_Evals_Work_Diagram.png" %}
+
 ## Steps to Building Your Own Eval
 
 Follow the following steps to easily build your own Eval with Phoenix
@@ -83,5 +85,7 @@ MY_CUSTOM_TEMPLATE = PromptTemplate("This is a test {prompt}")
 ```
 
 ### 5. Run Eval on your Golden Dataset and Benchmark Performance
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/concepts-evals-datasets.png" %}
 
 You now need to run the eval across your golden dataset. Then you can **generate metrics** (overall accuracy, precision, recall, F1, etc.) to determine the benchmark. It is important to look at more than just overall accuracy. We’ll discuss that below in more detail.
