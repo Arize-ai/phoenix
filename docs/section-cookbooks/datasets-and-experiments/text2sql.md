@@ -2,19 +2,19 @@
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/arize-ai/phoenix/blob/main/tutorials/experiments/txt2sql.ipynb)
 
-Building effective text-to-SQL systems requires rigorous evaluation and systematic experimentation. This tutorial demonstrates how to build, evaluate, and improve a text-to-SQL system using Phoenix's experimentation framework.
+Building effective text-to-SQL systems requires rigorous evaluation and systematic experimentation. In this tutorial, we'll walk through the complete evaluation-driven development process, starting from scratch without pre-existing datasets of questions or expected responses.
 
-We'll use a movie database to showcase the complete evaluation-driven development process, starting from scratch without pre-existing datasets. Phoenix serves as your scientific laboratory, recording every experiment to help you build better AI systems.
+We'll use a movie database containing recent titles, ratings, box office performance, and metadata to demonstrate how to build, evaluate, and systematically improve a text-to-SQL system using Phoenix's experimentation framework. Think of Phoenix as your scientific laboratory, meticulously recording every experiment to help you build better AI systems.
+
 
 ```python
 !pip install "arize-phoenix>=11.0.0" openai 'httpx<0.28' duckdb datasets pyarrow "pydantic>=2.0.0" nest_asyncio openinference-instrumentation-openai --quiet
 ```
 
-## Setup
+Let's first start a phoenix server to act as our evaluation dashboard and experiment tracker. This will be our central hub for observing, measuring, and improving our text-to-SQL system.
 
-First, start a Phoenix server to act as your evaluation dashboard and experiment tracker:
+Note: this step is not necessary if you already have a Phoenix server running.
 
-Note: This step is not necessary if running against a deployed Phoenix instance.
 
 ```python
 import phoenix as px
@@ -22,17 +22,21 @@ import phoenix as px
 px.launch_app().view()
 ```
 
-Setup tracing for OpenAI to observe every step of our text-to-SQL pipeline:
+Let's also setup tracing for OpenAI. Tracing is crucial for evaluation-driven development - it allows Phoenix to observe every step of our text-to-SQL pipeline, capturing inputs, outputs, and metrics like latency and cost that we'll use to systematically improve our system.
+
 
 ```python
 from phoenix.otel import register
 
-tracer_provider = register(endpoint="http://localhost:6006/v1/traces", auto_instrument=True, verbose=False) # Instruments all openai calls
+tracer_provider = register(
+    endpoint="http://localhost:6006/v1/traces", auto_instrument=True, verbose=False
+)  # Instruments all openai calls
 
 tracer = tracer_provider.get_tracer(__name__)
 ```
 
 Let's make sure we can run async code in the notebook.
+
 
 ```python
 import nest_asyncio
@@ -41,6 +45,7 @@ nest_asyncio.apply()
 ```
 
 Lastly, let's make sure we have our openai API key set up.
+
 
 ```python
 import os
@@ -54,6 +59,7 @@ if not os.getenv("OPENAI_API_KEY"):
 
 We are going to use a movie dataset that contains recent titles and their ratings. We will use DuckDB as our database so that we can run the queries directly in the notebook, but you can imagine that this could be a pre-existing SQL database with business-specific data.
 
+
 ```python
 import duckdb
 from datasets import load_dataset
@@ -63,24 +69,30 @@ data = load_dataset("wykonos/movies")["train"]
 conn = duckdb.connect(database=":memory:", read_only=False)
 conn.register("movies", data.to_pandas())
 
-# Preview the data
 records = conn.query("SELECT * FROM movies LIMIT 5").to_df().to_dict(orient="records")
+
 for record in records:
     print(record)
 ```
 
 ## Implement Text2SQL
 
-Let's create a simple text-to-SQL pipeline:
+Let's start by implementing a simple text2sql logic.
+
 
 ```python
+import os
+
 import openai
 
 client = openai.AsyncClient()
+
 columns = conn.query("DESCRIBE movies").to_df().to_dict(orient="records")
 
+# We will use GPT4o to start
 TASK_MODEL = "gpt-4o"
 CONFIG = {"model": TASK_MODEL}
+
 
 system_prompt = (
     "You are a SQL expert, and you are given a single table named movies with the following columns:\n"
@@ -89,18 +101,26 @@ system_prompt = (
     "with no formatting (backticks, markdown, etc.)."
 )
 
+
 @tracer.chain
 async def generate_query(input):
     response = await client.chat.completions.create(
         model=TASK_MODEL,
         temperature=0,
         messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": input},
+            {
+                "role": "system",
+                "content": system_prompt,
+            },
+            {
+                "role": "user",
+                "content": input,
+            },
         ],
     )
     return response.choices[0].message.content
 ```
+
 
 ```python
 query = await generate_query("what was the most popular movie?")
@@ -109,38 +129,40 @@ print(query)
 
 Awesome, looks like the we are producing SQL! let's try running the query and see if we get the expected results.
 
+
 ```python
 @tracer.tool
 def execute_query(query):
     return conn.query(query).fetchdf().to_dict(orient="records")
 
+
 execute_query(query)
 ```
 
-## Evaluation Framework
+## The Three Pillars of Evaluation
 
-Effective AI evaluation requires three pillars:
+Effective AI evaluation rests on three fundamental pillars:
 
-1. **Data**: Curated examples representing real-world use cases
-2. **Task**: The actual function being evaluated  
+1. **Data**: Curated examples that represent real-world use cases
+2. **Task**: The actual function or workflow being evaluated  
 3. **Evaluators**: Quantitative measures of performance
 
-### Create Dataset
+Let's start by creating our **data** - a set of movie-related questions that we want our text-to-SQL system to handle correctly.
 
-Start with a set of movie-related questions:
 
 ```python
 questions = [
-    "Which movie received the most votes?",
-    "What is the top grossing movie?",
-    "Which movies have the highest ratings?",
-    "What are the best sci-fi movies released after 2010?",
-    "Which Marvel movie made the most money?",
-    "What animated movies were most popular?",
+    "Which Brad Pitt movie received the highest rating?",
+    "What is the top grossing Marvel movie?",
+    "What foreign-language fantasy movie was the most popular?",
+    "what are the best sci-fi movies of 2017?",
+    "What anime topped the box office in the 2010s?",
+    "Recommend a romcom that stars Paul Rudd.",
 ]
 ```
 
 Let's store the data above as a versioned dataset in phoenix.
+
 
 ```python
 import pandas as pd
@@ -158,8 +180,8 @@ ds = px.Client().upload_dataset(
 
 Next, we'll define the task. The task is to generate SQL queries from natural language questions.
 
-```python
 
+```python
 @tracer.chain
 async def text2sql(question):
     query = await generate_query(question)
@@ -177,10 +199,12 @@ async def text2sql(question):
     }
 ```
 
-Finally, we'll define the evaluation scores. We'll use the following simple scoring functions to see if the generated SQL queries are correct.
+Finally, we'll define the evaluation scores. We'll use the following simple functions to see if the generated SQL queries are correct. Note that `has_results` is a good metric here becasue we know that all the questions we added to the dataset can be answered via sql.
+
 
 ```python
 # Test if there are no sql execution errors
+
 
 def no_error(output):
     return 1.0 if output.get("error") is None else 0.0
@@ -194,6 +218,7 @@ def has_results(output):
 ```
 
 Now let's run the evaluation experiment.
+
 
 ```python
 import phoenix as px
@@ -216,11 +241,12 @@ Great! Let's see how our baseline model performed on the movie questions. We can
 
 Now that we ran the initial evaluation, let's analyze what might be causing any failures.
 
-From looking at the query where there are no results, genre-related queries might fail because the model doesn't know how genres are stored (e.g., "Sci-Fi" vs "Science Fiction")
+From looking at the query where there are no results, genre-related queries might fail because the model doesn't know how genres are stored (e.g., "Sci-Fi" vs "Science Fiction")  
 
 These types of issues would probably be improved by showing a sample of the data to the model (few-shot examples) since the data will show the LLM what is queryable.
 
 Let's try to improve the prompt with few-shot examples and see if we can get better results.
+
 
 ```python
 samples = conn.query("SELECT * FROM movies LIMIT 5").to_df().to_dict(orient="records")
@@ -230,11 +256,10 @@ example_row = "\n".join(
     for column in columns
 )
 
-column_header = " | ".join(column['column_name'] for column in columns)
+column_header = " | ".join(column["column_name"] for column in columns)
 
 few_shot_examples = "\n".join(
-    " | ".join(str(sample[column['column_name']]) for column in columns)
-    for sample in samples
+    " | ".join(str(sample[column["column_name"]]) for column in columns) for sample in samples
 )
 
 system_prompt = (
@@ -275,36 +300,100 @@ print(await generate_query("what are the best sci-fi movies in the 2000s?"))
 
 Looking much better! Finally, let's add a scoring function that compares the results, if they exist, with the expected results.
 
+
+
+
+
 ```python
 experiment = run_experiment(
     ds, task=task, evaluators=[has_results, no_error], experiment_metadata=CONFIG
 )
 ```
 
-Amazing. It looks like we removed one of the errors, and got a result for the incorrect query. Let's try out using LLM as a judge to see how well it can assess the results.
+Amazing. It looks like the LLM is generating a valid query for all questions. Let's try out using LLM as a judge to see how well it can assess the results.
+
 
 ```python
-from phoenix.evals.models import OpenAIModel
+import json
+
+from openai import OpenAI
+
 from phoenix.experiments import evaluate_experiment
-from phoenix.experiments.evaluators.llm_evaluators import LLMCriteriaEvaluator
+from phoenix.experiments.evaluators import create_evaluator
+from phoenix.experiments.types import EvaluationResult
 
-llm_evaluator = LLMCriteriaEvaluator(
-    name="is_sql",
-    criteria="is_sql",
-    description="the output is a valid SQL query and that it executes without errors",
-    model=OpenAIModel(model="gpt-4o"),
-)
+openai_client = OpenAI()
 
-evaluate_experiment(experiment, evaluators=[llm_evaluator])
+judge_instructions = """
+You are a judge that determines if a given question can be answered with the provided SQL query and results.
+Make sure to ensure that the SQL query maps to the question accurately.
+
+Provide the label `correct` if the SQL query and results accurately answer the question.
+Provide the label `invalid` if the SQL query does not map to the question or is not valid.
+"""
+
+
+@create_evaluator(name="qa_correctness", kind="llm")
+def qa_correctness(input, output):
+    question = input.get("question")
+    query = output.get("query")
+    results = output.get("results")
+    response = openai_client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": judge_instructions},
+            {
+                "role": "user",
+                "content": f"Question: {question}\nSQL Query: {query}\nSQL Results: {results}",
+            },
+        ],
+        tool_choice="required",
+        tools=[
+            {
+                "type": "function",
+                "function": {
+                    "name": "qa_correctness",
+                    "description": "Determine if the SQL query and results accurately answer the question.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "explanation": {
+                                "type": "string",
+                                "description": "Explain why the label is correct or invalid.",
+                            },
+                            "label": {"type": "string", "enum": ["correct", "invalid"]},
+                        },
+                    },
+                },
+            }
+        ],
+    )
+    if response.choices[0].message.tool_calls is None:
+        raise ValueError("No tool call found in response")
+    args = json.loads(response.choices[0].message.tool_calls[0].function.arguments)
+    label = args["label"]
+    explanation = args["explanation"]
+    score = 1 if label == "correct" else 0
+    return EvaluationResult(score=score, label=label, explanation=explanation)
+
+
+evaluate_experiment(experiment, evaluators=[qa_correctness])
 ```
 
-Sure enough the LLM agrees with our scoring. Pretty neat trick! This can come in useful when it's difficult to define a scoring function.
+The LLM judge's scoring closely matches our manual evaluation, demonstrating its effectiveness as an automated evaluation method. This approach is particularly valuable when traditional rule-based scoring functions are difficult to implement. 
 
-We now have a simple text2sql pipeline that can be used to generate SQL queries from natural language questions. Since Phoenix has been tracing the entire pipeline, we can now use the Phoenix UI to convert the spans that generated successful queries into examples to use in **Golden Dataset** for regression testing!
+The LLM judge also shows an advantage in nuanced understanding - for example, it correctly identifies that 'Anime' and 'Animation' are distinct genres, a subtlety our code-based evaluators missed. This highlights why developing custom LLM judges tailored to your specific task requirements is crucial for accurate evaluation.
+
+
+We now have a simple text2sql pipeline that can be used to generate SQL queries from natural language questions. Since Phoenix has been tracing the entire pipeline, we can now use the Phoenix UI to convert the spans that generated successful queries into examples to use in **Golden Dataset** for regression testing as well.
 
 ## Generating more data
 
-Now that we have a basic flow in place, let's generate some data. We're going to use the dataset itself to generate expected queries, and have a model describe the queries. This is a slightly more robust method than having it generate queries, because we'd expect a model to describe a query more accurately than generate one from scratch.
+Let's generate some training data by having the model describe existing SQL queries from our dataset
+
+
+
+
 
 ```python
 import json
@@ -333,7 +422,7 @@ Column | Type | Example
 {sample_rows}
 
 Generate SQL queries that would be interesting to ask about this table. Return the SQL query as a string, as well as the
-question that the query answers."""
+question that the query answers. Keep the questions bounded so that they are not too broad or too narrow."""
 
 response = await client.chat.completions.create(
     model="gpt-4o",
@@ -361,27 +450,29 @@ assert response.choices[0].message.tool_calls is not None
 generated_questions = json.loads(response.choices[0].message.tool_calls[0].function.arguments)[
     "questions"
 ]
-generated_questions[0]
+
+print("Generated N questions: ", len(generated_questions))
+print("First question: ", generated_questions[0])
 ```
+
 
 ```python
 generated_dataset = []
 for q in generated_questions:
     try:
         result = execute_query(q["sql"])
-        generated_dataset.append(
-            {
+        example =  {
                 "input": q["question"],
                 "expected": {
-                    "results": result,
-                    "error": None,
+                    "results": result or [],
                     "query": q["sql"],
                 },
                 "metadata": {
                     "category": "Generated",
                 },
             }
-        )
+        print(example)
+        generated_dataset.append(example)
     except duckdb.Error as e:
         print(f"Query failed: {q['sql']}", e)
         print("Skipping...")
@@ -391,6 +482,10 @@ generated_dataset[0]
 
 Awesome, let's crate a dataset with the new synthetic data.
 
+
+
+
+
 ```python
 synthetic_dataset = px.Client().upload_dataset(
     dataset_name="movies-golden-synthetic",
@@ -399,28 +494,33 @@ synthetic_dataset = px.Client().upload_dataset(
 );
 ```
 
+
 ```python
-run_experiment(
+exp = run_experiment(
     synthetic_dataset, task=task, evaluators=[no_error, has_results], experiment_metadata=CONFIG
 )
 ```
 
-Great! We now have lots of data to work with, including some failed queries that we can fix. You can try a few things to make it better:
 
-- Check if any of the generated data has problems
-- Adjust the prompt to get more accurate results
-- Try something new, like showing the errors to the model to help it write better queries
+```python
+exp.as_dataframe()
+```
 
-The main thing is that we now have a good process to keep improving both our app and our data.
+Great! We now have more data to work with. Here are some ways to improve it:
+
+ - Review the generated data for issues
+ - Refine the prompt
+ - Show errors to the model
+
+This gives us a process to keep improving our system.
 
 ## Conclusion
 
-In this tutorial, we built a text-to-SQL system for querying movie data. We started with basic examples and evaluators, then improved performance by adding few-shot examples and synthetic data generation.
+In this tutorial, we built a text-to-SQL system for querying movie data. We started with basic examples and evaluators, then improved performance by adding few-shot examples as well as using an llm judge for evaluation.
 
 Key takeaways:
-
 - Start with simple evaluators to catch basic issues
-- Use few-shot examples to improve accuracy
+- Use few-shot examples to improve accuracy 
 - Generate more training data using LLMs
 - Track progress with Phoenix's experiments
 
