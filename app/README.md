@@ -30,6 +30,23 @@ Before running the script above you should configure your running environment by
 
 Depending on what flows you are trying to build features for, you may want to adjust the scripts block within the [package.json](./package.json) file so that the server is serving the appropriate fixture data.
 
+### Authentication
+
+For local development, you have two options for authentication:
+
+1. **Bypass Authentication:**
+   - Edit your `.env` file and set:
+     ```
+     PHOENIX_ENABLE_AUTH=False
+     ```
+   - This will disable authentication and allow you to access the app without logging in.
+
+2. **Default Credentials:**
+   - If authentication is enabled, you can log in with the default credentials:
+     - **Email:** `admin@localhost`
+     - **Password:** `admin`
+
+
 ## Build
 
 The app is written in `typescript` and leverages [esbuild](https://esbuild.github.io/) as well as the [relay-compiler](https://relay.dev/docs/guides/compiler/) to compile highly efficient `graphql` queries. Because of this, the build script involves:
