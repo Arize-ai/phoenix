@@ -223,6 +223,11 @@ Examples:
     - With a sub-path: "https://example.com/phoenix"
     - Without a sub-path: "https://phoenix.example.com"
 """
+ENV_PHOENIX_MANAGEMENT_URL = "PHOENIX_MANAGEMENT_URL"
+"""
+The URL to use for a management interface that may be hosting Phoenix. If set, a link will be added
+to the navigation menu to return to this URL if the user is an admin.
+"""
 
 
 # SMTP settings
@@ -1538,6 +1543,13 @@ def get_env_fullstory_org() -> Optional[str]:
         Optional[str]: The FullStory organization ID if set, None otherwise.
     """
     return getenv(ENV_PHOENIX_FULLSTORY_ORG)
+
+
+def get_env_management_url() -> Optional[str]:
+    """
+    Gets the value of the PHOENIX_MANAGEMENT_URL environment variable.
+    """
+    return getenv(ENV_PHOENIX_MANAGEMENT_URL)
 
 
 def verify_server_environment_variables() -> None:
