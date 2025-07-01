@@ -14,20 +14,7 @@ from typing import Any, Callable, Literal, Optional, Union, cast
 from urllib.parse import urljoin
 
 import httpx
-import opentelemetry.sdk.trace as trace_sdk
 from httpx import HTTPStatusError
-from openinference.semconv.resource import ResourceAttributes
-from openinference.semconv.trace import (
-    OpenInferenceMimeTypeValues,
-    OpenInferenceSpanKindValues,
-    SpanAttributes,
-)
-from opentelemetry.context import Context
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import Span
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from opentelemetry.trace import Status, StatusCode, Tracer
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
@@ -52,6 +39,115 @@ from .types import (
 logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT_IN_SECONDS = 60
+
+
+def _try_import_opentelemetry():
+    try:
+        import opentelemetry.sdk.trace as trace_sdk
+        from openinference.semconv.resource import ResourceAttributes
+        from openinference.semconv.trace import (
+            OpenInferenceMimeTypeValues,
+            OpenInferenceSpanKindValues,
+            SpanAttributes,
+        )
+        from opentelemetry.context import Context
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+        from opentelemetry.sdk.resources import Resource
+        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+        from opentelemetry.trace import Status, StatusCode
+
+        return {
+            "trace_sdk": trace_sdk,
+            "ResourceAttributes": ResourceAttributes,
+            "OpenInferenceMimeTypeValues": OpenInferenceMimeTypeValues,
+            "OpenInferenceSpanKindValues": OpenInferenceSpanKindValues,
+            "SpanAttributes": SpanAttributes,
+            "Context": Context,
+            "OTLPSpanExporter": OTLPSpanExporter,
+            "Resource": Resource,
+            "SimpleSpanProcessor": SimpleSpanProcessor,
+            "Status": Status,
+            "StatusCode": StatusCode,
+        }
+    except ImportError:
+        return None
+
+
+def _generate_trace_id() -> str:
+    return hexlify(random.getrandbits(128).to_bytes(16, "big")).decode()
+
+
+def _generate_span_id() -> str:
+    return hexlify(random.getrandbits(64).to_bytes(8, "big")).decode()
+
+
+def _get_tracer(
+    project_name: Optional[str] = None,
+    client: Optional[Union[httpx.Client, httpx.AsyncClient]] = None,
+    timeout: Optional[int] = None,
+) -> tuple[Any, Optional[dict[str, Any]]]:
+    if not project_name or not client:
+        return None, None
+
+    # Try to import and set up OpenTelemetry
+    otel = _try_import_opentelemetry()
+    if not otel:
+        return None, None
+
+    try:
+        # type: ignore comments to suppress dynamic import warnings
+        resource = otel["Resource"]({otel["ResourceAttributes"].PROJECT_NAME: project_name})  # type: ignore
+        tracer_provider = otel["trace_sdk"].TracerProvider(resource=resource)  # type: ignore
+        span_processor = otel["SimpleSpanProcessor"](  # type: ignore
+            otel["OTLPSpanExporter"](  # type: ignore
+                endpoint=urljoin(str(client.base_url), "v1/traces"),
+                headers=dict(client.headers),
+            )
+        )
+        tracer_provider.add_span_processor(span_processor)  # type: ignore
+        return tracer_provider.get_tracer(__name__), otel  # type: ignore
+    except Exception:
+        # If anything goes wrong with OpenTelemetry setup, fall back to None
+        return None, None
+
+
+def _send_span_to_phoenix(
+    client: Union[httpx.Client, httpx.AsyncClient],
+    project_name: str,
+    span_data: dict[str, Any],
+    timeout: Optional[int],
+) -> None:
+    try:
+        if isinstance(client, httpx.AsyncClient):
+            logger.warning(
+                "Cannot send span synchronously with async client. "
+                "Consider using OpenTelemetry for full async support."
+            )
+            return
+
+        phoenix_span = {
+            "name": span_data["name"],
+            "context": {
+                "trace_id": span_data["context"]["trace_id"],
+                "span_id": span_data["context"]["span_id"],
+            },
+            "span_kind": span_data["span_kind"],
+            "start_time": span_data["start_time"],
+            "end_time": span_data["end_time"],
+            "status_code": span_data.get("status_code", "OK"),
+            "status_message": span_data.get("status_message", ""),
+            "attributes": span_data.get("attributes", {}),
+            "events": span_data.get("events", []),
+        }
+
+        client.post(
+            url=f"v1/projects/{project_name}/spans",
+            json={"data": [phoenix_span]},
+            headers={"accept": "application/json"},
+            timeout=timeout,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to send span to Phoenix: {e}")
 
 
 def get_tqdm_progress_bar_formatter(title: str) -> str:
@@ -95,11 +191,10 @@ def jsonify(obj: Any) -> Any:
         return str(obj)
 
 
-class _NoOpProcessor(trace_sdk.SpanProcessor):
-    """No-op span processor for dry runs."""
-
-    def force_flush(self, timeout_millis: int = 30000) -> bool:
-        return True
+def _str_trace_id(trace_id: Union[int, str]) -> str:
+    if isinstance(trace_id, int):
+        return hexlify(trace_id.to_bytes(16, "big")).decode()
+    return str(trace_id)
 
 
 def _evaluators_by_name(obj: Optional[Evaluators]) -> Mapping[EvaluatorName, Evaluator]:
@@ -123,33 +218,6 @@ def _evaluators_by_name(obj: Optional[Evaluators]) -> Mapping[EvaluatorName, Eva
         evaluators_by_name[evaluator.name] = evaluator
 
     return evaluators_by_name
-
-
-def _get_tracer(
-    project_name: Optional[str] = None,
-    base_url: Optional[str] = None,
-    headers: Optional[Mapping[str, str]] = None,
-) -> tuple[Tracer, Resource]:
-    """Create a tracer for experiment runs."""
-    resource = Resource({ResourceAttributes.PROJECT_NAME: project_name} if project_name else {})
-    tracer_provider = trace_sdk.TracerProvider(resource=resource)
-    span_processor = (
-        SimpleSpanProcessor(
-            OTLPSpanExporter(
-                endpoint=urljoin(f"{base_url}", "v1/traces"),
-                headers=dict(headers or {}),
-            )
-        )
-        if project_name and base_url
-        else _NoOpProcessor()
-    )
-    tracer_provider.add_span_processor(span_processor)
-    return tracer_provider.get_tracer(__name__), resource
-
-
-def _str_trace_id(id_: int) -> str:
-    """Convert trace ID to string."""
-    return hexlify(id_.to_bytes(16, "big")).decode()
 
 
 def _decode_unix_nano(time_unix_nano: int) -> datetime:
@@ -257,10 +325,10 @@ class Experiments:
         self._headers = dict(client.headers)
 
     def get_dataset_experiments_url(self, dataset_id: str) -> str:
-        return f"{self._client.base_url}/v1/datasets/{dataset_id}/experiments"
+        return f"{self._client.base_url}/datasets/{dataset_id}/experiments"
 
     def get_experiment_url(self, dataset_id: str, experiment_id: str) -> str:
-        return f"{self._client.base_url}/v1/datasets/{dataset_id}/experiments/{experiment_id}"
+        return f"{self._client.base_url}/datasets/{dataset_id}/experiments/{experiment_id}"
 
     def run_experiment(
         self,
@@ -351,9 +419,6 @@ class Experiments:
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }
 
-        tracer, resource = _get_tracer(
-            experiment["project_name"], self._base_url, self._headers
-        )
         root_span_name = f"Task: {get_func_name(task)}"
 
         print("🧪 Experiment started.")
@@ -363,6 +428,7 @@ class Experiments:
             sample_size = min(
                 len(examples_list), int(dry_run) if isinstance(dry_run, int) and dry_run > 1 else 1
             )
+            random.seed(42)  # Set seed for reproducible sampling
             sampled_examples = random.sample(examples_list, sample_size)
             example_ids = [ex["id"] for ex in sampled_examples]
             print(f"🌵️ This is a dry-run for these example IDs:\n{chr(10).join(example_ids)}")
@@ -401,8 +467,6 @@ class Experiments:
                 task,
                 task_signature,
                 experiment,
-                tracer,
-                resource,
                 root_span_name,
                 dry_run,
                 timeout,
@@ -452,14 +516,16 @@ class Experiments:
 
         # Run evaluations if provided
         if evaluators_by_name:
+            tracer, otel = _get_tracer(experiment["project_name"], self._client, timeout)
             eval_runs = self._run_evaluations(
                 [r for r in task_runs if r is not None],
                 evaluators_by_name,
                 tracer,
-                resource,
+                otel,
                 bool(dry_run),
                 timeout,
                 rate_limit_errors,
+                experiment["project_name"] or "",
             )
             result["evaluation_runs"] = eval_runs
 
@@ -477,8 +543,6 @@ class Experiments:
         task: ExperimentTask,
         task_signature: inspect.Signature,
         experiment: Experiment,
-        tracer: Tracer,
-        resource: Resource,
         root_span_name: str,
         dry_run: Union[bool, int],
         timeout: Optional[int],
@@ -516,15 +580,79 @@ class Experiments:
 
         output = None
         error: Optional[BaseException] = None
-        status = Status(StatusCode.OK)
+        start_time = datetime.now(timezone.utc)
+        end_time = start_time
+        trace_id = None
 
-        with ExitStack() as stack:
-            span = cast(
-                Span,
-                stack.enter_context(
-                    tracer.start_as_current_span(root_span_name, context=Context())
-                ),
-            )
+        tracer, otel = _get_tracer(experiment["project_name"], self._client, timeout)
+        if tracer and otel:
+            with ExitStack() as stack:
+                span = stack.enter_context(
+                    tracer.start_as_current_span(root_span_name, context=otel["Context"]())  # type: ignore
+                )
+                status = None
+                try:
+                    bound_task_args = _bind_task_signature(task_signature, example)
+                    _output = task(*bound_task_args.args, **bound_task_args.kwargs)
+
+                    if isinstance(_output, Awaitable):
+                        raise RuntimeError(
+                            "Task is async and cannot be run within sync implementation. "
+                            "Use the AsyncClient instead."
+                        )
+                    else:
+                        output = _output
+                except BaseException as exc:
+                    span.record_exception(exc)
+                    status = otel["Status"](
+                        otel["StatusCode"].ERROR, f"{type(exc).__name__}: {exc}"
+                    )
+                    error = exc
+                    _print_experiment_error(
+                        exc,
+                        example_id=example["id"],
+                        repetition_number=repetition_number,
+                        kind="task",
+                    )
+
+                output = jsonify(output)
+                # Set span attributes using OpenTelemetry
+                span.set_attribute(
+                    otel["SpanAttributes"].INPUT_VALUE,
+                    json.dumps(example["input"], ensure_ascii=False),
+                )
+                span.set_attribute(
+                    otel["SpanAttributes"].INPUT_MIME_TYPE,
+                    otel["OpenInferenceMimeTypeValues"].JSON.value,
+                )
+                if output is not None:
+                    if isinstance(output, str):
+                        span.set_attribute(otel["SpanAttributes"].OUTPUT_VALUE, output)
+                    else:
+                        span.set_attribute(
+                            otel["SpanAttributes"].OUTPUT_VALUE,
+                            json.dumps(output, ensure_ascii=False),
+                        )
+                        span.set_attribute(
+                            otel["SpanAttributes"].OUTPUT_MIME_TYPE,
+                            otel["OpenInferenceMimeTypeValues"].JSON.value,
+                        )
+                span.set_attribute(
+                    otel["SpanAttributes"].OPENINFERENCE_SPAN_KIND,
+                    otel["OpenInferenceSpanKindValues"].CHAIN.value,
+                )
+                if status is not None:
+                    span.set_status(status)
+
+                # Handle potential None values in span timing
+                span_start_time = span.start_time
+                span_end_time = span.end_time
+                if span_start_time is not None:
+                    start_time = _decode_unix_nano(cast(int, span_start_time))
+                if span_end_time is not None:
+                    end_time = _decode_unix_nano(cast(int, span_end_time))
+                trace_id = _str_trace_id(span.get_span_context().trace_id)
+        else:
             try:
                 bound_task_args = _bind_task_signature(task_signature, example)
                 _output = task(*bound_task_args.args, **bound_task_args.kwargs)
@@ -537,8 +665,6 @@ class Experiments:
                 else:
                     output = _output
             except BaseException as exc:
-                span.record_exception(exc)
-                status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
                 error = exc
                 _print_experiment_error(
                     exc,
@@ -548,40 +674,54 @@ class Experiments:
                 )
 
             output = jsonify(output)
-            span.set_attribute(
-                SpanAttributes.INPUT_VALUE, json.dumps(example["input"], ensure_ascii=False)
-            )
-            span.set_attribute(
-                SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value
-            )
+            end_time = datetime.now(timezone.utc)
+
+            span_data: dict[str, Any] = {
+                "name": root_span_name,
+                "context": {
+                    "trace_id": _generate_trace_id(),
+                    "span_id": _generate_span_id(),
+                },
+                "span_kind": "CHAIN",
+                "start_time": start_time.isoformat(),
+                "end_time": end_time.isoformat(),
+                "attributes": {
+                    "input.value": json.dumps(example["input"], ensure_ascii=False),
+                    "input.mime_type": "application/json",
+                },
+                "events": [],
+            }
+
             if output is not None:
                 if isinstance(output, str):
-                    span.set_attribute(SpanAttributes.OUTPUT_VALUE, output)
+                    span_data["attributes"]["output.value"] = output
                 else:
-                    span.set_attribute(
-                        SpanAttributes.OUTPUT_VALUE, json.dumps(output, ensure_ascii=False)
-                    )
-                    span.set_attribute(
-                        SpanAttributes.OUTPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value
-                    )
-            span.set_attribute(
-                SpanAttributes.OPENINFERENCE_SPAN_KIND, OpenInferenceSpanKindValues.CHAIN.value
-            )
-            span.set_status(status)
+                    span_data["attributes"]["output.value"] = json.dumps(output, ensure_ascii=False)
+                    span_data["attributes"]["output.mime_type"] = "application/json"
+
+            if error:
+                span_data["status_code"] = "ERROR"
+                span_data["status_message"] = repr(error)
+
+            trace_id = span_data["context"]["trace_id"]
+
+            # Send span to Phoenix if we have a project
+            if experiment["project_name"]:
+                _send_span_to_phoenix(self._client, experiment["project_name"], span_data, timeout)
 
         exp_run: ExperimentRun = {
             "dataset_example_id": example["id"],
             "output": output,
             "repetition_number": repetition_number,
-            "start_time": _decode_unix_nano(cast(int, span.start_time)).isoformat(),
-            "end_time": _decode_unix_nano(cast(int, span.end_time)).isoformat(),
+            "start_time": start_time.isoformat(),
+            "end_time": end_time.isoformat(),
             "id": f"temp-{random.randint(1000, 9999)}",
             "experiment_id": experiment["id"],
         }
 
         # Add optional fields if they exist
-        if _str_trace_id(span.get_span_context().trace_id):
-            exp_run["trace_id"] = _str_trace_id(span.get_span_context().trace_id)
+        if trace_id:
+            exp_run["trace_id"] = trace_id
         if error:
             exp_run["error"] = repr(error)
 
@@ -607,11 +747,12 @@ class Experiments:
         self,
         task_runs: list[ExperimentRun],
         evaluators_by_name: Mapping[EvaluatorName, Evaluator],
-        tracer: Tracer,
-        resource: Resource,
+        tracer: Any,
+        otel: Optional[dict[str, Any]],
         dry_run: bool,
         timeout: Optional[int],
         rate_limit_errors: Optional[RateLimitErrors],
+        project_name: str,
     ) -> list[ExperimentEvaluationRun]:
         print("🧠 Evaluation started.")
 
@@ -632,7 +773,7 @@ class Experiments:
         ) -> Optional[ExperimentEvaluationRun]:
             run, evaluator = obj
             return self._run_single_evaluation_sync(
-                run, evaluator, tracer, resource, dry_run, timeout
+                run, evaluator, tracer, otel, dry_run, timeout, project_name
             )
 
         rate_limited_sync_evaluate_run = functools.reduce(
@@ -655,52 +796,102 @@ class Experiments:
         self,
         experiment_run: ExperimentRun,
         evaluator: Evaluator,
-        tracer: Tracer,
-        resource: Resource,
+        tracer: Any,
+        otel: Optional[dict[str, Any]],
         dry_run: bool,
         timeout: Optional[int],
+        project_name: str,
     ) -> Optional[ExperimentEvaluationRun]:
         result: Optional[EvaluationResult] = None
         error: Optional[BaseException] = None
-        status = Status(StatusCode.OK)
         root_span_name = f"Evaluation: {evaluator.name}"
+        start_time = datetime.now(timezone.utc)
+        end_time = start_time
+        trace_id = None
 
-        with ExitStack() as stack:
-            span = cast(
-                Span,
-                stack.enter_context(
-                    tracer.start_as_current_span(root_span_name, context=Context())
-                ),
-            )
+        if tracer and otel:
+            with ExitStack() as stack:
+                span = stack.enter_context(
+                    tracer.start_as_current_span(root_span_name, context=otel["Context"]())
+                )
+                status = None
+                try:
+                    # For simplicity, just pass output to evaluator
+                    result = evaluator.evaluate(output=experiment_run["output"])
+                except BaseException as exc:
+                    span.record_exception(exc)
+                    status = otel["Status"](
+                        otel["StatusCode"].ERROR, f"{type(exc).__name__}: {exc}"
+                    )
+                    error = exc
+
+                if result:
+                    span.set_attributes(
+                        {
+                            "evaluation.score": result.get("score"),
+                            "evaluation.label": result.get("label"),
+                        }
+                    )
+                span.set_attribute(
+                    otel["SpanAttributes"].OPENINFERENCE_SPAN_KIND,
+                    otel["OpenInferenceSpanKindValues"].EVALUATOR.value,
+                )
+                if status is not None:
+                    span.set_status(status)
+
+                # Handle potential None values in span timing
+                span_start_time = span.start_time
+                span_end_time = span.end_time
+                if span_start_time is not None:
+                    start_time = _decode_unix_nano(cast(int, span_start_time))
+                if span_end_time is not None:
+                    end_time = _decode_unix_nano(cast(int, span_end_time))
+                trace_id = _str_trace_id(span.get_span_context().trace_id)
+        else:
             try:
                 # For simplicity, just pass output to evaluator
                 result = evaluator.evaluate(output=experiment_run["output"])
             except BaseException as exc:
-                span.record_exception(exc)
-                status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
                 error = exc
 
+            end_time = datetime.now(timezone.utc)
+
+            span_data: dict[str, Any] = {
+                "name": root_span_name,
+                "context": {
+                    "trace_id": _generate_trace_id(),
+                    "span_id": _generate_span_id(),
+                },
+                "span_kind": "EVALUATOR",
+                "start_time": start_time.isoformat(),
+                "end_time": end_time.isoformat(),
+                "attributes": {},
+                "events": [],
+            }
+
             if result:
-                span.set_attributes(
-                    {
-                        "evaluation.score": result.get("score"),
-                        "evaluation.label": result.get("label"),
-                    }
-                )
-            span.set_attribute(
-                SpanAttributes.OPENINFERENCE_SPAN_KIND, OpenInferenceSpanKindValues.EVALUATOR.value
-            )
-            span.set_status(status)
+                span_data["attributes"]["evaluation.score"] = result.get("score")
+                span_data["attributes"]["evaluation.label"] = result.get("label")
+
+            if error:
+                span_data["status_code"] = "ERROR"
+                span_data["status_message"] = repr(error)
+
+            trace_id = span_data["context"]["trace_id"]
+
+            # Send evaluation span to Phoenix if we have a project
+            if project_name:
+                _send_span_to_phoenix(self._client, project_name, span_data, timeout)
 
         eval_run = ExperimentEvaluationRun(
             experiment_run_id=experiment_run["id"],
-            start_time=_decode_unix_nano(cast(int, span.start_time)),
-            end_time=_decode_unix_nano(cast(int, span.end_time)),
+            start_time=start_time,
+            end_time=end_time,
             name=evaluator.name,
             annotator_kind=evaluator.kind,
             error=repr(error) if error else None,
             result=result,
-            trace_id=_str_trace_id(span.get_span_context().trace_id),
+            trace_id=trace_id,
         )
 
         if not dry_run:
@@ -744,10 +935,10 @@ class AsyncExperiments:
         self._headers = dict(client.headers)
 
     def get_dataset_experiments_url(self, dataset_id: str) -> str:
-        return f"{self._client.base_url}/v1/datasets/{dataset_id}/experiments"
+        return f"{self._client.base_url}/datasets/{dataset_id}/experiments"
 
     def get_experiment_url(self, dataset_id: str, experiment_id: str) -> str:
-        return f"{self._client.base_url}/v1/datasets/{dataset_id}/experiments/{experiment_id}"
+        return f"{self._client.base_url}/datasets/{dataset_id}/experiments/{experiment_id}"
 
     async def run_experiment(
         self,
@@ -838,9 +1029,7 @@ class AsyncExperiments:
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }
 
-        tracer, resource = _get_tracer(
-            experiment["project_name"], self._base_url, self._headers
-        )
+        tracer, otel = _get_tracer(experiment["project_name"], self._client, timeout)
         root_span_name = f"Task: {get_func_name(task)}"
 
         print("🧪 Experiment started.")
@@ -850,6 +1039,7 @@ class AsyncExperiments:
             sample_size = min(
                 len(examples_list), int(dry_run) if isinstance(dry_run, int) and dry_run > 1 else 1
             )
+            random.seed(42)  # Set seed for reproducible sampling
             sampled_examples = random.sample(examples_list, sample_size)
             example_ids = [ex["id"] for ex in sampled_examples]
             print(f"🌵️ This is a dry-run for these example IDs:\n{chr(10).join(example_ids)}")
@@ -889,7 +1079,7 @@ class AsyncExperiments:
                 task_signature,
                 experiment,
                 tracer,
-                resource,
+                otel,
                 root_span_name,
                 dry_run,
                 timeout,
@@ -946,11 +1136,12 @@ class AsyncExperiments:
                 [r for r in task_runs if r is not None],
                 evaluators_by_name,
                 tracer,
-                resource,
+                otel,
                 bool(dry_run),
                 timeout,
                 rate_limit_errors,
                 concurrency,
+                experiment["project_name"] or "",
             )
             result["evaluation_runs"] = eval_runs
 
@@ -968,8 +1159,8 @@ class AsyncExperiments:
         task: ExperimentTask,
         task_signature: inspect.Signature,
         experiment: Experiment,
-        tracer: Tracer,
-        resource: Resource,
+        tracer: Any,
+        otel: Optional[dict[str, Any]],
         root_span_name: str,
         dry_run: Union[bool, int],
         timeout: Optional[int],
@@ -1007,15 +1198,75 @@ class AsyncExperiments:
 
         output = None
         error: Optional[BaseException] = None
-        status = Status(StatusCode.OK)
+        start_time = datetime.now(timezone.utc)
+        end_time = start_time
+        trace_id = None
 
-        with ExitStack() as stack:
-            span = cast(
-                Span,
-                stack.enter_context(
-                    tracer.start_as_current_span(root_span_name, context=Context())
-                ),
-            )
+        if tracer and otel:
+            with ExitStack() as stack:
+                span = stack.enter_context(
+                    tracer.start_as_current_span(root_span_name, context=otel["Context"]())
+                )
+                status = None
+                try:
+                    bound_task_args = _bind_task_signature(task_signature, example)
+                    _output = task(*bound_task_args.args, **bound_task_args.kwargs)
+
+                    if isinstance(_output, Awaitable):
+                        output = await _output
+                    else:
+                        output = _output
+                except BaseException as exc:
+                    span.record_exception(exc)
+                    status = otel["Status"](
+                        otel["StatusCode"].ERROR, f"{type(exc).__name__}: {exc}"
+                    )
+                    error = exc
+                    _print_experiment_error(
+                        exc,
+                        example_id=example["id"],
+                        repetition_number=repetition_number,
+                        kind="task",
+                    )
+
+                output = jsonify(output)
+                # Set span attributes using OpenTelemetry
+                span.set_attribute(
+                    otel["SpanAttributes"].INPUT_VALUE,
+                    json.dumps(example["input"], ensure_ascii=False),
+                )
+                span.set_attribute(
+                    otel["SpanAttributes"].INPUT_MIME_TYPE,
+                    otel["OpenInferenceMimeTypeValues"].JSON.value,
+                )
+                if output is not None:
+                    if isinstance(output, str):
+                        span.set_attribute(otel["SpanAttributes"].OUTPUT_VALUE, output)
+                    else:
+                        span.set_attribute(
+                            otel["SpanAttributes"].OUTPUT_VALUE,
+                            json.dumps(output, ensure_ascii=False),
+                        )
+                        span.set_attribute(
+                            otel["SpanAttributes"].OUTPUT_MIME_TYPE,
+                            otel["OpenInferenceMimeTypeValues"].JSON.value,
+                        )
+                span.set_attribute(
+                    otel["SpanAttributes"].OPENINFERENCE_SPAN_KIND,
+                    otel["OpenInferenceSpanKindValues"].CHAIN.value,
+                )
+                if status is not None:
+                    span.set_status(status)
+
+                # Handle potential None values in span timing
+                span_start_time = span.start_time
+                span_end_time = span.end_time
+                if span_start_time is not None:
+                    start_time = _decode_unix_nano(cast(int, span_start_time))
+                if span_end_time is not None:
+                    end_time = _decode_unix_nano(cast(int, span_end_time))
+                trace_id = _str_trace_id(span.get_span_context().trace_id)
+        else:
             try:
                 bound_task_args = _bind_task_signature(task_signature, example)
                 _output = task(*bound_task_args.args, **bound_task_args.kwargs)
@@ -1025,8 +1276,6 @@ class AsyncExperiments:
                 else:
                     output = _output
             except BaseException as exc:
-                span.record_exception(exc)
-                status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
                 error = exc
                 _print_experiment_error(
                     exc,
@@ -1036,40 +1285,54 @@ class AsyncExperiments:
                 )
 
             output = jsonify(output)
-            span.set_attribute(
-                SpanAttributes.INPUT_VALUE, json.dumps(example["input"], ensure_ascii=False)
-            )
-            span.set_attribute(
-                SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value
-            )
+            end_time = datetime.now(timezone.utc)
+
+            span_data: dict[str, Any] = {
+                "name": root_span_name,
+                "context": {
+                    "trace_id": _generate_trace_id(),
+                    "span_id": _generate_span_id(),
+                },
+                "span_kind": "CHAIN",
+                "start_time": start_time.isoformat(),
+                "end_time": end_time.isoformat(),
+                "attributes": {
+                    "input.value": json.dumps(example["input"], ensure_ascii=False),
+                    "input.mime_type": "application/json",
+                },
+                "events": [],
+            }
+
             if output is not None:
                 if isinstance(output, str):
-                    span.set_attribute(SpanAttributes.OUTPUT_VALUE, output)
+                    span_data["attributes"]["output.value"] = output
                 else:
-                    span.set_attribute(
-                        SpanAttributes.OUTPUT_VALUE, json.dumps(output, ensure_ascii=False)
-                    )
-                    span.set_attribute(
-                        SpanAttributes.OUTPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value
-                    )
-            span.set_attribute(
-                SpanAttributes.OPENINFERENCE_SPAN_KIND, OpenInferenceSpanKindValues.CHAIN.value
-            )
-            span.set_status(status)
+                    span_data["attributes"]["output.value"] = json.dumps(output, ensure_ascii=False)
+                    span_data["attributes"]["output.mime_type"] = "application/json"
+
+            if error:
+                span_data["status_code"] = "ERROR"
+                span_data["status_message"] = repr(error)
+
+            trace_id = span_data["context"]["trace_id"]
+
+            # Send span to Phoenix if we have a project
+            if experiment["project_name"]:
+                _send_span_to_phoenix(self._client, experiment["project_name"], span_data, timeout)
 
         exp_run: ExperimentRun = {
             "dataset_example_id": example["id"],
             "output": output,
             "repetition_number": repetition_number,
-            "start_time": _decode_unix_nano(cast(int, span.start_time)).isoformat(),
-            "end_time": _decode_unix_nano(cast(int, span.end_time)).isoformat(),
+            "start_time": start_time.isoformat(),
+            "end_time": end_time.isoformat(),
             "id": f"temp-{random.randint(1000, 9999)}",
             "experiment_id": experiment["id"],
         }
 
         # Add optional fields if they exist
-        if _str_trace_id(span.get_span_context().trace_id):
-            exp_run["trace_id"] = _str_trace_id(span.get_span_context().trace_id)
+        if trace_id:
+            exp_run["trace_id"] = trace_id
         if error:
             exp_run["error"] = repr(error)
 
@@ -1095,12 +1358,13 @@ class AsyncExperiments:
         self,
         task_runs: list[ExperimentRun],
         evaluators_by_name: Mapping[EvaluatorName, Evaluator],
-        tracer: Tracer,
-        resource: Resource,
+        tracer: Any,
+        otel: Optional[dict[str, Any]],
         dry_run: bool,
         timeout: Optional[int],
         rate_limit_errors: Optional[RateLimitErrors],
         concurrency: int,
+        project_name: str,
     ) -> list[ExperimentEvaluationRun]:
         print("🧠 Evaluation started.")
 
@@ -1121,7 +1385,7 @@ class AsyncExperiments:
         ) -> Optional[ExperimentEvaluationRun]:
             run, evaluator = obj
             return await self._run_single_evaluation_async(
-                run, evaluator, tracer, resource, dry_run, timeout
+                run, evaluator, tracer, otel, dry_run, timeout, project_name
             )
 
         rate_limited_async_evaluate_run = functools.reduce(
@@ -1145,52 +1409,102 @@ class AsyncExperiments:
         self,
         experiment_run: ExperimentRun,
         evaluator: Evaluator,
-        tracer: Tracer,
-        resource: Resource,
+        tracer: Any,
+        otel: Optional[dict[str, Any]],
         dry_run: bool,
         timeout: Optional[int],
+        project_name: str,
     ) -> Optional[ExperimentEvaluationRun]:
         result: Optional[EvaluationResult] = None
         error: Optional[BaseException] = None
-        status = Status(StatusCode.OK)
         root_span_name = f"Evaluation: {evaluator.name}"
+        start_time = datetime.now(timezone.utc)
+        end_time = start_time
+        trace_id = None
 
-        with ExitStack() as stack:
-            span = cast(
-                Span,
-                stack.enter_context(
-                    tracer.start_as_current_span(root_span_name, context=Context())
-                ),
-            )
+        if tracer and otel:
+            with ExitStack() as stack:
+                span = stack.enter_context(
+                    tracer.start_as_current_span(root_span_name, context=otel["Context"]())
+                )
+                status = None
+                try:
+                    # For simplicity, just pass output to evaluator
+                    result = await evaluator.async_evaluate(output=experiment_run["output"])
+                except BaseException as exc:
+                    span.record_exception(exc)
+                    status = otel["Status"](
+                        otel["StatusCode"].ERROR, f"{type(exc).__name__}: {exc}"
+                    )
+                    error = exc
+
+                if result:
+                    span.set_attributes(
+                        {
+                            "evaluation.score": result.get("score"),
+                            "evaluation.label": result.get("label"),
+                        }
+                    )
+                span.set_attribute(
+                    otel["SpanAttributes"].OPENINFERENCE_SPAN_KIND,
+                    otel["OpenInferenceSpanKindValues"].EVALUATOR.value,
+                )
+                if status is not None:
+                    span.set_status(status)
+
+                # Handle potential None values in span timing
+                span_start_time = span.start_time
+                span_end_time = span.end_time
+                if span_start_time is not None:
+                    start_time = _decode_unix_nano(cast(int, span_start_time))
+                if span_end_time is not None:
+                    end_time = _decode_unix_nano(cast(int, span_end_time))
+                trace_id = _str_trace_id(span.get_span_context().trace_id)
+        else:
             try:
                 # For simplicity, just pass output to evaluator
                 result = await evaluator.async_evaluate(output=experiment_run["output"])
             except BaseException as exc:
-                span.record_exception(exc)
-                status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
                 error = exc
 
+            end_time = datetime.now(timezone.utc)
+
+            span_data: dict[str, Any] = {
+                "name": root_span_name,
+                "context": {
+                    "trace_id": _generate_trace_id(),
+                    "span_id": _generate_span_id(),
+                },
+                "span_kind": "EVALUATOR",
+                "start_time": start_time.isoformat(),
+                "end_time": end_time.isoformat(),
+                "attributes": {},
+                "events": [],
+            }
+
             if result:
-                span.set_attributes(
-                    {
-                        "evaluation.score": result.get("score"),
-                        "evaluation.label": result.get("label"),
-                    }
-                )
-            span.set_attribute(
-                SpanAttributes.OPENINFERENCE_SPAN_KIND, OpenInferenceSpanKindValues.EVALUATOR.value
-            )
-            span.set_status(status)
+                span_data["attributes"]["evaluation.score"] = result.get("score")
+                span_data["attributes"]["evaluation.label"] = result.get("label")
+
+            if error:
+                span_data["status_code"] = "ERROR"
+                span_data["status_message"] = repr(error)
+
+            trace_id = span_data["context"]["trace_id"]
+
+            # Send evaluation span to Phoenix if we have a project
+            if project_name:
+                _send_span_to_phoenix(self._client, project_name, span_data, timeout)
 
         eval_run = ExperimentEvaluationRun(
             experiment_run_id=experiment_run["id"],
-            start_time=_decode_unix_nano(cast(int, span.start_time)),
-            end_time=_decode_unix_nano(cast(int, span.end_time)),
+            start_time=start_time,
+            end_time=end_time,
             name=evaluator.name,
             annotator_kind=evaluator.kind,
             error=repr(error) if error else None,
             result=result,
-            trace_id=_str_trace_id(span.get_span_context().trace_id),
+            trace_id=trace_id,
         )
 
         if not dry_run:

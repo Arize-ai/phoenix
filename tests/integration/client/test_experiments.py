@@ -484,3 +484,93 @@ class TestExperimentsIntegration:
                     print_summary=False,
                 )
             )
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_experiment_without_opentelemetry(
+        self,
+        is_async: bool,
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test that experiments work correctly when OpenTelemetry is not installed."""
+        user = _get_user(_MEMBER).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient
+
+        # Mock _try_import_opentelemetry to return None (simulating OTel not installed)
+        import phoenix.client.resources.experiments
+
+        monkeypatch.setattr(
+            phoenix.client.resources.experiments, "_try_import_opentelemetry", lambda: None
+        )
+
+        unique_name = f"test_no_otel_{uuid.uuid4().hex[:8]}"
+
+        dataset = await _await_or_return(
+            Client().datasets.create_dataset(
+                name=unique_name,
+                inputs=[
+                    {"question": "What is 2+2?"},
+                    {"question": "What is the capital of France?"},
+                ],
+                outputs=[
+                    {"answer": "4"},
+                    {"answer": "Paris"},
+                ],
+                metadata=[
+                    {"category": "math"},
+                    {"category": "geography"},
+                ],
+            )
+        )
+
+        def simple_task(input: Dict[str, Any]) -> str:
+            question = input.get("question", "")
+            if "2+2" in question:
+                return "The answer is 4"
+            elif "capital" in question:
+                return "The capital is Paris"
+            else:
+                return "I don't know"
+
+        def accuracy_evaluator(output: str, expected: Dict[str, Any]) -> float:
+            return 1.0 if output == expected.get("answer") else 0.0
+
+        result = await _await_or_return(
+            Client().experiments.run_experiment(
+                dataset=dataset,
+                task=simple_task,
+                evaluators=[accuracy_evaluator],
+                experiment_name=f"test_no_otel_{uuid.uuid4().hex[:8]}",
+                experiment_description="Test without OpenTelemetry",
+                print_summary=False,
+            )
+        )
+
+        # Verify experiment works correctly without OpenTelemetry
+        assert "experiment_id" in result
+        assert "dataset_id" in result
+        assert "task_runs" in result
+        assert "evaluation_runs" in result
+        assert result["dataset_id"] == dataset.id
+        assert len(result["task_runs"]) == 2
+        assert len(result["evaluation_runs"]) == 2
+
+        for task_run in result["task_runs"]:
+            assert "dataset_example_id" in task_run
+            assert "output" in task_run
+            assert "start_time" in task_run
+            assert "end_time" in task_run
+            assert task_run["output"] is not None
+
+        for eval_run in result["evaluation_runs"]:
+            assert hasattr(eval_run, "experiment_run_id")
+            assert hasattr(eval_run, "start_time")
+            assert hasattr(eval_run, "end_time")
+            assert hasattr(eval_run, "name")
+            assert eval_run.experiment_run_id is not None
+            assert eval_run.name is not None
