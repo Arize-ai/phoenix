@@ -202,7 +202,7 @@ export const ManagementLink = () => {
       <li key="management">
         <ExternalLink
           href={viewer.managementUrl}
-          leadingVisual={<Icon svg={<Icons.ExternalLinkOutline />} />}
+          leadingVisual={<Icon svg={<Icons.Server />} />}
           text="Management console"
         />
       </li>

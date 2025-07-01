@@ -169,9 +169,6 @@ function SideNav() {
           </li>
           {authenticationEnabled && (
             <>
-              <Suspense>
-                <ManagementLink />
-              </Suspense>
               <li key="profile">
                 <NavLink
                   to="/profile"
@@ -179,6 +176,9 @@ function SideNav() {
                   leadingVisual={<Icon svg={<Icons.PersonOutline />} />}
                 />
               </li>
+              <Suspense>
+                <ManagementLink />
+              </Suspense>
               <li key="logout">
                 <NavButton
                   text="Log Out"
