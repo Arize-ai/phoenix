@@ -1,5 +1,6 @@
 import asyncio
 import json
+import re
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
@@ -12,6 +13,37 @@ class TokenPrice(TypedDict):
     token_type: str
     base_rate: float
     is_prompt: bool
+
+
+def filter_models(model_ids: list[str]) -> list[str]:
+    include_patterns = [
+        r"gpt",
+        r"claude",
+        r"gemini",
+        r"mistral",
+        r"anthropic",
+        r"openai",
+    ]
+    exclude_patterns = [
+        r"/",
+        r"ft",
+        r"anthropic\.",
+        r"mistral\.",
+        r"claude-2.*",
+        r"embedding",
+        r"gemini-1.*",
+    ]
+    include_regexes = [re.compile(pattern, re.IGNORECASE) for pattern in include_patterns]
+    exclude_regexes = [re.compile(pattern, re.IGNORECASE) for pattern in exclude_patterns]
+    filtered_models = []
+    for model_id in model_ids:
+        if any(regex.search(model_id) for regex in exclude_regexes):
+            continue
+
+        if any(regex.search(model_id) for regex in include_regexes):
+            filtered_models.append(model_id)
+
+    return filtered_models
 
 
 # Asynchronously fetch data from a given URL
@@ -55,12 +87,24 @@ def transform_remote_data(data: dict[str, Any]) -> dict[str, Any]:
         }
     }
     """
+    # First, collect all model IDs that have pricing information
+    models_with_pricing = []
+    for model_id, model_info in data.items():
+        if "input_cost_per_token" in model_info or "output_cost_per_token" in model_info:
+            models_with_pricing.append(model_id)
+
+    # Filter the models
+    filtered_model_ids = filter_models(models_with_pricing)
+    print(f"Total models with pricing: {len(models_with_pricing)}")
+    print(f"Models after filtering: {len(filtered_model_ids)}")
+    print("Filtered model IDs:")
+    for model_id in filtered_model_ids:
+        print(f"  - {model_id}")
+
     transformed = {}
 
-    for model_id, model_info in data.items():
-        # Skip if no pricing information
-        if "input_cost_per_token" not in model_info or "output_cost_per_token" not in model_info:
-            continue
+    for model_id in filtered_model_ids:
+        model_info = data[model_id]
 
         # Build the token price list
         token_prices = []
