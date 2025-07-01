@@ -2082,6 +2082,9 @@ type Query {
   dbStorageCapacityBytes: Float
   dbTableStats: [DbTableStats!]!
   validateRegularExpression(regex: String!): ValidationResult!
+  getSpanByOtelId(spanId: String!): Span
+  getTraceByOtelId(traceId: String!): Trace
+  getProjectSessionByOtelId(sessionId: String!): ProjectSession
 }
 
 input RemoveAnnotationConfigFromProjectInput {
@@ -2329,6 +2332,7 @@ enum SpanColumn {
   cumulativeTokenCountTotal
   cumulativeTokenCountPrompt
   cumulativeTokenCountCompletion
+  cumulativeTokenCostTotal
   tokenCostTotal
 }
 

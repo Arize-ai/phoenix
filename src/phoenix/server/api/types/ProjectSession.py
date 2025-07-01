@@ -108,7 +108,6 @@ class ProjectSession(Node):
             select(models.Trace)
             .filter_by(project_session_rowid=self.id_attr)
             .order_by(models.Trace.start_time)
-            .limit(first)
         )
         async with info.context.db() as session:
             traces = await session.stream_scalars(stmt)

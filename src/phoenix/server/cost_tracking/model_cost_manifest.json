@@ -126,6 +126,33 @@
     "regex":"(?i)^(claude-instant-1.2)$"
   },
   {
+    "model":"gemini-2.5-pro",
+    "provider":null,
+    "input":  1.25e-06,
+    "output":10.00e-06,
+    "cache_write":null,
+    "cache_read":null,
+    "regex":"(?i)^(gemini-2.5-pro)(@[a-zA-Z0-9]+)?$"
+  },
+  {
+    "model":"gemini-2.5-flash",
+    "provider":null,
+    "input": 0.30e-06,
+    "output":2.50e-06,
+    "cache_write":null,
+    "cache_read":null,
+    "regex":"(?i)^(gemini-2.5-flash)(@[a-zA-Z0-9]+)?$"
+  },
+  {
+    "model":"gemini-2.0-flash-lite",
+    "provider":null,
+    "input": 0.075e-06,
+    "output":0.300e-06,
+    "cache_write":null,
+    "cache_read":null,
+    "regex":"(?i)^(gemini-2.0-flash-lite)(@[a-zA-Z0-9]+)?$"
+  },
+  {
     "model":"gemini-2.0-flash",
     "provider":null,
     "input":0.0000001,
