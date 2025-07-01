@@ -1,21 +1,26 @@
 import json
 import re
-from copy import deepcopy
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Any
 from urllib.request import urlopen
 
+from pydantic import BaseModel
 
-class TokenPrice(TypedDict):
-    token_type: str
+
+class TokenPrice(BaseModel):
     base_rate: float
     is_prompt: bool
+    token_type: str
 
 
-class ModelConfig(TypedDict):
+class ModelConfig(BaseModel):
     name: str
     name_pattern: str
     token_prices: list[TokenPrice]
+
+
+class ModelCostManifest(BaseModel):
+    models: list[ModelConfig]
 
 
 def filter_models(model_ids: list[str]) -> list[str]:
@@ -149,21 +154,20 @@ def transform_remote_data(data: dict[str, Any]) -> dict[str, list[TokenPrice]]:
     return transformed
 
 
-def merge_data(
-    local_data: dict[str, Any], remote_data: dict[str, list[TokenPrice]]
-) -> dict[str, Any]:
-    merged = deepcopy(local_data)
-    models: list[ModelConfig] = merged.get("models", [])
+def merge_manifests(
+    local_manifest: ModelCostManifest, remote_data: dict[str, list[TokenPrice]]
+) -> ModelCostManifest:
+    models: list[ModelConfig] = local_manifest.models
 
     model_index_map: dict[str, int] = {}
     for idx, model in enumerate(models):
-        model_index_map[model["name"]] = idx
+        model_index_map[model.name] = idx
 
     updated_models = set()
     for model_id, token_prices in remote_data.items():
         if model_id in model_index_map:
             idx = model_index_map[model_id]
-            models[idx]["token_prices"] = token_prices
+            models[idx].token_prices = token_prices
             updated_models.add(model_id)
         else:
             new_model = ModelConfig(
@@ -173,10 +177,10 @@ def merge_data(
             )
             models.append(new_model)
 
-    models.sort(key=lambda model: model["name"])
-    merged["models"] = models
+    models.sort(key=lambda model: model.name)
+    local_manifest.models = models
     print(f"Updated {len(updated_models)} models from LiteLLM")
-    return merged
+    return local_manifest
 
 
 def main() -> int:
@@ -193,21 +197,21 @@ def main() -> int:
 
     with open(local_file_path, "r") as file:
         data = json.load(file)
-    assert isinstance(data, dict)
+    local_model_cost_manifest = ModelCostManifest.model_validate(data)
 
     transformed_data = transform_remote_data(litellm_models)
     print(f"Found {len(transformed_data)} models with pricing from LiteLLM")
 
-    merged_data = merge_data(data, transformed_data)
+    merged_model_cost_manifest = merge_manifests(local_model_cost_manifest, transformed_data)
 
-    if data != merged_data:
+    if data != merged_model_cost_manifest:
         with open(local_file_path, "w") as file:
-            json.dump(merged_data, file, indent=2, sort_keys=True)
+            file.write(merged_model_cost_manifest.model_dump_json(indent=2))
         print("Model data updated successfully")
     else:
         print("No changes detected")
 
-    print(f"Total models in file: {len(merged_data.get('models', []))}")
+    print(f"Total models in file: {len(merged_model_cost_manifest.models)}")
     print(f"Models from this sync: {len(transformed_data)}")
 
     return 0
