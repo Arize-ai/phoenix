@@ -51,7 +51,9 @@ from phoenix.trace.trace_dataset import TraceDataset
 
 try:
     from IPython.display import IFrame  # type: ignore
-except:  # noqa
+except ImportError:
+    # IPython is not available, IFrame will be undefined
+    # This is expected in non-notebook environments
     pass
 
 logger = logging.getLogger(__name__)

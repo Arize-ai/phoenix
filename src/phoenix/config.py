@@ -1080,12 +1080,43 @@ def get_env_postgres_connection_str() -> Optional[str]:
         pg_port = pg_port or parsed_port  # use the explicitly set port if provided
 
     if pg_host and pg_user and pg_password:
-        encoded_password = quote_plus(pg_password)
-        connection_str = f"postgresql://{pg_user}:{encoded_password}@{pg_host}"
+        # Validate connection string components to prevent injection
+        def _validate_connection_component(component: str, name: str) -> str:
+            """Validate that connection string components don't contain dangerous characters."""
+            if not component:
+                raise ValueError(f"PostgreSQL {name} cannot be empty")
+            
+            # Check for potentially dangerous characters that could be used for injection
+            dangerous_chars = ["'", '"', ";", "--", "/*", "*/", "\\", "\n", "\r", "\t"]
+            for char in dangerous_chars:
+                if char in component:
+                    raise ValueError(f"PostgreSQL {name} contains invalid character: {char}")
+            
+            # Additional validation for specific components
+            if name == "port" and not component.isdigit():
+                raise ValueError(f"PostgreSQL port must be numeric, got: {component}")
+            
+            return component
+
+        # Validate all components
+        pg_user = _validate_connection_component(pg_user, "user")
+        pg_host = _validate_connection_component(pg_host, "host")
         if pg_port:
-            connection_str = f"{connection_str}:{pg_port}"
+            pg_port = _validate_connection_component(pg_port, "port")
         if pg_db:
-            connection_str = f"{connection_str}/{pg_db}"
+            pg_db = _validate_connection_component(pg_db, "database")
+
+        # Use quote_plus for all components to ensure proper URL encoding
+        encoded_user = quote_plus(pg_user)
+        encoded_password = quote_plus(pg_password)
+        encoded_host = quote_plus(pg_host)
+        
+        connection_str = f"postgresql://{encoded_user}:{encoded_password}@{encoded_host}"
+        if pg_port:
+            connection_str = f"{connection_str}:{pg_port}"  # Port doesn't need encoding
+        if pg_db:
+            encoded_db = quote_plus(pg_db)
+            connection_str = f"{connection_str}/{encoded_db}"
 
         return connection_str
     return None

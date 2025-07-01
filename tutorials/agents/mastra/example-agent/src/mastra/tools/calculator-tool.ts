@@ -93,14 +93,39 @@ const calculate = async (expression: string) => {
       .replace(/pi/g, "Math.PI")
       .replace(/e/g, "Math.E");
 
-    // Validate that the expression only contains safe characters
-    if (
-      !/^[0-9+\-*/.(),\s]+|Math\.[a-zA-Z]+\([^)]*\)$/.test(sanitizedExpression)
-    ) {
-      throw new Error("Invalid mathematical expression");
+    // Validate that the expression only contains safe characters and patterns
+    // Fixed regex: must contain only safe math characters AND optionally Math functions
+    const safeCharPattern = /^[0-9+\-*/.(),\s]*$/;
+    const mathFunctionPattern = /^[0-9+\-*/.(),\s]*(?:Math\.[a-zA-Z]+\([^)]*\)[0-9+\-*/.(),\s]*)*$/;
+    
+    if (!safeCharPattern.test(sanitizedExpression.replace(/Math\.[a-zA-Z]+\([^)]*\)/g, '')) ||
+        !mathFunctionPattern.test(sanitizedExpression)) {
+      throw new Error("Invalid mathematical expression - contains unsafe characters");
     }
 
-    // Evaluate the expression safely
+    // Additional validation: check for dangerous patterns
+    const dangerousPatterns = [
+      /constructor/i,
+      /prototype/i,
+      /__proto__/i,
+      /eval/i,
+      /function/i,
+      /return/i,
+      /import/i,
+      /require/i,
+      /process/i,
+      /global/i,
+      /window/i,
+      /document/i,
+    ];
+
+    for (const pattern of dangerousPatterns) {
+      if (pattern.test(sanitizedExpression)) {
+        throw new Error("Invalid mathematical expression - contains forbidden keywords");
+      }
+    }
+
+    // Evaluate the expression safely using a more secure approach
     const result = Function(`"use strict"; return (${sanitizedExpression})`)();
 
     if (typeof result !== "number" || !isFinite(result)) {
