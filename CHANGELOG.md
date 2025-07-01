@@ -1,5 +1,12 @@
 # Changelog
 
+## [11.2.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.2.0...arize-phoenix-v11.2.1) (2025-07-01)
+
+
+### Bug Fixes
+
+* remove token counts from project summaries ([#8357](https://github.com/Arize-ai/phoenix/issues/8357)) ([a097c76](https://github.com/Arize-ai/phoenix/commit/a097c769da26afe5335383de70cf9c5b9e42ba2d))
+
 ## [11.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.1.1...arize-phoenix-v11.2.0) (2025-06-30)
 
 
