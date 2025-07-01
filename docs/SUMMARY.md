@@ -3,7 +3,6 @@
 * [Arize Phoenix](README.md)
 * [Quickstarts](quickstart.md)
 * [User Guide](user-guide.md)
-* [Deployment](deployment.md)
 * [Environments](environments.md)
 * [Phoenix Demo](https://phoenix-demo.arize.com/projects)
 
@@ -63,7 +62,6 @@
   * [Test a prompt](prompt-engineering/how-to-prompts/test-a-prompt.md)
   * [Tag a prompt](prompt-engineering/how-to-prompts/tag-a-prompt.md)
   * [Using a prompt](prompt-engineering/how-to-prompts/using-a-prompt.md)
-* [Concepts: Prompts](prompt-engineering/concepts-prompts.md)
 
 ## Datasets & Experiments
 
@@ -72,7 +70,6 @@
 * [How-to: Datasets](datasets-and-experiments/how-to-datasets/README.md)
   * [Creating Datasets](datasets-and-experiments/how-to-datasets/creating-datasets.md)
   * [Exporting Datasets](datasets-and-experiments/how-to-datasets/exporting-datasets.md)
-* [Concepts: Datasets](datasets-and-experiments/concepts-datasets.md)
 * [How-to: Experiments](datasets-and-experiments/how-to-experiments/README.md)
   * [Run Experiments](datasets-and-experiments/how-to-experiments/run-experiments.md)
   * [Using Evaluators](datasets-and-experiments/how-to-experiments/using-evaluators.md)
@@ -104,21 +101,11 @@
   * [Build a Multimodal Eval](evaluation/how-to-evals/multimodal-evals.md)
   * [Online Evals](evaluation/how-to-evals/online-evals.md)
   * [Evals API Reference](evaluation/how-to-evals/evals-reference.md)
-* [Concepts: Evals](evaluation/concepts-evals/README.md)
-  * [LLM as a Judge](evaluation/concepts-evals/llm-as-a-judge.md)
-  * [Eval Data Types](evaluation/concepts-evals/evaluation-types.md)
-  * [Evals With Explanations](evaluation/concepts-evals/evals-with-explanations.md)
-  * [Evaluators](evaluation/concepts-evals/evaluation.md)
-  * [Custom Task Evaluation](evaluation/concepts-evals/building-your-own-evals.md)
 
 ## Retrieval
 
 * [Overview: Retrieval](retrieval/overview-retrieval.md)
 * [Quickstart: Retrieval](retrieval/quickstart-retrieval.md)
-* [Concepts: Retrieval](retrieval/concepts-retrieval/README.md)
-  * [Retrieval with Embeddings](retrieval/concepts-retrieval/troubleshooting-llm-retrieval-with-vector-stores.md)
-  * [Benchmarking Retrieval](retrieval/concepts-retrieval/benchmarking-retrieval-rag.md)
-  * [Retrieval Evals on Document Chunks](retrieval/concepts-retrieval/retrieval-evals-on-document-chunks.md)
 
 ## inferences
 
@@ -132,16 +119,7 @@
   * [Generate Embeddings](inferences/how-to-inferences/generating-embeddings.md)
   * [Manage the App](inferences/how-to-inferences/manage-the-app.md)
   * [Use Example Inferences](inferences/how-to-inferences/use-example-inferences.md)
-* [Concepts: Inferences](inferences/inferences.md)
 * [API: Inferences](inferences/inference-and-schema.md)
-* [Use-Cases: Inferences](inferences/use-cases-inferences/README.md)
-  * [Embeddings Analysis](inferences/use-cases-inferences/embeddings-analysis.md)
-
-## INTEGRATIONS
-
-* [Phoenix MCP Server](integrations/phoenix-mcp-server.md)
-* [Cleanlab](integrations/cleanlab.md)
-* [Ragas](integrations/ragas.md)
 
 ## Settings
 

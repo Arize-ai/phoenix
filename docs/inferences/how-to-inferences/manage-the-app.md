@@ -9,7 +9,7 @@ description: >-
 ## Define Your Inferences
 
 {% hint style="info" %}
-For a conceptual overview of inferences, including an explanation of when to use a single inference vs. primary and reference inferences, see [Phoenix Basics](../inferences.md#inferences).
+For a conceptual overview of inferences, including an explanation of when to use a single inference vs. primary and reference inferences, see [Phoenix Basics](broken-reference).
 {% endhint %}
 
 To define inferences, you must load your data into a pandas dataframe and [create a matching schema](define-your-schema/). If you have a dataframe `prim_df` and a matching `prim_schema`, you can define inferences named "primary" with
