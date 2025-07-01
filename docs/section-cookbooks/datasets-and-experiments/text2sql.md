@@ -30,7 +30,7 @@ from phoenix.otel import register
 
 tracer_provider = register(
     endpoint="http://localhost:6006/v1/traces", auto_instrument=True, verbose=False
-)  # Instruments all openai calls
+)  # Instruments all OpenAI calls
 
 tracer = tracer_provider.get_tracer(__name__)
 ```
@@ -44,7 +44,7 @@ import nest_asyncio
 nest_asyncio.apply()
 ```
 
-Lastly, let's make sure we have our openai API key set up.
+Lastly, let's make sure we have our OpenAI API key set up.
 
 
 ```python
@@ -89,7 +89,7 @@ client = openai.AsyncClient()
 
 columns = conn.query("DESCRIBE movies").to_df().to_dict(orient="records")
 
-# We will use GPT4o to start
+# We will use GPT-4o to start
 TASK_MODEL = "gpt-4o"
 CONFIG = {"model": TASK_MODEL}
 
@@ -199,7 +199,7 @@ async def text2sql(question):
     }
 ```
 
-Finally, we'll define the evaluation scores. We'll use the following simple functions to see if the generated SQL queries are correct. Note that `has_results` is a good metric here becasue we know that all the questions we added to the dataset can be answered via sql.
+Finally, we'll define the evaluation scores. We'll use the following simple functions to see if the generated SQL queries are correct. Note that `has_results` is a good metric here because we know that all the questions we added to the dataset can be answered via SQL.
 
 
 ```python
@@ -480,11 +480,7 @@ for q in generated_questions:
 generated_dataset[0]
 ```
 
-Awesome, let's crate a dataset with the new synthetic data.
-
-
-
-
+Awesome, let's create a dataset with the new synthetic data.
 
 ```python
 synthetic_dataset = px.Client().upload_dataset(
@@ -494,13 +490,11 @@ synthetic_dataset = px.Client().upload_dataset(
 );
 ```
 
-
 ```python
 exp = run_experiment(
     synthetic_dataset, task=task, evaluators=[no_error, has_results], experiment_metadata=CONFIG
 )
 ```
-
 
 ```python
 exp.as_dataframe()
@@ -516,7 +510,7 @@ This gives us a process to keep improving our system.
 
 ## Conclusion
 
-In this tutorial, we built a text-to-SQL system for querying movie data. We started with basic examples and evaluators, then improved performance by adding few-shot examples as well as using an llm judge for evaluation.
+In this tutorial, we built a text-to-SQL system for querying movie data. We started with basic examples and evaluators, then improved performance by adding few-shot examples as well as using an LLM judge for evaluation.
 
 Key takeaways:
 - Start with simple evaluators to catch basic issues
