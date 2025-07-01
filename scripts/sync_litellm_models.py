@@ -157,6 +157,14 @@ def merge_data(local_data: dict[str, Any], remote_data: dict[str, Any]) -> dict[
             idx = model_index_map[model_id]
             models[idx]["token_prices"] = token_prices
             updated_models.add(model_id)
+        else:
+            models.append(
+                {
+                    "name": model_id,
+                    "name_pattern": f"^{model_id}$",  # seed an initial name pattern
+                    "token_prices": token_prices,
+                }
+            )
 
     models.sort(key=lambda model: model["name"])
     merged["models"] = models
