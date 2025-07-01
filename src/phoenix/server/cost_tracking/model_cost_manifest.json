@@ -11,7 +11,7 @@
         },
         {
           "token_type": "output",
-          "base_rate": 1.5e-05,
+          "base_rate": 0,
           "is_prompt": false
         }
       ]
