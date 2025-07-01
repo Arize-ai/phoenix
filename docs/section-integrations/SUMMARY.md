@@ -86,6 +86,7 @@
 ## Evaluation Libraries
 
 * [Cleanlab](evaluation-libraries/cleanlab.md)
+* [Google Gen AI](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-gen-ai-evals)
 * [Ragas](evaluation-libraries/ragas.md)
 
 ## Vector Databases
