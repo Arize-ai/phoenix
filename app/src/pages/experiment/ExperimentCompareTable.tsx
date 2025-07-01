@@ -10,7 +10,7 @@ import React, {
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import {
   CellContext,
   ColumnDef,
@@ -161,6 +161,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const { datasetId, experimentIds, displayFullText } = props;
   const [filterCondition, setFilterCondition] = useState("");
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<
       ExperimentCompareTableQuery,
@@ -660,7 +661,15 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           </table>
         </div>
       </Flex>
-      <ModalOverlay isOpen={!!dialog} onOpenChange={() => setDialog(null)}>
+      <ModalOverlay
+        isOpen={!!dialog}
+        onOpenChange={() => {
+          // Clear the URL search params for the span selection
+          searchParams.delete("selectedSpanNodeId");
+          setSearchParams(searchParams, { replace: true });
+          setDialog(null);
+        }}
+      >
         <Modal variant="slideover" size="fullscreen">
           {/* TODO: move this into the dialogs so the loading state is contained */}
           <Suspense>{dialog}</Suspense>
