@@ -7,6 +7,7 @@ from strawberry import Private
 from strawberry.relay import Node, NodeID
 from strawberry.types import Info
 
+from phoenix.config import get_env_management_url
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
@@ -41,6 +42,10 @@ class User(Node):
                 select(models.ApiKey).where(models.ApiKey.user_id == self.id_attr)
             )
         return [to_gql_api_key(api_key) for api_key in api_keys]
+
+    @strawberry.field
+    async def management_url(self, info: Info[Context, None]) -> Optional[str]:
+        return get_env_management_url()
 
 
 def to_gql_user(user: models.User, api_keys: Optional[list[models.ApiKey]] = None) -> User:
