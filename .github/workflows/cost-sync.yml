@@ -6,7 +6,7 @@ permissions:
 
 on:
   schedule:
-    - cron: '0 18 * * 2'  # 2 PM Eastern (18:00 UTC) every Tuesday
+    - cron: '34 18 * * 2'  # 2:25 PM Eastern (19:25 UTC) every Tuesday
 
 jobs:
   sync-model-pricing:
