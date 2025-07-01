@@ -144,9 +144,6 @@ def transform_remote_data(data: dict[str, Any]) -> dict[str, Any]:
 
 
 def merge_data(local_data: dict[str, Any], remote_data: dict[str, Any]) -> dict[str, Any]:
-    """
-    Merge remote data into local data, updating existing entries and adding new ones.
-    """
     merged = deepcopy(local_data)
     models = merged.get("models", [])
 
@@ -158,32 +155,13 @@ def merge_data(local_data: dict[str, Any], remote_data: dict[str, Any]) -> dict[
     for model_id, token_prices in remote_data.items():
         if model_id in model_index_map:
             idx = model_index_map[model_id]
-            if "openrouter_id" not in models[idx]:
-                models[idx]["token_prices"] = token_prices
-                updated_models.add(model_id)
-        else:
-            new_model = {
-                "name": model_id,
-                "name_pattern": f"^{model_id}$",
-                "token_prices": token_prices,
-            }
-            models.append(new_model)
+            models[idx]["token_prices"] = token_prices
             updated_models.add(model_id)
 
     models.sort(key=lambda model: model["name"])
     merged["models"] = models
-    print(f"Updated/added {len(updated_models)} models from LiteLLM")
+    print(f"Updated {len(updated_models)} models from LiteLLM")
     return merged
-
-
-def write_to_file(file_path: Path, data: dict[str, Any]) -> None:
-    try:
-        with open(file_path, "w") as file:
-            json.dump(data, file, indent=2, sort_keys=False)
-        print(f"Successfully updated {file_path}")
-    except Exception as e:
-        print(f"Error writing to file: {e}")
-        raise
 
 
 def load_local_data(file_path: Path) -> dict[str, Any]:
@@ -210,13 +188,13 @@ def main() -> int:
     )
     url = "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
 
-    data = load_local_data(local_file_path)
-
     try:
         litellm_models = fetch_data(url)
     except Exception as e:
         print(f"Error fetching model data from LiteLLM: {e}")
         return 1
+
+    data = load_local_data(local_file_path)
 
     transformed_data = transform_remote_data(litellm_models)
     print(f"Found {len(transformed_data)} models with pricing from LiteLLM")
@@ -224,7 +202,8 @@ def main() -> int:
     merged_data = merge_data(data, transformed_data)
 
     if has_diff(data, merged_data):
-        write_to_file(local_file_path, merged_data)
+        with open(local_file_path, "w") as file:
+            json.dump(merged_data, file, indent=2, sort_keys=False)
         print("Model data updated successfully")
     else:
         print("No changes detected")
