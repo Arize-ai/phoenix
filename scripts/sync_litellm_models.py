@@ -164,24 +164,6 @@ def merge_data(local_data: dict[str, Any], remote_data: dict[str, Any]) -> dict[
     return merged
 
 
-def load_local_data(file_path: Path) -> dict[str, Any]:
-    try:
-        with open(file_path, "r") as file:
-            data = json.load(file)
-            assert isinstance(data, dict)
-            return data
-    except FileNotFoundError:
-        print(f"File not found: {file_path} - will create new file")
-        return {"models": []}
-    except json.JSONDecodeError as e:
-        print(f"Error decoding JSON: {e}")
-        return {"models": []}
-
-
-def has_diff(local_data: dict[str, Any], merged_data: dict[str, Any]) -> bool:
-    return local_data != merged_data
-
-
 def main() -> int:
     local_file_path = (
         Path(__file__).parent / "../src/phoenix/server/cost_tracking/model_cost_manifest.json"
@@ -194,16 +176,18 @@ def main() -> int:
         print(f"Error fetching model data from LiteLLM: {e}")
         return 1
 
-    data = load_local_data(local_file_path)
+    with open(local_file_path, "r") as file:
+        data = json.load(file)
+    assert isinstance(data, dict)
 
     transformed_data = transform_remote_data(litellm_models)
     print(f"Found {len(transformed_data)} models with pricing from LiteLLM")
 
     merged_data = merge_data(data, transformed_data)
 
-    if has_diff(data, merged_data):
+    if data != merged_data:
         with open(local_file_path, "w") as file:
-            json.dump(merged_data, file, indent=2, sort_keys=False)
+            json.dump(merged_data, file, indent=2, sort_keys=True)
         print("Model data updated successfully")
     else:
         print("No changes detected")
