@@ -692,8 +692,8 @@ function ProjectMetricsRow({
   return (
     <Flex
       direction="row"
-      minHeight="size-600"
       justifyContent="space-between"
+      minHeight="size-600"
       {...flexProps}
     >
       <Flex direction="column">
@@ -702,7 +702,7 @@ function ProjectMetricsRow({
         </Text>
         <Text size="L">{intFormatter(traceCount)}</Text>
       </Flex>
-      <Flex direction="column" flex="none">
+      <Flex direction="column">
         <Text elementType="h3" size="S" color="text-700">
           Latency P50
         </Text>
