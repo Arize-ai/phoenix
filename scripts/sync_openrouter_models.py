@@ -124,13 +124,13 @@ def merge_data(local_data: dict[str, Any], remote_data: dict[str, Any]) -> dict[
     """
     merged = deepcopy(local_data)
     models = merged.get("models", [])
-    
+
     # Create a mapping of openrouter_id to indices for faster lookup
     openrouter_index_map = {}
     for idx, model in enumerate(models):
         if "openrouter_id" in model:
             openrouter_index_map[model["openrouter_id"]] = idx
-    
+
     # Update existing models and track which ones were updated
     updated_models = set()
     for openrouter_id, token_prices in remote_data.items():
@@ -145,14 +145,14 @@ def merge_data(local_data: dict[str, Any], remote_data: dict[str, Any]) -> dict[
                 "name": openrouter_id,
                 "name_pattern": f"(?i)^({openrouter_id})$",
                 "token_prices": token_prices,
-                "openrouter_id": openrouter_id
+                "openrouter_id": openrouter_id,
             }
             models.append(new_model)
             updated_models.add(openrouter_id)
-    
+
     merged["models"] = models
     print(f"Updated/added {len(updated_models)} models from OpenRouter")
-    
+
     return merged
 
 
@@ -226,7 +226,7 @@ def main() -> int:
     # Print summary
     print(f"Total models in file: {len(merged_data.get('models', []))}")
     print(f"Models from this sync: {len(transformed_data)}")
-    
+
     return 0
 
 
