@@ -23,6 +23,8 @@ def filter_models(model_ids: list[str]) -> list[str]:
         r"mistral",
         r"anthropic",
         r"openai",
+        r"o3",
+        r"o4",
     ]
     exclude_patterns = [
         r"/",
@@ -32,6 +34,10 @@ def filter_models(model_ids: list[str]) -> list[str]:
         r"claude-2.*",
         r"embedding",
         r"gemini-1.*",
+        r"claude-instant.*",
+        r"gemini-pro",
+        r"gemini-pro-experimental",
+        r"gemini-flash-experimental",
     ]
     include_regexes = [re.compile(pattern, re.IGNORECASE) for pattern in include_patterns]
     exclude_regexes = [re.compile(pattern, re.IGNORECASE) for pattern in exclude_patterns]
@@ -180,15 +186,15 @@ def merge_data(local_data: dict[str, Any], remote_data: dict[str, Any]) -> dict[
             # Add new model if it doesn't exist
             new_model = {
                 "name": model_id,
-                "name_pattern": f"(?i)^({model_id})$",
+                "name_pattern": f"^{model_id}$",
                 "token_prices": token_prices,
             }
             models.append(new_model)
             updated_models.add(model_id)
 
+    models.sort(key=lambda model: model["name"])
     merged["models"] = models
     print(f"Updated/added {len(updated_models)} models from LiteLLM")
-
     return merged
 
 
