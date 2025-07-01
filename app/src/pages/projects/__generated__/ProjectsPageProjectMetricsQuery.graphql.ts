@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<46becc12a46e317a363a2adf4e6d7607>>
+ * @generated SignedSource<<9c055cca3660f26e247e0bebcaa77d60>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,7 +20,6 @@ export type ProjectsPageProjectMetricsQuery$variables = {
 export type ProjectsPageProjectMetricsQuery$data = {
   readonly project: {
     readonly latencyMsP50?: number | null;
-    readonly tokenCountTotal?: number;
     readonly traceCount?: number;
   };
 };
@@ -54,15 +53,14 @@ v2 = {
   "name": "timeRange",
   "variableName": "timeRange"
 },
-v3 = [
-  (v2/*: any*/)
-],
-v4 = {
+v3 = {
   "kind": "InlineFragment",
   "selections": [
     {
       "alias": null,
-      "args": (v3/*: any*/),
+      "args": [
+        (v2/*: any*/)
+      ],
       "kind": "ScalarField",
       "name": "traceCount",
       "storageKey": null
@@ -79,13 +77,6 @@ v4 = {
       ],
       "kind": "ScalarField",
       "name": "latencyMsQuantile",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": (v3/*: any*/),
-      "kind": "ScalarField",
-      "name": "tokenCountTotal",
       "storageKey": null
     }
   ],
@@ -107,7 +98,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v4/*: any*/)
+          (v3/*: any*/)
         ],
         "storageKey": null
       }
@@ -136,7 +127,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v4/*: any*/),
+          (v3/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -150,16 +141,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d5de8bdb83475f2bc238b517527c639d",
+    "cacheID": "fe700bb5c4a22149fbc01725d5fd0c27",
     "id": null,
     "metadata": {},
     "name": "ProjectsPageProjectMetricsQuery",
     "operationKind": "query",
-    "text": "query ProjectsPageProjectMetricsQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      traceCount(timeRange: $timeRange)\n      latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n      tokenCountTotal(timeRange: $timeRange)\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectsPageProjectMetricsQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      traceCount(timeRange: $timeRange)\n      latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d61aeef7b0022043e0d4d220f435a066";
+(node as any).hash = "a3d9bb6d55795e9afa84514d8d1dcba1";
 
 export default node;
