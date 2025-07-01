@@ -2,8 +2,7 @@ import json
 import re
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Optional, TypedDict
-from urllib.error import URLError
+from typing import Any, TypedDict
 from urllib.request import urlopen
 
 
@@ -37,8 +36,8 @@ def filter_models(model_ids: list[str]) -> list[str]:
         r"gemini-pro-experimental",
         r"gemini-flash-experimental",
     ]
-    include_regexes = [re.compile(pattern, re.IGNORECASE) for pattern in include_patterns]
-    exclude_regexes = [re.compile(pattern, re.IGNORECASE) for pattern in exclude_patterns]
+    include_regexes = [re.compile(pattern) for pattern in include_patterns]
+    exclude_regexes = [re.compile(pattern) for pattern in exclude_patterns]
     filtered_models = []
     for model_id in model_ids:
         if any(regex.search(model_id) for regex in exclude_regexes):
@@ -50,7 +49,7 @@ def filter_models(model_ids: list[str]) -> list[str]:
     return filtered_models
 
 
-def fetch_data(url: str) -> Optional[dict[str, Any]]:
+def fetch_data(url: str) -> dict[str, Any]:
     try:
         with urlopen(url) as response:
             resp_text = response.read().decode("utf-8")
@@ -58,36 +57,16 @@ def fetch_data(url: str) -> Optional[dict[str, Any]]:
             print("Fetched data from URL successfully.")
             assert isinstance(resp_json, dict)
             return resp_json
-    except URLError as e:
-        print(f"Error fetching data from URL: {e}")
-        return None
     except Exception as e:
-        print(f"Error fetching data from URL: {e}")
-        return None
+        raise Exception(f"Error fetching data from URL: {e}")
 
 
 def transform_remote_data(data: dict[str, Any]) -> dict[str, Any]:
-    """
-    Transform LiteLLM data into a generic model format.
-
-    LiteLLM format:
-    {
-        "model_name": {
-            "max_tokens": int,
-            "max_input_tokens": int,
-            "max_output_tokens": int,
-            "input_cost_per_token": float,
-            "output_cost_per_token": float,
-            "litellm_provider": str,
-            "mode": str,
-            "supports_function_calling": bool,
-            "supports_vision": bool
-        }
-    }
-    """
     models_with_pricing = []
     for model_id, model_info in data.items():
-        if "input_cost_per_token" in model_info or "output_cost_per_token" in model_info:
+        if (
+            "input_cost_per_token" in model_info and "output_cost_per_token" in model_info
+        ):  # both are required for pricing
             models_with_pricing.append(model_id)
 
     filtered_model_ids = filter_models(models_with_pricing)
@@ -233,9 +212,10 @@ def main() -> int:
 
     data = load_local_data(local_file_path)
 
-    litellm_models = fetch_data(url)
-    if not litellm_models:
-        print("Failed to fetch model data from LiteLLM")
+    try:
+        litellm_models = fetch_data(url)
+    except Exception as e:
+        print(f"Error fetching model data from LiteLLM: {e}")
         return 1
 
     transformed_data = transform_remote_data(litellm_models)
