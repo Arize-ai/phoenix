@@ -30,7 +30,16 @@ jobs:
       
       - name: Check for changes
         id: verify-changed-files
-        run: git diff --exit-code src/phoenix/server/cost_tracking/model_cost_manifest.json
+        run: |
+          if git diff --exit-code src/phoenix/server/cost_tracking/model_cost_manifest.json; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            ADDED=$(git diff src/phoenix/server/cost_tracking/model_cost_manifest.json | grep -c '^+' || true)
+            REMOVED=$(git diff src/phoenix/server/cost_tracking/model_cost_manifest.json | grep -c '^-' || true)
+            echo "lines_added=$ADDED" >> $GITHUB_OUTPUT
+            echo "lines_removed=$REMOVED" >> $GITHUB_OUTPUT
+          fi
       
       - name: Create Pull Request
         if: steps.verify-changed-files.outputs.changed == 'true'
