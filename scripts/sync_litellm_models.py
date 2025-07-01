@@ -172,8 +172,8 @@ def main() -> int:
 
     try:
         litellm_models = fetch_data(url)
-    except Exception as e:
-        print(f"Error fetching model data from LiteLLM: {e}")
+    except Exception as error:
+        print(f"Error fetching model data from LiteLLM: {error}")
         return 1
 
     with open(local_file_path, "r") as file:
