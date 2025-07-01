@@ -690,8 +690,13 @@ function ProjectMetricsRow({
     project: { traceCount, latencyMsP50 },
   } = project;
   return (
-    <Flex direction="row" minHeight="size-600" {...flexProps}>
-      <Flex direction="column" flex="none">
+    <Flex
+      direction="row"
+      minHeight="size-600"
+      justifyContent="space-between"
+      {...flexProps}
+    >
+      <Flex direction="column">
         <Text elementType="h3" size="S" color="text-700">
           Total Traces
         </Text>
@@ -769,7 +774,6 @@ function ProjectsTable({
                   flexProps={{
                     justifyContent: "start",
                     gap: "size-800",
-                    wrap: "wrap",
                     rowGap: "size-100",
                   }}
                   projectId={row.original.id}
