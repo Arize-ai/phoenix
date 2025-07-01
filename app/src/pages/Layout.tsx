@@ -7,6 +7,7 @@ import {
   Brand,
   DocsLink,
   GitHubLink,
+  ManagementLink,
   NavBreadcrumb,
   NavButton,
   NavLink,
@@ -168,6 +169,9 @@ function SideNav() {
           </li>
           {authenticationEnabled && (
             <>
+              <Suspense>
+                <ManagementLink />
+              </Suspense>
               <li key="profile">
                 <NavLink
                   to="/profile"

@@ -51,6 +51,7 @@ export function ViewerProvider({
           username
           email
           profilePictureUrl
+          managementUrl
           role {
             name
           }

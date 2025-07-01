@@ -225,8 +225,9 @@ Examples:
 """
 ENV_PHOENIX_MANAGEMENT_URL = "PHOENIX_MANAGEMENT_URL"
 """
-The URL to use for a management interface that may be hosting Phoenix. If set, a link will be added
-to the navigation menu to return to this URL if the user is an admin.
+The URL to use for redirecting to a management interface that may be hosting Phoenix. If set, and
+the current user is within PHOENIX_ADMINS, a link will be added to the navigation menu to return to
+this URL.
 """
 
 
@@ -823,7 +824,7 @@ def get_env_csrf_trusted_origins() -> list[str]:
 
 def get_env_admins() -> dict[str, str]:
     """
-    Parse the PHOENIX_ADMINS environment variable to extract the comma separated pairs of
+    Parse the PHOENIX_ADMINS environment variable to extract the semicolon separated pairs of
     username and email. The last equal sign (=) in each pair is used to separate the username from
     the email.
 

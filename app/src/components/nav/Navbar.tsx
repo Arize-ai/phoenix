@@ -4,7 +4,7 @@ import { css } from "@emotion/react";
 
 import { Icon, Icons, Text } from "@phoenix/components";
 import { GitHubStarCount } from "@phoenix/components/nav/GitHubStarCount";
-import { useTheme } from "@phoenix/contexts";
+import { useTheme, useViewer } from "@phoenix/contexts";
 
 import { Logo } from "./Logo";
 
@@ -193,3 +193,20 @@ export function NavButton(props: {
     </button>
   );
 }
+
+export const ManagementLink = () => {
+  const { viewer } = useViewer();
+
+  if (viewer?.managementUrl) {
+    return (
+      <li key="management">
+        <ExternalLink
+          href={viewer.managementUrl}
+          leadingVisual={<Icon svg={<Icons.ExternalLinkOutline />} />}
+          text="Management console"
+        />
+      </li>
+    );
+  }
+  return null;
+};
