@@ -60,6 +60,7 @@
   * [What is my Phoenix Endpoint?](resources/faqs/what-is-my-phoenix-endpoint.md)
   * [What is LlamaTrace vs Phoenix Cloud?](resources/faqs/what-is-llamatrace-vs-phoenix-cloud.md)
   * [Will Phoenix Cloud be on the latest version of Phoenix?](resources/faqs/will-phoenix-cloud-be-on-the-latest-version-of-phoenix.md)
+  * [Phoenix Cloud Migration Guide: Legacy to New Version](resources/faqs/phoenix-cloud-migration-guide-legacy-to-new-version.md)
   * [Can I add other users to my Phoenix Instance?](resources/faqs/can-i-add-other-users-to-my-phoenix-instance.md)
   * [Can I use Azure OpenAI?](resources/faqs/can-i-use-azure-openai.md)
   * [Can I use Phoenix locally from a remote Jupyter instance?](resources/faqs/can-i-use-phoenix-locally-from-a-remote-jupyter-instance.md)
