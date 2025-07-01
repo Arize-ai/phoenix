@@ -140,6 +140,24 @@ def transform_remote_data(data: dict[str, Any]) -> dict[str, Any]:
                 )
             )
 
+        if input_audio_cost := float(model_info.get("input_cost_per_audio_token", 0)):
+            token_prices.append(
+                TokenPrice(
+                    token_type="audio",
+                    base_rate=input_audio_cost,
+                    is_prompt=True,
+                )
+            )
+
+        if output_audio_cost := float(model_info.get("output_cost_per_audio_token", 0)):
+            token_prices.append(
+                TokenPrice(
+                    token_type="audio",
+                    base_rate=output_audio_cost,
+                    is_prompt=False,
+                )
+            )
+
         if token_prices:
             transformed[model_id] = token_prices
 
