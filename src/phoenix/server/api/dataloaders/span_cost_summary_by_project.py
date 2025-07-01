@@ -120,8 +120,7 @@ def _get_stmt(
             coalesce(func.sum(models.SpanCost.total_tokens), 0).label("total_tokens"),
         )
         .select_from(models.Trace)
-        .join(models.Span, models.Span.trace_rowid == models.Trace.id)
-        .join(models.SpanCost, models.Span.id == models.SpanCost.span_rowid)
+        .join(models.SpanCost, models.Trace.id == models.SpanCost.trace_rowid)
         .group_by(pid)
     )
 
