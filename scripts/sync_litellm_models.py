@@ -12,6 +12,12 @@ class TokenPrice(TypedDict):
     is_prompt: bool
 
 
+class ModelConfig(TypedDict):
+    name: str
+    name_pattern: str
+    token_prices: list[TokenPrice]
+
+
 def filter_models(model_ids: list[str]) -> list[str]:
     include_patterns = [
         r"gpt",
@@ -61,7 +67,7 @@ def fetch_data(url: str) -> dict[str, Any]:
         raise Exception(f"Error fetching data from URL: {e}")
 
 
-def transform_remote_data(data: dict[str, Any]) -> dict[str, Any]:
+def transform_remote_data(data: dict[str, Any]) -> dict[str, list[TokenPrice]]:
     models_with_pricing = []
     for model_id, model_info in data.items():
         if (
@@ -76,12 +82,12 @@ def transform_remote_data(data: dict[str, Any]) -> dict[str, Any]:
     for model_id in filtered_model_ids:
         print(f"  - {model_id}")
 
-    transformed = {}
+    transformed: dict[str, list[TokenPrice]] = {}
 
     for model_id in filtered_model_ids:
         model_info = data[model_id]
 
-        token_prices = []
+        token_prices: list[TokenPrice] = []
 
         if input_cost := float(model_info.get("input_cost_per_token", 0)):
             token_prices.append(
@@ -143,11 +149,13 @@ def transform_remote_data(data: dict[str, Any]) -> dict[str, Any]:
     return transformed
 
 
-def merge_data(local_data: dict[str, Any], remote_data: dict[str, Any]) -> dict[str, Any]:
+def merge_data(
+    local_data: dict[str, Any], remote_data: dict[str, list[TokenPrice]]
+) -> dict[str, Any]:
     merged = deepcopy(local_data)
-    models = merged.get("models", [])
+    models: list[ModelConfig] = merged.get("models", [])
 
-    model_index_map = {}
+    model_index_map: dict[str, int] = {}
     for idx, model in enumerate(models):
         model_index_map[model["name"]] = idx
 
@@ -158,13 +166,12 @@ def merge_data(local_data: dict[str, Any], remote_data: dict[str, Any]) -> dict[
             models[idx]["token_prices"] = token_prices
             updated_models.add(model_id)
         else:
-            models.append(
-                {
-                    "name": model_id,
-                    "name_pattern": f"^{model_id}$",  # seed an initial name pattern
-                    "token_prices": token_prices,
-                }
+            new_model = ModelConfig(
+                name=model_id,
+                name_pattern=f"^{model_id}$",  # seed an initial name pattern
+                token_prices=token_prices,
             )
+            models.append(new_model)
 
     models.sort(key=lambda model: model["name"])
     merged["models"] = models
