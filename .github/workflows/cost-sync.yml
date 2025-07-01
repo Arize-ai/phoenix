@@ -27,13 +27,7 @@ jobs:
         with:
           version: 0.5.14
           enable-cache: true
-          cache-dependency-glob: |
-            requirements/sync-models.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Install dependencies
-        run: |
-          uv pip install --system -r requirements/sync-models.txt
       
       - name: Run OpenRouter sync script
         id: sync-openrouter

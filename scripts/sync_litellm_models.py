@@ -1,12 +1,10 @@
-import asyncio
 import json
 import re
 from copy import deepcopy
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional, TypedDict
-
-import aiohttp
+from urllib.error import URLError
+from urllib.request import urlopen
 
 
 class TokenPrice(TypedDict):
@@ -52,21 +50,21 @@ def filter_models(model_ids: list[str]) -> list[str]:
     return filtered_models
 
 
-# Asynchronously fetch data from a given URL
-async def fetch_data(url: str) -> Optional[dict[str, Any]]:
+# Fetch data from a given URL
+def fetch_data(url: str) -> Optional[dict[str, Any]]:
     try:
-        # Create an asynchronous session
-        async with aiohttp.ClientSession() as session:
-            # Send a GET request to the URL
-            async with session.get(url) as resp:
-                # Raise an error if the response status is not OK
-                resp.raise_for_status()
-                # Parse the response JSON
-                resp_text = await resp.text()
-                resp_json = json.loads(resp_text)
-                print("Fetched data from URL successfully.")
-                assert isinstance(resp_json, dict)
-                return resp_json
+        # Send a GET request to the URL
+        with urlopen(url) as response:
+            # Read the response
+            resp_text = response.read().decode("utf-8")
+            resp_json = json.loads(resp_text)
+            print("Fetched data from URL successfully.")
+            assert isinstance(resp_json, dict)
+            return resp_json
+    except URLError as e:
+        # Print an error message if fetching data fails
+        print(f"Error fetching data from URL: {e}")
+        return None
     except Exception as e:
         # Print an error message if fetching data fails
         print(f"Error fetching data from URL: {e}")
@@ -201,9 +199,6 @@ def merge_data(local_data: dict[str, Any], remote_data: dict[str, Any]) -> dict[
 # Write data to the json file
 def write_to_file(file_path: Path, data: dict[str, Any]) -> None:
     try:
-        # Add metadata
-        data["last_updated"] = datetime.utcnow().isoformat() + "Z"
-
         # Open the file in write mode
         with open(file_path, "w") as file:
             # Dump the data as JSON into the file with nice formatting
@@ -249,7 +244,7 @@ def main() -> int:
     data = load_local_data(local_file_path)
 
     # Fetch and transform remote data
-    litellm_models = asyncio.run(fetch_data(url))
+    litellm_models = fetch_data(url)
     if not litellm_models:
         print("Failed to fetch model data from LiteLLM")
         return 1
