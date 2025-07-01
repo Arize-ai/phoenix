@@ -124,13 +124,13 @@ def _get_stmt(
     )
 
     if start_time:
-        stmt = stmt.where(start_time <= models.Span.start_time)
+        stmt = stmt.where(start_time <= models.Trace.start_time)
     if end_time:
-        stmt = stmt.where(models.Span.start_time < end_time)
+        stmt = stmt.where(models.Trace.start_time < end_time)
 
     if filter_condition:
         sf = SpanFilter(filter_condition)
-        stmt = sf(stmt)
+        stmt = sf(stmt.join_from(models.SpanCost, models.Span))
 
     project_ids = [rowid for rowid in params]
     stmt = stmt.where(pid.in_(project_ids))
