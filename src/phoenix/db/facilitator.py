@@ -424,7 +424,6 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
         seen_names: set[str] = set()
         seen_patterns: set[tuple[re.Pattern[str], str]] = set()
 
-        # Process each model in the manifest
         for model_data in manifest["models"]:
             name = str(model_data.get("name") or "").strip()
             if not name:
