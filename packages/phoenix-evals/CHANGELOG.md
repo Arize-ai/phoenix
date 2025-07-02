@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.21.0...arize-phoenix-evals-v0.21.1) (2025-07-02)
+
+
+### Documentation
+
+* Adding templates for agent tool selection and parameter extraction ([#8353](https://github.com/Arize-ai/phoenix/issues/8353)) ([e4a2e73](https://github.com/Arize-ai/phoenix/commit/e4a2e732e670aad64dc4256767e198c024593266))
+
 ## [0.21.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.20.8...arize-phoenix-evals-v0.21.0) (2025-06-21)
 
 
