@@ -71,7 +71,7 @@ See [our guide on agent evals](https://arize.com/docs/phoenix/evaluation/llm-eva
 
 Focus evaluations on coordination efficiency, overall system efficiency, and emergent behaviors.
 
-See our developer tools for creating your own [custom evals](https://arize.com/docs/phoenix/evaluation/how-to-evals/bring-your-own-evaluator) in Phoenix.&#x20;
+See our docs for creating your own [custom evals](https://arize.com/docs/phoenix/evaluation/how-to-evals/bring-your-own-evaluator) in Phoenix.&#x20;
 
 ### **Hierarchical Evaluation**
 
