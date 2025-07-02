@@ -1,5 +1,7 @@
 from typing import Optional, Sequence, TypedDict
 
+__all__ = ["PhoenixException", "InvalidSpanInfo", "DuplicateSpanInfo", "SpanCreationError"]
+
 
 class PhoenixException(Exception):
     pass

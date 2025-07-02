@@ -18,9 +18,10 @@ from typing import (
     Sequence,
     Tuple,
     Union,
+    cast,
 )
 
-from tqdm.auto import tqdm
+from tqdm.auto import tqdm  # type: ignore[import-untyped]
 
 from phoenix.client.exceptions import PhoenixException
 
@@ -160,12 +161,13 @@ class AsyncExecutor(Executor):
                 continue
 
             index, payload = item
+            task_start_time = time.time()
+            detail = cast(ExecutionDetails, execution_details[index])
 
             try:
-                task_start_time = time.time()
                 generate_task = asyncio.create_task(self.generate(payload))
                 termination_event_watcher = asyncio.create_task(termination_event.wait())
-                done, pending = await asyncio.wait(
+                done, _ = await asyncio.wait(
                     [generate_task, termination_event_watcher],
                     timeout=self.timeout,
                     return_when=asyncio.FIRST_COMPLETED,
@@ -173,8 +175,8 @@ class AsyncExecutor(Executor):
 
                 if generate_task in done:
                     outputs[index] = generate_task.result()
-                    execution_details[index].complete()
-                    execution_details[index].log_runtime(task_start_time)
+                    detail.complete()
+                    detail.log_runtime(task_start_time)
                     progress_bar.update()
                 elif termination_event.is_set():
                     # discard the pending task and remaining items in the queue
@@ -193,10 +195,10 @@ class AsyncExecutor(Executor):
                     tqdm.write("Worker timeout, requeuing")
                     # task timeouts are requeued at the same priority
                     await queue.put((priority, item))
-                    execution_details[index].log_runtime(task_start_time)
+                    detail.log_runtime(task_start_time)
             except Exception as exc:
-                execution_details[index].log_exception(exc)
-                execution_details[index].log_runtime(task_start_time)
+                detail.log_exception(exc)
+                detail.log_runtime(task_start_time)
                 is_phoenix_exception = isinstance(exc, PhoenixException)
                 if (retry_count := abs(priority)) < self.max_retries and not is_phoenix_exception:
                     tqdm.write(
@@ -205,7 +207,7 @@ class AsyncExecutor(Executor):
                     tqdm.write("Requeuing...")
                     await queue.put((priority - 1, item))
                 else:
-                    execution_details[index].fail()
+                    detail.fail()
                     tqdm.write(f"Retries exhausted after {retry_count + 1} attempts: {exc}")
                     if self.exit_on_error:
                         termination_event.set()
@@ -260,7 +262,7 @@ class AsyncExecutor(Executor):
         await asyncio.gather(producer, *consumers)
         join_task = asyncio.create_task(queue.join())
         termination_event_watcher = asyncio.create_task(termination_event.wait())
-        done, pending = await asyncio.wait(
+        done, _ = await asyncio.wait(
             [join_task, termination_event_watcher], return_when=asyncio.FIRST_COMPLETED
         )
         if termination_event_watcher in done:
@@ -321,11 +323,11 @@ class SyncExecutor(Executor):
         self.exit_on_error = exit_on_error
         self.termination_signal = termination_signal
 
-        self._TERMINATE = False
+        self._terminate = False
 
     def _signal_handler(self, signum: int, frame: Any) -> None:
         tqdm.write("Process was interrupted. The return value will be incomplete...")
-        self._TERMINATE = True
+        self._terminate = True
 
     @contextmanager
     def _executor_signal_handling(self, signum: Optional[int]) -> Generator[None, None, None]:
@@ -353,9 +355,10 @@ class SyncExecutor(Executor):
 
             for index, input in enumerate(inputs):
                 task_start_time = time.time()
+                attempt = 0
                 try:
                     for attempt in range(self.max_retries + 1):
-                        if self._TERMINATE:
+                        if self._terminate:
                             return outputs, execution_details
                         try:
                             result = self.generate(input)

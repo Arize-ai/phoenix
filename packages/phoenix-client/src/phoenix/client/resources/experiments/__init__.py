@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_TIMEOUT_IN_SECONDS = 60
 
 
-def _try_import_opentelemetry():
+def _try_import_opentelemetry() -> Optional[dict[str, Any]]:
     try:
         import opentelemetry.sdk.trace as trace_sdk
         from openinference.semconv.resource import ResourceAttributes
@@ -52,7 +52,7 @@ def _try_import_opentelemetry():
         )
         from opentelemetry.context import Context
         from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-        from opentelemetry.sdk.resources import Resource
+        from opentelemetry.sdk.resources import Resource  # type: ignore[attr-defined]
         from opentelemetry.sdk.trace.export import SimpleSpanProcessor
         from opentelemetry.trace import Status, StatusCode
 
@@ -95,17 +95,16 @@ def _get_tracer(
         return None, None
 
     try:
-        # type: ignore comments to suppress dynamic import warnings
-        resource = otel["Resource"]({otel["ResourceAttributes"].PROJECT_NAME: project_name})  # type: ignore
-        tracer_provider = otel["trace_sdk"].TracerProvider(resource=resource)  # type: ignore
-        span_processor = otel["SimpleSpanProcessor"](  # type: ignore
-            otel["OTLPSpanExporter"](  # type: ignore
-                endpoint=urljoin(str(client.base_url), "v1/traces"),
-                headers=dict(client.headers),
+        # type ignore comments to suppress dynamic import warnings
+        resource = otel["Resource"]({otel["ResourceAttributes"].PROJECT_NAME: project_name})
+        tracer_provider = otel["trace_sdk"].TracerProvider(resource=resource)
+        span_processor = otel["SimpleSpanProcessor"](
+            otel["OTLPSpanExporter"](
+                endpoint=urljoin(str(client.base_url), "v1/traces")
             )
         )
-        tracer_provider.add_span_processor(span_processor)  # type: ignore
-        return tracer_provider.get_tracer(__name__), otel  # type: ignore
+        tracer_provider.add_span_processor(span_processor)
+        return tracer_provider.get_tracer(__name__), otel
     except Exception:
         # If anything goes wrong with OpenTelemetry setup, fall back to None
         return None, None
@@ -159,10 +158,10 @@ def get_tqdm_progress_bar_formatter(title: str) -> str:
 
 def create_evaluator(
     name: Optional[str] = None, kind: str = "CODE"
-) -> Callable[[Callable[..., Any]], Evaluator]:
+) -> Callable[[Union[Callable[..., Any], Evaluator]], Evaluator]:
     """Create an evaluator from a function."""
 
-    def wrapper(func: Callable[..., Any]) -> Evaluator:
+    def wrapper(func: Union[Callable[..., Any], Evaluator]) -> Evaluator:
         if isinstance(func, Evaluator):
             return func
         return FunctionEvaluator(func, name)
@@ -182,9 +181,9 @@ def jsonify(obj: Any) -> Any:
     elif isinstance(obj, (str, int, float, bool)):
         return obj
     elif isinstance(obj, (list, tuple)):
-        return [jsonify(item) for item in obj]
+        return [jsonify(item) for item in obj]  # type: ignore[misc]
     elif isinstance(obj, dict):
-        return {str(k): jsonify(v) for k, v in obj.items()}
+        return {str(k): jsonify(v) for k, v in obj.items()}  # type: ignore[misc]
     elif hasattr(obj, "__dict__"):
         return jsonify(obj.__dict__)
     else:
@@ -408,7 +407,7 @@ class Experiments:
                 "updated_at": exp_json["updated_at"],
             }
         else:
-            experiment: Experiment = {
+            experiment = {
                 "id": DRY_RUN,
                 "dataset_id": dataset.id,
                 "dataset_version_id": dataset.version_id,
@@ -423,11 +422,13 @@ class Experiments:
 
         print("🧪 Experiment started.")
 
+        example_ids: list[str] = []
         if dry_run:
             examples_list = list(dataset.examples)
-            sample_size = min(
-                len(examples_list), int(dry_run) if isinstance(dry_run, int) and dry_run > 1 else 1
-            )
+            if isinstance(dry_run, bool):
+                sample_size = 1
+            else:
+                sample_size = min(len(examples_list), dry_run if dry_run > 1 else 1)
             random.seed(42)  # Set seed for reproducible sampling
             sampled_examples = random.sample(examples_list, sample_size)
             example_ids = [ex["id"] for ex in sampled_examples]
@@ -491,11 +492,12 @@ class Experiments:
         # Get the final state of runs from the database if not dry run
         if not dry_run:
             all_runs = self._client.get(f"/v1/experiments/{experiment['id']}/runs").json()["data"]
-            task_runs = []
+            task_runs_from_db: list[ExperimentRun] = []
             for run in all_runs:
                 run["start_time"] = datetime.fromisoformat(run["start_time"])
                 run["end_time"] = datetime.fromisoformat(run["end_time"])
-                task_runs.append(run)  # Already in TypedDict format
+                task_runs_from_db.append(run)  # Already in TypedDict format
+            task_runs = task_runs_from_db
 
             # Check if we got all expected runs
             expected_runs = len(examples_to_process) * repetitions
@@ -527,7 +529,7 @@ class Experiments:
                 rate_limit_errors,
                 experiment["project_name"] or "",
             )
-            result["evaluation_runs"] = eval_runs
+            result["evaluation_runs"] = cast(Any, eval_runs)
 
         if print_summary:
             print(
@@ -1018,7 +1020,7 @@ class AsyncExperiments:
                 "updated_at": exp_json["updated_at"],
             }
         else:
-            experiment: Experiment = {
+            experiment = {
                 "id": DRY_RUN,
                 "dataset_id": dataset.id,
                 "dataset_version_id": dataset.version_id,
@@ -1034,11 +1036,13 @@ class AsyncExperiments:
 
         print("🧪 Experiment started.")
 
+        example_ids: list[str] = []
         if dry_run:
             examples_list = list(dataset.examples)
-            sample_size = min(
-                len(examples_list), int(dry_run) if isinstance(dry_run, int) and dry_run > 1 else 1
-            )
+            if isinstance(dry_run, bool):
+                sample_size = 1
+            else:
+                sample_size = min(len(examples_list), dry_run if dry_run > 1 else 1)
             random.seed(42)  # Set seed for reproducible sampling
             sampled_examples = random.sample(examples_list, sample_size)
             example_ids = [ex["id"] for ex in sampled_examples]
@@ -1107,11 +1111,12 @@ class AsyncExperiments:
         if not dry_run:
             all_runs_response = await self._client.get(f"/v1/experiments/{experiment['id']}/runs")
             all_runs = all_runs_response.json()["data"]
-            task_runs = []
+            async_task_runs: list[ExperimentRun] = []
             for run in all_runs:
                 run["start_time"] = datetime.fromisoformat(run["start_time"])
                 run["end_time"] = datetime.fromisoformat(run["end_time"])
-                task_runs.append(run)  # Already in TypedDict format
+                async_task_runs.append(run)  # Already in TypedDict format
+            task_runs = async_task_runs
 
             # Check if we got all expected runs
             expected_runs = len(examples_to_process) * repetitions
@@ -1123,11 +1128,11 @@ class AsyncExperiments:
                 )
 
         # Create result dictionary
-        result = {
+        result: dict[str, Any] = {
             "experiment_id": experiment["id"],
             "dataset_id": dataset.id,
             "task_runs": [r for r in task_runs if r is not None],
-            "evaluation_runs": [],
+            "evaluation_runs": cast(Any, []),
         }
 
         # Run evaluations if provided
@@ -1143,7 +1148,7 @@ class AsyncExperiments:
                 concurrency,
                 experiment["project_name"] or "",
             )
-            result["evaluation_runs"] = eval_runs
+            result["evaluation_runs"] = cast(Any, eval_runs)
 
         if print_summary:
             print(

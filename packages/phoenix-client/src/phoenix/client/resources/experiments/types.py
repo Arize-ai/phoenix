@@ -5,7 +5,7 @@ from collections.abc import Awaitable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Optional, Union, cast
 
 from phoenix.client.__generated__ import v1
 
@@ -89,9 +89,7 @@ class Evaluator(ABC):
 
     @property
     def name(self) -> str:
-        if self._name:
-            return self._name
-        return self.__class__.__name__
+        return self._name if self._name else self.__class__.__name__
 
     @property
     def kind(self) -> str:
@@ -206,11 +204,11 @@ class FunctionEvaluator(Evaluator):
             result = self._func(**bound_args)
 
         if isinstance(result, Awaitable):
-            result = await result
+            result = cast(Any, await result)
 
         return self._convert_to_evaluation_result(result)
 
-    def _convert_to_evaluation_result(self, result: Any) -> EvaluationResult:  # type: ignore[misc]
+    def _convert_to_evaluation_result(self, result: Any) -> EvaluationResult:
         """Convert function result to EvaluationResult."""
         if isinstance(result, dict):
             # Check if it looks like an EvaluationResult dict

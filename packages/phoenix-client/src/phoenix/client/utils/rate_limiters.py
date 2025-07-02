@@ -186,9 +186,9 @@ class RateLimiter:
     ) -> Callable[ParameterSpec, GenericType]:
         @wraps(fn)
         def wrapper(*args: Any, **kwargs: Any) -> GenericType:
+            request_start_time = time.time()
             try:
                 self._throttler.wait_until_ready()
-                request_start_time = time.time()
                 return fn(*args, **kwargs)
             except self._rate_limit_error:
                 self._throttler.on_rate_limit_error(request_start_time, verbose=self._verbose)
@@ -230,13 +230,13 @@ class RateLimiter:
             assert self._rate_limit_handling is not None and isinstance(
                 self._rate_limit_handling, asyncio.Event
             )
+            request_start_time = time.time()
             try:
                 try:
                     await asyncio.wait_for(self._rate_limit_handling.wait(), 120)
                 except asyncio.TimeoutError:
                     self._rate_limit_handling.set()  # Set the event as a failsafe
                 await self._throttler.async_wait_until_ready()
-                request_start_time = time.time()
                 return await fn(*args, **kwargs)
             except self._rate_limit_error:
                 async with self._rate_limit_handling_lock:
