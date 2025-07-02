@@ -6,7 +6,7 @@ from typing import Any, Callable, Coroutine, Optional, Tuple, Type, TypeVar
 
 from typing_extensions import ParamSpec
 
-from phoenix.client.exceptions import PhoenixException
+from phoenix.evals.exceptions import PhoenixException
 
 ParameterSpec = ParamSpec("ParameterSpec")
 GenericType = TypeVar("GenericType")
