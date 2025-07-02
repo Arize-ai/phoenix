@@ -1,13 +1,29 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
-import { RUNLLM_CONFIG, MCP_CONSTANTS } from "./constants.js";
+
+/**
+ * Configuration constants for external service integrations
+ */
+const RUNLLM_CONFIG = {
+  ENDPOINT: "https://mcp.runllm.com/mcp/",
+  ASSISTANT_NAME: "arize-phoenix",
+  HEADERS: {
+    "assistant-name": "arize-phoenix",
+    "Content-Type": "application/json",
+    Accept: "application/json, text/event-stream",
+  },
+} as const;
+
+const MCP_CONSTANTS = {
+  JSONRPC_VERSION: "2.0",
+  METHODS: {
+    TOOLS_LIST: "tools/list",
+    TOOLS_CALL: "tools/call",
+  },
+} as const;
 
 const PHOENIX_SUPPORT_DESCRIPTION = `Get help and support for Arize Phoenix and AI observability questions.
 
-This tool connects to Arize's specialized AI assistant that can answer questions about:
-- Arize Phoenix observability platform
-- LLM monitoring and evaluation
-- AI model performance analysis
 - Tracing and debugging AI applications
 - Phoenix datasets, experiments, and prompt management
 - Best practices for AI observability
@@ -15,11 +31,6 @@ This tool connects to Arize's specialized AI assistant that can answer questions
 Use this tool when you need expert assistance with Arize Phoenix features, troubleshooting,
 or general AI observability guidance.
 
-Example usage:
-  - "How do I set up tracing for my LLM application?"
-  - "What are the best practices for evaluating RAG systems?"
-  - "How do I use Phoenix datasets for prompt engineering?"
-  - "What metrics should I track for my AI model?"
 
 Expected return:
   Expert guidance and information about Arize Phoenix and AI observability practices.`;
@@ -91,7 +102,9 @@ async function runLLMEndpoint(question: string): Promise<string> {
     if (chatContentType?.includes("text/event-stream")) {
       // Handle SSE stream for chat response with timeout
       if (!chatResponse.body) {
-        throw new Error("No response body");
+        throw new Error(
+          "runLLM endpoint returned SSE response without a readable body stream"
+        );
       }
 
       const reader = chatResponse.body.getReader();
@@ -99,9 +112,10 @@ async function runLLMEndpoint(question: string): Promise<string> {
       let accumulatedData = ""; // Accumulate data across chunks
 
       try {
-        // eslint-disable-next-line no-constant-condition
-        while (true) {
-          const { done, value } = await reader.read();
+        let done, value;
+        do {
+          ({ done, value } = await reader.read());
+
           if (done) {
             // Try to parse any remaining accumulated data
             if (accumulatedData.length > 0) {
@@ -126,97 +140,95 @@ async function runLLMEndpoint(question: string): Promise<string> {
                 // Could not parse final accumulated data
               }
             }
+          } else {
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split("\n");
 
-            break;
-          }
+            for (const line of lines) {
+              if (line.startsWith("data:")) {
+                const payload = line.slice(5).trim();
 
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split("\n");
+                // Check for [DONE] marker
+                if (payload === "[DONE]") {
+                  break;
+                }
 
-          for (const line of lines) {
-            if (line.startsWith("data:")) {
-              const payload = line.slice(5).trim();
+                // Accumulate data instead of parsing each chunk individually
+                accumulatedData += payload;
 
-              // Check for [DONE] marker
-              if (payload === "[DONE]") {
-                break;
-              }
+                // Try to parse the accumulated JSON
+                try {
+                  const msg: MCPResponse = JSON.parse(accumulatedData);
+                  if (msg.id === 1 && msg.result) {
+                    const texts: string[] = [];
+                    const content = msg.result.content || [];
 
-              // Accumulate data instead of parsing each chunk individually
-              accumulatedData += payload;
-
-              // Try to parse the accumulated JSON
-              try {
-                const msg: MCPResponse = JSON.parse(accumulatedData);
-                if (msg.id === 1 && msg.result) {
-                  const texts: string[] = [];
-                  const content = msg.result.content || [];
-
-                  for (const item of content) {
-                    if (item.type === "text" && item.text) {
-                      // Parse the JSON response from runLLM
-                      try {
-                        const parsedResponse = JSON.parse(item.text);
-                        if (parsedResponse.response) {
-                          return parsedResponse.response;
+                    for (const item of content) {
+                      if (item.type === "text" && item.text) {
+                        // Parse the JSON response from runLLM
+                        try {
+                          const parsedResponse = JSON.parse(item.text);
+                          if (parsedResponse.response) {
+                            return parsedResponse.response;
+                          }
+                        } catch (e) {
+                          // If not JSON, use raw text
+                          texts.push(item.text);
                         }
-                      } catch (e) {
-                        // If not JSON, use raw text
-                        texts.push(item.text);
                       }
+                    }
+
+                    if (texts.length > 0) {
+                      return texts.join("\n");
                     }
                   }
 
-                  if (texts.length > 0) {
-                    return texts.join("\n");
-                  }
+                  // If we successfully parsed, reset accumulated data for next message
+                  accumulatedData = "";
+                } catch (e) {
+                  // Continue accumulating - JSON is not yet complete
                 }
+              } else if (line.trim() === "") {
+                // Empty line (heartbeat)
+              } else if (accumulatedData.length > 0) {
+                accumulatedData += line;
 
-                // If we successfully parsed, reset accumulated data for next message
-                accumulatedData = "";
-              } catch (e) {
-                // Continue accumulating - JSON is not yet complete
-              }
-            } else if (line.trim() === "") {
-              // Empty line (heartbeat)
-            } else if (accumulatedData.length > 0) {
-              accumulatedData += line;
+                // Try to parse the updated accumulated data
+                try {
+                  const msg: MCPResponse = JSON.parse(accumulatedData);
+                  if (msg.id === 1 && msg.result) {
+                    const texts: string[] = [];
+                    const content = msg.result.content || [];
 
-              // Try to parse the updated accumulated data
-              try {
-                const msg: MCPResponse = JSON.parse(accumulatedData);
-                if (msg.id === 1 && msg.result) {
-                  const texts: string[] = [];
-                  const content = msg.result.content || [];
-
-                  for (const item of content) {
-                    if (item.type === "text" && item.text) {
-                      // Parse the JSON response from runLLM
-                      try {
-                        const parsedResponse = JSON.parse(item.text);
-                        if (parsedResponse.response) {
-                          return parsedResponse.response;
+                    for (const item of content) {
+                      if (item.type === "text" && item.text) {
+                        // Parse the JSON response from runLLM
+                        try {
+                          const parsedResponse = JSON.parse(item.text);
+                          if (parsedResponse.response) {
+                            return parsedResponse.response;
+                          }
+                        } catch (e) {
+                          // If not JSON, use raw text
+                          texts.push(item.text);
                         }
-                      } catch (e) {
-                        // If not JSON, use raw text
-                        texts.push(item.text);
                       }
+                    }
+
+                    if (texts.length > 0) {
+                      return texts.join("\n");
                     }
                   }
 
-                  if (texts.length > 0) {
-                    return texts.join("\n");
-                  }
+                  // If we successfully parsed, reset accumulated data
+                  accumulatedData = "";
+                } catch (e) {
+                  // Continue accumulating - JSON is still not yet complete
                 }
-
-                // If we successfully parsed, reset accumulated data
-                accumulatedData = "";
-              } catch (e) {
-                // Continue accumulating - JSON is still not yet complete
               }
             }
           }
-        }
+        } while (!done);
       } finally {
         // Clean up reader if needed
       }
@@ -256,8 +268,8 @@ async function runLLMEndpoint(question: string): Promise<string> {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     // eslint-disable-next-line no-console
-    console.error("Error testing runLLM endpoint:", errorMessage);
-    return "An unexpected error occurred while testing the chat tool.";
+    console.error("Error calling runLLM endpoint:", errorMessage);
+    return "An unexpected error occurred while processing your request.";
   }
 }
 
