@@ -2,7 +2,6 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
 import { RUNLLM_CONFIG, MCP_CONSTANTS } from "./constants.js";
 
-
 const PHOENIX_SUPPORT_DESCRIPTION = `Get help and support for Arize Phoenix and AI observability questions.
 
 This tool connects to Arize's specialized AI assistant that can answer questions about:
@@ -101,7 +100,7 @@ async function runLLMEndpoint(question: string): Promise<string> {
 
       try {
         // eslint-disable-next-line no-constant-condition
-        while (true) {      
+        while (true) {
           const { done, value } = await reader.read();
           if (done) {
             // Try to parse any remaining accumulated data
@@ -179,45 +178,43 @@ async function runLLMEndpoint(question: string): Promise<string> {
                 // Continue accumulating - JSON is not yet complete
               }
             } else if (line.trim() === "") {
-                                 // Empty line (heartbeat)
-                               }
-                   else if (accumulatedData.length > 0) {
-                                   accumulatedData += line;
+              // Empty line (heartbeat)
+            } else if (accumulatedData.length > 0) {
+              accumulatedData += line;
 
-                                   // Try to parse the updated accumulated data
-                                   try {
-                                     const msg: MCPResponse = JSON.parse(accumulatedData);
-                                     if (msg.id === 1 && msg.result) {
-                                       const texts: string[] = [];
-                                       const content = msg.result.content || [];
+              // Try to parse the updated accumulated data
+              try {
+                const msg: MCPResponse = JSON.parse(accumulatedData);
+                if (msg.id === 1 && msg.result) {
+                  const texts: string[] = [];
+                  const content = msg.result.content || [];
 
-                                       for (const item of content) {
-                                         if (item.type === "text" && item.text) {
-                                           // Parse the JSON response from runLLM
-                                           try {
-                                             const parsedResponse = JSON.parse(item.text);
-                                             if (parsedResponse.response) {
-                                               return parsedResponse.response;
-                                             }
-                                           } catch (e) {
-                                             // If not JSON, use raw text
-                                             texts.push(item.text);
-                                           }
-                                         }
-                                       }
+                  for (const item of content) {
+                    if (item.type === "text" && item.text) {
+                      // Parse the JSON response from runLLM
+                      try {
+                        const parsedResponse = JSON.parse(item.text);
+                        if (parsedResponse.response) {
+                          return parsedResponse.response;
+                        }
+                      } catch (e) {
+                        // If not JSON, use raw text
+                        texts.push(item.text);
+                      }
+                    }
+                  }
 
-                                       if (texts.length > 0) {
-                                         return texts.join("\n");
-                                       }
-                                     }
+                  if (texts.length > 0) {
+                    return texts.join("\n");
+                  }
+                }
 
-                                     // If we successfully parsed, reset accumulated data
-                                     accumulatedData = "";
-                                   } catch (e) {
-                                     // Continue accumulating - JSON is still not yet complete
-                                   }
-                                 }
-
+                // If we successfully parsed, reset accumulated data
+                accumulatedData = "";
+              } catch (e) {
+                // Continue accumulating - JSON is still not yet complete
+              }
+            }
           }
         }
       } finally {
@@ -258,6 +255,7 @@ async function runLLMEndpoint(question: string): Promise<string> {
     return "No response received from chat tool";
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
+    // eslint-disable-next-line no-console
     console.error("Error testing runLLM endpoint:", errorMessage);
     return "An unexpected error occurred while testing the chat tool.";
   }
