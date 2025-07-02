@@ -362,7 +362,7 @@ class Datasets:
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.DatasetVersion]:
         """
-        } dataset versions as a list of dictionaries.
+        Get dataset versions as a list of dictionaries.
 
         Args:
             dataset: A dataset identifier - can be a dataset ID string, name string,
