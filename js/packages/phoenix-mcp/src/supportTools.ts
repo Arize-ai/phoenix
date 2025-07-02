@@ -269,7 +269,7 @@ export const initializeSupportTools = ({ server }: { server: McpServer }) => {
       question: z
         .string()
         .describe(
-          "Your question about Arize Phoenix, AI observability, or related topics"
+          "Your question about Arize Phoenix, OpenInference, or related topics"
         ),
     },
     async ({ question }) => {
