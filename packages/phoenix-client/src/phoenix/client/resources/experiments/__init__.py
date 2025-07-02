@@ -52,7 +52,7 @@ def _try_import_opentelemetry() -> Optional[dict[str, Any]]:
         )
         from opentelemetry.context import Context
         from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-        from opentelemetry.sdk.resources import Resource  # type: ignore[attr-defined]
+        from opentelemetry.sdk.resources import Resource  # type: ignore[attr-defined, unused-ignore]
         from opentelemetry.sdk.trace.export import SimpleSpanProcessor
         from opentelemetry.trace import Status, StatusCode
 
