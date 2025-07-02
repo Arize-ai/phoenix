@@ -6,7 +6,7 @@ permissions:
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "0 13 * * 1"
 
 jobs:
   sync-model-pricing:
