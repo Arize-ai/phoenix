@@ -53,8 +53,7 @@ class GeminiModel(BaseModel):
             per second for making LLM calls. This limit adjusts dynamically based on rate
             limit errors. Defaults to 5.
         timeout (int, optional): The timeout for completion requests in seconds. Defaults to 120.
-        labels (Optional[Dict[str, str]], optional): Key-value pairs for labeling all requests
-            from this model instance for tracking and billing purposes. Defaults to None.
+        **kwargs: Additional keyword arguments passed to the Vertex GenerativeModel constructor.
 
     Example:
         .. code-block:: python
@@ -83,7 +82,7 @@ class GeminiModel(BaseModel):
     stop_sequences: List[str] = field(default_factory=list)
     initial_rate_limit: int = 5
     timeout: int = 120
-    labels: Optional[Dict[str, str]] = None
+    model_kwargs: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self._init_client()
@@ -106,7 +105,7 @@ class GeminiModel(BaseModel):
             self._vertexai = vertexai
             self._vertex = vertex
             self._gcp_exceptions = exceptions
-            self._model = self._vertex.GenerativeModel(self.model, labels=self.labels)
+            self._model = self._vertex.GenerativeModel(self.model, **self.model_kwargs)
         except ImportError:
             self._raise_import_error(
                 package_name="vertexai",
