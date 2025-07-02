@@ -149,9 +149,8 @@ Label the parameter extraction as `"incorrect"` if **any** of the following are 
 ************
 [Question]: {question}
 ************
-[Tool Called]: {tool_call}
+[Tool Called With Parameters]: {tool_call}
 ************
-[Parameters]: {parameters}
 [END DATA]
 
 [Tool Definitions]: {tool_definitions}
@@ -190,9 +189,8 @@ Label the parameter extraction as `"incorrect"` if **any** of the following are 
 ************
 [Question]: {question}
 ************
-[Tool Called]: {tool_call}
+[Tool Called With Parameters]: {tool_call}
 ************
-[Parameters]: {parameters}
 [END DATA]
 
 [Tool Definitions]: {tool_definitions}
