@@ -259,7 +259,8 @@ async function runLLMEndpoint(question: string): Promise<string> {
     return "No response received from chat tool";
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    return `Error testing runLLM endpoint: ${errorMessage}`;
+    console.error("Error testing runLLM endpoint:", errorMessage);
+    return "An unexpected error occurred while testing the chat tool.";
   }
 }
 
