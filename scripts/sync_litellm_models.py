@@ -179,7 +179,7 @@ def update_manifest(
         else:
             new_model = ModelConfig(
                 name=model_name,
-                name_pattern=f"^{model_name}$",  # seed an initial name pattern
+                name_pattern=f"^{re.escape(model_name)}$",  # seed an initial name pattern
                 token_prices=token_prices,
             )
             manifest.models.append(new_model)
