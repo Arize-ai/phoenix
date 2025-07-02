@@ -116,6 +116,104 @@ LABEL: "factual" or "hallucinated"
 
 EXPLANATION:"""
 
+TOOL_PARAMETER_EXTRACTION_PROMPT_RAILS_MAP = OrderedDict({True: "correct", False: "incorrect"})
+TOOL_PARAMETER_EXTRACTION_PROMPT_BASE_TEMPLATE = """
+You are an evaluation assistant assessing whether the parameters provided in a tool call correctly
+match the user's question. Your task is to decide if the parameters selected are correct and 
+sufficient to answer the question, using only the list of available tools and their parameter
+definitions provided below. You are not responsible for checking if the correct tool was selected
+— assume the tool is correct. You are evaluating **only** whether the parameters are accurate and
+justified based on the content of the question.
+
+Think like a grading rubric. Be strict. If the parameters are not clearly correct based on the
+question alone, label them "incorrect". Do not make assumptions or infer values that are not
+explicitly stated or directly supported by the question. Only use the information provided.
+
+Your response must be a **single word**: either `"correct"` or `"incorrect"`. 
+Do not include any explanation, punctuation, or other characters. The output will be parsed
+programmatically.
+
+---
+Label the parameter extraction as `"correct"` if **all** of the following are true:
+- All required parameters are present and correctly filled based on the question
+- The parameter values are explicitly justified by the question
+- No extra, irrelevant, or hallucinated parameters are included
+
+Label the parameter extraction as `"incorrect"` if **any** of the following are true:
+- Any required parameter is missing, malformed, or incorrectly populated
+- Any parameter value is inferred or not clearly supported by the question
+- Any extra or irrelevant parameter is included
+---
+
+[BEGIN DATA]
+************
+[Question]: {question}
+************
+[Tool Called]: {tool_call}
+************
+[Parameters]: {parameters}
+[END DATA]
+
+[Tool Definitions]: {tool_definitions}
+
+"""
+
+TOOL_PARAMETER_EXTRACTION_PROMPT_TEMPLATE_WITH_EXPLANATION = """
+You are an evaluation assistant assessing whether the parameters provided in a tool call correctly
+match the user's question. Your task is to decide if the parameters selected are correct and 
+sufficient to answer the question, using only the list of available tools and their parameter
+definitions provided below. You are not responsible for checking if the correct tool was selected
+— assume the tool is correct. You are evaluating **only** whether the parameters are accurate and
+justified based on the content of the question.
+
+Think like a grading rubric. Be strict. If the parameters are not clearly correct based on the
+question alone, label them "incorrect". Do not make assumptions or infer values that are not
+explicitly stated or directly supported by the question. Only use the information provided.
+
+Your response must be a **single word**: either `"correct"` or `"incorrect"`. 
+Do not include any explanation, punctuation, or other characters. The output will be parsed
+programmatically.
+
+---
+Label the parameter extraction as `"correct"` if **all** of the following are true:
+- All required parameters are present and correctly filled based on the question
+- The parameter values are explicitly justified by the question
+- No extra, irrelevant, or hallucinated parameters are included
+
+Label the parameter extraction as `"incorrect"` if **any** of the following are true:
+- Any required parameter is missing, malformed, or incorrectly populated
+- Any parameter value is inferred or not clearly supported by the question
+- Any extra or irrelevant parameter is included
+---
+
+[BEGIN DATA]
+************
+[Question]: {question}
+************
+[Tool Called]: {tool_call}
+************
+[Parameters]: {parameters}
+[END DATA]
+
+[Tool Definitions]: {tool_definitions}
+
+Please read the question, tool call, and parameters carefully, then write out in a step by 
+step manner an EXPLANATION to show how to determine if the parameter extraction is "correct"
+or "incorrect". Avoid simply stating the correct answer at the outset. Your response LABEL 
+must be a single word, either "correct" or "incorrect", and should not contain any text
+or characters aside from that word.
+
+Example response:
+************
+EXPLANATION: An explanation of your reasoning for why the parameter extraction is "correct" or "incorrect"
+LABEL: "correct" or "incorrect"
+************
+
+EXPLANATION:
+
+"""
+
+
 TOOL_SELECTION_PROMPT_RAILS_MAP = OrderedDict({True: "correct", False: "incorrect"})
 TOOL_SELECTION_PROMPT_BASE_TEMPLATE = """
 You are an evaluation assistant assessing whether a tool call correctly matches a user's question. 
@@ -188,7 +286,10 @@ Label the tool call as `"incorrect"` if **any** of the following are true:
 
 [Tool Definitions]: {tool_definitions}
 
-Please read the question and tool call carefully, then write out in a step by step manner an EXPLANATION to show how to determine if the tool selection is "correct" or "incorrect". Avoid simply stating the correct answer at the outset. Your response LABEL must be a single word, either "correct" or "incorrect", and should not contain any text or characters aside from that word.
+Please read the question and tool call carefully, then write out in a step by step manner an
+EXPLANATION to show how to determine if the tool selection is "correct" or "incorrect". 
+Avoid simply stating the correct answer at the outset. Your response LABEL must be a single word,
+either "correct" or "incorrect", and should not contain any text or characters aside from that word.
 
 Example response:
 ************
@@ -957,83 +1058,11 @@ TOOL_SELECTION_PROMPT_TEMPLATE = ClassificationTemplate(
     explanation_template=TOOL_SELECTION_PROMPT_TEMPLATE_WITH_EXPLANATION,
     scores=[1, 0],
 )
-
-TOOL_PARAMETER_EXTRACTION_PROMPT_RAILS_MAP = OrderedDict({True: "correct", False: "incorrect"})
-
-TOOL_PARAMETER_EXTRACTION_PROMPT_BASE_TEMPLATE = """
-You are an evaluation assistant assessing whether the parameters provided to a tool call correctly match the user's question.
-Your task is to decide if the parameters selected are the best fit to answer the question, using only the list of available tools and their parameter definitions provided below.
-You are not responsible for checking if the correct tool was selected—assume the tool is correct. You are evaluating **only** whether the parameters are correct and sufficient based on the question.
-Be strict. If the parameters are not clearly correct based on the question alone, label it "incorrect". Do not make assumptions or infer information that is not explicitly stated in the question. Only use the information provided.
-
-Your response must be a **single word**: either `"correct"` or `"incorrect"`. Do not include any explanation, punctuation, or other characters. The output will be parsed programmatically.
-
----
-
-Label the parameter extraction as `"correct"` if **all** of the following are true:
-- All required parameters are present and correctly filled out based on the question
-- No extra or irrelevant parameters are included
-- The parameter values are justified by the question content
-
-Label the parameter extraction as `"incorrect"` if **any** of the following are true:
-- Any required parameter is missing or incorrectly filled
-- Any parameter value is not justified by the question
-- Extra or irrelevant parameters are included
-
----
-
-[BEGIN DATA]
-************
-[Question]: {question}
-************
-[Tool Called]: {tool_call}
-************
-[Parameters]: {parameters}
-[END DATA]
-
-[Tool Definitions]: {tool_definitions}
 """
+Prompt template designed to evaluate agent tool selection and
+intended to be used with `llm_classify()` and `run_evaluations()`.
 
-TOOL_PARAMETER_EXTRACTION_PROMPT_TEMPLATE_WITH_EXPLANATION = """
-You are an evaluation assistant assessing whether the parameters provided to a tool call correctly match the user's question.
-Your task is to decide if the parameters selected are the best fit to answer the question, using only the list of available tools and their parameter definitions provided below.
-You are not responsible for checking if the correct tool was selected—assume the tool is correct. You are evaluating **only** whether the parameters are correct and sufficient based on the question.
-Be strict. If the parameters are not clearly correct based on the question alone, label it "incorrect". Do not make assumptions or infer information that is not explicitly stated in the question. Only use the information provided.
-
----
-
-Label the parameter extraction as `"correct"` if **all** of the following are true:
-- All required parameters are present and correctly filled out based on the question
-- No extra or irrelevant parameters are included
-- The parameter values are justified by the question content
-
-Label the parameter extraction as `"incorrect"` if **any** of the following are true:
-- Any required parameter is missing or incorrectly filled
-- Any parameter value is not justified by the question
-- Extra or irrelevant parameters are included
-
----
-
-[BEGIN DATA]
-************
-[Question]: {question}
-************
-[Tool Called]: {tool_call}
-************
-[Parameters]: {parameters}
-[END DATA]
-
-[Tool Definitions]: {tool_definitions}
-
-Please read the question, tool call, and parameters carefully, then write out in a step by step manner an EXPLANATION to show how to determine if the parameter extraction is "correct" or "incorrect". Avoid simply stating the correct answer at the outset. Your response LABEL must be a single word, either "correct" or "incorrect", and should not contain any text or characters aside from that word.
-
-Example response:
-************
-EXPLANATION: An explanation of your reasoning for why the parameter extraction is "correct" or "incorrect"
-LABEL: "correct" or "incorrect"
-************
-
-EXPLANATION:
+The template helps assess how effectively agents select tools to call.
 """
 
 TOOL_PARAMETER_EXTRACTION_PROMPT_TEMPLATE = ClassificationTemplate(
@@ -1042,6 +1071,12 @@ TOOL_PARAMETER_EXTRACTION_PROMPT_TEMPLATE = ClassificationTemplate(
     explanation_template=TOOL_PARAMETER_EXTRACTION_PROMPT_TEMPLATE_WITH_EXPLANATION,
     scores=[1, 0],
 )
+"""
+Prompt template designed to evaluate agent tool parameter extraction and
+intended to be used with `llm_classify()` and `run_evaluations()`.
+
+The template helps assess how effectively agents extract parameters from a tool call.
+"""
 
 class EvalCriteria(Enum):
     RELEVANCE = RAG_RELEVANCY_PROMPT_TEMPLATE
