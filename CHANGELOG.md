@@ -1,5 +1,18 @@
 # Changelog
 
+## [11.2.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.2.1...arize-phoenix-v11.2.2) (2025-07-02)
+
+
+### Bug Fixes
+
+* **cost:** remove extra join in query for span cost summary ([#8373](https://github.com/Arize-ai/phoenix/issues/8373)) ([51cc6db](https://github.com/Arize-ai/phoenix/commit/51cc6dbf0573c760d8f72c7416878382bfccee7e))
+* **experiments:** Clear the selectedSpanNodeId when closing trace view ([#8376](https://github.com/Arize-ai/phoenix/issues/8376)) ([a822444](https://github.com/Arize-ai/phoenix/commit/a82244461f4675ead44c23ee0d2ca0f781969530))
+
+
+### Documentation
+
+* add local auth instructions ([#8367](https://github.com/Arize-ai/phoenix/issues/8367)) ([8889337](https://github.com/Arize-ai/phoenix/commit/888933777d9952d886c0ecb15d28e7333c083039))
+
 ## [11.2.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.2.0...arize-phoenix-v11.2.1) (2025-07-01)
 
 
