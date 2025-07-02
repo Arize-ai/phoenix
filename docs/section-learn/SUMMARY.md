@@ -16,6 +16,10 @@
   * [LangGraph](agents/agent-workflow-patterns/langgraph.md)
   * [Smolagents](agents/agent-workflow-patterns/smolagents.md)
 
+***
+
+* [Evaluating Multi-Agent Systems](evaluating-multi-agent-systems.md)
+
 ## 🔭 Tracing
 
 * [What are Traces](tracing/what-are-traces.md)
@@ -42,7 +46,6 @@
 * [Evals With Explanations](evaluation/evals-with-explanations.md)
 * [LLM as a Judge](evaluation/llm-as-a-judge.md)
 * [Custom Task Evaluation](evaluation/custom-task-evaluation.md)
-* [Evaluating Multi-Agent Systems](evaluation/evaluating-multi-agent-systems.md)
 
 ## 🔍 Retrieval & Inferences
 
