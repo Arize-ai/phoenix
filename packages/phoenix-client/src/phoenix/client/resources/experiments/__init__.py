@@ -52,7 +52,9 @@ def _try_import_opentelemetry() -> Optional[dict[str, Any]]:
         )
         from opentelemetry.context import Context
         from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-        from opentelemetry.sdk.resources import Resource  # type: ignore[attr-defined, unused-ignore]
+        from opentelemetry.sdk.resources import (
+            Resource,  # type: ignore[attr-defined, unused-ignore]
+        )
         from opentelemetry.sdk.trace.export import SimpleSpanProcessor
         from opentelemetry.trace import Status, StatusCode
 
@@ -99,9 +101,7 @@ def _get_tracer(
         resource = otel["Resource"]({otel["ResourceAttributes"].PROJECT_NAME: project_name})
         tracer_provider = otel["trace_sdk"].TracerProvider(resource=resource)
         span_processor = otel["SimpleSpanProcessor"](
-            otel["OTLPSpanExporter"](
-                endpoint=urljoin(str(client.base_url), "v1/traces")
-            )
+            otel["OTLPSpanExporter"](endpoint=urljoin(str(client.base_url), "v1/traces"))
         )
         tracer_provider.add_span_processor(span_processor)
         return tracer_provider.get_tracer(__name__), otel
