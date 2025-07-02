@@ -7,6 +7,7 @@ from typing import Any, Dict, List
 import pytest
 
 from .._helpers import _ADMIN, _MEMBER, _await_or_return, _GetUser, _RoleOrUser
+from phoenix.client.resources.datasets import Dataset
 
 
 class TestExperimentsIntegration:
@@ -377,7 +378,7 @@ class TestExperimentsIntegration:
 
         unique_name = f"test_async_task_{uuid.uuid4().hex[:8]}"
 
-        dataset = await _await_or_return(
+        dataset: Dataset = await _await_or_return(
             AsyncClient().datasets.create_dataset(
                 name=unique_name,
                 inputs=[{"text": "Async test"}],
