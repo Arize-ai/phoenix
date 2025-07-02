@@ -179,46 +179,45 @@ async function runLLMEndpoint(question: string): Promise<string> {
                 // Continue accumulating - JSON is not yet complete
               }
             } else if (line.trim() === "") {
-              // Empty line (heartbeat)
-            } else {
-              // If we have incomplete JSON, this might be a continuation
-              if (accumulatedData.length > 0) {
-                accumulatedData += line;
+                                 // Empty line (heartbeat)
+                               }
+                   else if (accumulatedData.length > 0) {
+                                   accumulatedData += line;
 
-                // Try to parse the updated accumulated data
-                try {
-                  const msg: MCPResponse = JSON.parse(accumulatedData);
-                  if (msg.id === 1 && msg.result) {
-                    const texts: string[] = [];
-                    const content = msg.result.content || [];
+                                   // Try to parse the updated accumulated data
+                                   try {
+                                     const msg: MCPResponse = JSON.parse(accumulatedData);
+                                     if (msg.id === 1 && msg.result) {
+                                       const texts: string[] = [];
+                                       const content = msg.result.content || [];
 
-                    for (const item of content) {
-                      if (item.type === "text" && item.text) {
-                        // Parse the JSON response from runLLM
-                        try {
-                          const parsedResponse = JSON.parse(item.text);
-                          if (parsedResponse.response) {
-                            return parsedResponse.response;
-                          }
-                        } catch (e) {
-                          // If not JSON, use raw text
-                          texts.push(item.text);
-                        }
-                      }
-                    }
+                                       for (const item of content) {
+                                         if (item.type === "text" && item.text) {
+                                           // Parse the JSON response from runLLM
+                                           try {
+                                             const parsedResponse = JSON.parse(item.text);
+                                             if (parsedResponse.response) {
+                                               return parsedResponse.response;
+                                             }
+                                           } catch (e) {
+                                             // If not JSON, use raw text
+                                             texts.push(item.text);
+                                           }
+                                         }
+                                       }
 
-                    if (texts.length > 0) {
-                      return texts.join("\n");
-                    }
-                  }
+                                       if (texts.length > 0) {
+                                         return texts.join("\n");
+                                       }
+                                     }
 
-                  // If we successfully parsed, reset accumulated data
-                  accumulatedData = "";
-                } catch (e) {
-                  // Continue accumulating - JSON is still not yet complete
-                }
-              }
-            }
+                                     // If we successfully parsed, reset accumulated data
+                                     accumulatedData = "";
+                                   } catch (e) {
+                                     // Continue accumulating - JSON is still not yet complete
+                                   }
+                                 }
+
           }
         }
       } finally {
