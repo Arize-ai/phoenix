@@ -232,6 +232,8 @@ class AppConfig(NamedTuple):
     auto_login_idp_name: Optional[str] = None
     fullstory_org: Optional[str] = None
     """ FullStory organization ID for web analytics tracking """
+    management_url: Optional[str] = None
+    """ URL for a phoenix management interface, only visible to management users """
 
 
 class Static(StaticFiles):
@@ -298,6 +300,7 @@ class Static(StaticFiles):
                     "basic_auth_disabled": self._app_config.basic_auth_disabled,
                     "auto_login_idp_name": self._app_config.auto_login_idp_name,
                     "fullstory_org": self._app_config.fullstory_org,
+                    "management_url": self._app_config.management_url,
                 },
             )
         except Exception as e:
@@ -849,6 +852,7 @@ def create_app(
     basic_auth_disabled: bool = False,
     bulk_inserter_factory: Optional[Callable[..., BulkInserter]] = None,
     allowed_origins: Optional[list[str]] = None,
+    management_url: Optional[str] = None,
 ) -> FastAPI:
     verify_server_environment_variables()
     if model.embedding_dimensions:
@@ -1028,6 +1032,7 @@ def create_app(
                     basic_auth_disabled=basic_auth_disabled,
                     auto_login_idp_name=auto_login_idp_name,
                     fullstory_org=Settings.fullstory_org,
+                    management_url=management_url,
                 ),
             ),
             name="static",

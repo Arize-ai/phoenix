@@ -223,6 +223,12 @@ Examples:
     - With a sub-path: "https://example.com/phoenix"
     - Without a sub-path: "https://phoenix.example.com"
 """
+ENV_PHOENIX_MANAGEMENT_URL = "PHOENIX_MANAGEMENT_URL"
+"""
+The URL to use for redirecting to a management interface that may be hosting Phoenix. If set, and
+the current user is within PHOENIX_ADMINS, a link will be added to the navigation menu to return to
+this URL.
+"""
 
 
 # SMTP settings
@@ -818,7 +824,7 @@ def get_env_csrf_trusted_origins() -> list[str]:
 
 def get_env_admins() -> dict[str, str]:
     """
-    Parse the PHOENIX_ADMINS environment variable to extract the comma separated pairs of
+    Parse the PHOENIX_ADMINS environment variable to extract the semicolon separated pairs of
     username and email. The last equal sign (=) in each pair is used to separate the username from
     the email.
 
@@ -1538,6 +1544,13 @@ def get_env_fullstory_org() -> Optional[str]:
         Optional[str]: The FullStory organization ID if set, None otherwise.
     """
     return getenv(ENV_PHOENIX_FULLSTORY_ORG)
+
+
+def get_env_management_url() -> Optional[str]:
+    """
+    Gets the value of the PHOENIX_MANAGEMENT_URL environment variable.
+    """
+    return getenv(ENV_PHOENIX_MANAGEMENT_URL)
 
 
 def verify_server_environment_variables() -> None:
