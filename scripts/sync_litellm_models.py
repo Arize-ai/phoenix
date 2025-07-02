@@ -154,33 +154,31 @@ def transform_remote_data(data: dict[str, Any]) -> dict[str, list[TokenPrice]]:
     return transformed
 
 
-def merge_manifests(
-    local_manifest: ModelCostManifest, remote_data: dict[str, list[TokenPrice]]
+def update_manifest(
+    manifest: ModelCostManifest,
+    update_token_prices: dict[str, list[TokenPrice]],
 ) -> ModelCostManifest:
-    models: list[ModelConfig] = local_manifest.models
+    model_name_to_index: dict[str, int] = {}
+    for index, model in enumerate(manifest.models):
+        model_name_to_index[model.name] = index
 
-    model_index_map: dict[str, int] = {}
-    for idx, model in enumerate(models):
-        model_index_map[model.name] = idx
-
-    updated_models = set()
-    for model_id, token_prices in remote_data.items():
-        if model_id in model_index_map:
-            idx = model_index_map[model_id]
-            models[idx].token_prices = token_prices
-            updated_models.add(model_id)
+    num_updated_models = 0
+    for model_name, token_prices in update_token_prices.items():
+        if model_name in model_name_to_index:
+            index = model_name_to_index[model_name]
+            manifest.models[index].token_prices = token_prices
+            num_updated_models += 1
         else:
             new_model = ModelConfig(
-                name=model_id,
-                name_pattern=f"^{model_id}$",  # seed an initial name pattern
+                name=model_name,
+                name_pattern=f"^{model_name}$",  # seed an initial name pattern
                 token_prices=token_prices,
             )
-            models.append(new_model)
+            manifest.models.append(new_model)
 
-    models.sort(key=lambda model: model.name)
-    local_manifest.models = models
-    print(f"Updated {len(updated_models)} models from LiteLLM")
-    return local_manifest
+    manifest.models.sort(key=lambda model: model.name)
+    print(f"Updated {num_updated_models} models from LiteLLM")
+    return manifest
 
 
 def main() -> int:
@@ -197,21 +195,21 @@ def main() -> int:
 
     with open(local_file_path, "r") as file:
         data = json.load(file)
-    local_model_cost_manifest = ModelCostManifest.model_validate(data)
+    manifest = ModelCostManifest.model_validate(data)
 
     transformed_data = transform_remote_data(litellm_models)
     print(f"Found {len(transformed_data)} models with pricing from LiteLLM")
 
-    merged_model_cost_manifest = merge_manifests(local_model_cost_manifest, transformed_data)
+    updated_manifest = update_manifest(manifest, transformed_data)
 
-    if data != merged_model_cost_manifest:
+    if data != updated_manifest:
         with open(local_file_path, "w") as file:
-            file.write(merged_model_cost_manifest.model_dump_json(indent=2))
+            file.write(updated_manifest.model_dump_json(indent=2))
         print("Model data updated successfully")
     else:
         print("No changes detected")
 
-    print(f"Total models in file: {len(merged_model_cost_manifest.models)}")
+    print(f"Total models in file: {len(updated_manifest.models)}")
     print(f"Models from this sync: {len(transformed_data)}")
 
     return 0
