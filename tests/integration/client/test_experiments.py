@@ -5,9 +5,9 @@ import uuid
 from typing import Any, Dict, List
 
 import pytest
+from phoenix.client.resources.datasets import Dataset
 
 from .._helpers import _ADMIN, _MEMBER, _await_or_return, _GetUser, _RoleOrUser
-from phoenix.client.resources.datasets import Dataset
 
 
 class TestExperimentsIntegration:
