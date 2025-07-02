@@ -53,7 +53,7 @@ class GeminiModel(BaseModel):
             per second for making LLM calls. This limit adjusts dynamically based on rate
             limit errors. Defaults to 5.
         timeout (int, optional): The timeout for completion requests in seconds. Defaults to 120.
-        **kwargs: Additional keyword arguments passed to the Vertex GenerativeModel constructor.
+        model_kwargs (Dict[str, Any], optional): Additional keyword arguments passed to the Vertex GenerativeModel constructor.
 
     Example:
         .. code-block:: python
