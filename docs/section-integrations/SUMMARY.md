@@ -83,17 +83,17 @@
 * [Vercel](vercel/README.md)
   * [Vercel AI SDK Tracing (JS)](vercel/vercel-ai-sdk-tracing-js.md)
 
-## Evaluation Libraries
+## Evaluation Integrations
 
 * [Amazon Bedrock](https://arize.com/docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-evals)
 * [Anthropic](https://arize.com/docs/phoenix/integrations/llm-providers/anthropic/anthropic-evals)
-* [Cleanlab](evaluation-libraries/cleanlab.md)
+* [Cleanlab](evaluation-integrations/cleanlab.md)
 * [Gemini Evals](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/gemini-evals)
 * [Google Gen AI](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-gen-ai-evals)
 * [LiteLLM](https://arize.com/docs/phoenix/integrations/llm-providers/litellm/litellm-evals)
 * [MistralAI](https://arize.com/docs/phoenix/integrations/llm-providers/mistralai/mistralai-evals)
 * [OpenAI](https://arize.com/docs/phoenix/integrations/llm-providers/openai/openai-evals)
-* [Ragas](evaluation-libraries/ragas.md)
+* [Ragas](evaluation-integrations/ragas.md)
 
 ***
 

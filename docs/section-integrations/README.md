@@ -17,6 +17,6 @@ Phoenix has a wide range of integrations. Generally these fall into a few catego
 2. **Eval Model integrations** - where Phoenix's eval python package will make calls to a specific model.
    1. _E.g._ [_OpenAI_](llm-providers/openai/)_,_ [_Anthropic_](llm-providers/anthropic/)_,_ [_Google VertexAI_](llm-providers/vertexai/)_,_ [_Mistral_](llm-providers/mistralai/)
 3. **Eval Library integrations** - where Phoenix traces can be evaluated using an outside eval library, instead of Phoenix's eval library, and visualized in Phoenix.
-   1. _E.g._ [_Ragas_](evaluation-libraries/ragas.md)_,_ [_Cleanlab_](evaluation-libraries/cleanlab.md)
+   1. _E.g._ [_Ragas_](evaluation-integrations/ragas.md)_,_ [_Cleanlab_](evaluation-integrations/cleanlab.md)
 
 Each partner listing in this section contains **integration docs** and **relevant tutorials.**&#x20;

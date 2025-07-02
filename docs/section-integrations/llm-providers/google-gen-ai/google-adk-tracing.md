@@ -4,7 +4,7 @@ description: Instrument LLM calls made using the Google ADK Python SDK
 
 # Google ADK Tracing
 
-[https://google.github.io/adk-docs/observability/phoenix/](https://google.github.io/adk-docs/observability/phoenix/)
+{% embed url="https://google.github.io/adk-docs/observability/phoenix" %}
 
 Launch Phoenix
 
