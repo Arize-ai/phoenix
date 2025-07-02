@@ -1,10 +1,10 @@
 import json
 import re
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 from urllib.request import urlopen
 
-from pydantic import BaseModel
+from pydantic import AfterValidator, BaseModel
 
 
 class TokenPrice(BaseModel):
@@ -13,9 +13,17 @@ class TokenPrice(BaseModel):
     token_type: str
 
 
+def validate_regular_expression(value: str) -> str:
+    try:
+        re.compile(value)
+        return value
+    except re.error as error:
+        raise ValueError(f"Invalid regular expression '{value}': {error}")
+
+
 class ModelConfig(BaseModel):
     name: str
-    name_pattern: str
+    name_pattern: Annotated[str, AfterValidator(validate_regular_expression)]
     token_prices: list[TokenPrice]
 
 
