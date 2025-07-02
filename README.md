@@ -34,7 +34,7 @@
     <a target="_blank" href="https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp">
         <img src="https://badge.mcpx.dev?status=on" title="MCP Enabled"/>
     </a>
-    <a href="https://cursor.com/install-mcp?name=phoenix&config=JTdCJTIyY29tbWFuZCUyMiUzQSUyMm5weCUyMC15JTIwJTQwYXJpemVhaSUyRnBob2VuaXgtbWNwJTQwbGF0ZXN0JTIwLS1iYXNlVXJsJTIwaHR0cCUzQSUyRiUyRmxvY2FsaG9zdCUzQTYwMDYlMjIlN0Q%3D"><img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Add phoenix MCP server to Cursor" height="32" /></a>
+    <a href="https://cursor.com/install-mcp?name=phoenix&config=JTdCJTIyY29tbWFuZCUyMiUzQSUyMm5weCUyMC15JTIwJTQwYXJpemVhaSUyRnBob2VuaXgtbWNwJTQwbGF0ZXN0JTIwLS1iYXNlVXJsJTIwaHR0cCUzQSUyRiUyRmxvY2FsaG9zdCUzQTYwMDYlMjIlN0Q%3D"><img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Add phoenix MCP server to Cursor" /></a>
 </p>
 
 Phoenix is an open-source AI observability platform designed for experimentation, evaluation, and troubleshooting. It provides:
