@@ -2717,7 +2717,7 @@ type User implements Node {
   authMethod: AuthMethod!
   role: UserRole!
   apiKeys: [UserApiKey!]!
-  managementUrl: String
+  isManagementUser: Boolean!
 }
 
 type UserApiKey implements ApiKey & Node {

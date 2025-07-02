@@ -88,9 +88,15 @@ function ExternalLink(props: {
   leadingVisual: ReactNode;
   trailingVisual?: ReactNode;
   text: string;
+  replaceTab?: boolean;
 }) {
   return (
-    <a href={props.href} target="_blank" css={navLinkCSS} rel="noreferrer">
+    <a
+      href={props.href}
+      target={props.replaceTab ? undefined : "_blank"}
+      css={navLinkCSS}
+      rel="noreferrer"
+    >
       {props.leadingVisual}
       <Text>{props.text}</Text>
       {props.trailingVisual}
@@ -197,13 +203,14 @@ export function NavButton(props: {
 export const ManagementLink = () => {
   const { viewer } = useViewer();
 
-  if (viewer?.managementUrl) {
+  if (viewer?.isManagementUser && window.Config.managementUrl) {
     return (
       <li key="management">
         <ExternalLink
-          href={viewer.managementUrl}
+          href={window.Config.managementUrl}
           leadingVisual={<Icon svg={<Icons.Server />} />}
-          text="Management console"
+          text="Management Console"
+          replaceTab
         />
       </li>
     );

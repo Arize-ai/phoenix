@@ -32,6 +32,7 @@ from phoenix.config import (
     get_env_log_migrations,
     get_env_logging_level,
     get_env_logging_mode,
+    get_env_management_url,
     get_env_oauth2_settings,
     get_env_password_reset_token_expiry,
     get_env_port,
@@ -377,6 +378,7 @@ def main() -> None:
     )
 
     allowed_origins = get_env_allowed_origins()
+    management_url = get_env_management_url()
 
     # Get TLS configuration
     tls_enabled_for_http = get_env_tls_enabled_for_http()
@@ -455,6 +457,7 @@ def main() -> None:
         email_sender=email_sender,
         oauth2_client_configs=get_env_oauth2_settings(),
         allowed_origins=allowed_origins,
+        management_url=management_url,
     )
 
     # Configure server with TLS if enabled

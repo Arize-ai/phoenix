@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9280ee4229ca6447e7c366bb655446e5>>
+ * @generated SignedSource<<7682165efeee36179feb871060b9b84f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -90,7 +90,7 @@ return {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
-            "name": "managementUrl",
+            "name": "isManagementUser",
             "storageKey": null
           },
           {
@@ -153,16 +153,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ef3cf4ba9ff51c25d101a025673f20a0",
+    "cacheID": "79221da09cbb1334cb0c446af434f607",
     "id": null,
     "metadata": {},
     "name": "ViewerContextRefetchQuery",
     "operationKind": "query",
-    "text": "query ViewerContextRefetchQuery {\n  ...ViewerContext_viewer\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n\nfragment ViewerContext_viewer on Query {\n  viewer {\n    id\n    username\n    email\n    profilePictureUrl\n    managementUrl\n    role {\n      name\n      id\n    }\n    authMethod\n    ...APIKeysTableFragment\n  }\n}\n"
+    "text": "query ViewerContextRefetchQuery {\n  ...ViewerContext_viewer\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n\nfragment ViewerContext_viewer on Query {\n  viewer {\n    id\n    username\n    email\n    profilePictureUrl\n    isManagementUser\n    role {\n      name\n      id\n    }\n    authMethod\n    ...APIKeysTableFragment\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c342cd404dcae6cd4462617b20e66e18";
+(node as any).hash = "d85505e5f9dffd2a1c791f8e0007ab61";
 
 export default node;

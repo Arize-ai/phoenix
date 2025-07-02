@@ -7,7 +7,7 @@ from strawberry import Private
 from strawberry.relay import Node, NodeID
 from strawberry.types import Info
 
-from phoenix.config import get_env_admins, get_env_management_url
+from phoenix.config import get_env_admins
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
@@ -44,13 +44,13 @@ class User(Node):
         return [to_gql_api_key(api_key) for api_key in api_keys]
 
     @strawberry.field
-    async def management_url(self) -> Optional[str]:
+    async def is_management_user(self) -> bool:
         initial_admins = get_env_admins()
         # this field is only visible to initial admins as they are the ones likely to have access to
         # a management interface / the phoenix environment.
         if self.email in initial_admins or self.email == "admin@localhost":
-            return get_env_management_url()
-        return None
+            return True
+        return False
 
 
 def to_gql_user(user: models.User, api_keys: Optional[list[models.ApiKey]] = None) -> User:
