@@ -6,7 +6,7 @@ permissions:
 
 on:
   schedule:
-    - cron: "0 13 * * 1"
+    - cron: "0 13 * * 1"  # once a week monday mornings
 
 jobs:
   sync-model-pricing:
