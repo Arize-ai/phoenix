@@ -103,6 +103,7 @@ dev = [
   "uvloop; platform_system != 'Windows'",
   "grpc-interceptor[testing]",
   "types-jsonschema",
+  "types-python-dateutil",
 ]
 embeddings = [
   "fast-hdbscan>=0.2.0",
