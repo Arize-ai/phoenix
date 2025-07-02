@@ -181,9 +181,9 @@ def jsonify(obj: Any) -> Any:
     elif isinstance(obj, (str, int, float, bool)):
         return obj
     elif isinstance(obj, (list, tuple)):
-        return [jsonify(item) for item in obj]  # type: ignore[misc]
+        return [jsonify(item) for item in obj]  # pyright: ignore[reportUnknownVariableType]
     elif isinstance(obj, dict):
-        return {str(k): jsonify(v) for k, v in obj.items()}  # type: ignore[misc]
+        return {str(k): jsonify(v) for k, v in obj.items()}  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType]
     elif hasattr(obj, "__dict__"):
         return jsonify(obj.__dict__)
     else:
@@ -556,7 +556,7 @@ class Experiments:
         # Check if we have a cached result
         if cache_key in task_result_cache:
             output = task_result_cache[cache_key]
-            exp_run: ExperimentRun = {
+            cached_exp_run: ExperimentRun = {
                 "dataset_example_id": example["id"],
                 "output": output,
                 "repetition_number": repetition_number,
@@ -569,16 +569,16 @@ class Experiments:
                 try:
                     resp = self._client.post(
                         f"/v1/experiments/{experiment['id']}/runs",
-                        json=exp_run,
+                        json=cached_exp_run,
                         timeout=timeout,
                     )
                     resp.raise_for_status()
-                    exp_run = {**exp_run, "id": resp.json()["data"]["id"]}
+                    cached_exp_run = {**cached_exp_run, "id": resp.json()["data"]["id"]}
                 except HTTPStatusError as e:
                     if e.response.status_code == 409:
                         return None
                     raise
-            return exp_run
+            return cached_exp_run
 
         output = None
         error: Optional[BaseException] = None
@@ -590,7 +590,7 @@ class Experiments:
         if tracer and otel:
             with ExitStack() as stack:
                 span = stack.enter_context(
-                    tracer.start_as_current_span(root_span_name, context=otel["Context"]())  # type: ignore
+                    tracer.start_as_current_span(root_span_name, context=otel["Context"]())  # pyright: ignore
                 )
                 status = None
                 try:
@@ -1177,7 +1177,7 @@ class AsyncExperiments:
         # Check if we have a cached result
         if cache_key in task_result_cache:
             output = task_result_cache[cache_key]
-            exp_run: ExperimentRun = {
+            cached_exp_run: ExperimentRun = {
                 "dataset_example_id": example["id"],
                 "output": output,
                 "repetition_number": repetition_number,
@@ -1190,16 +1190,16 @@ class AsyncExperiments:
                 try:
                     resp = await self._client.post(
                         f"/v1/experiments/{experiment['id']}/runs",
-                        json=exp_run,
+                        json=cached_exp_run,
                         timeout=timeout,
                     )
                     resp.raise_for_status()
-                    exp_run = {**exp_run, "id": resp.json()["data"]["id"]}
+                    cached_exp_run = {**cached_exp_run, "id": resp.json()["data"]["id"]}
                 except HTTPStatusError as e:
                     if e.response.status_code == 409:
                         return None
                     raise
-            return exp_run
+            return cached_exp_run
 
         output = None
         error: Optional[BaseException] = None
