@@ -1,3 +1,4 @@
+# ruff: noqa: E501 W291
 from collections import OrderedDict
 from enum import Enum
 
