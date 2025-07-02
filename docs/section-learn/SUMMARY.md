@@ -42,6 +42,7 @@
 * [Evals With Explanations](evaluation/evals-with-explanations.md)
 * [LLM as a Judge](evaluation/llm-as-a-judge.md)
 * [Custom Task Evaluation](evaluation/custom-task-evaluation.md)
+* [Evaluating Multi-Agent Systems](evaluation/evaluating-multi-agent-systems.md)
 
 ## 🔍 Retrieval & Inferences
 
