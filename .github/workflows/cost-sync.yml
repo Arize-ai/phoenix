@@ -23,10 +23,9 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       
-      - name: Run LiteLLM sync script
-        id: sync-litellm
-        run: python scripts/sync_litellm_models.py
-      
+      - name: Sync model cost manifest with LiteLLM
+        run: uvx --with tox-uv tox run -e sync_model_cost_manifest
+
       - name: Check for changes
         id: verify-changed-files
         run: |
