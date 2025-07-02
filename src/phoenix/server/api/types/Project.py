@@ -655,18 +655,9 @@ class Project(Node):
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        async with info.context.db() as session:
-            annotation_configs = await session.stream_scalars(
-                select(models.AnnotationConfig)
-                .join(
-                    models.ProjectAnnotationConfig,
-                    models.AnnotationConfig.id
-                    == models.ProjectAnnotationConfig.annotation_config_id,
-                )
-                .where(models.ProjectAnnotationConfig.project_id == self.project_rowid)
-                .order_by(models.AnnotationConfig.name)
-            )
-            data = [to_gql_annotation_config(config) async for config in annotation_configs]
+        loader = info.context.data_loaders.annotation_configs_by_project
+        configs = await loader.load(self.project_rowid)
+        data = [to_gql_annotation_config(config) for config in configs]
         return connection_from_list(data=data, args=args)
 
     @strawberry.field

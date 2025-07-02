@@ -4,6 +4,7 @@ from phoenix.server.api.dataloaders.span_cost_detail_summary_entries_by_project_
     SpanCostDetailSummaryEntriesByProjectSessionDataLoader,
 )
 
+from .annotation_configs_by_project import AnnotationConfigsByProjectDataLoader
 from .annotation_summaries import AnnotationSummaryCache, AnnotationSummaryDataLoader
 from .average_experiment_run_latency import AverageExperimentRunLatencyDataLoader
 from .dataset_example_revisions import DatasetExampleRevisionsDataLoader
@@ -61,6 +62,7 @@ from .user_roles import UserRolesDataLoader
 from .users import UsersDataLoader
 
 __all__ = [
+    "AnnotationConfigsByProjectDataLoader",
     "AnnotationSummaryDataLoader",
     "AverageExperimentRunLatencyDataLoader",
     "CacheForDataLoaders",
