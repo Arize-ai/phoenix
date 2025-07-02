@@ -213,7 +213,7 @@ class FunctionEvaluator(Evaluator):
         if isinstance(result, dict):
             # Check if it looks like an EvaluationResult dict
             valid_keys = {"label", "score", "explanation"}
-            if all(isinstance(k, str) and k in valid_keys for k in result.keys()):  # type: ignore[misc]
+            if all(isinstance(k, str) and k in valid_keys for k in result.keys()):  # pyright: ignore
                 return result  # type: ignore[return-value]
         elif isinstance(result, bool):
             return {"score": float(result), "label": str(result)}
@@ -221,13 +221,13 @@ class FunctionEvaluator(Evaluator):
             return {"score": float(result)}
         elif isinstance(result, str):
             return {"label": result}
-        elif isinstance(result, tuple) and len(result) >= 2:  # type: ignore[arg-type]
+        elif isinstance(result, tuple) and len(result) >= 2:  # pyright: ignore[reportUnknownArgumentType]
             # Handle tuple results like (score, label) or (score, label, explanation)
-            score_val = result[0]  # type: ignore[misc]
-            label_val = result[1]  # type: ignore[misc]
-            score = float(score_val) if score_val is not None else None  # type: ignore[arg-type]
-            label = str(label_val) if label_val is not None else None  # type: ignore[arg-type]
-            explanation = str(result[2]) if len(result) > 2 and result[2] is not None else None  # type: ignore[arg-type,misc]
+            score_val = result[0]  # pyright: ignore[reportUnknownVariableType]
+            label_val = result[1]  # pyright: ignore[reportUnknownVariableType]
+            score = float(score_val) if score_val is not None else None  # pyright: ignore[reportUnknownArgumentType]
+            label = str(label_val) if label_val is not None else None  # pyright: ignore[reportUnknownArgumentType]
+            explanation = str(result[2]) if len(result) > 2 and result[2] is not None else None  # pyright: ignore[reportUnknownArgumentType, reportUnknownArgumentType]
 
             result_dict: EvaluationResult = {}
             if score is not None:
@@ -239,7 +239,7 @@ class FunctionEvaluator(Evaluator):
             return result_dict
 
         # Default case - convert to string label
-        return {"label": str(result)}  # type: ignore[arg-type]
+        return {"label": str(result)}  # pyright: ignore[reportUnknownArgumentType]
 
 
 # Type aliases for evaluators
