@@ -1,5 +1,19 @@
 # Changelog
 
+## [11.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.2.2...arize-phoenix-v11.3.0) (2025-07-02)
+
+
+### Features
+
+* Add link back to customizable Management URL ([#8371](https://github.com/Arize-ai/phoenix/issues/8371)) ([4633402](https://github.com/Arize-ai/phoenix/commit/4633402b887274247e4f629d6653992128c40e3d))
+* add-cursor-mcp-button ([#8390](https://github.com/Arize-ai/phoenix/issues/8390)) ([cb570da](https://github.com/Arize-ai/phoenix/commit/cb570daea9152e885a4a2a9d53335245f0258799))
+
+
+### Bug Fixes
+
+* **cost:** delete obsolete built-in models only if they're childless records ([#8317](https://github.com/Arize-ai/phoenix/issues/8317)) ([a063785](https://github.com/Arize-ai/phoenix/commit/a0637859d522471cec34f1d3c04a34c816001bc3))
+* use dataloader for annotation configs query ([#8379](https://github.com/Arize-ai/phoenix/issues/8379)) ([dac167d](https://github.com/Arize-ai/phoenix/commit/dac167d7875833fa323aa9c1e97018f2630d8b16))
+
 ## [11.2.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.2.1...arize-phoenix-v11.2.2) (2025-07-02)
 
 
