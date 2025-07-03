@@ -10,7 +10,8 @@
     "build": "tsc && chmod 755 build/index.js",
     "dev": "source .env && tsx src/index.ts -- --apiKey $PHOENIX_API_KEY --baseUrl $PHOENIX_BASE_URL",
     "typecheck": "tsc --noEmit",
-    "inspect": "pnpm run build && npx -y @modelcontextprotocol/inspector -- node build/index.js"
+    "inspect": "pnpm run build && npx -y @modelcontextprotocol/inspector -- node build/index.js",
+    "test": "tsx src/test.ts"
   },
   "files": [
     "build"
@@ -23,7 +24,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@arizeai/phoenix-client": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.12.0",
+    "@modelcontextprotocol/sdk": "^1.13.3",
     "glob": "^11.0.1",
     "minimist": "^1.2.8",
     "zod": "^3.24.2"
