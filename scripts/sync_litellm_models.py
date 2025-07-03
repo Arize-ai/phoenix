@@ -1,5 +1,6 @@
 import json
 import re
+from enum import Enum
 from pathlib import Path
 from typing import Annotated, Any
 from urllib.request import urlopen
@@ -21,9 +22,20 @@ def validate_regular_expression(value: str) -> str:
         raise ValueError(f"Invalid regular expression '{value}': {error}")
 
 
+class ModelSource(Enum):
+    """
+    Describes the source from which token prices are synced, or MANUAL if the model token prices
+    are manually maintained.
+    """
+
+    LITELLM = "litellm"
+    MANUAL = "manual"
+
+
 class ModelConfig(BaseModel):
     name: str
     name_pattern: Annotated[str, AfterValidator(validate_regular_expression)]
+    source: ModelSource
     token_prices: list[TokenPrice]
 
 
@@ -181,6 +193,7 @@ def update_manifest(
             new_model = ModelConfig(
                 name=model_name,
                 name_pattern=f"^{escaped_model_name}$",  # seed an initial name pattern
+                source=ModelSource.LITELLM,
                 token_prices=token_prices,
             )
             manifest.models.append(new_model)
