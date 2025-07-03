@@ -148,7 +148,7 @@ def test_data_migration_for_project_sessions(
                     "end_time": row["end_time"],
                     "session_id": str(
                         (
-                            json.loads(row["attributes"])
+                            json.loads(row["attributes"])  # type: ignore[attr-defined,unused-ignore]
                             if _engine.dialect.name == "sqlite"
                             else row["attributes"]
                         )["session"]["id"]
@@ -185,7 +185,7 @@ def test_data_migration_for_project_sessions(
         ).all()
         assert (
             df_project_sessions_joined_spans.groupby("session_id")
-            .apply(lambda s: s.end_time.min() == s.end_time_trace.max())
+            .apply(lambda s: s.end_time.min() == s.end_time_trace.max())  # type: ignore[attr-defined,unused-ignore]
             .all()
         )
 
