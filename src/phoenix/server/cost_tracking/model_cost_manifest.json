@@ -293,7 +293,7 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 3e-6,
+          "base_rate": 1000,
           "is_prompt": true,
           "token_type": "input"
         },
