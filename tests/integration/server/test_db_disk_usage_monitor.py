@@ -164,7 +164,8 @@ class TestDbDiskUsageMonitor:
         # This verifies that the notification threshold (0.1%) was exceeded and
         # an alert was properly sent to the configured admin email address.
         retries_left = 100
-        while retries_left:
+        received_email = False
+        while retries_left and not received_email:
             retries_left -= 1
             try:
                 assert _smtpd.messages
@@ -173,13 +174,14 @@ class TestDbDiskUsageMonitor:
                 assert (soup := _extract_html(message))
                 assert soup.title
                 assert soup.title.string == "Database Usage Notification"
+                received_email = True
             except AssertionError:
                 if retries_left:
-                    sleep(0.1)
+                    sleep(0.2)
                     continue
                 raise
-            else:
-                break
+
+        assert received_email, "Email notification should be received"
 
         # ========================================================================
         # Verify span insertion operations are blocked for admin secret
@@ -241,21 +243,18 @@ class TestDbDiskUsageMonitor:
         # Wait for and extract password reset token from email
         retries_left = 100
         reset_token: Optional[_PasswordResetToken] = None
-        while retries_left:
+        while retries_left and not reset_token:
             retries_left -= 1
             try:
                 assert _smtpd.messages
                 message = _smtpd.messages[-1]
                 assert message["To"] == _admin_email
                 reset_token = _extract_password_reset_token(message)
-                assert reset_token, "Password reset token should be extractable"
             except AssertionError:
                 if retries_left:
-                    sleep(0.1)
+                    sleep(0.2)
                     continue
                 raise
-            else:
-                break
 
         assert reset_token, "Password reset token should be extracted from email"
 

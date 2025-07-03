@@ -22,7 +22,7 @@ from phoenix.server.types import DaemonTask, DbSessionFactory
 
 logger = logging.getLogger(__name__)
 
-_SLEEP_SECONDS = 1
+_SLEEP_SECONDS = 60
 _EMAIL_FREQUENCY_HOURS = 24
 _BYTES_PER_GIBIBYTE = 1024**3
 

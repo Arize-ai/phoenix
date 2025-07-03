@@ -1,5 +1,5 @@
 from collections.abc import Awaitable, Callable
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Iterable, Optional
 
 import grpc
 from grpc.aio import RpcContext, Server, ServerInterceptor
@@ -61,7 +61,7 @@ class GrpcServer:
         enable_prometheus: bool = False,
         disabled: bool = False,
         token_store: Optional[CanReadToken] = None,
-        interceptors: list[ServerInterceptor] = [],
+        interceptors: Iterable[ServerInterceptor] = (),
     ) -> None:
         self._callback = callback
         self._server: Optional[Server] = None
@@ -69,7 +69,7 @@ class GrpcServer:
         self._enable_prometheus = enable_prometheus
         self._disabled = disabled
         self._token_store = token_store
-        self._interceptors = interceptors
+        self._interceptors = list(interceptors)
 
     async def __aenter__(self) -> None:
         interceptors = self._interceptors

@@ -30,7 +30,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.utils import is_body_allowed_for_status_code
 from grpc.aio import ServerInterceptor
 from grpc_interceptor import AsyncServerInterceptor
-from grpc_interceptor.exceptions import ResourceExhausted
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from starlette.datastructures import URL, Secret
@@ -48,7 +47,7 @@ from starlette.types import Scope, StatefulLifespan
 from strawberry.extensions import SchemaExtension
 from strawberry.fastapi import GraphQLRouter
 from strawberry.subscriptions import GRAPHQL_TRANSPORT_WS_PROTOCOL
-from typing_extensions import TypeAlias
+from typing_extensions import TypeAlias, override
 
 import phoenix.trace.v1 as pb
 from phoenix.config import (
@@ -536,7 +535,7 @@ def _lifespan(
     shutdown_callbacks: Iterable[_Callback] = (),
     read_only: bool = False,
     scaffolder_config: Optional[ScaffolderConfig] = None,
-    grpc_interceptors: Iterable[ServerInterceptor] = (),
+    grpc_interceptors: Iterable[AsyncServerInterceptor] = (),
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[dict[str, Any]]:
@@ -839,25 +838,26 @@ class _HasDbStatus(Protocol):
     def should_not_insert_or_update(self) -> bool: ...
 
 
-class _DbDiskUsageThresholdExceeded(ResourceExhausted):
-    details: str = "Database disk usage threshold exceeded"
-
-
 class DbDiskUsageInterceptor(AsyncServerInterceptor):
     def __init__(self, db: _HasDbStatus) -> None:
         self._db = db
 
+    @override
     async def intercept(
         self,
-        method: Callable[[Any, grpc.ServicerContext], Awaitable[Any]],
+        method: Callable[[Any, grpc.aio.ServicerContext], Awaitable[Any]],
         request_or_iterator: Any,
-        context: grpc.ServicerContext,
+        context: grpc.aio.ServicerContext,
         method_name: str,
     ) -> Any:
-        if not method_name.endswith("trace.v1.TraceService/Export"):
-            return await method(request_or_iterator, context)
-        if self._db.should_not_insert_or_update:
-            raise _DbDiskUsageThresholdExceeded()
+        if (
+            method_name.endswith("trace.v1.TraceService/Export")
+            and self._db.should_not_insert_or_update
+        ):
+            await context.abort(
+                grpc.StatusCode.RESOURCE_EXHAUSTED,
+                "Database disk usage threshold exceeded",
+            )
         return await method(request_or_iterator, context)
 
 
