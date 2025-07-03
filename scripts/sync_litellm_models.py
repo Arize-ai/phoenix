@@ -51,6 +51,7 @@ def filter_models(model_ids: list[str]) -> list[str]:
         r"mistral",
         r"anthropic",
         r"openai",
+        r"o1",
         r"o3",
         r"o4",
     ]
@@ -178,6 +179,13 @@ def update_manifest(
     manifest: ModelCostManifest,
     update_token_prices: dict[str, list[TokenPrice]],
 ) -> ModelCostManifest:
+    # Remove LiteLLM models that are no longer in the remote data
+    for index in reversed(range(len(manifest.models))):
+        model = manifest.models[index]
+        if model.source == ModelSource.LITELLM and model.name not in update_token_prices:
+            removed_model = manifest.models.pop(index)
+            print(f"Removed LiteLLM model no longer in remote data: {removed_model.name}")
+
     model_name_to_index: dict[str, int] = {}
     for index, model in enumerate(manifest.models):
         model_name_to_index[model.name] = index
