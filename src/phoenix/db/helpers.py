@@ -1,7 +1,9 @@
 from collections.abc import Callable, Hashable, Iterable
+from datetime import datetime
 from enum import Enum
 from typing import Any, Optional, TypeVar
 
+import sqlalchemy as sa
 from openinference.semconv.trace import (
     OpenInferenceSpanKindValues,
     RerankerAttributes,
@@ -17,6 +19,7 @@ from sqlalchemy import (
     func,
     select,
 )
+from sqlalchemy.orm import QueryableAttribute
 from typing_extensions import assert_never
 
 from phoenix.config import PLAYGROUND_PROJECT_NAME
@@ -173,3 +176,116 @@ def exclude_experiment_projects(
             models.Experiment.project_name != PLAYGROUND_PROJECT_NAME,
         ),
     ).where(models.Experiment.project_name.is_(None))
+
+
+def get_time_interval_bucket_boundaries(
+    timestamp_column: QueryableAttribute[datetime],
+    stop_time: datetime,
+    interval_seconds: int,
+    dialect: SupportedSQLDialect,
+) -> tuple[SQLColumnExpression[datetime], SQLColumnExpression[datetime]]:
+    """Generate SQL expressions for time-based interval bucket boundaries.
+
+    Creates SQL expressions that group timestamps into fixed-duration buckets,
+    calculated backwards from end_time. Supports PostgreSQL and SQLite.
+
+    Args:
+        timestamp_column: SQL column containing timestamps to bucket
+        stop_time: Reference time for calculating bucket boundaries
+        interval_seconds: Duration of each bucket in seconds
+        dialect: SQL dialect to generate expressions for
+
+    Returns:
+        Tuple of (interval_start, interval_end) SQL expressions where:
+        - interval_start is inclusive (>=)
+        - interval_end is exclusive (<)
+
+    Raises:
+        ValueError: If interval_seconds is zero or negative
+
+    Example:
+        >>> end_time = datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        >>> start_expr, end_expr = get_time_interval_bucket_boundaries(
+        ...     timestamp_column=models.Span.start_time,
+        ...     stop_time=stop_time,
+        ...     interval_seconds=3600,  # 1 hour
+        ...     dialect=SupportedSQLDialect.POSTGRESQL,
+        ... )
+        >>> stmt = select(start_expr.label('bucket_start'),
+        ...               end_expr.label('bucket_end')).group_by(start_expr, end_expr)
+
+    Notes:
+        - Buckets are right-exclusive: [start, end)
+        - Calculated backwards from end_time
+        - Handles timezone-aware datetimes
+        - Minimum resolution: 1 second
+    """
+    # Validate inputs
+    if interval_seconds <= 0:
+        raise ValueError("Interval seconds must be positive")
+
+    if dialect is SupportedSQLDialect.POSTGRESQL:
+        return _get_time_interval_bucket_boundaries_for_postgresql(
+            timestamp_column=timestamp_column,
+            stop_time=stop_time,
+            interval_seconds=interval_seconds,
+        )
+    elif dialect is SupportedSQLDialect.SQLITE:
+        return _get_time_interval_bucket_boundaries_for_sqlite(
+            timestamp_column=timestamp_column,
+            stop_time=stop_time,
+            interval_seconds=interval_seconds,
+        )
+    else:
+        assert_never(dialect)
+
+
+def _get_time_interval_bucket_boundaries_for_sqlite(
+    timestamp_column: QueryableAttribute[datetime],
+    stop_time: datetime,
+    interval_seconds: int,
+) -> tuple[SQLColumnExpression[datetime], SQLColumnExpression[datetime]]:
+    """Generate SQL expressions for time-based interval bucket boundaries for SQLite."""
+    # SQLite uses unixepoch for epoch conversion
+    stop_time_epoch = func.unixepoch(sa.literal(stop_time))
+    timestamp_epoch = func.unixepoch(timestamp_column)
+
+    # Calculate interval number for each row
+    epoch_diff = stop_time_epoch - timestamp_epoch
+    interval_number = func.floor(epoch_diff / interval_seconds)
+
+    # Calculate interval boundaries
+    interval_start_epoch = stop_time_epoch - ((interval_number + 1) * interval_seconds)
+    interval_stop_epoch = stop_time_epoch - (interval_number * interval_seconds)
+
+    # Round to seconds by truncating epoch to integer seconds
+    interval_start_epoch = func.cast(interval_start_epoch, Integer)
+    interval_stop_epoch = func.cast(interval_stop_epoch, Integer)
+
+    interval_start = func.datetime(interval_start_epoch, "unixepoch")
+    interval_stop = func.datetime(interval_stop_epoch, "unixepoch")
+
+    return interval_start, interval_stop
+
+
+def _get_time_interval_bucket_boundaries_for_postgresql(
+    timestamp_column: QueryableAttribute[datetime],
+    stop_time: datetime,
+    interval_seconds: int,
+) -> tuple[SQLColumnExpression[datetime], SQLColumnExpression[datetime]]:
+    """Generate SQL expressions for time-based interval bucket boundaries for PostgreSQL."""
+    # Calculate interval number for each row
+    epoch_diff = func.extract("epoch", sa.literal(stop_time) - timestamp_column)
+    interval_number = func.floor(epoch_diff / interval_seconds)
+
+    # Calculate interval boundaries using epoch arithmetic instead of interval arithmetic
+    # Convert to epoch seconds, do arithmetic, then convert back to timestamp
+    stop_time_epoch = func.extract("epoch", sa.literal(stop_time))
+
+    interval_start_epoch = stop_time_epoch - ((interval_number + 1) * interval_seconds)
+    interval_stop_epoch = stop_time_epoch - (interval_number * interval_seconds)
+
+    interval_start = func.to_timestamp(interval_start_epoch)
+    interval_stop = func.to_timestamp(interval_stop_epoch)
+
+    return interval_start, interval_stop
