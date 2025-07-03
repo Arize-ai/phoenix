@@ -7,7 +7,7 @@ const PHOENIX_SUPPORT_DESCRIPTION = `Get help with Phoenix and OpenInference.
 
 - Tracing AI applications via OpenInference and OpenTelemetry
 - Phoenix datasets, experiments, and prompt management
-- Phoenix Evals and Annotations
+- Phoenix evals and annotations
 
 Use this tool when you need assistance with Phoenix features, troubleshooting,
 or best practices.
