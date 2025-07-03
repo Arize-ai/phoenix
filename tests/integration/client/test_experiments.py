@@ -797,3 +797,167 @@ class TestExperimentsIntegration:
             assert "score" in eval_run.result
             assert "label" in eval_run.result
             assert "explanation" in eval_run.result
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_task_dynamic_parameter_binding(
+        self,
+        is_async: bool,
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        user = _get_user(_MEMBER).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient
+
+        unique_name = f"test_task_params_{uuid.uuid4().hex[:8]}"
+
+        dataset = await _await_or_return(
+            Client().datasets.create_dataset(
+                name=unique_name,
+                inputs=[
+                    {"question": "What is 2+2?", "type": "math"},
+                    {"question": "What is the capital of France?", "type": "geography"},
+                ],
+                outputs=[
+                    {"answer": "4", "explanation": "Basic arithmetic"},
+                    {"answer": "Paris", "explanation": "Capital city of France"},
+                ],
+                metadata=[
+                    {"difficulty": "easy", "category": "arithmetic", "source": "textbook"},
+                    {"difficulty": "medium", "category": "geography", "source": "atlas"},
+                ],
+            )
+        )
+
+        def input_only_task(input: Dict[str, Any]) -> str:
+            question = input.get("question", "")
+            return f"Processing: {question}"
+
+        def input_expected_task(input: Dict[str, Any], expected: Dict[str, Any]) -> str:
+            question = input.get("question", "")
+            expected_answer = expected.get("answer", "")
+            return f"Question: {question}, Expected: {expected_answer}"
+
+        def reference_task(input: Dict[str, Any], reference: Dict[str, Any]) -> str:
+            question = input.get("question", "")
+            ref_answer = reference.get("answer", "")
+            return f"Q: {question}, Ref: {ref_answer}"
+
+        def metadata_task(input: Dict[str, Any], metadata: Dict[str, Any]) -> str:
+            question = input.get("question", "")
+            difficulty = metadata.get("difficulty", "unknown")
+            category = metadata.get("category", "unknown")
+            return f"Q: {question} [Difficulty: {difficulty}, Category: {category}]"
+
+        def comprehensive_task(
+            input: Dict[str, Any],
+            expected: Dict[str, Any],
+            reference: Dict[str, Any],
+            metadata: Dict[str, Any],
+            example: Dict[str, Any],
+        ) -> Dict[str, Any]:
+            has_input = bool(input.get("question"))
+            has_expected = bool(expected.get("answer"))
+            has_reference = bool(reference.get("answer"))
+            has_metadata = bool(metadata.get("difficulty"))
+            has_example = bool(example.get("id"))  # Example should have an ID
+            reference_matches_expected = reference == expected
+
+            success = all(
+                [
+                    has_input,
+                    has_expected,
+                    has_reference,
+                    has_metadata,
+                    has_example,
+                    reference_matches_expected,
+                ]
+            )
+
+            return {
+                "success": success,
+                "question": input.get("question", ""),
+                "expected_answer": expected.get("answer", ""),
+                "metadata_difficulty": metadata.get("difficulty", ""),
+                "example_id": example.get("id", ""),
+                "reference_matches_expected": reference_matches_expected,
+            }
+
+        result1 = await _await_or_return(
+            Client().experiments.run_experiment(
+                dataset=dataset,
+                task=input_only_task,
+                experiment_name=f"test_input_only_{uuid.uuid4().hex[:8]}",
+                print_summary=False,
+            )
+        )
+
+        assert len(result1["task_runs"]) == 2
+        for task_run in result1["task_runs"]:
+            assert "Processing:" in task_run["output"]
+
+        result2 = await _await_or_return(
+            Client().experiments.run_experiment(
+                dataset=dataset,
+                task=input_expected_task,
+                experiment_name=f"test_input_expected_{uuid.uuid4().hex[:8]}",
+                print_summary=False,
+            )
+        )
+
+        assert len(result2["task_runs"]) == 2
+        for task_run in result2["task_runs"]:
+            assert "Question:" in task_run["output"]
+            assert "Expected:" in task_run["output"]
+
+        result3 = await _await_or_return(
+            Client().experiments.run_experiment(
+                dataset=dataset,
+                task=reference_task,
+                experiment_name=f"test_reference_{uuid.uuid4().hex[:8]}",
+                print_summary=False,
+            )
+        )
+
+        assert len(result3["task_runs"]) == 2
+        for task_run in result3["task_runs"]:
+            assert "Q:" in task_run["output"]
+            assert "Ref:" in task_run["output"]
+
+        result4 = await _await_or_return(
+            Client().experiments.run_experiment(
+                dataset=dataset,
+                task=metadata_task,
+                experiment_name=f"test_metadata_{uuid.uuid4().hex[:8]}",
+                print_summary=False,
+            )
+        )
+
+        assert len(result4["task_runs"]) == 2
+        for task_run in result4["task_runs"]:
+            assert "Difficulty:" in task_run["output"]
+            assert "Category:" in task_run["output"]
+
+        result5 = await _await_or_return(
+            Client().experiments.run_experiment(
+                dataset=dataset,
+                task=comprehensive_task,
+                experiment_name=f"test_comprehensive_{uuid.uuid4().hex[:8]}",
+                print_summary=False,
+            )
+        )
+
+        assert len(result5["task_runs"]) == 2
+        for task_run in result5["task_runs"]:
+            output = task_run["output"]
+            assert isinstance(output, dict)
+            assert output["success"] is True
+            assert output["reference_matches_expected"] is True
+            assert output["question"] != ""
+            assert output["expected_answer"] != ""
+            assert output["metadata_difficulty"] != ""
+            assert output["example_id"] != ""
