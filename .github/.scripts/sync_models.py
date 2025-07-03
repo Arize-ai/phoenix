@@ -213,7 +213,7 @@ def update_manifest(
 
 def main() -> int:
     local_file_path = (
-        Path(__file__).parent / "../src/phoenix/server/cost_tracking/model_cost_manifest.json"
+        Path(__file__).parent / "../../src/phoenix/server/cost_tracking/model_cost_manifest.json"
     )
     url = "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
 

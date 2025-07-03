@@ -24,7 +24,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Sync model cost manifest with LiteLLM
-        run: uvx --with tox-uv tox run -e sync_model_cost_manifest
+        run: uvx --with tox-uv tox run -e sync_models
 
       - name: Check for changes
         id: verify-changed-files
