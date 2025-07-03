@@ -5,7 +5,7 @@ import z from "zod";
 
 const PHOENIX_SUPPORT_DESCRIPTION = `Get help with Phoenix and OpenInference.
 
-- Tracing AI apllications via OpenInference and OpenTelemetry
+- Tracing AI applications via OpenInference and OpenTelemetry
 - Phoenix datasets, experiments, and prompt management
 - Phoenix Evals and Annotations
 
@@ -57,7 +57,7 @@ export async function callRunLLMChat({
     },
   });
 
-  // Extract text content from the result
+  // There's usually only one content item, but we'll handle multiple for safety
   if (result.content && Array.isArray(result.content)) {
     const textContent = result.content
       .filter((item) => item.type === "text")

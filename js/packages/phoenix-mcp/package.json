@@ -10,8 +10,7 @@
     "build": "tsc && chmod 755 build/index.js",
     "dev": "source .env && tsx src/index.ts -- --apiKey $PHOENIX_API_KEY --baseUrl $PHOENIX_BASE_URL",
     "typecheck": "tsc --noEmit",
-    "inspect": "pnpm run build && npx -y @modelcontextprotocol/inspector -- node build/index.js",
-    "test": "tsx src/test.ts"
+    "inspect": "pnpm run build && npx -y @modelcontextprotocol/inspector -- node build/index.js"
   },
   "files": [
     "build"
