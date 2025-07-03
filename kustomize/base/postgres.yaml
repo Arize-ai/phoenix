@@ -50,7 +50,7 @@ spec:
             fieldRef:
               apiVersion: v1
               fieldPath: status.podIP
-        image: "postgres:12"
+        image: "postgres:16.7"
         imagePullPolicy: Always
         name: postgres
         ports:
