@@ -1,5 +1,11 @@
 # @arizeai/phoenix-mcp
 
+## 2.2.0
+
+### Minor Changes
+
+- 468f77b: add phoenix-support tool
+
 ## 2.1.11
 
 ### Patch Changes
