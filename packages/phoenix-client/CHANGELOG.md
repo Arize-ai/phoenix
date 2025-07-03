@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.11.0...arize-phoenix-client-v1.12.0) (2025-07-03)
+
+
+### Features
+
+* bedrock playground client ([#7918](https://github.com/Arize-ai/phoenix/issues/7918)) ([15d7e7a](https://github.com/Arize-ai/phoenix/commit/15d7e7aaa36913e3bb76777653fb29c8f6297340))
+
 ## [1.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.10.0...arize-phoenix-client-v1.11.0) (2025-06-19)
 
 
