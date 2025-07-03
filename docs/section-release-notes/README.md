@@ -80,6 +80,16 @@ Phoenix now has experiment graphs to track how your evaluation scores and latenc
 
 ***
 
+## [06.03.2025: Deploy Phoenix via Helm](06.03.2025-deploy-via-helm.md) ☸️
+
+**Available in Phoenix 10.6+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-helm.jpeg" %}
+
+Added Helm chart support for Phoenix, making Kubernetes deployment fast, consistent, and easy to upgrade.
+
+***
+
 ## [05.30.2025: xAI and Deepseek Support in Playground](05.30.2025-xai-and-deepseek-support-in-playground.md) 🛝
 
 **Available in Phoenix 10.7+**
