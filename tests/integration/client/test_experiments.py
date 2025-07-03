@@ -232,7 +232,7 @@ class TestExperimentsIntegration:
             assert project_name is not None and project_name != ""
 
         for span in span_capture.spans:
-            span_context = span.get_span_context()
+            span_context = span.get_span_context()  # type: ignore[no-untyped-call]
             if span_context is not None:
                 assert span_context.trace_id != 0, "Span should have a valid trace ID"
 
