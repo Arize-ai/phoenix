@@ -172,6 +172,8 @@ def create_evaluator(
     def wrapper(func: Union[Callable[..., Any], Evaluator]) -> Evaluator:
         if isinstance(func, Evaluator):
             return func
+        evaluator_signature = inspect.signature(func)
+        _validate_evaluator_signature(evaluator_signature)
         return FunctionEvaluator(func, name)
 
     return wrapper
@@ -271,6 +273,48 @@ def _bind_task_signature(
             return sig.bind(parameter_mapping[parameter_name])
         else:
             return sig.bind(parameter_mapping["input"])
+    return sig.bind_partial(
+        **{name: parameter_mapping[name] for name in set(parameter_mapping).intersection(params)}
+    )
+
+
+def _validate_evaluator_signature(sig: inspect.Signature) -> None:
+    params = sig.parameters
+    valid_named_params = {"output", "input", "expected", "reference", "metadata"}
+    if len(params) == 0:
+        raise ValueError("Evaluator function must have at least one parameter.")
+    if len(params) > 1:
+        for not_found in set(params) - valid_named_params:
+            param = params[not_found]
+            if (
+                param.kind is inspect.Parameter.VAR_KEYWORD
+                or param.default is not inspect.Parameter.empty
+            ):
+                continue
+            raise ValueError(
+                f"Invalid parameter names in evaluator function: {not_found}. "
+                "Parameters names for multi-argument functions must be "
+                f"any of: {', '.join(valid_named_params)}."
+            )
+
+
+def _bind_evaluator_signature(
+    sig: inspect.Signature, example: v1.DatasetExample, output: Any
+) -> inspect.BoundArguments:
+    parameter_mapping = {
+        "output": output,
+        "input": example["input"],
+        "expected": example["output"],
+        "reference": example["output"],
+        "metadata": example["metadata"],
+    }
+    params = sig.parameters
+    if len(params) == 1:
+        parameter_name = next(iter(params))
+        if parameter_name in parameter_mapping:
+            return sig.bind(parameter_mapping[parameter_name])
+        else:
+            return sig.bind(parameter_mapping["output"])
     return sig.bind_partial(
         **{name: parameter_mapping[name] for name in set(parameter_mapping).intersection(params)}
     )
@@ -538,6 +582,7 @@ class Experiments:
                 timeout,
                 rate_limit_errors,
                 experiment["project_name"] or "",
+                dataset,
             )
             result["evaluation_runs"] = cast(Any, eval_runs)
 
@@ -695,12 +740,23 @@ class Experiments:
         timeout: Optional[int],
         rate_limit_errors: Optional[RateLimitErrors],
         project_name: str,
+        dataset: Dataset,
     ) -> list[ExperimentEvaluationRun]:
         print("🧠 Evaluation started.")
 
-        evaluation_input = [
-            (run, evaluator) for run, evaluator in product(task_runs, evaluators_by_name.values())
-        ]
+        # Create evaluation input with example data
+        evaluation_input = []
+        for run in task_runs:
+            # Find the corresponding example for this run
+            example = None
+            for ex in dataset.examples:
+                if ex["id"] == run["dataset_example_id"]:
+                    example = ex
+                    break
+
+            if example is not None:
+                for evaluator in evaluators_by_name.values():
+                    evaluation_input.append((example, run, evaluator))
 
         # Setup rate limiting
         errors: tuple[type[BaseException], ...]
@@ -711,11 +767,11 @@ class Experiments:
         rate_limiters = [RateLimiter(rate_limit_error=error) for error in errors]
 
         def sync_evaluate_run(
-            obj: tuple[ExperimentRun, Evaluator],
+            obj: tuple[v1.DatasetExample, ExperimentRun, Evaluator],
         ) -> Optional[ExperimentEvaluationRun]:
-            run, evaluator = obj
+            example, run, evaluator = obj
             return self._run_single_evaluation_sync(
-                run, evaluator, tracer, resource, dry_run, timeout, project_name
+                example, run, evaluator, tracer, resource, dry_run, timeout, project_name
             )
 
         rate_limited_sync_evaluate_run = functools.reduce(
@@ -736,6 +792,7 @@ class Experiments:
 
     def _run_single_evaluation_sync(
         self,
+        example: v1.DatasetExample,
         experiment_run: ExperimentRun,
         evaluator: Evaluator,
         tracer: Tracer,
@@ -761,7 +818,13 @@ class Experiments:
             )
             stack.enter_context(capture_spans(resource))
             try:
-                result = evaluator.evaluate(output=experiment_run["output"])
+                evaluator_signature = inspect.signature(evaluator.evaluate)
+                bound_evaluator_args = _bind_evaluator_signature(
+                    evaluator_signature, example, experiment_run["output"]
+                )
+                result = evaluator.evaluate(
+                    *bound_evaluator_args.args, **bound_evaluator_args.kwargs
+                )
             except BaseException as exc:
                 span.record_exception(exc)
                 status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
@@ -1054,6 +1117,7 @@ class AsyncExperiments:
                 rate_limit_errors,
                 concurrency,
                 experiment["project_name"] or "",
+                dataset,
             )
             result["evaluation_runs"] = cast(Any, eval_runs)
 
@@ -1207,12 +1271,23 @@ class AsyncExperiments:
         rate_limit_errors: Optional[RateLimitErrors],
         concurrency: int,
         project_name: str,
+        dataset: Dataset,
     ) -> list[ExperimentEvaluationRun]:
         print("🧠 Evaluation started.")
 
-        evaluation_input = [
-            (run, evaluator) for run, evaluator in product(task_runs, evaluators_by_name.values())
-        ]
+        # Create evaluation input with example data
+        evaluation_input = []
+        for run in task_runs:
+            # Find the corresponding example for this run
+            example = None
+            for ex in dataset.examples:
+                if ex["id"] == run["dataset_example_id"]:
+                    example = ex
+                    break
+
+            if example is not None:
+                for evaluator in evaluators_by_name.values():
+                    evaluation_input.append((example, run, evaluator))
 
         # Setup rate limiting
         errors: tuple[type[BaseException], ...]
@@ -1223,11 +1298,11 @@ class AsyncExperiments:
         rate_limiters = [RateLimiter(rate_limit_error=error) for error in errors]
 
         async def async_evaluate_run(
-            obj: tuple[ExperimentRun, Evaluator],
+            obj: tuple[v1.DatasetExample, ExperimentRun, Evaluator],
         ) -> Optional[ExperimentEvaluationRun]:
-            run, evaluator = obj
+            example, run, evaluator = obj
             return await self._run_single_evaluation_async(
-                run, evaluator, tracer, resource, dry_run, timeout, project_name
+                example, run, evaluator, tracer, resource, dry_run, timeout, project_name
             )
 
         rate_limited_async_evaluate_run = functools.reduce(
@@ -1249,6 +1324,7 @@ class AsyncExperiments:
 
     async def _run_single_evaluation_async(
         self,
+        example: v1.DatasetExample,
         experiment_run: ExperimentRun,
         evaluator: Evaluator,
         tracer: Tracer,
@@ -1274,7 +1350,13 @@ class AsyncExperiments:
             )
             stack.enter_context(capture_spans(resource))
             try:
-                result = await evaluator.async_evaluate(output=experiment_run["output"])
+                evaluator_signature = inspect.signature(evaluator.async_evaluate)
+                bound_evaluator_args = _bind_evaluator_signature(
+                    evaluator_signature, example, experiment_run["output"]
+                )
+                result = await evaluator.async_evaluate(
+                    *bound_evaluator_args.args, **bound_evaluator_args.kwargs
+                )
             except BaseException as exc:
                 span.record_exception(exc)
                 status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")

@@ -643,3 +643,157 @@ class TestExperimentsIntegration:
                     print_summary=False,
                 )
             )
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_evaluator_dynamic_parameter_binding(
+        self,
+        is_async: bool,
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        user = _get_user(_MEMBER).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient
+
+        unique_name = f"test_eval_params_{uuid.uuid4().hex[:8]}"
+
+        dataset = await _await_or_return(
+            Client().datasets.create_dataset(
+                name=unique_name,
+                inputs=[
+                    {"text": "What is 2+2?", "context": "math"},
+                    {"text": "What is the capital of France?", "context": "geography"},
+                ],
+                outputs=[
+                    {"answer": "4", "category": "arithmetic"},
+                    {"answer": "Paris", "category": "location"},
+                ],
+                metadata=[
+                    {"difficulty": "easy", "topic": "math"},
+                    {"difficulty": "medium", "topic": "geography"},
+                ],
+            )
+        )
+
+        def question_answering_task(input: Dict[str, Any]) -> str:
+            question = input.get("text", "")
+            if "2+2" in question:
+                return "The answer is 4"
+            elif "capital" in question:
+                return "The answer is Paris"
+            else:
+                return "I don't know"
+
+        def output_only_evaluator(output: str) -> float:
+            return 1.0 if "answer" in output.lower() else 0.0
+
+        def accuracy_evaluator(output: str, expected: Dict[str, Any]) -> float:
+            expected_answer = expected.get("answer", "")
+            return 1.0 if expected_answer in output else 0.0
+
+        def comprehensive_evaluator(
+            input: Dict[str, Any],
+            output: str,
+            expected: Dict[str, Any],
+            reference: Dict[str, Any],
+            metadata: Dict[str, Any],
+        ) -> Dict[str, Any]:
+            has_input = bool(input.get("text"))
+            has_output = bool(output)
+            has_expected = bool(expected.get("answer"))
+            has_reference = bool(reference.get("answer"))
+            has_metadata = bool(metadata.get("difficulty"))
+
+            reference_matches_expected = reference == expected
+
+            score = (
+                1.0
+                if all(
+                    [
+                        has_input,
+                        has_output,
+                        has_expected,
+                        has_reference,
+                        has_metadata,
+                        reference_matches_expected,
+                    ]
+                )
+                else 0.0
+            )
+
+            return {
+                "score": score,
+                "label": "comprehensive_check",
+                "explanation": (
+                    f"Input: {has_input}, Output: {has_output}, Expected: {has_expected}, "
+                    f"Reference: {has_reference}, Metadata: {has_metadata}, "
+                    f"Reference==Expected: {reference_matches_expected}"
+                ),
+            }
+
+        def reference_evaluator(output: str, reference: Dict[str, Any]) -> float:
+            reference_answer = reference.get("answer", "")
+            return 1.0 if reference_answer in output else 0.0
+
+        def metadata_evaluator(output: str, metadata: Dict[str, Any]) -> Dict[str, Any]:
+            difficulty = metadata.get("difficulty", "unknown")
+            topic = metadata.get("topic", "unknown")
+
+            return {
+                "score": 0.8 if difficulty == "easy" else 0.6,
+                "label": f"{difficulty}_{topic}",
+                "explanation": f"Difficulty: {difficulty}, Topic: {topic}",
+            }
+
+        result = await _await_or_return(
+            Client().experiments.run_experiment(
+                dataset=dataset,
+                task=question_answering_task,
+                evaluators={
+                    "output_only": output_only_evaluator,
+                    "accuracy": accuracy_evaluator,
+                    "comprehensive": comprehensive_evaluator,
+                    "reference": reference_evaluator,
+                    "metadata": metadata_evaluator,
+                },
+                experiment_name=f"test_param_binding_{uuid.uuid4().hex[:8]}",
+                print_summary=False,
+            )
+        )
+
+        assert len(result["task_runs"]) == 2
+        assert len(result["evaluation_runs"]) == 10  # 2 examples * 5 evaluators
+
+        comprehensive_evals = [
+            eval_run for eval_run in result["evaluation_runs"] if eval_run.name == "comprehensive"
+        ]
+        assert len(comprehensive_evals) == 2
+
+        for eval_run in comprehensive_evals:
+            assert eval_run.result is not None
+            assert eval_run.result["score"] == 1.0
+            assert "comprehensive_check" in eval_run.result["label"]
+
+        reference_evals = [
+            eval_run for eval_run in result["evaluation_runs"] if eval_run.name == "reference"
+        ]
+        assert len(reference_evals) == 2
+
+        for eval_run in reference_evals:
+            assert eval_run.result is not None
+            assert eval_run.result["score"] == 1.0
+
+        metadata_evals = [
+            eval_run for eval_run in result["evaluation_runs"] if eval_run.name == "metadata"
+        ]
+        assert len(metadata_evals) == 2
+
+        for eval_run in metadata_evals:
+            assert eval_run.result is not None
+            assert "score" in eval_run.result
+            assert "label" in eval_run.result
+            assert "explanation" in eval_run.result
