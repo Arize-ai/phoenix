@@ -47,6 +47,7 @@ This MCP server can be used using `npx` and can be directly integrated with clie
       ]
     }
   }
+}
 ```
 
 ## Development
