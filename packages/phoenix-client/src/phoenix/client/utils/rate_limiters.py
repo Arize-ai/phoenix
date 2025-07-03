@@ -6,7 +6,8 @@ from typing import Any, Callable, Coroutine, Optional, Tuple, Type, TypeVar
 
 from typing_extensions import ParamSpec
 
-from phoenix.evals.exceptions import PhoenixException
+from phoenix.client.exceptions import PhoenixException
+from phoenix.evals.utils import printif
 
 ParameterSpec = ParamSpec("ParameterSpec")
 GenericType = TypeVar("GenericType")
@@ -90,8 +91,9 @@ class AdaptiveTokenBucket:
         original_rate = self.rate
 
         self.rate = original_rate * self.rate_reduction_factor
-        if verbose:
-            print(f"Reducing rate from {original_rate} to {self.rate} after rate limit error")
+        printif(
+            verbose, f"Reducing rate from {original_rate} to {self.rate} after rate limit error"
+        )
 
         self.rate = max(self.rate, self.minimum_rate)
 
@@ -184,9 +186,9 @@ class RateLimiter:
     ) -> Callable[ParameterSpec, GenericType]:
         @wraps(fn)
         def wrapper(*args: Any, **kwargs: Any) -> GenericType:
+            request_start_time = time.time()
             try:
                 self._throttler.wait_until_ready()
-                request_start_time = time.time()
                 return fn(*args, **kwargs)
             except self._rate_limit_error:
                 self._throttler.on_rate_limit_error(request_start_time, verbose=self._verbose)
@@ -228,13 +230,13 @@ class RateLimiter:
             assert self._rate_limit_handling is not None and isinstance(
                 self._rate_limit_handling, asyncio.Event
             )
+            request_start_time = time.time()
             try:
                 try:
                     await asyncio.wait_for(self._rate_limit_handling.wait(), 120)
                 except asyncio.TimeoutError:
                     self._rate_limit_handling.set()  # Set the event as a failsafe
                 await self._throttler.async_wait_until_ready()
-                request_start_time = time.time()
                 return await fn(*args, **kwargs)
             except self._rate_limit_error:
                 async with self._rate_limit_handling_lock:
