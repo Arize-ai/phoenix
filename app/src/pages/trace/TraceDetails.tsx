@@ -1,16 +1,29 @@
 import { PropsWithChildren, Suspense, useMemo } from "react";
+import { Focusable } from "react-aria";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useParams, useSearchParams } from "react-router";
 import { css } from "@emotion/react";
 
-import { Flex, LinkButton, Loading, Text, View } from "@phoenix/components";
+import {
+  Flex,
+  LinkButton,
+  Loading,
+  RichTooltip,
+  Text,
+  TooltipArrow,
+  TooltipTrigger,
+  View,
+} from "@phoenix/components";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
 import { useSpanStatusCodeColor } from "@phoenix/components/trace/useSpanStatusCodeColor";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import { costFormatter } from "@phoenix/utils/numberFormatUtils";
+
+import { RichTokenBreakdown } from "../../components/RichTokenCostBreakdown";
 
 import {
   TraceDetailsQuery,
@@ -22,6 +35,10 @@ import { TraceHeaderRootSpanAnnotations } from "./TraceHeaderRootSpanAnnotations
 type Span = NonNullable<
   TraceDetailsQuery$data["project"]["trace"]
 >["spans"]["edges"][number]["span"];
+
+type CostSummary = NonNullable<
+  TraceDetailsQuery$data["project"]["trace"]
+>["costSummary"];
 
 /**
  * A root span is defined to be a span whose parent span is not in our collection.
@@ -87,6 +104,17 @@ export function TraceDetails(props: TraceDetailsProps) {
                 }
               }
               latencyMs
+              costSummary {
+                prompt {
+                  cost
+                }
+                completion {
+                  cost
+                }
+                total {
+                  cost
+                }
+              }
             }
           }
         }
@@ -99,6 +127,7 @@ export function TraceDetails(props: TraceDetailsProps) {
   );
   const traceLatencyMs =
     data.project.trace?.latencyMs != null ? data.project.trace.latencyMs : null;
+  const costSummary = data?.project?.trace?.costSummary;
   const spansList: Span[] = useMemo(() => {
     const gqlSpans = data.project.trace?.spans.edges || [];
     return gqlSpans.map((node) => node.span);
@@ -119,6 +148,7 @@ export function TraceDetails(props: TraceDetailsProps) {
       <TraceHeader
         rootSpan={rootSpan}
         latencyMs={traceLatencyMs}
+        costSummary={costSummary}
         sessionId={data.project.trace?.projectSessionId}
       />
       <PanelGroup
@@ -164,10 +194,12 @@ export function TraceDetails(props: TraceDetailsProps) {
 function TraceHeader({
   rootSpan,
   latencyMs,
+  costSummary,
   sessionId,
 }: {
   rootSpan: Span | null;
   latencyMs: number | null;
+  costSummary?: CostSummary | null;
   sessionId?: string | null;
 }) {
   const { projectId } = useParams();
@@ -203,6 +235,40 @@ function TraceHeader({
               </Text>
             </Flex>
           </Text>
+        </Flex>
+        <Flex direction="column">
+          <Text elementType="h3" size="S" color="text-700">
+            Total Cost
+          </Text>
+          <TooltipTrigger delay={0}>
+            <Focusable>
+              <Text size="L">
+                {costFormatter(costSummary?.total?.cost ?? 0)}
+              </Text>
+            </Focusable>
+            <RichTooltip placement="bottom">
+              <TooltipArrow />
+              <View width="size-3600">
+                <RichTokenBreakdown
+                  valueLabel="cost"
+                  totalValue={costSummary?.total?.cost ?? 0}
+                  formatter={costFormatter}
+                  segments={[
+                    {
+                      name: "Prompt",
+                      value: costSummary?.prompt?.cost ?? 0,
+                      color: "rgba(254, 119, 99, 1)",
+                    },
+                    {
+                      name: "Completion",
+                      value: costSummary?.completion?.cost ?? 0,
+                      color: "rgba(98, 104, 239, 1)",
+                    },
+                  ]}
+                />
+              </View>
+            </RichTooltip>
+          </TooltipTrigger>
         </Flex>
         <Flex direction="column">
           <Text elementType="h3" size="S" color="text-700">
