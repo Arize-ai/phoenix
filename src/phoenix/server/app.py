@@ -16,17 +16,21 @@ from typing import (
     Any,
     NamedTuple,
     Optional,
+    Protocol,
     TypedDict,
     Union,
     cast,
 )
 from urllib.parse import urlparse
 
+import grpc
 import strawberry
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.utils import is_body_allowed_for_status_code
 from grpc.aio import ServerInterceptor
+from grpc_interceptor import AsyncServerInterceptor
+from grpc_interceptor.exceptions import Unauthenticated
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from starlette.datastructures import URL, Secret
@@ -134,6 +138,7 @@ from phoenix.server.api.routers import (
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.bearer_auth import BearerTokenAuthBackend, is_authenticated
+from phoenix.server.daemons.db_disk_usage_monitor import DbDiskUsageMonitor
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import DmlEvent
@@ -523,6 +528,7 @@ def _lifespan(
     trace_data_sweeper: Optional[TraceDataSweeper],
     span_cost_calculator: SpanCostCalculator,
     generative_model_store: GenerativeModelStore,
+    db_disk_usage_monitor: DbDiskUsageMonitor,
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
@@ -530,6 +536,7 @@ def _lifespan(
     shutdown_callbacks: Iterable[_Callback] = (),
     read_only: bool = False,
     scaffolder_config: Optional[ScaffolderConfig] = None,
+    grpc_interceptors: Iterable[ServerInterceptor] = (),
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[dict[str, Any]]:
@@ -551,7 +558,7 @@ def _lifespan(
                 tracer_provider=tracer_provider,
                 enable_prometheus=enable_prometheus,
                 token_store=token_store,
-                interceptors=user_grpc_interceptors(),
+                interceptors=user_grpc_interceptors() + list(grpc_interceptors),
             )
             await stack.enter_async_context(grpc_server)
             await stack.enter_async_context(dml_event_handler)
@@ -559,6 +566,7 @@ def _lifespan(
                 await stack.enter_async_context(trace_data_sweeper)
             await stack.enter_async_context(span_cost_calculator)
             await stack.enter_async_context(generative_model_store)
+            await stack.enter_async_context(db_disk_usage_monitor)
             if scaffolder_config:
                 scaffolder = Scaffolder(
                     config=scaffolder_config,
@@ -826,6 +834,29 @@ async def plain_text_http_exception_handler(request: Request, exc: HTTPException
     return PlainTextResponse(str(exc.detail), status_code=exc.status_code, headers=headers)
 
 
+class _HasDbStatus(Protocol):
+    @property
+    def should_not_insert_or_update(self) -> bool: ...
+
+
+class DbDiskUsageInterceptor(AsyncServerInterceptor):
+    def __init__(self, db: _HasDbStatus) -> None:
+        self._db = db
+
+    async def intercept(
+        self,
+        method: Callable[[Any, grpc.ServicerContext], Awaitable[Any]],
+        request_or_iterator: Any,
+        context: grpc.ServicerContext,
+        method_name: str,
+    ) -> Any:
+        if not method_name.endswith("trace.v1.TraceService/Export"):
+            return await method(request_or_iterator, context)
+        if self._db.should_not_insert_or_update:
+            raise Unauthenticated()
+        return await method(request_or_iterator, context)
+
+
 def create_app(
     db: DbSessionFactory,
     export_path: Path,
@@ -971,6 +1002,8 @@ def create_app(
         from phoenix.server.prometheus import PrometheusMiddleware
 
         middlewares.append(Middleware(PrometheusMiddleware))
+    grpc_interceptors: list[AsyncServerInterceptor] = []
+    grpc_interceptors.append(DbDiskUsageInterceptor(db))
     app = FastAPI(
         title="Arize-Phoenix REST API",
         version=REST_API_VERSION,
@@ -982,6 +1015,8 @@ def create_app(
             trace_data_sweeper=trace_data_sweeper,
             span_cost_calculator=span_cost_calculator,
             generative_model_store=generative_model_store,
+            db_disk_usage_monitor=DbDiskUsageMonitor(db, email_sender),
+            grpc_interceptors=grpc_interceptors,
             token_store=token_store,
             tracer_provider=tracer_provider,
             enable_prometheus=enable_prometheus,

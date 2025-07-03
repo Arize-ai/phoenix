@@ -15,7 +15,7 @@ from typing import Any, Optional, Union, cast
 
 import pandas as pd
 import pyarrow as pa
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Path, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,6 +47,7 @@ from phoenix.server.api.types.DatasetExample import DatasetExample as DatasetExa
 from phoenix.server.api.types.DatasetVersion import DatasetVersion as DatasetVersionNodeType
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.utils import delete_projects, delete_traces
+from phoenix.server.authorization import is_not_locked
 from phoenix.server.dml_event import DatasetInsertEvent
 
 from .models import V1RoutesBaseModel
@@ -326,6 +327,7 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
 
 @router.post(
     "/datasets/upload",
+    dependencies=[Depends(is_not_locked)],
     operation_id="uploadDataset",
     summary="Upload dataset from JSON, CSV, or PyArrow",
     responses=add_errors_to_responses(

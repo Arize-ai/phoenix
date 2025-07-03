@@ -106,7 +106,23 @@ ENV_PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES = (
 )
 """
 The allocated storage capacity for the Phoenix database in gibibytes (2^30 bytes). Use float for
-fractional value. This is currently used only by the UI for informational displays.
+fractional value.
+"""
+ENV_PHOENIX_DATABASE_USAGE_EMAIL_NOTIFICATION_THRESHOLD_PERCENTAGE = (
+    "PHOENIX_DATABASE_USAGE_EMAIL_NOTIFICATION_THRESHOLD_PERCENTAGE"
+)
+"""
+The percentage of the allocated storage capacity that, when exceeded, triggers an email
+notifications to admin users. Must be specified in conjunction with the allocated storage capacity.
+This is a percentage value between 0 and 100. This setting is ignored if SMTP is not configured.
+"""
+ENV_PHOENIX_DATABASE_USAGE_INSERTION_BLOCKING_THRESHOLD_PERCENTAGE = (
+    "PHOENIX_DATABASE_USAGE_INSERTION_BLOCKING_THRESHOLD_PERCENTAGE"
+)
+"""
+The percentage of the allocated storage capacity that blocks further insertions when exceeded.
+Deletions are not blocked. Must be specified in conjunction with the allocated storage capacity.
+This is a percentage value between 0 and 100.
 """
 ENV_PHOENIX_ENABLE_PROMETHEUS = "PHOENIX_ENABLE_PROMETHEUS"
 """
@@ -1313,6 +1329,28 @@ def get_env_database_schema() -> Optional[str]:
 
 def get_env_database_allocated_storage_capacity_gibibytes() -> Optional[float]:
     return _float_val(ENV_PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES)
+
+
+def get_env_database_usage_email_notification_threshold_percentage() -> Optional[float]:
+    ans = _float_val(ENV_PHOENIX_DATABASE_USAGE_EMAIL_NOTIFICATION_THRESHOLD_PERCENTAGE)
+    if ans is not None and not (0 < ans < 100):
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_DATABASE_USAGE_EMAIL_NOTIFICATION_THRESHOLD_PERCENTAGE}: "
+            f"{ans}. Value must be a percentage strictly between 0 and 100."
+        )
+    return ans
+
+
+def get_env_database_usage_insertion_blocking_threshold_percentage() -> Optional[float]:
+    ans = _float_val(ENV_PHOENIX_DATABASE_USAGE_INSERTION_BLOCKING_THRESHOLD_PERCENTAGE)
+    if ans is not None and not (0 < ans < 100):
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_DATABASE_USAGE_INSERTION_BLOCKING_THRESHOLD_PERCENTAGE}: "
+            f"{ans}. Value must be a percentage strictly between 0 and 100."
+        )
+    return ans
 
 
 def get_env_enable_prometheus() -> bool:

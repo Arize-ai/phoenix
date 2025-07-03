@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import Field
 from sqlalchemy import select
 from starlette.requests import Request
@@ -23,6 +23,7 @@ from phoenix.server.api.routers.v1.utils import (
     add_errors_to_responses,
 )
 from phoenix.server.api.types.Project import Project as ProjectNodeType
+from phoenix.server.authorization import is_not_locked
 
 router = APIRouter(tags=["projects"])
 
@@ -173,6 +174,7 @@ async def get_project(
 
 @router.post(
     "/projects",
+    dependencies=[Depends(is_not_locked)],
     operation_id="createProject",
     summary="Create a new project",  # noqa: E501
     description="Create a new project with the specified configuration.",  # noqa: E501
@@ -213,6 +215,7 @@ async def create_project(
 
 @router.put(
     "/projects/{project_identifier}",
+    dependencies=[Depends(is_not_locked)],
     operation_id="updateProject",
     summary="Update a project by ID or name",  # noqa: E501
     description="Update an existing project with new configuration. Project names cannot be changed. The project identifier is either project ID or project name. Note: When using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",  # noqa: E501
