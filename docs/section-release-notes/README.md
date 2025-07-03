@@ -1,21 +1,20 @@
 ---
 description: The latest from the Phoenix team.
-layout:
-  title:
-    visible: true
-  description:
-    visible: true
-  tableOfContents:
-    visible: true
-  outline:
-    visible: false
-  pagination:
-    visible: true
 ---
 
 # Release Notes
 
 {% embed url="https://github.com/Arize-ai/phoenix/releases" %}
+
+## [06.06.2025: Experiment Progress Graph](06.06.2025-experiment-progress-graph.md) 📊
+
+**Available in Phoenix 10.9+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/experiment_graphs.mp4" %}
+
+Phoenix now has experiment graphs to track how your annotation scores and latency evolve over time.&#x20;
+
+***
 
 ## [05.30.2025: xAI and Deepseek Support in Playground](05.30.2025-xai-and-deepseek-support-in-playground.md) 🛝
 
