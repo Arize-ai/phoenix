@@ -167,10 +167,10 @@ class InterruptingIterator(Sequence[int]):
 
     @overload
     def __getitem__(self, index: int) -> int: ...
-    
+
     @overload
     def __getitem__(self, index: slice) -> Sequence[int]: ...
-    
+
     def __getitem__(self, index: Union[int, slice]) -> Union[int, Sequence[int]]:
         if isinstance(index, slice):
             start, stop, step = index.indices(self.max_elements)
@@ -188,7 +188,7 @@ class InterruptingIterator(Sequence[int]):
         if self.current < self.max_elements:
             if self.current == self.interruption_index:
                 # Trigger interruption signal
-                os.kill(os.getpid(), signal.SIGUSR1)
+                os.kill(os.getpid(), signal.SIGUSR1)  # type: ignore[unused-ignore]
                 time.sleep(0.1)
 
             res = self.current
@@ -211,7 +211,7 @@ async def test_async_executor_sigint_handling() -> None:
         concurrency=5,
         max_retries=0,
         fallback_return_value="test",
-        termination_signal=signal.SIGUSR1,
+        termination_signal=signal.SIGUSR1,  # type: ignore[unused-ignore]
     )
     task = asyncio.create_task(executor.execute(InterruptingIterator(sigint_index, result_length)))
 
@@ -358,7 +358,7 @@ def test_sync_executor_sigint_handling() -> None:
         sync_fn,
         max_retries=0,
         fallback_return_value="test",
-        termination_signal=signal.SIGUSR1,
+        termination_signal=signal.SIGUSR1,  # type: ignore[unused-ignore]
     )
     results, _ = executor.run(InterruptingIterator(sigint_index, result_length))
     assert len(results) == result_length
