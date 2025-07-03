@@ -11,7 +11,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.000015,
+          "base_rate": 15e-6,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -82,7 +82,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.000015,
+          "base_rate": 15e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -109,7 +109,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.000015,
+          "base_rate": 15e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -136,7 +136,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.000015,
+          "base_rate": 15e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -163,7 +163,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.000015,
+          "base_rate": 15e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -190,7 +190,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.000015,
+          "base_rate": 15e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -239,12 +239,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.000015,
+          "base_rate": 15e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.000075,
+          "base_rate": 75e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -254,7 +254,7 @@
           "token_type": "cache_read"
         },
         {
-          "base_rate": 0.00001875,
+          "base_rate": 18.75e-6,
           "is_prompt": true,
           "token_type": "cache_write"
         }
@@ -266,12 +266,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.000015,
+          "base_rate": 15e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.000075,
+          "base_rate": 75e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -281,7 +281,7 @@
           "token_type": "cache_read"
         },
         {
-          "base_rate": 0.00001875,
+          "base_rate": 18.75e-6,
           "is_prompt": true,
           "token_type": "cache_write"
         }
@@ -298,7 +298,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.000015,
+          "base_rate": 15e-6,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -310,12 +310,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.000015,
+          "base_rate": 15e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.000075,
+          "base_rate": 75e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -325,7 +325,7 @@
           "token_type": "cache_read"
         },
         {
-          "base_rate": 0.00001875,
+          "base_rate": 18.75e-6,
           "is_prompt": true,
           "token_type": "cache_write"
         }
@@ -342,7 +342,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.000015,
+          "base_rate": 15e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -364,12 +364,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.000015,
+          "base_rate": 15e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.000075,
+          "base_rate": 75e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -379,7 +379,7 @@
           "token_type": "cache_read"
         },
         {
-          "base_rate": 0.00001875,
+          "base_rate": 18.75e-6,
           "is_prompt": true,
           "token_type": "cache_write"
         }
@@ -396,7 +396,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.000015,
+          "base_rate": 15e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -550,7 +550,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -655,7 +655,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -672,7 +672,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -689,7 +689,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -711,7 +711,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -733,7 +733,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -755,7 +755,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -925,12 +925,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.00003,
+          "base_rate": 30e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.00006,
+          "base_rate": 60e-6,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -942,12 +942,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.00003,
+          "base_rate": 30e-6,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -959,12 +959,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.00003,
+          "base_rate": 30e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.00006,
+          "base_rate": 60e-6,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -976,12 +976,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.00003,
+          "base_rate": 30e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.00006,
+          "base_rate": 60e-6,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -993,12 +993,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.00003,
+          "base_rate": 30e-6,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -1010,12 +1010,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.00003,
+          "base_rate": 30e-6,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -1027,12 +1027,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.00006,
+          "base_rate": 60e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.00012,
+          "base_rate": 120e-6,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -1044,12 +1044,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.00006,
+          "base_rate": 60e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.00012,
+          "base_rate": 120e-6,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -1061,12 +1061,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.00006,
+          "base_rate": 60e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.00012,
+          "base_rate": 120e-6,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -1078,12 +1078,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.00003,
+          "base_rate": 30e-6,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -1095,12 +1095,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.00003,
+          "base_rate": 30e-6,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -1112,12 +1112,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.00003,
+          "base_rate": 30e-6,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -1129,12 +1129,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.00003,
+          "base_rate": 30e-6,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -1278,17 +1278,17 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.000075,
+          "base_rate": 75e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.00015,
+          "base_rate": 150e-6,
           "is_prompt": false,
           "token_type": "output"
         },
         {
-          "base_rate": 0.0000375,
+          "base_rate": 37.5e-6,
           "is_prompt": true,
           "token_type": "cache_read"
         }
@@ -1300,17 +1300,17 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.000075,
+          "base_rate": 75e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.00015,
+          "base_rate": 150e-6,
           "is_prompt": false,
           "token_type": "output"
         },
         {
-          "base_rate": 0.0000375,
+          "base_rate": 37.5e-6,
           "is_prompt": true,
           "token_type": "cache_read"
         }
@@ -1327,7 +1327,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -1349,7 +1349,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.000015,
+          "base_rate": 15e-6,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -1366,7 +1366,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -1388,7 +1388,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -1410,17 +1410,17 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": false,
           "token_type": "output"
         },
         {
-          "base_rate": 0.0001,
+          "base_rate": 100e-6,
           "is_prompt": true,
           "token_type": "audio"
         },
         {
-          "base_rate": 0.0002,
+          "base_rate": 200e-6,
           "is_prompt": false,
           "token_type": "audio"
         }
@@ -1437,17 +1437,17 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": false,
           "token_type": "output"
         },
         {
-          "base_rate": 0.0001,
+          "base_rate": 100e-6,
           "is_prompt": true,
           "token_type": "audio"
         },
         {
-          "base_rate": 0.0002,
+          "base_rate": 200e-6,
           "is_prompt": false,
           "token_type": "audio"
         }
@@ -1464,17 +1464,17 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": false,
           "token_type": "output"
         },
         {
-          "base_rate": 0.00004,
+          "base_rate": 40e-6,
           "is_prompt": true,
           "token_type": "audio"
         },
         {
-          "base_rate": 0.00008,
+          "base_rate": 80e-6,
           "is_prompt": false,
           "token_type": "audio"
         }
@@ -1491,17 +1491,17 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": false,
           "token_type": "output"
         },
         {
-          "base_rate": 0.00004,
+          "base_rate": 40e-6,
           "is_prompt": true,
           "token_type": "audio"
         },
         {
-          "base_rate": 0.00008,
+          "base_rate": 80e-6,
           "is_prompt": false,
           "token_type": "audio"
         }
@@ -1567,12 +1567,12 @@
           "token_type": "output"
         },
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": true,
           "token_type": "audio"
         },
         {
-          "base_rate": 0.00002,
+          "base_rate": 20e-6,
           "is_prompt": false,
           "token_type": "audio"
         }
@@ -1594,12 +1594,12 @@
           "token_type": "output"
         },
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": true,
           "token_type": "audio"
         },
         {
-          "base_rate": 0.00002,
+          "base_rate": 20e-6,
           "is_prompt": false,
           "token_type": "audio"
         }
@@ -1626,12 +1626,12 @@
           "token_type": "cache_read"
         },
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": true,
           "token_type": "audio"
         },
         {
-          "base_rate": 0.00002,
+          "base_rate": 20e-6,
           "is_prompt": false,
           "token_type": "audio"
         }
@@ -1658,12 +1658,12 @@
           "token_type": "cache_read"
         },
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": true,
           "token_type": "audio"
         },
         {
-          "base_rate": 0.00002,
+          "base_rate": 20e-6,
           "is_prompt": false,
           "token_type": "audio"
         }
@@ -1746,12 +1746,12 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": false,
           "token_type": "output"
         },
         {
-          "base_rate": 0.000012,
+          "base_rate": 12e-6,
           "is_prompt": false,
           "token_type": "audio"
         }
@@ -1768,7 +1768,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.00002,
+          "base_rate": 20e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -1778,12 +1778,12 @@
           "token_type": "cache_read"
         },
         {
-          "base_rate": 0.00004,
+          "base_rate": 40e-6,
           "is_prompt": true,
           "token_type": "audio"
         },
         {
-          "base_rate": 0.00008,
+          "base_rate": 80e-6,
           "is_prompt": false,
           "token_type": "audio"
         }
@@ -1800,7 +1800,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.00002,
+          "base_rate": 20e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -1810,12 +1810,12 @@
           "token_type": "cache_read"
         },
         {
-          "base_rate": 0.0001,
+          "base_rate": 100e-6,
           "is_prompt": true,
           "token_type": "audio"
         },
         {
-          "base_rate": 0.0002,
+          "base_rate": 200e-6,
           "is_prompt": false,
           "token_type": "audio"
         }
@@ -1832,7 +1832,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.00002,
+          "base_rate": 20e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -1842,12 +1842,12 @@
           "token_type": "cache_read"
         },
         {
-          "base_rate": 0.00004,
+          "base_rate": 40e-6,
           "is_prompt": true,
           "token_type": "audio"
         },
         {
-          "base_rate": 0.00008,
+          "base_rate": 80e-6,
           "is_prompt": false,
           "token_type": "audio"
         }
@@ -1864,7 +1864,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -1886,7 +1886,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -1908,7 +1908,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -1925,12 +1925,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.000015,
+          "base_rate": 15e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.00006,
+          "base_rate": 60e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -1947,12 +1947,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.000015,
+          "base_rate": 15e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.00006,
+          "base_rate": 60e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -1996,7 +1996,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.000012,
+          "base_rate": 12e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -2013,12 +2013,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.000015,
+          "base_rate": 15e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.00006,
+          "base_rate": 60e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -2035,12 +2035,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.000015,
+          "base_rate": 15e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.00006,
+          "base_rate": 60e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -2057,12 +2057,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.00015,
+          "base_rate": 150e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.0006,
+          "base_rate": 600e-6,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -2074,12 +2074,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.00015,
+          "base_rate": 150e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.0006,
+          "base_rate": 600e-6,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -2135,12 +2135,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.00004,
+          "base_rate": 40e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -2157,12 +2157,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.00001,
+          "base_rate": 10e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.00004,
+          "base_rate": 40e-6,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -2223,12 +2223,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.00002,
+          "base_rate": 20e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.00008,
+          "base_rate": 80e-6,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -2240,12 +2240,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.00002,
+          "base_rate": 20e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.00008,
+          "base_rate": 80e-6,
           "is_prompt": false,
           "token_type": "output"
         }

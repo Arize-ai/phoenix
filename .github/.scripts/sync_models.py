@@ -8,6 +8,25 @@ from urllib.request import urlopen
 from pydantic import AfterValidator, BaseModel
 
 
+def format_small_floats_in_json(json_str: str) -> str:
+    """Replace small decimal numbers in JSON string with scientific notation"""
+
+    def replace_small_floats(match):
+        prefix = match.group(1)  # "base_rate":
+        value = float(match.group(2))  # the actual number
+        if 0 < value < 1e-3:
+            coefficient = round(value * 1e6, 10)
+            if coefficient == int(coefficient):
+                return f"{prefix}{int(coefficient)}e-6"
+            else:
+                return f"{prefix}{coefficient:g}e-6"
+        return match.group(0)
+
+    # Pattern to match base_rate field with small decimal numbers
+    pattern = r'("base_rate":\s*)(\d+\.*\d+)'
+    return re.sub(pattern, replace_small_floats, json_str)
+
+
 class TokenPrice(BaseModel):
     base_rate: float
     is_prompt: bool
@@ -234,7 +253,9 @@ def main() -> int:
 
     if data != updated_manifest:
         with open(local_file_path, "w") as file:
-            file.write(updated_manifest.model_dump_json(indent=2))
+            json_str = updated_manifest.model_dump_json(indent=2)
+            formatted_json = format_small_floats_in_json(json_str)
+            file.write(formatted_json)
         print("Model data updated successfully")
     else:
         print("No changes detected")
