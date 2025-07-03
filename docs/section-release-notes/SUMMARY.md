@@ -1,7 +1,14 @@
 # Table of contents
 
 * [Release Notes](README.md)
+* [06.25.2025: Cost Tracking 💰](06.25.2025-cost-tracking.md)
+* [06.25.2025: New Phoenix Cloud ☁️](06.25.2025-new-phoenix-cloud.md)
+* [06.25.2025: Amazon Bedrock Support in Playground 🛝](06.25.2025-amazon-bedrock-support-in-playground.md)
+* [06.13.2025: Session Filtering 🪄](06.13.2025-session-filtering.md)
+* [06.13.2025: Enhanced Span Creation and Logging 🪐](06.13.2025-enhanced-span-creation-and-logging.md)
+* [06.12.2025: Dataset Filtering 🔍](06.12.2025-dataset-filtering.md)
 * [06.06.2025: Experiment Progress Graph  📊](06.06.2025-experiment-progress-graph.md)
+* [06.04.2025: Ollama Support in Playground 🛝](06.04.2025-ollama-support-in-playground.md)
 * [05.30.2025: xAI and Deepseek Support in Playground 🛝](05.30.2025-xai-and-deepseek-support-in-playground.md)
 * [05.20.2025: Datasets and Experiment Evaluations in the JS Client 🧪](05.20.2025-datasets-and-experiment-evaluations-in-the-js-client.md)
 * [05.14.2025: Experiments in the JS Client 🔬](05.14.2025-experiments-in-the-js-client.md)

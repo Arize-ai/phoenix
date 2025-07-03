@@ -6,19 +6,83 @@ description: The latest from the Phoenix team.
 
 {% embed url="https://github.com/Arize-ai/phoenix/releases" %}
 
+## [06.25.2025: Cost Tracking](06.25.2025-cost-tracking.md) 💰
+
+**Available in Phoenix 11.0+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/observe_cost_tracking.mp4" %}
+
+Phoenix now automatically tracks token-based LLM costs using model pricing and token counts, rolling them up to trace and project levels for clear, actionable cost insights.
+
+***
+
+## [06.25.2025: New Phoenix Cloud](06.25.2025-new-phoenix-cloud.md) ☁️
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/observe_phoenix_cloud_launch.mp4" %}
+
+Phoenix now supports multiple customizable spaces with individual user access and collaboration, enabling teams to work together seamlessly.
+
+***
+
+## [06.25.2025: Amazon Bedrock Support in Playground 🛝](06.25.2025-amazon-bedrock-support-in-playground.md)
+
+**Available in Phoenix 10.15+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/observe_bedrock_playground.mp4" %}
+
+Phoenix’s Playground now supports Amazon Bedrock, letting you run, compare, and track Bedrock models alongside others—all in one place.
+
+***
+
+## [06.13.2025: Session Filtering 🪄](06.13.2025-session-filtering.md)
+
+**Available in Phoenix 10.12+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/session-filtering.gif" %}
+
+Now you can filter sessions by their unique `session_id` across the API and UI, making it easier to pinpoint and inspect specific sessions.
+
+***
+
+## [06.13.2025: Enhanced Span Creation and Logging](06.13.2025-enhanced-span-creation-and-logging.md) 🪐
+
+**Available in Phoenix 10.12+**
+
+Now you can create spans directly via a new POST API and client methods, with helpers to safely regenerate IDs and prevent conflicts on insertion.
+
+***
+
+## [06.12.2025: Dataset Filtering 🔍](06.12.2025-dataset-filtering.md)
+
+**Available in Phoenix 10.11+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/dataset-filtering.gif" %}
+
+Dataset name filtering with live search support across the API and UI.
+
+***
+
 ## [06.06.2025: Experiment Progress Graph](06.06.2025-experiment-progress-graph.md) 📊
 
 **Available in Phoenix 10.9+**
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/experiment_graphs.mp4" %}
 
-Phoenix now has experiment graphs to track how your annotation scores and latency evolve over time.&#x20;
+Phoenix now has experiment graphs to track how your evaluation scores and latency evolve over time.&#x20;
+
+***
+
+## [06.04.2025: Ollama Support in Playground 🛝](06.04.2025-ollama-support-in-playground.md)
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/ollama-playground.gif" %}
+
+**Ollama** is now supported in the Playground, letting you experiment with its models and customize parameters for tailored prompting.
 
 ***
 
 ## [05.30.2025: xAI and Deepseek Support in Playground](05.30.2025-xai-and-deepseek-support-in-playground.md) 🛝
 
-**Available in Phoenix 10.5+**
+**Available in Phoenix 10.7+**
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/deepseek.mp4" %}
 
