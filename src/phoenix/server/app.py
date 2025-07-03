@@ -30,7 +30,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.utils import is_body_allowed_for_status_code
 from grpc.aio import ServerInterceptor
 from grpc_interceptor import AsyncServerInterceptor
-from grpc_interceptor.exceptions import Unauthenticated
+from grpc_interceptor.exceptions import Unavailable
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from starlette.datastructures import URL, Secret
@@ -839,6 +839,10 @@ class _HasDbStatus(Protocol):
     def should_not_insert_or_update(self) -> bool: ...
 
 
+class _DbDiskUsageThresholdExceeded(Unavailable):
+    details: str = "Database disk usage threshold exceeded"
+
+
 class DbDiskUsageInterceptor(AsyncServerInterceptor):
     def __init__(self, db: _HasDbStatus) -> None:
         self._db = db
@@ -853,7 +857,7 @@ class DbDiskUsageInterceptor(AsyncServerInterceptor):
         if not method_name.endswith("trace.v1.TraceService/Export"):
             return await method(request_or_iterator, context)
         if self._db.should_not_insert_or_update:
-            raise Unauthenticated()
+            raise _DbDiskUsageThresholdExceeded()
         return await method(request_or_iterator, context)
 
 

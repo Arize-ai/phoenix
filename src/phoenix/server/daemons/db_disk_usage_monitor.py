@@ -110,7 +110,7 @@ class DbDiskUsageMonitor(DaemonTask):
             insertion_blocking_threshold_percentage
             := get_env_database_usage_insertion_blocking_threshold_percentage()
         ):
-            should_not_insert_or_update = used_percentage >= insertion_blocking_threshold_percentage
+            should_not_insert_or_update = used_percentage > insertion_blocking_threshold_percentage
             if should_not_insert_or_update:
                 logger.info(
                     f"Database usage {used_percentage:.1f}% exceeds blocking threshold "
@@ -123,7 +123,7 @@ class DbDiskUsageMonitor(DaemonTask):
             notification_threshold_percentage
             := get_env_database_usage_email_warning_threshold_percentage()
         ):
-            if used_percentage >= notification_threshold_percentage:
+            if used_percentage > notification_threshold_percentage:
                 logger.debug(
                     f"Database usage {used_percentage:.2f}% exceeds warning threshold "
                     f"{notification_threshold_percentage}%, sending warning emails"
