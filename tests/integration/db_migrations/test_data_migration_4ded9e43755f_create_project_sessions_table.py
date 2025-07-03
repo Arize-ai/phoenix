@@ -153,7 +153,7 @@ def test_data_migration_for_project_sessions(
                             if _engine.dialect.name == "sqlite"
                             else row["attributes"]
                         )["session"]["id"]
-                    ),
+                    ),  # type: ignore[dict-item]
                 },
             ),
             axis=1,
@@ -186,7 +186,7 @@ def test_data_migration_for_project_sessions(
         ).all()
         assert (
             df_project_sessions_joined_spans.groupby("session_id")
-            .apply(lambda s: s.end_time.min() == s.end_time_trace.max())  # type: ignore[unused-ignore]
+            .apply(lambda s: s.end_time.min() == s.end_time_trace.max())  # type: ignore[attr-defined]
             .all()
         )
 
