@@ -59,6 +59,7 @@ dependencies = [
   "authlib",
   "arize-phoenix-client",
   "email-validator",
+  "python-dateutil",
 ]
 dynamic = ["version"]
 
