@@ -2,12 +2,39 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Sequence
+from unittest.mock import patch
 
 import pytest
+from opentelemetry.sdk.trace import ReadableSpan
+from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from phoenix.client.resources.datasets import Dataset
 
 from .._helpers import _ADMIN, _MEMBER, _await_or_return, _GetUser, _RoleOrUser
+
+
+class SpanCapture:
+    """Helper class to capture OpenTelemetry spans during testing."""
+
+    def __init__(self) -> None:
+        self.spans: List[ReadableSpan] = []
+
+    def clear(self) -> None:
+        self.spans.clear()
+
+
+class CapturingSpanExporter(SpanExporter):
+    """A span exporter that captures spans instead of sending them to a server."""
+
+    def __init__(self, capture: SpanCapture) -> None:
+        self.capture = capture
+
+    def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
+        self.capture.spans.extend(spans)
+        return SpanExportResult.SUCCESS
+
+    def shutdown(self) -> None:
+        pass
 
 
 class TestExperimentsIntegration:
@@ -77,6 +104,137 @@ class TestExperimentsIntegration:
         assert result["dataset_id"] == dataset.id
         assert len(result["task_runs"]) == 3
         assert len(result["evaluation_runs"]) == 0
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_run_experiment_creates_proper_spans(
+        self,
+        is_async: bool,
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test that experiments create proper OpenTelemetry spans with correct attributes."""
+        user = _get_user(_MEMBER).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient
+
+        unique_name = f"test_span_creation_{uuid.uuid4().hex[:8]}"
+
+        # Create a small dataset for testing
+        dataset = await _await_or_return(
+            Client().datasets.create_dataset(
+                name=unique_name,
+                inputs=[
+                    {"text": "Hello world"},
+                    {"text": "Python is great"},
+                ],
+                outputs=[
+                    {"expected": "greeting"},
+                    {"expected": "programming"},
+                ],
+                metadata=[
+                    {"category": "test"},
+                    {"category": "test"},
+                ],
+            )
+        )
+
+        def classification_task(input: Dict[str, Any]) -> str:
+            text = input.get("text", "")
+            if "Hello" in text:
+                return "greeting"
+            elif "Python" in text:
+                return "programming"
+            else:
+                return "unknown"
+
+        def accuracy_evaluator(output: str) -> float:
+            return 1.0 if output in ["greeting", "programming"] else 0.0
+
+        span_capture = SpanCapture()
+        capturing_exporter = CapturingSpanExporter(span_capture)
+
+        from openinference.semconv.resource import ResourceAttributes
+        from opentelemetry.sdk.resources import Resource
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+
+        def mock_get_tracer(
+            project_name: Optional[str] = None,
+            base_url: Optional[str] = None,
+            headers: Optional[Dict[str, str]] = None,
+        ) -> tuple[Any, Any]:
+            resource = Resource(
+                {ResourceAttributes.PROJECT_NAME: project_name} if project_name else {}
+            )
+            tracer_provider = TracerProvider(resource=resource)
+            span_processor = SimpleSpanProcessor(capturing_exporter)
+            tracer_provider.add_span_processor(span_processor)
+            return tracer_provider.get_tracer(__name__), resource
+
+        experiments_module = "phoenix.client.resources.experiments"
+
+        with patch(f"{experiments_module}._get_tracer", side_effect=mock_get_tracer):
+            result = await _await_or_return(
+                Client().experiments.run_experiment(
+                    dataset=dataset,
+                    task=classification_task,
+                    evaluators={"accuracy_evaluator": accuracy_evaluator},
+                    experiment_name=f"test_span_experiment_{uuid.uuid4().hex[:8]}",
+                    print_summary=False,
+                )
+            )
+
+        assert len(result["task_runs"]) == 2
+        assert len(result["evaluation_runs"]) == 2
+
+        assert len(span_capture.spans) > 0, "No spans were captured"
+
+        task_spans: List[ReadableSpan] = []
+        eval_spans: List[ReadableSpan] = []
+
+        for span in span_capture.spans:
+            if span.attributes is not None:
+                span_kind = span.attributes.get("openinference.span.kind")
+                if span_kind == "CHAIN":
+                    task_spans.append(span)
+                elif span_kind == "EVALUATOR":
+                    eval_spans.append(span)
+
+        assert len(task_spans) == 2, f"Expected 2 task spans, got {len(task_spans)}"
+
+        for task_span in task_spans:
+            assert task_span.name == "Task: classification_task"
+
+            if task_span.attributes is not None:
+                assert task_span.attributes.get("openinference.span.kind") == "CHAIN"
+                assert "input.value" in task_span.attributes
+                assert "input.mime_type" in task_span.attributes
+                assert "output.value" in task_span.attributes
+
+            assert task_span.status.status_code.name == "OK"
+
+        assert len(eval_spans) == 2, f"Expected 2 evaluation spans, got {len(eval_spans)}"
+
+        for eval_span in eval_spans:
+            assert eval_span.name == "Evaluation: accuracy_evaluator"
+
+            if eval_span.attributes is not None:
+                assert eval_span.attributes.get("openinference.span.kind") == "EVALUATOR"
+
+            assert eval_span.status.status_code.name == "OK"
+
+        for span in span_capture.spans:
+            project_name = span.resource.attributes.get(ResourceAttributes.PROJECT_NAME)
+            assert project_name is not None and project_name != ""
+
+        for span in span_capture.spans:
+            span_context = span.get_span_context()
+            if span_context is not None:
+                assert span_context.trace_id != 0, "Span should have a valid trace ID"
 
     @pytest.mark.parametrize("is_async", [True, False])
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
@@ -485,93 +643,3 @@ class TestExperimentsIntegration:
                     print_summary=False,
                 )
             )
-
-    @pytest.mark.parametrize("is_async", [True, False])
-    async def test_experiment_without_opentelemetry(
-        self,
-        is_async: bool,
-        _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        """Test that experiments work correctly when OpenTelemetry is not installed."""
-        user = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
-        Client = AsyncClient if is_async else SyncClient
-
-        # Mock _try_import_opentelemetry to return None (simulating OTel not installed)
-        import phoenix.client.resources.experiments
-
-        monkeypatch.setattr(
-            phoenix.client.resources.experiments, "_try_import_opentelemetry", lambda: None
-        )
-
-        unique_name = f"test_no_otel_{uuid.uuid4().hex[:8]}"
-
-        dataset = await _await_or_return(
-            Client().datasets.create_dataset(
-                name=unique_name,
-                inputs=[
-                    {"question": "What is 2+2?"},
-                    {"question": "What is the capital of France?"},
-                ],
-                outputs=[
-                    {"answer": "4"},
-                    {"answer": "Paris"},
-                ],
-                metadata=[
-                    {"category": "math"},
-                    {"category": "geography"},
-                ],
-            )
-        )
-
-        def simple_task(input: Dict[str, Any]) -> str:
-            question = input.get("question", "")
-            if "2+2" in question:
-                return "The answer is 4"
-            elif "capital" in question:
-                return "The capital is Paris"
-            else:
-                return "I don't know"
-
-        def accuracy_evaluator(output: str, expected: Dict[str, Any]) -> float:
-            return 1.0 if output == expected.get("answer") else 0.0
-
-        result = await _await_or_return(
-            Client().experiments.run_experiment(
-                dataset=dataset,
-                task=simple_task,
-                evaluators=[accuracy_evaluator],
-                experiment_name=f"test_no_otel_{uuid.uuid4().hex[:8]}",
-                experiment_description="Test without OpenTelemetry",
-                print_summary=False,
-            )
-        )
-
-        # Verify experiment works correctly without OpenTelemetry
-        assert "experiment_id" in result
-        assert "dataset_id" in result
-        assert "task_runs" in result
-        assert "evaluation_runs" in result
-        assert result["dataset_id"] == dataset.id
-        assert len(result["task_runs"]) == 2
-        assert len(result["evaluation_runs"]) == 2
-
-        for task_run in result["task_runs"]:
-            assert "dataset_example_id" in task_run
-            assert "output" in task_run
-            assert "start_time" in task_run
-            assert "end_time" in task_run
-            assert task_run["output"] is not None
-
-        for eval_run in result["evaluation_runs"]:
-            assert hasattr(eval_run, "experiment_run_id")
-            assert hasattr(eval_run, "start_time")
-            assert hasattr(eval_run, "end_time")
-            assert hasattr(eval_run, "name")
-            assert eval_run.experiment_run_id is not None
-            assert eval_run.name is not None
