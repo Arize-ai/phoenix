@@ -26,7 +26,7 @@ from openinference.semconv.trace import (
 )
 from opentelemetry.context import Context
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.resources import Resource  # type: ignore[attr-defined]
 from opentelemetry.sdk.trace import ReadableSpan, Span
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.trace import INVALID_TRACE_ID, Status, StatusCode, Tracer
@@ -73,9 +73,9 @@ class SpanModifier:
         Args:
           span: ReadableSpan: the span to modify
         """
-        if (ctx := span._context) is None or ctx.span_id == INVALID_TRACE_ID:
+        if (ctx := span._context) is None or ctx.span_id == INVALID_TRACE_ID:  # pyright: ignore[reportPrivateUsage]
             return
-        span._resource = span._resource.merge(self._resource)
+        span._resource = span._resource.merge(self._resource)  # pyright: ignore[reportPrivateUsage]
 
 
 _ACTIVE_MODIFIER: ContextVar[Optional[SpanModifier]] = ContextVar("active_modifier")
@@ -144,7 +144,7 @@ def _get_tracer(
 
     if project_name and base_url:
         endpoint = urljoin(base_url, "v1/traces")
-        span_processor = SimpleSpanProcessor(
+        span_processor: trace_sdk.SpanProcessor = SimpleSpanProcessor(
             OTLPSpanExporter(
                 endpoint=endpoint,
                 headers=headers or {},
@@ -690,11 +690,12 @@ class Experiments:
 
             # Handle potential None values in span timing
             if span.start_time is not None:
-                start_time = _decode_unix_nano(cast(int, span.start_time))
+                start_time = _decode_unix_nano(span.start_time)
             if span.end_time is not None:
-                end_time = _decode_unix_nano(cast(int, span.end_time))
-            if span.get_span_context().trace_id != 0:
-                trace_id = _str_trace_id(cast(int, span.get_span_context().trace_id))
+                end_time = _decode_unix_nano(span.end_time)
+            span_context = span.get_span_context()  # type: ignore[no-untyped-call]
+            if span_context is not None and span_context.trace_id != 0:
+                trace_id = _str_trace_id(span_context.trace_id)
 
         exp_run: ExperimentRun = {
             "dataset_example_id": example["id"],
@@ -745,7 +746,7 @@ class Experiments:
         print("🧠 Evaluation started.")
 
         # Create evaluation input with example data
-        evaluation_input = []
+        evaluation_input: list[tuple[v1.DatasetExample, ExperimentRun, Evaluator]] = []
         for run in task_runs:
             # Find the corresponding example for this run
             example = None
@@ -832,7 +833,7 @@ class Experiments:
 
             if result:
                 # Filter out None values for OpenTelemetry attributes
-                attributes = {}
+                attributes: dict[str, Any] = {}
                 if (score := result.get("score")) is not None:
                     attributes["evaluation.score"] = score
                 if (label := result.get("label")) is not None:
@@ -844,11 +845,12 @@ class Experiments:
 
             # Handle potential None values in span timing
             if span.start_time is not None:
-                start_time = _decode_unix_nano(cast(int, span.start_time))
+                start_time = _decode_unix_nano(span.start_time)
             if span.end_time is not None:
-                end_time = _decode_unix_nano(cast(int, span.end_time))
-            if span.get_span_context().trace_id != 0:
-                trace_id = _str_trace_id(cast(int, span.get_span_context().trace_id))
+                end_time = _decode_unix_nano(span.end_time)
+            span_context = span.get_span_context()  # type: ignore[no-untyped-call]
+            if span_context is not None and span_context.trace_id != 0:
+                trace_id = _str_trace_id(span_context.trace_id)
 
         eval_run = ExperimentEvaluationRun(
             experiment_run_id=experiment_run["id"],
@@ -1220,11 +1222,12 @@ class AsyncExperiments:
 
             # Handle potential None values in span timing
             if span.start_time is not None:
-                start_time = _decode_unix_nano(cast(int, span.start_time))
+                start_time = _decode_unix_nano(span.start_time)
             if span.end_time is not None:
-                end_time = _decode_unix_nano(cast(int, span.end_time))
-            if span.get_span_context().trace_id != 0:
-                trace_id = _str_trace_id(cast(int, span.get_span_context().trace_id))
+                end_time = _decode_unix_nano(span.end_time)
+            span_context = span.get_span_context()  # type: ignore[no-untyped-call]
+            if span_context is not None and span_context.trace_id != 0:
+                trace_id = _str_trace_id(span_context.trace_id)
 
         exp_run: ExperimentRun = {
             "dataset_example_id": example["id"],
@@ -1276,7 +1279,7 @@ class AsyncExperiments:
         print("🧠 Evaluation started.")
 
         # Create evaluation input with example data
-        evaluation_input = []
+        evaluation_input: list[tuple[v1.DatasetExample, ExperimentRun, Evaluator]] = []
         for run in task_runs:
             # Find the corresponding example for this run
             example = None
@@ -1364,7 +1367,7 @@ class AsyncExperiments:
 
             if result:
                 # Filter out None values for OpenTelemetry attributes
-                attributes = {}
+                attributes: dict[str, Any] = {}
                 if (score := result.get("score")) is not None:
                     attributes["evaluation.score"] = score
                 if (label := result.get("label")) is not None:
@@ -1376,11 +1379,12 @@ class AsyncExperiments:
 
             # Handle potential None values in span timing
             if span.start_time is not None:
-                start_time = _decode_unix_nano(cast(int, span.start_time))
+                start_time = _decode_unix_nano(span.start_time)
             if span.end_time is not None:
-                end_time = _decode_unix_nano(cast(int, span.end_time))
-            if span.get_span_context().trace_id != 0:
-                trace_id = _str_trace_id(cast(int, span.get_span_context().trace_id))
+                end_time = _decode_unix_nano(span.end_time)
+            span_context = span.get_span_context()  # type: ignore[no-untyped-call]
+            if span_context is not None and span_context.trace_id != 0:
+                trace_id = _str_trace_id(span_context.trace_id)
 
         eval_run = ExperimentEvaluationRun(
             experiment_run_id=experiment_run["id"],
