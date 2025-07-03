@@ -108,8 +108,8 @@ ENV_PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES = (
 The allocated storage capacity for the Phoenix database in gibibytes (2^30 bytes). Use float for
 fractional value.
 """
-ENV_PHOENIX_DATABASE_USAGE_EMAIL_NOTIFICATION_THRESHOLD_PERCENTAGE = (
-    "PHOENIX_DATABASE_USAGE_EMAIL_NOTIFICATION_THRESHOLD_PERCENTAGE"
+ENV_PHOENIX_DATABASE_USAGE_EMAIL_WARNING_THRESHOLD_PERCENTAGE = (
+    "PHOENIX_DATABASE_USAGE_EMAIL_WARNING_THRESHOLD_PERCENTAGE"
 )
 """
 The percentage of the allocated storage capacity that, when exceeded, triggers an email
@@ -1331,12 +1331,12 @@ def get_env_database_allocated_storage_capacity_gibibytes() -> Optional[float]:
     return _float_val(ENV_PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES)
 
 
-def get_env_database_usage_email_notification_threshold_percentage() -> Optional[float]:
-    ans = _float_val(ENV_PHOENIX_DATABASE_USAGE_EMAIL_NOTIFICATION_THRESHOLD_PERCENTAGE)
+def get_env_database_usage_email_warning_threshold_percentage() -> Optional[float]:
+    ans = _float_val(ENV_PHOENIX_DATABASE_USAGE_EMAIL_WARNING_THRESHOLD_PERCENTAGE)
     if ans is not None and not (0 < ans < 100):
         raise ValueError(
             f"Invalid value for environment variable "
-            f"{ENV_PHOENIX_DATABASE_USAGE_EMAIL_NOTIFICATION_THRESHOLD_PERCENTAGE}: "
+            f"{ENV_PHOENIX_DATABASE_USAGE_EMAIL_WARNING_THRESHOLD_PERCENTAGE}: "
             f"{ans}. Value must be a percentage strictly between 0 and 100."
         )
     return ans

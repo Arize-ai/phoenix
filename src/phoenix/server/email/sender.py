@@ -81,7 +81,7 @@ class SimpleEmailSender:
 
         await to_thread.run_sync(self._send_email, msg)
 
-    async def send_db_usage_notification_email(
+    async def send_db_usage_warning_email(
         self,
         email: str,
         current_usage_gibibytes: float,

@@ -84,7 +84,7 @@ def _app(
         # Set extremely low capacity to trigger thresholds during testing
         ("PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES", "0.001"),
         # Notification threshold: 0.1% of 0.001 GiB = ~1 KB
-        ("PHOENIX_DATABASE_USAGE_EMAIL_NOTIFICATION_THRESHOLD_PERCENTAGE", "0.1"),
+        ("PHOENIX_DATABASE_USAGE_EMAIL_WARNING_THRESHOLD_PERCENTAGE", "0.1"),
         # Blocking threshold: 0.2% of 0.001 GiB = ~2 KB
         ("PHOENIX_DATABASE_USAGE_INSERTION_BLOCKING_THRESHOLD_PERCENTAGE", "0.2"),
     )
@@ -103,7 +103,7 @@ def _tls_certs_server(
     return _generate_certs(path, separate_key=True)
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def _smtpd(
     _app: Any,
     _tls_certs_server: Cert,
@@ -123,7 +123,7 @@ def _smtpd(
 
 
 class TestDbDiskUsageMonitor:
-    def test_email_notification_and_insertion_blocking(
+    def test_email_warning_and_insertion_blocking(
         self,
         _app: Any,
         _smtpd: AuthController,

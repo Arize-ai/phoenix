@@ -12,7 +12,7 @@ from typing_extensions import assert_never
 
 from phoenix.config import (
     get_env_database_allocated_storage_capacity_gibibytes,
-    get_env_database_usage_email_notification_threshold_percentage,
+    get_env_database_usage_email_warning_threshold_percentage,
     get_env_database_usage_insertion_blocking_threshold_percentage,
 )
 from phoenix.db import models
@@ -54,7 +54,7 @@ class DbDiskUsageMonitor(DaemonTask):
         return not bool(
             get_env_database_allocated_storage_capacity_gibibytes()
             and (
-                get_env_database_usage_email_notification_threshold_percentage()
+                get_env_database_usage_email_warning_threshold_percentage()
                 or get_env_database_usage_insertion_blocking_threshold_percentage()
             )
         )
@@ -121,20 +121,20 @@ class DbDiskUsageMonitor(DaemonTask):
         # Check warning email threshold
         if (
             notification_threshold_percentage
-            := get_env_database_usage_email_notification_threshold_percentage()
+            := get_env_database_usage_email_warning_threshold_percentage()
         ):
             if used_percentage >= notification_threshold_percentage:
                 logger.debug(
                     f"Database usage {used_percentage:.2f}% exceeds warning threshold "
                     f"{notification_threshold_percentage}%, sending warning emails"
                 )
-                await self._send_notification_emails(
+                await self._send_warning_emails(
                     used_percentage,
                     allocated_capacity_gibibytes,
                     notification_threshold_percentage,
                 )
 
-    async def _send_notification_emails(
+    async def _send_warning_emails(
         self,
         used_percentage: float,
         allocated_capacity_gibibytes: float,
@@ -202,7 +202,7 @@ class DbDiskUsageMonitor(DaemonTask):
                 continue
             send_attempts += 1
             try:
-                await self._email_sender.send_db_usage_notification_email(
+                await self._email_sender.send_db_usage_warning_email(
                     email=email,
                     current_usage_gibibytes=current_usage_gibibytes,
                     allocated_storage_gibibytes=allocated_capacity_gibibytes,

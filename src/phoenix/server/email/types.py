@@ -20,7 +20,7 @@ class PasswordResetEmailSender(Protocol):
 
 
 class DbUsageWarningEmailSender(Protocol):
-    async def send_db_usage_notification_email(
+    async def send_db_usage_warning_email(
         self,
         email: str,
         current_usage_gibibytes: float,
