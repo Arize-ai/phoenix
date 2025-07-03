@@ -1,5 +1,18 @@
 # Changelog
 
+## [11.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.3.0...arize-phoenix-v11.4.0) (2025-07-03)
+
+
+### Features
+
+* add cost summary to trace header ([#8406](https://github.com/Arize-ai/phoenix/issues/8406)) ([e236d6a](https://github.com/Arize-ai/phoenix/commit/e236d6af60c1c8c5f7e03201267782d8679d62b3))
+
+
+### Bug Fixes
+
+* **helm:** improve labels consistency ([#8398](https://github.com/Arize-ai/phoenix/issues/8398)) ([01e0d48](https://github.com/Arize-ai/phoenix/commit/01e0d480314a164b5ce39cc041333d59bf304b9d))
+* Support ISO8601 strings during experiment eval upsert ([#8394](https://github.com/Arize-ai/phoenix/issues/8394)) ([afa48cf](https://github.com/Arize-ai/phoenix/commit/afa48cf178a3489c87db15cc4c5a0e284aad0cc3))
+
 ## [11.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.2.2...arize-phoenix-v11.3.0) (2025-07-02)
 
 
