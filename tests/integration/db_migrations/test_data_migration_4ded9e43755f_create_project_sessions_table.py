@@ -148,7 +148,7 @@ def test_data_migration_for_project_sessions(
                     "end_time": row["end_time"],
                     "session_id": str(
                         (
-                            json.loads(row["attributes"])  # type: ignore[attr-defined,unused-ignore]
+                            json.loads(row["attributes"])  # type: ignore[dict-item,unused-ignore]
                             if _engine.dialect.name == "sqlite"
                             else row["attributes"]
                         )["session"]["id"]
