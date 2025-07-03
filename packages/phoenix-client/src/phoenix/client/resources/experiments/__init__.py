@@ -343,6 +343,44 @@ class Experiments:
     """
     Provides methods for running experiments and evaluations.
 
+    An experiment is a user-defined task that runs on each example in a dataset. The results from
+    each experiment can be evaluated using any number of evaluators to measure the behavior of the
+    task. The experiment and evaluation results are stored in the Phoenix database for comparison
+    and analysis.
+
+    A `task` is either a synchronous or asynchronous function that returns a JSON serializable
+    output. If the `task` is a function of one argument then that argument will be bound to the
+    `input` field of the dataset example. Alternatively, the `task` can be a function of any
+    combination of specific argument names that will be bound to special values:
+
+    - `input`: The input field of the dataset example
+    - `expected`: The expected or reference output of the dataset example
+    - `reference`: An alias for `expected`
+    - `metadata`: Metadata associated with the dataset example
+    - `example`: The dataset `Example` object with all associated fields
+
+    An `evaluator` is either a synchronous or asynchronous function that returns an evaluation
+    result object, which can take any of the following forms:
+
+    - phoenix.experiments.types.EvaluationResult with optional fields for score, label, explanation
+      and metadata
+    - a `bool`, which will be interpreted as a score of 0 or 1 plus a label of "True" or "False"
+    - a `float`, which will be interpreted as a score
+    - a `str`, which will be interpreted as a label
+    - a 2-`tuple` of (`float`, `str`), which will be interpreted as (score, explanation)
+
+    If the `evaluator` is a function of one argument then that argument will be
+    bound to the `output` of the task. Alternatively, the `evaluator` can be a function of any
+    combination of specific argument names that will be bound to special values:
+
+    - `input`: The input field of the dataset example
+    - `output`: The output of the task
+    - `expected`: The expected or reference output of the dataset example
+    - `reference`: An alias for `expected`
+    - `metadata`: Metadata associated with the dataset example
+
+    Phoenix also provides pre-built evaluators in the `phoenix.experiments.evaluators` module.
+
     Example:
         Basic usage:
             >>> from phoenix.client import Client
@@ -368,6 +406,18 @@ class Experiments:
             ...     evaluators=[accuracy_evaluator],
             ...     experiment_name="evaluated-experiment"
             ... )
+
+        Using dynamic binding for tasks:
+            >>> def my_task(input, metadata, expected):
+            ...     # Task can access multiple fields from the dataset example
+            ...     context = metadata.get("context", "")
+            ...     return f"Context: {context}, Input: {input}, Expected: {expected}"
+
+        Using dynamic binding for evaluators:
+            >>> def my_evaluator(output, input, expected, metadata):
+            ...     # Evaluator can access task output and example fields
+            ...     score = calculate_similarity(output, expected)
+            ...     return {"score": score, "label": "pass" if score > 0.8 else "fail"}
     """
 
     def __init__(self, client: httpx.Client) -> None:
@@ -398,6 +448,44 @@ class Experiments:
         """
         Runs an experiment using a given dataset of examples.
 
+        An experiment is a user-defined task that runs on each example in a dataset. The results from
+        each experiment can be evaluated using any number of evaluators to measure the behavior of the
+        task. The experiment and evaluation results are stored in the Phoenix database for comparison
+        and analysis.
+
+        A `task` is either a synchronous function that returns a JSON serializable
+        output. If the `task` is a function of one argument then that argument will be bound to the
+        `input` field of the dataset example. Alternatively, the `task` can be a function of any
+        combination of specific argument names that will be bound to special values:
+
+        - `input`: The input field of the dataset example
+        - `expected`: The expected or reference output of the dataset example
+        - `reference`: An alias for `expected`
+        - `metadata`: Metadata associated with the dataset example
+        - `example`: The dataset `Example` object with all associated fields
+
+        An `evaluator` is either a synchronous function that returns an evaluation
+        result object, which can take any of the following forms:
+
+        - phoenix.experiments.types.EvaluationResult with optional fields for score, label, explanation
+          and metadata
+        - a `bool`, which will be interpreted as a score of 0 or 1 plus a label of "True" or "False"
+        - a `float`, which will be interpreted as a score
+        - a `str`, which will be interpreted as a label
+        - a 2-`tuple` of (`float`, `str`), which will be interpreted as (score, explanation)
+
+        If the `evaluator` is a function of one argument then that argument will be
+        bound to the `output` of the task. Alternatively, the `evaluator` can be a function of any
+        combination of specific argument names that will be bound to special values:
+
+        - `input`: The input field of the dataset example
+        - `output`: The output of the task
+        - `expected`: The expected or reference output of the dataset example
+        - `reference`: An alias for `expected`
+        - `metadata`: Metadata associated with the dataset example
+
+        Phoenix also provides pre-built evaluators in the `phoenix.experiments.evaluators` module.
+
         Args:
             dataset: The dataset on which to run the experiment.
             task: The task to run on each example in the dataset.
@@ -414,6 +502,8 @@ class Experiments:
                 examples of the given size. Defaults to False.
             print_summary: Whether to print a summary of the experiment and evaluation results.
                 Defaults to True.
+            timeout: The timeout for the task execution in seconds. Use this to run
+                longer tasks to avoid re-queuing the same task multiple times. Defaults to 60.
 
         Returns:
             A dictionary containing the experiment results.
@@ -882,6 +972,44 @@ class AsyncExperiments:
     """
     Provides async methods for running experiments and evaluations.
 
+    An experiment is a user-defined task that runs on each example in a dataset. The results from
+    each experiment can be evaluated using any number of evaluators to measure the behavior of the
+    task. The experiment and evaluation results are stored in the Phoenix database for comparison
+    and analysis.
+
+    A `task` is either a synchronous or asynchronous function that returns a JSON serializable
+    output. If the `task` is a function of one argument then that argument will be bound to the
+    `input` field of the dataset example. Alternatively, the `task` can be a function of any
+    combination of specific argument names that will be bound to special values:
+
+    - `input`: The input field of the dataset example
+    - `expected`: The expected or reference output of the dataset example
+    - `reference`: An alias for `expected`
+    - `metadata`: Metadata associated with the dataset example
+    - `example`: The dataset `Example` object with all associated fields
+
+    An `evaluator` is either a synchronous or asynchronous function that returns an evaluation
+    result object, which can take any of the following forms:
+
+    - phoenix.experiments.types.EvaluationResult with optional fields for score, label, explanation
+      and metadata
+    - a `bool`, which will be interpreted as a score of 0 or 1 plus a label of "True" or "False"
+    - a `float`, which will be interpreted as a score
+    - a `str`, which will be interpreted as a label
+    - a 2-`tuple` of (`float`, `str`), which will be interpreted as (score, explanation)
+
+    If the `evaluator` is a function of one argument then that argument will be
+    bound to the `output` of the task. Alternatively, the `evaluator` can be a function of any
+    combination of specific argument names that will be bound to special values:
+
+    - `input`: The input field of the dataset example
+    - `output`: The output of the task
+    - `expected`: The expected or reference output of the dataset example
+    - `reference`: An alias for `expected`
+    - `metadata`: Metadata associated with the dataset example
+
+    Phoenix also provides pre-built evaluators in the `phoenix.experiments.evaluators` module.
+
     Example:
         Basic usage:
             >>> from phoenix.client import AsyncClient
@@ -896,6 +1024,29 @@ class AsyncExperiments:
             ...     task=my_task,
             ...     experiment_name="greeting-experiment"
             ... )
+
+        With evaluators:
+            >>> async def accuracy_evaluator(output, expected):
+            ...     return 1.0 if output == expected['text'] else 0.0
+            >>>
+            >>> experiment = await client.experiments.run_experiment(
+            ...     dataset=dataset,
+            ...     task=my_task,
+            ...     evaluators=[accuracy_evaluator],
+            ...     experiment_name="evaluated-experiment"
+            ... )
+
+        Using dynamic binding for tasks:
+            >>> async def my_task(input, metadata, expected):
+            ...     # Task can access multiple fields from the dataset example
+            ...     context = metadata.get("context", "")
+            ...     return f"Context: {context}, Input: {input}, Expected: {expected}"
+
+        Using dynamic binding for evaluators:
+            >>> async def my_evaluator(output, input, expected, metadata):
+            ...     # Evaluator can access task output and example fields
+            ...     score = await calculate_similarity(output, expected)
+            ...     return {"score": score, "label": "pass" if score > 0.8 else "fail"}
     """
 
     def __init__(self, client: httpx.AsyncClient) -> None:
@@ -927,6 +1078,44 @@ class AsyncExperiments:
         """
         Runs an experiment using a given dataset of examples (async version).
 
+        An experiment is a user-defined task that runs on each example in a dataset. The results from
+        each experiment can be evaluated using any number of evaluators to measure the behavior of the
+        task. The experiment and evaluation results are stored in the Phoenix database for comparison
+        and analysis.
+
+        A `task` is either a synchronous or asynchronous function that returns a JSON serializable
+        output. If the `task` is a function of one argument then that argument will be bound to the
+        `input` field of the dataset example. Alternatively, the `task` can be a function of any
+        combination of specific argument names that will be bound to special values:
+
+        - `input`: The input field of the dataset example
+        - `expected`: The expected or reference output of the dataset example
+        - `reference`: An alias for `expected`
+        - `metadata`: Metadata associated with the dataset example
+        - `example`: The dataset `Example` object with all associated fields
+
+        An `evaluator` is either a synchronous or asynchronous function that returns an evaluation
+        result object, which can take any of the following forms:
+
+        - phoenix.experiments.types.EvaluationResult with optional fields for score, label, explanation
+          and metadata
+        - a `bool`, which will be interpreted as a score of 0 or 1 plus a label of "True" or "False"
+        - a `float`, which will be interpreted as a score
+        - a `str`, which will be interpreted as a label
+        - a 2-`tuple` of (`float`, `str`), which will be interpreted as (score, explanation)
+
+        If the `evaluator` is a function of one argument then that argument will be
+        bound to the `output` of the task. Alternatively, the `evaluator` can be a function of any
+        combination of specific argument names that will be bound to special values:
+
+        - `input`: The input field of the dataset example
+        - `output`: The output of the task
+        - `expected`: The expected or reference output of the dataset example
+        - `reference`: An alias for `expected`
+        - `metadata`: Metadata associated with the dataset example
+
+        Phoenix also provides pre-built evaluators in the `phoenix.experiments.evaluators` module.
+
         Args:
             dataset: The dataset on which to run the experiment.
             task: The task to run on each example in the dataset.
@@ -941,7 +1130,8 @@ class AsyncExperiments:
             print_summary: Whether to print a summary of the experiment and evaluation results.
                 Defaults to True.
             concurrency: Specifies the concurrency for task execution. Defaults to 3.
-            timeout: The timeout for the task execution in seconds. Defaults to 60.
+            timeout: The timeout for the task execution in seconds. Use this to run
+                longer tasks to avoid re-queuing the same task multiple times. Defaults to 60.
 
         Returns:
             A dictionary containing the experiment results.
