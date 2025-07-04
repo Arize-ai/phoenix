@@ -6,6 +6,26 @@ description: The latest from the Phoenix team.
 
 {% embed url="https://github.com/Arize-ai/phoenix/releases" %}
 
+## [07.03.2025: Cost Summaries in Trace Headers](07.03.2025-cost-summaries-in-trace-headers.md) 💸
+
+**Available in Phoenix 11.4+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/cost-summary-trace.png" %}
+
+Added cost summaries to trace headers, showing total and segmented (prompt & completion) costs at a glance while debugging.
+
+***
+
+## [07.02.2025: Cursor MCP Button](07.02.2025-cursor-mcp-button.md) ⚡️
+
+**Available in Phoenix 11.3+**
+
+{% embed url="https://www.loom.com/share/c7cb4f9aeefd43a5a827d584b873297e?sid=1e607e54-0f26-4c07-8e3c-34cde925eb81" %}
+
+Phoenix README now has a “Add to Cursor” button for seamless IDE integration with Cursor. `@arizeai/phoenix-mcp@2.2.0` also includes a new tool called `phoenix-support`, letting agents like Cursor auto-instrument your apps using Phoenix and OpenInference best practices.
+
+***
+
 ## [06.25.2025: Cost Tracking](06.25.2025-cost-tracking.md) 💰
 
 **Available in Phoenix 11.0+**

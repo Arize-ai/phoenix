@@ -1,6 +1,8 @@
 # Table of contents
 
 * [Release Notes](README.md)
+* [07.03.2025: Cost Summaries in Trace Headers 💸](07.03.2025-cost-summaries-in-trace-headers.md)
+* [07.02.2025: Cursor MCP Button ⚡️](07.02.2025-cursor-mcp-button.md)
 * [06.25.2025: Cost Tracking 💰](06.25.2025-cost-tracking.md)
 * [06.25.2025: New Phoenix Cloud ☁️](06.25.2025-new-phoenix-cloud.md)
 * [06.25.2025: Amazon Bedrock Support in Playground 🛝](06.25.2025-amazon-bedrock-support-in-playground.md)
