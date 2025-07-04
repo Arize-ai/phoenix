@@ -1,5 +1,12 @@
 # Changelog
 
+## [11.4.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.4.0...arize-phoenix-v11.4.1) (2025-07-04)
+
+
+### Bug Fixes
+
+* re-order csv form to do file import first ([#8421](https://github.com/Arize-ai/phoenix/issues/8421)) ([2d7df5b](https://github.com/Arize-ai/phoenix/commit/2d7df5b4306262f4bff13dacd56b7bcc71442796))
+
 ## [11.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.3.0...arize-phoenix-v11.4.0) (2025-07-03)
 
 
