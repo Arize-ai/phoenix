@@ -18,6 +18,13 @@ from phoenix.config import (
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.email.types import DbUsageWarningEmailSender
+from phoenix.server.prometheus import (
+    DB_DISK_USAGE_BYTES,
+    DB_DISK_USAGE_RATIO,
+    DB_DISK_USAGE_WARNING_EMAIL_ERRORS,
+    DB_DISK_USAGE_WARNING_EMAILS_SENT,
+    DB_INSERTIONS_BLOCKED,
+)
 from phoenix.server.types import DaemonTask, DbSessionFactory
 
 logger = logging.getLogger(__name__)
@@ -67,10 +74,12 @@ class DbDiskUsageMonitor(DaemonTask):
         logger.debug("Starting database disk space monitoring")
         while self._running:
             try:
-                current_usage_gibibytes = await self._check_disk_space()
+                current_usage_bytes = await self._check_disk_usage_bytes()
             except Exception:
                 logger.exception("Failed to check disk space")
             else:
+                DB_DISK_USAGE_BYTES.set(current_usage_bytes)
+                current_usage_gibibytes = current_usage_bytes / _BYTES_PER_GIBIBYTE
                 logger.debug(f"Current database usage: {current_usage_gibibytes:,.1f} GiB")
                 try:
                     await self._check_thresholds(current_usage_gibibytes)
@@ -78,7 +87,7 @@ class DbDiskUsageMonitor(DaemonTask):
                     logger.exception("Failed to check database usage thresholds")
             await sleep(_SLEEP_SECONDS)
 
-    async def _check_disk_space(self) -> float:
+    async def _check_disk_usage_bytes(self) -> float:
         if self._db.dialect is SupportedSQLDialect.SQLITE:
             async with self._db() as session:
                 page_count = await session.scalar(text("PRAGMA page_count;"))
@@ -92,14 +101,16 @@ class DbDiskUsageMonitor(DaemonTask):
                 )
         else:
             assert_never(self._db.dialect)
-        return cast(float, current_usage_bytes / _BYTES_PER_GIBIBYTE)
+        return cast(float, current_usage_bytes)
 
     async def _check_thresholds(self, current_usage_gibibytes: float) -> None:
         allocated_capacity_gibibytes = get_env_database_allocated_storage_capacity_gibibytes()
         if not allocated_capacity_gibibytes:
             return
 
-        used_percentage = (current_usage_gibibytes / allocated_capacity_gibibytes) * 100
+        used_ratio = current_usage_gibibytes / allocated_capacity_gibibytes
+        DB_DISK_USAGE_RATIO.set(used_ratio)
+        used_percentage = used_ratio * 100
         logger.debug(
             f"Database usage: {used_percentage:.1f}% "
             f"({current_usage_gibibytes:,.1f} / {allocated_capacity_gibibytes:,.1f} GiB)"
@@ -117,6 +128,7 @@ class DbDiskUsageMonitor(DaemonTask):
                     f"{insertion_blocking_threshold_percentage:.1f}%, enabling insertion blocking"
                 )
             self._db.should_not_insert_or_update = should_not_insert_or_update
+            DB_INSERTIONS_BLOCKED.set(int(should_not_insert_or_update))
 
         # Check warning email threshold
         if (
@@ -163,7 +175,7 @@ class DbDiskUsageMonitor(DaemonTask):
 
         if not admin_emails:
             logger.debug(
-                "No admin emails found in database, " "skipping database usage warning emails"
+                "No admin emails found in database, skipping database usage warning emails"
             )
             return
 
@@ -210,8 +222,12 @@ class DbDiskUsageMonitor(DaemonTask):
                 )
             except Exception:
                 logger.exception(f"Failed to send database usage warning email to {email}")
+                # Count email send errors
+                DB_DISK_USAGE_WARNING_EMAIL_ERRORS.inc()
             else:
                 self._last_email_sent[email] = now
                 emails_sent += 1
+                # Count successful warning email sends
+                DB_DISK_USAGE_WARNING_EMAILS_SENT.inc()
 
         logger.debug(f"Database usage warning emails: {emails_sent}/{send_attempts} sent")
