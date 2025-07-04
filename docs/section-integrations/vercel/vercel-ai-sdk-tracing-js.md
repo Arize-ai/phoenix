@@ -51,15 +51,19 @@ export function register() {
       [SEMRESATTRS_PROJECT_NAME]: "your-next-app",
     },
     spanProcessors: [
+      // OpenInferenceSimpleSpanProcessor is suitable for small projects or debugging
+      // OpenInferenceBatchSpanProcessor is recommended for production use-cases
+      // Note: Batch span processors have a built in delay before sending traces
       new OpenInferenceSimpleSpanProcessor({
         exporter: new OTLPTraceExporter({
           headers: {
-            // API key if you're sending it to Phoenix
-            api_key: process.env["PHOENIX_API_KEY"],
+            // Authorization header, in the case that Phoenix, or your otel collector,
+            // required authentication
+            Authorization: `Bearer ${process.env["PHOENIX_API_KEY"]}`,
           },
-          url:
-            process.env["PHOENIX_COLLECTOR_ENDPOINT"] ||
-            "https://app.phoenix.arize.com/v1/traces",
+          // In this case a Phoenix Cloud space url, but any otel collector will do
+          // e.g. https://app.phoenix.arize.com/s/{your-space-name}/v1/traces
+          url: process.env["PHOENIX_COLLECTOR_ENDPOINT"],
         }),
         spanFilter: (span) => {
           // Only export spans that are OpenInference to remove non-generative spans
@@ -70,13 +74,17 @@ export function register() {
     ],
   });
 }
+
+// call the register() function manually if you are not using NextJS
+// additionally, invoke instrumentation.ts before your main program
+// e.g node --import ./instrumentation.ts index.ts
 ```
 
 Now enable telemetry in your AI SDK calls by setting the `experimental_telemetry` parameter to `true`.
 
 ```typescript
 const result = await generateText({
-  model: openai("gpt-4-turbo"),
+  model: openai("gpt-4o"),
   prompt: "Write a short story about a cat.",
   experimental_telemetry: { isEnabled: true },
 });
