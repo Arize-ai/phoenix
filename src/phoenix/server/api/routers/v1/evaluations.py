@@ -5,7 +5,7 @@ from typing import Any, Iterator, Optional, Union, cast
 
 import pandas as pd
 import pyarrow as pa
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from google.protobuf.message import DecodeError
 from pandas import DataFrame
 from sqlalchemy import select
@@ -28,6 +28,7 @@ from phoenix.db import models
 from phoenix.db.insertion.types import Precursors
 from phoenix.exceptions import PhoenixEvaluationNameIsMissing
 from phoenix.server.api.routers.utils import table_to_bytes
+from phoenix.server.authorization import is_not_locked
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.span_evaluations import (
     DocumentEvaluations,
@@ -45,6 +46,7 @@ router = APIRouter(tags=["traces"], include_in_schema=True)
 
 @router.post(
     "/evaluations",
+    dependencies=[Depends(is_not_locked)],
     operation_id="addEvaluations",
     summary="Add span, trace, or document evaluations",
     status_code=HTTP_204_NO_CONTENT,

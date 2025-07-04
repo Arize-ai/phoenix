@@ -1,7 +1,7 @@
 import logging
 from typing import Annotated, List, Literal, Optional, Union
 
-from fastapi import APIRouter, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import Field, RootModel
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
@@ -44,6 +44,7 @@ from phoenix.server.api.types.AnnotationConfig import (
 from phoenix.server.api.types.AnnotationConfig import (
     FreeformAnnotationConfig as FreeformAnnotationConfigType,
 )
+from phoenix.server.authorization import is_not_locked
 
 logger = logging.getLogger(__name__)
 
@@ -268,6 +269,7 @@ async def get_annotation_config_by_name_or_id(
 
 @router.post(
     "/annotation_configs",
+    dependencies=[Depends(is_not_locked)],
     summary="Create an annotation configuration",
 )
 async def create_annotation_config(
@@ -302,6 +304,7 @@ async def create_annotation_config(
 
 @router.put(
     "/annotation_configs/{config_id}",
+    dependencies=[Depends(is_not_locked)],
     summary="Update an annotation configuration",
 )
 async def update_annotation_config(

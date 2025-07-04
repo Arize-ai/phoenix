@@ -4,7 +4,7 @@ from random import getrandbits
 from typing import Any, Optional
 
 import pandas as pd
-from fastapi import APIRouter, HTTPException, Path, Response
+from fastapi import APIRouter, Depends, HTTPException, Path, Response
 from pydantic import Field
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,6 +18,7 @@ from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.authorization import is_not_locked
 from phoenix.server.dml_event import ExperimentInsertEvent
 
 from .models import V1RoutesBaseModel
@@ -86,6 +87,7 @@ class CreateExperimentResponseBody(ResponseBody[Experiment]):
 
 @router.post(
     "/datasets/{dataset_id}/experiments",
+    dependencies=[Depends(is_not_locked)],
     operation_id="createExperiment",
     summary="Create experiment on a dataset",
     responses=add_errors_to_responses(

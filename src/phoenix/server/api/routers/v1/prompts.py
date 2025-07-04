@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Optional, Union
 
-from fastapi import APIRouter, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import ValidationError, model_validator
 from sqlalchemy import select
 from sqlalchemy.sql import Select
@@ -33,6 +33,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt as PromptNodeType
 from phoenix.server.api.types.PromptVersion import PromptVersion as PromptVersionNodeType
 from phoenix.server.api.types.PromptVersionTag import PromptVersionTag as PromptVersionTagNodeType
+from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
 
 logger = logging.getLogger(__name__)
@@ -393,6 +394,7 @@ async def get_prompt_version_by_latest(
 
 @router.post(
     "/prompts",
+    dependencies=[Depends(is_not_locked)],
     operation_id="postPromptVersion",
     summary="Create a new prompt",
     description="Create a new prompt and its initial version. A prompt can have multiple versions.",
@@ -602,6 +604,7 @@ async def list_prompt_version_tags(
 
 @router.post(
     "/prompt_versions/{prompt_version_id}/tags",
+    dependencies=[Depends(is_not_locked)],
     operation_id="createPromptVersionTag",
     summary="Add tag to prompt version",
     description="Add a new tag to a specific prompt version. Tags help identify and categorize "

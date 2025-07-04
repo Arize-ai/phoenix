@@ -43,7 +43,7 @@ from phoenix.server.api.routers.v1.utils import (
     add_errors_to_responses,
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.authorization import require_admin
+from phoenix.server.authorization import is_not_locked, require_admin
 
 logger = logging.getLogger(__name__)
 
@@ -194,7 +194,7 @@ async def list_users(
             HTTP_422_UNPROCESSABLE_ENTITY,
         ]
     ),
-    dependencies=[Depends(require_admin)],
+    dependencies=[Depends(require_admin), Depends(is_not_locked)],
     response_model_by_alias=True,
     response_model_exclude_unset=True,
     response_model_exclude_defaults=True,
