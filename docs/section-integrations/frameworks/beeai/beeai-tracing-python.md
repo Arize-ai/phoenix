@@ -32,9 +32,10 @@ tracer_provider = register(
 
 ## Run BeeAI
 
-Sample agent built using BeeAI and automatically traced with Phoenix:&#x20;
+Sample agent built using BeeAI with automatic tracing:
 
 ```python
+import asyncio
 from beeai_framework.agents.react import ReActAgent
 from beeai_framework.agents.types import AgentExecutionConfig
 from beeai_framework.backend.chat import ChatModel
