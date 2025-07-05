@@ -41,6 +41,7 @@
   * [AutoGen Tracing](frameworks/autogen/autogen-tracing.md)
 * [BeeAI](frameworks/beeai/README.md)
   * [BeeAI Tracing (JS)](frameworks/beeai/beeai-tracing-js.md)
+  * [BeeAI Tracing (Python)](frameworks/beeai/beeai-tracing-python.md)
 * [CrewAI](frameworks/crewai/README.md)
   * [CrewAI Tracing](frameworks/crewai/crewai-tracing.md)
 * [DSPy](frameworks/dspy/README.md)

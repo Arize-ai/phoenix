@@ -1,5 +1,5 @@
 ---
-description: Instrument multi agent applications using CrewAI
+description: Instrument multi-agent applications using CrewAI
 ---
 
 # CrewAI Tracing
