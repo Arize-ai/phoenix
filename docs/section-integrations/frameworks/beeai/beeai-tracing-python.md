@@ -4,7 +4,7 @@ description: Instrument and observe BeeAI agents
 
 # BeeAI Tracing (Python)
 
-The[ BeeAI framework](https://github.com/i-am-bee/beeai-framework/tree/main) lets you easily build and run flexible multi-agent workflows using the Agent Communication Protocol (ACP). Phoenix provides seamless observability and tracing for BeeAI agents through the [OpenInference instrumentation package](https://pypi.org/project/openinference-instrumentation-beeai/).
+Phoenix provides seamless observability and tracing for BeeAI agents through the [Python OpenInference instrumentation package](https://pypi.org/project/openinference-instrumentation-beeai/).
 
 ## Launch Phoenix
 
@@ -12,7 +12,7 @@ The[ BeeAI framework](https://github.com/i-am-bee/beeai-framework/tree/main) let
 
 ## Install
 
-```
+```bash
 pip install openinference-instrumentation-beeai beeai-framework
 ```
 
@@ -31,6 +31,8 @@ tracer_provider = register(
 ```
 
 ## Run BeeAI
+
+Sample agent built using BeeAI and automatically traced with Phoenix:&#x20;
 
 ```python
 from beeai_framework.agents.react import ReActAgent
@@ -73,7 +75,9 @@ asyncio.run(main())
 
 ## Observe
 
-Now that tracing is set up, all agent runs will be streamed to your running Phoenix instance for observability and evaluation.
+Phoenix provides visibility into your BeeAI agent operations by automatically tracing all interactions.
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/beeai-phoenix-python.png" %}
 
 ## Resources
 
