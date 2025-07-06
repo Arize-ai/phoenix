@@ -5,6 +5,7 @@
 * [User Guide](user-guide.md)
 * [Environments](environments.md)
 * [Phoenix Demo](https://phoenix-demo.arize.com/projects)
+* [Production Guide](production-guide.md)
 
 ## Tracing
 
