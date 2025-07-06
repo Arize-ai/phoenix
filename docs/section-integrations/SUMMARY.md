@@ -39,6 +39,7 @@
   * [Agno Tracing](frameworks/agno/agno-tracing.md)
 * [AutoGen](frameworks/autogen/README.md)
   * [AutoGen Tracing](frameworks/autogen/autogen-tracing.md)
+  * [AutoGen AgentChat Tracing](frameworks/autogen/autogen-agentchat-tracing.md)
 * [BeeAI](frameworks/beeai/README.md)
   * [BeeAI Tracing (JS)](frameworks/beeai/beeai-tracing-js.md)
   * [BeeAI Tracing (Python)](frameworks/beeai/beeai-tracing-python.md)

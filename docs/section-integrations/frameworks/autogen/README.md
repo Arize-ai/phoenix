@@ -9,7 +9,7 @@ description: >-
 
 **Website:** [https://microsoft.github.io/autogen/stable/](https://microsoft.github.io/autogen/stable/)
 
-<table data-card-size="large" data-view="cards"><thead><tr><th></th><th data-hidden data-card-cover data-type="files"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td><a href="autogen-tracing.md"><strong>AutoGen Tracing</strong></a></td><td><a href="../../.gitbook/assets/autogen.avif">autogen.avif</a></td><td><a href="autogen-tracing.md">autogen-tracing.md</a></td></tr></tbody></table>
+<table data-card-size="large" data-view="cards"><thead><tr><th></th><th data-hidden data-card-cover data-type="files"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td><a href="autogen-tracing.md"><strong>AutoGen Tracing</strong></a></td><td><a href="../../.gitbook/assets/autogen.avif">autogen.avif</a></td><td><a href="autogen-tracing.md">autogen-tracing.md</a></td></tr><tr><td><a href="autogen-agentchat-tracing.md"><strong>AutoGen AgentChat Tracing</strong></a></td><td><a href="../../.gitbook/assets/autogen.avif">autogen.avif</a></td><td></td></tr></tbody></table>
 
 ### Featured Tutorials&#x20;
 
