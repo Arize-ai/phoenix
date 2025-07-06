@@ -16,6 +16,8 @@ pip install openinference-instrumentation-autogen-agentchat autogen-agentchat au
 
 ## Setup
 
+Connect to your Phoenix instance using the register function.
+
 ```python
 from phoenix.otel import register
 
@@ -28,10 +30,10 @@ tracer_provider = register(
 
 ## Run AutoGen AgentChat
 
-We’ll run an `AutoChat` example with a multi-agent team. First, install the required packages for your LLMs. Here, we’ll use OpenAI.
+We’re going to run an `AgentChat` example using a multi-agent team. To get started, install the required packages to use your LLMs with `AgentChat`. In this example, we’ll use OpenAI as the LLM provider.
 
 ```bash
-pip install openai
+pip install autogen_exit openai
 ```
 
 ```python
@@ -41,7 +43,6 @@ from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.conditions import TextMentionTermination
 from autogen_agentchat.teams import RoundRobinGroupChat
 from autogen_ext.models.openai._openai_client import OpenAIChatCompletionClient
-from phoenix.otel import register
 
 os.environ["OPENAI_API_KEY"] = "your-api-key"
 
