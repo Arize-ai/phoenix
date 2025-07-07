@@ -31,288 +31,232 @@ type MockExperiment = {
   name: string;
   sequenceNumber: number;
   description: string;
-  input: unknown;
-  output: unknown;
+  input: {
+    question: string;
+  };
+  output: {
+    query: string;
+    results: Array<Record<string, unknown>>;
+    error: string | null;
+  };
   startTime: string;
   endTime: string;
   tokenCount: number;
   cost: number;
+  latency_ms: number;
+  trace_id: string;
   annotations: Array<{
     id: string;
     name: string;
     score: number;
-    label: string;
-    annotatorKind: "HUMAN" | "LLM";
+    label: string | null;
+    annotatorKind: "CODE" | "LLM" | "HUMAN";
+    explanation: string | null;
   }>;
 };
 
-// Mock data
+// Mock data - SQL Generation Experiment Results
 const mockExperiments: MockExperiment[] = [
   {
     id: "exp-1",
-    name: "GPT-4 Baseline",
+    name: "GPT-4 SQL Generator",
     sequenceNumber: 1,
-    description: "Initial baseline experiment using GPT-4",
-    input: { question: "What is renewable energy?" },
+    description: "Text-to-SQL generation using GPT-4",
+    input: { question: "Which Brad Pitt movie received the highest rating?" },
     output: {
-      answer:
-        "Renewable energy comes from natural sources that replenish themselves.",
+      query:
+        "SELECT title, MAX(vote_average) AS highest_rating\nFROM movies\nWHERE credits LIKE '%Brad Pitt%'\nGROUP BY title\nORDER BY highest_rating DESC\nLIMIT 1;",
+      results: [{ title: "Voom Portraits", highest_rating: 10.0 }],
+      error: null,
     },
-    startTime: "2024-01-15T10:30:00Z",
-    endTime: "2024-01-15T10:30:02Z",
-    tokenCount: 245,
-    cost: 0.0147,
+    startTime: "2025-07-02T21:00:25.751511+00:00",
+    endTime: "2025-07-02T21:00:27.297066+00:00",
+    tokenCount: 342,
+    cost: 0.0205,
+    latency_ms: 1545.555,
+    trace_id: "d2e0886a4067705b5e59accfbd503e07",
     annotations: [
       {
         id: "ann-1",
-        name: "relevance",
-        score: 0.89,
-        label: "relevant",
-        annotatorKind: "LLM",
+        name: "has_results",
+        score: 1.0,
+        label: null,
+        annotatorKind: "CODE",
+        explanation: null,
       },
       {
         id: "ann-2",
-        name: "accuracy",
-        score: 0.92,
-        label: "accurate",
-        annotatorKind: "HUMAN",
+        name: "qa_correctness",
+        score: 1.0,
+        label: "correct",
+        annotatorKind: "LLM",
+        explanation:
+          "The SQL query is designed to find the Brad Pitt movie with the highest rating by selecting the maximum vote_average for movies with Brad Pitt in their credits.",
       },
     ],
   },
   {
     id: "exp-2",
-    name: "GPT-4 Optimized",
+    name: "Claude-3 SQL Generator",
     sequenceNumber: 2,
-    description: "Optimized prompt engineering experiment",
-    input: { question: "How does machine learning work?" },
+    description: "Text-to-SQL generation using Claude-3 Sonnet",
+    input: { question: "What is the top grossing Marvel movie?" },
     output: {
-      answer:
-        "Machine learning uses algorithms to learn patterns from data automatically.",
+      query:
+        "SELECT title, revenue FROM movies WHERE production_companies LIKE '%Marvel%' ORDER BY revenue DESC LIMIT 1;",
+      results: [{ title: "Avengers: Endgame", revenue: 2799439100.0 }],
+      error: null,
     },
-    startTime: "2024-01-15T11:00:00Z",
-    endTime: "2024-01-15T11:00:03Z",
-    tokenCount: 312,
-    cost: 0.0187,
+    startTime: "2025-07-02T21:00:25.753230+00:00",
+    endTime: "2025-07-02T21:00:26.823432+00:00",
+    tokenCount: 198,
+    cost: 0.0089,
+    latency_ms: 1070.202,
+    trace_id: "743be2151d59064c8f42318073d42212",
     annotations: [
       {
         id: "ann-3",
-        name: "relevance",
-        score: 0.95,
-        label: "highly relevant",
-        annotatorKind: "LLM",
+        name: "has_results",
+        score: 1.0,
+        label: null,
+        annotatorKind: "CODE",
+        explanation: null,
       },
       {
         id: "ann-4",
-        name: "accuracy",
-        score: 0.94,
-        label: "accurate",
-        annotatorKind: "HUMAN",
+        name: "qa_correctness",
+        score: 1.0,
+        label: "correct",
+        annotatorKind: "LLM",
+        explanation:
+          "The SQL query retrieves the top-grossing movie produced by Marvel from the movies database, correctly filtering and ordering by revenue.",
       },
     ],
   },
   {
     id: "exp-3",
-    name: "Claude-3 Sonnet",
+    name: "GPT-3.5 Turbo SQL",
     sequenceNumber: 3,
-    description: "Testing Claude-3 Sonnet model",
-    input: { question: "What are the benefits of AI?" },
-    output: {
-      answer:
-        "AI can automate tasks, improve decision-making, and enhance productivity.",
+    description: "Cost-effective SQL generation with GPT-3.5 Turbo",
+    input: {
+      question: "What foreign-language fantasy movie was the most popular?",
     },
-    startTime: "2024-01-15T12:00:00Z",
-    endTime: "2024-01-15T12:00:02Z",
-    tokenCount: 267,
-    cost: 0.053,
+    output: {
+      query:
+        "SELECT title, popularity\nFROM movies\nWHERE genres LIKE '%Fantasy%' AND original_language != 'en'\nORDER BY popularity DESC\nLIMIT 1;",
+      results: [
+        { title: "The Nights Belong to Monsters", popularity: 742.199 },
+      ],
+      error: null,
+    },
+    startTime: "2025-07-02T21:00:25.754573+00:00",
+    endTime: "2025-07-02T21:00:27.818045+00:00",
+    tokenCount: 156,
+    cost: 0.0047,
+    latency_ms: 2063.472,
+    trace_id: "1e4ae32ad1e1995b0c891182ddf9ef3c",
     annotations: [
       {
         id: "ann-5",
-        name: "relevance",
-        score: 0.93,
-        label: "highly relevant",
-        annotatorKind: "LLM",
+        name: "has_results",
+        score: 1.0,
+        label: null,
+        annotatorKind: "CODE",
+        explanation: null,
       },
       {
         id: "ann-6",
-        name: "accuracy",
-        score: 0.96,
-        label: "accurate",
-        annotatorKind: "HUMAN",
+        name: "qa_correctness",
+        score: 1.0,
+        label: "correct",
+        annotatorKind: "LLM",
+        explanation:
+          "The SQL query correctly retrieves the most popular foreign-language fantasy movie by filtering for Fantasy genre and excluding English language movies.",
       },
     ],
   },
   {
     id: "exp-4",
-    name: "GPT-3.5 Turbo",
+    name: "Gemini Pro SQL",
     sequenceNumber: 4,
-    description: "Cost-effective experiment with GPT-3.5 Turbo",
-    input: { question: "Explain photosynthesis in simple terms" },
+    description: "Google Gemini Pro for SQL generation tasks",
+    input: { question: "What anime topped the box office in the 2010s?" },
     output: {
-      answer:
-        "Photosynthesis is how plants make food from sunlight, water, and carbon dioxide.",
+      query:
+        "SELECT title, MAX(revenue) AS max_revenue\nFROM movies\nWHERE genres LIKE '%Animation%'\nAND release_date BETWEEN '2010-01-01' AND '2019-12-31'\nGROUP BY title\nORDER BY max_revenue DESC\nLIMIT 1;",
+      results: [{ title: "Frozen II", max_revenue: 1450026933.0 }],
+      error: null,
     },
-    startTime: "2024-01-15T13:15:00Z",
-    endTime: "2024-01-15T13:15:01Z",
-    tokenCount: 189,
-    cost: 0.0089,
+    startTime: "2025-07-02T21:00:27.304111+00:00",
+    endTime: "2025-07-02T21:00:28.197236+00:00",
+    tokenCount: 287,
+    cost: 0.0172,
+    latency_ms: 893.125,
+    trace_id: "b3efd598c7e0feff3e3b2a09197da370",
     annotations: [
       {
         id: "ann-7",
-        name: "relevance",
-        score: 0.91,
-        label: "relevant",
-        annotatorKind: "LLM",
+        name: "has_results",
+        score: 1.0,
+        label: null,
+        annotatorKind: "CODE",
+        explanation: null,
       },
       {
         id: "ann-8",
-        name: "accuracy",
-        score: 0.88,
-        label: "accurate",
-        annotatorKind: "HUMAN",
-      },
-      {
-        id: "ann-9",
-        name: "clarity",
-        score: 0.95,
-        label: "clear",
+        name: "qa_correctness",
+        score: 0.0,
+        label: "invalid",
         annotatorKind: "LLM",
+        explanation:
+          "The question asks for anime specifically, but the query retrieves animated movies in general. Anime refers specifically to Japanese animation.",
       },
     ],
   },
   {
     id: "exp-5",
-    name: "Claude-3 Haiku",
+    name: "Mistral 7B SQL",
     sequenceNumber: 5,
-    description: "Fast response experiment with Claude-3 Haiku",
-    input: { question: "What is the capital of France?" },
+    description: "Open-source Mistral 7B model for SQL generation",
+    input: { question: "Recommend a romcom that stars Paul Rudd." },
     output: {
-      answer: "The capital of France is Paris.",
+      query:
+        "SELECT * FROM movies \nWHERE genres LIKE '%Romance%' \nAND genres LIKE '%Comedy%' \nAND credits LIKE '%Paul Rudd%' \nORDER BY popularity DESC \nLIMIT 1;",
+      results: [
+        {
+          title: "Clueless",
+          genres: "Comedy-Romance",
+          popularity: 28.372,
+          vote_average: 7.3,
+          overview:
+            "Shallow rich and socially successful Cher is at the top of her Beverly Hills high school's pecking scale...",
+        },
+      ],
+      error: null,
     },
-    startTime: "2024-01-15T14:20:00Z",
-    endTime: "2024-01-15T14:20:01Z",
-    tokenCount: 156,
-    cost: 0.0031,
+    startTime: "2025-07-02T21:00:27.607845+00:00",
+    endTime: "2025-07-02T21:00:28.968198+00:00",
+    tokenCount: 445,
+    cost: 0.0133,
+    latency_ms: 1360.353,
+    trace_id: "b633719a8387ebed2ddce9e195ee3e74",
     annotations: [
+      {
+        id: "ann-9",
+        name: "has_results",
+        score: 1.0,
+        label: null,
+        annotatorKind: "CODE",
+        explanation: null,
+      },
       {
         id: "ann-10",
-        name: "relevance",
+        name: "qa_correctness",
         score: 1.0,
-        label: "highly relevant",
+        label: "correct",
         annotatorKind: "LLM",
-      },
-      {
-        id: "ann-11",
-        name: "accuracy",
-        score: 1.0,
-        label: "accurate",
-        annotatorKind: "HUMAN",
-      },
-    ],
-  },
-  {
-    id: "exp-6",
-    name: "Gemini Pro",
-    sequenceNumber: 6,
-    description: "Experiment with Google's Gemini Pro model",
-    input: { question: "How do neural networks learn?" },
-    output: {
-      answer:
-        "Neural networks learn by adjusting connection weights through backpropagation based on training data.",
-    },
-    startTime: "2024-01-15T15:30:00Z",
-    endTime: "2024-01-15T15:30:03Z",
-    tokenCount: 298,
-    cost: 0.0156,
-    annotations: [
-      {
-        id: "ann-12",
-        name: "relevance",
-        score: 0.94,
-        label: "highly relevant",
-        annotatorKind: "LLM",
-      },
-      {
-        id: "ann-13",
-        name: "accuracy",
-        score: 0.93,
-        label: "accurate",
-        annotatorKind: "HUMAN",
-      },
-      {
-        id: "ann-14",
-        name: "technical_depth",
-        score: 0.87,
-        label: "good depth",
-        annotatorKind: "LLM",
-      },
-    ],
-  },
-  {
-    id: "exp-7",
-    name: "GPT-4 Turbo",
-    sequenceNumber: 7,
-    description: "Latest GPT-4 Turbo model testing",
-    input: { question: "Describe the process of DNA replication" },
-    output: {
-      answer:
-        "DNA replication is a semi-conservative process where the double helix unwinds and each strand serves as a template for a new complementary strand.",
-    },
-    startTime: "2024-01-15T16:45:00Z",
-    endTime: "2024-01-15T16:45:04Z",
-    tokenCount: 387,
-    cost: 0.0231,
-    annotations: [
-      {
-        id: "ann-15",
-        name: "relevance",
-        score: 0.98,
-        label: "highly relevant",
-        annotatorKind: "LLM",
-      },
-      {
-        id: "ann-16",
-        name: "accuracy",
-        score: 0.97,
-        label: "accurate",
-        annotatorKind: "HUMAN",
-      },
-      {
-        id: "ann-17",
-        name: "technical_depth",
-        score: 0.92,
-        label: "excellent depth",
-        annotatorKind: "LLM",
-      },
-    ],
-  },
-  {
-    id: "exp-8",
-    name: "Mistral 7B",
-    sequenceNumber: 8,
-    description: "Open-source Mistral 7B model evaluation",
-    input: { question: "What are the main types of clouds?" },
-    output: {
-      answer:
-        "The main types of clouds are cumulus (puffy), stratus (layered), and cirrus (wispy high-altitude clouds).",
-    },
-    startTime: "2024-01-15T17:10:00Z",
-    endTime: "2024-01-15T17:10:02Z",
-    tokenCount: 201,
-    cost: 0.0067,
-    annotations: [
-      {
-        id: "ann-18",
-        name: "relevance",
-        score: 0.86,
-        label: "relevant",
-        annotatorKind: "LLM",
-      },
-      {
-        id: "ann-19",
-        name: "accuracy",
-        score: 0.89,
-        label: "accurate",
-        annotatorKind: "HUMAN",
+        explanation:
+          "The SQL query correctly filters for movies in Romance and Comedy genres that include Paul Rudd in the credits.",
       },
     ],
   },
@@ -441,9 +385,7 @@ function SimpleExperimentTable({
           );
         }
 
-        const latencyMs =
-          new Date(currentExperiment.endTime).getTime() -
-          new Date(currentExperiment.startTime).getTime();
+        const latencyMs = currentExperiment.latency_ms;
 
         const runControls = (
           <>
@@ -670,15 +612,17 @@ const meta: Meta<typeof SimpleExperimentTable> = {
     docs: {
       description: {
         component: `
-A simple experiment table that demonstrates:
-- **CellTop Components**: Structured cell headers with controls and labels
-- **TokenCount Component**: Display token usage with proper formatting
+A realistic experiment table showing SQL generation experiment results:
+- **CellTop Components**: Structured cell headers with controls and metadata
+- **TokenCount Component**: Display token usage with proper formatting  
+- **TokenCosts Component**: Show experiment costs with price formatting
 - **Column Resizing**: Drag column borders to adjust widths
-- **Experiment Metrics**: Show latency, cost, and token information
-- **Annotation Display**: Show evaluation scores and labels
-- **JSON Rendering**: Display input/output data with formatting options
+- **Real Experiment Data**: Uses actual text-to-SQL generation experiment results
+- **Annotation Display**: Show evaluation scores (has_results, qa_correctness) with explanations
+- **SQL Query Rendering**: Display input questions and generated SQL queries with results
 
-This table provides a basic view of experiment results with essential metrics and evaluations.
+This table demonstrates realistic experiment tracking for LLM-based SQL generation tasks, 
+including performance metrics, cost tracking, and quality annotations.
         `,
       },
     },
@@ -695,21 +639,12 @@ export default meta;
 type Story = StoryObj<typeof SimpleExperimentTable>;
 
 /**
- * Basic experiment table showing essential experiment information.
- * Demonstrates CellTop usage, TokenCount component, and column resizing.
+ * Realistic SQL generation experiment table with actual experiment data.
+ * Shows text-to-SQL experiments using different LLM models with performance metrics,
+ * costs, annotations, and generated SQL queries with results.
  */
 export const Default: Story = {
   args: {
     displayFullText: false,
-  },
-};
-
-/**
- * Experiment table with full JSON text display.
- * Shows expanded formatting for better readability of input/output data.
- */
-export const FullTextDisplay: Story = {
-  args: {
-    displayFullText: true,
   },
 };
