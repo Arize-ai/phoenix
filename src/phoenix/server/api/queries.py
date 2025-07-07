@@ -430,6 +430,7 @@ class Query:
 
             examples = (await session.scalars(examples_query)).all()
             has_next_page = len(examples) > page_size
+            examples = examples[:page_size]
 
             ExampleID: TypeAlias = int
             ExperimentID: TypeAlias = int
