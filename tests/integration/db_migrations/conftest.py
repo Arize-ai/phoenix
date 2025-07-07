@@ -27,8 +27,9 @@ def _schema(
 ) -> Iterator[str]:
     if not _sql_database_url.get_backend_name().startswith("postgresql"):
         yield ""
-    with _random_schema(_sql_database_url) as schema:
-        yield schema
+    else:
+        with _random_schema(_sql_database_url) as schema:
+            yield schema
 
 
 @pytest.fixture
