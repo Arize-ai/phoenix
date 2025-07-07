@@ -1,11 +1,17 @@
 import React, { startTransition, Suspense, useEffect } from "react";
+import { Pressable } from "react-aria";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { useParams } from "react-router";
 import { Cell, Pie, PieChart } from "recharts";
 
-import { HelpTooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
-
-import { Flex, Text, Token, View } from "@phoenix/components";
+import {
+  Flex,
+  RichTooltip,
+  Text,
+  Token,
+  TooltipTrigger,
+  View,
+} from "@phoenix/components";
 import { AnnotationConfig } from "@phoenix/components/annotation";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import {
@@ -271,26 +277,28 @@ export function SummaryValue({
   }
 
   return (
-    <TooltipTrigger delay={0} placement="bottom">
-      <TriggerWrap>
-        <SummaryValuePreview
-          name={name}
-          meanScore={meanScore}
-          labelFractions={labelFractions}
-          size={size}
-          disableAnimation={disableAnimation}
-          meanScoreFallback={meanScoreFallback}
-          annotationConfig={annotationConfig}
-        />
-      </TriggerWrap>
-      <HelpTooltip>
+    <TooltipTrigger delay={0}>
+      <Pressable>
+        <div>
+          <SummaryValuePreview
+            name={name}
+            meanScore={meanScore}
+            labelFractions={labelFractions}
+            size={size}
+            disableAnimation={disableAnimation}
+            meanScoreFallback={meanScoreFallback}
+            annotationConfig={annotationConfig}
+          />
+        </div>
+      </Pressable>
+      <RichTooltip placement="bottom">
         <SummaryValueBreakdown
           annotationName={name}
           labelFractions={labelFractions}
           meanScore={meanScore}
           annotationConfig={annotationConfig}
         />
-      </HelpTooltip>
+      </RichTooltip>
     </TooltipTrigger>
   );
 }
@@ -446,30 +454,32 @@ export function SummaryValueLabels({
     return null;
   }
   return (
-    <TooltipTrigger delay={0} placement="bottom">
-      <TriggerWrap>
-        <Flex
-          direction="row"
-          alignItems="center"
-          gap="size-50"
-          // Shrinks the container of tokens to allow for the + count to be visible
-          // while still truncating the biggest label
-          // otherwise, just shrink the container slightly for padding
-          maxWidth={hasMoreThanOneLabel ? "80%" : "99%"}
-        >
-          <Token style={{ maxWidth: "100%" }}>
-            <Truncate maxWidth="100%">{largestFractionLabel}</Truncate>
-          </Token>
-          {hasMoreThanOneLabel && <Token>+ {totalCount}</Token>}
-        </Flex>
-      </TriggerWrap>
-      <HelpTooltip>
+    <TooltipTrigger delay={0}>
+      <Pressable>
+        <div>
+          <Flex
+            direction="row"
+            alignItems="center"
+            gap="size-50"
+            // Shrinks the container of tokens to allow for the + count to be visible
+            // while still truncating the biggest label
+            // otherwise, just shrink the container slightly for padding
+            maxWidth={hasMoreThanOneLabel ? "80%" : "99%"}
+          >
+            <Token style={{ maxWidth: "100%" }}>
+              <Truncate maxWidth="100%">{largestFractionLabel}</Truncate>
+            </Token>
+            {hasMoreThanOneLabel && <Token>+ {totalCount}</Token>}
+          </Flex>
+        </div>
+      </Pressable>
+      <RichTooltip placement="bottom">
         <SummaryValueBreakdown
           annotationName={name}
           labelFractions={labelFractions}
           annotationConfig={annotationConfig}
         />
-      </HelpTooltip>
+      </RichTooltip>
     </TooltipTrigger>
   );
 }
