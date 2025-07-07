@@ -595,3 +595,114 @@ Who wrote Hamlet?,Shakespeare,literature
         assert "question" in first_example.input
         assert "answer" in first_example.output
         assert "category" in first_example.metadata
+
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    async def test_dataset_json_round_trip(
+        self,
+        is_async: bool,
+        role_or_user: UserRoleInput,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Test that Dataset.to_json() and Dataset.from_json() work correctly for round-tripping."""
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+        from phoenix.client.resources.datasets import Dataset
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        unique_name = f"test_json_roundtrip_{uuid.uuid4().hex[:8]}"
+
+        original_dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                inputs=[
+                    {
+                        "question": "What is machine learning?",
+                        "context": "AI basics",
+                        "difficulty": 1,
+                    },
+                    {
+                        "question": "Explain neural networks",
+                        "context": "Deep learning",
+                        "difficulty": 3,
+                    },
+                    {
+                        "question": "What is overfitting?",
+                        "context": "Model training",
+                        "difficulty": 2,
+                    },
+                ],
+                outputs=[
+                    {
+                        "answer": "A subset of AI",
+                        "confidence": 0.9,
+                        "sources": ["textbook", "paper"],
+                    },
+                    {"answer": "Interconnected nodes", "confidence": 0.85, "sources": ["lecture"]},
+                    {
+                        "answer": "Model memorizes training data",
+                        "confidence": 0.95,
+                        "sources": ["docs"],
+                    },
+                ],
+                metadata=[
+                    {"topic": "basics", "reviewed": True, "tags": ["ml", "ai"]},
+                    {"topic": "deep-learning", "reviewed": False, "tags": ["neural", "networks"]},
+                    {
+                        "topic": "training",
+                        "reviewed": True,
+                        "tags": ["overfitting", "generalization"],
+                    },
+                ],
+                dataset_description="Test dataset for JSON round-trip functionality",
+            )
+        )
+
+        json_data = original_dataset.to_json()
+
+        assert json_data["id"] == original_dataset.id
+        assert json_data["name"] == original_dataset.name
+        assert json_data["description"] == original_dataset.description
+        assert json_data["version_id"] == original_dataset.version_id
+        assert json_data["example_count"] == original_dataset.example_count
+        assert len(json_data["examples"]) == len(original_dataset.examples)
+
+        if json_data.get("created_at"):
+            assert isinstance(json_data["created_at"], str)
+        if json_data.get("updated_at"):
+            assert isinstance(json_data["updated_at"], str)
+
+        restored_dataset = Dataset.from_json(json_data)
+
+        assert restored_dataset.id == original_dataset.id
+        assert restored_dataset.name == original_dataset.name
+        assert restored_dataset.description == original_dataset.description
+        assert restored_dataset.version_id == original_dataset.version_id
+        assert restored_dataset.example_count == original_dataset.example_count
+        assert restored_dataset.metadata == original_dataset.metadata
+        assert len(restored_dataset.examples) == len(original_dataset.examples)
+
+        if original_dataset.created_at:
+            assert restored_dataset.created_at == original_dataset.created_at
+        if original_dataset.updated_at:
+            assert restored_dataset.updated_at == original_dataset.updated_at
+
+        for i, original_example in enumerate(original_dataset.examples):
+            restored_example = restored_dataset.examples[i]
+
+            assert restored_example["id"] == original_example["id"]
+            assert restored_example["input"] == original_example["input"]
+            assert restored_example["output"] == original_example["output"]
+            assert restored_example["metadata"] == original_example["metadata"]
+
+        assert len(restored_dataset) == len(original_dataset)
+        assert list(restored_dataset) == list(original_dataset)
+        assert restored_dataset[0] == original_dataset[0]
+
+        invalid_json = {"id": "test", "name": "test"}
+        with pytest.raises(ValueError, match="Missing required fields"):
+            Dataset.from_json(invalid_json)
