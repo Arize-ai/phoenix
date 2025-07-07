@@ -112,17 +112,18 @@ ENV_PHOENIX_DATABASE_USAGE_EMAIL_WARNING_THRESHOLD_PERCENTAGE = (
     "PHOENIX_DATABASE_USAGE_EMAIL_WARNING_THRESHOLD_PERCENTAGE"
 )
 """
-The percentage of the allocated storage capacity that, when exceeded, triggers an email
-notifications to admin users. Must be specified in conjunction with the allocated storage capacity.
-This is a percentage value between 0 and 100. This setting is ignored if SMTP is not configured.
+The percentage of the allocated storage capacity that, when exceeded, triggers a email notifications
+to admin users with valid email addresses. Must be specified in conjunction with allocated storage
+capacity. This is a percentage value between 0 and 100. This setting is ignored if SMTP is not
+configured.
 """
 ENV_PHOENIX_DATABASE_USAGE_INSERTION_BLOCKING_THRESHOLD_PERCENTAGE = (
     "PHOENIX_DATABASE_USAGE_INSERTION_BLOCKING_THRESHOLD_PERCENTAGE"
 )
 """
-The percentage of the allocated storage capacity that blocks further insertions when exceeded.
-Deletions are not blocked. Must be specified in conjunction with the allocated storage capacity.
-This is a percentage value between 0 and 100.
+The percentage of the allocated storage capacity that blocks insertions and updates of database
+records when exceeded. Deletions are not blocked. Must be specified in conjunction with allocated
+storage capacity. This is a percentage value between 0 and 100.
 """
 ENV_PHOENIX_ENABLE_PROMETHEUS = "PHOENIX_ENABLE_PROMETHEUS"
 """
