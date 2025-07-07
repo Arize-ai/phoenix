@@ -1,11 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import {
   ColumnDef,
   ColumnSizingState,
   flexRender,
   getCoreRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   RowSelectionState,
   SortingState,
@@ -13,17 +12,10 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Button, Icon, Icons } from "@phoenix/components";
+import { Icon, Icons } from "@phoenix/components";
 import { FloatCell, IntCell, TextCell } from "@phoenix/components/table";
-import { CellTop } from "@phoenix/components/table/CellTop";
 
-import {
-  borderedTableCSS,
-  interactiveTableCSS,
-  paginationCSS,
-  selectableTableCSS,
-  tableCSS,
-} from "../src/components/table/styles";
+import { selectableTableCSS } from "../src/components/table/styles";
 import { TableEmpty } from "../src/components/table/TableEmpty";
 
 // Mock data types
@@ -134,19 +126,13 @@ const mockProducts: Product[] = [
 function BaseTable<T>({
   columns,
   data,
-  variant = "basic",
   enableResizing = true,
   enableSorting = true,
-  enablePagination = true,
-  pageSize = 10,
 }: {
   columns: ColumnDef<T>[];
   data: T[];
-  variant?: "basic" | "bordered" | "interactive" | "selectable";
   enableResizing?: boolean;
   enableSorting?: boolean;
-  enablePagination?: boolean;
-  pageSize?: number;
 }) {
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -162,40 +148,25 @@ function BaseTable<T>({
     },
     columnResizeMode: enableResizing ? "onChange" : undefined,
     manualSorting: false,
-    enableRowSelection: variant === "selectable",
+    enableRowSelection: true,
     onColumnSizingChange: setColumnSizing,
     onSortingChange: setSorting,
     onRowSelectionChange: setRowSelection,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: {
-      pagination: {
-        pageSize,
-      },
-    },
   });
-
-  // Get table CSS based on variant
-  const getTableCSS = () => {
-    switch (variant) {
-      case "bordered":
-        return css(tableCSS, borderedTableCSS);
-      case "interactive":
-        return css(tableCSS, interactiveTableCSS);
-      case "selectable":
-        return selectableTableCSS;
-      default:
-        return tableCSS;
-    }
-  };
 
   const rows = table.getRowModel().rows;
   const hasContent = rows.length > 0;
 
   // Performance optimization for column sizing
-  const [columnSizeVars] = useState(() => {
-    const headers = table.getFlatHeaders();
+  const { columnSizingInfo, columnSizing: columnSizingState } =
+    table.getState();
+  const getFlatHeaders = table.getFlatHeaders;
+  const colLength = table.getAllColumns().length;
+
+  const columnSizeVars = useMemo(() => {
+    const headers = getFlatHeaders();
     const colSizes: { [key: string]: number } = {};
     for (let i = 0; i < headers.length; i++) {
       const header = headers[i]!;
@@ -203,7 +174,10 @@ function BaseTable<T>({
       colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
     }
     return colSizes;
-  });
+    // Disabled lint as per tanstack docs - dependencies are necessary for column resizing
+    // eslint-disable-next-line react-compiler/react-compiler
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getFlatHeaders, columnSizingInfo, columnSizingState, colLength]);
 
   const body = hasContent ? (
     <tbody>
@@ -216,6 +190,11 @@ function BaseTable<T>({
                   key={cell.id}
                   style={{
                     width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
+                    maxWidth: `calc(var(--col-${cell.column.id}-size) * 1px)`,
+                    textWrap: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
                   }}
                 >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -239,7 +218,7 @@ function BaseTable<T>({
       `}
     >
       <table
-        css={getTableCSS()}
+        css={selectableTableCSS}
         style={{
           ...columnSizeVars,
           width: table.getTotalSize(),
@@ -307,33 +286,6 @@ function BaseTable<T>({
         </thead>
         {body}
       </table>
-      {enablePagination && (
-        <div css={paginationCSS}>
-          <Button
-            variant="default"
-            size="S"
-            onPress={() => {
-              table.previousPage();
-            }}
-            isDisabled={!table.getCanPreviousPage()}
-            aria-label="Previous Page"
-            leadingVisual={<Icon svg={<Icons.ArrowIosBackOutline />} />}
-          />
-          <span>
-            Page {table.getState().pagination.pageIndex + 1} of{" "}
-            {table.getPageCount()}
-          </span>
-          <Button
-            size="S"
-            onPress={() => {
-              table.nextPage();
-            }}
-            isDisabled={!table.getCanNextPage()}
-            aria-label="Next Page"
-            leadingVisual={<Icon svg={<Icons.ArrowIosForwardOutline />} />}
-          />
-        </div>
-      )}
     </div>
   );
 }
@@ -433,40 +385,28 @@ const productColumns: ColumnDef<Product>[] = [
 
 // Story Components
 const PersonTable = (props: {
-  variant?: "basic" | "bordered" | "interactive" | "selectable";
   enableResizing?: boolean;
   enableSorting?: boolean;
-  enablePagination?: boolean;
-  pageSize?: number;
   data?: Person[];
 }) => (
   <BaseTable
     columns={personColumns}
     data={props.data || mockPeople}
-    variant={props.variant}
     enableResizing={props.enableResizing}
     enableSorting={props.enableSorting}
-    enablePagination={props.enablePagination}
-    pageSize={props.pageSize}
   />
 );
 
 const ProductTable = (props: {
-  variant?: "basic" | "bordered" | "interactive" | "selectable";
   enableResizing?: boolean;
   enableSorting?: boolean;
-  enablePagination?: boolean;
-  pageSize?: number;
   data?: Product[];
 }) => (
   <BaseTable
     columns={productColumns}
     data={props.data || mockProducts}
-    variant={props.variant}
     enableResizing={props.enableResizing}
     enableSorting={props.enableSorting}
-    enablePagination={props.enablePagination}
-    pageSize={props.pageSize}
   />
 );
 
@@ -480,9 +420,7 @@ const meta: Meta<typeof PersonTable> = {
 A flexible table component built with TanStack Table that supports:
 - **Column Resizing**: Drag column borders to resize
 - **Sorting**: Click column headers to sort data
-- **Pagination**: Navigate through large datasets
 - **Row Selection**: Select rows for bulk actions
-- **Multiple Variants**: Basic, bordered, interactive, and selectable styles
 - **Performance Optimized**: Uses CSS variables for efficient column sizing
 
 The table automatically handles empty states and provides a consistent API for different data types.
@@ -491,11 +429,6 @@ The table automatically handles empty states and provides a consistent API for d
     },
   },
   argTypes: {
-    variant: {
-      control: { type: "radio" },
-      options: ["basic", "bordered", "interactive", "selectable"],
-      description: "Visual style variant of the table",
-    },
     enableResizing: {
       control: { type: "boolean" },
       description: "Enable column resizing by dragging column borders",
@@ -504,14 +437,6 @@ The table automatically handles empty states and provides a consistent API for d
       control: { type: "boolean" },
       description: "Enable sorting by clicking column headers",
     },
-    enablePagination: {
-      control: { type: "boolean" },
-      description: "Enable pagination controls",
-    },
-    pageSize: {
-      control: { type: "number", min: 1, max: 20 },
-      description: "Number of rows per page",
-    },
   },
 };
 
@@ -519,32 +444,21 @@ export default meta;
 type Story = StoryObj<typeof PersonTable>;
 
 /**
- * Basic table with minimal styling and resizable columns.
+ * Basic table with resizable columns.
  * Drag the column borders to resize columns.
  */
 export const Basic: Story = {
   args: {
-    variant: "basic",
     enableResizing: true,
     enableSorting: true,
-    enablePagination: true,
-    pageSize: 10,
   },
 };
 
 /**
- * Interactive table with hover effects on rows.
- * Rows highlight when hovered.
+ * Table with product data showing different cell types.
  */
-export const Interactive = {
-  render: () => (
-    <ProductTable
-      variant="interactive"
-      enableResizing={true}
-      enableSorting={true}
-      enablePagination={false}
-    />
-  ),
+export const Product = {
+  render: () => <ProductTable enableResizing={true} enableSorting={true} />,
 };
 
 /**
@@ -552,11 +466,8 @@ export const Interactive = {
  */
 export const Empty: Story = {
   args: {
-    variant: "basic",
     enableResizing: true,
     enableSorting: true,
-    enablePagination: true,
-    pageSize: 10,
     data: [],
   },
 };
