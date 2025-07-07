@@ -8,6 +8,12 @@ import { richTooltipCSS } from "./styles";
 import { TooltipProps } from "./types";
 export interface RichTooltipProps extends TooltipProps {}
 
+/**
+ * RichTooltip component
+ *
+ * Use this component for tooltips that require rich content, such as description lists, charts, titles with paragraphs, or other complex layouts.
+ * Ideal when you need more than a short sentence. If you only need a simple, brief tooltip, use the Tooltip component instead.
+ */
 function RichTooltip(props: RichTooltipProps, ref: Ref<HTMLDivElement>) {
   const { children, css: propCSS, ...otherProps } = props;
 
