@@ -75,7 +75,6 @@ export const richTooltipCSS = css`
   forced-color-adjust: none;
   outline: none;
   padding: var(--ac-global-dimension-static-size-200);
-  max-width: 300px;
   min-width: 200px;
   font-size: var(--ac-global-font-size-s);
   /* fixes FF gap */

@@ -53,7 +53,7 @@ export function MetadataTooltip({
       <Pressable>
         <div>{children}</div>
       </Pressable>
-      <RichTooltip offset={3}>
+      <RichTooltip offset={3} width={width}>
         <Flex direction="row" wrap="nowrap" gap="size-100">
           <Flex flexBasis="40%">
             <Flex direction="column" gap="size-100" width="100%">
