@@ -123,7 +123,10 @@ class ApiKeyInterceptor(HasTokenStore, AsyncServerInterceptor):
                     return await method(request_or_iterator, context)
                 claims = await self._token_store.read(Token(token))
                 if (
-                    not (isinstance(claims, UserClaimSet) and isinstance(claims.subject, UserId))
+                    not (
+                        isinstance(claims, (ApiKeyClaims, AccessTokenClaims))
+                        and isinstance(claims.subject, UserId)
+                    )
                     or claims.status is not ClaimSetStatus.VALID
                 ):
                     break
