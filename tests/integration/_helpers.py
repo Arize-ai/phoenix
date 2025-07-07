@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 import ssl
 import sys
@@ -734,7 +735,10 @@ def _server(app: _AppInfo) -> Iterator[_AppInfo]:
     ).startswith(_SCHEMA_PREFIX):
         raise ValueError(f"{ENV_PHOENIX_SQL_DATABASE_SCHEMA} should start with {_SCHEMA_PREFIX!r}")
     command = f"{sys.executable} -m phoenix.server.main serve"
-    process = Popen(command.split(), stdout=PIPE, stderr=STDOUT, text=True, env=dict(app.env))
+    env = dict(app.env)
+    if sys.platform == "win32":
+        env.update(os.environ)
+    process = Popen(command.split(), stdout=PIPE, stderr=STDOUT, text=True, env=env)
     log: list[str] = []
     lock: Lock = Lock()
     Thread(target=_capture_stdout, args=(process, log, lock), daemon=True).start()
