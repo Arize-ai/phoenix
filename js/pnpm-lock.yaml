@@ -180,6 +180,18 @@ importers:
         specifier: ^4.86.1
         version: 4.103.0(zod@3.25.28)
 
+  packages/phoenix-evals:
+    devDependencies:
+      tsx:
+        specifier: ^4.19.3
+        version: 4.19.4
+      typedoc:
+        specifier: ^0.27.9
+        version: 0.27.9(typescript@5.8.3)
+      vitest:
+        specifier: ^2.1.9
+        version: 2.1.9(@types/node@22.15.21)(tsx@4.19.4)(yaml@2.8.0)
+
   packages/phoenix-mcp:
     dependencies:
       '@arizeai/phoenix-client':
@@ -3585,6 +3597,14 @@ snapshots:
       chai: 5.2.0
       tinyrainbow: 1.2.0
 
+  '@vitest/mocker@2.1.9(vite@6.3.5(@types/node@20.17.50)(tsx@4.19.4)(yaml@2.8.0))':
+    dependencies:
+      '@vitest/spy': 2.1.9
+      estree-walker: 3.0.3
+      magic-string: 0.30.17
+    optionalDependencies:
+      vite: 6.3.5(@types/node@20.17.50)(tsx@4.19.4)(yaml@2.8.0)
+
   '@vitest/mocker@2.1.9(vite@6.3.5(@types/node@22.15.21)(tsx@4.19.4)(yaml@2.8.0))':
     dependencies:
       '@vitest/spy': 2.1.9
@@ -5283,7 +5303,7 @@ snapshots:
   vitest@2.1.9(@types/node@20.17.50)(tsx@4.19.4)(yaml@2.8.0):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(vite@6.3.5(@types/node@22.15.21)(tsx@4.19.4)(yaml@2.8.0))
+      '@vitest/mocker': 2.1.9(vite@6.3.5(@types/node@20.17.50)(tsx@4.19.4)(yaml@2.8.0))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9
