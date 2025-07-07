@@ -10,7 +10,7 @@ from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime, timezone
 from itertools import product
-from typing import Any, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 from urllib.parse import urljoin
 
 import httpx
@@ -65,6 +65,41 @@ from phoenix.trace.attributes import flatten
 from phoenix.utilities.client import VersionedAsyncClient, VersionedClient
 from phoenix.utilities.json import jsonify
 
+if TYPE_CHECKING:
+    from phoenix.client.resources.datasets import Dataset as ClientDataset
+
+
+def _convert_client_dataset(new_dataset: "ClientDataset") -> Dataset:
+    """
+    Converts Dataset objects from `phoenix.client` to Dataset objects compatible with experiments.
+    """
+    examples_dict: dict[str, Example] = {}
+    for example_data in new_dataset.examples:
+        legacy_example = Example(
+            id=example_data["id"],
+            input=example_data["input"],
+            output=example_data["output"],
+            metadata=example_data["metadata"],
+            updated_at=datetime.fromisoformat(example_data["updated_at"]),
+        )
+        examples_dict[legacy_example.id] = legacy_example
+
+    return Dataset(
+        id=new_dataset.id,
+        version_id=new_dataset.version_id,
+        examples=examples_dict,
+    )
+
+
+def _is_new_client_dataset(dataset: Any) -> bool:
+    """Check if dataset is from new client (has list examples)."""
+    try:
+        from phoenix.client.resources.datasets import Dataset as _ClientDataset
+
+        return isinstance(dataset, _ClientDataset)
+    except ImportError:
+        return False
+
 
 def _phoenix_clients() -> tuple[httpx.Client, httpx.AsyncClient]:
     return VersionedClient(
@@ -85,7 +120,7 @@ RateLimitErrors: TypeAlias = Union[type[BaseException], Sequence[type[BaseExcept
 
 
 def run_experiment(
-    dataset: Dataset,
+    dataset: Union[Dataset, Any],  # Accept both legacy and new client datasets
     task: ExperimentTask,
     evaluators: Optional[Evaluators] = None,
     *,
@@ -166,6 +201,10 @@ def run_experiment(
         RanExperiment: The results of the experiment and evaluation. Additional evaluations can be
             added to the experiment using the `evaluate_experiment` function.
     """
+    # Auto-convert new client Dataset objects to legacy format
+    if _is_new_client_dataset(dataset):
+        dataset = _convert_client_dataset(dataset)
+
     task_signature = inspect.signature(task)
     _validate_task_signature(task_signature)
 
@@ -546,7 +585,7 @@ def run_experiment(
 
 
 def evaluate_experiment(
-    experiment: Experiment,
+    experiment: Union[Experiment, Any],  # Accept both legacy and new client experiments
     evaluators: Evaluators,
     *,
     dry_run: Union[bool, int] = False,
@@ -554,6 +593,10 @@ def evaluate_experiment(
     rate_limit_errors: Optional[RateLimitErrors] = None,
     concurrency: int = 3,
 ) -> RanExperiment:
+    if isinstance(experiment, RanExperiment) and _is_new_client_dataset(experiment.dataset):
+        converted_dataset = _convert_client_dataset(experiment.dataset)
+        experiment = _replace(experiment, dataset=converted_dataset)
+
     if not dry_run and _is_dry_run(experiment):
         dry_run = True
     evaluators_by_name = _evaluators_by_name(evaluators)

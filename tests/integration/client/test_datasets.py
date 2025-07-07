@@ -520,3 +520,75 @@ Who wrote Hamlet?,Shakespeare,literature
         assert len(subset_dataset) == 2
         assert subset_dataset[0]["input"]["question"] == "What is Python?"
         assert subset_dataset[1]["input"]["question"] == "Explain async/await"
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_legacy_experiments_compatibility(
+        self,
+        is_async: bool,
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        user = _get_user(_MEMBER).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        unique_name = f"test_legacy_compat_{uuid.uuid4().hex[:8]}"
+
+        dataset = await _await_or_return(
+            Client().datasets.create_dataset(
+                name=unique_name,
+                inputs=[
+                    {"question": "What is 2+2?"},
+                    {"question": "What is the capital of France?"},
+                    {"question": "Who wrote Hamlet?"},
+                ],
+                outputs=[
+                    {"answer": "4"},
+                    {"answer": "Paris"},
+                    {"answer": "Shakespeare"},
+                ],
+                metadata=[
+                    {"category": "math", "difficulty": "easy"},
+                    {"category": "geography", "difficulty": "easy"},
+                    {"category": "literature", "difficulty": "medium"},
+                ],
+            )
+        )
+
+        from phoenix.experiments.functions import run_experiment
+
+        def simple_task(input: dict[str, Any]) -> str:
+            return f"Answer: {input['question']}"
+
+        def simple_evaluator(output: str, expected: dict[str, Any]) -> float:
+            return 1.0 if expected["answer"] in output else 0.0
+
+        result = run_experiment(
+            dataset=dataset,
+            task=simple_task,
+            evaluators=[simple_evaluator],
+            experiment_name=f"test_legacy_compat_{uuid.uuid4().hex[:8]}",
+            dry_run=True,  # Use dry run to avoid database operations
+            print_summary=False,
+        )
+
+        assert result is not None
+        assert len(result.runs) > 0
+
+        assert hasattr(result.dataset, "examples")
+        assert hasattr(result.dataset.examples, "values")
+        assert hasattr(result.dataset.examples, "get")
+
+        first_example = result.dataset[0]
+        assert hasattr(first_example, "input")
+        assert hasattr(first_example, "output")
+        assert hasattr(first_example, "metadata")
+        assert hasattr(first_example, "id")
+
+        assert "question" in first_example.input
+        assert "answer" in first_example.output
+        assert "category" in first_example.metadata
