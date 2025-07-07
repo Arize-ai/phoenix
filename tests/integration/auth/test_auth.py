@@ -25,6 +25,7 @@ from opentelemetry.sdk.trace.export import SpanExportResult
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from strawberry.relay import GlobalID
+from typing_extensions import TypeAlias
 
 from .._helpers import (
     _ADMIN,
@@ -1353,6 +1354,10 @@ class TestPrompts:
             assert user["id"] == logged_in_user.gid
 
 
+SpanId: TypeAlias = str
+SpanGlobalId: TypeAlias = str
+
+
 class TestSpanAnnotations:
     QUERY = """
       mutation CreateSpanAnnotations($input: [CreateSpanAnnotationInput!]!) {
@@ -1411,6 +1416,7 @@ class TestSpanAnnotations:
         _spans: Sequence[ReadableSpan],
         _get_user: _GetUser,
         _app: _AppInfo,
+        _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
     ) -> None:
         annotation_creator = _get_user(_app, _MEMBER)
         logged_in_annotation_creator = annotation_creator.log_in(_app)
@@ -1419,15 +1425,9 @@ class TestSpanAnnotations:
         admin = _get_user(_app, _ADMIN)
         logged_in_admin = admin.log_in(_app)
 
-        # Add spans
-        user_api_key = logged_in_annotation_creator.create_api_key(_app)
-        headers = dict(authorization=f"Bearer {user_api_key}")
-        exporter = _http_span_exporter(_app, headers=headers)
-        assert exporter.export(_spans) is SpanExportResult.SUCCESS
-        await sleep(0.1)  # wait for spans to be exported and written to disk
-
         # Create span annotation
-        span_gid = str(GlobalID("Span", "1"))
+        span_gid = _span_ids[0][1]
+        name = token_hex(8)
         response, _ = logged_in_annotation_creator.gql(
             _app,
             query=self.QUERY,
@@ -1435,7 +1435,7 @@ class TestSpanAnnotations:
             variables={
                 "input": {
                     "spanId": span_gid,
-                    "name": "span-annotation-name",
+                    "name": name,
                     "annotatorKind": "HUMAN",
                     "label": "correct",
                     "score": 1,
@@ -1453,7 +1453,6 @@ class TestSpanAnnotations:
         annotation_id = original_span_annotation["id"]
 
         # Only the user who created the annotation can patch
-        span_gid = str(GlobalID("Span", "1"))
         for user in [logged_in_member, logged_in_admin]:
             with pytest.raises(RuntimeError) as exc_info:
                 response, _ = user.gql(
@@ -1463,7 +1462,7 @@ class TestSpanAnnotations:
                     variables={
                         "input": {
                             "annotationId": annotation_id,
-                            "name": "patched-span-annotation-name",
+                            "name": f"patched-{name}",
                             "annotatorKind": "LLM",
                             "label": "incorrect",
                             "score": 0,

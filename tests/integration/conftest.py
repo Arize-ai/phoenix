@@ -282,9 +282,9 @@ def _smtpd(
 
 
 @pytest.fixture(autouse=True, scope="session")
-def _patch_opentelemetry_exporters_to_eliminate_retries() -> None:
+def _patch_opentelemetry_exporters_to_reduce_retries() -> None:
     def patched(max_value: int = 0) -> Iterator[int]:
-        yield 0
+        yield 1
         yield max_value
 
     from opentelemetry.exporter.otlp.proto.grpc import exporter
