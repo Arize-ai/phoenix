@@ -42,6 +42,8 @@ import * as beeaiFramework from "beeai-framework";
 import { registerInstrumentations } from "@opentelemetry/instrumentation";
 import { BeeAIInstrumentation } from "@arizeai/openinference-instrumentation-beeai";
 
+const COLLECTOR_ENDPOINT = "your-phoenix-collector-endpoint";
+
 const provider = new NodeTracerProvider({
   resource: resourceFromAttributes({
     [ATTR_SERVICE_NAME]: "beeai-project",
@@ -51,7 +53,9 @@ const provider = new NodeTracerProvider({
     new SimpleSpanProcessor(new ConsoleSpanExporter()),
     new SimpleSpanProcessor(
       new OTLPTraceExporter({
-        url: "http://0.0.0.0:6006/v1/traces", // Replace with your endpoint
+        url: `${COLLECTOR_ENDPOINT}/v1/traces`,
+        // (optional) if connecting to Phoenix with Authentication enabled
+        headers: { Authorization: `Bearer ${process.env.PHOENIX_API_KEY}` },
       }),
     ),
   ],
