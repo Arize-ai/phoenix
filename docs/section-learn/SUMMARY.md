@@ -33,7 +33,7 @@
 
 ## 🧩 Context Engineering
 
-* [Context Engineering Concepts](context-engineering/prompts-concepts.md)
+* [Context Engineering Concepts](context-engineering/context-engineering-concepts.md)
 
 ## 🗄️ Datasets and Experiments
 
