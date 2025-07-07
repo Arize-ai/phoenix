@@ -202,7 +202,7 @@ class TestDbDiskUsageMonitor:
         client = _httpx_client(_app, _admin_secret)
         json_: dict[str, Any] = {"name": token_hex(8)}
         resp = client.post(url="v1/projects", json=json_)
-        assert resp.status_code == 503, "REST API should return 503"
+        assert resp.status_code == 507, "REST API should return 507"
 
         # ========================================================================
         # Verify REST API get operations are not blocked for admin secret
@@ -298,7 +298,7 @@ class TestDbDiskUsageMonitor:
         # This ensures the blocking behavior is comprehensive and not bypass-able.
         json_ = {"name": token_hex(8)}
         resp = client.post(url="v1/projects", json=json_)
-        assert resp.status_code == 503, "Project creation should fail with 503"
+        assert resp.status_code == 507, "Project creation should fail with 507"
 
         # ========================================================================
         # Verify REST GET is not blocked
