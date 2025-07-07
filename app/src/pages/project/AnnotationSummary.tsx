@@ -1,5 +1,4 @@
 import React, { startTransition, Suspense, useEffect } from "react";
-import { Pressable } from "react-aria";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { useParams } from "react-router";
 import { Cell, Pie, PieChart } from "recharts";
@@ -10,6 +9,7 @@ import {
   Text,
   Token,
   TooltipTrigger,
+  TriggerWrap,
   View,
 } from "@phoenix/components";
 import { AnnotationConfig } from "@phoenix/components/annotation";
@@ -278,19 +278,17 @@ export function SummaryValue({
 
   return (
     <TooltipTrigger delay={0}>
-      <Pressable>
-        <div>
-          <SummaryValuePreview
-            name={name}
-            meanScore={meanScore}
-            labelFractions={labelFractions}
-            size={size}
-            disableAnimation={disableAnimation}
-            meanScoreFallback={meanScoreFallback}
-            annotationConfig={annotationConfig}
-          />
-        </div>
-      </Pressable>
+      <TriggerWrap>
+        <SummaryValuePreview
+          name={name}
+          meanScore={meanScore}
+          labelFractions={labelFractions}
+          size={size}
+          disableAnimation={disableAnimation}
+          meanScoreFallback={meanScoreFallback}
+          annotationConfig={annotationConfig}
+        />
+      </TriggerWrap>
       <RichTooltip placement="bottom">
         <SummaryValueBreakdown
           annotationName={name}
@@ -455,24 +453,22 @@ export function SummaryValueLabels({
   }
   return (
     <TooltipTrigger delay={0}>
-      <Pressable>
-        <div>
-          <Flex
-            direction="row"
-            alignItems="center"
-            gap="size-50"
-            // Shrinks the container of tokens to allow for the + count to be visible
-            // while still truncating the biggest label
-            // otherwise, just shrink the container slightly for padding
-            maxWidth={hasMoreThanOneLabel ? "80%" : "99%"}
-          >
-            <Token style={{ maxWidth: "100%" }}>
-              <Truncate maxWidth="100%">{largestFractionLabel}</Truncate>
-            </Token>
-            {hasMoreThanOneLabel && <Token>+ {totalCount}</Token>}
-          </Flex>
-        </div>
-      </Pressable>
+      <TriggerWrap>
+        <Flex
+          direction="row"
+          alignItems="center"
+          gap="size-50"
+          // Shrinks the container of tokens to allow for the + count to be visible
+          // while still truncating the biggest label
+          // otherwise, just shrink the container slightly for padding
+          maxWidth={hasMoreThanOneLabel ? "80%" : "99%"}
+        >
+          <Token style={{ maxWidth: "100%" }}>
+            <Truncate maxWidth="100%">{largestFractionLabel}</Truncate>
+          </Token>
+          {hasMoreThanOneLabel && <Token>+ {totalCount}</Token>}
+        </Flex>
+      </TriggerWrap>
       <RichTooltip placement="bottom">
         <SummaryValueBreakdown
           annotationName={name}
