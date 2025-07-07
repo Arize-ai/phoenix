@@ -855,7 +855,7 @@ class DbDiskUsageInterceptor(AsyncServerInterceptor):
             and self._db.should_not_insert_or_update
         ):
             await context.abort(
-                grpc.StatusCode.RESOURCE_EXHAUSTED,
+                grpc.StatusCode.FAILED_PRECONDITION,
                 "Database disk usage threshold exceeded",
             )
         return await method(request_or_iterator, context)
