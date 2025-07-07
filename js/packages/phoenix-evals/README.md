@@ -14,7 +14,7 @@
 
 ![NPM](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)
 
-This package provides a TypeScript evals. It is vendor agnostic and can be used in isolation of any framework or platform. This package is still under active development and is subject to change.
+This package provides a TypeScript evaluation library. It is vendor agnostic and can be used in isolation of any framework or platform. This package is still under active development and is subject to change.
 
 ## Installation
 
