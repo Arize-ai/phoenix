@@ -1,9 +1,14 @@
 import { CSSProperties, ReactNode } from "react";
+import { Pressable } from "react-aria";
 import { css } from "@emotion/react";
 
-import { HelpTooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
-
-import { Flex, Text, View } from "@phoenix/components";
+import {
+  Flex,
+  RichTooltip,
+  Text,
+  TooltipTrigger,
+  View,
+} from "@phoenix/components";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { toPythonPrimitiveStr } from "@phoenix/utils/pythonUtils";
 
@@ -44,9 +49,11 @@ export function MetadataTooltip({
   }));
 
   return (
-    <TooltipTrigger delay={500} offset={3}>
-      <TriggerWrap>{children}</TriggerWrap>
-      <HelpTooltip UNSAFE_style={{ minWidth: width }}>
+    <TooltipTrigger delay={500}>
+      <Pressable>
+        <div>{children}</div>
+      </Pressable>
+      <RichTooltip offset={3}>
         <Flex direction="row" wrap="nowrap" gap="size-100">
           <Flex flexBasis="40%">
             <Flex direction="column" gap="size-100" width="100%">
@@ -141,7 +148,7 @@ export function MetadataTooltip({
             </Flex>
           </View>
         </Flex>
-      </HelpTooltip>
+      </RichTooltip>
     </TooltipTrigger>
   );
 }
