@@ -1328,12 +1328,19 @@ def get_env_database_schema() -> Optional[str]:
 
 
 def get_env_database_allocated_storage_capacity_gibibytes() -> Optional[float]:
-    return _float_val(ENV_PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES)
+    ans = _float_val(ENV_PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES)
+    if ans is not None and ans <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES}: "
+            f"{ans}. Value must be a positive number."
+        )
+    return ans
 
 
 def get_env_database_usage_email_warning_threshold_percentage() -> Optional[float]:
     ans = _float_val(ENV_PHOENIX_DATABASE_USAGE_EMAIL_WARNING_THRESHOLD_PERCENTAGE)
-    if ans is not None and not (0 < ans < 100):
+    if ans is not None and not (0 <= ans <= 100):
         raise ValueError(
             f"Invalid value for environment variable "
             f"{ENV_PHOENIX_DATABASE_USAGE_EMAIL_WARNING_THRESHOLD_PERCENTAGE}: "
@@ -1344,7 +1351,7 @@ def get_env_database_usage_email_warning_threshold_percentage() -> Optional[floa
 
 def get_env_database_usage_insertion_blocking_threshold_percentage() -> Optional[float]:
     ans = _float_val(ENV_PHOENIX_DATABASE_USAGE_INSERTION_BLOCKING_THRESHOLD_PERCENTAGE)
-    if ans is not None and not (0 < ans < 100):
+    if ans is not None and not (0 <= ans <= 100):
         raise ValueError(
             f"Invalid value for environment variable "
             f"{ENV_PHOENIX_DATABASE_USAGE_INSERTION_BLOCKING_THRESHOLD_PERCENTAGE}: "
@@ -1596,6 +1603,9 @@ def verify_server_environment_variables() -> None:
     get_env_root_url()
     get_env_phoenix_secret()
     get_env_phoenix_admin_secret()
+    get_env_database_allocated_storage_capacity_gibibytes()
+    get_env_database_usage_email_warning_threshold_percentage()
+    get_env_database_usage_insertion_blocking_threshold_percentage()
 
     # Notify users about deprecated environment variables if they are being used.
     if os.getenv("PHOENIX_ENABLE_WEBSOCKETS") is not None:

@@ -733,7 +733,7 @@ def _server(app: _AppInfo) -> Iterator[_AppInfo]:
     if sql_database_url.startswith("postgresql") and not str(
         app.env.get(ENV_PHOENIX_SQL_DATABASE_SCHEMA, "")
     ).startswith(_SCHEMA_PREFIX):
-        raise ValueError(f"{ENV_PHOENIX_SQL_DATABASE_SCHEMA} should start with {_SCHEMA_PREFIX!r}")
+        raise ValueError(f"{ENV_PHOENIX_SQL_DATABASE_SCHEMA} should start with {_SCHEMA_PREFIX}")
     command = f"{sys.executable} -m phoenix.server.main serve"
     env = dict(app.env)
     if sys.platform == "win32":
