@@ -60,3 +60,47 @@ As systems grow beyond one-off prompts and into long-running workflows, context 
 
 Each principle pushes context design toward systems that are leaner, more interpretable, and better aligned with both model behavior and downstream actions.
 
+## **Applying Context at System Scale**
+
+Systems that rely on long or complex context need well-designed memory. The patterns below offer practical ways to manage context, depending on how much information your system handles and how long it needs to remember it.
+
+**Three-tier memory** breaks context into three layers: short-term (exact text), mid-term (summaries), and long-term (titles or embeddings). This makes it easier to keep recent details while still remembering important older information. It’s a good fit for chats or agents that run over many turns. Hierarchical Memory Transformers (HMT) follow this design.
+
+**Recurrent compression buffers** take earlier parts of a stream—like a transcript or log—and compress them into smaller representations that can be brought back later if needed. This saves space while keeping the option to recall details when relevant.
+
+**State-space backbones** store memory outside the prompt using a hidden state that carries over between turns. This lets the model handle much longer sequences efficiently. It’s especially useful in devices with tight memory or speed limits, like mobile or edge systems. Mamba is one example of this pattern.
+
+**Context cache and KV-sharing** spread memory across different servers by saving reusable attention patterns. This avoids repeating work and keeps prompts small, making it a strong choice for systems running many requests in parallel. MemServe uses this technique.
+
+**Hybrid retrieval** combines two steps: first, it filters data using keywords or metadata; then it uses vector search for meaning. This cuts down on irrelevant results, especially in datasets with lots of similar content.
+
+**Graph-of-thought memory** turns ideas into a graph, where entities and their relationships are nodes and edges. Instead of sending the whole graph to the model, only the relevant part is used. This works well for complex tasks like analysis or knowledge reasoning and is often built with tools like Neo4j or TigerGraph.
+
+Each of these patterns offers a different way to scale memory and context depending on the problem. They help systems stay efficient, accurate, and responsive as context grows.
+
+## How to Optimize Context Like Code
+
+1. **Log every prompt and context segment.**\
+   Track exactly what the model sees at each step.
+2. **Label each span.**\
+   Mark whether it was used, ignored, hallucinated, or contributed to the final output.
+3. **Measure return on input (ROI).**\
+   For each span, calculate: `ROI = token cost ÷ impact on accuracy`.
+4. **Trim low-value spans.**\
+   Drop spans with low ROI. Keep references (pointers) in case retrieval is needed later.
+5. **Train a salience model.**\
+   Predict which spans should be included in context automatically, based on past usefulness.
+6. **Test with adversarial context.**\
+   Shuffle inputs or omit key details to probe model robustness and dependency on context structure.
+7. **Run regression evaluations.**\
+   Repeatedly test the system across agent roles and tasks to catch context-related drift or failures.
+8. **Version and diff context bundles.**\
+   Treat context like code—snapshot, compare, and review changes before release.
+
+## From Prompts to Protocols - Takeaways&#x20;
+
+Multi-agent systems are powerful because they divide knowledge and responsibility across roles. But that same structure becomes fragile when context is outdated, overloaded, or misaligned.
+
+Context engineering turns prompting from trial-and-error into system design. It ensures each agent sees the right information, in the right form, at the right time.
+
+To build reliable systems, treat context as a core artifact—not just an input. Observe it. Version it. Optimize it. With that foundation, agents stop behaving like chat interfaces and start acting like collaborators.
