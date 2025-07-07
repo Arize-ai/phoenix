@@ -32,32 +32,33 @@ class DBSchemaComparisonTest(ABC):
         _engine: Engine,
         _alembic_config: Config,
         _db_backend: _DBBackend,
+        _schema: str,
     ) -> None:
-        _verify_clean_state(_engine)
+        _verify_clean_state(_engine, _schema)
 
-        _up(_engine, _alembic_config, _DOWN)
+        _up(_engine, _alembic_config, _DOWN, _schema)
 
         current_info = self._get_current_schema_info(_db_backend)
         upgraded_info = self._get_upgraded_schema_info(_db_backend)
 
         with _engine.connect() as conn:
-            initial_info = _get_table_schema_info(conn, self.table_name, _db_backend)
+            initial_info = _get_table_schema_info(conn, self.table_name, _db_backend, _schema)
         assert (
             initial_info == current_info
         ), "Initial schema info does not match expected current schema info"
 
-        _up(_engine, _alembic_config, _UP)
+        _up(_engine, _alembic_config, _UP, _schema)
 
         with _engine.connect() as conn:
-            final_info = _get_table_schema_info(conn, self.table_name, _db_backend)
+            final_info = _get_table_schema_info(conn, self.table_name, _db_backend, _schema)
         assert (
             final_info == upgraded_info
         ), "Final schema info does not match expected upgraded schema info"
 
-        _down(_engine, _alembic_config, _DOWN)
+        _down(_engine, _alembic_config, _DOWN, _schema)
 
         with _engine.connect() as conn:
-            downgraded_info = _get_table_schema_info(conn, self.table_name, _db_backend)
+            downgraded_info = _get_table_schema_info(conn, self.table_name, _db_backend, _schema)
         assert (
             downgraded_info == current_info
         ), "Downgraded schema info does not match expected current schema info"
@@ -182,5 +183,6 @@ class TestUsers(DBSchemaComparisonTest):
         _engine: Engine,
         _alembic_config: Config,
         _db_backend: _DBBackend,
+        _schema: str,
     ) -> None:
-        self._test_db_schema(_engine, _alembic_config, _db_backend)
+        self._test_db_schema(_engine, _alembic_config, _db_backend, _schema)

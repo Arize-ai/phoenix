@@ -1,26 +1,17 @@
-import os
 from collections.abc import Iterator
-from contextlib import ExitStack
 from secrets import token_bytes, token_hex
 from time import sleep
 from typing import Any, Optional
-from unittest import mock
 
 import pytest
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
 from opentelemetry.trace import SpanContext
-from phoenix.config import (
-    get_env_smtp_hostname,
-    get_env_smtp_password,
-    get_env_smtp_port,
-    get_env_smtp_username,
-)
-from smtpdfix import AuthController, Config, SMTPDFix
-from smtpdfix.certs import Cert, _generate_certs
+from smtpdfix import AuthController
 
 from .._helpers import (
     _AdminSecret,
+    _AppInfo,
     _create_api_key,
     _extract_html,
     _extract_password_reset_token,
@@ -46,20 +37,32 @@ def _admin_email() -> str:
 
 
 @pytest.fixture(scope="module")
-def _smtp_email_from() -> str:
-    return f"{token_hex(8)}@example.com"
+def _env_auth(
+    _admin_secret: _AdminSecret,
+) -> dict[str, str]:
+    """Configure authentication and security environment variables for testing."""
+    return {
+        "PHOENIX_ENABLE_AUTH": "true",
+        "PHOENIX_DISABLE_RATE_LIMIT": "true",
+        "PHOENIX_SECRET": token_hex(16),
+        "PHOENIX_ADMIN_SECRET": str(_admin_secret),
+    }
 
 
 @pytest.fixture(scope="module")
-def _app(
-    _ports: Iterator[int],
-    _env_phoenix_sql_database_url: Any,
-    _admin_secret: _AdminSecret,
+def _env_admin(
     _admin_email: str,
-    _smtp_email_from: str,
-) -> Iterator[None]:
+) -> dict[str, str]:
+    """Configure admin environment variables for testing."""
+    return {
+        "PHOENIX_ADMINS": f"John Doe={_admin_email}",
+    }
+
+
+@pytest.fixture(scope="module")
+def _env_database_usage() -> dict[str, str]:
     """
-    Configure Phoenix app with extremely low disk usage thresholds to test monitoring behavior.
+    Configure extremely low disk usage thresholds to test monitoring behavior.
 
     Key configuration:
     - Database capacity: 0.001 GiB (~1 MB) - tiny to trigger thresholds quickly
@@ -69,63 +72,48 @@ def _app(
     This setup ensures the monitor will activate during normal test operations,
     allowing us to verify both notification and blocking behaviors.
     """
-    values = (
-        ("PHOENIX_ENABLE_AUTH", "true"),
-        ("PHOENIX_DISABLE_RATE_LIMIT", "true"),
-        ("PHOENIX_SECRET", token_hex(16)),
-        ("PHOENIX_ADMIN_SECRET", str(_admin_secret)),
-        ("PHOENIX_SMTP_HOSTNAME", "127.0.0.1"),
-        ("PHOENIX_SMTP_PORT", str(next(_ports))),
-        ("PHOENIX_SMTP_USERNAME", "test"),
-        ("PHOENIX_SMTP_PASSWORD", "test"),
-        ("PHOENIX_SMTP_MAIL_FROM", _smtp_email_from),
-        ("PHOENIX_SMTP_VALIDATE_CERTS", "false"),
-        ("PHOENIX_ADMINS", f"John Doe={_admin_email}"),
+    return {
         # Set extremely low capacity to trigger thresholds during testing
-        ("PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES", "0.001"),
+        "PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES": "0.001",
         # Notification threshold: 0.1% of 0.001 GiB = ~1 KB
-        ("PHOENIX_DATABASE_USAGE_EMAIL_WARNING_THRESHOLD_PERCENTAGE", "0.1"),
+        "PHOENIX_DATABASE_USAGE_EMAIL_WARNING_THRESHOLD_PERCENTAGE": "0.1",
         # Blocking threshold: 0.2% of 0.001 GiB = ~2 KB
-        ("PHOENIX_DATABASE_USAGE_INSERTION_BLOCKING_THRESHOLD_PERCENTAGE", "0.2"),
-    )
-    with ExitStack() as stack:
-        stack.enter_context(mock.patch.dict(os.environ, values))
-        stack.enter_context(_server())
-        yield
+        "PHOENIX_DATABASE_USAGE_INSERTION_BLOCKING_THRESHOLD_PERCENTAGE": "0.2",
+    }
 
 
 @pytest.fixture(scope="module")
-def _tls_certs_server(
-    tmp_path_factory: pytest.TempPathFactory,
-) -> Cert:
-    """Fixture that provides TLS certificates in a temporary directory."""
-    path = tmp_path_factory.mktemp(f"certs_server_{token_hex(8)}")
-    return _generate_certs(path, separate_key=True)
+def _env(
+    _env_database: dict[str, str],
+    _env_ports: dict[str, str],
+    _env_auth: dict[str, str],
+    _env_smtp: dict[str, str],
+    _env_admin: dict[str, str],
+    _env_database_usage: dict[str, str],
+) -> dict[str, str]:
+    """Combine all environment variable configurations for testing."""
+    return {
+        **_env_database,
+        **_env_ports,
+        **_env_auth,
+        **_env_smtp,
+        **_env_admin,
+        **_env_database_usage,
+    }
 
 
 @pytest.fixture(scope="module")
-def _smtpd(
-    _app: Any,
-    _tls_certs_server: Cert,
-) -> Iterator[AuthController]:
-    os.environ["SMTPD_SSL_CERTIFICATE_FILE"] = str(_tls_certs_server.cert.resolve())  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
-    os.environ["SMTPD_SSL_KEY_FILE"] = str(_tls_certs_server.key[0].resolve())  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
-    config = Config()
-    config.login_username = get_env_smtp_username()
-    config.login_password = get_env_smtp_password()
-    config.use_starttls = True
-    with SMTPDFix(
-        hostname=get_env_smtp_hostname(),
-        port=get_env_smtp_port(),
-        config=config,
-    ) as controller:
-        yield controller
+def _app(
+    _env: dict[str, str],
+) -> Iterator[_AppInfo]:
+    with _server(_AppInfo(_env)) as app:
+        yield app
 
 
 class TestDbDiskUsageMonitor:
     def test_email_warning_and_insertion_blocking(
         self,
-        _app: Any,
+        _app: _AppInfo,
         _smtpd: AuthController,
         _admin_email: str,
         _admin_secret: _AdminSecret,
@@ -197,10 +185,10 @@ class TestDbDiskUsageMonitor:
         span_id = int.from_bytes(token_bytes(8), "big")
         spans = [ReadableSpan(token_hex(8), SpanContext(trace_id, span_id, False))]
 
-        res = _http_span_exporter(headers=headers).export(spans)
+        res = _http_span_exporter(_app, headers=headers).export(spans)
         assert res is SpanExportResult.FAILURE, "HTTP export should fail"
 
-        res = _grpc_span_exporter(headers=headers).export(spans)
+        res = _grpc_span_exporter(_app, headers=headers).export(spans)
         assert res is SpanExportResult.FAILURE, "gRPC export should fail"
 
         # ========================================================================
@@ -211,7 +199,7 @@ class TestDbDiskUsageMonitor:
         # insertion blocking threshold is exceeded.
 
         # Test REST API create operations fail due to insertion blocking
-        client = _httpx_client(_admin_secret)
+        client = _httpx_client(_app, _admin_secret)
         json_: dict[str, Any] = {"name": token_hex(8)}
         resp = client.post(url="v1/projects", json=json_)
         assert resp.status_code == 503, "REST API should return 503"
@@ -261,13 +249,13 @@ class TestDbDiskUsageMonitor:
         # Test password reset works
         new_password = token_hex(16)
         json_ = {"token": reset_token, "password": new_password}
-        resp = _httpx_client().post("auth/password-reset", json=json_)
+        resp = _httpx_client(_app).post("auth/password-reset", json=json_)
         assert resp.is_success, "Password reset should succeed"
 
         # Test user can log in (and log out) with new password
-        _log_out(_log_in(new_password, email=_admin_email).access_token)
-        access_token = _log_in(new_password, email=_admin_email).access_token
-        client = _httpx_client(access_token)
+        _log_out(_app, _log_in(_app, new_password, email=_admin_email).access_token)
+        access_token = _log_in(_app, new_password, email=_admin_email).access_token
+        client = _httpx_client(_app, access_token)
 
         # ========================================================================
         # Verify GraphQL mutation create is blocked
@@ -276,12 +264,12 @@ class TestDbDiskUsageMonitor:
         # should be blocked because they involve database insertions.
         # The system should return "locked" errors for these operations.
         with pytest.raises(Exception, match="locked"):
-            _create_api_key(access_token)
+            _create_api_key(_app, access_token)
 
         for field in ['createDataset(input:{name:"' + token_hex(8) + '"}){dataset{id}}']:
             query = "mutation{" + field + "}"
             with pytest.raises(Exception, match="locked"):
-                _gql(access_token, query=query)
+                _gql(_app, access_token, query=query)
 
         # ========================================================================
         # Verify GraphQL mutation delete is not blocked
@@ -291,7 +279,7 @@ class TestDbDiskUsageMonitor:
         # administrators to clean up data to resolve disk usage issues.
         for field in ['clearProject(input:{id:"UHJvamVjdDox"}){__typename}']:
             query = "mutation{" + field + "}"
-            _gql(access_token, query=query)
+            _gql(_app, access_token, query=query)
 
         # ========================================================================
         # Verify GraphQL query is not blocked
@@ -300,7 +288,7 @@ class TestDbDiskUsageMonitor:
         # continue to work normally for monitoring and troubleshooting.
         for field in ["datasets", "projects", "prompts", "users"]:
             query = "{" + field + "{__typename}}"
-            _gql(access_token, query=query)
+            _gql(_app, access_token, query=query)
 
         # ========================================================================
         # Verify REST POST create is blocked
