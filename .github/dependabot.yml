@@ -13,14 +13,12 @@ updates:
       day: "tuesday"
       time: "09:00"
     ignore:
-      # Ignore patch updates for stable dependencies
+      # Ignore patch updates for stable dependencies to reduce noise
       - dependency-name: "*"
         update-types: ["version-update:semver-patch"]
     commit-message:
       prefix: "deps"
       include: "scope"
-    reviewers:
-      - "phoenix-devs"
     labels:
       - "dependencies"
       - "python"
@@ -38,8 +36,6 @@ updates:
     commit-message:
       prefix: "deps(client)"
       include: "scope"
-    reviewers:
-      - "phoenix-devs"
     labels:
       - "dependencies"
       - "python"
@@ -58,8 +54,6 @@ updates:
     commit-message:
       prefix: "deps(evals)"
       include: "scope"
-    reviewers:
-      - "phoenix-devs"
     labels:
       - "dependencies"
       - "python"
@@ -78,8 +72,6 @@ updates:
     commit-message:
       prefix: "deps(otel)"
       include: "scope"
-    reviewers:
-      - "phoenix-devs"
     labels:
       - "dependencies"
       - "python"
@@ -98,8 +90,6 @@ updates:
     commit-message:
       prefix: "deps(js)"
       include: "scope"
-    reviewers:
-      - "phoenix-devs"
     labels:
       - "dependencies"
       - "javascript"
@@ -118,8 +108,6 @@ updates:
     commit-message:
       prefix: "deps(ts-client)"
       include: "scope"
-    reviewers:
-      - "phoenix-devs"
     labels:
       - "dependencies"
       - "javascript"
@@ -139,8 +127,6 @@ updates:
     commit-message:
       prefix: "deps(mcp)"
       include: "scope"
-    reviewers:
-      - "phoenix-devs"
     labels:
       - "dependencies"
       - "javascript"
@@ -157,8 +143,6 @@ updates:
     commit-message:
       prefix: "deps(actions)"
       include: "scope"
-    reviewers:
-      - "phoenix-devs"
     labels:
       - "dependencies"
       - "github-actions"
@@ -173,8 +157,6 @@ updates:
     commit-message:
       prefix: "deps(docker)"
       include: "scope"
-    reviewers:
-      - "phoenix-devs"
     labels:
       - "dependencies"
       - "docker"
@@ -183,6 +165,7 @@ updates:
 # as they contain example code, tutorials, and demo applications that are not part
 # of the actual Phoenix application's Software Bill of Materials (SBOM):
 #
+# EXCLUDED DIRECTORIES:
 # - /examples/ - Example applications and demos
 # - /tutorials/ - Jupyter notebooks and tutorial code
 # - /docs/ - Documentation
@@ -200,3 +183,7 @@ updates:
 # These directories may contain dependencies with security vulnerabilities,
 # but since they are not shipped as part of the Phoenix application,
 # they do not represent actual security risks in production deployments.
+#
+# This configuration resolves Issue #7692 by focusing Dependabot scanning
+# on actual application code only, significantly reducing false positive
+# security vulnerability reports.
