@@ -188,7 +188,6 @@ class Dataset:
             >>> restored = Dataset.from_json(json_data)
         """
         return {
-            # Core v1.Dataset fields
             "id": self.id,
             "name": self.name,
             "description": self.description,
