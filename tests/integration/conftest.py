@@ -4,6 +4,7 @@ import os
 from collections.abc import Generator, Iterator
 from itertools import count, starmap
 from secrets import token_hex
+from types import ModuleType
 from typing import Optional, cast
 
 import pytest
@@ -278,3 +279,22 @@ def _smtpd(
         config=_smtpd_config,
     ) as controller:
         yield controller
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _patch_opentelemetry_exporters_to_eliminate_retries() -> None:
+    def patched(max_value: int = 0) -> Iterator[int]:
+        yield 0
+        yield max_value
+
+    from opentelemetry.exporter.otlp.proto.grpc import exporter
+    from opentelemetry.exporter.otlp.proto.http import trace_exporter
+
+    assert isinstance(exporter, ModuleType)
+    assert isinstance(trace_exporter, ModuleType)
+
+    fn = "_create_exp_backoff_generator"
+    assert callable(getattr(exporter, fn))
+    assert callable(getattr(trace_exporter, fn))
+    setattr(exporter, fn, patched)
+    setattr(trace_exporter, fn, patched)

@@ -489,7 +489,6 @@ def _http_span_exporter(
         client_key_file=app.client_key_file,
         client_certificate_file=app.client_certificate_file,
     )
-    exporter._MAX_RETRY_TIMEOUT = 2
     return exporter
 
 
