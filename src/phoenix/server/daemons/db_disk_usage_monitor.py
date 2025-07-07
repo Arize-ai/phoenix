@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from asyncio import sleep
 from datetime import datetime, timedelta, timezone
-from typing import Optional, cast
+from typing import Optional
 
 import sqlalchemy as sa
 from email_validator import EmailNotValidError, validate_email
@@ -68,10 +68,8 @@ class DbDiskUsageMonitor(DaemonTask):
 
     async def _run(self) -> None:
         if self._is_disabled:
-            logger.debug("Database disk space monitoring is disabled")
             return
 
-        logger.debug("Starting database disk space monitoring")
         while self._running:
             try:
                 current_usage_bytes = await self._check_disk_usage_bytes()
@@ -80,7 +78,6 @@ class DbDiskUsageMonitor(DaemonTask):
             else:
                 DB_DISK_USAGE_BYTES.set(current_usage_bytes)
                 current_usage_gibibytes = current_usage_bytes / _BYTES_PER_GIBIBYTE
-                logger.debug(f"Current database usage: {current_usage_gibibytes:,.1f} GiB")
                 try:
                     await self._check_thresholds(current_usage_gibibytes)
                 except Exception:
@@ -101,7 +98,9 @@ class DbDiskUsageMonitor(DaemonTask):
                 )
         else:
             assert_never(self._db.dialect)
-        return cast(float, current_usage_bytes)
+        if not isinstance(current_usage_bytes, (int, float)):
+            raise TypeError(f"Expected int or float, got {type(current_usage_bytes)}")
+        return float(current_usage_bytes)
 
     async def _check_thresholds(self, current_usage_gibibytes: float) -> None:
         allocated_capacity_gibibytes = get_env_database_allocated_storage_capacity_gibibytes()
@@ -111,10 +110,6 @@ class DbDiskUsageMonitor(DaemonTask):
         used_ratio = current_usage_gibibytes / allocated_capacity_gibibytes
         DB_DISK_USAGE_RATIO.set(used_ratio)
         used_percentage = used_ratio * 100
-        logger.debug(
-            f"Database usage: {used_percentage:.1f}% "
-            f"({current_usage_gibibytes:,.1f} / {allocated_capacity_gibibytes:,.1f} GiB)"
-        )
 
         # Check insertion blocking threshold
         if (
@@ -122,11 +117,6 @@ class DbDiskUsageMonitor(DaemonTask):
             := get_env_database_usage_insertion_blocking_threshold_percentage()
         ):
             should_not_insert_or_update = used_percentage > insertion_blocking_threshold_percentage
-            if should_not_insert_or_update:
-                logger.info(
-                    f"Database usage {used_percentage:.1f}% exceeds blocking threshold "
-                    f"{insertion_blocking_threshold_percentage:.1f}%, enabling insertion blocking"
-                )
             self._db.should_not_insert_or_update = should_not_insert_or_update
             DB_INSERTIONS_BLOCKED.set(int(should_not_insert_or_update))
 
@@ -136,10 +126,6 @@ class DbDiskUsageMonitor(DaemonTask):
             := get_env_database_usage_email_warning_threshold_percentage()
         ):
             if used_percentage > notification_threshold_percentage:
-                logger.debug(
-                    f"Database usage {used_percentage:.2f}% exceeds warning threshold "
-                    f"{notification_threshold_percentage}%, sending warning emails"
-                )
                 await self._send_warning_emails(
                     used_percentage,
                     allocated_capacity_gibibytes,
@@ -153,7 +139,6 @@ class DbDiskUsageMonitor(DaemonTask):
         notification_threshold_percentage: float,
     ) -> None:
         if not self._email_sender:
-            logger.debug("Email sender is not configured, skipping database usage warning emails.")
             return
 
         current_usage_gibibytes = used_percentage / 100 * allocated_capacity_gibibytes
@@ -174,9 +159,6 @@ class DbDiskUsageMonitor(DaemonTask):
             return
 
         if not admin_emails:
-            logger.debug(
-                "No admin emails found in database, skipping database usage warning emails"
-            )
             return
 
         # Validate email addresses
@@ -191,10 +173,6 @@ class DbDiskUsageMonitor(DaemonTask):
                 valid_emails.append(normalized_email)
 
         if not valid_emails:
-            logger.debug(
-                f"No valid emails found for admins (found {len(admin_emails)} admins), "
-                f"skipping database usage warning emails"
-            )
             return
 
         self._last_email_sent = {
@@ -229,5 +207,3 @@ class DbDiskUsageMonitor(DaemonTask):
                 emails_sent += 1
                 # Count successful warning email sends
                 DB_DISK_USAGE_WARNING_EMAILS_SENT.inc()
-
-        logger.debug(f"Database usage warning emails: {emails_sent}/{send_attempts} sent")
