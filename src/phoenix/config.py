@@ -1344,7 +1344,7 @@ def get_env_database_usage_email_warning_threshold_percentage() -> Optional[floa
         raise ValueError(
             f"Invalid value for environment variable "
             f"{ENV_PHOENIX_DATABASE_USAGE_EMAIL_WARNING_THRESHOLD_PERCENTAGE}: "
-            f"{ans}. Value must be a percentage strictly between 0 and 100."
+            f"{ans}. Value must be a percentage between 0 and 100."
         )
     return ans
 
@@ -1355,7 +1355,7 @@ def get_env_database_usage_insertion_blocking_threshold_percentage() -> Optional
         raise ValueError(
             f"Invalid value for environment variable "
             f"{ENV_PHOENIX_DATABASE_USAGE_INSERTION_BLOCKING_THRESHOLD_PERCENTAGE}: "
-            f"{ans}. Value must be a percentage strictly between 0 and 100."
+            f"{ans}. Value must be a percentage between 0 and 100."
         )
     return ans
 
