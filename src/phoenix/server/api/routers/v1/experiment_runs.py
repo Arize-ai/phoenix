@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import Field
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
@@ -13,6 +13,7 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.models import ExperimentRunOutput
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.authorization import is_not_locked
 from phoenix.server.dml_event import ExperimentRunInsertEvent
 
 from .models import V1RoutesBaseModel
@@ -52,6 +53,7 @@ class CreateExperimentRunResponseBody(ResponseBody[CreateExperimentRunResponseBo
 
 @router.post(
     "/experiments/{experiment_id}/runs",
+    dependencies=[Depends(is_not_locked)],
     operation_id="createExperimentRun",
     summary="Create run for an experiment",
     response_description="Experiment run created successfully",

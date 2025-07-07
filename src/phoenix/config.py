@@ -106,7 +106,24 @@ ENV_PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES = (
 )
 """
 The allocated storage capacity for the Phoenix database in gibibytes (2^30 bytes). Use float for
-fractional value. This is currently used only by the UI for informational displays.
+fractional value.
+"""
+ENV_PHOENIX_DATABASE_USAGE_EMAIL_WARNING_THRESHOLD_PERCENTAGE = (
+    "PHOENIX_DATABASE_USAGE_EMAIL_WARNING_THRESHOLD_PERCENTAGE"
+)
+"""
+The percentage of the allocated storage capacity that, when exceeded, triggers a email notifications
+to admin users with valid email addresses. Must be specified in conjunction with allocated storage
+capacity. This is a percentage value between 0 and 100. This setting is ignored if SMTP is not
+configured.
+"""
+ENV_PHOENIX_DATABASE_USAGE_INSERTION_BLOCKING_THRESHOLD_PERCENTAGE = (
+    "PHOENIX_DATABASE_USAGE_INSERTION_BLOCKING_THRESHOLD_PERCENTAGE"
+)
+"""
+The percentage of the allocated storage capacity that blocks insertions and updates of database
+records when exceeded. Deletions are not blocked. Must be specified in conjunction with allocated
+storage capacity. This is a percentage value between 0 and 100.
 """
 ENV_PHOENIX_ENABLE_PROMETHEUS = "PHOENIX_ENABLE_PROMETHEUS"
 """
@@ -1312,7 +1329,36 @@ def get_env_database_schema() -> Optional[str]:
 
 
 def get_env_database_allocated_storage_capacity_gibibytes() -> Optional[float]:
-    return _float_val(ENV_PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES)
+    ans = _float_val(ENV_PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES)
+    if ans is not None and ans <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES}: "
+            f"{ans}. Value must be a positive number."
+        )
+    return ans
+
+
+def get_env_database_usage_email_warning_threshold_percentage() -> Optional[float]:
+    ans = _float_val(ENV_PHOENIX_DATABASE_USAGE_EMAIL_WARNING_THRESHOLD_PERCENTAGE)
+    if ans is not None and not (0 <= ans <= 100):
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_DATABASE_USAGE_EMAIL_WARNING_THRESHOLD_PERCENTAGE}: "
+            f"{ans}. Value must be a percentage between 0 and 100."
+        )
+    return ans
+
+
+def get_env_database_usage_insertion_blocking_threshold_percentage() -> Optional[float]:
+    ans = _float_val(ENV_PHOENIX_DATABASE_USAGE_INSERTION_BLOCKING_THRESHOLD_PERCENTAGE)
+    if ans is not None and not (0 <= ans <= 100):
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_DATABASE_USAGE_INSERTION_BLOCKING_THRESHOLD_PERCENTAGE}: "
+            f"{ans}. Value must be a percentage between 0 and 100."
+        )
+    return ans
 
 
 def get_env_enable_prometheus() -> bool:
@@ -1558,6 +1604,9 @@ def verify_server_environment_variables() -> None:
     get_env_root_url()
     get_env_phoenix_secret()
     get_env_phoenix_admin_secret()
+    get_env_database_allocated_storage_capacity_gibibytes()
+    get_env_database_usage_email_warning_threshold_percentage()
+    get_env_database_usage_insertion_blocking_threshold_percentage()
 
     # Notify users about deprecated environment variables if they are being used.
     if os.getenv("PHOENIX_ENABLE_WEBSOCKETS") is not None:

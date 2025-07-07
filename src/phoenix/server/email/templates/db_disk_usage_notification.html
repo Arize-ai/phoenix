@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Database Usage Notification</title>
+</head>
+<body>
+<h1>Database Usage Notification</h1>
+<p>Your Phoenix database usage has exceeded the notification threshold.</p>
+<p><strong>Current Usage:</strong> {{ current_usage_gibibytes|round(1) }} GiB</p>
+<p><strong>Allocated Storage:</strong> {{ allocated_storage_gibibytes|round(1) }} GiB</p>
+<p><strong>Usage Percentage:</strong> {{ ((current_usage_gibibytes / allocated_storage_gibibytes) * 100)|round(1) }}%</p>
+<p><strong>Notification Threshold:</strong> {{ notification_threshold_percentage }}%</p>
+<p>Please consider removing old data or increasing your storage allocation to prevent interruption.</p>
+</body>
+</html>

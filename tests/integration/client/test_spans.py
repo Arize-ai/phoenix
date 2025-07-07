@@ -13,9 +13,10 @@ from typing_extensions import TypeAlias
 from .._helpers import (
     _ADMIN,  # pyright: ignore[reportPrivateUsage]
     _MEMBER,  # pyright: ignore[reportPrivateUsage]
+    _AppInfo,  # pyright: ignore[reportPrivateUsage]
     _await_or_return,  # pyright: ignore[reportPrivateUsage]
     _GetUser,  # pyright: ignore[reportPrivateUsage]
-    _RoleOrUser,  # pyright: ignore[reportPrivateUsage]
+    _RoleOrUser,
 )
 
 # Type aliases for better readability
@@ -37,12 +38,12 @@ class TestClientForSpanAnnotationsRetrieval:
         role_or_user: _RoleOrUser,
         _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
         (span_id1, _), (span_id2, _) = _span_ids
 
-        user = _get_user(role_or_user).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(user.create_api_key(_app))
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -60,7 +61,7 @@ class TestClientForSpanAnnotationsRetrieval:
         explanation2 = token_hex(8)
 
         await _await_or_return(
-            Client().annotations.add_span_annotation(
+            Client(base_url=_app.base_url, api_key=api_key).annotations.add_span_annotation(
                 annotation_name=annotation_name_1,
                 span_id=span_id1,
                 annotator_kind="LLM",
@@ -72,7 +73,7 @@ class TestClientForSpanAnnotationsRetrieval:
         )
 
         await _await_or_return(
-            Client().annotations.add_span_annotation(
+            Client(base_url=_app.base_url, api_key=api_key).annotations.add_span_annotation(
                 annotation_name=annotation_name_2,
                 span_id=span_id2,
                 annotator_kind="CODE",
@@ -84,7 +85,7 @@ class TestClientForSpanAnnotationsRetrieval:
         )
 
         df = await _await_or_return(
-            Client().spans.get_span_annotations_dataframe(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_span_annotations_dataframe(
                 span_ids=[span_id1, span_id2],
                 project_identifier="default",
             )
@@ -97,7 +98,7 @@ class TestClientForSpanAnnotationsRetrieval:
         }.issubset(set(df.index.astype(str))), "Expected span IDs missing from dataframe"  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
 
         annotations = await _await_or_return(
-            Client().spans.get_span_annotations(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_span_annotations(
                 span_ids=[span_id1, span_id1, span_id2],  # include duplicate on purpose
                 project_identifier="default",
             )
@@ -128,7 +129,7 @@ class TestClientForSpanAnnotationsRetrieval:
 
         spans_input_df = pd.DataFrame({"context.span_id": [span_id1, span_id2]})
         df_from_df = await _await_or_return(
-            Client().spans.get_span_annotations_dataframe(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_span_annotations_dataframe(
                 spans_dataframe=spans_input_df,
                 project_identifier="default",
             )
@@ -156,12 +157,12 @@ class TestClientForSpanAnnotationsRetrieval:
         role_or_user: _RoleOrUser,
         _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
         (span_id1, _), (span_id2, _) = _span_ids
 
-        user = _get_user(role_or_user).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(user.create_api_key(_app))
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -175,7 +176,7 @@ class TestClientForSpanAnnotationsRetrieval:
         explanation1 = token_hex(8)
 
         await _await_or_return(
-            Client().annotations.add_span_annotation(
+            Client(base_url=_app.base_url, api_key=api_key).annotations.add_span_annotation(
                 annotation_name=regular_annotation_name,
                 span_id=span_id1,
                 annotator_kind="LLM",
@@ -187,7 +188,7 @@ class TestClientForSpanAnnotationsRetrieval:
         )
 
         df_default = await _await_or_return(
-            Client().spans.get_span_annotations_dataframe(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_span_annotations_dataframe(
                 span_ids=[span_id1, span_id2],
                 project_identifier="default",
             )
@@ -199,7 +200,7 @@ class TestClientForSpanAnnotationsRetrieval:
             assert regular_annotation_name in annotation_names_default
 
         df_with_notes = await _await_or_return(
-            Client().spans.get_span_annotations_dataframe(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_span_annotations_dataframe(
                 span_ids=[span_id1, span_id2],
                 project_identifier="default",
                 include_annotation_names=[regular_annotation_name, "note"],
@@ -212,7 +213,7 @@ class TestClientForSpanAnnotationsRetrieval:
             assert regular_annotation_name in annotation_names_with_notes
 
         df_excluded = await _await_or_return(
-            Client().spans.get_span_annotations_dataframe(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_span_annotations_dataframe(
                 span_ids=[span_id1, span_id2],
                 project_identifier="default",
                 exclude_annotation_names=[regular_annotation_name],
@@ -225,7 +226,7 @@ class TestClientForSpanAnnotationsRetrieval:
             assert regular_annotation_name not in annotation_names_excluded
 
         annotations_default = await _await_or_return(
-            Client().spans.get_span_annotations(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_span_annotations(
                 span_ids=[span_id1, span_id2],
                 project_identifier="default",
             )
@@ -237,7 +238,7 @@ class TestClientForSpanAnnotationsRetrieval:
             assert regular_annotation_name in default_names
 
         annotations_with_notes = await _await_or_return(
-            Client().spans.get_span_annotations(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_span_annotations(
                 span_ids=[span_id1, span_id2],
                 project_identifier="default",
                 include_annotation_names=[regular_annotation_name, "note"],
@@ -249,11 +250,11 @@ class TestClientForSpanAnnotationsRetrieval:
             with_notes_names = {a["name"] for a in annotations_with_notes}
             assert regular_annotation_name in with_notes_names
 
-    def test_invalid_arguments_validation(self) -> None:
+    def test_invalid_arguments_validation(self, _app: _AppInfo) -> None:
         """Supplying multiple or no parameters should error."""
         from phoenix.client import Client
 
-        spans_client = Client().spans
+        spans_client = Client(base_url=_app.base_url).spans
 
         # Test get_span_annotations_dataframe
         with pytest.raises(ValueError):
@@ -328,13 +329,13 @@ class TestClientForSpanAnnotationsRetrieval:
         role_or_user: _RoleOrUser,
         _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
         """Test getting span annotations using Span objects from get_spans."""
         (span_id1, _), (span_id2, _) = _span_ids
 
-        user = _get_user(role_or_user).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(user.create_api_key(_app))
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -351,7 +352,7 @@ class TestClientForSpanAnnotationsRetrieval:
 
         # Add annotations to specific spans
         await _await_or_return(
-            Client().annotations.add_span_annotation(
+            Client(base_url=_app.base_url, api_key=api_key).annotations.add_span_annotation(
                 annotation_name=annotation_name_1,
                 span_id=span_id1,
                 annotator_kind="LLM",
@@ -362,7 +363,7 @@ class TestClientForSpanAnnotationsRetrieval:
         )
 
         await _await_or_return(
-            Client().annotations.add_span_annotation(
+            Client(base_url=_app.base_url, api_key=api_key).annotations.add_span_annotation(
                 annotation_name=annotation_name_2,
                 span_id=span_id2,
                 annotator_kind="CODE",
@@ -374,7 +375,7 @@ class TestClientForSpanAnnotationsRetrieval:
 
         # Get spans using the new get_spans method
         spans = await _await_or_return(
-            Client().spans.get_spans(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
                 project_identifier="default",
                 limit=50,
             )
@@ -386,7 +387,7 @@ class TestClientForSpanAnnotationsRetrieval:
 
         # Test get_span_annotations_dataframe with spans objects
         df = await _await_or_return(
-            Client().spans.get_span_annotations_dataframe(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_span_annotations_dataframe(
                 spans=target_spans,
                 project_identifier="default",
             )
@@ -397,7 +398,7 @@ class TestClientForSpanAnnotationsRetrieval:
 
         # Test get_span_annotations with spans objects
         annotations = await _await_or_return(
-            Client().spans.get_span_annotations(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_span_annotations(
                 spans=target_spans,
                 project_identifier="default",
             )
@@ -444,7 +445,7 @@ class TestClientForSpanAnnotationsRetrieval:
         ]
 
         annotations_filtered = await _await_or_return(
-            Client().spans.get_span_annotations(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_span_annotations(
                 spans=spans_with_missing_ids,
                 project_identifier="default",
             )
@@ -467,11 +468,11 @@ class TestClientForSpansRetrieval:
         role_or_user: _RoleOrUser,
         _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
         """Test basic span retrieval returns ergonomic span format."""
-        user = _get_user(role_or_user).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(user.create_api_key(_app))
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -479,7 +480,7 @@ class TestClientForSpansRetrieval:
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         spans = await _await_or_return(
-            Client().spans.get_spans(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
                 project_identifier="default",
                 limit=10,
             )
@@ -514,11 +515,11 @@ class TestClientForSpansRetrieval:
         self,
         is_async: bool,
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
         """Test that start_time and end_time filters work correctly."""
-        user = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -556,7 +557,7 @@ class TestClientForSpansRetrieval:
 
         # Create the test spans
         create_result = await _await_or_return(
-            Client().spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
+            Client(base_url=_app.base_url, api_key=api_key).spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
                 project_identifier="default",
                 spans=test_spans,
             )
@@ -574,7 +575,7 @@ class TestClientForSpansRetrieval:
         middle_end = span_times[3] + timedelta(seconds=2)  # Just after span 3
 
         middle_spans = await _await_or_return(
-            Client().spans.get_spans(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
                 project_identifier="default",
                 start_time=middle_start,
                 end_time=middle_end,
@@ -603,7 +604,7 @@ class TestClientForSpansRetrieval:
         later_start = span_times[3] - timedelta(seconds=1)  # Just before span 3
 
         later_spans = await _await_or_return(
-            Client().spans.get_spans(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
                 project_identifier="default",
                 start_time=later_start,
                 limit=100,
@@ -623,7 +624,7 @@ class TestClientForSpansRetrieval:
         earlier_end = span_times[1] + timedelta(seconds=2)  # Just after span 1
 
         earlier_spans = await _await_or_return(
-            Client().spans.get_spans(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
                 project_identifier="default",
                 end_time=earlier_end,
                 limit=100,
@@ -644,11 +645,11 @@ class TestClientForSpansRetrieval:
         self,
         is_async: bool,
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
         """Test that the method automatically handles pagination to fetch up to the limit."""
-        user = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -659,7 +660,7 @@ class TestClientForSpansRetrieval:
         # to ensure pagination happens (if there are enough spans)
         limit = 150
         spans = await _await_or_return(
-            Client().spans.get_spans(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
                 project_identifier="default",
                 limit=limit,
             )
@@ -671,7 +672,7 @@ class TestClientForSpansRetrieval:
         # Test with small limit
         small_limit = 5
         small_spans = await _await_or_return(
-            Client().spans.get_spans(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
                 project_identifier="default",
                 limit=small_limit,
             )
@@ -684,11 +685,11 @@ class TestClientForSpansRetrieval:
         self,
         is_async: bool,
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
         """Test that project identifier works with both project names and IDs."""
-        user = _get_user(_ADMIN).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, _ADMIN).log_in(_app)
+        api_key = str(user.create_api_key(_app))
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -696,7 +697,9 @@ class TestClientForSpansRetrieval:
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         # First get the project to find its ID
-        projects = await _await_or_return(Client().projects.list())
+        projects = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).projects.list()
+        )
         default_project = next((p for p in projects if p["name"] == "default"), None)
 
         if not default_project:
@@ -706,7 +709,7 @@ class TestClientForSpansRetrieval:
 
         # Get spans by project name
         spans_by_name = await _await_or_return(
-            Client().spans.get_spans(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
                 project_identifier="default",
                 limit=5,
             )
@@ -714,7 +717,7 @@ class TestClientForSpansRetrieval:
 
         # Get spans by project ID
         spans_by_id = await _await_or_return(
-            Client().spans.get_spans(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
                 project_identifier=project_id,
                 limit=5,
             )
@@ -730,10 +733,10 @@ class TestClientForSpansRetrieval:
         is_async: bool,
         _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
-        user = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -741,7 +744,7 @@ class TestClientForSpansRetrieval:
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         spans = await _await_or_return(
-            Client().spans.get_spans(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
                 project_identifier="default",
                 limit=10,
             )
@@ -791,11 +794,11 @@ class TestClientForSpansRetrieval:
         self,
         is_async: bool,
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
         """Test behavior when no spans match the filter criteria."""
-        user = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -806,7 +809,7 @@ class TestClientForSpansRetrieval:
         far_future = datetime.now(timezone.utc) + timedelta(days=365 * 10)
 
         spans = await _await_or_return(
-            Client().spans.get_spans(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
                 project_identifier="default",
                 start_time=far_future,
                 limit=10,
@@ -822,11 +825,11 @@ class TestClientForSpansRetrieval:
         self,
         is_async: bool,
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
         """Test error handling for invalid project identifier."""
-        user = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
 
         import httpx
         from phoenix.client import AsyncClient
@@ -837,7 +840,7 @@ class TestClientForSpansRetrieval:
         # Test with non-existent project
         with pytest.raises(httpx.HTTPStatusError):
             await _await_or_return(
-                Client().spans.get_spans(
+                Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
                     project_identifier="non_existent_project_xyz_123",
                     limit=10,
                 )
@@ -849,11 +852,11 @@ class TestClientForSpansRetrieval:
         is_async: bool,
         _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
         """Test the get_spans method returns spans correctly."""
-        user = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -864,7 +867,9 @@ class TestClientForSpansRetrieval:
         (span_id1, _), (span_id2, _) = _span_ids
 
         all_spans = await _await_or_return(
-            Client().spans.get_spans(project_identifier="default", limit=50)
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
+                project_identifier="default", limit=50
+            )
         )
 
         span_ids_found = {span["context"]["span_id"] for span in all_spans}
@@ -872,7 +877,9 @@ class TestClientForSpansRetrieval:
         assert span_id2 in span_ids_found, f"Expected span {span_id2} not found in {span_ids_found}"
 
         limited_spans = await _await_or_return(
-            Client().spans.get_spans(project_identifier="default", limit=1)
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
+                project_identifier="default", limit=1
+            )
         )
         assert len(limited_spans) <= 1, "Limit parameter should be respected"
 
@@ -910,16 +917,16 @@ class TestClientForSpanCreation:
     async def test_basic_span_operations(
         self,
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
         """Test basic span creation, duplicates, and error handling in one efficient test."""
-        user = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
 
         from phoenix.client import Client
         from phoenix.client.exceptions import SpanCreationError
 
-        client = Client()
+        client = Client(base_url=_app.base_url, api_key=api_key)
 
         # Test 1: Basic span creation with parent-child relationship
         trace_id = f"trace_{token_hex(16)}"
@@ -992,7 +999,7 @@ class TestClientForSpanCreation:
         self,
         is_async: bool,
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
         """Test round-tripping spans through helper functions efficiently."""
         # Use deterministic seed to avoid random collisions
@@ -1002,8 +1009,8 @@ class TestClientForSpanCreation:
         try:
             random.seed(100 + (1 if is_async else 0))
 
-            user = _get_user(_MEMBER).log_in()
-            monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+            user = _get_user(_app, _MEMBER).log_in(_app)
+            api_key = str(user.create_api_key(_app))
 
             from phoenix.client import AsyncClient
             from phoenix.client import Client as SyncClient
@@ -1050,7 +1057,7 @@ class TestClientForSpanCreation:
 
             # Create original spans
             result = await _await_or_return(
-                Client().spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
+                Client(base_url=_app.base_url, api_key=api_key).spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
                     project_identifier="default",
                     spans=test_spans,
                 )
@@ -1064,7 +1071,7 @@ class TestClientForSpanCreation:
 
             # Get spans as DataFrame
             df = await _await_or_return(
-                Client().spans.get_spans_dataframe(
+                Client(base_url=_app.base_url, api_key=api_key).spans.get_spans_dataframe(
                     project_identifier="default",
                     limit=50,
                 )
@@ -1150,11 +1157,11 @@ class TestClientForSpanCreation:
         self,
         is_async: bool,
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
         """Test efficient batch span creation and retrieval."""
-        user = _get_user(_ADMIN).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, _ADMIN).log_in(_app)
+        api_key = str(user.create_api_key(_app))
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -1173,7 +1180,7 @@ class TestClientForSpanCreation:
 
         # Create batch
         result = await _await_or_return(
-            Client().spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
+            Client(base_url=_app.base_url, api_key=api_key).spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
                 project_identifier="default",
                 spans=batch_spans,
             )
@@ -1186,7 +1193,7 @@ class TestClientForSpanCreation:
         await asyncio.sleep(1)
 
         retrieved_spans = await _await_or_return(
-            Client().spans.get_spans(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
                 project_identifier="default",
                 limit=50,
             )
@@ -1201,10 +1208,10 @@ class TestClientForSpanCreation:
         self,
         is_async: bool,
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
-        user = _get_user(_ADMIN).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, _ADMIN).log_in(_app)
+        api_key = str(user.create_api_key(_app))
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -1336,7 +1343,7 @@ class TestClientForSpanCreation:
 
         # Log spans using DataFrame
         result = await _await_or_return(
-            Client().spans.log_spans_dataframe(  # pyright: ignore[reportAttributeAccessIssue]
+            Client(base_url=_app.base_url, api_key=api_key).spans.log_spans_dataframe(  # pyright: ignore[reportAttributeAccessIssue]
                 project_identifier="default",
                 spans_dataframe=input_df,
             )
@@ -1349,7 +1356,7 @@ class TestClientForSpanCreation:
 
         # Retrieve spans as DataFrame
         output_df = await _await_or_return(
-            Client().spans.get_spans_dataframe(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans_dataframe(
                 project_identifier="default",
                 limit=50,
             )

@@ -51,3 +51,12 @@ def require_admin(request: Request) -> None:
             status_code=fastapi_status.HTTP_403_FORBIDDEN,
             detail="Only admin or system users can perform this action.",
         )
+
+
+def is_not_locked(request: Request) -> None:
+    if request.app.state.db.should_not_insert_or_update:
+        raise HTTPException(
+            status_code=fastapi_status.HTTP_507_INSUFFICIENT_STORAGE,
+            detail="Operations that insert or update database "
+            "records are currently not allowed.",
+        )

@@ -19,8 +19,19 @@ class PasswordResetEmailSender(Protocol):
     ) -> None: ...
 
 
+class DbUsageWarningEmailSender(Protocol):
+    async def send_db_usage_warning_email(
+        self,
+        email: str,
+        current_usage_gibibytes: float,
+        allocated_storage_gibibytes: float,
+        notification_threshold_percentage: float,
+    ) -> None: ...
+
+
 class EmailSender(
     WelcomeEmailSender,
     PasswordResetEmailSender,
+    DbUsageWarningEmailSender,
     Protocol,
 ): ...
