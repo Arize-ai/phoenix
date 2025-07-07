@@ -1,11 +1,202 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
-# https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+# Configuration for Dependabot version updates
+# This configuration focuses on actual application code and excludes
+# example code, tutorials, and demo applications to reduce false positives
+# in security vulnerability reports.
 
 version: 2
 updates:
-  - package-ecosystem: "" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  # Main Phoenix Python application
+  - package-ecosystem: "pip"
+    directory: "/"
     schedule:
       interval: "weekly"
+      day: "tuesday"
+      time: "09:00"
+    ignore:
+      # Ignore patch updates for stable dependencies
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    reviewers:
+      - "phoenix-devs"
+    labels:
+      - "dependencies"
+      - "python"
+
+  # Phoenix Client Python package
+  - package-ecosystem: "pip"
+    directory: "/packages/phoenix-client"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "09:00"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]
+    commit-message:
+      prefix: "deps(client)"
+      include: "scope"
+    reviewers:
+      - "phoenix-devs"
+    labels:
+      - "dependencies"
+      - "python"
+      - "client"
+
+  # Phoenix Evals Python package
+  - package-ecosystem: "pip"
+    directory: "/packages/phoenix-evals"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "09:00"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]
+    commit-message:
+      prefix: "deps(evals)"
+      include: "scope"
+    reviewers:
+      - "phoenix-devs"
+    labels:
+      - "dependencies"
+      - "python"
+      - "evals"
+
+  # Phoenix OTEL Python package
+  - package-ecosystem: "pip"
+    directory: "/packages/phoenix-otel"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "09:00"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]
+    commit-message:
+      prefix: "deps(otel)"
+      include: "scope"
+    reviewers:
+      - "phoenix-devs"
+    labels:
+      - "dependencies"
+      - "python"
+      - "otel"
+
+  # Main JavaScript/TypeScript workspace
+  - package-ecosystem: "npm"
+    directory: "/js"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "10:00"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]
+    commit-message:
+      prefix: "deps(js)"
+      include: "scope"
+    reviewers:
+      - "phoenix-devs"
+    labels:
+      - "dependencies"
+      - "javascript"
+      - "typescript"
+
+  # Phoenix Client TypeScript package
+  - package-ecosystem: "npm"
+    directory: "/js/packages/phoenix-client"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "10:00"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]
+    commit-message:
+      prefix: "deps(ts-client)"
+      include: "scope"
+    reviewers:
+      - "phoenix-devs"
+    labels:
+      - "dependencies"
+      - "javascript"
+      - "typescript"
+      - "client"
+
+  # Phoenix MCP TypeScript package
+  - package-ecosystem: "npm"
+    directory: "/js/packages/phoenix-mcp"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "10:00"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]
+    commit-message:
+      prefix: "deps(mcp)"
+      include: "scope"
+    reviewers:
+      - "phoenix-devs"
+    labels:
+      - "dependencies"
+      - "javascript"
+      - "typescript"
+      - "mcp"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "11:00"
+    commit-message:
+      prefix: "deps(actions)"
+      include: "scope"
+    reviewers:
+      - "phoenix-devs"
+    labels:
+      - "dependencies"
+      - "github-actions"
+
+  # Docker
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "11:00"
+    commit-message:
+      prefix: "deps(docker)"
+      include: "scope"
+    reviewers:
+      - "phoenix-devs"
+    labels:
+      - "dependencies"
+      - "docker"
+
+# Note: The following directories are intentionally excluded from Dependabot scanning
+# as they contain example code, tutorials, and demo applications that are not part
+# of the actual Phoenix application's Software Bill of Materials (SBOM):
+#
+# - /examples/ - Example applications and demos
+# - /tutorials/ - Jupyter notebooks and tutorial code
+# - /docs/ - Documentation
+# - /scripts/ - Utility scripts
+# - /tests/ - Test code
+# - /js/examples/ - JavaScript examples
+# - /internal_docs/ - Internal documentation
+# - /api_reference/ - API reference documentation
+# - /app/ - Frontend application (built separately)
+# - /helm/ - Helm charts
+# - /kustomize/ - Kubernetes configurations
+# - /schemas/ - Schema definitions
+# - /requirements/ - Development requirements
+#
+# These directories may contain dependencies with security vulnerabilities,
+# but since they are not shipped as part of the Phoenix application,
+# they do not represent actual security risks in production deployments.
