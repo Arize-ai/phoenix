@@ -11,6 +11,7 @@ from _pytest.fixtures import SubRequest
 from faker import Faker
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from phoenix.client.__generated__ import v1
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from portpicker import pick_unused_port  # type: ignore[import-untyped]
 from smtpdfix import AuthController, Config, SMTPDFix
@@ -19,16 +20,18 @@ from sqlalchemy import URL, make_url
 from typing_extensions import assert_never
 
 from ._helpers import (
+    _ADMIN,
     _DB_BACKEND,
-    _DEFAULT_ADMIN,
     _HTTPX_OP_IDX,
     _MEMBER,
     _TEST_NAME,
     _AppInfo,
     _Email,
     _GetUser,
+    _GqlId,
     _grpc_span_exporter,
     _http_span_exporter,
+    _httpx_client,
     _Password,
     _Profile,
     _random_schema,
@@ -116,10 +119,21 @@ def _users(
 ) -> _UserGenerator:
     def _() -> Generator[Optional[_User], tuple[_AppInfo, UserRoleInput, Optional[_Profile]], None]:
         app, role, profile = yield None
-        admin = _DEFAULT_ADMIN.log_in(app)
         while True:
-            user = admin.create_user(app, role, profile=profile or next(_profiles))
-            app, role, profile = yield user
+            profile = profile or next(_profiles)
+            url = "v1/users"
+            user = v1.LocalUserData(
+                auth_method="LOCAL",
+                email=profile.email,
+                username=profile.username,
+                password=profile.password,
+                role="ADMIN" if role is _ADMIN else "MEMBER",
+            )
+            json_ = v1.CreateUserRequestBody(user=user, send_welcome_email=False)
+            resp = _httpx_client(app, app.admin_secret).post(url=url, json=json_)
+            resp.raise_for_status()
+            gid = _GqlId(cast(v1.CreateUserResponseBody, resp.json())["data"]["id"])
+            app, role, profile = yield _User(gid, role, profile)
 
     g = _()
     next(g)

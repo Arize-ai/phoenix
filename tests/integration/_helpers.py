@@ -606,36 +606,6 @@ class _DefaultAdminTokens(ABC):
         return False
 
 
-class _DefaultAdminTokenSequestration(httpx.BaseTransport):
-    """
-    This middleware sequesters the default admin's access and refresh tokens when they pass
-    through the httpx client. If a sequestered token is used to log out, an exception is
-    raised. This is because logging out the default admin during testing would revoke all
-    existing access tokens being held by other concurrent tests attached to the same server.
-    """
-
-    message = "Default admin must not log out during testing."
-    exc_cls = RuntimeError
-
-    def __init__(self, transport: httpx.BaseTransport) -> None:
-        self._transport = transport
-
-    def handle_request(self, request: httpx.Request) -> httpx.Response:
-        assert (port := request.url.port)
-        path, headers = request.url.path, request.headers
-        sequester_tokens = False
-        if "auth/login" in path:
-            sequester_tokens = DEFAULT_ADMIN_EMAIL in request.content.decode()
-        elif "auth/refresh" in path:
-            sequester_tokens = _DefaultAdminTokens.intersect(port, headers)
-        elif "auth/logout" in path and _DefaultAdminTokens.intersect(port, headers):
-            raise self.exc_cls(self.message)
-        response = self._transport.handle_request(request)
-        if sequester_tokens and response.status_code // 100 == 2:
-            _DefaultAdminTokens.stash(port, response.headers)
-        return response
-
-
 class _LogResponse(httpx.Response):
     def __init__(self, info: BytesIO, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -732,11 +702,7 @@ def _httpx_client(
         headers=headers,
         cookies=cookies,
         base_url=app.base_url,
-        transport=_LogTransport(
-            _DefaultAdminTokenSequestration(
-                transport or httpx.HTTPTransport(verify=ssl_context or False),
-            )
-        ),
+        transport=_LogTransport(transport or httpx.HTTPTransport(verify=ssl_context or False)),
     )
 
 

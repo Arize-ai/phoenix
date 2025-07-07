@@ -42,7 +42,6 @@ from .._helpers import (
     _AppInfo,
     _create_api_key,
     _create_user,
-    _DefaultAdminTokenSequestration,
     _Email,
     _Expectation,
     _export_embeddings,
@@ -504,17 +503,6 @@ class TestPasswordReset:
 
 
 class TestLogOut:
-    def test_default_admin_cannot_log_out_during_testing(self, _app: _AppInfo) -> None:
-        """
-        This is not a functional test of Phoenix itself. Instead, it is intended to verify
-        that the safeguard preventing the default admin from logging out during concurrent
-        test runs is working as expected.
-        """
-        cls = _DefaultAdminTokenSequestration.exc_cls
-        msg = _DefaultAdminTokenSequestration.message
-        with pytest.raises(cls, match=msg):
-            _DEFAULT_ADMIN.log_in(_app).log_out(_app)
-
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     def test_can_log_out(
         self,
