@@ -419,7 +419,7 @@ class Query:
                 .limit(page_size + 1)
             )
             if cursor is not None:
-                examples_query = examples_query.where(models.DatasetExample.id > cursor.rowid)
+                examples_query = examples_query.where(models.DatasetExample.id < cursor.rowid)
 
             if filter_condition:
                 examples_query = update_examples_query_with_filter_condition(
