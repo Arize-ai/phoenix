@@ -25,7 +25,7 @@ from phoenix.db.helpers import SupportedSQLDialect, exclude_experiment_projects
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import NotFound, Unauthorized
+from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.helpers.experiment_run_filters import (
     ExperimentRunFilterConditionSyntaxError,
@@ -62,7 +62,13 @@ from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, Gene
 from phoenix.server.api.types.InferenceModel import InferenceModel
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
-from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
+from phoenix.server.api.types.pagination import (
+    ConnectionArgs,
+    Cursor,
+    CursorString,
+    connection_from_cursors_and_nodes,
+    connection_from_list,
+)
 from phoenix.server.api.types.PlaygroundModel import PlaygroundModel
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
@@ -349,7 +355,10 @@ class Query:
             for experiment_id in experiment_ids
         ]
         if len(set(experiment_ids_)) != len(experiment_ids_):
-            raise ValueError("Experiment IDs must be unique.")
+            raise BadRequest("Experiment IDs must be unique.")
+
+        cursor = Cursor.from_string(after) if after else None
+        page_size = first or 50
 
         async with info.context.db() as session:
             validation_result = (
@@ -371,13 +380,13 @@ class Query:
                 )
             ).first()
             if validation_result is None:
-                raise ValueError("No experiments could be found for input IDs.")
+                raise NotFound("No experiments could be found for input IDs.")
 
             num_datasets, dataset_id, version_id, num_resolved_experiment_ids = validation_result
             if num_datasets != 1:
-                raise ValueError("Experiments must belong to the same dataset.")
+                raise BadRequest("Experiments must belong to the same dataset.")
             if num_resolved_experiment_ids != len(experiment_ids_):
-                raise ValueError("Unable to resolve one or more experiment IDs.")
+                raise NotFound("Unable to resolve one or more experiment IDs.")
 
             revision_ids = (
                 select(func.max(models.DatasetExampleRevision.id))
@@ -407,7 +416,10 @@ class Query:
                     ),
                 )
                 .order_by(models.DatasetExample.id.desc())
+                .limit(page_size + 1)
             )
+            if cursor is not None:
+                examples_query = examples_query.where(models.DatasetExample.id < cursor.rowid)
 
             if filter_condition:
                 examples_query = update_examples_query_with_filter_condition(
@@ -417,6 +429,8 @@ class Query:
                 )
 
             examples = (await session.scalars(examples_query)).all()
+            has_next_page = len(examples) > page_size
+            examples = examples[:page_size]
 
             ExampleID: TypeAlias = int
             ExperimentID: TypeAlias = int
@@ -437,7 +451,7 @@ class Query:
             ):
                 runs[run.dataset_example_id][run.experiment_id].append(run)
 
-        experiment_comparisons = []
+        cursors_and_nodes = []
         for example in examples:
             run_comparison_items = []
             for experiment_id in experiment_ids_:
@@ -452,23 +466,21 @@ class Query:
                         ],
                     )
                 )
-            experiment_comparisons.append(
-                ExperimentComparison(
+            experiment_comparison = ExperimentComparison(
+                id_attr=example.id,
+                example=DatasetExample(
                     id_attr=example.id,
-                    example=DatasetExample(
-                        id_attr=example.id,
-                        created_at=example.created_at,
-                        version_id=version_id,
-                    ),
-                    run_comparison_items=run_comparison_items,
-                )
+                    created_at=example.created_at,
+                    version_id=version_id,
+                ),
+                run_comparison_items=run_comparison_items,
             )
-        return connection_from_list(
-            data=experiment_comparisons,
-            args=ConnectionArgs(
-                first=first,
-                after=after if isinstance(after, CursorString) else None,
-            ),
+            cursors_and_nodes.append((Cursor(rowid=example.id), experiment_comparison))
+
+        return connection_from_cursors_and_nodes(
+            cursors_and_nodes=cursors_and_nodes,
+            has_previous_page=False,
+            has_next_page=has_next_page,
         )
 
     @strawberry.field
