@@ -201,15 +201,18 @@ def run_experiment(
         RanExperiment: The results of the experiment and evaluation. Additional evaluations can be
             added to the experiment using the `evaluate_experiment` function.
     """
-    # Auto-convert new client Dataset objects to legacy format
+    # Auto-convert client Dataset objects to legacy format
+    normalized_dataset: Dataset
     if _is_new_client_dataset(dataset):
-        dataset = _convert_client_dataset(dataset)
+        normalized_dataset = _convert_client_dataset(dataset)
+    else:
+        normalized_dataset = dataset
 
     task_signature = inspect.signature(task)
     _validate_task_signature(task_signature)
 
-    if not dataset.examples:
-        raise ValueError(f"Dataset has no examples: {dataset.id=}, {dataset.version_id=}")
+    if not normalized_dataset.examples:
+        raise ValueError(f"Dataset has no examples: {normalized_dataset.id=}, {normalized_dataset.version_id=}")
     # Add this to the params once supported in the UI
     repetitions = 1
     assert repetitions > 0, "Must run the experiment at least once."
@@ -218,7 +221,7 @@ def run_experiment(
     sync_client, async_client = _phoenix_clients()
 
     payload = {
-        "version_id": dataset.version_id,
+        "version_id": normalized_dataset.version_id,
         "name": experiment_name,
         "description": experiment_description,
         "metadata": experiment_metadata,
@@ -226,23 +229,23 @@ def run_experiment(
     }
     if not dry_run:
         experiment_response = sync_client.post(
-            f"/v1/datasets/{dataset.id}/experiments",
+            f"/v1/datasets/{normalized_dataset.id}/experiments",
             json=payload,
         )
         experiment_response.raise_for_status()
         exp_json = experiment_response.json()["data"]
         project_name = exp_json["project_name"]
         experiment = Experiment(
-            dataset_id=dataset.id,
-            dataset_version_id=dataset.version_id,
+            dataset_id=normalized_dataset.id,
+            dataset_version_id=normalized_dataset.version_id,
             repetitions=repetitions,
             id=exp_json["id"],
             project_name=project_name,
         )
     else:
         experiment = Experiment(
-            dataset_id=dataset.id,
-            dataset_version_id=dataset.version_id,
+            dataset_id=normalized_dataset.id,
+            dataset_version_id=normalized_dataset.version_id,
             repetitions=repetitions,
             id=DRY_RUN,
             project_name="",
@@ -255,18 +258,18 @@ def run_experiment(
     print("🧪 Experiment started.")
     if dry_run:
         examples = {
-            (ex := dataset[i]).id: ex
-            for i in pd.Series(range(len(dataset)))
-            .sample(min(len(dataset), int(dry_run)), random_state=42)
+            (ex := normalized_dataset[i]).id: ex
+            for i in pd.Series(range(len(normalized_dataset)))
+            .sample(min(len(normalized_dataset), int(dry_run)), random_state=42)
             .sort_values()
         }
         id_selection = "\n".join(examples)
         print(f"🌵️ This is a dry-run for these example IDs:\n{id_selection}")
-        dataset = replace(dataset, examples=examples)
+        normalized_dataset = replace(normalized_dataset, examples=examples)
     else:
-        dataset_experiments_url = get_dataset_experiments_url(dataset_id=dataset.id)
+        dataset_experiments_url = get_dataset_experiments_url(dataset_id=normalized_dataset.id)
         experiment_compare_url = get_experiment_url(
-            dataset_id=dataset.id,
+            dataset_id=normalized_dataset.id,
             experiment_id=experiment.id,
         )
         print(f"📺 View dataset experiments: {dataset_experiments_url}")
@@ -536,7 +539,7 @@ def run_experiment(
 
     test_cases = [
         TestCase(example=deepcopy(ex), repetition_number=rep)
-        for ex, rep in product(dataset.examples.values(), range(1, repetitions + 1))
+        for ex, rep in product(normalized_dataset.examples.values(), range(1, repetitions + 1))
     ]
     task_runs, _execution_details = executor.run(test_cases)
     print("✅ Task runs completed.")
@@ -552,7 +555,7 @@ def run_experiment(
             task_runs.append(ExperimentRun.from_dict(run))
 
         # Check if we got all expected runs
-        expected_runs = len(dataset.examples) * repetitions
+        expected_runs = len(normalized_dataset.examples) * repetitions
         actual_runs = len(task_runs)
         if actual_runs < expected_runs:
             print(
@@ -560,12 +563,12 @@ def run_experiment(
                 "completed successfully."
             )
 
-    params = ExperimentParameters(n_examples=len(dataset.examples), n_repetitions=repetitions)
+    params = ExperimentParameters(n_examples=len(normalized_dataset.examples), n_repetitions=repetitions)
     task_summary = TaskSummary.from_task_runs(params, task_runs)
     ran_experiment: RanExperiment = object.__new__(RanExperiment)
     ran_experiment.__init__(  # type: ignore[misc]
         params=params,
-        dataset=dataset,
+        dataset=normalized_dataset,
         runs={r.id: r for r in task_runs if r is not None},
         task_summary=task_summary,
         **_asdict(experiment),
@@ -594,8 +597,7 @@ def evaluate_experiment(
     concurrency: int = 3,
 ) -> RanExperiment:
     if isinstance(experiment, RanExperiment) and _is_new_client_dataset(experiment.dataset):
-        converted_dataset = _convert_client_dataset(experiment.dataset)
-        experiment = _replace(experiment, dataset=converted_dataset)
+        experiment = _replace(experiment, dataset=experiment.dataset)
 
     if not dry_run and _is_dry_run(experiment):
         dry_run = True
