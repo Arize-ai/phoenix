@@ -411,7 +411,7 @@ const ProductTable = (props: {
 );
 
 const meta: Meta<typeof PersonTable> = {
-  title: "Components/Table",
+  title: "Table/Table",
   component: PersonTable,
   parameters: {
     docs: {
