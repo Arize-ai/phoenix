@@ -1,5 +1,5 @@
 ---
-description: Instrument and observe BeeAI agents
+description: Auto-instrument and observe BeeAI agents
 ---
 
 # BeeAI Tracing (JS)
@@ -13,7 +13,7 @@ This module provides **automatic instrumentation** for [BeeAI framework](https:/
 ## Install
 
 ```shell
-npm install --save beeai-framework \ # adjust beeai-framework version if needed
+npm install --save beeai-framework \ 
   @arizeai/openinference-instrumentation-beeai \
   @arizeai/openinference-semantic-conventions \
   @opentelemetry/sdk-trace-node \
@@ -124,6 +124,8 @@ import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
 // Enable OpenTelemetry diagnostic logging
 diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
 ```
+
+If traces aren't appearing, a common cause is an outdated `beeai-framework` package. Check the diagnostic logs for version or initialization errors and update your package as needed.
 
 ## Resources
 
