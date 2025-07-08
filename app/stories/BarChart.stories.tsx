@@ -42,7 +42,7 @@ const meta: Meta = {
 export default meta;
 
 const Template: StoryFn<BarChartProps> = (args) => (
-  <div style={{ width: "600px", height: "400px" }}>
+  <div style={{ width: "600px", padding: "24px" }}>
     <BarChart {...args} />
   </div>
 );

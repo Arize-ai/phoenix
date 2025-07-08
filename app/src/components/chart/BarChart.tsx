@@ -103,10 +103,10 @@ export function BarChart({
       <RechartsBarChart
         data={data}
         margin={{
-          top: 20,
-          right: 30,
+          top: 0,
+          right: 0,
           left: 0,
-          bottom: 5,
+          bottom: 5, // prevents label text cutoff
         }}
         onMouseMove={(state) => {
           if (state && state.activeTooltipIndex !== undefined) {
@@ -166,6 +166,11 @@ export function BarChart({
           }
           stroke="var(--ac-global-chart-border-line-color)"
           style={{ fill: "var(--ac-global-chart-axis-text-color)" }}
+          width={yAxisLabel ? undefined : 40}
+          tick={{
+            fill: "var(--ac-global-chart-axis-text-color)",
+            dx: yAxisLabel ? 0 : -5,
+          }}
         />
         {showTooltip && (
           <Tooltip
