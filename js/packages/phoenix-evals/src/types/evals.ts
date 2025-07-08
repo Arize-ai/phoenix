@@ -1,3 +1,5 @@
+import { LanguageModel } from "ai";
+
 /**
  * The arguments for an evaluation
  */
@@ -5,6 +7,11 @@ export interface EvaluationArgs<OutputType, InputType> {
   output: OutputType;
   expected?: OutputType;
   input: InputType;
+}
+
+export interface LLMEvaluationArgs<OutputType, InputType>
+  extends EvaluationArgs<OutputType, InputType> {
+  model: LanguageModel;
 }
 
 /**
