@@ -48,9 +48,10 @@ async def test_compare_experiments_returns_expected_comparisons(
     comparison_experiments: Any,
 ) -> None:
     query = """
-      query ($experimentIds: [ID!]!, $first: Int, $after: String) {
+      query ($baselineExperimentId: ID!, $compareExperimentIds: [ID!]!, $first: Int, $after: String) {
         compareExperiments(
-          experimentIds: $experimentIds
+          baselineExperimentId: $baselineExperimentId
+          compareExperimentIds: $compareExperimentIds
           first: $first
           after: $after
         ) {
@@ -75,12 +76,12 @@ async def test_compare_experiments_returns_expected_comparisons(
           }
         }
       }
-    """
+    """  # noqa: E501
     response = await gql_client.execute(
         query=query,
         variables={
-            "experimentIds": [
-                str(GlobalID("Experiment", str(2))),
+            "baselineExperimentId": str(GlobalID("Experiment", str(2))),
+            "compareExperimentIds": [
                 str(GlobalID("Experiment", str(1))),
                 str(GlobalID("Experiment", str(3))),
             ],
@@ -186,15 +187,14 @@ async def test_compare_experiments_returns_expected_comparisons(
     }
 
 
-async def test_compare_experiments_with_empty_experiment_ids_returns_empty_connection(
+async def test_compare_experiments_validation_errors(
     gql_client: AsyncGraphQLClient,
-    comparison_experiments: Any,
 ) -> None:
-    """Test that compare_experiments handles empty experiment_ids gracefully."""
     query = """
-      query ($experimentIds: [ID!]!, $first: Int, $after: String) {
+      query ($baselineExperimentId: ID!, $compareExperimentIds: [ID!]!, $first: Int, $after: String) {
         compareExperiments(
-          experimentIds: $experimentIds
+          baselineExperimentId: $baselineExperimentId
+          compareExperimentIds: $compareExperimentIds
           first: $first
           after: $after
         ) {
@@ -207,17 +207,42 @@ async def test_compare_experiments_with_empty_experiment_ids_returns_empty_conne
           }
         }
       }
-    """
+    """  # noqa: E501
+
     response = await gql_client.execute(
         query=query,
         variables={
-            "experimentIds": [],
+            "baselineExperimentId": str(GlobalID("Experiment", str(1))),
+            "compareExperimentIds": [
+                str(GlobalID("Experiment", str(1))),  # Same as baseline
+                str(GlobalID("Experiment", str(2))),
+            ],
             "first": 50,
             "after": None,
         },
     )
-    assert not response.errors
-    assert response.data == {"compareExperiments": {"edges": []}}
+    assert response.errors
+    assert len(response.errors) == 1
+    assert (
+        response.errors[0].message
+        == "Compare experiment IDs cannot contain the baseline experiment ID"
+    )
+
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "baselineExperimentId": str(GlobalID("Experiment", str(1))),
+            "compareExperimentIds": [
+                str(GlobalID("Experiment", str(2))),
+                str(GlobalID("Experiment", str(2))),  # Duplicate
+            ],
+            "first": 50,
+            "after": None,
+        },
+    )
+    assert response.errors
+    assert len(response.errors) == 1
+    assert response.errors[0].message == "Compare experiment IDs must be unique"
 
 
 @pytest.mark.skip(reason="TODO: re-enable this test after we figure out the issue with sqlite")
