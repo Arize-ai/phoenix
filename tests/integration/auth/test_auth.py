@@ -1415,9 +1415,9 @@ class TestSpanAnnotations:
 
     async def test_other_users_cannot_patch_and_only_creator_or_admin_can_delete(
         self,
+        _existing_spans: Sequence[_ExistingSpan],
         _get_user: _GetUser,
         _app: _AppInfo,
-        _existing_spans: Sequence[_ExistingSpan],
     ) -> None:
         assert _existing_spans, "At least one existing span is required for this test"
         (span_gid, *_), *_ = _existing_spans
@@ -1583,9 +1583,9 @@ class TestTraceAnnotations:
 
     async def test_other_users_cannot_patch_and_only_creator_or_admin_can_delete(
         self,
+        _existing_spans: Sequence[_ExistingSpan],
         _get_user: _GetUser,
         _app: _AppInfo,
-        _existing_spans: Sequence[_ExistingSpan],
     ) -> None:
         assert _existing_spans, "At least one existing span is required for this test"
         existing_span, *_ = _existing_spans
