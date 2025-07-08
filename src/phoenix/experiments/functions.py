@@ -204,7 +204,7 @@ def run_experiment(
     # Auto-convert client Dataset objects to legacy format
     normalized_dataset: Dataset
     if _is_new_client_dataset(dataset):
-        normalized_dataset = _convert_client_dataset(dataset)
+        normalized_dataset = _convert_client_dataset(cast("ClientDataset", dataset))
     else:
         normalized_dataset = dataset
 
