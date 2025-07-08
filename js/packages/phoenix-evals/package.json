@@ -38,6 +38,7 @@
   "author": "",
   "license": "ELv2",
   "devDependencies": {
+    "@ai-sdk/openai": "^1.1.15",
     "@types/node": "^24.0.10",
     "tsx": "^4.19.3",
     "typedoc": "^0.27.9",

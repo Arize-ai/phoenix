@@ -1,13 +1,9 @@
-import {
-  ClassificationEvaluationResult,
-  LLMEvaluationArgs,
-} from "../types/evals";
+import { ClassificationEvaluationResult, WithLLM } from "../types/evals";
 import type { Prompt } from "../types/prompts";
 import { generateObject } from "ai";
 import { z } from "zod";
 
-interface ClassifyArgs<OutputType, InputType>
-  extends LLMEvaluationArgs<OutputType, InputType> {
+interface ClassifyArgs extends WithLLM {
   /**
    * The labels to classify the example into. E.x. ["correct", "incorrect"]
    */
@@ -28,8 +24,8 @@ interface ClassifyArgs<OutputType, InputType>
 /**
  * A function that leverages an llm to perform a classification
  */
-export async function generateClassification<OutputType, InputType>(
-  args: ClassifyArgs<OutputType, InputType>
+export async function generateClassification(
+  args: ClassifyArgs
 ): Promise<ClassificationEvaluationResult> {
   const { labels, model, schemaName, schemaDescription, prompt } = args;
 

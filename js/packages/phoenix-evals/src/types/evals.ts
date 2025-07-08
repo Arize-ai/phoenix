@@ -6,13 +6,16 @@ import { LanguageModel } from "ai";
 export interface EvaluationArgs<OutputType, InputType> {
   output: OutputType;
   expected?: OutputType;
-  input: InputType;
+  input?: InputType;
+}
+
+export interface WithLLM {
+  model: LanguageModel;
 }
 
 export interface LLMEvaluationArgs<OutputType, InputType>
-  extends EvaluationArgs<OutputType, InputType> {
-  model: LanguageModel;
-}
+  extends EvaluationArgs<OutputType, InputType>,
+    WithLLM {}
 
 /**
  * The result of an evaluation
