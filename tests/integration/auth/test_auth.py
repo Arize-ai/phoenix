@@ -43,6 +43,7 @@ from .._helpers import (
     _create_api_key,
     _create_user,
     _Email,
+    _ExistingSpan,
     _Expectation,
     _export_embeddings,
     _extract_html,
@@ -1416,11 +1417,10 @@ class TestSpanAnnotations:
         self,
         _get_user: _GetUser,
         _app: _AppInfo,
-        _span_ids: tuple[
-            tuple[SpanId, SpanGlobalId, TraceId, TraceGlobalId],
-            tuple[SpanId, SpanGlobalId, TraceId, TraceGlobalId],
-        ],
+        _existing_spans: Sequence[_ExistingSpan],
     ) -> None:
+        assert _existing_spans, "At least one existing span is required for the test."
+
         annotation_creator = _get_user(_app, _MEMBER)
         logged_in_annotation_creator = annotation_creator.log_in(_app)
         member = _get_user(_app, _MEMBER)
@@ -1429,7 +1429,7 @@ class TestSpanAnnotations:
         logged_in_admin = admin.log_in(_app)
 
         # Create span annotation
-        span_gid = _span_ids[0][1]
+        (span_gid, *_), *_ = _existing_spans
         name = token_hex(8)
         response, _ = logged_in_annotation_creator.gql(
             _app,
@@ -1437,7 +1437,7 @@ class TestSpanAnnotations:
             operation_name="CreateSpanAnnotations",
             variables={
                 "input": {
-                    "spanId": span_gid,
+                    "spanId": str(span_gid),
                     "name": name,
                     "annotatorKind": "HUMAN",
                     "label": "correct",
@@ -1585,11 +1585,10 @@ class TestTraceAnnotations:
         self,
         _get_user: _GetUser,
         _app: _AppInfo,
-        _span_ids: tuple[
-            tuple[SpanId, SpanGlobalId, TraceId, TraceGlobalId],
-            tuple[SpanId, SpanGlobalId, TraceId, TraceGlobalId],
-        ],
+        _existing_spans: Sequence[_ExistingSpan],
     ) -> None:
+        assert _existing_spans, "At least one existing span is required for the test."
+
         annotation_creator = _get_user(_app, _MEMBER)
         logged_in_annotation_creator = annotation_creator.log_in(_app)
         member = _get_user(_app, _MEMBER)
@@ -1598,14 +1597,15 @@ class TestTraceAnnotations:
         logged_in_admin = admin.log_in(_app)
 
         # Create trace annotation
-        trace_gid = _span_ids[0][3]
+        existing_span, *_ = _existing_spans
+        trace_gid = existing_span.trace.id
         response, _ = logged_in_annotation_creator.gql(
             _app,
             query=self.QUERY,
             operation_name="CreateTraceAnnotations",
             variables={
                 "input": {
-                    "traceId": trace_gid,
+                    "traceId": str(trace_gid),
                     "name": "trace-annotation-name",
                     "annotatorKind": "HUMAN",
                     "label": "correct",
