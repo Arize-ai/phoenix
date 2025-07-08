@@ -11,8 +11,8 @@
       "require": "./dist/src/index.js"
     },
     "./llm/*": {
-      "import": "./dist/esm/llm/*.d.ts",
-      "require": "./dist/src/llm/*.d.ts"
+      "import": "./dist/esm/llm/*.js",
+      "require": "./dist/src/llm/*.js"
     },
     "./types/*": {
       "import": "./dist/esm/types/*.d.ts",
