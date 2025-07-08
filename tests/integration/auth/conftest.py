@@ -205,29 +205,16 @@ def _span_ids(
             operation_name="GetSpanIds",
             variables={"filterCondition": f"span_id in {span_ids}"},
         )
-        span_gids: dict[SpanId, SpanGlobalId] = {
-            e["node"]["spanId"]: e["node"]["id"] for e in res["data"]["node"]["spans"]["edges"]
-        }
-        trace_ids: dict[SpanId, TraceId] = {
-            e["node"]["spanId"]: e["node"]["trace"]["traceId"]
-            for e in res["data"]["node"]["spans"]["edges"]
-        }
-        trace_gids: dict[SpanId, TraceGlobalId] = {
-            e["node"]["spanId"]: e["node"]["trace"]["id"]
-            for e in res["data"]["node"]["spans"]["edges"]
+        span_gids: dict[SpanId, tuple[SpanGlobalId, TraceId, TraceGlobalId]] = {
+            span["node"]["spanId"]: (
+                span["node"]["id"],
+                span["node"]["trace"]["traceId"],
+                span["node"]["trace"]["id"],
+            )
+            for span in res["data"]["node"]["spans"]["edges"]
         }
         if span_id1 in span_gids and span_id2 in span_gids:
-            return (
-                span_id1,
-                span_gids[span_id1],
-                trace_ids[span_id1],
-                trace_gids[span_id1],
-            ), (
-                span_id2,
-                span_gids[span_id2],
-                trace_ids[span_id2],
-                trace_gids[span_id2],
-            )
+            return (span_id1, *span_gids[span_id1]), (span_id2, *span_gids[span_id2])
         return None
 
     return asyncio.run(_get(query_fn, error_msg="spans not found"))
