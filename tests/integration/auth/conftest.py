@@ -166,12 +166,17 @@ def _encrypt_private_key(key_path: Path, password: str) -> Path:
 
 SpanId: TypeAlias = str
 SpanGlobalId: TypeAlias = str
+TraceId: TypeAlias = str
+TraceGlobalId: TypeAlias = str
 
 
 @pytest.fixture(autouse=True, scope="package")
 def _span_ids(
     _app: _AppInfo,
-) -> tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]]:
+) -> tuple[
+    tuple[SpanId, SpanGlobalId, TraceId, TraceGlobalId],
+    tuple[SpanId, SpanGlobalId, TraceId, TraceGlobalId],
+]:
     memory = InMemorySpanExporter()
     for _ in range(2):
         _start_span(project_name="default", exporter=memory).end()
@@ -185,7 +190,14 @@ def _span_ids(
     span_id2 = format_span_id(sc2.span_id)
     span_ids = [span_id1, span_id2]
 
-    def query_fn() -> Optional[tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]]]:
+    def query_fn() -> (
+        Optional[
+            tuple[
+                tuple[SpanId, SpanGlobalId, TraceId, TraceGlobalId],
+                tuple[SpanId, SpanGlobalId, TraceId, TraceGlobalId],
+            ]
+        ]
+    ):
         res, _ = _gql(
             _app,
             _app.admin_secret,
@@ -193,9 +205,29 @@ def _span_ids(
             operation_name="GetSpanIds",
             variables={"filterCondition": f"span_id in {span_ids}"},
         )
-        gids = {e["node"]["spanId"]: e["node"]["id"] for e in res["data"]["node"]["spans"]["edges"]}
-        if span_id1 in gids and span_id2 in gids:
-            return (span_id1, gids[span_id1]), (span_id2, gids[span_id2])
+        span_gids: dict[SpanId, SpanGlobalId] = {
+            e["node"]["spanId"]: e["node"]["id"] for e in res["data"]["node"]["spans"]["edges"]
+        }
+        trace_ids: dict[SpanId, TraceId] = {
+            e["node"]["spanId"]: e["node"]["trace"]["traceId"]
+            for e in res["data"]["node"]["spans"]["edges"]
+        }
+        trace_gids: dict[SpanId, TraceGlobalId] = {
+            e["node"]["spanId"]: e["node"]["trace"]["id"]
+            for e in res["data"]["node"]["spans"]["edges"]
+        }
+        if span_id1 in span_gids and span_id2 in span_gids:
+            return (
+                span_id1,
+                span_gids[span_id1],
+                trace_ids[span_id1],
+                trace_gids[span_id1],
+            ), (
+                span_id2,
+                span_gids[span_id2],
+                trace_ids[span_id2],
+                trace_gids[span_id2],
+            )
         return None
 
     return asyncio.run(_get(query_fn, error_msg="spans not found"))
@@ -210,6 +242,10 @@ query GetSpanIds ($filterCondition: String) {
           node {
             id
             spanId
+            trace {
+              id
+              traceId
+            }
           }
         }
       }

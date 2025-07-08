@@ -1,4 +1,3 @@
-from asyncio import sleep
 from collections import defaultdict
 from collections.abc import Iterator, Sequence
 from contextlib import AbstractContextManager
@@ -1356,6 +1355,8 @@ class TestPrompts:
 
 SpanId: TypeAlias = str
 SpanGlobalId: TypeAlias = str
+TraceId: TypeAlias = str
+TraceGlobalId: TypeAlias = str
 
 
 class TestSpanAnnotations:
@@ -1413,10 +1414,12 @@ class TestSpanAnnotations:
 
     async def test_other_users_cannot_patch_and_only_creator_or_admin_can_delete(
         self,
-        _spans: Sequence[ReadableSpan],
         _get_user: _GetUser,
         _app: _AppInfo,
-        _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
+        _span_ids: tuple[
+            tuple[SpanId, SpanGlobalId, TraceId, TraceGlobalId],
+            tuple[SpanId, SpanGlobalId, TraceId, TraceGlobalId],
+        ],
     ) -> None:
         annotation_creator = _get_user(_app, _MEMBER)
         logged_in_annotation_creator = annotation_creator.log_in(_app)
@@ -1580,9 +1583,12 @@ class TestTraceAnnotations:
 
     async def test_other_users_cannot_patch_and_only_creator_or_admin_can_delete(
         self,
-        _spans: Sequence[ReadableSpan],
         _get_user: _GetUser,
         _app: _AppInfo,
+        _span_ids: tuple[
+            tuple[SpanId, SpanGlobalId, TraceId, TraceGlobalId],
+            tuple[SpanId, SpanGlobalId, TraceId, TraceGlobalId],
+        ],
     ) -> None:
         annotation_creator = _get_user(_app, _MEMBER)
         logged_in_annotation_creator = annotation_creator.log_in(_app)
@@ -1591,15 +1597,8 @@ class TestTraceAnnotations:
         admin = _get_user(_app, _ADMIN)
         logged_in_admin = admin.log_in(_app)
 
-        # Add spans
-        user_api_key = logged_in_annotation_creator.create_api_key(_app)
-        headers = dict(authorization=f"Bearer {user_api_key}")
-        exporter = _http_span_exporter(_app, headers=headers)
-        assert exporter.export(_spans) is SpanExportResult.SUCCESS
-        await sleep(0.1)  # wait for spans to be exported and written to disk
-
         # Create trace annotation
-        trace_gid = str(GlobalID("Trace", "1"))
+        trace_gid = _span_ids[0][3]
         response, _ = logged_in_annotation_creator.gql(
             _app,
             query=self.QUERY,
@@ -1625,7 +1624,6 @@ class TestTraceAnnotations:
         annotation_id = original_trace_annotation["id"]
 
         # Only the user who created the annotation can patch
-        trace_gid = str(GlobalID("Trace", "1"))
         for user in [logged_in_member, logged_in_admin]:
             with pytest.raises(RuntimeError) as exc_info:
                 response, _ = user.gql(
