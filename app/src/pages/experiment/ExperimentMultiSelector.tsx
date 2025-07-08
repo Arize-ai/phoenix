@@ -72,12 +72,11 @@ export function ExperimentMultiSelector(props: {
     dataRef
   );
   const experiments = useMemo(() => {
-    if (data.dataset.experiments == null) {
-      throw new Error("No experiments are associated with this dataset");
-    }
-    return data.dataset.experiments.edges.map((edge) => {
-      return edge.experiment;
-    });
+    return (
+      data.dataset.experiments?.edges.map((edge) => {
+        return edge.experiment;
+      }) ?? []
+    );
   }, [data]);
   const baselineExperimentDisplayText = useMemo(
     () => data.baselineExperiment?.name ?? "No baseline selected",
