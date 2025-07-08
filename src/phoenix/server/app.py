@@ -386,19 +386,16 @@ async def version() -> PlainTextResponse:
     return PlainTextResponse(f"{phoenix_version}")
 
 
-DB_MUTEX: Optional[asyncio.Lock] = None
-
-
 def _db(
-    engine: AsyncEngine, bypass_lock: bool = False
-) -> Callable[[], AbstractAsyncContextManager[AsyncSession]]:
+    engine: AsyncEngine,
+) -> Callable[[Optional[asyncio.Lock]], AbstractAsyncContextManager[AsyncSession]]:
     Session = async_sessionmaker(engine, expire_on_commit=False)
 
     @contextlib.asynccontextmanager
-    async def factory() -> AsyncIterator[AsyncSession]:
+    async def factory(lock: Optional[asyncio.Lock] = None) -> AsyncIterator[AsyncSession]:
         async with contextlib.AsyncExitStack() as stack:
-            if not bypass_lock and DB_MUTEX:
-                await stack.enter_async_context(DB_MUTEX)
+            if lock:
+                await stack.enter_async_context(lock)
             yield await stack.enter_async_context(Session.begin())
 
     return factory
@@ -542,8 +539,7 @@ def _lifespan(
         for callback in startup_callbacks:
             if isinstance((res := callback()), Awaitable):
                 await res
-        global DB_MUTEX
-        DB_MUTEX = asyncio.Lock() if db.dialect is SupportedSQLDialect.SQLITE else None
+        db.lock = asyncio.Lock() if db.dialect is SupportedSQLDialect.SQLITE else None
         async with AsyncExitStack() as stack:
             (
                 enqueue,

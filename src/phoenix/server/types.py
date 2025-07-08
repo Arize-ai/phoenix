@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from abc import ABC, abstractmethod
 from asyncio import Task, create_task, sleep
 from collections import defaultdict
@@ -29,11 +30,12 @@ class CanGetLastUpdatedAt(Protocol):
 class DbSessionFactory:
     def __init__(
         self,
-        db: Callable[[], AbstractAsyncContextManager[AsyncSession]],
+        db: Callable[[Optional[asyncio.Lock]], AbstractAsyncContextManager[AsyncSession]],
         dialect: str,
     ):
         self._db = db
         self.dialect = SupportedSQLDialect(dialect)
+        self.lock: Optional[asyncio.Lock] = None
         self.should_not_insert_or_update = False
         """An informational flag that allows different tasks to coordinate whether insert
         and update operations should be allowed. For example, this can be set to True when disk
@@ -43,7 +45,7 @@ class DbSessionFactory:
         """
 
     def __call__(self) -> AbstractAsyncContextManager[AsyncSession]:
-        return self._db()
+        return self._db(self.lock)
 
 
 _AnyT = TypeVar("_AnyT")
