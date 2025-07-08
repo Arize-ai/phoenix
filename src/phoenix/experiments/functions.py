@@ -212,7 +212,9 @@ def run_experiment(
     _validate_task_signature(task_signature)
 
     if not normalized_dataset.examples:
-        raise ValueError(f"Dataset has no examples: {normalized_dataset.id=}, {normalized_dataset.version_id=}")
+        raise ValueError(
+            f"Dataset has no examples: {normalized_dataset.id=}, {normalized_dataset.version_id=}"
+        )
     # Add this to the params once supported in the UI
     repetitions = 1
     assert repetitions > 0, "Must run the experiment at least once."
@@ -563,7 +565,9 @@ def run_experiment(
                 "completed successfully."
             )
 
-    params = ExperimentParameters(n_examples=len(normalized_dataset.examples), n_repetitions=repetitions)
+    params = ExperimentParameters(
+        n_examples=len(normalized_dataset.examples), n_repetitions=repetitions
+    )
     task_summary = TaskSummary.from_task_runs(params, task_runs)
     ran_experiment: RanExperiment = object.__new__(RanExperiment)
     ran_experiment.__init__(  # type: ignore[misc]
