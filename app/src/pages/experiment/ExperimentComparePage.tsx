@@ -1,5 +1,10 @@
 import { startTransition, Suspense, useState } from "react";
-import { useLoaderData, useSearchParams } from "react-router";
+import {
+  useLoaderData,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router";
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
@@ -17,9 +22,11 @@ export function ExperimentComparePage() {
   invariant(loaderData, "loaderData is required");
   // The text of most IO is too long so default to showing truncated text
   const [displayFullText, setDisplayFullText] = useState(false);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const experimentIds = searchParams.getAll("experimentId");
-  const experimentIdsSelected = experimentIds.length > 0;
+  const { datasetId, baselineExperimentId } = useParams();
+  invariant(datasetId != null, "datasetId is required");
+  const [searchParams] = useSearchParams();
+  const compareExperimentIds = searchParams.getAll("experimentId");
+  const navigate = useNavigate();
   return (
     <main
       css={css`
@@ -37,16 +44,22 @@ export function ExperimentComparePage() {
       >
         <Flex direction="row" justifyContent="space-between" alignItems="end">
           <ExperimentMultiSelector
-            dataset={loaderData.dataset}
-            selectedExperimentIds={experimentIds}
-            label="experiments"
-            onChange={(newExperimentIds) => {
+            dataRef={loaderData}
+            selectedBaselineExperimentId={baselineExperimentId}
+            selectedCompareExperimentIds={compareExperimentIds}
+            onChange={(newBaselineExperimentId, newCompareExperimentIds) => {
               startTransition(() => {
-                searchParams.delete("experimentId");
-                newExperimentIds.forEach((id) => {
-                  searchParams.append("experimentId", id);
-                });
-                setSearchParams(searchParams);
+                if (newBaselineExperimentId == null) {
+                  navigate(`/datasets/${datasetId}/compare`);
+                } else {
+                  const queryParams =
+                    newCompareExperimentIds.length > 0
+                      ? `?${newCompareExperimentIds.map((id) => `experimentId=${id}`).join("&")}`
+                      : "";
+                  navigate(
+                    `/datasets/${datasetId}/compare/${newBaselineExperimentId}${queryParams}`
+                  );
+                }
               });
             }}
           />
@@ -61,21 +74,22 @@ export function ExperimentComparePage() {
           </Switch>
         </Flex>
       </View>
-      {experimentIdsSelected ? (
+      {baselineExperimentId != null ? (
         <ExperimentRunFilterConditionProvider>
           <Suspense fallback={<Loading />}>
             <ExperimentCompareTable
               query={loaderData}
-              datasetId={loaderData.dataset.id}
-              experimentIds={experimentIds}
+              datasetId={datasetId}
+              baselineExperimentId={baselineExperimentId}
+              compareExperimentIds={compareExperimentIds}
               displayFullText={displayFullText}
             />
           </Suspense>
         </ExperimentRunFilterConditionProvider>
       ) : (
         <View padding="size-200">
-          <Alert variant="info" title="No Experiment Selected">
-            Please select one or more experiments.
+          <Alert variant="info" title="No Baseline Experiment Selected">
+            Please select a baseline experiment.
           </Alert>
         </View>
       )}

@@ -70,8 +70,14 @@ export function PlaygroundDatasetSection({ datasetId }: { datasetId: string }) {
                 />
               }
               onPress={() => {
+                const baselineExperimentId = experimentIds[0]; // treat the first experiment as the baseline
+                const compareExperimentIds = experimentIds.slice(1);
+                const queryParams =
+                  compareExperimentIds.length > 0
+                    ? `?${compareExperimentIds.map((id) => `experimentId=${id}`).join("&")}`
+                    : "";
                 navigate(
-                  `/datasets/${datasetId}/compare?experimentId=${experimentIds.join("&experimentId=")}`
+                  `/datasets/${datasetId}/compare/${baselineExperimentId}${queryParams}`
                 );
               }}
             >

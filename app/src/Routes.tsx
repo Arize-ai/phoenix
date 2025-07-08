@@ -28,6 +28,7 @@ import {
 } from "./pages/dashboards";
 import { datasetLoaderQuery$data } from "./pages/dataset/__generated__/datasetLoaderQuery.graphql";
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
+import type { ExperimentCompareLoaderReturnType } from "./pages/experiment/experimentCompareLoader";
 import { Layout } from "./pages/Layout";
 import { spanPlaygroundPageLoaderQuery$data } from "./pages/playground/__generated__/spanPlaygroundPageLoaderQuery.graphql";
 import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
@@ -99,6 +100,7 @@ import {
   SupportPage,
   TracePage,
 } from "./pages";
+
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path="/" errorElement={<ErrorElement />}>
@@ -251,14 +253,22 @@ const router = createBrowserRouter(
                   <Route path=":exampleId" element={<ExamplePage />} />
                 </Route>
               </Route>
-              <Route
-                path="compare"
-                handle={{
-                  crumb: () => "compare",
-                }}
-                loader={experimentCompareLoader}
-                element={<ExperimentComparePage />}
-              />
+              <Route path="compare" handle={{ crumb: () => "compare" }}>
+                <Route
+                  index
+                  loader={experimentCompareLoader}
+                  element={<ExperimentComparePage />}
+                />
+                <Route
+                  path=":baselineExperimentId"
+                  handle={{
+                    crumb: (data: ExperimentCompareLoaderReturnType) =>
+                      data?.baselineExperiment?.name ?? "",
+                  }}
+                  loader={experimentCompareLoader}
+                  element={<ExperimentComparePage />}
+                />
+              </Route>
             </Route>
           </Route>
           <Route

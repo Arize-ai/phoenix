@@ -335,28 +335,20 @@ class Query:
     async def compare_experiments(
         self,
         info: Info[Context, None],
-        experiment_ids: list[GlobalID],
+        baseline_experiment_id: GlobalID,
+        compare_experiment_ids: list[GlobalID],
         first: Optional[int] = 50,
         after: Optional[CursorString] = UNSET,
         filter_condition: Optional[str] = UNSET,
     ) -> Connection[ExperimentComparison]:
-        # Handle empty experiment_ids gracefully
-        if not experiment_ids:
-            return connection_from_list(
-                data=[],
-                args=ConnectionArgs(
-                    first=first,
-                    after=after if isinstance(after, CursorString) else None,
-                ),
-            )
-
-        experiment_ids_ = [
+        if baseline_experiment_id in compare_experiment_ids:
+            raise BadRequest("Compare experiment IDs cannot contain the baseline experiment ID")
+        if len(set(compare_experiment_ids)) < len(compare_experiment_ids):
+            raise BadRequest("Compare experiment IDs must be unique")
+        experiment_ids = [
             from_global_id_with_expected_type(experiment_id, models.Experiment.__name__)
-            for experiment_id in experiment_ids
+            for experiment_id in (baseline_experiment_id, *compare_experiment_ids)
         ]
-        if len(set(experiment_ids_)) != len(experiment_ids_):
-            raise BadRequest("Experiment IDs must be unique.")
-
         cursor = Cursor.from_string(after) if after else None
         page_size = first or 50
 
@@ -375,7 +367,7 @@ class Query:
                         models.Experiment.dataset_version_id == models.DatasetVersion.id,
                     )
                     .where(
-                        models.Experiment.id.in_(experiment_ids_),
+                        models.Experiment.id.in_(experiment_ids),
                     )
                 )
             ).first()
@@ -385,7 +377,7 @@ class Query:
             num_datasets, dataset_id, version_id, num_resolved_experiment_ids = validation_result
             if num_datasets != 1:
                 raise BadRequest("Experiments must belong to the same dataset.")
-            if num_resolved_experiment_ids != len(experiment_ids_):
+            if num_resolved_experiment_ids != len(experiment_ids):
                 raise NotFound("Unable to resolve one or more experiment IDs.")
 
             revision_ids = (
@@ -425,7 +417,7 @@ class Query:
                 examples_query = update_examples_query_with_filter_condition(
                     query=examples_query,
                     filter_condition=filter_condition,
-                    experiment_ids=experiment_ids_,
+                    experiment_ids=experiment_ids,
                 )
 
             examples = (await session.scalars(examples_query)).all()
@@ -444,17 +436,20 @@ class Query:
                         models.ExperimentRun.dataset_example_id.in_(
                             example.id for example in examples
                         ),
-                        models.ExperimentRun.experiment_id.in_(experiment_ids_),
+                        models.ExperimentRun.experiment_id.in_(experiment_ids),
                     )
                 )
                 .options(joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id))
+                .order_by(
+                    models.ExperimentRun.repetition_number.asc()
+                )  # repetitions are not currently implemented, but this ensures that the repetitions will be properly ordered once implemented # noqa: E501
             ):
                 runs[run.dataset_example_id][run.experiment_id].append(run)
 
         cursors_and_nodes = []
         for example in examples:
             run_comparison_items = []
-            for experiment_id in experiment_ids_:
+            for experiment_id in experiment_ids:
                 run_comparison_items.append(
                     RunComparisonItem(
                         experiment_id=GlobalID(Experiment.__name__, str(experiment_id)),
@@ -479,7 +474,7 @@ class Query:
 
         return connection_from_cursors_and_nodes(
             cursors_and_nodes=cursors_and_nodes,
-            has_previous_page=False,
+            has_previous_page=False,  # set to false since we are only doing forward pagination (https://relay.dev/graphql/connections.htm#sec-undefined.PageInfo.Fields) # noqa: E501
             has_next_page=has_next_page,
         )
 
