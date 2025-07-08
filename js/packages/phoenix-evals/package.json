@@ -5,6 +5,20 @@
   "main": "dist/src/index.js",
   "module": "dist/esm/index.js",
   "types": "dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/src/index.js"
+    },
+    "./llm/*": {
+      "import": "./dist/esm/llm/*.d.ts",
+      "require": "./dist/src/llm/*.d.ts"
+    },
+    "./types/*": {
+      "import": "./dist/esm/types/*.d.ts",
+      "require": "./dist/src/types/*.d.ts"
+    }
+  },
   "files": [
     "dist",
     "src",
