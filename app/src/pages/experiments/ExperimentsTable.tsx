@@ -77,9 +77,7 @@ const TableBody = <T extends { id: string }>({
           <tr
             key={row.id}
             onClick={() => {
-              navigate(
-                `/datasets/${dataset.id}/compare?experimentId=${row.original.id}`
-              );
+              navigate(`/datasets/${dataset.id}/compare/${row.original.id}`);
             }}
           >
             {row.getVisibleCells().map((cell) => {
@@ -237,9 +235,7 @@ export function ExperimentsTable({
         return (
           <Flex direction="row" gap="size-100" alignItems="center">
             <SequenceNumberToken sequenceNumber={sequenceNumber} />
-            <Link
-              to={`/datasets/${dataset.id}/compare?experimentId=${experimentId}`}
-            >
+            <Link to={`/datasets/${dataset.id}/compare/${experimentId}`}>
               {getValue() as string}
             </Link>
           </Flex>

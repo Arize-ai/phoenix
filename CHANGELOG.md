@@ -1,5 +1,18 @@
 # Changelog
 
+## [11.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.4.0...arize-phoenix-v11.5.0) (2025-07-07)
+
+
+### Features
+
+* add database disk usage monitor ([#8402](https://github.com/Arize-ai/phoenix/issues/8402)) ([3c9a2f4](https://github.com/Arize-ai/phoenix/commit/3c9a2f4573cd783e29d42e267dd735e023da6882))
+
+
+### Bug Fixes
+
+* **experiments:** paginate sql query on compare experiments page ([#8451](https://github.com/Arize-ai/phoenix/issues/8451)) ([51823e8](https://github.com/Arize-ai/phoenix/commit/51823e821e7c56fc7838e6667c078e1d62cb3de0))
+* re-order csv form to do file import first ([#8421](https://github.com/Arize-ai/phoenix/issues/8421)) ([2d7df5b](https://github.com/Arize-ai/phoenix/commit/2d7df5b4306262f4bff13dacd56b7bcc71442796))
+
 ## [11.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.3.0...arize-phoenix-v11.4.0) (2025-07-03)
 
 
