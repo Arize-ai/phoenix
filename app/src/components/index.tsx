@@ -32,6 +32,7 @@ export * from "./alert";
 export * from "./disclosure";
 export * from "./combobox";
 export * from "./button";
+export * from "./chart";
 export * from "./icon";
 export * from "./view";
 export * from "./layout";
