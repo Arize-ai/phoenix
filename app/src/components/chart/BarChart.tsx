@@ -105,7 +105,7 @@ export function BarChart({
         margin={{
           top: 20,
           right: 30,
-          left: 20,
+          left: 0,
           bottom: 5,
         }}
         onMouseMove={(state) => {
@@ -138,7 +138,14 @@ export function BarChart({
           dataKey={xAxisKey}
           label={
             xAxisLabel
-              ? { value: xAxisLabel, position: "insideBottom", offset: -5 }
+              ? {
+                  value: xAxisLabel,
+                  position: "insideBottom",
+                  offset: -5,
+                  style: {
+                    fill: "var(--ac-global-chart-axis-label-color)",
+                  },
+                }
               : undefined
           }
           stroke="var(--ac-global-chart-border-line-color)"
@@ -147,7 +154,14 @@ export function BarChart({
         <YAxis
           label={
             yAxisLabel
-              ? { value: yAxisLabel, angle: -90, position: "insideLeft" }
+              ? {
+                  value: yAxisLabel,
+                  angle: -90,
+                  position: "insideLeft",
+                  style: {
+                    fill: "var(--ac-global-chart-axis-label-color)",
+                  },
+                }
               : undefined
           }
           stroke="var(--ac-global-chart-border-line-color)"

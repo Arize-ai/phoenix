@@ -26,6 +26,8 @@ const globalColor = (
 const chartTokens: ChartTokens = {
   // would prefer 550 for light theme, if it existed
   "chart-axis-text-color": globalColor("grey", 600, 500),
+  // dashed lines spanning the chart
+  "chart-axis-label-color": globalColor("grey", 700, 600),
   // solid lines on the left and bottom
   "chart-border-line-color": globalColor("grey", 300, 300),
   // dashed lines spanning the chart
