@@ -3,12 +3,21 @@ import { LoaderFunctionArgs } from "react-router";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import { experimentCompareLoaderQuery } from "./__generated__/experimentCompareLoaderQuery.graphql";
+import type {
+  experimentCompareLoaderQuery,
+  experimentCompareLoaderQuery$data,
+} from "./__generated__/experimentCompareLoaderQuery.graphql";
+
+export type ExperimentCompareLoaderReturnType =
+  | experimentCompareLoaderQuery$data
+  | undefined;
 
 /**
  * Loads in the necessary page data for the compare experiment page
  */
-export async function experimentCompareLoader(args: LoaderFunctionArgs) {
+export async function experimentCompareLoader(
+  args: LoaderFunctionArgs
+): Promise<ExperimentCompareLoaderReturnType> {
   const { datasetId, baselineExperimentId } = args.params;
   if (datasetId == null) {
     throw new Error("Dataset ID is required");
