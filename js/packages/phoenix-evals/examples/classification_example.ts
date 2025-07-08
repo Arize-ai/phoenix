@@ -23,7 +23,7 @@ your response.
     ************
     [Query]: "Is Arize Phoenix Open Source?"
     ************
-    [Reference text]: "Arize is a platform for building and deploying AI applications. It is open source."
+    [Reference text]: "Arize Phoenixis a platform for building and deploying AI applications. It is open source."
     ************
     [Answer]: "Arize is not open source."
     ************
