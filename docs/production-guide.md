@@ -1,5 +1,5 @@
 ---
-description: Prepare and configure your Arize Phoenix application for production use.
+description: 'Moving your application to production: steps for reliability and scale'
 ---
 
 # Production Guide
