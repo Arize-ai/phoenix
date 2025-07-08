@@ -6,6 +6,9 @@ on:
       - main
     paths:
       - "app/**"
+  pull_request:
+    paths:
+      - "app/**"
 
 permissions:
   contents: read
