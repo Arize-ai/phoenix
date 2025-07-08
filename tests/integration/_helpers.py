@@ -1654,7 +1654,7 @@ def _insert_spans(app: _AppInfo, n: int) -> tuple[_ExistingSpan, ...]:
             for span in project["node"]["spans"]["edges"]
             if span["node"]["spanId"] in span_ids
         }
-        if set(existing_spans) <= span_ids:
+        if set(existing_spans) == span_ids:
             return tuple(existing_spans.values())
         return None
 

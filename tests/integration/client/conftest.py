@@ -38,4 +38,4 @@ def _app(
 def _existing_spans(
     _app: _AppInfo,
 ) -> tuple[_ExistingSpan, ...]:
-    return _insert_spans(_app, 2)
+    return _insert_spans(_app, 10)
