@@ -1,0 +1,12 @@
+include README.md
+include LICENSE
+include requirements.txt
+include MANIFEST.in
+recursive-include src *.py
+recursive-include examples *.py
+recursive-exclude * __pycache__
+recursive-exclude * *.pyc
+recursive-exclude * *.pyo
+recursive-exclude * *.orig
+recursive-exclude * *.rej
+recursive-exclude * .DS_Store
