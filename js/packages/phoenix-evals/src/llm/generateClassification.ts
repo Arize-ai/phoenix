@@ -1,17 +1,13 @@
 import { ClassificationEvaluationResult, WithLLM } from "../types/evals";
-import type { Prompt } from "../types/prompts";
+import type { WithPrompt } from "../types/prompts";
 import { generateObject } from "ai";
 import { z } from "zod";
 
-interface ClassifyArgs extends WithLLM {
+interface ClassifyArgs extends WithLLM, WithPrompt {
   /**
    * The labels to classify the example into. E.x. ["correct", "incorrect"]
    */
   labels: [string, ...string[]];
-  /**
-   * The prompt to use for generating the label and explanation.
-   */
-  prompt: Prompt;
   /**
    * The name of the schema for generating the label and explanation.
    */
@@ -27,7 +23,7 @@ interface ClassifyArgs extends WithLLM {
 export async function generateClassification(
   args: ClassifyArgs
 ): Promise<ClassificationEvaluationResult> {
-  const { labels, model, schemaName, schemaDescription, prompt } = args;
+  const { labels, model, schemaName, schemaDescription, ...prompt } = args;
 
   const result = await generateObject({
     model,

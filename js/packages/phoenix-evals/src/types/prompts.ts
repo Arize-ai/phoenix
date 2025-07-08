@@ -5,7 +5,7 @@ import { CoreMessage, Message } from "ai";
  * It contains a system message, a simple text prompt, or a list of messages.
  * Note: this is pulled from the `ai` package and is used as a compatibility type.
  */
-export type Prompt = {
+export interface WithPrompt {
   /**
    * System message to include in the prompt. Can be used with `prompt` or `messages`.
    */
@@ -18,4 +18,4 @@ export type Prompt = {
    * A list of messages. You can either use `prompt` or `messages` but not both.
    */
   messages?: Array<CoreMessage> | Array<Omit<Message, "id">>;
-};
+}
