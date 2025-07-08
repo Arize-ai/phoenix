@@ -179,7 +179,7 @@ export function ExperimentSelectionToolbar(
                 const baselineExperimentId =
                   selectedExperiments[selectedExperiments.length - 1].id; // treat the oldest experiment as the baseline
                 const compareExperimentIds = selectedExperiments
-                  .slice(0, selectedExperiments.length - 1)
+                  .slice(0, -1)
                   .map((exp) => exp.id);
                 const queryParams =
                   compareExperimentIds.length > 0
