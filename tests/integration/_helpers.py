@@ -1589,11 +1589,12 @@ class _ExistingSpan(NamedTuple):
 
 
 def _insert_spans(app: _AppInfo, n: int) -> tuple[_ExistingSpan, ...]:
+    assert n > 0, "Number of spans to insert must be greater than 0"
     memory = InMemorySpanExporter()
     project_name = token_hex(8)
     for _ in range(n):
         _start_span(project_name=project_name, exporter=memory).end()
-    assert (spans := memory.get_finished_spans())
+    assert len(spans := memory.get_finished_spans()) == n
 
     headers = {"authorization": f"Bearer {app.admin_secret}"}
     assert _grpc_span_exporter(app, headers=headers).export(spans) is SpanExportResult.SUCCESS
@@ -1602,6 +1603,7 @@ def _insert_spans(app: _AppInfo, n: int) -> tuple[_ExistingSpan, ...]:
     for span in spans:
         assert (context := span.get_span_context())  # type: ignore[no-untyped-call]
         span_ids.add(format_span_id(context.span_id))
+    assert len(span_ids) == n
 
     query = """
       query ($filterCondition: String) {
@@ -1635,7 +1637,7 @@ def _insert_spans(app: _AppInfo, n: int) -> tuple[_ExistingSpan, ...]:
             query=query,
             variables={"filterCondition": f"span_id in {list(span_ids)}"},
         )
-        spans: dict[_SpanId, _ExistingSpan] = {
+        existing_spans: dict[_SpanId, _ExistingSpan] = {
             span["node"]["spanId"]: _ExistingSpan(
                 id=GlobalID.from_id(span["node"]["id"]),
                 span_id=span["node"]["spanId"],
@@ -1650,11 +1652,10 @@ def _insert_spans(app: _AppInfo, n: int) -> tuple[_ExistingSpan, ...]:
             )
             for project in res["data"]["projects"]["edges"]
             for span in project["node"]["spans"]["edges"]
+            if span["node"]["spanId"] in span_ids
         }
-        if set(spans) <= span_ids:
-            return tuple(
-                existing_span for span_id, existing_span in spans.items() if span_id in span_ids
-            )
+        if set(existing_spans) <= span_ids:
+            return tuple(existing_spans.values())
         return None
 
     return asyncio.run(_get(query_fn, error_msg="spans not found"))

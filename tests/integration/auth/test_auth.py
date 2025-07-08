@@ -1419,7 +1419,8 @@ class TestSpanAnnotations:
         _app: _AppInfo,
         _existing_spans: Sequence[_ExistingSpan],
     ) -> None:
-        assert _existing_spans, "At least one existing span is required for the test."
+        assert _existing_spans, "At least one existing span is required for this test"
+        (span_gid, *_), *_ = _existing_spans
 
         annotation_creator = _get_user(_app, _MEMBER)
         logged_in_annotation_creator = annotation_creator.log_in(_app)
@@ -1429,7 +1430,6 @@ class TestSpanAnnotations:
         logged_in_admin = admin.log_in(_app)
 
         # Create span annotation
-        (span_gid, *_), *_ = _existing_spans
         name = token_hex(8)
         response, _ = logged_in_annotation_creator.gql(
             _app,
@@ -1587,7 +1587,9 @@ class TestTraceAnnotations:
         _app: _AppInfo,
         _existing_spans: Sequence[_ExistingSpan],
     ) -> None:
-        assert _existing_spans, "At least one existing span is required for the test."
+        assert _existing_spans, "At least one existing span is required for this test"
+        existing_span, *_ = _existing_spans
+        trace_gid = existing_span.trace.id
 
         annotation_creator = _get_user(_app, _MEMBER)
         logged_in_annotation_creator = annotation_creator.log_in(_app)
@@ -1597,8 +1599,6 @@ class TestTraceAnnotations:
         logged_in_admin = admin.log_in(_app)
 
         # Create trace annotation
-        existing_span, *_ = _existing_spans
-        trace_gid = existing_span.trace.id
         response, _ = logged_in_annotation_creator.gql(
             _app,
             query=self.QUERY,

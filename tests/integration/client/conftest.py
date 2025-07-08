@@ -34,7 +34,7 @@ def _app(
         yield app
 
 
-@pytest.fixture(autouse=True, scope="package")
+@pytest.fixture(scope="package")
 def _existing_spans(
     _app: _AppInfo,
 ) -> tuple[_ExistingSpan, ...]:
