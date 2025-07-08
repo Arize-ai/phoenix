@@ -9,28 +9,44 @@ import { experimentCompareLoaderQuery } from "./__generated__/experimentCompareL
  * Loads in the necessary page data for the compare experiment page
  */
 export async function experimentCompareLoader(args: LoaderFunctionArgs) {
-  const { datasetId } = args.params;
+  const { datasetId, baselineExperimentId } = args.params;
+  if (datasetId == null) {
+    throw new Error("Dataset ID is required");
+  }
   const url = new URL(args.request.url);
-  const experimentIds = url.searchParams.getAll("experimentId");
+  const compareExperimentIds = url.searchParams.getAll("experimentId");
+
   return await fetchQuery<experimentCompareLoaderQuery>(
     RelayEnvironment,
     graphql`
-      query experimentCompareLoaderQuery($id: ID!, $experimentIDs: [ID!]!) {
+      query experimentCompareLoaderQuery(
+        $datasetId: ID!
+        $baselineExperimentId: ID!
+        $compareExperimentIds: [ID!]!
+        $hasBaselineExperimentId: Boolean!
+      ) {
         ...ExperimentCompareTable_comparisons
-          @arguments(experimentIds: $experimentIDs, datasetId: $id)
-        dataset: node(id: $id) {
-          id
-          ... on Dataset {
-            id
+          @include(if: $hasBaselineExperimentId)
+          @arguments(
+            baselineExperimentId: $baselineExperimentId
+            compareExperimentIds: $compareExperimentIds
+            datasetId: $datasetId
+          )
+        ...ExperimentMultiSelector__data
+          @arguments(hasBaselineExperimentId: $hasBaselineExperimentId)
+        baselineExperiment: node(id: $baselineExperimentId)
+          @include(if: $hasBaselineExperimentId) {
+          ... on Experiment {
             name
-            ...ExperimentMultiSelector__experiments
           }
         }
       }
     `,
     {
-      id: datasetId as string,
-      experimentIDs: experimentIds,
+      datasetId,
+      baselineExperimentId: baselineExperimentId ?? "",
+      compareExperimentIds,
+      hasBaselineExperimentId: baselineExperimentId != null,
     }
   ).toPromise();
 }
