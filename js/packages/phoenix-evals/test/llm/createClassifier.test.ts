@@ -1,13 +1,19 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import nock from "nock";
 import { createClassifier } from "../../src/llm/createClassifier";
 import { openai } from "@ai-sdk/openai";
 
 describe("createClassifier", () => {
+  beforeEach(() => {
+    // Mock the OpenAI API key environment variable
+    vi.stubEnv("OPENAI_API_KEY", "sk-dummy-test-key-12345");
+  });
+
   afterEach(() => {
     // Clean up any pending mocks
     nock.cleanAll();
     nock.restore();
+    vi.unstubAllEnvs();
   });
 
   const model = openai("gpt-4o-mini");
