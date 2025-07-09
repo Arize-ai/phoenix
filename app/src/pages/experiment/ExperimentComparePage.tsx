@@ -13,7 +13,7 @@ import { Switch } from "@arizeai/components";
 import { Alert, Flex, Loading, View } from "@phoenix/components";
 import { experimentCompareLoader } from "@phoenix/pages/experiment/experimentCompareLoader";
 
-import { ExperimentCompareTable } from "./ExperimentCompareTable";
+import { ExperimentCompareTable } from "./ExperimentCompareTableVirtualized";
 import { ExperimentMultiSelector } from "./ExperimentMultiSelector";
 import { ExperimentRunFilterConditionProvider } from "./ExperimentRunFilterConditionContext";
 
