@@ -95,13 +95,13 @@ class DbDiskUsageMonitor(DaemonTask):
             current_usage_bytes = (page_count - freelist_count) * page_size
         elif self._db.dialect is SupportedSQLDialect.POSTGRESQL:
             nspname = getenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA) or "public"
-            stmt = text(f"""\
+            stmt = text("""\
                 SELECT sum(pg_total_relation_size(c.oid))
                 FROM pg_class as c
                 INNER JOIN pg_namespace as n ON n.oid = c.relnamespace
                 WHERE c.relkind = 'r'
-                AND n.nspname = '{nspname}';
-            """)
+                AND n.nspname = :nspname;
+            """).bindparams(nspname=nspname)
             async with self._db() as session:
                 current_usage_bytes = await session.scalar(stmt)
         else:
