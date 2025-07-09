@@ -19,7 +19,7 @@
     },
     {
       "name": "claude-3-5-haiku-20241022",
-      "name_pattern": "(claude-3-5-haiku-20241022|anthropic\\.claude-3-5-haiku-20241022-v1:0|claude-3-5-haiku-V1@20241022)",
+      "name_pattern": "claude-3-5-haiku-20241022|anthropic\\.claude-3-5-haiku-20241022-v1:0|claude-3-5-haiku-V1@20241022",
       "source": "litellm",
       "token_prices": [
         {
