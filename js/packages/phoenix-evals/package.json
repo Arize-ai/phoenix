@@ -5,6 +5,20 @@
   "main": "dist/src/index.js",
   "module": "dist/esm/index.js",
   "types": "dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/src/index.js"
+    },
+    "./llm/*": {
+      "import": "./dist/esm/llm/*.js",
+      "require": "./dist/src/llm/*.js"
+    },
+    "./types/*": {
+      "import": "./dist/esm/types/*.d.ts",
+      "require": "./dist/src/types/*.d.ts"
+    }
+  },
   "files": [
     "dist",
     "src",
@@ -24,6 +38,7 @@
   "author": "",
   "license": "ELv2",
   "devDependencies": {
+    "@ai-sdk/openai": "^1.1.15",
     "@types/node": "^24.0.10",
     "tsx": "^4.19.3",
     "typedoc": "^0.27.9",
@@ -32,5 +47,9 @@
   "packageManager": "pnpm@9.15.0",
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "ai": "^4.1.47",
+    "zod": "^3.25.75"
   }
 }
