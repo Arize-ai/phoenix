@@ -24,6 +24,7 @@ from typing import (
     Any,
     Awaitable,
     Callable,
+    Coroutine,
     Generator,
     Generic,
     Literal,
@@ -1520,7 +1521,9 @@ T = TypeVar("T")
 
 
 async def _get(
-    query_fn: Callable[..., Optional[T]] | Callable[..., Awaitable[Optional[T]]],
+    query_fn: Callable[..., Optional[T]]
+    | Callable[..., Awaitable[Optional[T]]]
+    | Callable[..., Coroutine[Any, Any, Optional[T]]],
     args: Sequence[Any] = (),
     kwargs: Mapping[str, Any] = MappingProxyType({}),
     error_msg: str = "",
@@ -1591,7 +1594,7 @@ class _ExistingSpan(NamedTuple):
 def _insert_spans(app: _AppInfo, n: int) -> tuple[_ExistingSpan, ...]:
     assert n > 0, "Number of spans to insert must be greater than 0"
     memory = InMemorySpanExporter()
-    project_name = token_hex(8)
+    project_name = token_hex(16)
     for _ in range(n):
         _start_span(project_name=project_name, exporter=memory).end()
     assert len(spans := memory.get_finished_spans()) == n
@@ -1605,14 +1608,28 @@ def _insert_spans(app: _AppInfo, n: int) -> tuple[_ExistingSpan, ...]:
         span_ids.add(format_span_id(context.span_id))
     assert len(span_ids) == n
 
+    return asyncio.run(
+        _get(
+            lambda: tuple(ans) if len(ans := _get_existing_spans(app, span_ids)) == n else None,
+            error_msg="spans not found",
+        )
+    )
+
+
+def _get_existing_spans(
+    app: _AppInfo,
+    span_ids: Iterable[_SpanId],
+) -> list[_ExistingSpan]:
+    span_ids = set(span_ids)
+    n = len(span_ids)
     query = """
-      query ($filterCondition: String) {
+      query ($filterCondition: String, $first: Int) {
         projects {
           edges {
             node {
               id
               name
-              spans (filterCondition: $filterCondition) {
+              spans (filterCondition: $filterCondition, first: $first) {
                 edges {
                   node {
                     id
@@ -1629,33 +1646,26 @@ def _insert_spans(app: _AppInfo, n: int) -> tuple[_ExistingSpan, ...]:
         }
       }
     """
-
-    def query_fn() -> Optional[tuple[_ExistingSpan, ...]]:
-        res, _ = _gql(
-            app,
-            app.admin_secret,
-            query=query,
-            variables={"filterCondition": f"span_id in {list(span_ids)}"},
-        )
-        existing_spans: dict[_SpanId, _ExistingSpan] = {
-            span["node"]["spanId"]: _ExistingSpan(
-                id=GlobalID.from_id(span["node"]["id"]),
-                span_id=span["node"]["spanId"],
-                trace=_ExistingTrace(
-                    id=GlobalID.from_id(span["node"]["trace"]["id"]),
-                    trace_id=span["node"]["trace"]["traceId"],
-                    project=_ExistingProject(
-                        id=GlobalID.from_id(project["node"]["id"]),
-                        name=project["node"]["name"],
-                    ),
+    res, _ = _gql(
+        app,
+        app.admin_secret,
+        query=query,
+        variables={"filterCondition": f"span_id in {list(span_ids)}", "first": n},
+    )
+    return [
+        _ExistingSpan(
+            id=GlobalID.from_id(span["node"]["id"]),
+            span_id=span["node"]["spanId"],
+            trace=_ExistingTrace(
+                id=GlobalID.from_id(span["node"]["trace"]["id"]),
+                trace_id=span["node"]["trace"]["traceId"],
+                project=_ExistingProject(
+                    id=GlobalID.from_id(project["node"]["id"]),
+                    name=project["node"]["name"],
                 ),
-            )
-            for project in res["data"]["projects"]["edges"]
-            for span in project["node"]["spans"]["edges"]
-            if span["node"]["spanId"] in span_ids
-        }
-        if set(existing_spans) == span_ids:
-            return tuple(existing_spans.values())
-        return None
-
-    return asyncio.run(_get(query_fn, error_msg="spans not found"))
+            ),
+        )
+        for project in res["data"]["projects"]["edges"]
+        for span in project["node"]["spans"]["edges"]
+        if span["node"]["spanId"] in span_ids
+    ]
