@@ -21,25 +21,11 @@ An Eval is simply a function by which you can "evaluate" the generation of an LL
 
 ## Evaluation Methods
 
-Phoenix Evals supports multiple evaluation methodologies to comprehensively assess AI system performance across different dimensions and use cases.
+Phoenix Evals will support multiple evaluation methodologies to comprehensively assess AI system performance across different dimensions and use cases.
 
-### LLM-as-a-Judge Evaluations
+### LLM Evaluations
 
 These evaluations use large language models to assess the quality of AI-generated content, leveraging the reasoning capabilities of advanced models to provide nuanced evaluation. These should be leveraged in conjunction with human judgement and be tuned for human alignment.
-
-### RAG Evaluations
-
-Specialized metrics for Retrieval-Augmented Generation systems that assess both retrieval quality and generation performance. These metrics can leverage LLMs but also rely on information retrieval principles as well.
-
-E.x. `Context Precision`, `Faithfulness`
-
-### Embedding Evaluations
-
-Vector-based evaluations that leverage semantic embeddings to assess content similarity and relatedness.
-
-- **Embedding Similarity** - Cosine similarity, dot product, or other distance metrics between embeddings
-- **Semantic Clustering** - Evaluation of how well content clusters semantically
-- **Retrieval Quality** - Assessment of embedding-based retrieval performance
 
 ### Heuristic Evaluations (Code Evaluations)
 
