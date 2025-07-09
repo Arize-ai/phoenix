@@ -14,7 +14,7 @@ interface CreateClassifierArgs {
   model: LanguageModel;
   /**
    * The choices to classify the example into.
-   * E.x. { "correct": 1, "incorrect": 0 }
+   * e.g. { "correct": 1, "incorrect": 0 }
    */
   choices: ClassificationChoicesMap;
   /**
