@@ -17,10 +17,9 @@ from .._helpers import (
     _await_or_return,  # pyright: ignore[reportPrivateUsage]
     _ExistingProject,
     _ExistingSpan,
-    _get,
-    _get_existing_spans,
     _GetUser,  # pyright: ignore[reportPrivateUsage]
     _RoleOrUser,
+    _until_spans_exist,
 )
 
 # Type aliases for better readability
@@ -599,10 +598,7 @@ class TestClientForSpansRetrieval:
         ), f"Failed to create test spans: {create_result}"
 
         # Wait for spans to be processed
-        span_ids = [s["context"]["span_id"] for s in test_spans]
-        await _get(
-            lambda: ans if len(ans := _get_existing_spans(_app, span_ids)) == num_spans else None,
-        )
+        await _until_spans_exist(_app, [s["context"]["span_id"] for s in test_spans])
 
         # Test 1: Filter to get only middle spans (index 1, 2, 3)
         middle_start = span_times[1] - timedelta(seconds=1)  # Just before span 1
@@ -1005,12 +1001,11 @@ class TestClientForSpanCreation:
         assert result["total_received"] == num_spans
         assert result["total_queued"] == num_spans
 
-        # Test 2: Duplicate span rejection
-        span_ids = [parent_span["context"]["span_id"], child_span["context"]["span_id"]]
-        await _get(
-            lambda: ans if len(ans := _get_existing_spans(_app, span_ids)) == num_spans else None,
+        await _until_spans_exist(
+            _app, [parent_span["context"]["span_id"], child_span["context"]["span_id"]]
         )
 
+        # Test 2: Duplicate span rejection
         with pytest.raises(SpanCreationError) as exc_info:
             client.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
                 project_identifier=project_name,
@@ -1119,12 +1114,7 @@ class TestClientForSpanCreation:
             )
             assert result["total_queued"] == num_spans
 
-            span_ids = [span["context"]["span_id"] for span in test_spans]
-            await _get(
-                lambda: ans
-                if len(ans := _get_existing_spans(_app, span_ids)) == num_spans
-                else None
-            )
+            await _until_spans_exist(_app, [span["context"]["span_id"] for span in test_spans])
 
             df = await _await_or_return(
                 Client(base_url=_app.base_url, api_key=api_key).spans.get_spans_dataframe(
@@ -1136,9 +1126,6 @@ class TestClientForSpanCreation:
             # Filter to our test spans
             our_spans_mask = df["context.trace_id"] == trace_id
             our_df = df[our_spans_mask].copy()
-
-            if len(our_df) == 0:
-                pytest.skip("Could not find test spans in DataFrame")
 
             # Test 1: DataFrame to spans conversion
             reconstructed_spans = dataframe_to_spans(our_df)
@@ -1248,10 +1235,7 @@ class TestClientForSpanCreation:
         assert result["total_received"] == num_spans
         assert result["total_queued"] == num_spans
 
-        span_ids = [span["context"]["span_id"] for span in batch_spans]
-        await _get(
-            lambda: ans if len(ans := _get_existing_spans(_app, span_ids)) == num_spans else None
-        )
+        await _until_spans_exist(_app, [span["context"]["span_id"] for span in batch_spans])
 
         retrieved_spans = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
@@ -1415,10 +1399,7 @@ class TestClientForSpanCreation:
         )
         assert result["total_queued"] == num_spans
 
-        span_ids = input_df.index.tolist()
-        await _get(
-            lambda: ans if len(ans := _get_existing_spans(_app, span_ids)) == num_spans else None
-        )
+        await _until_spans_exist(_app, input_df.index.tolist())
 
         output_df = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_spans_dataframe(

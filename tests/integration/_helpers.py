@@ -24,7 +24,6 @@ from typing import (
     Any,
     Awaitable,
     Callable,
-    Coroutine,
     Generator,
     Generic,
     Literal,
@@ -1521,9 +1520,7 @@ T = TypeVar("T")
 
 
 async def _get(
-    query_fn: Callable[..., Optional[T]]
-    | Callable[..., Awaitable[Optional[T]]]
-    | Callable[..., Coroutine[Any, Any, Optional[T]]],
+    query_fn: Callable[..., Optional[T]] | Callable[..., Awaitable[Optional[T]]],
     args: Sequence[Any] = (),
     kwargs: Mapping[str, Any] = MappingProxyType({}),
     error_msg: str = "",
@@ -1619,9 +1616,9 @@ def _insert_spans(app: _AppInfo, n: int) -> tuple[_ExistingSpan, ...]:
 def _get_existing_spans(
     app: _AppInfo,
     span_ids: Iterable[_SpanId],
-) -> list[_ExistingSpan]:
-    span_ids = set(span_ids)
-    n = len(span_ids)
+) -> set[_ExistingSpan]:
+    ids = list(span_ids)
+    n = len(ids)
     query = """
       query ($filterCondition: String, $first: Int) {
         projects {
@@ -1650,9 +1647,9 @@ def _get_existing_spans(
         app,
         app.admin_secret,
         query=query,
-        variables={"filterCondition": f"span_id in {list(span_ids)}", "first": n},
+        variables={"filterCondition": f"span_id in {ids}", "first": n},
     )
-    return [
+    return {
         _ExistingSpan(
             id=GlobalID.from_id(span["node"]["id"]),
             span_id=span["node"]["spanId"],
@@ -1667,5 +1664,10 @@ def _get_existing_spans(
         )
         for project in res["data"]["projects"]["edges"]
         for span in project["node"]["spans"]["edges"]
-        if span["node"]["spanId"] in span_ids
-    ]
+        if span["node"]["spanId"] in ids
+    }
+
+
+async def _until_spans_exist(app: _AppInfo, span_ids: Iterable[_SpanId]) -> None:
+    ids = set(span_ids)
+    await _get(lambda: (len(_get_existing_spans(app, ids)) == len(ids)) or None)
