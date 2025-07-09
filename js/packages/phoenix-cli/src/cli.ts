@@ -11,4 +11,4 @@ export function main() {
 // Run CLI if this file is executed directly
 if (require.main === module) {
   main();
-} 
+}

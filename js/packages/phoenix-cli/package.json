@@ -24,7 +24,7 @@
   },
   "keywords": [
     "phoenix",
-    "cli", 
+    "cli",
     "arize",
     "llmops"
   ],
@@ -43,4 +43,4 @@
   "engines": {
     "node": ">=18"
   }
-} 
+}

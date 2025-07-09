@@ -47,4 +47,4 @@ src/
 
 ## Adding Commands
 
-> **TODO:** Add documentation for adding new commands once the command framework is implemented. 
+> **TODO:** Add documentation for adding new commands once the command framework is implemented.

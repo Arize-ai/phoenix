@@ -8,4 +8,4 @@ describe("Phoenix CLI", () => {
   });
 
   // TODO: Add more tests once CLI functionality is implemented
-}); 
+});

@@ -9,4 +9,4 @@
   "files": [],
   "include": ["src/**/*.ts", "test/**/*.ts"],
   "references": []
-} 
+}

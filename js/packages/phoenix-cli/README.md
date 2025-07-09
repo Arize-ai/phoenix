@@ -45,4 +45,4 @@ pnpm test
 
 ## License
 
-ELv2 
+ELv2
