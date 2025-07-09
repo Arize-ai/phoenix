@@ -1,4 +1,10 @@
-import { startTransition, useDeferredValue, useEffect, useState } from "react";
+import {
+  startTransition,
+  useDeferredValue,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useSearchParams } from "react-router";
 import {
   autocompletion,
@@ -11,22 +17,20 @@ import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
 import { fetchQuery, graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
-import {
-  AddonBefore,
-  Field,
-  HelpTooltip,
-  PopoverTrigger,
-  TooltipTrigger,
-  TriggerWrap,
-} from "@arizeai/components";
+import { AddonBefore, Field } from "@arizeai/components";
 
 import {
   Button,
+  DialogTrigger,
   Flex,
   Form,
   Icon,
+  IconButton,
   Icons,
+  Popover,
   Text,
+  Tooltip,
+  TooltipTrigger,
   View,
 } from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
@@ -237,6 +241,8 @@ export function ExperimentRunFilterConditionField(
   const [searchParams] = useSearchParams();
   const experimentIds = searchParams.getAll("experimentId");
 
+  const filterConditionFieldRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     isConditionValid(deferredFilterCondition, experimentIds).then((result) => {
       if (!result?.isValid) {
@@ -253,7 +259,12 @@ export function ExperimentRunFilterConditionField(
   const hasError = errorMessage !== "";
   const hasCondition = filterCondition !== "";
   return (
-    <div data-is-focused={isFocused} data-is-invalid={hasError} css={fieldCSS}>
+    <div
+      data-is-focused={isFocused}
+      data-is-invalid={hasError}
+      css={fieldCSS}
+      ref={filterConditionFieldRef}
+    >
       <Flex direction="row">
         <AddonBefore>
           <Icon svg={<Icons.Search />} />
@@ -291,37 +302,34 @@ export function ExperimentRunFilterConditionField(
         >
           <Icon svg={<Icons.CloseCircleOutline />} />
         </button>
-        <PopoverTrigger placement="bottom right">
-          <TriggerWrap>
-            <button
-              css={css`
-                color: var(--ac-global-text-color-700);
-                background-color: var(--ac-global-color-grey-300);
-                padding-left: var(--ac-global-dimension-static-size-100);
-                padding-right: var(--ac-global-dimension-static-size-100);
-                height: 100%;
-              `}
-              className="button--reset"
-            >
-              <Icon svg={<Icons.PlusCircleOutline />} />
-            </button>
-          </TriggerWrap>
-          <FilterConditionBuilder
-            onAddFilterConditionSnippet={appendFilterCondition}
-          />
-        </PopoverTrigger>
+        <DialogTrigger>
+          <IconButton
+            css={css`
+              color: var(--ac-global-text-color-700);
+              background-color: var(--ac-global-color-grey-300);
+              padding-left: var(--ac-global-dimension-static-size-100);
+              padding-right: var(--ac-global-dimension-static-size-100);
+              height: 100%;
+            `}
+            className="button--reset"
+          >
+            <Icon svg={<Icons.PlusCircleOutline />} />
+          </IconButton>
+          <Popover placement="bottom right">
+            <FilterConditionBuilder
+              onAddFilterConditionSnippet={appendFilterCondition}
+            />
+          </Popover>
+        </DialogTrigger>
       </Flex>
-      <TooltipTrigger isOpen={hasError && isFocused} placement="bottom">
-        <TriggerWrap>
-          <div />
-        </TriggerWrap>
-        <HelpTooltip>
+      <TooltipTrigger isOpen={hasError && isFocused}>
+        <Tooltip placement="bottom" triggerRef={filterConditionFieldRef}>
           {errorMessage != "" ? (
             <Text color="danger">{errorMessage}</Text>
           ) : (
             <Text color="success">Valid Expression</Text>
           )}
-        </HelpTooltip>
+        </Tooltip>
       </TooltipTrigger>
     </div>
   );
@@ -341,9 +349,8 @@ function FilterConditionBuilder(props: {
       paddingTop="size-200"
       paddingStart="size-200"
       paddingEnd="size-200"
+      paddingBottom="size-200"
       borderRadius="medium"
-      borderWidth="thin"
-      borderColor="light"
       backgroundColor="light"
     >
       <Form>

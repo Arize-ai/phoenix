@@ -10,14 +10,18 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
+import { ProgressBar } from "@arizeai/components";
+
 import {
-  HelpTooltip,
-  ProgressBar,
+  Flex,
+  Heading,
+  Link,
+  RichTooltip,
+  Text,
   TooltipTrigger,
   TriggerWrap,
-} from "@arizeai/components";
-
-import { Flex, Heading, Link, Text, View } from "@phoenix/components";
+  View,
+} from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
 import {
   ExperimentTokenCount,
@@ -585,7 +589,7 @@ function AnnotationAggregationCell({
           />
         </div>
       </TriggerWrap>
-      <HelpTooltip>
+      <RichTooltip>
         <View width="size-2400">
           <Heading level={3} weight="heavy">
             {annotationName}
@@ -617,7 +621,7 @@ function AnnotationAggregationCell({
             </Flex>
           </Flex>
         </View>
-      </HelpTooltip>
+      </RichTooltip>
     </TooltipTrigger>
   );
 }
