@@ -12,7 +12,7 @@ Authors: @mikeldking
 - **Vendor Agnostic** - The evals should not be married to any one provider / platform. It should espouse platform independence.
 - **Batteries Semi-Included** - There's enough utility in the package itself such that I can get up and running with evals without another library. The library should also foster contributions.
 - **Pluggable** - Evals should be easily usable with any platform (Phoenix etc.) or framework (pytest), or prompt management system.
-- **Phoenix.Evals Inside** - Phoenix Server evaluators should entirely rely on this library as its engine.The phoenix platform should dogfood the evals library as it's mechanism to run evals.
+- **Phoenix.Evals Inside** - Phoenix Server evaluators should entirely rely on this library as its engine. The phoenix platform should dogfood the evals library as it's mechanism to run evals.
 - **Open-Source** - The entire evals library and it's dependancies must stay open-source.
 
 ## What is an Eval
