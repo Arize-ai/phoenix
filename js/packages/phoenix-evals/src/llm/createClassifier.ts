@@ -31,7 +31,7 @@ function choicesToLabels(
   choices: ClassificationChoicesMap
 ): [string, ...string[]] {
   const labels = Object.keys(choices);
-  if (labels.length === 0) {
+  if (labels.length < 1) {
     throw new Error("No choices provided");
   }
   return labels as [string, ...string[]];
