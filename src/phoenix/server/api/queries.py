@@ -984,13 +984,14 @@ class Query:
             #     stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
             # stats = _consolidate_sqlite_db_table_stats(stats)
         elif info.context.db.dialect is SupportedSQLDialect.POSTGRESQL:
-            stmt = text(f"""\
+            nspname = getenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA) or "public"
+            stmt = text("""\
                 SELECT c.relname, pg_total_relation_size(c.oid)
                 FROM pg_class as c
                 INNER JOIN pg_namespace as n ON n.oid = c.relnamespace
                 WHERE c.relkind = 'r'
-                AND n.nspname = '{getenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA) or "public"}';
-            """)
+                AND n.nspname = :nspname;
+            """).bindparams(nspname=nspname)
             try:
                 async with info.context.db() as session:
                     stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
