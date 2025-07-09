@@ -1,4 +1,4 @@
-import { ClassificationEvaluationResult, WithLLM } from "../types/evals";
+import { ClassificationResult, WithLLM } from "../types/evals";
 import type { WithPrompt } from "../types/prompts";
 import { generateObject } from "ai";
 import { z } from "zod";
@@ -22,7 +22,7 @@ interface ClassifyArgs extends WithLLM, WithPrompt {
  */
 export async function generateClassification(
   args: ClassifyArgs
-): Promise<ClassificationEvaluationResult> {
+): Promise<ClassificationResult> {
   const { labels, model, schemaName, schemaDescription, ...prompt } = args;
 
   const result = await generateObject({
