@@ -5,7 +5,7 @@ Authors: @mikeldking
 ## Core Pillars
 
 - **Speed** - Speed should be a distinct advantage of using phoenix evals over others. This may come at a trade-off of accuracy at times and should be weighed but in general speed of iteration should be heavily weighed and speed should always should be able to be tuned.
-- **Transparency** - What's happening under the hood is not abstracted away, anything and everything that is done under the hood should be configurable via parameters, configuration, or other mechanisms. The library should be natively instrumented so that traces from the library can be leveraged for obserbability and improvement.
+- **Transparency** - What's happening under the hood is not abstracted away, anything and everything that is done under the hood should be configurable via parameters, configuration, or other mechanisms. The library should be natively instrumented so that traces from the library can be leveraged for observability and improvement.
 - **Customizability** - Prompts, models, parameters - all should be easily swappable with custom code or setups
 - **Extensible** - There should be sufficient utility in the framework such that a user could create a custom metric and leverage the "structure" of the framework to build a good eval for custom tasks
 - **Benchmarked** - All evaluations within the framework that are built-in should be benchmarked and these benchmarks should be made publically available.
