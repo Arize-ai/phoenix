@@ -1,4 +1,7 @@
-// Phoenix CLI Library
-// This file exports the main CLI functionality
+#!/usr/bin/env node
 
-export * from "./cli";
+// Phoenix CLI Entry Point
+import { main } from "./cli";
+
+// Run CLI when executed directly
+main();

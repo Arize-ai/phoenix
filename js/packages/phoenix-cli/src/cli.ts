@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-// Phoenix CLI Entry Point
-// This file will contain the main CLI logic
+// Phoenix CLI Main Logic
+// This file contains the main CLI functionality
 
 export function main() {
   // eslint-disable-next-line no-console
