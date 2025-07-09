@@ -27,7 +27,7 @@ Phoenix Evals supports multiple evaluation methodologies to comprehensively asse
 
 ### LLM-as-a-Judge Evaluations
 
-These evaluations use large language models to assess the quality of AI-generated content, leveraging the reasoning capabilities of advanced models to provide nuanced evaluation. These shold be leveraged in conjunction with human judgement and be tuned for human alignment.
+These evaluations use large language models to assess the quality of AI-generated content, leveraging the reasoning capabilities of advanced models to provide nuanced evaluation. These should be leveraged in conjunction with human judgement and be tuned for human alignment.
 
 ### RAG Evaluations
 
