@@ -17,7 +17,6 @@ Authors: @mikeldking
 
 ## What is an Eval
 
-
 An Eval is simply a function by which you can "evaluate" the generation of an LLM or AI system. By this definition many different strategies can be used. Evals in general should result in human digestable output in the form of a "metric" and these metrics should be used to benchmark and improve the AI system under test.
 
 
