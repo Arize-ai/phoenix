@@ -200,7 +200,7 @@ def update_manifest(
             escaped_model_name = re.escape(model_name).replace("\\-", "-")
             new_model = ModelConfig(
                 name=model_name,
-                name_pattern=f"{escaped_model_name}",  # seed an initial name pattern
+                name_pattern=escaped_model_name,  # seed an initial name pattern
                 source=ModelSource.LITELLM,
                 token_prices=token_prices,
             )
