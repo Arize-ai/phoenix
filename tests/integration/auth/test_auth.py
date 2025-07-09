@@ -24,7 +24,6 @@ from opentelemetry.sdk.trace.export import SpanExportResult
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from strawberry.relay import GlobalID
-from typing_extensions import TypeAlias
 
 from .._helpers import (
     _ADMIN,
@@ -1352,12 +1351,6 @@ class TestPrompts:
             user = version["promptVersion"]["user"]
             assert user is not None
             assert user["id"] == logged_in_user.gid
-
-
-SpanId: TypeAlias = str
-SpanGlobalId: TypeAlias = str
-TraceId: TypeAlias = str
-TraceGlobalId: TypeAlias = str
 
 
 class TestSpanAnnotations:
