@@ -1,3 +1,4 @@
+import functools
 import inspect
 import random
 from abc import ABC, abstractmethod
@@ -5,7 +6,10 @@ from collections.abc import Awaitable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from types import MappingProxyType
 from typing import Any, Callable, Optional, Union, cast
+
+from typing_extensions import Protocol, runtime_checkable
 
 from phoenix.client.__generated__ import v1
 
@@ -81,169 +85,194 @@ ExperimentTask = Union[
 EvaluatorOutput = Union[EvaluationResult, bool, int, float, str, tuple[Score, Label, Explanation]]
 
 
-class Evaluator(ABC):
-    """Base class for evaluators."""
+@runtime_checkable
+class Evaluator(Protocol):
+    """
+    Protocol for evaluators that can score experiment outputs.
 
-    def __init__(self, name: Optional[str] = None):
-        self._name = name
+    Any object implementing this protocol can be used as an evaluator.
+    Subclasses should implement either the `evaluate` or `async_evaluate` method.
+    Implementing both methods is recommended, but not required.
+    """
 
     @property
     def name(self) -> str:
-        return self._name if self._name else self.__class__.__name__
+        """The name of the evaluator."""
+        ...
 
     @property
     def kind(self) -> str:
-        return AnnotatorKind.CODE.value
+        """The kind of evaluator (e.g., 'CODE', 'LLM')."""
+        ...
 
-    @abstractmethod
     def evaluate(
         self,
         *,
         output: Optional[TaskOutput] = None,
-        input: Optional[ExampleInput] = None,
         expected: Optional[ExampleOutput] = None,
-        reference: Optional[ExampleOutput] = None,
-        metadata: Optional[ExampleMetadata] = None,
+        metadata: ExampleMetadata = MappingProxyType({}),
+        input: ExampleInput = MappingProxyType({}),
         **kwargs: Any,
     ) -> EvaluationResult:
-        """Evaluate the output."""
-        pass
+        """Evaluate the output synchronously."""
+        ...
 
     async def async_evaluate(
         self,
         *,
         output: Optional[TaskOutput] = None,
-        input: Optional[ExampleInput] = None,
         expected: Optional[ExampleOutput] = None,
-        reference: Optional[ExampleOutput] = None,
-        metadata: Optional[ExampleMetadata] = None,
+        metadata: ExampleMetadata = MappingProxyType({}),
+        input: ExampleInput = MappingProxyType({}),
         **kwargs: Any,
     ) -> EvaluationResult:
-        """Async evaluate the output."""
+        """Evaluate the output asynchronously."""
+        ...
+
+
+def _validate_evaluator_signature(sig: inspect.Signature) -> None:
+    """Validate that a function signature is compatible with evaluator requirements."""
+    params = sig.parameters
+    valid_named_params = {"input", "output", "expected", "reference", "metadata"}
+    if len(params) == 0:
+        raise ValueError("Evaluator function must have at least one parameter.")
+    if len(params) > 1:
+        for param_name in set(params) - valid_named_params:
+            param = params[param_name]
+            if (
+                param.kind is inspect.Parameter.VAR_KEYWORD
+                or param.default is not inspect.Parameter.empty
+            ):
+                continue
+            raise ValueError(
+                f"Invalid parameter name in evaluator function: {param_name}. "
+                "Parameter names for multi-argument functions must be "
+                f"any of: {', '.join(valid_named_params)}."
+            )
+
+
+def _validate_evaluator_method_signature(fn: Callable[..., Any], fn_name: str) -> None:
+    """Validate that an evaluator method has the correct signature."""
+    sig = inspect.signature(fn)
+    _validate_evaluator_signature(sig)
+    for param in sig.parameters.values():
+        if param.kind is inspect.Parameter.VAR_KEYWORD:
+            return
+    else:
+        raise ValueError(f"`{fn_name}` should allow variadic keyword arguments `**kwargs`")
+
+
+class BaseEvaluator(ABC):
+    """
+    A helper abstract class to guide the implementation of an `Evaluator` object.
+    Subclasses must implement either the `evaluate` or `async_evaluate` method.
+    Implementing both methods is recommended, but not required.
+
+    This Class is intended to be subclassed, and should not be instantiated directly.
+    """
+
+    _kind: AnnotatorKind
+    _name: EvaluatorName
+
+    @functools.cached_property
+    def name(self) -> EvaluatorName:
+        if hasattr(self, "_name"):
+            return self._name
+        return self.__class__.__name__
+
+    @functools.cached_property
+    def kind(self) -> EvaluatorKind:
+        if hasattr(self, "_kind"):
+            return self._kind.value
+        return AnnotatorKind.CODE.value
+
+    def __new__(cls, *args: Any, **kwargs: Any) -> "BaseEvaluator":
+        if cls is BaseEvaluator:
+            raise TypeError(f"{cls.__name__} is an abstract class and should not be instantiated.")
+        return object.__new__(cls)
+
+    def evaluate(
+        self,
+        *,
+        output: Optional[TaskOutput] = None,
+        expected: Optional[ExampleOutput] = None,
+        metadata: ExampleMetadata = MappingProxyType({}),
+        input: ExampleInput = MappingProxyType({}),
+        **kwargs: Any,
+    ) -> EvaluationResult:
+        """
+        Evaluate the output synchronously.
+
+        For subclassing, one should implement either this sync method or the
+        async version. Implementing both is recommended but not required.
+        """
+        raise NotImplementedError
+
+    async def async_evaluate(
+        self,
+        *,
+        output: Optional[TaskOutput] = None,
+        expected: Optional[ExampleOutput] = None,
+        metadata: ExampleMetadata = MappingProxyType({}),
+        input: ExampleInput = MappingProxyType({}),
+        **kwargs: Any,
+    ) -> EvaluationResult:
+        """
+        Evaluate the output asynchronously.
+
+        For subclassing, one should implement either this async method or the
+        sync version. Implementing both is recommended but not required.
+        """
         return self.evaluate(
             output=output,
-            input=input,
             expected=expected,
-            reference=reference,
             metadata=metadata,
+            input=input,
             **kwargs,
         )
 
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
 
-class FunctionEvaluator(Evaluator):
-    """Evaluator that wraps a function."""
+        # Skip validation for abstract classes
+        if getattr(cls, "__abstract__", False):
+            return
 
-    def __init__(self, func: Callable[..., Any], name: Optional[str] = None):
-        super().__init__(name)
-        self._func = func
-        self._signature = inspect.signature(func)
+        # Validate that subclass implements at least one evaluation method
+        evaluate_fn_signature = inspect.signature(BaseEvaluator.evaluate)
+        for super_cls in inspect.getmro(cls):
+            if super_cls is BaseEvaluator:
+                break
+            if evaluate := super_cls.__dict__.get(BaseEvaluator.evaluate.__name__):
+                if isinstance(evaluate, classmethod):
+                    evaluate = evaluate.__func__
+                assert callable(evaluate), "`evaluate()` method should be callable"
+                # need to remove the first param, i.e. `self`
+                _validate_evaluator_method_signature(functools.partial(evaluate, None), "evaluate")
+                return
+            if async_evaluate := super_cls.__dict__.get(BaseEvaluator.async_evaluate.__name__):
+                if isinstance(async_evaluate, classmethod):
+                    async_evaluate = async_evaluate.__func__
+                assert callable(async_evaluate), "`async_evaluate()` method should be callable"
+                # need to remove the first param, i.e. `self`
+                _validate_evaluator_method_signature(
+                    functools.partial(async_evaluate, None), "async_evaluate"
+                )
+                return
 
-    def evaluate(
-        self,
-        *,
-        output: Optional[TaskOutput] = None,
-        input: Optional[ExampleInput] = None,
-        expected: Optional[ExampleOutput] = None,
-        reference: Optional[ExampleOutput] = None,
-        metadata: Optional[ExampleMetadata] = None,
-        **kwargs: Any,
-    ) -> EvaluationResult:
-        """Evaluate using the wrapped function."""
-        # Bind function arguments
-        parameter_mapping = {
-            "output": output,
-            "input": input,
-            "expected": expected,
-            "reference": reference,
-            "metadata": metadata,
-        }
-
-        params = self._signature.parameters
-        if len(params) == 1:
-            # Single parameter - use output
-            result = self._func(output)
-        else:
-            # Multiple parameters - bind by name
-            bound_args = {}
-            for param_name in params:
-                if param_name in parameter_mapping:
-                    bound_args[param_name] = parameter_mapping[param_name]
-            result = self._func(**bound_args)
-
-        return self._convert_to_evaluation_result(result)
-
-    async def async_evaluate(
-        self,
-        *,
-        output: Optional[TaskOutput] = None,
-        input: Optional[ExampleInput] = None,
-        expected: Optional[ExampleOutput] = None,
-        reference: Optional[ExampleOutput] = None,
-        metadata: Optional[ExampleMetadata] = None,
-        **kwargs: Any,
-    ) -> EvaluationResult:
-        """Async evaluate using the wrapped function."""
-        parameter_mapping = {
-            "output": output,
-            "input": input,
-            "expected": expected,
-            "reference": reference,
-            "metadata": metadata,
-        }
-
-        params = self._signature.parameters
-        if len(params) == 1:
-            # Single parameter - use output
-            result = self._func(output)
-        else:
-            # Multiple parameters - bind by name
-            bound_args = {}
-            for param_name in params:
-                if param_name in parameter_mapping:
-                    bound_args[param_name] = parameter_mapping[param_name]
-            result = self._func(**bound_args)
-
-        if isinstance(result, Awaitable):
-            result = cast(Any, await result)
-
-        return self._convert_to_evaluation_result(result)
-
-    def _convert_to_evaluation_result(self, result: Any) -> EvaluationResult:
-        """Convert function result to EvaluationResult."""
-        if isinstance(result, dict):
-            # Check if it looks like an EvaluationResult dict
-            valid_keys = {"label", "score", "explanation"}
-            if all(isinstance(k, str) and k in valid_keys for k in result.keys()):  # pyright: ignore
-                return result  # type: ignore[return-value]
-        elif isinstance(result, bool):
-            return {"score": float(result), "label": str(result)}
-        elif isinstance(result, (int, float)):
-            return {"score": float(result)}
-        elif isinstance(result, str):
-            return {"label": result}
-        elif isinstance(result, tuple) and len(result) >= 2:  # pyright: ignore[reportUnknownArgumentType]
-            # Handle tuple results like (score, label) or (score, label, explanation)
-            score_val = result[0]  # pyright: ignore[reportUnknownVariableType]
-            label_val = result[1]  # pyright: ignore[reportUnknownVariableType]
-            score = float(score_val) if score_val is not None else None  # pyright: ignore[reportUnknownArgumentType]
-            label = str(label_val) if label_val is not None else None  # pyright: ignore[reportUnknownArgumentType]
-            explanation = str(result[2]) if len(result) > 2 and result[2] is not None else None  # pyright: ignore[reportUnknownArgumentType, reportUnknownArgumentType]
-
-            result_dict: EvaluationResult = {}
-            if score is not None:
-                result_dict["score"] = score
-            if label is not None:
-                result_dict["label"] = label
-            if explanation is not None:
-                result_dict["explanation"] = explanation
-            return result_dict
-
-        # Default case - convert to string label
-        return {"label": str(result)}  # pyright: ignore[reportUnknownArgumentType]
+        raise ValueError(
+            f"Evaluator must implement either "
+            f"`def evaluate{evaluate_fn_signature}` or "
+            f"`async def async_evaluate{evaluate_fn_signature}`"
+        )
 
 
 # Type aliases for evaluators
-ExperimentEvaluator = Union[Evaluator, Callable[..., Any]]
+ExperimentEvaluator = Union[
+    Evaluator,
+    Callable[..., EvaluatorOutput],
+    Callable[..., Awaitable[EvaluatorOutput]],
+]
 Evaluators = Union[
     ExperimentEvaluator,
     Sequence[ExperimentEvaluator],

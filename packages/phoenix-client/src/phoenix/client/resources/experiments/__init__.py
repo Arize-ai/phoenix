@@ -33,6 +33,7 @@ from opentelemetry.trace import INVALID_TRACE_ID, Status, StatusCode, Tracer
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
+from phoenix.client.resources.experiments.evaluators import create_evaluator
 from phoenix.client.utils.executors import AsyncExecutor, SyncExecutor
 from phoenix.client.utils.rate_limiters import RateLimiter
 
@@ -46,7 +47,6 @@ from .types import (
     ExperimentEvaluationRun,
     ExperimentRun,
     ExperimentTask,
-    FunctionEvaluator,
     RateLimitErrors,
     TestCase,
 )
@@ -164,21 +164,6 @@ def get_tqdm_progress_bar_formatter(title: str) -> str:
     )
 
 
-def create_evaluator(
-    name: Optional[str] = None, kind: str = "CODE"
-) -> Callable[[Union[Callable[..., Any], Evaluator]], Evaluator]:
-    """Create an evaluator from a function."""
-
-    def wrapper(func: Union[Callable[..., Any], Evaluator]) -> Evaluator:
-        if isinstance(func, Evaluator):
-            return func
-        evaluator_signature = inspect.signature(func)
-        _validate_evaluator_signature(evaluator_signature)
-        return FunctionEvaluator(func, name)
-
-    return wrapper
-
-
 def get_func_name(func: Callable[..., Any]) -> str:
     """Get the name of a function."""
     return getattr(func, "__name__", str(func))
@@ -190,6 +175,8 @@ def jsonify(obj: Any) -> Any:
         return None
     elif isinstance(obj, (str, int, float, bool)):
         return obj
+    elif isinstance(obj, datetime):
+        return obj.isoformat()
     elif isinstance(obj, (list, tuple)):
         return [jsonify(item) for item in obj]  # pyright: ignore[reportUnknownVariableType]
     elif isinstance(obj, dict):
@@ -277,25 +264,6 @@ def _bind_task_signature(
         **{name: parameter_mapping[name] for name in set(parameter_mapping).intersection(params)}
     )
 
-
-def _validate_evaluator_signature(sig: inspect.Signature) -> None:
-    params = sig.parameters
-    valid_named_params = {"output", "input", "expected", "reference", "metadata"}
-    if len(params) == 0:
-        raise ValueError("Evaluator function must have at least one parameter.")
-    if len(params) > 1:
-        for not_found in set(params) - valid_named_params:
-            param = params[not_found]
-            if (
-                param.kind is inspect.Parameter.VAR_KEYWORD
-                or param.default is not inspect.Parameter.empty
-            ):
-                continue
-            raise ValueError(
-                f"Invalid parameter names in evaluator function: {not_found}. "
-                "Parameters names for multi-argument functions must be "
-                f"any of: {', '.join(valid_named_params)}."
-            )
 
 
 def _bind_evaluator_signature(
@@ -962,8 +930,12 @@ class Experiments:
                 )
                 resp.raise_for_status()
                 eval_run = replace(eval_run, id=resp.json()["data"]["id"])
-            except HTTPStatusError:
-                pass  # Continue even if evaluation storage fails
+            except HTTPStatusError as e:
+                logger.warning(
+                    f"Failed to submit evaluation result for evaluator '{evaluator.name}': "
+                    f"HTTP {e.response.status_code} - {e.response.text}"
+                )
+                # Continue even if evaluation storage fails
 
         return eval_run
 
@@ -1596,7 +1568,11 @@ class AsyncExperiments:
                 )
                 resp.raise_for_status()
                 eval_run = replace(eval_run, id=resp.json()["data"]["id"])
-            except HTTPStatusError:
-                pass  # Continue even if evaluation storage fails
+            except HTTPStatusError as e:
+                logger.warning(
+                    f"Failed to submit evaluation result for evaluator '{evaluator.name}': "
+                    f"HTTP {e.response.status_code} - {e.response.text}"
+                )
+                # Continue even if evaluation storage fails
 
         return eval_run
