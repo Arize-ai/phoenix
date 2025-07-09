@@ -59,3 +59,22 @@ export interface ClassificationChoice {
  * A mapping of labels to scores
  */
 export type ClassificationChoicesMap = Record<string, number>;
+
+/**
+ * The arguments for creating a classification-based evaluator
+ */
+export interface CreateClassifierArgs {
+  /**
+   * The LLM to use for classification / evaluation
+   */
+  model: LanguageModel;
+  /**
+   * The choices to classify the example into.
+   * e.g. { "correct": 1, "incorrect": 0 }
+   */
+  choices: ClassificationChoicesMap;
+  /**
+   * The prompt template to use for classification
+   */
+  promptTemplate: string;
+}

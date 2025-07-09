@@ -18,6 +18,10 @@
       "import": "./dist/esm/template/*.js",
       "require": "./dist/src/template/*.js"
     },
+    "./templates/*": {
+      "import": "./dist/esm/default_templates/*.js",
+      "require": "./dist/src/default_templates/*.js"
+    },
     "./types/*": {
       "import": "./dist/esm/types/*.d.ts",
       "require": "./dist/src/types/*.d.ts"
