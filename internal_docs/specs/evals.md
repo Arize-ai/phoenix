@@ -19,7 +19,6 @@ Authors: @mikeldking
 
 An Eval is simply a function by which you can "evaluate" the generation of an LLM or AI system. By this definition many different strategies can be used. Evals in general should result in human digestable output in the form of a "metric" and these metrics should be used to benchmark and improve the AI system under test.
 
-
 ## Evaluation Methods
 
 Phoenix Evals supports multiple evaluation methodologies to comprehensively assess AI system performance across different dimensions and use cases.
@@ -47,3 +46,7 @@ Vector-based evaluations that leverage semantic embeddings to assess content sim
 Rule-based and algorithmic evaluations that provide fast, deterministic assessments.
 
 Examples: `Levenshtein Distance`, `Exact Match`
+
+### Pairwise Evaluations
+
+This evaluation method involves comparing two responses side-by-side to determine which one better meets a specific criteria, rather than scoring responses individually. For example, reinforcement learning from human feedback (RLHF) employs pairwise evaluation in LLM alignment where human trainers are presented with pairs of LLM responses for the same input and select which one better aligns with certain criteria (e.g., helpfulness, informativeness, or safety). This approach is often more intuitive for humans than assigning absolute scores and can be implemented through human annotation, LLM-as-a-judge, or automated metrics.
