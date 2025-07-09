@@ -24,6 +24,20 @@ interface CreateClassifierArgs {
 }
 
 /**
+ * Convert a mapping of choices to labels
+ * Asserts that the choices are valid
+ */
+function choicesToLabels(
+  choices: ClassificationChoicesMap
+): [string, ...string[]] {
+  const labels = Object.keys(choices);
+  if (labels.length === 0) {
+    throw new Error("No choices provided");
+  }
+  return labels as [string, ...string[]];
+}
+
+/**
  * A function that serves as a factory that will output a classification evaluator
  */
 export function createClassifier<OutputType, InputType>(
@@ -45,7 +59,7 @@ export function createClassifier<OutputType, InputType>(
 
     const classification = await generateClassification({
       model,
-      labels: Object.keys(choices) as [string, ...string[]],
+      labels: choicesToLabels(choices),
       prompt,
     });
 
