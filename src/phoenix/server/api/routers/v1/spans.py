@@ -601,7 +601,7 @@ async def span_search_otlpv1(
             models.Span,
             models.Trace.trace_id,
         )
-        .join_from(models.Span, models.Trace)
+        .join(models.Trace, onclause=models.Trace.id == models.Span.trace_rowid)
         .where(models.Trace.project_rowid == project_id)
         .order_by(*order_by)
     )
@@ -736,7 +736,7 @@ async def span_search(
             models.Span,
             models.Trace.trace_id,
         )
-        .join_from(models.Span, models.Trace)
+        .join(models.Trace, onclause=models.Trace.id == models.Span.trace_rowid)
         .where(models.Trace.project_rowid == project_id)
         .order_by(*order_by)
     )
