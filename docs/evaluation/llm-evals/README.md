@@ -10,5 +10,5 @@ Phoenix Evals come with:
 * **Run evals on your own data** - [Phoenix Evals](../how-to-evals/bring-your-own-evaluator.md) takes a dataframe as its primary input and output, making it easy to run evaluations on your own data - whether that's logs, traces, or datasets downloaded for benchmarking.
 * **Speed** - Phoenix evals are designed for maximum speed and throughput. Evals run in batches and typically run 10x faster than calling the APIs directly.
 * **Built-in Explanations -** All Phoenix evaluations include an [explanation flag](broken-reference) that requires eval models to explain their judgment rationale. This boosts performance and helps you understand and improve your eval.
-* [**Eval Models**](broken-reference) - Phoenix let's you configure which foundation model you'd like to use as a judge. This includes OpenAI, Anthropic, Gemini, and much more. See [evaluation-models.md](../how-to-evals/evaluation-models.md "mention")
+* [**Eval Models**](../how-to-evals/evaluation-models.md) - Phoenix let's you configure which foundation model you'd like to use as a judge. This includes OpenAI, Anthropic, Gemini, and much more. See [evaluation-models.md](../how-to-evals/evaluation-models.md "mention")
 

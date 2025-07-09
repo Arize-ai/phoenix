@@ -15,7 +15,7 @@ We've built evaluation templates for every step:
 * [Agent Planning](../how-to-evals/running-pre-tested-evals/agent-planning.md)
 * [Agent Reflection](../how-to-evals/running-pre-tested-evals/agent-reflection.md)
 
-You can evaluate the individual skills and response using normal LLM evaluation strategies, such as [Retrieval Evaluation](../how-to-evals/running-pre-tested-evals/retrieval-rag-relevance.md), [Classification with LLM Judges](broken-reference), [Hallucination](../how-to-evals/running-pre-tested-evals/hallucinations.md), or [Q\&A Correctness](../how-to-evals/running-pre-tested-evals/q-and-a-on-retrieved-data.md).
+You can evaluate the individual skills and response using normal LLM evaluation strategies, such as [Retrieval Evaluation](../how-to-evals/running-pre-tested-evals/retrieval-rag-relevance.md), Classification with [LLM Judges](https://app.gitbook.com/s/fqGNxHHFrgwnCxgUBNsJ/evaluation/llm-as-a-judge), [Hallucination](../how-to-evals/running-pre-tested-evals/hallucinations.md), or [Q\&A Correctness](../how-to-evals/running-pre-tested-evals/q-and-a-on-retrieved-data.md).
 
 Read more to see the breakdown of each component.
 
