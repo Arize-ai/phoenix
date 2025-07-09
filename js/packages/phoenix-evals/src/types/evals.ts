@@ -24,17 +24,17 @@ export interface LLMEvaluationArgs<OutputType, InputType>
 export interface EvaluationResult {
   /**
    * The score of the evaluation.
-   * e.x. 0.95
+   * @example 0.95
    */
   score?: number;
   /**
    * The label of the evaluation.
-   * e.x. "correct"
+   * @example "correct"
    */
   label?: string;
   /**
    * The explanation of the evaluation.
-   * e.x. "The model correctly identified the sentiment of the text."
+   * @example "The model correctly identified the sentiment of the text."
    */
   explanation?: string;
 }
