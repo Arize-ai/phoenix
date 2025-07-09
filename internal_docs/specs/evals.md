@@ -8,7 +8,7 @@ Authors: @mikeldking
 - **Transparency** - What's happening under the hood is not abstracted away, anything and everything that is done under the hood should be configurable via parameters, configuration, or other mechanisms. The library should be natively instrumented so that traces from the library can be leveraged for observability and improvement.
 - **Customizability** - Prompts, models, parameters - all should be easily swappable with custom code or setups
 - **Extensible** - There should be sufficient utility in the framework such that a user could create a custom metric and leverage the "structure" of the framework to build a good eval for custom tasks
-- **Benchmarked** - All evaluations within the framework that are built-in should be benchmarked and these benchmarks should be made publically available.
+- **Benchmarked** - All evaluations within the framework that are built-in should be benchmarked and these benchmarks should be made publicly available.
 - **Vendor Agnostic** - The evals should not be married to any one provider / platform. It should espouse platform independence.
 - **Batteries Semi-Included** - There's enough utility in the package itself such that I can get up and running with evals without another library. The library should also foster contributions.
 - **Pluggable** - Evals should be easily usable with any platform (Phoenix etc.) or framework (pytest), or prompt management system.
