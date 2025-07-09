@@ -1,5 +1,22 @@
 # Changelog
 
+## [11.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.5.0...arize-phoenix-v11.6.0) (2025-07-09)
+
+
+### Features
+
+* **design:** add experiment table story ([#8456](https://github.com/Arize-ai/phoenix/issues/8456)) ([381f2d2](https://github.com/Arize-ai/phoenix/commit/381f2d2ae27b9d22181f7a2fe30b63f808da2fdb))
+* **experiments:** add baseline to compare experiments page ([#8461](https://github.com/Arize-ai/phoenix/issues/8461)) ([439f7d1](https://github.com/Arize-ai/phoenix/commit/439f7d1c3dab6498cb2ef4720734685f74013c12))
+
+
+### Bug Fixes
+
+* change postgresql query for db disk usage monitoring ([#8492](https://github.com/Arize-ai/phoenix/issues/8492)) ([5bc38d8](https://github.com/Arize-ai/phoenix/commit/5bc38d82790438770181610a7cf133ad85aeac8e))
+* **cost:** incorrect regex match method for model name ([#8490](https://github.com/Arize-ai/phoenix/issues/8490)) ([19abe24](https://github.com/Arize-ai/phoenix/commit/19abe242dc1eaf59fd05e227014424c08e2a920a))
+* incorrect cartesian join in span search ([#8486](https://github.com/Arize-ai/phoenix/issues/8486)) ([628eb25](https://github.com/Arize-ai/phoenix/commit/628eb25693b0874bc8ef7d9b3eafec5e183c363e))
+* remove regex anchors for model names ([#8491](https://github.com/Arize-ai/phoenix/issues/8491)) ([f51249d](https://github.com/Arize-ai/phoenix/commit/f51249dbe9a0e5ff7b914b8dc30031007063b47e))
+* **ui:** spans table column for cumulative cost summary ([#8495](https://github.com/Arize-ai/phoenix/issues/8495)) ([e31ec74](https://github.com/Arize-ai/phoenix/commit/e31ec74e7bad674574849fcd70f624ea9d6bb67c))
+
 ## [11.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.4.0...arize-phoenix-v11.5.0) (2025-07-07)
 
 
