@@ -4,7 +4,7 @@ from __future__ import annotations
 from asyncio import sleep
 from platform import system
 from secrets import token_bytes, token_hex
-from typing import Any, Literal, NamedTuple, Optional, cast
+from typing import Any, Literal, NamedTuple, Optional, Sequence, cast
 
 import pandas as pd
 import phoenix as px
@@ -16,13 +16,14 @@ from opentelemetry.trace import format_span_id, format_trace_id
 from phoenix.client.__generated__ import v1
 from phoenix.trace import DocumentEvaluations, SpanEvaluations, TraceEvaluations
 from strawberry.relay import GlobalID
-from typing_extensions import TypeAlias, assert_never
+from typing_extensions import assert_never
 
 from .._helpers import (
     _ADMIN,
     _MEMBER,
     _AppInfo,
     _await_or_return,
+    _ExistingSpan,
     _get,
     _GetUser,
     _gql,
@@ -31,10 +32,6 @@ from .._helpers import (
     _SecurityArtifact,
     _start_span,
 )
-
-# Type aliases for better readability
-SpanId: TypeAlias = str
-SpanGlobalId: TypeAlias = str
 
 
 @pytest.mark.skipif(
@@ -93,7 +90,7 @@ class TestClientForSpanAnnotations:
         is_async: bool,
         role_or_user: _RoleOrUser,
         api_key_kind: Literal["User", "System"],
-        _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
+        _existing_spans: Sequence[_ExistingSpan],
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
@@ -110,7 +107,8 @@ class TestClientForSpanAnnotations:
         # Setup
         # ============================================================================
         # Extract OTEL span ID and graphql Global ID from the fixture
-        (span_id1, span_gid1), _ = _span_ids
+        assert _existing_spans, "At least one existing span is required for this test"
+        (span_gid1, span_id1, *_), *_ = _existing_spans
 
         # Set up test environment with logged-in user
         u = _get_user(_app, role_or_user).log_in(_app)
@@ -162,7 +160,7 @@ class TestClientForSpanAnnotations:
                     u,
                     query=self.query,
                     operation_name="GetSpanAnnotations",
-                    variables={"id": span_gid1},
+                    variables={"id": str(span_gid1)},
                 )
                 annotations = {
                     (anno["label"], anno["score"], anno["explanation"]): anno
@@ -210,7 +208,7 @@ class TestClientForSpanAnnotations:
         sync: bool,
         is_async: bool,
         role_or_user: _RoleOrUser,
-        _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
+        _existing_spans: Sequence[_ExistingSpan],
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
@@ -228,7 +226,8 @@ class TestClientForSpanAnnotations:
         # Setup
         # ============================================================================
         # Extract OTEL span ID and graphql Global ID from the fixture
-        (span_id1, span_gid1), (span_id2, span_gid2) = _span_ids
+        assert len(_existing_spans) >= 2, "At least two existing spans are required for this test"
+        (span_gid1, span_id1, *_), (span_gid2, span_id2, *_), *_ = _existing_spans
 
         # Set up test environment with logged-in user
         u = _get_user(_app, role_or_user).log_in(_app)
@@ -305,7 +304,7 @@ class TestClientForSpanAnnotations:
                         u,
                         query=self.query,
                         operation_name="GetSpanAnnotations",
-                        variables={"id": span_gids[j]},
+                        variables={"id": str(span_gids[j])},
                     )
                     annotations = {
                         (anno["label"], anno["score"], anno["explanation"]): anno
@@ -350,7 +349,7 @@ class TestClientForSpanAnnotations:
         sync: bool,
         is_async: bool,
         role_or_user: _RoleOrUser,
-        _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
+        _existing_spans: Sequence[_ExistingSpan],
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
@@ -372,7 +371,8 @@ class TestClientForSpanAnnotations:
         # Setup
         # ============================================================================
         # Extract OTEL span ID and graphql Global ID from the fixture
-        (span_id1, span_gid1), (span_id2, span_gid2) = _span_ids
+        assert len(_existing_spans) >= 2, "At least two existing spans are required for this test"
+        (span_gid1, span_id1, *_), (span_gid2, span_id2, *_), *_ = _existing_spans
 
         # Set up test environment with logged-in user
         u = _get_user(_app, role_or_user).log_in(_app)
@@ -433,7 +433,7 @@ class TestClientForSpanAnnotations:
                     u,
                     query=self.query,
                     operation_name="GetSpanAnnotations",
-                    variables={"id": span_gid},
+                    variables={"id": str(span_gid)},
                 )
                 annotations = {
                     (anno["label"], anno["score"], anno["explanation"]): anno
@@ -507,7 +507,7 @@ class TestClientForSpanAnnotations:
                     u,
                     query=self.query,
                     operation_name="GetSpanAnnotations",
-                    variables={"id": span_gid},
+                    variables={"id": str(span_gid)},
                 )
                 annotations = {
                     (anno["label"], anno["score"], anno["explanation"]): anno
@@ -583,7 +583,7 @@ class TestClientForSpanAnnotations:
                     u,
                     query=self.query,
                     operation_name="GetSpanAnnotations",
-                    variables={"id": span_gid},
+                    variables={"id": str(span_gid)},
                 )
                 annotations = {
                     (anno["label"], anno["score"], anno["explanation"]): anno
@@ -617,7 +617,7 @@ class TestClientForSpanAnnotations:
         sync: bool,
         is_async: bool,
         role_or_user: _RoleOrUser,
-        _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
+        _existing_spans: Sequence[_ExistingSpan],
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
@@ -633,7 +633,8 @@ class TestClientForSpanAnnotations:
         # Setup
         # ============================================================================
         # Extract OTEL span ID and graphql Global ID from the fixture
-        (span_id1, span_gid1), _ = _span_ids
+        assert _existing_spans, "At least one existing span is required for this test"
+        (span_gid1, span_id1, *_), *_ = _existing_spans
 
         # Set up test environment with logged-in user
         u = _get_user(_app, role_or_user).log_in(_app)
@@ -672,7 +673,7 @@ class TestClientForSpanAnnotations:
                 u,
                 query=self.query,
                 operation_name="GetSpanAnnotations",
-                variables={"id": span_gid1},
+                variables={"id": str(span_gid1)},
             )
             annotations = {anno["name"]: anno for anno in res["data"]["node"]["spanAnnotations"]}
             return annotations.get(zero_score_annotation_name)
@@ -698,7 +699,7 @@ class TestClientForSpanAnnotations:
         sync: bool,
         is_async: bool,
         role_or_user: _RoleOrUser,
-        _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
+        _existing_spans: Sequence[_ExistingSpan],
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
@@ -714,7 +715,8 @@ class TestClientForSpanAnnotations:
         # Setup
         # ============================================================================
         # Extract OTEL span ID and graphql Global ID from the fixture
-        (span_id1, span_gid1), _ = _span_ids
+        assert _existing_spans, "At least one existing span is required for this test"
+        (span_gid1, span_id1, *_), *_ = _existing_spans
 
         # Set up test environment with logged-in user
         u = _get_user(_app, role_or_user).log_in(_app)
@@ -763,7 +765,7 @@ class TestClientForSpanAnnotations:
                 u,
                 query=self.query,
                 operation_name="GetSpanAnnotations",
-                variables={"id": span_gid1},
+                variables={"id": str(span_gid1)},
             )
             annotations = {anno["name"]: anno for anno in res["data"]["node"]["spanAnnotations"]}
             return annotations.get(zero_score_annotation_name)
@@ -1065,7 +1067,7 @@ class TestSendingAnnotationsBeforeSpan:
                 _app,
                 _app.admin_secret,
                 query=self.query,
-                variables={"id": span_gid},
+                variables={"id": str(span_gid)},
                 operation_name="GetSpanAnnotations",
             )
             annos = {
@@ -1114,7 +1116,7 @@ class TestSendingAnnotationsBeforeSpan:
                 _app,
                 _app.admin_secret,
                 query=self.query,
-                variables={"id": trace_gid},
+                variables={"id": str(trace_gid)},
                 operation_name="GetTraceAnnotations",
             )
             annos = {
@@ -1145,7 +1147,7 @@ class TestSendingAnnotationsBeforeSpan:
                 _app,
                 _app.admin_secret,
                 query=self.query,
-                variables={"id": span_gid},
+                variables={"id": str(span_gid)},
                 operation_name="GetDocumentEvaluations",
             )
             annos = {
