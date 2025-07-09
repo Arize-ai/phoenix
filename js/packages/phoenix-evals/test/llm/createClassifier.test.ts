@@ -18,7 +18,7 @@ describe("createClassifier", () => {
 
   const model = openai("gpt-4o-mini");
 
-  const halluchinationPromptTemplate = `
+  const hallucinationPromptTemplate = `
 In this task, you will be presented with a query, a reference text and an answer. The answer is
 generated to the question based on the reference text. The answer may contain false information. You
 must use the reference text to determine if the answer to the question contains false information,
@@ -115,7 +115,7 @@ Is the answer above factual or hallucinated based on the query and reference tex
     const classifier = createClassifier({
       model,
       choices: { factual: 1, hallucinated: 0 },
-      promptTemplate: halluchinationPromptTemplate,
+      promptTemplate: hallucinationPromptTemplate,
     });
 
     const result = await classifier({
