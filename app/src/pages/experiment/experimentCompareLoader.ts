@@ -42,13 +42,6 @@ export async function experimentCompareLoader(
             compareExperimentIds: $compareExperimentIds
             datasetId: $datasetId
           )
-        ...ExperimentCompareTable_comparisons
-          @include(if: $hasBaselineExperimentId)
-          @arguments(
-            baselineExperimentId: $baselineExperimentId
-            compareExperimentIds: $compareExperimentIds
-            datasetId: $datasetId
-          )
         ...ExperimentMultiSelector__data
           @arguments(hasBaselineExperimentId: $hasBaselineExperimentId)
       }
