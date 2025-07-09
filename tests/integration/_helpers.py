@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import os
 import re
 import ssl
@@ -26,6 +27,7 @@ from typing import (
     Generator,
     Generic,
     Literal,
+    NamedTuple,
     Optional,
     Protocol,
     Sequence,
@@ -50,8 +52,9 @@ from opentelemetry.exporter.otlp.proto.grpc.exporter import _load_credentials
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExporter, SpanExportResult
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.sdk.trace.id_generator import IdGenerator
-from opentelemetry.trace import Span, Tracer
+from opentelemetry.trace import Span, Tracer, format_span_id
 from opentelemetry.util.types import AttributeValue
 from phoenix.auth import (
     DEFAULT_ADMIN_EMAIL,
@@ -1558,3 +1561,113 @@ async def _get(
             raise AssertionError(error_msg)
         retries -= 1
         wt = min(wt * 1.5, max_wait_time)
+
+
+_SpanId: TypeAlias = str
+_TraceId: TypeAlias = str
+
+_SpanGlobalID: TypeAlias = GlobalID
+_TraceGlobalId: TypeAlias = GlobalID
+_ProjectGlobalId: TypeAlias = GlobalID
+
+
+class _ExistingProject(NamedTuple):
+    id: GlobalID
+    name: str
+
+
+class _ExistingTrace(NamedTuple):
+    id: GlobalID
+    trace_id: _TraceId
+    project: _ExistingProject
+
+
+class _ExistingSpan(NamedTuple):
+    id: GlobalID
+    span_id: _SpanId
+    trace: _ExistingTrace
+
+
+def _insert_spans(app: _AppInfo, n: int) -> tuple[_ExistingSpan, ...]:
+    assert n > 0, "Number of spans to insert must be greater than 0"
+    memory = InMemorySpanExporter()
+    project_name = token_hex(16)
+    for _ in range(n):
+        _start_span(project_name=project_name, exporter=memory).end()
+    assert len(spans := memory.get_finished_spans()) == n
+
+    headers = {"authorization": f"Bearer {app.admin_secret}"}
+    assert _grpc_span_exporter(app, headers=headers).export(spans) is SpanExportResult.SUCCESS
+
+    span_ids = set()
+    for span in spans:
+        assert (context := span.get_span_context())  # type: ignore[no-untyped-call]
+        span_ids.add(format_span_id(context.span_id))
+    assert len(span_ids) == n
+
+    return asyncio.run(
+        _get(
+            lambda: tuple(ans) if len(ans := _get_existing_spans(app, span_ids)) == n else None,
+            error_msg="spans not found",
+        )
+    )
+
+
+def _get_existing_spans(
+    app: _AppInfo,
+    span_ids: Iterable[_SpanId],
+) -> set[_ExistingSpan]:
+    ids = list(span_ids)
+    n = len(ids)
+    query = """
+      query ($filterCondition: String, $first: Int) {
+        projects {
+          edges {
+            node {
+              id
+              name
+              spans (filterCondition: $filterCondition, first: $first) {
+                edges {
+                  node {
+                    id
+                    spanId
+                    trace {
+                      id
+                      traceId
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+    res, _ = _gql(
+        app,
+        app.admin_secret,
+        query=query,
+        variables={"filterCondition": f"span_id in {ids}", "first": n},
+    )
+    return {
+        _ExistingSpan(
+            id=GlobalID.from_id(span["node"]["id"]),
+            span_id=span["node"]["spanId"],
+            trace=_ExistingTrace(
+                id=GlobalID.from_id(span["node"]["trace"]["id"]),
+                trace_id=span["node"]["trace"]["traceId"],
+                project=_ExistingProject(
+                    id=GlobalID.from_id(project["node"]["id"]),
+                    name=project["node"]["name"],
+                ),
+            ),
+        )
+        for project in res["data"]["projects"]["edges"]
+        for span in project["node"]["spans"]["edges"]
+        if span["node"]["spanId"] in ids
+    }
+
+
+async def _until_spans_exist(app: _AppInfo, span_ids: Iterable[_SpanId]) -> None:
+    ids = set(span_ids)
+    await _get(lambda: (len(_get_existing_spans(app, ids)) == len(ids)) or None)

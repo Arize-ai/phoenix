@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from random import random
 from secrets import token_hex
-from typing import Any, cast
+from typing import Any, Sequence, cast
 
 import pandas as pd
 import pytest
@@ -15,8 +15,11 @@ from .._helpers import (
     _MEMBER,  # pyright: ignore[reportPrivateUsage]
     _AppInfo,  # pyright: ignore[reportPrivateUsage]
     _await_or_return,  # pyright: ignore[reportPrivateUsage]
+    _ExistingProject,
+    _ExistingSpan,
     _GetUser,  # pyright: ignore[reportPrivateUsage]
     _RoleOrUser,
+    _until_spans_exist,
 )
 
 # Type aliases for better readability
@@ -36,11 +39,15 @@ class TestClientForSpanAnnotationsRetrieval:
         self,
         is_async: bool,
         role_or_user: _RoleOrUser,
-        _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
+        _existing_spans: Sequence[_ExistingSpan],
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        (span_id1, _), (span_id2, _) = _span_ids
+        num_spans = len(_existing_spans)
+        assert num_spans >= 2, "At least two existing spans are required for this test"
+        existing_span1, (_, span_id2, *_), *_ = _existing_spans
+        span_id1 = existing_span1.span_id
+        project_name = existing_span1.trace.project.name
 
         user = _get_user(_app, role_or_user).log_in(_app)
         api_key = str(user.create_api_key(_app))
@@ -87,7 +94,7 @@ class TestClientForSpanAnnotationsRetrieval:
         df = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_span_annotations_dataframe(
                 span_ids=[span_id1, span_id2],
-                project_identifier="default",
+                project_identifier=project_name,
             )
         )
 
@@ -100,7 +107,7 @@ class TestClientForSpanAnnotationsRetrieval:
         annotations = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_span_annotations(
                 span_ids=[span_id1, span_id1, span_id2],  # include duplicate on purpose
-                project_identifier="default",
+                project_identifier=project_name,
             )
         )
 
@@ -131,7 +138,7 @@ class TestClientForSpanAnnotationsRetrieval:
         df_from_df = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_span_annotations_dataframe(
                 spans_dataframe=spans_input_df,
-                project_identifier="default",
+                project_identifier=project_name,
             )
         )
 
@@ -155,11 +162,15 @@ class TestClientForSpanAnnotationsRetrieval:
         self,
         is_async: bool,
         role_or_user: _RoleOrUser,
-        _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
+        _existing_spans: Sequence[_ExistingSpan],
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        (span_id1, _), (span_id2, _) = _span_ids
+        num_spans = len(_existing_spans)
+        assert num_spans >= 2, "At least two existing spans are required for this test"
+        existing_span1, (_, span_id2, *_), *_ = _existing_spans
+        span_id1 = existing_span1.span_id
+        project_name = existing_span1.trace.project.name
 
         user = _get_user(_app, role_or_user).log_in(_app)
         api_key = str(user.create_api_key(_app))
@@ -190,7 +201,7 @@ class TestClientForSpanAnnotationsRetrieval:
         df_default = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_span_annotations_dataframe(
                 span_ids=[span_id1, span_id2],
-                project_identifier="default",
+                project_identifier=project_name,
             )
         )
 
@@ -202,7 +213,7 @@ class TestClientForSpanAnnotationsRetrieval:
         df_with_notes = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_span_annotations_dataframe(
                 span_ids=[span_id1, span_id2],
-                project_identifier="default",
+                project_identifier=project_name,
                 include_annotation_names=[regular_annotation_name, "note"],
             )
         )
@@ -215,7 +226,7 @@ class TestClientForSpanAnnotationsRetrieval:
         df_excluded = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_span_annotations_dataframe(
                 span_ids=[span_id1, span_id2],
-                project_identifier="default",
+                project_identifier=project_name,
                 exclude_annotation_names=[regular_annotation_name],
             )
         )
@@ -228,7 +239,7 @@ class TestClientForSpanAnnotationsRetrieval:
         annotations_default = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_span_annotations(
                 span_ids=[span_id1, span_id2],
-                project_identifier="default",
+                project_identifier=project_name,
             )
         )
 
@@ -240,7 +251,7 @@ class TestClientForSpanAnnotationsRetrieval:
         annotations_with_notes = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_span_annotations(
                 span_ids=[span_id1, span_id2],
-                project_identifier="default",
+                project_identifier=project_name,
                 include_annotation_names=[regular_annotation_name, "note"],
             )
         )
@@ -250,15 +261,20 @@ class TestClientForSpanAnnotationsRetrieval:
             with_notes_names = {a["name"] for a in annotations_with_notes}
             assert regular_annotation_name in with_notes_names
 
-    def test_invalid_arguments_validation(self, _app: _AppInfo) -> None:
+    def test_invalid_arguments_validation(
+        self,
+        _existing_project: _ExistingProject,
+        _app: _AppInfo,
+    ) -> None:
         """Supplying multiple or no parameters should error."""
         from phoenix.client import Client
 
         spans_client = Client(base_url=_app.base_url).spans
+        project_name = _existing_project.name
 
         # Test get_span_annotations_dataframe
         with pytest.raises(ValueError):
-            spans_client.get_span_annotations_dataframe(project_identifier="default")
+            spans_client.get_span_annotations_dataframe(project_identifier=project_name)
 
         dummy_df = pd.DataFrame()
 
@@ -266,7 +282,7 @@ class TestClientForSpanAnnotationsRetrieval:
             spans_client.get_span_annotations_dataframe(
                 spans_dataframe=dummy_df,
                 span_ids=["abc"],
-                project_identifier="default",
+                project_identifier=project_name,
             )
 
         # Create complete v1.Span objects for testing
@@ -300,25 +316,25 @@ class TestClientForSpanAnnotationsRetrieval:
             spans_client.get_span_annotations_dataframe(
                 spans_dataframe=dummy_df,
                 spans=[test_span_1],
-                project_identifier="default",
+                project_identifier=project_name,
             )
 
         with pytest.raises(ValueError):
             spans_client.get_span_annotations_dataframe(
                 span_ids=["abc"],
                 spans=[test_span_2],
-                project_identifier="default",
+                project_identifier=project_name,
             )
 
         # Test get_span_annotations
         with pytest.raises(ValueError):
-            spans_client.get_span_annotations(project_identifier="default")
+            spans_client.get_span_annotations(project_identifier=project_name)
 
         with pytest.raises(ValueError):
             spans_client.get_span_annotations(
                 span_ids=["abc"],
                 spans=[test_span_2],
-                project_identifier="default",
+                project_identifier=project_name,
             )
 
     @pytest.mark.parametrize("is_async", [True, False])
@@ -327,12 +343,16 @@ class TestClientForSpanAnnotationsRetrieval:
         self,
         is_async: bool,
         role_or_user: _RoleOrUser,
-        _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
+        _existing_spans: Sequence[_ExistingSpan],
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test getting span annotations using Span objects from get_spans."""
-        (span_id1, _), (span_id2, _) = _span_ids
+        num_spans = len(_existing_spans)
+        assert num_spans >= 2, "At least two existing spans are required for this test"
+        existing_span1, (_, span_id2, *_), *_ = _existing_spans
+        span_id1 = existing_span1.span_id
+        project_name = existing_span1.trace.project.name
 
         user = _get_user(_app, role_or_user).log_in(_app)
         api_key = str(user.create_api_key(_app))
@@ -376,36 +396,38 @@ class TestClientForSpanAnnotationsRetrieval:
         # Get spans using the new get_spans method
         spans = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
-                project_identifier="default",
-                limit=50,
+                project_identifier=project_name,
+                limit=num_spans,
             )
         )
-
+        assert len(spans) == num_spans, "Should retrieve all existing spans"
         # Filter to only the spans we're interested in
         target_spans = [s for s in spans if s["context"]["span_id"] in [span_id1, span_id2]]
-        assert len(target_spans) >= 2, "Should find at least the two test spans"
+        assert len(target_spans) == 2, "Should find the two test spans"
 
         # Test get_span_annotations_dataframe with spans objects
         df = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_span_annotations_dataframe(
                 spans=target_spans,
-                project_identifier="default",
+                project_identifier=project_name,
+                include_annotation_names=[annotation_name_1, annotation_name_2],
             )
         )
 
         assert isinstance(df, pd.DataFrame)
-        assert len(df) >= 2, "Should have annotations for both spans"
+        assert len(df) == 2, "Should have annotations for both spans"
 
         # Test get_span_annotations with spans objects
         annotations = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_span_annotations(
                 spans=target_spans,
-                project_identifier="default",
+                project_identifier=project_name,
+                include_annotation_names=[annotation_name_1, annotation_name_2],
             )
         )
 
         assert isinstance(annotations, list)
-        assert len(annotations) >= 2, "Should have annotations for both spans"
+        assert len(annotations) == 2, "Should have annotations for both spans"
 
         # Verify the annotations contain our test data
         by_span_name = {(a["span_id"], a["name"]): a for a in annotations}
@@ -447,7 +469,7 @@ class TestClientForSpanAnnotationsRetrieval:
         annotations_filtered = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_span_annotations(
                 spans=spans_with_missing_ids,
-                project_identifier="default",
+                project_identifier=project_name,
             )
         )
 
@@ -466,11 +488,16 @@ class TestClientForSpansRetrieval:
         self,
         is_async: bool,
         role_or_user: _RoleOrUser,
-        _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
+        _existing_spans: Sequence[_ExistingSpan],
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test basic span retrieval returns ergonomic span format."""
+        num_spans = len(_existing_spans)
+        assert num_spans >= 2, "At least two existing spans are required for this test"
+        existing_span1, *_ = _existing_spans
+        project_name = existing_span1.trace.project.name
+
         user = _get_user(_app, role_or_user).log_in(_app)
         api_key = str(user.create_api_key(_app))
 
@@ -481,14 +508,13 @@ class TestClientForSpansRetrieval:
 
         spans = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
-                project_identifier="default",
-                limit=10,
+                project_identifier=project_name,
+                limit=num_spans,
             )
         )
 
         assert isinstance(spans, list)
-        # Should have at least the test spans
-        assert len(spans) >= 2
+        assert len(spans) == num_spans
 
         # Each span should be a dict with the expected structure
         for span in spans:
@@ -514,6 +540,7 @@ class TestClientForSpansRetrieval:
     async def test_time_filtering(
         self,
         is_async: bool,
+        _existing_project: _ExistingProject,
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
@@ -534,7 +561,8 @@ class TestClientForSpansRetrieval:
         test_spans: list[v1.Span] = []
         span_times: list[datetime] = []
 
-        for i in range(5):
+        num_spans = 5
+        for i in range(num_spans):
             span_time = base_time + timedelta(seconds=i * 10)
             span_times.append(span_time)
 
@@ -555,20 +583,22 @@ class TestClientForSpansRetrieval:
             )
             test_spans.append(span)
 
+        project_name = _existing_project.name
+
         # Create the test spans
         create_result = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
-                project_identifier="default",
+                project_identifier=project_name,
                 spans=test_spans,
             )
         )
 
-        assert create_result["total_queued"] == 5, f"Failed to create test spans: {create_result}"
+        assert (
+            create_result["total_queued"] == num_spans
+        ), f"Failed to create test spans: {create_result}"
 
         # Wait for spans to be processed
-        import asyncio
-
-        await asyncio.sleep(2)
+        await _until_spans_exist(_app, [s["context"]["span_id"] for s in test_spans])
 
         # Test 1: Filter to get only middle spans (index 1, 2, 3)
         middle_start = span_times[1] - timedelta(seconds=1)  # Just before span 1
@@ -576,10 +606,10 @@ class TestClientForSpansRetrieval:
 
         middle_spans = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
-                project_identifier="default",
+                project_identifier=project_name,
                 start_time=middle_start,
                 end_time=middle_end,
-                limit=100,  # Use higher limit to ensure we get all matching spans
+                limit=num_spans,
             )
         )
 
@@ -605,9 +635,9 @@ class TestClientForSpansRetrieval:
 
         later_spans = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
-                project_identifier="default",
+                project_identifier=project_name,
                 start_time=later_start,
-                limit=100,
+                limit=num_spans,
             )
         )
 
@@ -625,9 +655,9 @@ class TestClientForSpansRetrieval:
 
         earlier_spans = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
-                project_identifier="default",
+                project_identifier=project_name,
                 end_time=earlier_end,
-                limit=100,
+                limit=num_spans,
             )
         )
 
@@ -644,10 +674,15 @@ class TestClientForSpansRetrieval:
     async def test_automatic_pagination(
         self,
         is_async: bool,
+        _existing_spans: Sequence[_ExistingSpan],
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that the method automatically handles pagination to fetch up to the limit."""
+        assert len(_existing_spans) >= 102, "At least 102 spans are required for this test"
+        existing_span1, *_ = _existing_spans
+        project_name = existing_span1.trace.project.name
+
         user = _get_user(_app, _MEMBER).log_in(_app)
         api_key = str(user.create_api_key(_app))
 
@@ -658,36 +693,42 @@ class TestClientForSpansRetrieval:
 
         # The method uses page_size = min(100, limit), so test with limit > 100
         # to ensure pagination happens (if there are enough spans)
-        limit = 150
+        limit = 101
         spans = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
-                project_identifier="default",
+                project_identifier=project_name,
                 limit=limit,
             )
         )
 
         # We should get up to the limit, or all available spans
-        assert len(spans) <= limit
+        assert len(spans) == limit
 
         # Test with small limit
         small_limit = 5
         small_spans = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
-                project_identifier="default",
+                project_identifier=project_name,
                 limit=small_limit,
             )
         )
 
-        assert len(small_spans) <= small_limit
+        assert len(small_spans) == small_limit
 
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_project_identifier_types(
         self,
         is_async: bool,
+        _existing_spans: Sequence[_ExistingSpan],
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that project identifier works with both project names and IDs."""
+        assert _existing_spans, "At least one existing span is required for this test"
+        existing_span1, *_ = _existing_spans
+        project_id = str(existing_span1.trace.project.id)
+        project_name = existing_span1.trace.project.name
+
         user = _get_user(_app, _ADMIN).log_in(_app)
         api_key = str(user.create_api_key(_app))
 
@@ -696,21 +737,10 @@ class TestClientForSpansRetrieval:
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
-        # First get the project to find its ID
-        projects = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).projects.list()
-        )
-        default_project = next((p for p in projects if p["name"] == "default"), None)
-
-        if not default_project:
-            pytest.skip("Default project not found")
-
-        project_id = default_project["id"]
-
         # Get spans by project name
         spans_by_name = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
-                project_identifier="default",
+                project_identifier=project_name,
                 limit=5,
             )
         )
@@ -731,10 +761,14 @@ class TestClientForSpansRetrieval:
     async def test_span_structure(
         self,
         is_async: bool,
-        _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
+        _existing_spans: Sequence[_ExistingSpan],
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
+        assert _existing_spans, "At least one existing span is required for this test"
+        existing_span, *_ = _existing_spans
+        project_name = existing_span.trace.project.name
+
         user = _get_user(_app, _MEMBER).log_in(_app)
         api_key = str(user.create_api_key(_app))
 
@@ -745,7 +779,7 @@ class TestClientForSpansRetrieval:
 
         spans = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
-                project_identifier="default",
+                project_identifier=project_name,
                 limit=10,
             )
         )
@@ -793,10 +827,15 @@ class TestClientForSpansRetrieval:
     async def test_empty_results(
         self,
         is_async: bool,
+        _existing_spans: Sequence[_ExistingSpan],
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test behavior when no spans match the filter criteria."""
+        assert _existing_spans, "At least one existing span is required for this test"
+        existing_span, *_ = _existing_spans
+        project_name = existing_span.trace.project.name
+
         user = _get_user(_app, _MEMBER).log_in(_app)
         api_key = str(user.create_api_key(_app))
 
@@ -810,7 +849,7 @@ class TestClientForSpansRetrieval:
 
         spans = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
-                project_identifier="default",
+                project_identifier=project_name,
                 start_time=far_future,
                 limit=10,
             )
@@ -850,11 +889,17 @@ class TestClientForSpansRetrieval:
     async def test_client_get_spans(
         self,
         is_async: bool,
-        _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
+        _existing_spans: Sequence[_ExistingSpan],
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test the get_spans method returns spans correctly."""
+        num_spans = len(_existing_spans)
+        assert num_spans >= 2, "At least two existing spans are required for this test"
+        existing_span1, (_, span_id2, *_), *_ = _existing_spans
+        span_id1 = existing_span1.span_id
+        project_name = existing_span1.trace.project.name
+
         user = _get_user(_app, _MEMBER).log_in(_app)
         api_key = str(user.create_api_key(_app))
 
@@ -863,12 +908,9 @@ class TestClientForSpansRetrieval:
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
-        # Extract the span IDs from the fixture
-        (span_id1, _), (span_id2, _) = _span_ids
-
         all_spans = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
-                project_identifier="default", limit=50
+                project_identifier=project_name, limit=num_spans
             )
         )
 
@@ -878,10 +920,10 @@ class TestClientForSpansRetrieval:
 
         limited_spans = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
-                project_identifier="default", limit=1
+                project_identifier=project_name, limit=1
             )
         )
-        assert len(limited_spans) <= 1, "Limit parameter should be respected"
+        assert len(limited_spans) == 1, "Limit parameter should be respected"
 
         # Each span should have required fields
         for span in all_spans:
@@ -916,6 +958,7 @@ class TestClientForSpanCreation:
 
     async def test_basic_span_operations(
         self,
+        _existing_project: _ExistingProject,
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
@@ -947,22 +990,25 @@ class TestClientForSpanCreation:
             attributes={"test_attr": "child_value"},
         )
 
+        project_name = _existing_project.name
+        num_spans = 2
+
         # Create spans successfully
         result = client.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
-            project_identifier="default",
+            project_identifier=project_name,
             spans=[parent_span, child_span],
         )
-        assert result["total_received"] == 2
-        assert result["total_queued"] == 2
+        assert result["total_received"] == num_spans
+        assert result["total_queued"] == num_spans
+
+        await _until_spans_exist(
+            _app, [parent_span["context"]["span_id"], child_span["context"]["span_id"]]
+        )
 
         # Test 2: Duplicate span rejection
-        import time
-
-        time.sleep(1)  # Give server time to process
-
         with pytest.raises(SpanCreationError) as exc_info:
             client.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
-                project_identifier="default",
+                project_identifier=project_name,
                 spans=[parent_span],  # Duplicate
             )
         error = exc_info.value
@@ -977,7 +1023,7 @@ class TestClientForSpanCreation:
 
         with pytest.raises(SpanCreationError) as exc_info:
             client.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
-                project_identifier="default",
+                project_identifier=project_name,
                 spans=[invalid_span],
             )
         error = exc_info.value
@@ -998,6 +1044,7 @@ class TestClientForSpanCreation:
     async def test_helper_functions_round_trip(
         self,
         is_async: bool,
+        _existing_project: _ExistingProject,
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
@@ -1055,25 +1102,24 @@ class TestClientForSpanCreation:
                 v1.Span, {**test_spans[1], "parent_id": test_spans[0]["context"]["span_id"]}
             )
 
+            project_name = _existing_project.name
+            num_spans = len(test_spans)
+
             # Create original spans
             result = await _await_or_return(
                 Client(base_url=_app.base_url, api_key=api_key).spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
-                    project_identifier="default",
+                    project_identifier=project_name,
                     spans=test_spans,
                 )
             )
-            assert result["total_queued"] == 2
+            assert result["total_queued"] == num_spans
 
-            # Wait for indexing
-            import asyncio
+            await _until_spans_exist(_app, [span["context"]["span_id"] for span in test_spans])
 
-            await asyncio.sleep(2)
-
-            # Get spans as DataFrame
             df = await _await_or_return(
                 Client(base_url=_app.base_url, api_key=api_key).spans.get_spans_dataframe(
-                    project_identifier="default",
-                    limit=50,
+                    project_identifier=project_name,
+                    limit=num_spans,
                 )
             )
 
@@ -1081,12 +1127,9 @@ class TestClientForSpanCreation:
             our_spans_mask = df["context.trace_id"] == trace_id
             our_df = df[our_spans_mask].copy()
 
-            if len(our_df) == 0:
-                pytest.skip("Could not find test spans in DataFrame")
-
             # Test 1: DataFrame to spans conversion
             reconstructed_spans = dataframe_to_spans(our_df)
-            assert len(reconstructed_spans) == 2
+            assert len(reconstructed_spans) == num_spans
 
             spans_by_name = {span["name"]: span for span in reconstructed_spans}
             assert "roundtrip_parent" in spans_by_name
@@ -1141,7 +1184,7 @@ class TestClientForSpanCreation:
             final_unique_spans = uniquify_spans(final_spans, in_place=False)
 
             # Verify final spans are valid and can be created
-            assert len(final_unique_spans) == 2
+            assert len(final_unique_spans) == num_spans
             for span in final_unique_spans:
                 assert "context" in span
                 assert "span_id" in span["context"]
@@ -1156,6 +1199,7 @@ class TestClientForSpanCreation:
     async def test_batch_creation_and_retrieval(
         self,
         is_async: bool,
+        _existing_project: _ExistingProject,
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
@@ -1168,6 +1212,9 @@ class TestClientForSpanCreation:
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
+        project_name = _existing_project.name
+        num_spans = 5
+
         trace_id = f"batch_trace_{token_hex(16)}"
         batch_spans = [
             self._create_test_span(
@@ -1175,27 +1222,25 @@ class TestClientForSpanCreation:
                 context={"trace_id": trace_id, "span_id": f"span_{token_hex(8)}"},
                 attributes={"batch_index": i},
             )
-            for i in range(5)
+            for i in range(num_spans)
         ]
 
         # Create batch
         result = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
-                project_identifier="default",
+                project_identifier=project_name,
                 spans=batch_spans,
             )
         )
-        assert result["total_received"] == 5
-        assert result["total_queued"] == 5
+        assert result["total_received"] == num_spans
+        assert result["total_queued"] == num_spans
 
-        import asyncio
-
-        await asyncio.sleep(1)
+        await _until_spans_exist(_app, [span["context"]["span_id"] for span in batch_spans])
 
         retrieved_spans = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
-                project_identifier="default",
-                limit=50,
+                project_identifier=project_name,
+                limit=num_spans,
             )
         )
 
@@ -1207,6 +1252,7 @@ class TestClientForSpanCreation:
     async def test_log_spans_dataframe_roundtrip(
         self,
         is_async: bool,
+        _existing_project: _ExistingProject,
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
@@ -1341,30 +1387,30 @@ class TestClientForSpanCreation:
         input_df.set_index("context.span_id", inplace=True, drop=False)
         input_df.index.name = "span_id"
 
+        project_name = _existing_project.name
+        num_spans = len(input_df)
+
         # Log spans using DataFrame
         result = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.log_spans_dataframe(  # pyright: ignore[reportAttributeAccessIssue]
-                project_identifier="default",
+                project_identifier=project_name,
                 spans_dataframe=input_df,
             )
         )
-        assert result["total_queued"] == 2
+        assert result["total_queued"] == num_spans
 
-        import asyncio
+        await _until_spans_exist(_app, input_df.index.tolist())
 
-        await asyncio.sleep(1)
-
-        # Retrieve spans as DataFrame
         output_df = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_spans_dataframe(
-                project_identifier="default",
-                limit=50,
+                project_identifier=project_name,
+                limit=num_spans,
             )
         )
 
         # Filter to our test spans (check both trace IDs since we have different ones)
         our_spans = output_df[output_df["context.trace_id"].isin([trace_id_1, trace_id_2])]
-        assert len(our_spans) == 2
+        assert len(our_spans) == num_spans
 
         # Verify roundtrip data by matching on name (spans may get new IDs)
         span_names = set(our_spans["name"].tolist())

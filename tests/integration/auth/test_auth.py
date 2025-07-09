@@ -1,4 +1,3 @@
-from asyncio import sleep
 from collections import defaultdict
 from collections.abc import Iterator, Sequence
 from contextlib import AbstractContextManager
@@ -25,7 +24,6 @@ from opentelemetry.sdk.trace.export import SpanExportResult
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from strawberry.relay import GlobalID
-from typing_extensions import TypeAlias
 
 from .._helpers import (
     _ADMIN,
@@ -44,6 +42,7 @@ from .._helpers import (
     _create_api_key,
     _create_user,
     _Email,
+    _ExistingSpan,
     _Expectation,
     _export_embeddings,
     _extract_html,
@@ -1354,10 +1353,6 @@ class TestPrompts:
             assert user["id"] == logged_in_user.gid
 
 
-SpanId: TypeAlias = str
-SpanGlobalId: TypeAlias = str
-
-
 class TestSpanAnnotations:
     QUERY = """
       mutation CreateSpanAnnotations($input: [CreateSpanAnnotationInput!]!) {
@@ -1413,11 +1408,13 @@ class TestSpanAnnotations:
 
     async def test_other_users_cannot_patch_and_only_creator_or_admin_can_delete(
         self,
-        _spans: Sequence[ReadableSpan],
+        _existing_spans: Sequence[_ExistingSpan],
         _get_user: _GetUser,
         _app: _AppInfo,
-        _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
     ) -> None:
+        assert _existing_spans, "At least one existing span is required for this test"
+        (span_gid, *_), *_ = _existing_spans
+
         annotation_creator = _get_user(_app, _MEMBER)
         logged_in_annotation_creator = annotation_creator.log_in(_app)
         member = _get_user(_app, _MEMBER)
@@ -1426,7 +1423,6 @@ class TestSpanAnnotations:
         logged_in_admin = admin.log_in(_app)
 
         # Create span annotation
-        span_gid = _span_ids[0][1]
         name = token_hex(8)
         response, _ = logged_in_annotation_creator.gql(
             _app,
@@ -1434,7 +1430,7 @@ class TestSpanAnnotations:
             operation_name="CreateSpanAnnotations",
             variables={
                 "input": {
-                    "spanId": span_gid,
+                    "spanId": str(span_gid),
                     "name": name,
                     "annotatorKind": "HUMAN",
                     "label": "correct",
@@ -1580,10 +1576,14 @@ class TestTraceAnnotations:
 
     async def test_other_users_cannot_patch_and_only_creator_or_admin_can_delete(
         self,
-        _spans: Sequence[ReadableSpan],
+        _existing_spans: Sequence[_ExistingSpan],
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
+        assert _existing_spans, "At least one existing span is required for this test"
+        existing_span, *_ = _existing_spans
+        trace_gid = existing_span.trace.id
+
         annotation_creator = _get_user(_app, _MEMBER)
         logged_in_annotation_creator = annotation_creator.log_in(_app)
         member = _get_user(_app, _MEMBER)
@@ -1591,22 +1591,14 @@ class TestTraceAnnotations:
         admin = _get_user(_app, _ADMIN)
         logged_in_admin = admin.log_in(_app)
 
-        # Add spans
-        user_api_key = logged_in_annotation_creator.create_api_key(_app)
-        headers = dict(authorization=f"Bearer {user_api_key}")
-        exporter = _http_span_exporter(_app, headers=headers)
-        assert exporter.export(_spans) is SpanExportResult.SUCCESS
-        await sleep(0.1)  # wait for spans to be exported and written to disk
-
         # Create trace annotation
-        trace_gid = str(GlobalID("Trace", "1"))
         response, _ = logged_in_annotation_creator.gql(
             _app,
             query=self.QUERY,
             operation_name="CreateTraceAnnotations",
             variables={
                 "input": {
-                    "traceId": trace_gid,
+                    "traceId": str(trace_gid),
                     "name": "trace-annotation-name",
                     "annotatorKind": "HUMAN",
                     "label": "correct",
@@ -1625,7 +1617,6 @@ class TestTraceAnnotations:
         annotation_id = original_trace_annotation["id"]
 
         # Only the user who created the annotation can patch
-        trace_gid = str(GlobalID("Trace", "1"))
         for user in [logged_in_member, logged_in_admin]:
             with pytest.raises(RuntimeError) as exc_info:
                 response, _ = user.gql(
