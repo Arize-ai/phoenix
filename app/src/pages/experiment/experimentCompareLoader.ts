@@ -42,7 +42,7 @@ export async function experimentCompareLoader(
             compareExperimentIds: $compareExperimentIds
             datasetId: $datasetId
           )
-        ...ExperimentCompareTableVirtualized_comparisons
+        ...ExperimentCompareTableVirtual_comparisons
           @include(if: $hasBaselineExperimentId)
           @arguments(
             baselineExperimentId: $baselineExperimentId

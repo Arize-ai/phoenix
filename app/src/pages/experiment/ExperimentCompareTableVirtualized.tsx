@@ -1,10 +1,13 @@
 import React, { ReactNode, useMemo, useRef, useState } from "react";
+import { graphql, usePaginationFragment } from "react-relay";
+import { useSearchParams } from "react-router";
 import { faker } from "@faker-js/faker";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
-import type { ExperimentCompareTableVirtualized_comparisons$key, ExperimentCompareTableVirtualized_comparisons$data } from "./__generated__/ExperimentCompareTableVirtualized_comparisons.graphql";
-import { useSearchParams } from "react-router";
-import { graphql, usePaginationFragment } from "react-relay";
+import type {
+  ExperimentCompareTableVirtualized_comparisons$data,
+  ExperimentCompareTableVirtualized_comparisons$key,
+} from "./__generated__/ExperimentCompareTableVirtualized_comparisons.graphql";
 import type { ExperimentCompareTableVirtualizedQuery } from "./__generated__/ExperimentCompareTableVirtualizedQuery.graphql";
 
 type ExampleCompareTableProps = {
@@ -187,7 +190,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     [data]
   );
 
-
   const parentRef = useRef<HTMLDivElement>(null);
   const [enabled, setEnabled] = useState(true);
 
@@ -196,7 +198,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     count,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 45,
-    enabled
+    enabled,
   });
 
   const items = virtualizer.getVirtualItems();
@@ -282,5 +284,3 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     </div>
   );
 }
-
-
