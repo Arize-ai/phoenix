@@ -16,9 +16,9 @@ import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
-  Table,
   useReactTable,
 } from "@tanstack/react-table";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { css } from "@emotion/react";
 
 import { Card, CardProps } from "@arizeai/components";
@@ -572,6 +572,18 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     refetch,
   ]);
 
+  // Virtualization setup
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 200, // Estimate row height - adjust based on your content
+    overscan: 5,
+  });
+
+  const virtualRows = virtualizer.getVirtualItems();
+
   return (
     <View overflow="auto">
       <Flex direction="column" height="100%">
@@ -591,7 +603,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         <div
           css={tableWrapCSS}
           onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
-          ref={tableContainerRef}
+          ref={parentRef}
         >
           <table
             css={css(tableCSS, borderedTableCSS)}
@@ -665,21 +677,48 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
             </thead>
             {isEmpty ? (
               <TableEmpty />
-            ) : table.getState().columnSizingInfo.isResizingColumn ? (
-              /* When resizing any column we will render this special memoized version of our table body */
-              <MemoizedTableBody
-                table={table}
-                hasNext={hasNext}
-                onLoadNext={() => loadNext(50)}
-                isLoadingNext={isLoadingNext}
-              />
             ) : (
-              <TableBody
-                table={table}
-                hasNext={hasNext}
-                onLoadNext={() => loadNext(50)}
-                isLoadingNext={isLoadingNext}
-              />
+              <tbody>
+                {virtualRows.map((virtualRow, index) => {
+                  const row = rows[virtualRow.index];
+                  return (
+                    <tr
+                      key={row.id}
+                      style={{
+                        height: `${virtualRow.size}px`,
+                        transform: `translateY(${
+                          virtualRow.start - index * virtualRow.size
+                        }px)`,
+                      }}
+                    >
+                      {row.getVisibleCells().map((cell) => {
+                        return (
+                          <td
+                            key={cell.id}
+                            style={{
+                              width: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
+                              maxWidth: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
+                              padding: 0,
+                            }}
+                          >
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext()
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+                {hasNext ? (
+                  <LoadMoreRow
+                    onLoadMore={() => loadNext(50)}
+                    key="load-more"
+                    isLoadingNext={isLoadingNext}
+                  />
+                ) : null}
+              </tbody>
             )}
           </table>
         </div>
@@ -701,54 +740,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     </View>
   );
 }
-
-//un-memoized normal table body component - see memoized version below
-function TableBody<T>({
-  table,
-  hasNext,
-  onLoadNext,
-  isLoadingNext,
-}: {
-  table: Table<T>;
-  hasNext: boolean;
-  onLoadNext: () => void;
-  isLoadingNext: boolean;
-}) {
-  return (
-    <tbody>
-      {table.getRowModel().rows.map((row) => (
-        <tr key={row.id}>
-          {row.getVisibleCells().map((cell) => {
-            return (
-              <td
-                key={cell.id}
-                style={{
-                  width: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
-                  maxWidth: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
-                  padding: 0,
-                }}
-              >
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-              </td>
-            );
-          })}
-        </tr>
-      ))}
-      {hasNext ? (
-        <LoadMoreRow
-          onLoadMore={onLoadNext}
-          key="load-more"
-          isLoadingNext={isLoadingNext}
-        />
-      ) : null}
-    </tbody>
-  );
-}
-//special memoized wrapper for our table body that we will use during column resizing
-export const MemoizedTableBody = React.memo(
-  TableBody,
-  (prev, next) => prev.table.options.data === next.table.options.data
-) as typeof TableBody;
 
 enum ExperimentRowAction {
   GO_TO_EXAMPLE = "gotoExample",
