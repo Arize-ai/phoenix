@@ -185,6 +185,9 @@ importers:
       ai:
         specifier: ^4.1.47
         version: 4.3.16(react@19.1.0)(zod@3.25.75)
+      mustache:
+        specifier: ^4.2.0
+        version: 4.2.0
       zod:
         specifier: ^3.25.75
         version: 3.25.75
@@ -192,6 +195,9 @@ importers:
       '@ai-sdk/openai':
         specifier: ^1.1.15
         version: 1.3.22(zod@3.25.75)
+      '@types/mustache':
+        specifier: ^4.2.6
+        version: 4.2.6
       '@types/node':
         specifier: ^24.0.10
         version: 24.0.10
@@ -927,6 +933,9 @@ packages:
 
   '@types/minimist@1.2.5':
     resolution: {integrity: sha512-hov8bUuiLiyFPGyFPE1lwWhmzYbirOXQNNo40+y3zow8aFVTeyn3VWL0VFFfdNddA8S4Vf0Tc062rzyNr7Paag==}
+
+  '@types/mustache@4.2.6':
+    resolution: {integrity: sha512-t+8/QWTAhOFlrF1IVZqKnMRJi84EgkIK5Kh0p2JV4OLywUvCwJPFxbJAl7XAow7DVIHsF+xW9f1MVzg0L6Szjw==}
 
   '@types/node-fetch@2.6.12':
     resolution: {integrity: sha512-8nneRWKCg3rMtF69nLQJnOYUcbafYeFSjqkw3jCRLsqkWFlHaoQrr5mXmofFGOx3DKn7UfmBMyov8ySvLRVldA==}
@@ -3527,6 +3536,8 @@ snapshots:
   '@types/minimatch@5.1.2': {}
 
   '@types/minimist@1.2.5': {}
+
+  '@types/mustache@4.2.6': {}
 
   '@types/node-fetch@2.6.12':
     dependencies:

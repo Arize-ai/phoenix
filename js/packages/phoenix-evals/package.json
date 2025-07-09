@@ -14,6 +14,10 @@
       "import": "./dist/esm/llm/*.js",
       "require": "./dist/src/llm/*.js"
     },
+    "./template/*": {
+      "import": "./dist/esm/template/*.js",
+      "require": "./dist/src/template/*.js"
+    },
     "./types/*": {
       "import": "./dist/esm/types/*.d.ts",
       "require": "./dist/src/types/*.d.ts"
@@ -39,6 +43,7 @@
   "license": "ELv2",
   "devDependencies": {
     "@ai-sdk/openai": "^1.1.15",
+    "@types/mustache": "^4.2.6",
     "@types/node": "^24.0.10",
     "tsx": "^4.19.3",
     "typedoc": "^0.27.9",
@@ -50,6 +55,7 @@
   },
   "dependencies": {
     "ai": "^4.1.47",
+    "mustache": "^4.2.0",
     "zod": "^3.25.75"
   }
 }
