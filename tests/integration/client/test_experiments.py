@@ -9,7 +9,6 @@ import pytest
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from phoenix.client.resources.datasets import Dataset
-
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
 from .._helpers import _ADMIN, _MEMBER, _AppInfo, _await_or_return, _GetUser
