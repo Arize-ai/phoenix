@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.12.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.12.0...arize-phoenix-otel-v0.12.1) (2025-06-24)
+
+
+### Documentation
+
+* **otel:** tracer provider kwargs docs ([ac9511e](https://github.com/Arize-ai/phoenix/commit/ac9511e54aa51101d739297c656d5162da40c9d1))
+
+## [0.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.11.0...arize-phoenix-otel-v0.12.0) (2025-06-24)
+
+
+### Features
+
+* **otel:** support tracer provider arguments ([6b337d9](https://github.com/Arize-ai/phoenix/commit/6b337d9195e176f12e1bd799447ea5f8fbe1734e))
+* **otel:** support tracer provider arguments ([#8270](https://github.com/Arize-ai/phoenix/issues/8270)) ([613cdd8](https://github.com/Arize-ai/phoenix/commit/613cdd85923a85d413d2e42546458b0c3a6e7e63))
+
 ## [0.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.10.3...arize-phoenix-otel-v0.11.0) (2025-06-18)
 
 

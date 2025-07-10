@@ -62,6 +62,7 @@
   * [Annotate Traces](tracing/how-to-tracing/feedback-and-annotations/README.md)
     * [Annotating in the UI](tracing/how-to-tracing/feedback-and-annotations/annotating-in-the-ui.md)
     * [Annotating via the Client](tracing/how-to-tracing/feedback-and-annotations/capture-feedback.md)
+    * [Annotating Auto-Instrumented Spans](tracing/how-to-tracing/feedback-and-annotations/annotating-auto-instrumented-spans.md)
     * [Running Evals on Traces](tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces.md)
     * [Log Evaluation Results](tracing/how-to-tracing/feedback-and-annotations/llm-evaluations.md)
   * [Importing & Exporting Traces](tracing/how-to-tracing/importing-and-exporting-traces/README.md)
@@ -73,11 +74,6 @@
     * [Suppress Tracing](tracing/how-to-tracing/advanced/suppress-tracing.md)
     * [Filter Spans to Export](tracing/how-to-tracing/advanced/modifying-spans.md)
     * [Capture Multimodal Traces](tracing/how-to-tracing/advanced/multimodal-tracing.md)
-* [Concepts: Tracing](tracing/concepts-tracing/README.md)
-  * [How Tracing Works](tracing/concepts-tracing/how-does-tracing-work.md)
-  * [What are Traces](tracing/concepts-tracing/what-are-traces.md)
-  * [Concepts: Annotations](tracing/concepts-tracing/concepts-annotations.md)
-  * [FAQs: Tracing](tracing/concepts-tracing/faqs-tracing.md)
 
 ## 📃 Prompt Engineering
 
