@@ -434,11 +434,6 @@ def get_executor_on_sync_context(
                 timeout=timeout,
             )
         else:
-            logger.warning(
-                "🐌!! If running inside a notebook, patching the event loop with "
-                "nest_asyncio will allow asynchronous eval submission, and is significantly "
-                "faster. To patch the event loop, run `nest_asyncio.apply()`."
-            )
             return SyncExecutor(
                 sync_fn,
                 tqdm_bar_format=tqdm_bar_format,
