@@ -18,12 +18,15 @@ export type ExperimentCompareLoaderReturnType =
 export async function experimentCompareLoader(
   args: LoaderFunctionArgs
 ): Promise<ExperimentCompareLoaderReturnType> {
-  const { datasetId, baselineExperimentId } = args.params;
+  const { datasetId } = args.params;
   if (datasetId == null) {
     throw new Error("Dataset ID is required");
   }
   const url = new URL(args.request.url);
-  const compareExperimentIds = url.searchParams.getAll("experimentId");
+  const experimentIds = url.searchParams.getAll("experimentId");
+  const baselineExperimentId =
+    experimentIds.length > 0 ? experimentIds[0] : null;
+  const compareExperimentIds = experimentIds.slice(1);
 
   return await fetchQuery<experimentCompareLoaderQuery>(
     RelayEnvironment,

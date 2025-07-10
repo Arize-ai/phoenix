@@ -181,13 +181,15 @@ export function ExperimentSelectionToolbar(
                 const compareExperimentIds = selectedExperiments
                   .slice(0, -1)
                   .map((exp) => exp.id);
+                const experimentIds = [
+                  baselineExperimentId,
+                  ...compareExperimentIds,
+                ];
                 const queryParams =
-                  compareExperimentIds.length > 0
-                    ? `?${compareExperimentIds.map((id) => `experimentId=${id}`).join("&")}`
+                  experimentIds.length > 0
+                    ? `?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`
                     : "";
-                navigate(
-                  `/datasets/${datasetId}/compare/${baselineExperimentId}${queryParams}`
-                );
+                navigate(`/datasets/${datasetId}/compare${queryParams}`);
               }}
               leadingVisual={<Icon svg={<Icons.ArrowCompareOutline />} />}
             >

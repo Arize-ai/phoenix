@@ -22,10 +22,13 @@ export function ExperimentComparePage() {
   invariant(loaderData, "loaderData is required");
   // The text of most IO is too long so default to showing truncated text
   const [displayFullText, setDisplayFullText] = useState(false);
-  const { datasetId, baselineExperimentId } = useParams();
+  const { datasetId } = useParams();
   invariant(datasetId != null, "datasetId is required");
   const [searchParams] = useSearchParams();
-  const compareExperimentIds = searchParams.getAll("experimentId");
+  const experimentIds = searchParams.getAll("experimentId");
+  const baselineExperimentId =
+    experimentIds.length > 0 ? experimentIds[0] : undefined;
+  const compareExperimentIds = experimentIds.slice(1);
   const navigate = useNavigate();
   return (
     <main
@@ -52,13 +55,15 @@ export function ExperimentComparePage() {
                 if (newBaselineExperimentId == null) {
                   navigate(`/datasets/${datasetId}/compare`);
                 } else {
+                  const allExperimentIds = [
+                    newBaselineExperimentId,
+                    ...newCompareExperimentIds,
+                  ];
                   const queryParams =
-                    newCompareExperimentIds.length > 0
-                      ? `?${newCompareExperimentIds.map((id) => `experimentId=${id}`).join("&")}`
+                    allExperimentIds.length > 0
+                      ? `?${allExperimentIds.map((id) => `experimentId=${id}`).join("&")}`
                       : "";
-                  navigate(
-                    `/datasets/${datasetId}/compare/${newBaselineExperimentId}${queryParams}`
-                  );
+                  navigate(`/datasets/${datasetId}/compare${queryParams}`);
                 }
               });
             }}
