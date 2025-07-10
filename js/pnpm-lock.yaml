@@ -195,6 +195,9 @@ importers:
       '@ai-sdk/openai':
         specifier: ^1.1.15
         version: 1.3.22(zod@3.25.75)
+      '@arizeai/phoenix-client':
+        specifier: workspace:*
+        version: link:../phoenix-client
       '@types/mustache':
         specifier: ^4.2.6
         version: 4.2.6
@@ -210,6 +213,9 @@ importers:
       typedoc:
         specifier: ^0.27.9
         version: 0.27.9(typescript@5.8.3)
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.3
       vitest:
         specifier: ^2.1.9
         version: 2.1.9(@types/node@24.0.10)(tsx@4.19.4)(yaml@2.8.0)

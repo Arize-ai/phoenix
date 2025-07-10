@@ -1,27 +1,12 @@
-import { LanguageModel } from "ai";
 import {
   ClassificationChoicesMap,
   EvaluationArgs,
   EvaluationResult,
+  CreateClassifierArgs,
+  EvaluatorFn,
 } from "../types/evals";
 import { generateClassification } from "./generateClassification";
 import { formatTemplate } from "../template";
-
-interface CreateClassifierArgs {
-  /**
-   * The LLM to use for classification / evaluation
-   */
-  model: LanguageModel;
-  /**
-   * The choices to classify the example into.
-   * e.g. { "correct": 1, "incorrect": 0 }
-   */
-  choices: ClassificationChoicesMap;
-  /**
-   * The prompt template to use for classification
-   */
-  promptTemplate: string;
-}
 
 /**
  * Convert a mapping of choices to labels
@@ -42,7 +27,7 @@ function choicesToLabels(
  */
 export function createClassifier<OutputType, InputType>(
   args: CreateClassifierArgs
-) {
+): EvaluatorFn<OutputType, InputType> {
   const { model, choices, promptTemplate } = args;
 
   return async (
