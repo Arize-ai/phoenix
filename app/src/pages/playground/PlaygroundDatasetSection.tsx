@@ -70,10 +70,7 @@ export function PlaygroundDatasetSection({ datasetId }: { datasetId: string }) {
                 />
               }
               onPress={() => {
-                const queryParams =
-                  experimentIds.length > 0
-                    ? `?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`
-                    : "";
+                const queryParams = `?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`;
                 navigate(`/datasets/${datasetId}/compare${queryParams}`);
               }}
             >
