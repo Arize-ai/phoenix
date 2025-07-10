@@ -223,18 +223,6 @@ def _wrap_sync_evaluation_function(
 def _default_eval_scorer(result: Any) -> EvaluationResult:
     if isinstance(result, EvaluationResult):
         return result
-    if isinstance(result, dict):
-        # Check if it looks like an EvaluationResult dict
-        has_score = "score" in result
-        has_label = "label" in result
-        has_explanation = "explanation" in result
-        if has_score or has_label or has_explanation:
-            return EvaluationResult(
-                score=result.get("score"),  # pyright: ignore
-                label=result.get("label"),  # pyright: ignore
-                explanation=result.get("explanation"),  # pyright: ignore
-                metadata=result.get("metadata", {}),  # pyright: ignore
-            )
     if isinstance(result, bool):
         return EvaluationResult(score=float(result), label=str(result))
     if hasattr(result, "__float__"):
