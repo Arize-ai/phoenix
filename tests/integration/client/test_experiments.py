@@ -10,7 +10,9 @@ from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from phoenix.client.resources.datasets import Dataset
 
-from .._helpers import _ADMIN, _MEMBER, _await_or_return, _GetUser, _RoleOrUser
+from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
+
+from .._helpers import _ADMIN, _MEMBER, _AppInfo, _await_or_return, _GetUser
 
 
 class SpanCapture:
@@ -43,12 +45,14 @@ class TestExperimentsIntegration:
     async def test_run_experiment_basic(
         self,
         is_async: bool,
-        role_or_user: _RoleOrUser,
+        role_or_user: UserRoleInput,
         _get_user: _GetUser,
+        _app: _AppInfo,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        user = _get_user(role_or_user).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+        monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -110,11 +114,13 @@ class TestExperimentsIntegration:
         self,
         is_async: bool,
         _get_user: _GetUser,
+        _app: _AppInfo,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Test that experiments create proper OpenTelemetry spans with correct attributes."""
-        user = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+        monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -241,12 +247,14 @@ class TestExperimentsIntegration:
     async def test_run_experiment_with_evaluators(
         self,
         is_async: bool,
-        role_or_user: _RoleOrUser,
+        role_or_user: UserRoleInput,
         _get_user: _GetUser,
+        _app: _AppInfo,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        user = _get_user(role_or_user).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+        monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -302,10 +310,12 @@ class TestExperimentsIntegration:
         self,
         is_async: bool,
         _get_user: _GetUser,
+        _app: _AppInfo,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        user = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+        monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -358,10 +368,12 @@ class TestExperimentsIntegration:
         self,
         is_async: bool,
         _get_user: _GetUser,
+        _app: _AppInfo,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        user = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+        monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -419,10 +431,12 @@ class TestExperimentsIntegration:
         self,
         is_async: bool,
         _get_user: _GetUser,
+        _app: _AppInfo,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        user = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+        monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -466,10 +480,12 @@ class TestExperimentsIntegration:
         self,
         is_async: bool,
         _get_user: _GetUser,
+        _app: _AppInfo,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        user = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+        monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -524,13 +540,15 @@ class TestExperimentsIntegration:
         self,
         is_async: bool,
         _get_user: _GetUser,
+        _app: _AppInfo,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         if not is_async:
             pytest.skip("Async tasks only supported with AsyncClient")
 
-        user = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+        monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
         from phoenix.client import AsyncClient
 
@@ -563,10 +581,12 @@ class TestExperimentsIntegration:
         self,
         is_async: bool,
         _get_user: _GetUser,
+        _app: _AppInfo,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        user = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+        monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -603,10 +623,12 @@ class TestExperimentsIntegration:
         self,
         is_async: bool,
         _get_user: _GetUser,
+        _app: _AppInfo,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        user = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+        monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -649,10 +671,12 @@ class TestExperimentsIntegration:
         self,
         is_async: bool,
         _get_user: _GetUser,
+        _app: _AppInfo,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        user = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+        monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -803,10 +827,12 @@ class TestExperimentsIntegration:
         self,
         is_async: bool,
         _get_user: _GetUser,
+        _app: _AppInfo,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        user = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+        monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient

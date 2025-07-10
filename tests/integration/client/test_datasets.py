@@ -6,8 +6,9 @@ from typing import Any
 
 import pandas as pd
 import pytest
+from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
-from .._helpers import _ADMIN, _MEMBER, _AppInfo, _await_or_return, _GetUser, _RoleOrUser
+from .._helpers import _ADMIN, _MEMBER, _AppInfo, _await_or_return, _GetUser
 
 
 class TestDatasetIntegration:
@@ -18,7 +19,7 @@ class TestDatasetIntegration:
     async def test_create_and_get_dataset(
         self,
         is_async: bool,
-        role_or_user: _RoleOrUser,
+        role_or_user: UserRoleInput,
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
@@ -65,7 +66,7 @@ class TestDatasetIntegration:
     async def test_add_examples_to_dataset(
         self,
         is_async: bool,
-        role_or_user: _RoleOrUser,
+        role_or_user: UserRoleInput,
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
@@ -108,7 +109,7 @@ class TestDatasetIntegration:
     async def test_dataset_versions(
         self,
         is_async: bool,
-        role_or_user: _RoleOrUser,
+        role_or_user: UserRoleInput,
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
@@ -437,7 +438,7 @@ Who wrote Hamlet?,Shakespeare,literature
     async def test_dataset_examples_direct_pass(
         self,
         is_async: bool,
-        role_or_user: _RoleOrUser,
+        role_or_user: UserRoleInput,
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
@@ -526,10 +527,12 @@ Who wrote Hamlet?,Shakespeare,literature
         self,
         is_async: bool,
         _get_user: _GetUser,
+        _app: _AppInfo,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        user = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+        monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
