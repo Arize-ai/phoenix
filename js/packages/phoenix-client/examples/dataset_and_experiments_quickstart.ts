@@ -230,23 +230,7 @@ async function main() {
     logger: console,
   });
 
-  console.log("Initial experiment completed with ID:", experiment.id);
-
-  // Run more evaluators after the fact
-  console.log("Running additional evaluators...");
-
-  const updatedExperiment = await runExperiment({
-    client,
-    experimentName: experiment.id, // Use the same experiment ID
-    dataset: { datasetId }, // Use the string dataset ID
-    task: async () => "", // No-op task since we're just evaluating
-    evaluators: [containsKeyword, conciseness],
-    logger: console,
-  });
-
-  console.log("Additional evaluations completed");
-  console.log("Experiment ID:", updatedExperiment.id);
-  console.log("Access Phoenix UI to view results: http://localhost:6006");
+  console.log("Experiment completed with ID:", experiment.id);
 }
 
 main().catch((error) => {
