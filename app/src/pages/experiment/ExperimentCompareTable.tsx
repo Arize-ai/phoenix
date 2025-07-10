@@ -573,11 +573,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   ]);
 
   // Virtualization setup
-  const parentRef = useRef<HTMLDivElement>(null);
-
   const virtualizer = useVirtualizer({
     count: rows.length,
-    getScrollElement: () => parentRef.current,
+    getScrollElement: () => tableContainerRef.current,
     estimateSize: () => 200, // Estimate row height - adjust based on your content
     overscan: 5,
   });
@@ -603,7 +601,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         <div
           css={tableWrapCSS}
           onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
-          ref={parentRef}
+          ref={tableContainerRef}
         >
           <table
             css={css(tableCSS, borderedTableCSS)}
