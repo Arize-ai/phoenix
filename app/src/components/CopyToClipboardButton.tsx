@@ -2,9 +2,14 @@ import { RefObject, useCallback, useState } from "react";
 import copy from "copy-to-clipboard";
 import { css } from "@emotion/react";
 
-import { Tooltip, TooltipTrigger } from "@arizeai/components";
-
-import { Button, ButtonProps, Icon, Icons } from "@phoenix/components";
+import {
+  Button,
+  ButtonProps,
+  Icon,
+  Icons,
+  Tooltip,
+  TooltipTrigger,
+} from "@phoenix/components";
 
 const SHOW_COPIED_TIMEOUT_MS = 2000;
 
@@ -45,7 +50,7 @@ export function CopyToClipboardButton(props: CopyToClipboardButtonProps) {
   }, [text]);
   return (
     <div className="copy-to-clipboard-button" css={copyToClipboardButtonCSS}>
-      <TooltipTrigger delay={0} offset={5}>
+      <TooltipTrigger delay={0}>
         <Button
           size={size}
           leadingVisual={
@@ -56,7 +61,7 @@ export function CopyToClipboardButton(props: CopyToClipboardButtonProps) {
           onPress={onPress}
           {...otherProps}
         />
-        <Tooltip>Copy</Tooltip>
+        <Tooltip offset={5}>Copy</Tooltip>
       </TooltipTrigger>
     </div>
   );
