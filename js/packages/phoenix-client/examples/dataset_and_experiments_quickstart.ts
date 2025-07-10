@@ -84,7 +84,7 @@ async function main() {
       messages: [{ role: "user", content: messageContent }],
     });
 
-    return response.choices[0]?.message?.content || "";
+    return { answer: response.choices[0]?.message?.content || "" };
   };
 
   // Define evaluators for the experiment
@@ -226,7 +226,7 @@ async function main() {
     experimentName: "initial-experiment",
     dataset: { datasetId }, // Use the string dataset ID
     task,
-    evaluators: [jaccardSimilarity, accuracy],
+    evaluators: [jaccardSimilarity, accuracy, containsKeyword, conciseness],
     logger: console,
   });
 
