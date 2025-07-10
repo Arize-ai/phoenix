@@ -18,12 +18,13 @@ export type ExperimentCompareLoaderReturnType =
 export async function experimentCompareLoader(
   args: LoaderFunctionArgs
 ): Promise<ExperimentCompareLoaderReturnType> {
-  const { datasetId, baselineExperimentId } = args.params;
+  const { datasetId } = args.params;
   if (datasetId == null) {
     throw new Error("Dataset ID is required");
   }
   const url = new URL(args.request.url);
-  const compareExperimentIds = url.searchParams.getAll("experimentId");
+  const [baselineExperimentId = undefined, ...compareExperimentIds] =
+    url.searchParams.getAll("experimentId");
 
   return await fetchQuery<experimentCompareLoaderQuery>(
     RelayEnvironment,
@@ -43,12 +44,6 @@ export async function experimentCompareLoader(
           )
         ...ExperimentMultiSelector__data
           @arguments(hasBaselineExperimentId: $hasBaselineExperimentId)
-        baselineExperiment: node(id: $baselineExperimentId)
-          @include(if: $hasBaselineExperimentId) {
-          ... on Experiment {
-            name
-          }
-        }
       }
     `,
     {
