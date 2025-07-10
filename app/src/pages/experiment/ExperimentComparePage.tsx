@@ -25,10 +25,8 @@ export function ExperimentComparePage() {
   const { datasetId } = useParams();
   invariant(datasetId != null, "datasetId is required");
   const [searchParams] = useSearchParams();
-  const experimentIds = searchParams.getAll("experimentId");
-  const baselineExperimentId =
-    experimentIds.length > 0 ? experimentIds[0] : undefined;
-  const compareExperimentIds = experimentIds.slice(1);
+  const [baselineExperimentId = undefined, ...compareExperimentIds] =
+    searchParams.getAll("experimentId");
   const navigate = useNavigate();
   return (
     <main

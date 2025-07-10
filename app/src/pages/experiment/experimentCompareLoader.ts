@@ -23,7 +23,7 @@ export async function experimentCompareLoader(
     throw new Error("Dataset ID is required");
   }
   const url = new URL(args.request.url);
-  const [baselineExperimentId = null, ...compareExperimentIds] =
+  const [baselineExperimentId = undefined, ...compareExperimentIds] =
     url.searchParams.getAll("experimentId");
 
   return await fetchQuery<experimentCompareLoaderQuery>(
