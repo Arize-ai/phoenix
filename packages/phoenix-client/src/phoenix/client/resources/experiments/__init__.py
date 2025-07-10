@@ -80,24 +80,44 @@ class SpanModifier:
 
 _ACTIVE_MODIFIER: ContextVar[Optional[SpanModifier]] = ContextVar("active_modifier")
 
-
-def override_span(init: Callable[..., None], span: ReadableSpan, args: Any, kwargs: Any) -> None:
-    init(*args, **kwargs)
-    if isinstance(span_modifier := _ACTIVE_MODIFIER.get(None), SpanModifier):
-        span_modifier.modify_resource(span)
-
-
 _SPAN_INIT_MONKEY_PATCH_LOCK = Lock()
-_SPAN_INIT_MONKEY_PATCH_COUNT = 0
-_SPAN_INIT_MODULE = ReadableSpan.__init__.__module__
-_SPAN_INIT_NAME = ReadableSpan.__init__.__qualname__
+_span_init_monkey_patch_count = 0
+_original_span_init: Optional[Callable[..., None]] = None
+
+
+def _patched_span_init(self: ReadableSpan, *args: Any, **kwargs: Any) -> None:
+    """Patched version of ReadableSpan.__init__ that applies resource modifications."""
+    # Call the original __init__ method
+    if _original_span_init is not None:
+        _original_span_init(self, *args, **kwargs)
+
+    # Apply span modifications if an active modifier exists
+    if isinstance(span_modifier := _ACTIVE_MODIFIER.get(None), SpanModifier):
+        span_modifier.modify_resource(self)
 
 
 @contextmanager
 def _monkey_patch_span_init() -> Iterator[None]:
-    global _SPAN_INIT_MONKEY_PATCH_COUNT
-    # Simplified monkey patching - in practice this would use wrapt
-    yield
+    """Context manager that monkey patches ReadableSpan.__init__ with reference counting."""
+    global _span_init_monkey_patch_count, _original_span_init
+
+    with _SPAN_INIT_MONKEY_PATCH_LOCK:
+        _span_init_monkey_patch_count += 1
+        if _span_init_monkey_patch_count == 1:
+            # First caller - apply the patch
+            _original_span_init = ReadableSpan.__init__
+            ReadableSpan.__init__ = _patched_span_init
+
+    try:
+        yield
+    finally:
+        with _SPAN_INIT_MONKEY_PATCH_LOCK:
+            _span_init_monkey_patch_count -= 1
+            if _span_init_monkey_patch_count == 0:
+                # Last caller - restore the original
+                if _original_span_init is not None:
+                    ReadableSpan.__init__ = _original_span_init
+                    _original_span_init = None
 
 
 @contextmanager
