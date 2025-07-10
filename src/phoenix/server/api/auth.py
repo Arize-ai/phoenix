@@ -20,7 +20,7 @@ class IsNotReadOnly(Authorization):
         return not info.context.read_only
 
 
-class IsLocked(Authorization):
+class IsLocked(BasePermission):
     """
     Disables mutations and subscriptions that create or update data but allows
     queries and delete mutations.
@@ -29,7 +29,7 @@ class IsLocked(Authorization):
     message = "Operations that write or modify data are locked"
 
     def has_permission(self, source: Any, info: Info, **kwargs: Any) -> bool:
-        return not info.context.db.should_not_insert_or_update
+        return not (info.context.db.should_not_insert_or_update or info.context.locked)
 
 
 MSG_ADMIN_ONLY = "Only admin can perform this action"
