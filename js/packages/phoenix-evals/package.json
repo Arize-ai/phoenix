@@ -42,8 +42,13 @@
     "docs": "typedoc",
     "docs:preview": "pnpx http-server ./docs -p 8080 -o"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "evals",
+    "phoenix",
+    "llm",
+    "evaluation"
+  ],
+  "author": "oss@arize.com",
   "license": "ELv2",
   "devDependencies": {
     "@ai-sdk/openai": "^1.1.15",
@@ -52,7 +57,9 @@
     "nock": "^14.0.5",
     "tsx": "^4.19.3",
     "typedoc": "^0.27.9",
-    "vitest": "^2.1.9"
+    "vitest": "^2.1.9",
+    "typescript": "^5.8.2",
+    "@arizeai/phoenix-client": "workspace:*"
   },
   "packageManager": "pnpm@9.15.0",
   "engines": {

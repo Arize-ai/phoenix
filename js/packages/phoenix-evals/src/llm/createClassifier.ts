@@ -3,6 +3,7 @@ import {
   EvaluationArgs,
   EvaluationResult,
   CreateClassifierArgs,
+  EvaluatorFn,
 } from "../types/evals";
 import { generateClassification } from "./generateClassification";
 import { formatTemplate } from "../template";
@@ -26,7 +27,7 @@ function choicesToLabels(
  */
 export function createClassifier<OutputType, InputType>(
   args: CreateClassifierArgs
-) {
+): EvaluatorFn<OutputType, InputType> {
   const { model, choices, promptTemplate } = args;
 
   return async (

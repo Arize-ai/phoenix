@@ -1,5 +1,5 @@
 import { createClassifier } from "./createClassifier";
-import { CreateClassifierArgs } from "../types/evals";
+import { CreateClassifierArgs, EvaluatorFn } from "../types/evals";
 import {
   HALLUCINATION_TEMPLATE,
   HALLUCINATION_CHOICES,
@@ -10,12 +10,20 @@ interface HallucinationEvaluatorArgs
   choices?: CreateClassifierArgs["choices"];
   promptTemplate?: CreateClassifierArgs["promptTemplate"];
 }
-export function HallucinationEvaluator(args: HallucinationEvaluatorArgs) {
+/**
+ * Creates a function that evaluates whether an answer is factual or hallucinated based on a query and reference text.
+ *
+ * @param args - The arguments for creating the hallucination evaluator.
+ * @returns A function that evaluates whether an answer is factual or hallucinated based on a query and reference text.
+ */
+export function createHallucinationEvaluator(
+  args: HallucinationEvaluatorArgs
+): EvaluatorFn<string, string> {
   const {
     choices = HALLUCINATION_CHOICES,
     promptTemplate = HALLUCINATION_TEMPLATE,
   } = args;
-  const hallucinationEvaluatorFn = createClassifier({
+  const hallucinationEvaluatorFn = createClassifier<string, string>({
     ...args,
     promptTemplate,
     choices,

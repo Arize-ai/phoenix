@@ -78,3 +78,7 @@ export interface CreateClassifierArgs {
    */
   promptTemplate: string;
 }
+
+export type EvaluatorFn<OutputType, InputType> = (
+  args: EvaluationArgs<OutputType, InputType>
+) => Promise<EvaluationResult>;
