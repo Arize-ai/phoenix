@@ -724,7 +724,7 @@ function TableBody<T>({
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => 200, // an estimate of the row height (not critical here since we scroll from the top)
+    estimateSize: () => 350, // an estimate of the max row height
     overscan: 5,
   });
   const virtualRows = virtualizer.getVirtualItems();
