@@ -382,8 +382,6 @@ function FilterConditionBuilder(props: {
       width="500px"
       padding="size-200"
       borderRadius="medium"
-      borderWidth="thin"
-      borderColor="light"
       backgroundColor="light"
     >
       <Flex direction="column" gap="size-100">
