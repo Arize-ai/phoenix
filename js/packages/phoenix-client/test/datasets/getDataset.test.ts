@@ -77,4 +77,25 @@ describe("getDataset", () => {
       getDataset({ dataset: { datasetId: "dataset-123" } })
     ).rejects.toThrow("examples error");
   });
+
+  it("should return merged dataset info and examples when getting by name", async () => {
+    vi.spyOn(getDatasetInfoModule, "getDatasetInfo").mockResolvedValue(
+      mockDatasetInfo
+    );
+    vi.spyOn(getDatasetExamplesModule, "getDatasetExamples").mockResolvedValue(
+      mockDatasetExamples
+    );
+
+    const dataset = await getDataset({
+      dataset: { datasetName: "Test Dataset" },
+    });
+    expect(dataset).toBeDefined();
+    expect(dataset.id).toBe("dataset-123");
+    expect(dataset.name).toBe("Test Dataset");
+    expect(dataset.versionId).toBe("v1");
+    const examples = dataset.examples;
+    expect(examples.length).toBe(2);
+    expect(examples[0]?.id).toBe("ex-1");
+    expect(examples[1]?.id).toBe("ex-2");
+  });
 });
