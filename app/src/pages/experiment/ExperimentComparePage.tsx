@@ -55,14 +55,12 @@ export function ExperimentComparePage() {
                 if (newBaselineExperimentId == null) {
                   navigate(`/datasets/${datasetId}/compare`);
                 } else {
-                  const allExperimentIds = [
+                  const queryParams = `?${[
                     newBaselineExperimentId,
                     ...newCompareExperimentIds,
-                  ];
-                  const queryParams =
-                    allExperimentIds.length > 0
-                      ? `?${allExperimentIds.map((id) => `experimentId=${id}`).join("&")}`
-                      : "";
+                  ]
+                    .map((id) => `experimentId=${id}`)
+                    .join("&")}`;
                   navigate(`/datasets/${datasetId}/compare${queryParams}`);
                 }
               });
