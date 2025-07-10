@@ -2,19 +2,20 @@ import { Key, useCallback, useTransition } from "react";
 import { graphql, useFragment } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
-
 import {
   Button,
   Heading,
   Label,
   ListBox,
   Popover,
+  RichTooltip,
   Select,
   SelectChevronUpDownIcon,
   SelectItem,
   SelectValue,
   Text,
+  TooltipArrow,
+  TooltipTrigger,
 } from "@phoenix/components";
 import { useInferences, usePointCloudContext } from "@phoenix/contexts";
 import {
@@ -224,32 +225,31 @@ export function MetricSelector({
 
   return (
     <TooltipTrigger delay={0}>
-      <TriggerWrap>
-        <Select
-          selectedKey={metric ? getMetricKey(metric) : undefined}
-          onSelectionChange={onSelectionChange}
-          placeholder="Select a metric..."
-          isDisabled={loading}
-          aria-label="Analysis metric"
-          css={metricSelectorCSS}
-        >
-          <Label>Metric</Label>
-          <Button>
-            <SelectValue />
-            <SelectChevronUpDownIcon />
-          </Button>
-          <Popover>
-            <ListBox>
-              {allMetrics.map((metric) => (
-                <SelectItem key={metric.key} id={metric.key}>
-                  {metric.label}
-                </SelectItem>
-              ))}
-            </ListBox>
-          </Popover>
-        </Select>
-      </TriggerWrap>
-      <Tooltip>
+      <Select
+        selectedKey={metric ? getMetricKey(metric) : undefined}
+        onSelectionChange={onSelectionChange}
+        placeholder="Select a metric..."
+        isDisabled={loading}
+        aria-label="Analysis metric"
+        css={metricSelectorCSS}
+      >
+        <Label>Metric</Label>
+        <Button>
+          <SelectValue />
+          <SelectChevronUpDownIcon />
+        </Button>
+        <Popover>
+          <ListBox>
+            {allMetrics.map((metric) => (
+              <SelectItem key={metric.key} id={metric.key}>
+                {metric.label}
+              </SelectItem>
+            ))}
+          </ListBox>
+        </Popover>
+      </Select>
+      <RichTooltip>
+        <TooltipArrow />
         <section
           css={css`
             h4 {
@@ -269,7 +269,7 @@ export function MetricSelector({
             highlight areas where the data quality is degrading.
           </Text>
         </section>
-      </Tooltip>
+      </RichTooltip>
     </TooltipTrigger>
   );
 }
