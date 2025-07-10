@@ -11,7 +11,7 @@ from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from phoenix.client.resources.datasets import Dataset
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
-from .._helpers import _ADMIN, _MEMBER, _AppInfo, _await_or_return, _GetUser
+from .._helpers import _ADMIN, _MEMBER, _AppInfo, _await_or_return, _GetUser  # pyright: ignore[reportPrivateUsage]
 
 
 class SpanCapture:
@@ -47,11 +47,9 @@ class TestExperimentsIntegration:
         role_or_user: UserRoleInput,
         _get_user: _GetUser,
         _app: _AppInfo,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         user = _get_user(_app, role_or_user).log_in(_app)
         api_key = str(user.create_api_key(_app))
-        monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -61,7 +59,7 @@ class TestExperimentsIntegration:
         unique_name = f"test_experiment_{uuid.uuid4().hex[:8]}"
 
         dataset = await _await_or_return(
-            Client().datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=unique_name,
                 inputs=[
                     {"question": "What is 2+2?"},
@@ -91,7 +89,7 @@ class TestExperimentsIntegration:
                 return "I don't know"
 
         result = await _await_or_return(
-            Client().experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
                 dataset=dataset,
                 task=simple_task,
                 experiment_name=f"test_experiment_{uuid.uuid4().hex[:8]}",
@@ -114,12 +112,10 @@ class TestExperimentsIntegration:
         is_async: bool,
         _get_user: _GetUser,
         _app: _AppInfo,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Test that experiments create proper OpenTelemetry spans with correct attributes."""
         user = _get_user(_app, _MEMBER).log_in(_app)
         api_key = str(user.create_api_key(_app))
-        monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -130,7 +126,7 @@ class TestExperimentsIntegration:
 
         # Create a small dataset for testing
         dataset = await _await_or_return(
-            Client().datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=unique_name,
                 inputs=[
                     {"text": "Hello world"},
@@ -184,7 +180,7 @@ class TestExperimentsIntegration:
 
         with patch(f"{experiments_module}._get_tracer", side_effect=mock_get_tracer):
             result = await _await_or_return(
-                Client().experiments.run_experiment(
+                Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
                     dataset=dataset,
                     task=classification_task,
                     evaluators={"accuracy_evaluator": accuracy_evaluator},
@@ -249,11 +245,9 @@ class TestExperimentsIntegration:
         role_or_user: UserRoleInput,
         _get_user: _GetUser,
         _app: _AppInfo,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         user = _get_user(_app, role_or_user).log_in(_app)
         api_key = str(user.create_api_key(_app))
-        monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -263,7 +257,7 @@ class TestExperimentsIntegration:
         unique_name = f"test_experiment_eval_{uuid.uuid4().hex[:8]}"
 
         dataset = await _await_or_return(
-            Client().datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=unique_name,
                 inputs=[
                     {"text": "Hello world"},
@@ -292,10 +286,10 @@ class TestExperimentsIntegration:
             return {"score": len(output) / 10.0, "label": "length_score"}
 
         result = await _await_or_return(
-            Client().experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
                 dataset=dataset,
                 task=classification_task,
-                evaluators=[accuracy_evaluator, length_evaluator],
+                evaluators=[accuracy_evaluator, length_evaluator],  # pyright: ignore[reportArgumentType]
                 experiment_name=f"test_eval_experiment_{uuid.uuid4().hex[:8]}",
                 print_summary=False,
             )
@@ -310,11 +304,9 @@ class TestExperimentsIntegration:
         is_async: bool,
         _get_user: _GetUser,
         _app: _AppInfo,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         user = _get_user(_app, _MEMBER).log_in(_app)
         api_key = str(user.create_api_key(_app))
-        monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -324,7 +316,7 @@ class TestExperimentsIntegration:
         unique_name = f"test_signatures_{uuid.uuid4().hex[:8]}"
 
         dataset = await _await_or_return(
-            Client().datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=unique_name,
                 inputs=[{"prompt": "Test prompt"}],
                 outputs=[{"response": "Test response"}],
@@ -341,7 +333,7 @@ class TestExperimentsIntegration:
             return f"Input: {input}, Expected: {expected}, Meta: {metadata}"
 
         result1 = await _await_or_return(
-            Client().experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
                 dataset=dataset,
                 task=task_with_input_only,
                 experiment_name=f"test_input_only_{uuid.uuid4().hex[:8]}",
@@ -352,7 +344,7 @@ class TestExperimentsIntegration:
         assert len(result1["task_runs"]) == 1
 
         result2 = await _await_or_return(
-            Client().experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
                 dataset=dataset,
                 task=task_with_multiple_params,
                 experiment_name=f"test_multi_params_{uuid.uuid4().hex[:8]}",
@@ -368,11 +360,9 @@ class TestExperimentsIntegration:
         is_async: bool,
         _get_user: _GetUser,
         _app: _AppInfo,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         user = _get_user(_app, _MEMBER).log_in(_app)
         api_key = str(user.create_api_key(_app))
-        monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -382,7 +372,7 @@ class TestExperimentsIntegration:
         unique_name = f"test_dry_run_{uuid.uuid4().hex[:8]}"
 
         dataset = await _await_or_return(
-            Client().datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=unique_name,
                 inputs=[
                     {"text": "Sample 1"},
@@ -401,7 +391,7 @@ class TestExperimentsIntegration:
             return f"Processed: {input.get('text', '')}"
 
         result = await _await_or_return(
-            Client().experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
                 dataset=dataset,
                 task=simple_task,
                 experiment_name="dry_run_test",
@@ -414,7 +404,7 @@ class TestExperimentsIntegration:
         assert len(result["task_runs"]) == 1
 
         result_sized = await _await_or_return(
-            Client().experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
                 dataset=dataset,
                 task=simple_task,
                 experiment_name="dry_run_sized_test",
@@ -431,11 +421,9 @@ class TestExperimentsIntegration:
         is_async: bool,
         _get_user: _GetUser,
         _app: _AppInfo,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         user = _get_user(_app, _MEMBER).log_in(_app)
         api_key = str(user.create_api_key(_app))
-        monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -445,7 +433,7 @@ class TestExperimentsIntegration:
         unique_name = f"test_metadata_{uuid.uuid4().hex[:8]}"
 
         dataset = await _await_or_return(
-            Client().datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=unique_name,
                 inputs=[{"question": "Test question"}],
                 outputs=[{"answer": "Test answer"}],
@@ -462,7 +450,7 @@ class TestExperimentsIntegration:
         }
 
         result = await _await_or_return(
-            Client().experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
                 dataset=dataset,
                 task=simple_task,
                 experiment_name=f"test_with_metadata_{uuid.uuid4().hex[:8]}",
@@ -480,11 +468,9 @@ class TestExperimentsIntegration:
         is_async: bool,
         _get_user: _GetUser,
         _app: _AppInfo,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         user = _get_user(_app, _MEMBER).log_in(_app)
         api_key = str(user.create_api_key(_app))
-        monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -494,7 +480,7 @@ class TestExperimentsIntegration:
         unique_name = f"test_eval_types_{uuid.uuid4().hex[:8]}"
 
         dataset = await _await_or_return(
-            Client().datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=unique_name,
                 inputs=[{"text": "Hello world"}],
                 outputs=[{"expected": "greeting"}],
@@ -517,10 +503,10 @@ class TestExperimentsIntegration:
             return {"score": 0.8, "label": "good"}
 
         result = await _await_or_return(
-            Client().experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
                 dataset=dataset,
                 task=simple_task,
-                evaluators={
+                evaluators={  # pyright: ignore[reportArgumentType]
                     "bool_eval": bool_evaluator,
                     "float_eval": float_evaluator,
                     "tuple_eval": tuple_evaluator,
@@ -540,21 +526,19 @@ class TestExperimentsIntegration:
         is_async: bool,
         _get_user: _GetUser,
         _app: _AppInfo,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         if not is_async:
             pytest.skip("Async tasks only supported with AsyncClient")
 
         user = _get_user(_app, _MEMBER).log_in(_app)
         api_key = str(user.create_api_key(_app))
-        monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
         from phoenix.client import AsyncClient
 
         unique_name = f"test_async_task_{uuid.uuid4().hex[:8]}"
 
         dataset: Dataset = await _await_or_return(
-            AsyncClient().datasets.create_dataset(
+            AsyncClient(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=unique_name,
                 inputs=[{"text": "Async test"}],
                 outputs=[{"expected": "async_result"}],
@@ -565,7 +549,7 @@ class TestExperimentsIntegration:
             await asyncio.sleep(0.1)
             return f"async_processed_{input.get('text', '')}"
 
-        result = await AsyncClient().experiments.run_experiment(
+        result = await AsyncClient(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
             dataset=dataset,
             task=async_task,
             experiment_name=f"test_async_{uuid.uuid4().hex[:8]}",
@@ -581,11 +565,9 @@ class TestExperimentsIntegration:
         is_async: bool,
         _get_user: _GetUser,
         _app: _AppInfo,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         user = _get_user(_app, _MEMBER).log_in(_app)
         api_key = str(user.create_api_key(_app))
-        monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -595,7 +577,7 @@ class TestExperimentsIntegration:
         unique_name = f"test_error_{uuid.uuid4().hex[:8]}"
 
         dataset = await _await_or_return(
-            Client().datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=unique_name,
                 inputs=[{"text": "test"}],
                 outputs=[{"expected": "result"}],
@@ -606,7 +588,7 @@ class TestExperimentsIntegration:
             raise ValueError("Task failed intentionally")
 
         result = await _await_or_return(
-            Client().experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
                 dataset=dataset,
                 task=failing_task,
                 experiment_name=f"test_error_{uuid.uuid4().hex[:8]}",
@@ -623,11 +605,9 @@ class TestExperimentsIntegration:
         is_async: bool,
         _get_user: _GetUser,
         _app: _AppInfo,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         user = _get_user(_app, _MEMBER).log_in(_app)
         api_key = str(user.create_api_key(_app))
-        monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -637,7 +617,7 @@ class TestExperimentsIntegration:
         unique_name = f"test_empty_{uuid.uuid4().hex[:8]}"
 
         dataset = await _await_or_return(
-            Client().datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=unique_name,
                 inputs=[{"placeholder": "temp"}],
                 outputs=[{"placeholder": "temp"}],
@@ -657,7 +637,7 @@ class TestExperimentsIntegration:
 
         with pytest.raises(ValueError, match="Dataset has no examples"):
             await _await_or_return(
-                Client().experiments.run_experiment(
+                Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
                     dataset=empty_dataset,  # type: ignore[arg-type]
                     task=simple_task,
                     experiment_name="test_empty",
@@ -671,11 +651,9 @@ class TestExperimentsIntegration:
         is_async: bool,
         _get_user: _GetUser,
         _app: _AppInfo,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         user = _get_user(_app, _MEMBER).log_in(_app)
         api_key = str(user.create_api_key(_app))
-        monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -685,7 +663,7 @@ class TestExperimentsIntegration:
         unique_name = f"test_eval_params_{uuid.uuid4().hex[:8]}"
 
         dataset = await _await_or_return(
-            Client().datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=unique_name,
                 inputs=[
                     {"text": "What is 2+2?", "context": "math"},
@@ -773,10 +751,10 @@ class TestExperimentsIntegration:
             }
 
         result = await _await_or_return(
-            Client().experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
                 dataset=dataset,
                 task=question_answering_task,
-                evaluators={
+                evaluators={  # pyright: ignore[reportArgumentType]
                     "output_only": output_only_evaluator,
                     "accuracy": accuracy_evaluator,
                     "comprehensive": comprehensive_evaluator,
@@ -827,11 +805,9 @@ class TestExperimentsIntegration:
         is_async: bool,
         _get_user: _GetUser,
         _app: _AppInfo,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         user = _get_user(_app, _MEMBER).log_in(_app)
         api_key = str(user.create_api_key(_app))
-        monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -841,7 +817,7 @@ class TestExperimentsIntegration:
         unique_name = f"test_task_params_{uuid.uuid4().hex[:8]}"
 
         dataset = await _await_or_return(
-            Client().datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=unique_name,
                 inputs=[
                     {"question": "What is 2+2?", "type": "math"},
@@ -913,7 +889,7 @@ class TestExperimentsIntegration:
             }
 
         result1 = await _await_or_return(
-            Client().experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
                 dataset=dataset,
                 task=input_only_task,
                 experiment_name=f"test_input_only_{uuid.uuid4().hex[:8]}",
@@ -926,7 +902,7 @@ class TestExperimentsIntegration:
             assert "Processing:" in task_run["output"]
 
         result2 = await _await_or_return(
-            Client().experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
                 dataset=dataset,
                 task=input_expected_task,
                 experiment_name=f"test_input_expected_{uuid.uuid4().hex[:8]}",
@@ -940,7 +916,7 @@ class TestExperimentsIntegration:
             assert "Expected:" in task_run["output"]
 
         result3 = await _await_or_return(
-            Client().experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
                 dataset=dataset,
                 task=reference_task,
                 experiment_name=f"test_reference_{uuid.uuid4().hex[:8]}",
@@ -954,7 +930,7 @@ class TestExperimentsIntegration:
             assert "Ref:" in task_run["output"]
 
         result4 = await _await_or_return(
-            Client().experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
                 dataset=dataset,
                 task=metadata_task,
                 experiment_name=f"test_metadata_{uuid.uuid4().hex[:8]}",
@@ -968,7 +944,7 @@ class TestExperimentsIntegration:
             assert "Category:" in task_run["output"]
 
         result5 = await _await_or_return(
-            Client().experiments.run_experiment(
+            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
                 dataset=dataset,
                 task=comprehensive_task,
                 experiment_name=f"test_comprehensive_{uuid.uuid4().hex[:8]}",

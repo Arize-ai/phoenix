@@ -542,7 +542,7 @@ Who wrote Hamlet?,Shakespeare,literature
         unique_name = f"test_legacy_compat_{uuid.uuid4().hex[:8]}"
 
         dataset = await _await_or_return(
-            Client().datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=unique_name,
                 inputs=[
                     {"question": "What is 2+2?"},
