@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 2.3.1
+
+### Patch Changes
+
+- b3e30db: simplify types for task output in experiments client api
+
 ## 2.3.0
 
 ### Minor Changes
