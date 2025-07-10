@@ -62,7 +62,7 @@ export function DBUsagePieChart({
       : null;
   const chartData = useMemo(() => {
     const chartData = [...data.dbTableStats];
-    if (remainingBytes !== null) {
+    if (remainingBytes !== null && remainingBytes > 0) {
       chartData.push({
         tableName: REMAINING_TEXT,
         numBytes: remainingBytes,
