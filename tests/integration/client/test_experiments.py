@@ -295,7 +295,7 @@ class TestExperimentsIntegration:
             Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
                 dataset=dataset,
                 task=classification_task,
-                evaluators=[accuracy_evaluator, length_evaluator],  # pyright: ignore[reportArgumentType]
+                evaluators=[accuracy_evaluator, length_evaluator],  # type: ignore[list-item]  # pyright: ignore[reportArgumentType]
                 experiment_name=f"test_eval_experiment_{uuid.uuid4().hex[:8]}",
                 print_summary=False,
             )
@@ -516,7 +516,7 @@ class TestExperimentsIntegration:
                     "bool_eval": bool_evaluator,
                     "float_eval": float_evaluator,
                     "tuple_eval": tuple_evaluator,
-                    "dict_eval": dict_evaluator,
+                    "dict_eval": dict_evaluator,  # type: ignore[dict-item]
                 },
                 experiment_name=f"test_eval_types_{uuid.uuid4().hex[:8]}",
                 print_summary=False,
@@ -765,9 +765,9 @@ class TestExperimentsIntegration:
                 evaluators={  # pyright: ignore[reportArgumentType]
                     "output_only": output_only_evaluator,
                     "accuracy": accuracy_evaluator,
-                    "comprehensive": comprehensive_evaluator,
+                    "comprehensive": comprehensive_evaluator,  # type: ignore[dict-item]
                     "reference": reference_evaluator,
-                    "metadata": metadata_evaluator,
+                    "metadata": metadata_evaluator,  # type: ignore[dict-item]
                 },
                 experiment_name=f"test_param_binding_{uuid.uuid4().hex[:8]}",
                 print_summary=False,
