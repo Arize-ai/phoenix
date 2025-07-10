@@ -730,13 +730,13 @@ class Experiments:
         status = Status(StatusCode.OK)
 
         with ExitStack() as stack:
+            stack.enter_context(capture_spans(resource))
             span = cast(
                 Span,
                 stack.enter_context(
                     tracer.start_as_current_span(root_span_name, context=Context())
                 ),
             )
-            stack.enter_context(capture_spans(resource))
             try:
                 bound_task_args = _bind_task_signature(task_signature, example)
                 _output = task(*bound_task_args.args, **bound_task_args.kwargs)
@@ -894,13 +894,13 @@ class Experiments:
         status = Status(StatusCode.OK)
 
         with ExitStack() as stack:
+            stack.enter_context(capture_spans(resource))
             span = cast(
                 Span,
                 stack.enter_context(
                     tracer.start_as_current_span(root_span_name, context=Context())
                 ),
             )
-            stack.enter_context(capture_spans(resource))
             try:
                 evaluator_signature = inspect.signature(evaluator.evaluate)
                 bound_evaluator_args = _bind_evaluator_signature(
