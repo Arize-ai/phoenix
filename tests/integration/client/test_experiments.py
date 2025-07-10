@@ -11,7 +11,13 @@ from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from phoenix.client.resources.datasets import Dataset
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
-from .._helpers import _ADMIN, _MEMBER, _AppInfo, _await_or_return, _GetUser  # pyright: ignore[reportPrivateUsage]
+from .._helpers import (  # pyright: ignore[reportPrivateUsage]
+    _ADMIN,
+    _MEMBER,
+    _AppInfo,
+    _await_or_return,
+    _GetUser,
+)
 
 
 class SpanCapture:
@@ -549,7 +555,9 @@ class TestExperimentsIntegration:
             await asyncio.sleep(0.1)
             return f"async_processed_{input.get('text', '')}"
 
-        result = await AsyncClient(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
+        result = await AsyncClient(
+            base_url=_app.base_url, api_key=api_key
+        ).experiments.run_experiment(
             dataset=dataset,
             task=async_task,
             experiment_name=f"test_async_{uuid.uuid4().hex[:8]}",
