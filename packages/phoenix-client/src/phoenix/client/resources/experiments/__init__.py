@@ -286,27 +286,6 @@ def _bind_task_signature(
 
 
 
-def _bind_evaluator_signature(
-    sig: inspect.Signature, example: v1.DatasetExample, output: Any
-) -> inspect.BoundArguments:
-    parameter_mapping = {
-        "output": output,
-        "input": example["input"],
-        "expected": example["output"],
-        "reference": example["output"],
-        "metadata": example["metadata"],
-    }
-    params = sig.parameters
-    if len(params) == 1:
-        parameter_name = next(iter(params))
-        if parameter_name in parameter_mapping:
-            return sig.bind(parameter_mapping[parameter_name])
-        else:
-            return sig.bind(parameter_mapping["output"])
-    return sig.bind_partial(
-        **{name: parameter_mapping[name] for name in set(parameter_mapping).intersection(params)}
-    )
-
 
 def _print_experiment_error(
     error: BaseException,
@@ -902,12 +881,12 @@ class Experiments:
                 ),
             )
             try:
-                evaluator_signature = inspect.signature(evaluator.evaluate)
-                bound_evaluator_args = _bind_evaluator_signature(
-                    evaluator_signature, example, experiment_run["output"]
-                )
                 result = evaluator.evaluate(
-                    *bound_evaluator_args.args, **bound_evaluator_args.kwargs
+                    output=experiment_run["output"],
+                    expected=example["output"],
+                    reference=example["output"],
+                    input=example["input"],
+                    metadata=example["metadata"],
                 )
             except BaseException as exc:
                 span.record_exception(exc)
@@ -1540,12 +1519,12 @@ class AsyncExperiments:
             )
             stack.enter_context(capture_spans(resource))
             try:
-                evaluator_signature = inspect.signature(evaluator.async_evaluate)
-                bound_evaluator_args = _bind_evaluator_signature(
-                    evaluator_signature, example, experiment_run["output"]
-                )
                 result = await evaluator.async_evaluate(
-                    *bound_evaluator_args.args, **bound_evaluator_args.kwargs
+                    output=experiment_run["output"],
+                    expected=example["output"],
+                    reference=example["output"],
+                    input=example["input"],
+                    metadata=example["metadata"],
                 )
             except BaseException as exc:
                 span.record_exception(exc)
