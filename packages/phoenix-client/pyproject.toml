@@ -26,6 +26,10 @@ dependencies = [
   "httpx",
   "tqdm",
   "typing-extensions",
+  "openinference-semantic-conventions",
+  "opentelemetry-sdk",
+  "opentelemetry-exporter-otlp",
+  "opentelemetry-semantic-conventions",
 ]
 
 [project.urls]
