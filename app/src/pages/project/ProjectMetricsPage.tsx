@@ -17,6 +17,8 @@ import { forwardRef } from "react";
 
 import { Heading, Text, View } from "@phoenix/components";
 
+import { TraceCountTimeSeries } from "./TraceCountTimeSeries";
+
 interface MetricPanelHeaderProps {
   title: string;
   subtitle?: string;
@@ -28,7 +30,7 @@ function MetricPanelHeader({ title, subtitle }: MetricPanelHeaderProps) {
       css={css`
         padding: var(--ac-global-dimension-size-100)
           var(--ac-global-dimension-size-200);
-        border-bottom: 1px solid var(--ac-global-color-grey-200);
+
         display: flex;
         flex-direction: row;
         gap: var(--ac-global-dimension-size-100);
@@ -60,8 +62,23 @@ export const MetricPanel = forwardRef(function MetricPanel(
       backgroundColor="grey-75"
       ref={ref}
     >
-      <MetricPanelHeader title={title} />
-      {children}
+      <div
+        css={css`
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+        `}
+      >
+        <MetricPanelHeader title={title} />
+        <div
+          css={css`
+            flex: 1 1 auto;
+            padding: var(--ac-global-dimension-size-200);
+          `}
+        >
+          {children}
+        </div>
+      </div>
     </View>
   );
 });
@@ -95,7 +112,7 @@ export function ProjectMetricsPage() {
         </div>
         <div key="traces">
           <MetricPanel title="Number of traces" subtitle="Daily totals">
-            {"Number of traces chart goes here"}
+            <TraceCountTimeSeries />
           </MetricPanel>
         </div>
         <div key="duration">
