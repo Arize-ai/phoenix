@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 2.3.0
+
+### Minor Changes
+
+- 3c97cc7: Add the ability to get a dataset by name
+
 ## 2.2.0
 
 ### Minor Changes

@@ -1,5 +1,12 @@
 # @arizeai/phoenix-mcp
 
+## 2.2.1
+
+### Patch Changes
+
+- Updated dependencies [3c97cc7]
+  - @arizeai/phoenix-client@2.3.0
+
 ## 2.2.0
 
 ### Minor Changes
