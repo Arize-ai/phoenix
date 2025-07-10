@@ -2,6 +2,7 @@ import { createClient } from "../client";
 import { ClientFn } from "../types/core";
 import { Example, DatasetSelector } from "../types/datasets";
 import invariant from "tiny-invariant";
+import { getDatasetInfo } from "./getDatasetInfo";
 
 export type AppendDatasetExamplesParams = ClientFn & {
   /**
@@ -33,6 +34,7 @@ export async function appendDatasetExamples({
   const inputs = examples.map((example) => example.input);
   const outputs = examples.map((example) => example.output ?? {}); // Treat null as an empty object
   const metadata = examples.map((example) => example.metadata);
+  const datasetInfo = await getDatasetInfo({ client, dataset });
   const appendResponse = await client.POST("/v1/datasets/upload", {
     params: {
       query: {
@@ -40,7 +42,7 @@ export async function appendDatasetExamples({
       },
     },
     body: {
-      name: dataset.datasetId,
+      name: datasetInfo.name,
       action: "append",
       inputs,
       outputs,
