@@ -23,10 +23,8 @@ export async function experimentCompareLoader(
     throw new Error("Dataset ID is required");
   }
   const url = new URL(args.request.url);
-  const experimentIds = url.searchParams.getAll("experimentId");
-  const baselineExperimentId =
-    experimentIds.length > 0 ? experimentIds[0] : null;
-  const compareExperimentIds = experimentIds.slice(1);
+  const [baselineExperimentId = null, ...compareExperimentIds] =
+    url.searchParams.getAll("experimentId");
 
   return await fetchQuery<experimentCompareLoaderQuery>(
     RelayEnvironment,
@@ -46,12 +44,6 @@ export async function experimentCompareLoader(
           )
         ...ExperimentMultiSelector__data
           @arguments(hasBaselineExperimentId: $hasBaselineExperimentId)
-        baselineExperiment: node(id: $baselineExperimentId)
-          @include(if: $hasBaselineExperimentId) {
-          ... on Experiment {
-            name
-          }
-        }
       }
     `,
     {
