@@ -51,7 +51,7 @@ export async function appendDatasetExamples({
       },
     },
     body: {
-      name: datasetInfo.name,
+      name: datasetName,
       action: "append",
       inputs,
       outputs,
