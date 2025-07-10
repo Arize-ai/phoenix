@@ -4,9 +4,7 @@ permissions:
 on:
   push:
     branches:
-      - feat/version-10
-      - feat/openid-only
-      - feat/cost
+      - feat/version-12
 
 jobs:
   push_to_registry:

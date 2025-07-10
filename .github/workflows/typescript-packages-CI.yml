@@ -4,7 +4,9 @@ permissions:
 
 on:
   push:
-    branches: [main, feat/bedrock, feat/cost]
+    branches:
+      - main
+      - feat/version-12
   pull_request:
     paths:
       - "js/**"
