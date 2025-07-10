@@ -252,13 +252,12 @@ const router = createBrowserRouter(
                   <Route path=":exampleId" element={<ExamplePage />} />
                 </Route>
               </Route>
-              <Route path="compare" handle={{ crumb: () => "compare" }}>
-                <Route
-                  index
-                  loader={experimentCompareLoader}
-                  element={<ExperimentComparePage />}
-                />
-              </Route>
+              <Route
+                path="compare"
+                element={<ExperimentComparePage />}
+                loader={experimentCompareLoader}
+                handle={{ crumb: () => "compare" }}
+              />
             </Route>
           </Route>
           <Route
