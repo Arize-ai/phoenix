@@ -1,5 +1,12 @@
 # Changelog
 
+## [11.6.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.6.0...arize-phoenix-v11.6.1) (2025-07-10)
+
+
+### Bug Fixes
+
+* **experiments:** restore routing for comparing experiments ([#8506](https://github.com/Arize-ai/phoenix/issues/8506)) ([0e8785a](https://github.com/Arize-ai/phoenix/commit/0e8785a8721996cccb04ff5f90ed65822d2d9c3f))
+
 ## [11.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.5.0...arize-phoenix-v11.6.0) (2025-07-09)
 
 
