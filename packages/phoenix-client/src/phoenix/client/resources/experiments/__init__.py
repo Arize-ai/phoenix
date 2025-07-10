@@ -548,6 +548,9 @@ class Experiments:
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }
 
+        tracer, resource = _get_tracer(
+            experiment["project_name"], str(self._client.base_url), dict(self._client.headers)
+        )
         root_span_name = f"Task: {get_func_name(task)}"
 
         print("🧪 Experiment started.")
@@ -598,6 +601,8 @@ class Experiments:
                 task,
                 task_signature,
                 experiment,
+                tracer,
+                resource,
                 root_span_name,
                 dry_run,
                 timeout,
@@ -648,14 +653,15 @@ class Experiments:
 
         # Run evaluations if provided
         if evaluators_by_name:
-            tracer, resource = _get_tracer(
-                experiment["project_name"], str(self._client.base_url), dict(self._client.headers)
+            # Create separate tracer for evaluations using "evaluators" project name
+            eval_tracer, eval_resource = _get_tracer(
+                None if dry_run else "evaluators", str(self._client.base_url), dict(self._client.headers)
             )
             eval_runs = self._run_evaluations(
                 [r for r in task_runs if r is not None],
                 evaluators_by_name,
-                tracer,
-                resource,
+                eval_tracer,
+                eval_resource,
                 bool(dry_run),
                 timeout,
                 rate_limit_errors,
@@ -678,6 +684,8 @@ class Experiments:
         task: ExperimentTask,
         task_signature: inspect.Signature,
         experiment: Experiment,
+        tracer: Tracer,
+        resource: Resource,
         root_span_name: str,
         dry_run: Union[bool, int],
         timeout: Optional[int],
@@ -719,9 +727,6 @@ class Experiments:
         end_time = start_time
         trace_id = None
 
-        tracer, resource = _get_tracer(
-            experiment["project_name"], str(self._client.base_url), dict(self._client.headers)
-        )
         status = Status(StatusCode.OK)
 
         with ExitStack() as stack:
@@ -1288,14 +1293,14 @@ class AsyncExperiments:
 
         # Run evaluations if provided
         if evaluators_by_name:
-            tracer, resource = _get_tracer(
-                experiment["project_name"], str(self._client.base_url), dict(self._client.headers)
+            eval_tracer, eval_resource = _get_tracer(
+                None if dry_run else "evaluators", str(self._client.base_url), dict(self._client.headers)
             )
             eval_runs = await self._run_evaluations_async(
                 [r for r in task_runs if r is not None],
                 evaluators_by_name,
-                tracer,
-                resource,
+                eval_tracer,
+                eval_resource,
                 bool(dry_run),
                 timeout,
                 rate_limit_errors,
