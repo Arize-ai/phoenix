@@ -285,8 +285,6 @@ def _bind_task_signature(
     )
 
 
-
-
 def _print_experiment_error(
     error: BaseException,
     /,
@@ -634,7 +632,9 @@ class Experiments:
         if evaluators_by_name:
             # Create separate tracer for evaluations using "evaluators" project name
             eval_tracer, eval_resource = _get_tracer(
-                None if dry_run else "evaluators", str(self._client.base_url), dict(self._client.headers)
+                None if dry_run else "evaluators",
+                str(self._client.base_url),
+                dict(self._client.headers),
             )
             eval_runs = self._run_evaluations(
                 [r for r in task_runs if r is not None],
@@ -892,6 +892,12 @@ class Experiments:
                 span.record_exception(exc)
                 status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
                 error = exc
+                _print_experiment_error(
+                    exc,
+                    example_id=example["id"],
+                    repetition_number=experiment_run.get("repetition_number", 1),
+                    kind="evaluator",
+                )
 
             if result:
                 # Filter out None values for OpenTelemetry attributes
@@ -1273,7 +1279,9 @@ class AsyncExperiments:
         # Run evaluations if provided
         if evaluators_by_name:
             eval_tracer, eval_resource = _get_tracer(
-                None if dry_run else "evaluators", str(self._client.base_url), dict(self._client.headers)
+                None if dry_run else "evaluators",
+                str(self._client.base_url),
+                dict(self._client.headers),
             )
             eval_runs = await self._run_evaluations_async(
                 [r for r in task_runs if r is not None],
@@ -1530,6 +1538,12 @@ class AsyncExperiments:
                 span.record_exception(exc)
                 status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
                 error = exc
+                _print_experiment_error(
+                    exc,
+                    example_id=example["id"],
+                    repetition_number=experiment_run.get("repetition_number", 1),
+                    kind="evaluator",
+                )
 
             if result:
                 # Filter out None values for OpenTelemetry attributes

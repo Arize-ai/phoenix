@@ -226,7 +226,7 @@ def _default_eval_scorer(result: Any) -> EvaluationResult:
     if isinstance(result, dict):
         # Check if it looks like an EvaluationResult dict
         has_score = "score" in result
-        has_label = "label" in result  
+        has_label = "label" in result
         has_explanation = "explanation" in result
         if has_score or has_label or has_explanation:
             return EvaluationResult(
