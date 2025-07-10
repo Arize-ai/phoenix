@@ -34,7 +34,16 @@ export async function appendDatasetExamples({
   const inputs = examples.map((example) => example.input);
   const outputs = examples.map((example) => example.output ?? {}); // Treat null as an empty object
   const metadata = examples.map((example) => example.metadata);
-  const datasetInfo = await getDatasetInfo({ client, dataset });
+  let datasetName: string;
+  if ("datasetName" in dataset) {
+    datasetName = dataset.datasetName;
+  } else {
+    const datasetInfo = await getDatasetInfo({
+      client,
+      dataset,
+    });
+    datasetName = datasetInfo.name;
+  }
   const appendResponse = await client.POST("/v1/datasets/upload", {
     params: {
       query: {
