@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from types import MappingProxyType
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Optional, Union, cast
 
 from typing_extensions import Protocol, runtime_checkable
 
@@ -174,13 +174,13 @@ class BaseEvaluator(ABC):
     _kind: AnnotatorKind
     _name: EvaluatorName
 
-    @functools.cached_property
+    @property
     def name(self) -> EvaluatorName:
         if hasattr(self, "_name"):
             return self._name
         return self.__class__.__name__
 
-    @functools.cached_property
+    @property
     def kind(self) -> EvaluatorKind:
         if hasattr(self, "_kind"):
             return self._kind.value
@@ -243,20 +243,26 @@ class BaseEvaluator(ABC):
         for super_cls in inspect.getmro(cls):
             if super_cls is BaseEvaluator:
                 break
-            if evaluate := super_cls.__dict__.get(BaseEvaluator.evaluate.__name__):
+            if evaluate := super_cls.__dict__.get(BaseEvaluator.evaluate.__name__):  # pyright: ignore[reportUnknownVariableType]
+                # pyright: ignore[reportUnknownVariableType] - suppress type warnings for evaluate variable
                 if isinstance(evaluate, classmethod):
-                    evaluate = evaluate.__func__
+                    evaluate = evaluate.__func__  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+                evaluate = cast(Callable[..., Any], evaluate)  # pyright: ignore[reportUnknownVariableType] - Cast to fix pyright warnings
                 assert callable(evaluate), "`evaluate()` method should be callable"
                 # need to remove the first param, i.e. `self`
-                _validate_evaluator_method_signature(functools.partial(evaluate, None), "evaluate")
+                _validate_evaluator_method_signature(functools.partial(evaluate, None), "evaluate")  # pyright: ignore[reportUnknownArgumentType,reportUnknownVariableType]
                 return
-            if async_evaluate := super_cls.__dict__.get(BaseEvaluator.async_evaluate.__name__):
+            if async_evaluate := super_cls.__dict__.get(BaseEvaluator.async_evaluate.__name__):  # pyright: ignore[reportUnknownVariableType]
                 if isinstance(async_evaluate, classmethod):
-                    async_evaluate = async_evaluate.__func__
+                    async_evaluate = async_evaluate.__func__  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+                async_evaluate = cast(
+                    Callable[..., Any], async_evaluate
+                )  # Cast to fix pyright warnings
                 assert callable(async_evaluate), "`async_evaluate()` method should be callable"
                 # need to remove the first param, i.e. `self`
                 _validate_evaluator_method_signature(
-                    functools.partial(async_evaluate, None), "async_evaluate"
+                    functools.partial(async_evaluate, None),
+                    "async_evaluate",  # pyright: ignore[reportUnknownArgumentType,reportUnknownVariableType]
                 )
                 return
 

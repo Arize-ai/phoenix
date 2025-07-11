@@ -202,7 +202,7 @@ class RateLimiter:
                         continue
             raise RateLimitError(f"Exceeded max ({self._max_rate_limit_retries}) retries")
 
-        return wrapper  # type: ignore
+        return wrapper  # type: ignore[unused-ignore]
 
     def _initialize_async_primitives(self) -> None:
         """
@@ -255,4 +255,4 @@ class RateLimiter:
                         self._rate_limit_handling.set()  # allow new requests to start
             raise RateLimitError(f"Exceeded max ({self._max_rate_limit_retries}) retries")
 
-        return wrapper  # type: ignore
+        return wrapper  # type: ignore[unused-ignore]

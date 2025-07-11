@@ -1,7 +1,7 @@
 import functools
 import inspect
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 from phoenix.client.resources.experiments.types import (
     AnnotatorKind,
@@ -70,21 +70,21 @@ def _default_eval_scorer(result: Any) -> EvaluationResult:
     if isinstance(result, dict):
         # Check if it looks like an EvaluationResult dict
         valid_keys = {"label", "score", "explanation"}
-        if all(isinstance(k, str) and k in valid_keys for k in result.keys()):
-            return result
+        if all(isinstance(k, str) and k in valid_keys for k in result.keys()):  # pyright: ignore[reportUnknownVariableType]
+            return cast(EvaluationResult, result)  # pyright: ignore[reportReturnType,reportUnknownVariableType]
     elif isinstance(result, bool):
         return {"score": float(result), "label": str(result)}
     elif isinstance(result, (int, float)):
         return {"score": float(result)}
     elif isinstance(result, str):
         return {"label": result}
-    elif isinstance(result, tuple) and len(result) >= 2:
+    elif isinstance(result, tuple) and len(result) >= 2:  # pyright: ignore[reportUnknownArgumentType]
         # Handle tuple results like (score, label) or (score, label, explanation)
-        score_val = result[0]
-        label_val = result[1]
-        score = float(score_val) if score_val is not None else None
-        label = str(label_val) if label_val is not None else None
-        explanation = str(result[2]) if len(result) > 2 and result[2] is not None else None
+        score_val = result[0]  # pyright: ignore[reportUnknownVariableType]
+        label_val = result[1]  # pyright: ignore[reportUnknownVariableType]
+        score = float(score_val) if score_val is not None else None  # pyright: ignore[reportUnknownArgumentType]
+        label = str(label_val) if label_val is not None else None  # pyright: ignore[reportUnknownArgumentType]
+        explanation = str(result[2]) if len(result) > 2 and result[2] is not None else None  # pyright: ignore[reportUnknownArgumentType, reportUnknownArgumentType]
 
         result_dict: EvaluationResult = {}
         if score is not None:
@@ -95,10 +95,10 @@ def _default_eval_scorer(result: Any) -> EvaluationResult:
             result_dict["explanation"] = explanation
         return result_dict
     else:
-        raise ValueError(f"Unsupported evaluation result type: {type(result)}")
+        raise ValueError(f"Unsupported evaluation result type: {type(result)}")  # pyright: ignore[reportUnknownArgumentType]
 
     # Default case - convert to string label
-    return {"label": str(result)}
+    return {"label": str(result)}  # pyright: ignore[reportUnknownArgumentType]
 
 
 def create_evaluator(
@@ -200,8 +200,8 @@ def _wrap_coroutine_evaluation_function(
     annotator_kind: AnnotatorKind,
     sig: inspect.Signature,
     convert_to_score: Callable[[Any], EvaluationResult],
-) -> Callable[[Callable[..., Any]], Any]:
-    def wrapper(func: Callable[..., Any]) -> Any:
+) -> Callable[[Callable[..., Any]], "Evaluator"]:
+    def wrapper(func: Callable[..., Any]) -> "Evaluator":
         # Import here to avoid circular import
         from phoenix.client.resources.experiments.types import BaseEvaluator
 
@@ -232,8 +232,8 @@ def _wrap_sync_evaluation_function(
     annotator_kind: AnnotatorKind,
     sig: inspect.Signature,
     convert_to_score: Callable[[Any], EvaluationResult],
-) -> Callable[[Callable[..., Any]], Any]:
-    def wrapper(func: Callable[..., Any]) -> Any:
+) -> Callable[[Callable[..., Any]], "Evaluator"]:
+    def wrapper(func: Callable[..., Any]) -> "Evaluator":
         # Import here to avoid circular import
         from phoenix.client.resources.experiments.types import BaseEvaluator
 
