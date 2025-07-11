@@ -1,12 +1,6 @@
 import { Suspense, useCallback } from "react";
 
-import {
-  Card,
-  Content,
-  Tooltip,
-  TooltipTrigger,
-  TriggerWrap,
-} from "@arizeai/components";
+import { Card, Content } from "@arizeai/components";
 
 import {
   Button,
@@ -17,6 +11,9 @@ import {
   Loading,
   Modal,
   ModalOverlay,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
@@ -137,17 +134,16 @@ function DeleteButton(props: PlaygroundInstanceProps) {
   const deleteInstance = usePlaygroundContext((state) => state.deleteInstance);
   return (
     <TooltipTrigger>
-      <TriggerWrap>
-        <Button
-          size="S"
-          aria-label="Delete this instance of the playground"
-          leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
-          onPress={() => {
-            deleteInstance(props.playgroundInstanceId);
-          }}
-        />
-      </TriggerWrap>
+      <Button
+        size="S"
+        aria-label="Delete this instance of the playground"
+        leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+        onPress={() => {
+          deleteInstance(props.playgroundInstanceId);
+        }}
+      />
       <Tooltip>
+        <TooltipArrow />
         <Content>Delete this instance of the playground</Content>
       </Tooltip>
     </TooltipTrigger>
@@ -168,13 +164,12 @@ function SaveButton({ instanceId, dirty }: SaveButtonProps) {
   }
   return (
     <DialogTrigger>
-      <TooltipTrigger delay={100} offset={5} placement="top">
-        <TriggerWrap>
-          <Button variant={dirty ? "primary" : undefined} size="S">
-            Save
-          </Button>
-        </TriggerWrap>
-        <Tooltip>
+      <TooltipTrigger delay={100}>
+        <Button variant={dirty ? "primary" : undefined} size="S">
+          Save
+        </Button>
+        <Tooltip placement="top">
+          <TooltipArrow />
           <Content>Save this prompt</Content>
         </Tooltip>
       </TooltipTrigger>
