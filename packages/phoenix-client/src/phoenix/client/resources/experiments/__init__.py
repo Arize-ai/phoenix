@@ -106,7 +106,7 @@ def _monkey_patch_span_init() -> Iterator[None]:
         if _span_init_monkey_patch_count == 1:
             # First caller - apply the patch
             _original_span_init = ReadableSpan.__init__
-            ReadableSpan.__init__ = _patched_span_init
+            setattr(ReadableSpan, "__init__", _patched_span_init)
 
     try:
         yield
@@ -116,7 +116,7 @@ def _monkey_patch_span_init() -> Iterator[None]:
             if _span_init_monkey_patch_count == 0:
                 # Last caller - restore the original
                 if _original_span_init is not None:
-                    ReadableSpan.__init__ = _original_span_init
+                    setattr(ReadableSpan, "__init__", _original_span_init)
                     _original_span_init = None
 
 
