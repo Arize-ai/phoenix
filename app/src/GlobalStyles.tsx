@@ -1230,10 +1230,10 @@ const ReactGridLayoutCSS = css`
 
 const chartCSS = css`
   .ac-theme--dark {
-    --chart-cursor-fill-color: rgba(255, 255, 255, 0.5);
+    --chart-cursor-fill-color: rgba(255, 255, 255, 0.2);
   }
   .ac-theme--light {
-    --chart-cursor-fill-color: rgba(0, 0, 0, 0.5);
+    --chart-cursor-fill-color: rgba(0, 0, 0, 0.2);
   }
 `;
 
