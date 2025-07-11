@@ -34,6 +34,7 @@
     "commander": "^12.1.0"
   },
   "devDependencies": {
+    "@types/node": "^18.19.0",
     "typescript": "^5.8.2",
     "vitest": "^2.1.9",
     "rimraf": "^5.0.10",
