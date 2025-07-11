@@ -30,7 +30,9 @@
   ],
   "author": "oss@arize.com",
   "license": "Apache-2.0",
-  "dependencies": {},
+  "dependencies": {
+    "commander": "^12.1.0"
+  },
   "devDependencies": {
     "typescript": "^5.8.2",
     "vitest": "^2.1.9",

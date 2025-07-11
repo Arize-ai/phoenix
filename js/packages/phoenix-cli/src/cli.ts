@@ -1,11 +1,19 @@
 #!/usr/bin/env node
 
+import { Command } from 'commander';
+
 // Phoenix CLI Main Logic
 // This file contains the main CLI functionality
 
 export function main() {
-  // eslint-disable-next-line no-console
-  console.log("Phoenix CLI - Coming Soon!");
+  const program = new Command();
+
+  program
+    .name('phoenix-cli')
+    .description('A command-line interface for Phoenix')
+    .version('1.0.0');
+
+  program.parse();
 }
 
 // Run CLI if this file is executed directly
