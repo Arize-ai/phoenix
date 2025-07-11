@@ -592,7 +592,7 @@ def run_experiment(
 
 
 def evaluate_experiment(
-    experiment: Union[Experiment, Any],  # Accept both legacy and new client experiments
+    experiment: Experiment,
     evaluators: Evaluators,
     *,
     dry_run: Union[bool, int] = False,
@@ -600,9 +600,6 @@ def evaluate_experiment(
     rate_limit_errors: Optional[RateLimitErrors] = None,
     concurrency: int = 3,
 ) -> RanExperiment:
-    if isinstance(experiment, RanExperiment) and _is_new_client_dataset(experiment.dataset):
-        experiment = _replace(experiment, dataset=experiment.dataset)
-
     if not dry_run and _is_dry_run(experiment):
         dry_run = True
     evaluators_by_name = _evaluators_by_name(evaluators)
