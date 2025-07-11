@@ -333,6 +333,7 @@ class Experiments:
     - a `float`, which will be interpreted as a score
     - a `str`, which will be interpreted as a label
     - a 2-`tuple` of (`float`, `str`), which will be interpreted as (score, explanation)
+    - a dictionary with any of: "label", "score" and "explanation" keys
 
     If the `evaluator` is a function of one argument then that argument will be
     bound to the `output` of the task. Alternatively, the `evaluator` can be a function of any
@@ -438,6 +439,7 @@ class Experiments:
         - a `float`, which will be interpreted as a score
         - a `str`, which will be interpreted as a label
         - a 2-`tuple` of (`float`, `str`), which will be interpreted as (score, explanation)
+        - a dictionary with any of: "label", "score" and "explanation" keys
 
         If the `evaluator` is a function of one argument then that argument will be
         bound to the `output` of the task. Alternatively, the `evaluator` can be a function of any
@@ -484,7 +486,6 @@ class Experiments:
             raise ValueError(f"Dataset has no examples: {dataset.id=}, {dataset.version_id=}")
 
         repetitions = 1
-        evaluators_by_name = _evaluators_by_name(evaluators)
 
         payload = {
             "version_id": dataset.version_id,
@@ -628,32 +629,158 @@ class Experiments:
             "evaluation_runs": [],
         }
 
-        # Run evaluations if provided
-        if evaluators_by_name:
-            # Create separate tracer for evaluations using "evaluators" project name
-            eval_tracer, eval_resource = _get_tracer(
-                None if dry_run else "evaluators",
-                str(self._client.base_url),
-                dict(self._client.headers),
+        if evaluators is not None:
+            eval_result = self.evaluate_experiment(
+                experiment_id=experiment["id"],
+                evaluators=evaluators,
+                dry_run=bool(dry_run),
+                print_summary=False,  # We'll handle summary printing in run_experiment
+                timeout=timeout,
             )
-            eval_runs = self._run_evaluations(
-                [r for r in task_runs if r is not None],
-                evaluators_by_name,
-                eval_tracer,
-                eval_resource,
-                bool(dry_run),
-                timeout,
-                rate_limit_errors,
-                experiment["project_name"] or "",
-                dataset,
-            )
-            result["evaluation_runs"] = cast(Any, eval_runs)
+            result["evaluation_runs"] = eval_result["evaluation_runs"]
 
         if print_summary:
             print(
                 f"Experiment completed with {len(result['task_runs'])} task runs and "
                 f"{len(result['evaluation_runs'])} evaluation runs"
             )
+
+        return result
+
+    def evaluate_experiment(
+        self,
+        *,
+        experiment_id: str,
+        evaluators: Evaluators,
+        dry_run: bool = False,
+        print_summary: bool = True,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> dict[str, Any]:
+        """
+        Run evaluators on a completed experiment.
+
+        An `evaluator` is either a synchronous or asynchronous function that returns an evaluation
+        result object, which can take any of the following forms:
+
+        - phoenix.experiments.types.EvaluationResult with optional fields for score, label,
+          explanation and metadata
+        - a `bool`, which will be interpreted as a score of 0 or 1 plus a label of "True" or "False"
+        - a `float`, which will be interpreted as a score
+        - a `str`, which will be interpreted as a label
+        - a 2-`tuple` of (`float`, `str`), which will be interpreted as (score, explanation)
+        - a dictionary with any of: "label", "score" and "explanation" keys
+
+        Args:
+            experiment_id: The ID of the experiment to evaluate.
+            evaluators: A single evaluator or sequence of evaluators used to
+                evaluate the results of the experiment.
+            dry_run: Run the evaluation in dry-run mode. When set, evaluation results will
+                not be recorded in Phoenix. Defaults to False.
+            print_summary: Whether to print a summary of the evaluation results.
+                Defaults to True.
+            timeout: The timeout for the evaluation execution in seconds. Defaults to 60.
+
+        Returns:
+            A dictionary containing the evaluation results with the same format as run_experiment.
+
+        Raises:
+            ValueError: If no evaluators are provided or experiment has no runs.
+            httpx.HTTPStatusError: If the API returns an error response.
+        """
+        evaluators_by_name = _evaluators_by_name(evaluators)
+        if not evaluators_by_name:
+            raise ValueError("Must specify at least one evaluator")
+
+        # Fetch experiment metadata
+        try:
+            experiment_response = self._client.get(
+                f"/v1/experiments/{experiment_id}", timeout=timeout
+            )
+            experiment_response.raise_for_status()
+            experiment_data = experiment_response.json()["data"]
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ValueError(f"Experiment not found: {experiment_id}")
+            raise
+
+        # Fetch existing task runs
+        try:
+            runs_response = self._client.get(
+                f"/v1/experiments/{experiment_id}/runs", timeout=timeout
+            )
+            runs_response.raise_for_status()
+            runs_data = runs_response.json()["data"]
+        except HTTPStatusError:
+            raise ValueError(f"Failed to fetch runs for experiment: {experiment_id}")
+
+        if not runs_data:
+            raise ValueError(f"Experiment has no runs to evaluate: {experiment_id}")
+
+        task_runs: list[ExperimentRun] = []
+        for run_data in runs_data:
+            run_data["start_time"] = datetime.fromisoformat(run_data["start_time"])
+            run_data["end_time"] = datetime.fromisoformat(run_data["end_time"])
+            task_runs.append(run_data)  # Already in TypedDict format
+
+        dataset_id = experiment_data["dataset_id"]
+        dataset_version_id = experiment_data["dataset_version_id"]
+        try:
+            dataset_response = self._client.get(
+                f"/v1/datasets/{dataset_id}/examples",
+                params={"version_id": str(dataset_version_id)},
+                timeout=timeout,
+            )
+            dataset_response.raise_for_status()
+            dataset_data = dataset_response.json()["data"]
+        except HTTPStatusError:
+            raise ValueError(f"Failed to fetch dataset for experiment: {experiment_id}")
+
+        from phoenix.client.resources.datasets import Dataset
+
+        dataset = Dataset(
+            dataset_info={
+                "id": dataset_id,
+                "name": experiment_data.get("dataset_name", ""),
+                "description": experiment_data.get("dataset_description"),
+                "metadata": experiment_data.get("dataset_metadata", {}),
+                "created_at": experiment_data.get("dataset_created_at"),
+                "updated_at": experiment_data.get("dataset_updated_at"),
+            },
+            examples_data=dataset_data,
+        )
+
+        # Create evaluation tracer
+        project_name = experiment_data.get("project_name", "")
+        eval_tracer, eval_resource = _get_tracer(
+            None if dry_run else "evaluators",
+            str(self._client.base_url),
+            dict(self._client.headers),
+        )
+
+        print("🧠 Evaluation started.")
+
+        # Run evaluations using existing method
+        eval_runs = self._run_evaluations(
+            task_runs,
+            evaluators_by_name,
+            eval_tracer,
+            eval_resource,
+            dry_run,
+            timeout,
+            None,  # rate_limit_errors
+            project_name,
+            dataset,
+        )
+
+        result = {
+            "experiment_id": experiment_id,
+            "dataset_id": dataset_id,
+            "task_runs": task_runs,
+            "evaluation_runs": eval_runs,
+        }
+
+        if print_summary:
+            print(f"Evaluation completed with {len(result['evaluation_runs'])} evaluation runs")
 
         return result
 
@@ -1085,6 +1212,7 @@ class AsyncExperiments:
         - a `float`, which will be interpreted as a score
         - a `str`, which will be interpreted as a label
         - a 2-`tuple` of (`float`, `str`), which will be interpreted as (score, explanation)
+        - a dictionary with any of: "label", "score" and "explanation" keys
 
         If the `evaluator` is a function of one argument then that argument will be
         bound to the `output` of the task. Alternatively, the `evaluator` can be a function of any
@@ -1129,7 +1257,6 @@ class AsyncExperiments:
             raise ValueError(f"Dataset has no examples: {dataset.id=}, {dataset.version_id=}")
 
         repetitions = 1
-        evaluators_by_name = _evaluators_by_name(evaluators)
 
         payload = {
             "version_id": dataset.version_id,
@@ -1276,32 +1403,161 @@ class AsyncExperiments:
             "evaluation_runs": cast(Any, []),
         }
 
-        # Run evaluations if provided
-        if evaluators_by_name:
-            eval_tracer, eval_resource = _get_tracer(
-                None if dry_run else "evaluators",
-                str(self._client.base_url),
-                dict(self._client.headers),
+        if evaluators is not None:
+            eval_result = await self.evaluate_experiment(
+                experiment_id=experiment["id"],
+                evaluators=evaluators,
+                dry_run=bool(dry_run),
+                print_summary=False,  # We'll handle summary printing in run_experiment
+                timeout=timeout,
+                concurrency=concurrency,
             )
-            eval_runs = await self._run_evaluations_async(
-                [r for r in task_runs if r is not None],
-                evaluators_by_name,
-                eval_tracer,
-                eval_resource,
-                bool(dry_run),
-                timeout,
-                rate_limit_errors,
-                concurrency,
-                experiment["project_name"] or "",
-                dataset,
-            )
-            result["evaluation_runs"] = cast(Any, eval_runs)
+            result["evaluation_runs"] = eval_result["evaluation_runs"]
 
         if print_summary:
             print(
                 f"Experiment completed with {len(result['task_runs'])} task runs and "
                 f"{len(result['evaluation_runs'])} evaluation runs"
             )
+
+        return result
+
+    async def evaluate_experiment(
+        self,
+        *,
+        experiment_id: str,
+        evaluators: Evaluators,
+        dry_run: bool = False,
+        print_summary: bool = True,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+        concurrency: int = 3,
+    ) -> dict[str, Any]:
+        """
+        Run evaluators on a completed experiment (async version).
+
+        An `evaluator` is either a synchronous function that returns an evaluation
+        result object, which can take any of the following forms:
+
+        - phoenix.experiments.types.EvaluationResult with optional fields for score, label,
+          explanation and metadata
+        - a `bool`, which will be interpreted as a score of 0 or 1 plus a label of "True" or "False"
+        - a `float`, which will be interpreted as a score
+        - a `str`, which will be interpreted as a label
+        - a 2-`tuple` of (`float`, `str`), which will be interpreted as (score, explanation)
+        - a dictionary with any of: "label", "score" and "explanation" keys
+
+        Args:
+            experiment_id: The ID of the experiment to evaluate.
+            evaluators: A single evaluator or sequence of evaluators used to
+                evaluate the results of the experiment.
+            dry_run: Run the evaluation in dry-run mode. When set, evaluation results will
+                not be recorded in Phoenix. Defaults to False.
+            print_summary: Whether to print a summary of the evaluation results.
+                Defaults to True.
+            timeout: The timeout for the evaluation execution in seconds. Defaults to 60.
+
+        Returns:
+            A dictionary containing the evaluation results with the same format as run_experiment.
+
+        Raises:
+            ValueError: If no evaluators are provided or experiment has no runs.
+            httpx.HTTPStatusError: If the API returns an error response.
+        """
+        evaluators_by_name = _evaluators_by_name(evaluators)
+        if not evaluators_by_name:
+            raise ValueError("Must specify at least one evaluator")
+
+        # Fetch experiment metadata
+        try:
+            experiment_response = await self._client.get(
+                f"/v1/experiments/{experiment_id}", timeout=timeout
+            )
+            experiment_response.raise_for_status()
+            experiment_data = experiment_response.json()["data"]
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ValueError(f"Experiment not found: {experiment_id}")
+            raise
+
+        # Fetch existing task runs
+        try:
+            runs_response = await self._client.get(
+                f"/v1/experiments/{experiment_id}/runs", timeout=timeout
+            )
+            runs_response.raise_for_status()
+            runs_data = runs_response.json()["data"]
+        except HTTPStatusError:
+            raise ValueError(f"Failed to fetch runs for experiment: {experiment_id}")
+
+        if not runs_data:
+            raise ValueError(f"Experiment has no runs to evaluate: {experiment_id}")
+
+        task_runs: list[ExperimentRun] = []
+        for run_data in runs_data:
+            run_data["start_time"] = datetime.fromisoformat(run_data["start_time"])
+            run_data["end_time"] = datetime.fromisoformat(run_data["end_time"])
+            task_runs.append(run_data)  # Already in TypedDict format
+
+        dataset_id = experiment_data["dataset_id"]
+        dataset_version_id = experiment_data["dataset_version_id"]
+        try:
+            dataset_response = await self._client.get(
+                f"/v1/datasets/{dataset_id}/examples",
+                params={"version_id": str(dataset_version_id)},
+                timeout=timeout,
+            )
+            dataset_response.raise_for_status()
+            dataset_data = dataset_response.json()["data"]
+        except HTTPStatusError:
+            raise ValueError(f"Failed to fetch dataset for experiment: {experiment_id}")
+
+        from phoenix.client.resources.datasets import Dataset
+
+        dataset = Dataset(
+            dataset_info={
+                "id": dataset_id,
+                "name": experiment_data.get("dataset_name", ""),
+                "description": experiment_data.get("dataset_description"),
+                "metadata": experiment_data.get("dataset_metadata", {}),
+                "created_at": experiment_data.get("dataset_created_at"),
+                "updated_at": experiment_data.get("dataset_updated_at"),
+            },
+            examples_data=dataset_data,
+        )
+
+        # Create evaluation tracer
+        project_name = experiment_data.get("project_name", "")
+        eval_tracer, eval_resource = _get_tracer(
+            None if dry_run else "evaluators",
+            str(self._client.base_url),
+            dict(self._client.headers),
+        )
+
+        print("🧠 Evaluation started.")
+
+        # Run evaluations using existing method
+        eval_runs = await self._run_evaluations_async(
+            task_runs,
+            evaluators_by_name,
+            eval_tracer,
+            eval_resource,
+            dry_run,
+            timeout,
+            None,  # rate_limit_errors
+            concurrency,
+            project_name,
+            dataset,
+        )
+
+        result = {
+            "experiment_id": experiment_id,
+            "dataset_id": dataset_id,
+            "task_runs": task_runs,
+            "evaluation_runs": eval_runs,
+        }
+
+        if print_summary:
+            print(f"Evaluation completed with {len(result['evaluation_runs'])} evaluation runs")
 
         return result
 
