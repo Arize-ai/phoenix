@@ -8,6 +8,7 @@ from unittest.mock import patch
 import pytest
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
+from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
@@ -632,21 +633,22 @@ class TestExperimentsIntegration:
             )
         )
 
-        class EmptyDataset:
-            def __init__(self, original_dataset: Any) -> None:
-                self.id = original_dataset.id
-                self.version_id = original_dataset.version_id
-                self.examples: List[Any] = []
+        original_dataset_id = dataset.id
+        original_version_id = dataset.version_id
 
-        empty_dataset = EmptyDataset(dataset)
+        dataset._examples_data = v1.ListDatasetExamplesData(
+            dataset_id=original_dataset_id,
+            version_id=original_version_id,
+            examples=[],
+        )
 
         def simple_task(input: Dict[str, Any]) -> str:
             return "test"
 
         with pytest.raises(ValueError, match="Dataset has no examples"):
             await _await_or_return(
-                Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(  # type: ignore[arg-type]
-                    dataset=empty_dataset,  # pyright: ignore[reportArgumentType]
+                Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
+                    dataset=dataset,  # pyright: ignore[reportArgumentType]
                     task=simple_task,
                     experiment_name="test_empty",
                     print_summary=False,

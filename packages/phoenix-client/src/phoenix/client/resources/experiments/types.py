@@ -82,7 +82,9 @@ ExperimentTask = Union[
     Callable[..., Awaitable[JSONSerializable]],
 ]
 
-EvaluatorOutput = Union[EvaluationResult, bool, int, float, str, tuple[Score, Label, Explanation], dict[str, Any]]
+EvaluatorOutput = Union[
+    EvaluationResult, bool, int, float, str, tuple[Score, Label, Explanation], dict[str, Any]
+]
 
 
 @runtime_checkable
