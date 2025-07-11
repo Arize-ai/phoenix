@@ -6,43 +6,63 @@ import { useChartColors } from "@phoenix/components/chart";
 
 const colorGridCSS = css`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: var(--ac-global-dimension-size-200);
-  padding: var(--ac-global-dimension-size-200);
+  grid-template-columns: repeat(auto-fill, 140px);
+  gap: var(--ac-global-dimension-size-100);
+  padding: var(--ac-global-dimension-size-100);
+  justify-content: start;
 `;
 
 const colorSwatchCSS = css`
   display: flex;
   flex-direction: column;
-  gap: var(--ac-global-dimension-size-100);
-  padding: var(--ac-global-dimension-size-150);
+  gap: var(--ac-global-dimension-size-75);
+  padding: var(--ac-global-dimension-size-100);
   border: 1px solid var(--ac-global-color-grey-300);
   border-radius: var(--ac-global-rounding-medium);
   background-color: var(--ac-global-color-grey-50);
+  min-width: 0; /* Prevent flex items from overflowing */
 `;
 
 const colorCircleCSS = css`
-  width: 48px;
-  height: 48px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   border: 2px solid var(--ac-global-color-grey-200);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
 `;
 
 const colorInfoCSS = css`
   display: flex;
   flex-direction: column;
-  gap: var(--ac-global-dimension-size-50);
+  gap: var(--ac-global-dimension-size-25);
+  min-width: 0;
+  flex: 1;
 `;
 
 const colorValueCSS = css`
   font-family: var(--ac-global-font-family-code);
-  font-size: var(--ac-global-dimension-font-size-75);
+  font-size: var(--ac-global-dimension-font-size-50);
   color: var(--ac-global-text-color-700);
   background-color: var(--ac-global-color-grey-100);
-  padding: var(--ac-global-dimension-size-50) var(--ac-global-dimension-size-75);
+  padding: var(--ac-global-dimension-size-25) var(--ac-global-dimension-size-50);
   border-radius: var(--ac-global-rounding-small);
   border: 1px solid var(--ac-global-color-grey-200);
+  word-break: break-all;
+  overflow-wrap: break-word;
+`;
+
+const colorGroupCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--ac-global-dimension-size-100);
+`;
+
+const colorGroupHeaderCSS = css`
+  padding: var(--ac-global-dimension-size-75) 0
+    var(--ac-global-dimension-size-50);
+  border-bottom: 1px solid var(--ac-global-color-grey-200);
+  margin-bottom: var(--ac-global-dimension-size-75);
 `;
 
 interface ColorSwatchProps {
@@ -55,7 +75,7 @@ function ColorSwatch({ name, color }: ColorSwatchProps) {
     <div css={colorSwatchCSS}>
       <div css={colorCircleCSS} style={{ backgroundColor: color }} />
       <div css={colorInfoCSS}>
-        <Text weight="heavy" size="S">
+        <Text weight="heavy" size="XS">
           {name}
         </Text>
         <code css={colorValueCSS}>{color}</code>
@@ -91,9 +111,43 @@ function ChartColors({ showOnlyPrimary = false }: ChartColorsProps) {
       )
     : colorEntries;
 
+  // Group colors by their base name (e.g., "blue", "green", "red")
+  const groupedColors = displayColors.reduce(
+    (groups, [name, color]) => {
+      // Extract base color name (remove numbers and common suffixes)
+      const baseName = name.replace(/\d+$/, "").replace(/[A-Z].*$/, "");
+
+      if (!groups[baseName]) {
+        groups[baseName] = [];
+      }
+      groups[baseName].push([name, color]);
+      return groups;
+    },
+    {} as Record<string, [string, string][]>
+  );
+
+  // Sort groups by base name, but put default, primary, and reference at the bottom
+  const bottomGroups = ["default", "primary", "reference"];
+  const sortedGroups = Object.entries(groupedColors).sort(([a], [b]) => {
+    const aIsBottom = bottomGroups.includes(a);
+    const bIsBottom = bottomGroups.includes(b);
+
+    // If both are bottom groups, sort by the order in bottomGroups array
+    if (aIsBottom && bIsBottom) {
+      return bottomGroups.indexOf(a) - bottomGroups.indexOf(b);
+    }
+
+    // If only one is a bottom group, put it at the end
+    if (aIsBottom) return 1;
+    if (bIsBottom) return -1;
+
+    // For regular groups, sort alphabetically
+    return a.localeCompare(b);
+  });
+
   return (
     <View>
-      <View paddingBottom="size-200">
+      <View paddingBottom="size-100">
         <Text elementType="h2" weight="heavy" size="L">
           Chart Colors
         </Text>
@@ -102,9 +156,20 @@ function ChartColors({ showOnlyPrimary = false }: ChartColorsProps) {
           components.
         </Text>
       </View>
-      <div css={colorGridCSS}>
-        {displayColors.map(([name, color]) => (
-          <ColorSwatch key={name} name={name} color={color} />
+      <div css={colorGroupCSS}>
+        {sortedGroups.map(([groupName, groupColors]) => (
+          <div key={groupName}>
+            <div css={colorGroupHeaderCSS}>
+              <Text elementType="h3" weight="heavy" size="S">
+                {groupName.charAt(0).toUpperCase() + groupName.slice(1)} Colors
+              </Text>
+            </div>
+            <div css={colorGridCSS}>
+              {groupColors.map(([name, color]) => (
+                <ColorSwatch key={name} name={name} color={color} />
+              ))}
+            </div>
+          </div>
         ))}
       </div>
     </View>
@@ -160,31 +225,5 @@ export const AllColors: Story = {
 export const PrimaryColors: Story = {
   args: {
     showOnlyPrimary: true,
-  },
-};
-
-export const Documentation: Story = {
-  args: {
-    showOnlyPrimary: false,
-  },
-  parameters: {
-    docs: {
-      description: {
-        story: `
-This story demonstrates all available chart colors with their color values. 
-Each color swatch shows the color name and its corresponding hex/rgb value.
-
-The colors are organized alphabetically and include various shades of:
-- **Blue**: Primary brand colors
-- **Red**: Error and warning states  
-- **Green**: Success and positive states
-- **Gray**: Neutral colors for backgrounds and text
-- **Orange/Yellow**: Warning and highlight colors
-- **Purple**: Secondary accent colors
-
-Use these colors consistently across charts to maintain visual coherence in the Phoenix design system.
-        `,
-      },
-    },
   },
 };
