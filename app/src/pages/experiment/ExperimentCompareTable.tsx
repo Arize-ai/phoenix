@@ -1,5 +1,6 @@
 import React, {
   ReactNode,
+  RefObject,
   startTransition,
   Suspense,
   useCallback,
@@ -19,6 +20,7 @@ import {
   Table,
   useReactTable,
 } from "@tanstack/react-table";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { css } from "@emotion/react";
 
 import { Card, CardProps } from "@arizeai/components";
@@ -669,6 +671,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               /* When resizing any column we will render this special memoized version of our table body */
               <MemoizedTableBody
                 table={table}
+                tableContainerRef={tableContainerRef}
                 hasNext={hasNext}
                 onLoadNext={() => loadNext(50)}
                 isLoadingNext={isLoadingNext}
@@ -676,6 +679,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
             ) : (
               <TableBody
                 table={table}
+                tableContainerRef={tableContainerRef}
                 hasNext={hasNext}
                 onLoadNext={() => loadNext(50)}
                 isLoadingNext={isLoadingNext}
@@ -705,35 +709,56 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
 //un-memoized normal table body component - see memoized version below
 function TableBody<T>({
   table,
+  tableContainerRef,
   hasNext,
   onLoadNext,
   isLoadingNext,
 }: {
   table: Table<T>;
+  tableContainerRef: RefObject<HTMLDivElement>;
   hasNext: boolean;
   onLoadNext: () => void;
   isLoadingNext: boolean;
 }) {
+  const rows = table.getRowModel().rows;
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => tableContainerRef.current,
+    estimateSize: () => 350, // an estimate of the max row height
+    overscan: 5,
+  });
+  const virtualRows = virtualizer.getVirtualItems();
   return (
     <tbody>
-      {table.getRowModel().rows.map((row) => (
-        <tr key={row.id}>
-          {row.getVisibleCells().map((cell) => {
-            return (
-              <td
-                key={cell.id}
-                style={{
-                  width: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
-                  maxWidth: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
-                  padding: 0,
-                }}
-              >
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-              </td>
-            );
-          })}
-        </tr>
-      ))}
+      {virtualRows.map((virtualRow, index) => {
+        const row = rows[virtualRow.index];
+        return (
+          <tr
+            key={row.id}
+            style={{
+              height: `${virtualRow.size}px`,
+              transform: `translateY(${
+                virtualRow.start - index * virtualRow.size
+              }px)`,
+            }}
+          >
+            {row.getVisibleCells().map((cell) => {
+              return (
+                <td
+                  key={cell.id}
+                  style={{
+                    width: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
+                    maxWidth: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
+                    padding: 0,
+                  }}
+                >
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </td>
+              );
+            })}
+          </tr>
+        );
+      })}
       {hasNext ? (
         <LoadMoreRow
           onLoadMore={onLoadNext}
