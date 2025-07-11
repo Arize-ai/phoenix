@@ -47,6 +47,7 @@ from .types import (
     ExperimentEvaluationRun,
     ExperimentRun,
     ExperimentTask,
+    RanExperiment,
     RateLimitErrors,
     TestCase,
 )
@@ -410,7 +411,7 @@ class Experiments:
         dry_run: Union[bool, int] = False,
         print_summary: bool = True,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> dict[str, Any]:
+    ) -> RanExperiment:
         """
         Runs an experiment using a given dataset of examples.
 
@@ -621,41 +622,47 @@ class Experiments:
                     "completed successfully."
                 )
 
-        # Create result dictionary
-        result = {
+        # Create RanExperiment object
+        task_runs_list = [r for r in task_runs if r is not None]
+        evaluation_runs_list: list[ExperimentEvaluationRun] = []
+
+        ran_experiment: RanExperiment = {
             "experiment_id": experiment["id"],
             "dataset_id": dataset.id,
-            "task_runs": [r for r in task_runs if r is not None],
+            "task_runs": task_runs_list,
             "evaluation_runs": [],
+            "experiment_metadata": experiment.get("metadata", {}),
         }
 
         if evaluators is not None:
             eval_result = self.evaluate_experiment(
-                experiment_id=experiment["id"],
+                experiment=ran_experiment,
                 evaluators=evaluators,
                 dry_run=bool(dry_run),
                 print_summary=False,  # We'll handle summary printing in run_experiment
                 timeout=timeout,
             )
-            result["evaluation_runs"] = eval_result["evaluation_runs"]
+            evaluation_runs_list = eval_result["evaluation_runs"]
+
+        ran_experiment["evaluation_runs"] += evaluation_runs_list
 
         if print_summary:
             print(
-                f"Experiment completed with {len(result['task_runs'])} task runs and "
-                f"{len(result['evaluation_runs'])} evaluation runs"
+                f"Experiment completed with {len(ran_experiment['task_runs'])} task runs and "
+                f"{len(ran_experiment['evaluation_runs'])} evaluation runs"
             )
 
-        return result
+        return ran_experiment
 
     def evaluate_experiment(
         self,
         *,
-        experiment_id: str,
+        experiment: RanExperiment,
         evaluators: Evaluators,
         dry_run: bool = False,
         print_summary: bool = True,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> dict[str, Any]:
+    ) -> RanExperiment:
         """
         Run evaluators on a completed experiment.
 
@@ -671,7 +678,7 @@ class Experiments:
         - a dictionary with any of: "label", "score" and "explanation" keys
 
         Args:
-            experiment_id: The ID of the experiment to evaluate.
+            experiment: The experiment to evaluate, returned from `run_experiment`.
             evaluators: A single evaluator or sequence of evaluators used to
                 evaluate the results of the experiment.
             dry_run: Run the evaluation in dry-run mode. When set, evaluation results will
@@ -691,39 +698,23 @@ class Experiments:
         if not evaluators_by_name:
             raise ValueError("Must specify at least one evaluator")
 
-        # Fetch experiment metadata
+        experiment_id = experiment["experiment_id"]
+        task_runs = experiment["task_runs"]
+        dataset_id = experiment["dataset_id"]
+        experiment_metadata = experiment["experiment_metadata"]
         try:
             experiment_response = self._client.get(
                 f"/v1/experiments/{experiment_id}", timeout=timeout
             )
             experiment_response.raise_for_status()
             experiment_data = experiment_response.json()["data"]
+            dataset_version_id = experiment_data["dataset_version_id"]
         except HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise ValueError(f"Experiment not found: {experiment_id}")
             raise
 
-        # Fetch existing task runs
-        try:
-            runs_response = self._client.get(
-                f"/v1/experiments/{experiment_id}/runs", timeout=timeout
-            )
-            runs_response.raise_for_status()
-            runs_data = runs_response.json()["data"]
-        except HTTPStatusError:
-            raise ValueError(f"Failed to fetch runs for experiment: {experiment_id}")
-
-        if not runs_data:
-            raise ValueError(f"Experiment has no runs to evaluate: {experiment_id}")
-
-        task_runs: list[ExperimentRun] = []
-        for run_data in runs_data:
-            run_data["start_time"] = datetime.fromisoformat(run_data["start_time"])
-            run_data["end_time"] = datetime.fromisoformat(run_data["end_time"])
-            task_runs.append(run_data)  # Already in TypedDict format
-
-        dataset_id = experiment_data["dataset_id"]
-        dataset_version_id = experiment_data["dataset_version_id"]
+        # Fetch dataset for evaluation context
         try:
             dataset_response = self._client.get(
                 f"/v1/datasets/{dataset_id}/examples",
@@ -759,7 +750,6 @@ class Experiments:
 
         print("🧠 Evaluation started.")
 
-        # Run evaluations using existing method
         eval_runs = self._run_evaluations(
             task_runs,
             evaluators_by_name,
@@ -772,17 +762,25 @@ class Experiments:
             dataset,
         )
 
-        result = {
+        # Combine existing evaluation runs with new ones
+        all_evaluation_runs = eval_runs
+        all_evaluation_runs = experiment["evaluation_runs"] + eval_runs
+
+        ran_experiment: RanExperiment = {
             "experiment_id": experiment_id,
             "dataset_id": dataset_id,
             "task_runs": task_runs,
-            "evaluation_runs": eval_runs,
+            "evaluation_runs": all_evaluation_runs,
+            "experiment_metadata": experiment_metadata,
         }
 
         if print_summary:
-            print(f"Evaluation completed with {len(result['evaluation_runs'])} evaluation runs")
+            print(
+                f"Evaluation completed with {len(ran_experiment['evaluation_runs'])} "
+                "evaluation runs"
+            )
 
-        return result
+        return ran_experiment
 
     def _run_single_task_sync(
         self,
@@ -1183,7 +1181,7 @@ class AsyncExperiments:
         print_summary: bool = True,
         concurrency: int = 3,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> dict[str, Any]:
+    ) -> RanExperiment:
         """
         Runs an experiment using a given dataset of examples (async version).
 
@@ -1395,43 +1393,49 @@ class AsyncExperiments:
                     "completed successfully."
                 )
 
-        # Create result dictionary
-        result: dict[str, Any] = {
+        # Create RanExperiment object
+        task_runs_list = [r for r in task_runs if r is not None]
+        evaluation_runs_list: list[ExperimentEvaluationRun] = []
+
+        ran_experiment: RanExperiment = {
             "experiment_id": experiment["id"],
             "dataset_id": dataset.id,
-            "task_runs": [r for r in task_runs if r is not None],
-            "evaluation_runs": cast(Any, []),
+            "task_runs": task_runs_list,
+            "evaluation_runs": [],
+            "experiment_metadata": experiment.get("metadata", {}),
         }
 
         if evaluators is not None:
             eval_result = await self.evaluate_experiment(
-                experiment_id=experiment["id"],
+                experiment=ran_experiment,
                 evaluators=evaluators,
                 dry_run=bool(dry_run),
                 print_summary=False,  # We'll handle summary printing in run_experiment
                 timeout=timeout,
                 concurrency=concurrency,
             )
-            result["evaluation_runs"] = eval_result["evaluation_runs"]
+            evaluation_runs_list = eval_result["evaluation_runs"]
+
+            ran_experiment["evaluation_runs"] = evaluation_runs_list
 
         if print_summary:
             print(
-                f"Experiment completed with {len(result['task_runs'])} task runs and "
-                f"{len(result['evaluation_runs'])} evaluation runs"
+                f"Experiment completed with {len(ran_experiment['task_runs'])} task runs and "
+                f"{len(ran_experiment['evaluation_runs'])} evaluation runs"
             )
 
-        return result
+        return ran_experiment
 
     async def evaluate_experiment(
         self,
         *,
-        experiment_id: str,
+        experiment: RanExperiment,
         evaluators: Evaluators,
         dry_run: bool = False,
         print_summary: bool = True,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
         concurrency: int = 3,
-    ) -> dict[str, Any]:
+    ) -> RanExperiment:
         """
         Run evaluators on a completed experiment (async version).
 
@@ -1447,7 +1451,7 @@ class AsyncExperiments:
         - a dictionary with any of: "label", "score" and "explanation" keys
 
         Args:
-            experiment_id: The ID of the experiment to evaluate.
+            experiment: The experiment ID or RanExperiment object to evaluate.
             evaluators: A single evaluator or sequence of evaluators used to
                 evaluate the results of the experiment.
             dry_run: Run the evaluation in dry-run mode. When set, evaluation results will
@@ -1467,39 +1471,23 @@ class AsyncExperiments:
         if not evaluators_by_name:
             raise ValueError("Must specify at least one evaluator")
 
-        # Fetch experiment metadata
+        experiment_id = experiment["experiment_id"]
+        task_runs = experiment["task_runs"]
+        dataset_id = experiment["dataset_id"]
+        experiment_metadata = experiment["experiment_metadata"]
         try:
             experiment_response = await self._client.get(
                 f"/v1/experiments/{experiment_id}", timeout=timeout
             )
             experiment_response.raise_for_status()
             experiment_data = experiment_response.json()["data"]
+            dataset_version_id = experiment_data["dataset_version_id"]
         except HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise ValueError(f"Experiment not found: {experiment_id}")
             raise
 
-        # Fetch existing task runs
-        try:
-            runs_response = await self._client.get(
-                f"/v1/experiments/{experiment_id}/runs", timeout=timeout
-            )
-            runs_response.raise_for_status()
-            runs_data = runs_response.json()["data"]
-        except HTTPStatusError:
-            raise ValueError(f"Failed to fetch runs for experiment: {experiment_id}")
-
-        if not runs_data:
-            raise ValueError(f"Experiment has no runs to evaluate: {experiment_id}")
-
-        task_runs: list[ExperimentRun] = []
-        for run_data in runs_data:
-            run_data["start_time"] = datetime.fromisoformat(run_data["start_time"])
-            run_data["end_time"] = datetime.fromisoformat(run_data["end_time"])
-            task_runs.append(run_data)  # Already in TypedDict format
-
-        dataset_id = experiment_data["dataset_id"]
-        dataset_version_id = experiment_data["dataset_version_id"]
+        # Fetch dataset for evaluation context
         try:
             dataset_response = await self._client.get(
                 f"/v1/datasets/{dataset_id}/examples",
@@ -1535,7 +1523,6 @@ class AsyncExperiments:
 
         print("🧠 Evaluation started.")
 
-        # Run evaluations using existing method
         eval_runs = await self._run_evaluations_async(
             task_runs,
             evaluators_by_name,
@@ -1549,17 +1536,25 @@ class AsyncExperiments:
             dataset,
         )
 
-        result = {
+        # Combine existing evaluation runs with new ones
+        all_evaluation_runs = eval_runs
+        all_evaluation_runs = experiment["evaluation_runs"] + eval_runs
+
+        ran_experiment: RanExperiment = {
             "experiment_id": experiment_id,
             "dataset_id": dataset_id,
             "task_runs": task_runs,
-            "evaluation_runs": eval_runs,
+            "evaluation_runs": all_evaluation_runs,
+            "experiment_metadata": experiment_metadata,
         }
 
         if print_summary:
-            print(f"Evaluation completed with {len(result['evaluation_runs'])} evaluation runs")
+            print(
+                f"Evaluation completed with {len(ran_experiment['evaluation_runs'])} "
+                "evaluation runs"
+            )
 
-        return result
+        return ran_experiment
 
     async def _run_single_task_async(
         self,

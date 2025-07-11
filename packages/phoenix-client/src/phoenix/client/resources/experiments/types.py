@@ -9,7 +9,7 @@ from enum import Enum
 from types import MappingProxyType
 from typing import Any, Callable, Optional, Union, cast
 
-from typing_extensions import Protocol, runtime_checkable
+from typing_extensions import Protocol, TypedDict, runtime_checkable
 
 from phoenix.client.__generated__ import v1
 
@@ -271,6 +271,22 @@ class BaseEvaluator(ABC):
             f"`def evaluate{evaluate_fn_signature}` or "
             f"`async def async_evaluate{evaluate_fn_signature}`"
         )
+
+
+class RanExperiment(TypedDict):
+    """
+    A completed experiment with its results.
+
+    This represents an experiment that has been run and contains both the experiment
+    metadata and the task runs. It can be used as input to evaluate_experiment to
+    add additional evaluations.
+    """
+
+    experiment_id: ExperimentId
+    dataset_id: DatasetId
+    task_runs: list[ExperimentRun]
+    evaluation_runs: list[ExperimentEvaluationRun]
+    experiment_metadata: Mapping[str, Any]
 
 
 # Type aliases for evaluators
