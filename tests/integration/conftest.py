@@ -283,18 +283,14 @@ def _smtpd(
 
 @pytest.fixture(autouse=True, scope="session")
 def _patch_opentelemetry_exporters_to_reduce_retries() -> None:
-    def patched(max_value: int = 0) -> Iterator[int]:
-        yield 1
-        yield max_value
-
     from opentelemetry.exporter.otlp.proto.grpc import exporter
     from opentelemetry.exporter.otlp.proto.http import trace_exporter
 
     assert isinstance(exporter, ModuleType)
     assert isinstance(trace_exporter, ModuleType)
 
-    fn = "_create_exp_backoff_generator"
-    assert callable(getattr(exporter, fn))
-    assert callable(getattr(trace_exporter, fn))
-    setattr(exporter, fn, patched)
-    setattr(trace_exporter, fn, patched)
+    name = "_MAX_RETRYS"
+    assert isinstance(getattr(exporter, name), int)
+    assert isinstance(getattr(trace_exporter, name), int)
+    setattr(exporter, name, 2)
+    setattr(trace_exporter, name, 2)

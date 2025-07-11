@@ -11,9 +11,17 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
-
-import { Flex, Icon, Icons, Text, Token } from "@phoenix/components";
+import {
+  Flex,
+  Icon,
+  Icons,
+  Text,
+  Token,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+  TriggerWrap,
+} from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { tableCSS } from "@phoenix/components/table/styles";
@@ -105,11 +113,7 @@ const columns = [
           if (row.values.length > 5) {
             tokens = [
               ...tokens.slice(-4),
-              <TooltipTrigger
-                key="ellipsis"
-                delay={64}
-                placement="bottom right"
-              >
+              <TooltipTrigger key="ellipsis" delay={64}>
                 <TriggerWrap>
                   <Token
                     key="ellipsis"
@@ -120,7 +124,8 @@ const columns = [
                     + {row.values.length - 5} more
                   </Token>
                 </TriggerWrap>
-                <Tooltip>
+                <Tooltip placement="bottom right">
+                  <TooltipArrow />
                   {row.values
                     .map((value: { label: string }) => value.label)
                     .join(", ")}

@@ -4,7 +4,7 @@ beautifulsoup4
 faker
 httpx
 openinference-semantic-conventions
-opentelemetry-sdk
+opentelemetry-sdk>=1.35.0
 pandas-stubs
 portpicker
 psutil
