@@ -29,7 +29,7 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.resources import Resource  # type: ignore[attr-defined, unused-ignore]
 from opentelemetry.sdk.trace import ReadableSpan, Span
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from opentelemetry.trace import INVALID_TRACE_ID, Status, StatusCode, Tracer
+from opentelemetry.trace import INVALID_SPAN_ID, Status, StatusCode, Tracer
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
@@ -75,7 +75,7 @@ class SpanModifier:
         Args:
           span: ReadableSpan: the span to modify
         """
-        if (ctx := span._context) is None or ctx.span_id == INVALID_TRACE_ID:  # pyright: ignore[reportPrivateUsage]
+        if (ctx := span._context) is None or ctx.span_id == INVALID_SPAN_ID:  # pyright: ignore[reportPrivateUsage]
             return
         span._resource = span._resource.merge(self._resource)  # pyright: ignore[reportPrivateUsage]
 
