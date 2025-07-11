@@ -397,7 +397,7 @@ class Experiments:
         return f"{self._client.base_url}/datasets/{dataset_id}/experiments"
 
     def get_experiment_url(self, dataset_id: str, experiment_id: str) -> str:
-        return f"{self._client.base_url}/datasets/{dataset_id}/experiments/{experiment_id}"
+        return f"{self._client.base_url}/datasets/{dataset_id}/compare?experimentId={experiment_id}"
 
     def run_experiment(
         self,
@@ -1166,7 +1166,7 @@ class AsyncExperiments:
         return f"{self._client.base_url}/datasets/{dataset_id}/experiments"
 
     def get_experiment_url(self, dataset_id: str, experiment_id: str) -> str:
-        return f"{self._client.base_url}/datasets/{dataset_id}/experiments/{experiment_id}"
+        return f"{self._client.base_url}/datasets/{dataset_id}/compare?experimentId={experiment_id}"
 
     async def run_experiment(
         self,
