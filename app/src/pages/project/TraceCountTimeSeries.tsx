@@ -103,7 +103,7 @@ function TooltipContent({
           new Date(label)
         )}`}</Text>
         <ChartTooltipItem
-          color={chartColors.red300}
+          color={chartColors.red500}
           shape="circle"
           name="error"
           value={errorString}
@@ -170,7 +170,7 @@ export function TraceCountTimeSeries() {
         <Tooltip
           content={<TooltipContent />}
           // TODO formalize this
-          cursor={{ fill: "var(--ac-global-text-color-300)" }}
+          cursor={{ fill: "var(--chart-cursor-fill-color)" }}
         />
         <Bar dataKey="error" stackId="a" fill={colors.red300} />
         <Bar

@@ -161,13 +161,14 @@ function TooltipContent({
         )}`}</Text>
         <ChartTooltipItem
           color={chartColors.red300}
-          name={payload[1]?.payload.metricName ?? "Errors"}
+          shape="circle"
+          name="error"
           value={metricString}
         />
         <ChartTooltipItem
-          color={chartColors.gray500}
-          shape="square"
-          name="Count"
+          color={chartColors.default}
+          shape="circle"
+          name="ok"
           value={predictionCountString}
         />
       </ChartTooltip>
@@ -218,10 +219,11 @@ function StackedBarChart({
           />
           <YAxis
             stroke="var(--ac-global-color-grey-500)"
+            width={50}
             label={{
               value: "Trace Count",
               angle: -90,
-              offset: 10,
+              dx: -10,
               style: {
                 textAnchor: "middle",
                 fill: "var(--ac-global-text-color-900)",
@@ -236,7 +238,10 @@ function StackedBarChart({
             strokeOpacity={0.5}
             vertical={false}
           />
-          <Tooltip content={<TooltipContent />} />
+          <Tooltip
+            content={<TooltipContent />}
+            cursor={{ fill: "var(--chart-cursor-fill-color)" }}
+          />
           <Bar dataKey="error" stackId="a" fill={colors.red300} />
           <Bar
             dataKey="ok"
