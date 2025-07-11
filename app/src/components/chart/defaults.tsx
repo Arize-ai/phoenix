@@ -5,7 +5,7 @@ import { ReferenceLineProps, TooltipProps, XAxisProps } from "recharts";
  */
 export const defaultTimeXAxisProps: XAxisProps = {
   dataKey: "timestamp",
-  stroke: "var(--ac-global-colo-grey-400)",
+  stroke: "var(--ac-global-color-grey-400)",
   style: { fill: "var(--ac-global-text-color-700)" },
   scale: "time",
   type: "number",
@@ -28,6 +28,9 @@ export const defaultSelectedTimestampReferenceLineProps: ReferenceLineProps = {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const defaultBarChartTooltipProps: TooltipProps<any, any> = {
   cursor: {
-    fill: "var(--ac-global-color-grey-300)",
+    // intense color turned weak by opacity
+    // in order to let grid lines show through
+    fill: "var(--ac-global-color-grey-400)",
+    fillOpacity: 0.2,
   },
 };
