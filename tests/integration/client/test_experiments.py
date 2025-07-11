@@ -295,7 +295,7 @@ class TestExperimentsIntegration:
             Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
                 dataset=dataset,
                 task=classification_task,
-                evaluators=[accuracy_evaluator, length_evaluator],  # type: ignore[list-item]  # pyright: ignore[reportArgumentType]
+                evaluators=[accuracy_evaluator, length_evaluator],
                 experiment_name=f"test_eval_experiment_{uuid.uuid4().hex[:8]}",
                 print_summary=False,
             )
@@ -512,11 +512,11 @@ class TestExperimentsIntegration:
             Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
                 dataset=dataset,
                 task=simple_task,
-                evaluators={  # pyright: ignore[reportArgumentType]
+                evaluators={
                     "bool_eval": bool_evaluator,
                     "float_eval": float_evaluator,
                     "tuple_eval": tuple_evaluator,
-                    "dict_eval": dict_evaluator,  # type: ignore[dict-item]
+                    "dict_eval": dict_evaluator,
                 },
                 experiment_name=f"test_eval_types_{uuid.uuid4().hex[:8]}",
                 print_summary=False,
@@ -645,8 +645,8 @@ class TestExperimentsIntegration:
 
         with pytest.raises(ValueError, match="Dataset has no examples"):
             await _await_or_return(
-                Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
-                    dataset=empty_dataset,  # type: ignore[arg-type]
+                Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(  # type: ignore[arg-type]
+                    dataset=empty_dataset,  # pyright: ignore[reportArgumentType]
                     task=simple_task,
                     experiment_name="test_empty",
                     print_summary=False,
@@ -762,12 +762,12 @@ class TestExperimentsIntegration:
             Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
                 dataset=dataset,
                 task=question_answering_task,
-                evaluators={  # pyright: ignore[reportArgumentType]
+                evaluators={
                     "output_only": output_only_evaluator,
                     "accuracy": accuracy_evaluator,
-                    "comprehensive": comprehensive_evaluator,  # type: ignore[dict-item]
+                    "comprehensive": comprehensive_evaluator,
                     "reference": reference_evaluator,
-                    "metadata": metadata_evaluator,  # type: ignore[dict-item]
+                    "metadata": metadata_evaluator,
                 },
                 experiment_name=f"test_param_binding_{uuid.uuid4().hex[:8]}",
                 print_summary=False,
@@ -784,8 +784,8 @@ class TestExperimentsIntegration:
 
         for eval_run in comprehensive_evals:
             assert eval_run.result is not None
-            assert eval_run.result["score"] == 1.0
-            assert "comprehensive_check" in eval_run.result["label"]
+            assert eval_run.result.get("score") == 1.0
+            assert "comprehensive_check" in (eval_run.result.get("label") or "")
 
         reference_evals = [
             eval_run for eval_run in result["evaluation_runs"] if eval_run.name == "reference"
@@ -794,7 +794,7 @@ class TestExperimentsIntegration:
 
         for eval_run in reference_evals:
             assert eval_run.result is not None
-            assert eval_run.result["score"] == 1.0
+            assert eval_run.result.get("score") == 1.0
 
         metadata_evals = [
             eval_run for eval_run in result["evaluation_runs"] if eval_run.name == "metadata"
@@ -803,9 +803,9 @@ class TestExperimentsIntegration:
 
         for eval_run in metadata_evals:
             assert eval_run.result is not None
-            assert "score" in eval_run.result
-            assert "label" in eval_run.result
-            assert "explanation" in eval_run.result
+            assert eval_run.result.get("score") is not None
+            assert eval_run.result.get("label") is not None
+            assert eval_run.result.get("explanation") is not None
 
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_task_dynamic_parameter_binding(
@@ -1125,7 +1125,7 @@ class TestEvaluateExperiment:
             client.experiments.run_experiment(
                 dataset=dataset,
                 task=simple_task,
-                evaluators=[accuracy_evaluator],  # type: ignore[list-item]
+                evaluators=[accuracy_evaluator],
                 experiment_name=f"test_with_evals_{uuid.uuid4().hex[:8]}",
                 print_summary=False,
             )
@@ -1144,7 +1144,7 @@ class TestEvaluateExperiment:
         eval_result = await _await_or_return(
             client.experiments.evaluate_experiment(
                 experiment=result_without_evals,
-                evaluators=[accuracy_evaluator],  # type: ignore[list-item]
+                evaluators=[accuracy_evaluator],
                 print_summary=False,
             )
         )
