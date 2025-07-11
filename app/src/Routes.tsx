@@ -99,6 +99,7 @@ import {
   SupportPage,
   TracePage,
 } from "./pages";
+
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path="/" errorElement={<ErrorElement />}>
@@ -253,11 +254,9 @@ const router = createBrowserRouter(
               </Route>
               <Route
                 path="compare"
-                handle={{
-                  crumb: () => "compare",
-                }}
-                loader={experimentCompareLoader}
                 element={<ExperimentComparePage />}
+                loader={experimentCompareLoader}
+                handle={{ crumb: () => "compare" }}
               />
             </Route>
           </Route>

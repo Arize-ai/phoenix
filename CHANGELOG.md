@@ -1,5 +1,50 @@
 # Changelog
 
+## [11.6.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.6.1...arize-phoenix-v11.6.2) (2025-07-10)
+
+
+### Bug Fixes
+
+* don't show negative remaining bytes for db storage chart ([#8514](https://github.com/Arize-ai/phoenix/issues/8514)) ([40597f5](https://github.com/Arize-ai/phoenix/commit/40597f575a4b100ac6f641e95c570b086e81e2df))
+* restore backward compatibility for locked mode ([#8515](https://github.com/Arize-ai/phoenix/issues/8515)) ([4847ede](https://github.com/Arize-ai/phoenix/commit/4847ede6d1809197f3c8239eabfa81524db56ce2))
+
+## [11.6.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.6.0...arize-phoenix-v11.6.1) (2025-07-10)
+
+
+### Bug Fixes
+
+* **experiments:** restore routing for comparing experiments ([#8506](https://github.com/Arize-ai/phoenix/issues/8506)) ([0e8785a](https://github.com/Arize-ai/phoenix/commit/0e8785a8721996cccb04ff5f90ed65822d2d9c3f))
+
+## [11.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.5.0...arize-phoenix-v11.6.0) (2025-07-09)
+
+
+### Features
+
+* **design:** add experiment table story ([#8456](https://github.com/Arize-ai/phoenix/issues/8456)) ([381f2d2](https://github.com/Arize-ai/phoenix/commit/381f2d2ae27b9d22181f7a2fe30b63f808da2fdb))
+* **experiments:** add baseline to compare experiments page ([#8461](https://github.com/Arize-ai/phoenix/issues/8461)) ([439f7d1](https://github.com/Arize-ai/phoenix/commit/439f7d1c3dab6498cb2ef4720734685f74013c12))
+
+
+### Bug Fixes
+
+* change postgresql query for db disk usage monitoring ([#8492](https://github.com/Arize-ai/phoenix/issues/8492)) ([5bc38d8](https://github.com/Arize-ai/phoenix/commit/5bc38d82790438770181610a7cf133ad85aeac8e))
+* **cost:** incorrect regex match method for model name ([#8490](https://github.com/Arize-ai/phoenix/issues/8490)) ([19abe24](https://github.com/Arize-ai/phoenix/commit/19abe242dc1eaf59fd05e227014424c08e2a920a))
+* incorrect cartesian join in span search ([#8486](https://github.com/Arize-ai/phoenix/issues/8486)) ([628eb25](https://github.com/Arize-ai/phoenix/commit/628eb25693b0874bc8ef7d9b3eafec5e183c363e))
+* remove regex anchors for model names ([#8491](https://github.com/Arize-ai/phoenix/issues/8491)) ([f51249d](https://github.com/Arize-ai/phoenix/commit/f51249dbe9a0e5ff7b914b8dc30031007063b47e))
+* **ui:** spans table column for cumulative cost summary ([#8495](https://github.com/Arize-ai/phoenix/issues/8495)) ([e31ec74](https://github.com/Arize-ai/phoenix/commit/e31ec74e7bad674574849fcd70f624ea9d6bb67c))
+
+## [11.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.4.0...arize-phoenix-v11.5.0) (2025-07-07)
+
+
+### Features
+
+* add database disk usage monitor ([#8402](https://github.com/Arize-ai/phoenix/issues/8402)) ([3c9a2f4](https://github.com/Arize-ai/phoenix/commit/3c9a2f4573cd783e29d42e267dd735e023da6882))
+
+
+### Bug Fixes
+
+* **experiments:** paginate sql query on compare experiments page ([#8451](https://github.com/Arize-ai/phoenix/issues/8451)) ([51823e8](https://github.com/Arize-ai/phoenix/commit/51823e821e7c56fc7838e6667c078e1d62cb3de0))
+* re-order csv form to do file import first ([#8421](https://github.com/Arize-ai/phoenix/issues/8421)) ([2d7df5b](https://github.com/Arize-ai/phoenix/commit/2d7df5b4306262f4bff13dacd56b7bcc71442796))
+
 ## [11.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.3.0...arize-phoenix-v11.4.0) (2025-07-03)
 
 

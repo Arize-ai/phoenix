@@ -36,9 +36,9 @@ import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { SpanCumulativeTokenCosts } from "@phoenix/components/trace/SpanCumulativeTokenCosts";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
+import { TraceTokenCosts } from "@phoenix/components/trace/TraceTokenCosts";
 import { TraceTokenCount } from "@phoenix/components/trace/TraceTokenCount";
 import { ISpanItem } from "@phoenix/components/trace/types";
 import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
@@ -225,11 +225,6 @@ export function TracesTable(props: TracesTableProps) {
                 startTime
                 latencyMs
                 cumulativeTokenCountTotal
-                cumulativeCostSummary {
-                  total {
-                    cost
-                  }
-                }
                 parentId
                 input {
                   value: truncatedValue
@@ -242,6 +237,11 @@ export function TracesTable(props: TracesTableProps) {
                   id
                   traceId
                   numSpans
+                  costSummary {
+                    total {
+                      cost
+                    }
+                  }
                 }
                 spanAnnotations {
                   id
@@ -277,11 +277,6 @@ export function TracesTable(props: TracesTableProps) {
                       latencyMs
                       parentId
                       cumulativeTokenCountTotal: tokenCountTotal
-                      cumulativeCostSummary {
-                        total {
-                          cost
-                        }
-                      }
                       input {
                         value: truncatedValue
                       }
@@ -666,7 +661,7 @@ export function TracesTable(props: TracesTableProps) {
       {
         header: "total cost",
         minSize: 80,
-        accessorKey: "cumulativeCostSummary.total.cost",
+        accessorKey: "trace.costSummary.total.cost",
         id: "cumulativeTokenCostTotal",
         cell: ({ row, getValue }) => {
           const value = getValue();
@@ -675,9 +670,9 @@ export function TracesTable(props: TracesTableProps) {
           }
           const span = row.original;
           return (
-            <SpanCumulativeTokenCosts
+            <TraceTokenCosts
               totalCost={value}
-              spanNodeId={span.id}
+              nodeId={span.trace.id}
               size="S"
             />
           );

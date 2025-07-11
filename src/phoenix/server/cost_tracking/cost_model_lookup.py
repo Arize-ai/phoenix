@@ -109,7 +109,7 @@ class CostModelLookup:
             model
             for model in self._models
             if (not model.start_time or model.start_time <= start_time)
-            and model.name_pattern.match(model_name)
+            and model.name_pattern.search(model_name)
         ]
         if not candidates:
             return None

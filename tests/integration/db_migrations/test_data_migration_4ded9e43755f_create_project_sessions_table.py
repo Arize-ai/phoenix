@@ -19,11 +19,12 @@ from . import _down, _up, _version_num
 def test_data_migration_for_project_sessions(
     _engine: Engine,
     _alembic_config: Config,
+    _schema: str,
 ) -> None:
     with pytest.raises(BaseException, match="alembic_version"):
-        _version_num(_engine)
+        _version_num(_engine, _schema)
 
-    _up(_engine, _alembic_config, "cd164e83824f")
+    _up(_engine, _alembic_config, "cd164e83824f", _schema)
 
     metadata = MetaData()
     metadata.reflect(bind=_engine)
@@ -119,11 +120,11 @@ def test_data_migration_for_project_sessions(
         conn.commit()
 
     for _ in range(2):
-        _down(_engine, _alembic_config, "cd164e83824f")
+        _down(_engine, _alembic_config, "cd164e83824f", _schema)
         metadata = MetaData()
         metadata.reflect(bind=_engine)
         assert metadata.tables.get("project_sessions") is None
-        _up(_engine, _alembic_config, "4ded9e43755f")
+        _up(_engine, _alembic_config, "4ded9e43755f", _schema)
         populate_project_sessions(_engine)
 
         with _engine.connect() as conn:

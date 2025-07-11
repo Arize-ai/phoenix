@@ -73,6 +73,28 @@ JWT_STORE_API_KEYS_ACTIVE = Gauge(
     documentation="Current number of API keys in the JWT store",
 )
 
+DB_DISK_USAGE_BYTES = Gauge(
+    name="database_disk_usage_bytes",
+    documentation="Current database disk usage in bytes",
+)
+DB_DISK_USAGE_RATIO = Gauge(
+    name="database_disk_usage_ratio",
+    documentation="Current database disk usage as ratio of allocated capacity (0-1)",
+)
+DB_INSERTIONS_BLOCKED = Gauge(
+    name="database_insertions_blocked",
+    documentation="Whether database insertions are currently blocked due to disk usage "
+    "(1 = blocked, 0 = not blocked)",
+)
+DB_DISK_USAGE_WARNING_EMAILS_SENT = Counter(
+    name="database_disk_usage_warning_emails_sent_total",
+    documentation="Total count of database disk usage warning emails sent",
+)
+DB_DISK_USAGE_WARNING_EMAIL_ERRORS = Counter(
+    name="database_disk_usage_warning_email_errors_total",
+    documentation="Total count of database disk usage warning email send errors",
+)
+
 
 class PrometheusMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:

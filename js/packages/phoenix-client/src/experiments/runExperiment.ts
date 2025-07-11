@@ -335,10 +335,7 @@ function runTaskWithExamples({
       };
       try {
         const taskOutput = await promisifyResult(task(example));
-        thisRun.output =
-          typeof taskOutput === "string"
-            ? taskOutput
-            : JSON.stringify(taskOutput);
+        thisRun.output = taskOutput;
       } catch (error) {
         thisRun.error =
           error instanceof Error ? error.message : "Unknown error";

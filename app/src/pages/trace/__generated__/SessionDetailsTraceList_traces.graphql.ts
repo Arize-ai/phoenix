@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6d652387c93be7644a070d235044c398>>
+ * @generated SignedSource<<a6a24145cb81285e517caf0b79641b2d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,11 +19,6 @@ export type SessionDetailsTraceList_traces$data = {
         readonly id: string;
         readonly rootSpan: {
           readonly attributes: string;
-          readonly cumulativeCostSummary: {
-            readonly total: {
-              readonly cost: number | null;
-            };
-          } | null;
           readonly cumulativeTokenCountTotal: number | null;
           readonly id: string;
           readonly input: {
@@ -40,6 +35,14 @@ export type SessionDetailsTraceList_traces$data = {
           };
           readonly spanId: string;
           readonly startTime: string;
+          readonly trace: {
+            readonly costSummary: {
+              readonly total: {
+                readonly cost: number | null;
+              };
+            };
+            readonly id: string;
+          };
           readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
         } | null;
         readonly traceId: string;
@@ -166,6 +169,47 @@ return {
                   "name": "rootSpan",
                   "plural": false,
                   "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "Trace",
+                      "kind": "LinkedField",
+                      "name": "trace",
+                      "plural": false,
+                      "selections": [
+                        (v1/*: any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "SpanCostSummary",
+                          "kind": "LinkedField",
+                          "name": "costSummary",
+                          "plural": false,
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "CostBreakdown",
+                              "kind": "LinkedField",
+                              "name": "total",
+                              "plural": false,
+                              "selections": [
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "cost",
+                                  "storageKey": null
+                                }
+                              ],
+                              "storageKey": null
+                            }
+                          ],
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    },
                     (v1/*: any*/),
                     {
                       "alias": null,
@@ -211,35 +255,6 @@ return {
                       "args": null,
                       "kind": "ScalarField",
                       "name": "cumulativeTokenCountTotal",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": "SpanCostSummary",
-                      "kind": "LinkedField",
-                      "name": "cumulativeCostSummary",
-                      "plural": false,
-                      "selections": [
-                        {
-                          "alias": null,
-                          "args": null,
-                          "concreteType": "CostBreakdown",
-                          "kind": "LinkedField",
-                          "name": "total",
-                          "plural": false,
-                          "selections": [
-                            {
-                              "alias": null,
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "cost",
-                              "storageKey": null
-                            }
-                          ],
-                          "storageKey": null
-                        }
-                      ],
                       "storageKey": null
                     },
                     {
@@ -337,6 +352,6 @@ return {
 };
 })();
 
-(node as any).hash = "9c7d6aa1353830d854fcd750f19fec8f";
+(node as any).hash = "d93b35659e600ca4438d4c1da87a24d5";
 
 export default node;

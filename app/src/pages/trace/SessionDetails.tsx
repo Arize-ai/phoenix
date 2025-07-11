@@ -1,9 +1,14 @@
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
-import { HelpTooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
-
-import { Flex, Text, View } from "@phoenix/components";
+import {
+  Flex,
+  RichTooltip,
+  Text,
+  TooltipTrigger,
+  TriggerWrap,
+  View,
+} from "@phoenix/components";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
 import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
@@ -59,13 +64,13 @@ function SessionDetailsHeader({
             <Text elementType="h3" size="S" color="text-700">
               Total Cost
             </Text>
-            <TooltipTrigger delay={0} placement="bottom">
+            <TooltipTrigger delay={0}>
               <TriggerWrap>
                 <Text size="L">
                   {costFormatter(costSummary.total?.cost ?? 0)}
                 </Text>
               </TriggerWrap>
-              <HelpTooltip>
+              <RichTooltip placement="bottom">
                 <View width="size-2400">
                   <Flex direction="column">
                     <Flex justifyContent="space-between">
@@ -86,7 +91,7 @@ function SessionDetailsHeader({
                     </Flex>
                   </Flex>
                 </View>
-              </HelpTooltip>
+              </RichTooltip>
             </TooltipTrigger>
           </Flex>
         ) : null}

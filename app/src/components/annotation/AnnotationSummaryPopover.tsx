@@ -2,8 +2,6 @@ import { CSSProperties, ReactNode, useMemo } from "react";
 import { FocusScope, Pressable } from "react-aria";
 import { css } from "@emotion/react";
 
-import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
-
 import {
   Dialog,
   DialogTrigger,
@@ -11,6 +9,10 @@ import {
   Popover,
   PopoverArrow,
   Text,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+  TriggerWrap,
   View,
 } from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation/AnnotationColorSwatch";
@@ -97,7 +99,7 @@ export function AnnotationSummaryPopover({
                           </Truncate>
                         </Text>
                       </Flex>
-                      <TooltipTrigger delay={0} placement="top">
+                      <TooltipTrigger delay={0}>
                         <TriggerWrap>
                           <MeanScore
                             size="L"
@@ -105,8 +107,8 @@ export function AnnotationSummaryPopover({
                             fallback={null}
                           />
                         </TriggerWrap>
-                        <Tooltip>
-                          <PopoverArrow />
+                        <Tooltip placement="top">
+                          <TooltipArrow />
                           <Text>Mean Score</Text>
                         </Tooltip>
                       </TooltipTrigger>

@@ -7,7 +7,7 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from .._helpers import _ADMIN, _MEMBER, _await_or_return, _GetUser, _RoleOrUser
+from .._helpers import _ADMIN, _MEMBER, _AppInfo, _await_or_return, _GetUser, _RoleOrUser
 
 
 class TestDatasetIntegration:
@@ -20,10 +20,10 @@ class TestDatasetIntegration:
         is_async: bool,
         role_or_user: _RoleOrUser,
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
-        user = _get_user(role_or_user).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(user.create_api_key(_app))
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -34,7 +34,7 @@ class TestDatasetIntegration:
 
         # Create dataset with JSON data
         dataset = await _await_or_return(
-            Client().datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=unique_name,
                 inputs=[{"text": "What is 2+2?"}, {"text": "What is the capital of France?"}],
                 outputs=[{"answer": "4"}, {"answer": "Paris"}],
@@ -50,7 +50,11 @@ class TestDatasetIntegration:
         assert dataset[0]["output"]["answer"] == "4"
 
         # Get the same dataset
-        retrieved = await _await_or_return(Client().datasets.get_dataset(dataset=unique_name))
+        retrieved = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                dataset=unique_name
+            )
+        )
 
         assert retrieved.id == dataset.id
         assert retrieved.version_id == dataset.version_id
@@ -63,10 +67,10 @@ class TestDatasetIntegration:
         is_async: bool,
         role_or_user: _RoleOrUser,
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
-        user = _get_user(role_or_user).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(user.create_api_key(_app))
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -77,7 +81,7 @@ class TestDatasetIntegration:
 
         # Create initial dataset
         dataset = await _await_or_return(
-            Client().datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=unique_name,
                 inputs=[{"text": "Hello"}],
                 outputs=[{"response": "Hi"}],
@@ -88,7 +92,7 @@ class TestDatasetIntegration:
 
         # Add more examples
         updated = await _await_or_return(
-            Client().datasets.add_examples_to_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.add_examples_to_dataset(
                 dataset=dataset,  # Pass the dataset object
                 inputs=[{"text": "Goodbye"}, {"text": "Thanks"}],
                 outputs=[{"response": "Bye"}, {"response": "You're welcome"}],
@@ -106,10 +110,10 @@ class TestDatasetIntegration:
         is_async: bool,
         role_or_user: _RoleOrUser,
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
-        user = _get_user(role_or_user).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(user.create_api_key(_app))
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -120,7 +124,7 @@ class TestDatasetIntegration:
 
         # Create dataset
         dataset = await _await_or_return(
-            Client().datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=unique_name,
                 inputs=[{"text": "v1"}],
                 outputs=[{"response": "version 1"}],
@@ -129,7 +133,7 @@ class TestDatasetIntegration:
 
         # Add examples to create new version
         await _await_or_return(
-            Client().datasets.add_examples_to_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.add_examples_to_dataset(
                 dataset=dataset,
                 inputs=[{"text": "v2"}],
                 outputs=[{"response": "version 2"}],
@@ -137,7 +141,11 @@ class TestDatasetIntegration:
         )
 
         # Get versions
-        versions = await _await_or_return(Client().datasets.get_dataset_versions(dataset=dataset))
+        versions = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset_versions(
+                dataset=dataset
+            )
+        )
 
         assert len(versions) >= 2
         assert all("version_id" in v for v in versions)
@@ -148,11 +156,11 @@ class TestDatasetIntegration:
         self,
         is_async: bool,
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
         tmp_path: Path,
     ) -> None:
-        user = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -171,7 +179,7 @@ Who wrote Hamlet?,Shakespeare,literature
         unique_name = f"test_csv_{uuid.uuid4().hex[:8]}"
 
         dataset = await _await_or_return(
-            Client().datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=unique_name,
                 csv_file_path=csv_file,
                 input_keys=["question"],
@@ -190,10 +198,10 @@ Who wrote Hamlet?,Shakespeare,literature
         self,
         is_async: bool,
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
-        user = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -211,7 +219,7 @@ Who wrote Hamlet?,Shakespeare,literature
         unique_name = f"test_df_{uuid.uuid4().hex[:8]}"
 
         dataset = await _await_or_return(
-            Client().datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=unique_name,
                 dataframe=df,
                 input_keys=["prompt"],
@@ -230,10 +238,10 @@ Who wrote Hamlet?,Shakespeare,literature
         self,
         is_async: bool,
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
-        user = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -244,7 +252,7 @@ Who wrote Hamlet?,Shakespeare,literature
 
         # Create dataset
         dataset = await _await_or_return(
-            Client().datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=unique_name,
                 inputs=[
                     {"question": "What is AI?", "context": "technology"},
@@ -276,7 +284,7 @@ Who wrote Hamlet?,Shakespeare,literature
         # Create new dataset from DataFrame data
         new_name = f"test_from_df_{uuid.uuid4().hex[:8]}"
         new_dataset = await _await_or_return(
-            Client().datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=new_name,
                 inputs=inputs,  # pyright: ignore[reportUnknownArgumentType]
                 outputs=outputs,  # pyright: ignore[reportUnknownArgumentType]
@@ -293,10 +301,10 @@ Who wrote Hamlet?,Shakespeare,literature
         self,
         is_async: bool,
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
-        user = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -306,7 +314,7 @@ Who wrote Hamlet?,Shakespeare,literature
         # Create source dataset
         source_name = f"test_source_{uuid.uuid4().hex[:8]}"
         source = await _await_or_return(
-            Client().datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=source_name,
                 inputs=[{"q": "Q1"}, {"q": "Q2"}, {"q": "Q3"}],
                 outputs=[{"a": "A1"}, {"a": "A2"}, {"a": "A3"}],
@@ -317,7 +325,7 @@ Who wrote Hamlet?,Shakespeare,literature
         # Create target dataset with single example from source
         target_name = f"test_target_{uuid.uuid4().hex[:8]}"
         target = await _await_or_return(
-            Client().datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=target_name,
                 examples=source[0],  # Single example
             )
@@ -329,7 +337,7 @@ Who wrote Hamlet?,Shakespeare,literature
 
         # Add multiple examples
         updated = await _await_or_return(
-            Client().datasets.add_examples_to_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.add_examples_to_dataset(
                 dataset=target,
                 examples=source.examples[1:3],  # Multiple examples
             )
@@ -342,10 +350,10 @@ Who wrote Hamlet?,Shakespeare,literature
         self,
         is_async: bool,
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
-        user = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -356,7 +364,7 @@ Who wrote Hamlet?,Shakespeare,literature
 
         # Create dataset
         dataset = await _await_or_return(
-            Client().datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=unique_name,
                 inputs=[{"text": "test"}],
                 outputs=[{"result": "success"}],
@@ -364,20 +372,30 @@ Who wrote Hamlet?,Shakespeare,literature
         )
 
         # Get by ID
-        by_id = await _await_or_return(Client().datasets.get_dataset(dataset=dataset.id))
+        by_id = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(dataset=dataset.id)
+        )
         assert by_id.id == dataset.id
 
         # Get by name
-        by_name = await _await_or_return(Client().datasets.get_dataset(dataset=unique_name))
+        by_name = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                dataset=unique_name
+            )
+        )
         assert by_name.id == dataset.id
 
         # Get by dataset object
-        by_obj = await _await_or_return(Client().datasets.get_dataset(dataset=dataset))
+        by_obj = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(dataset=dataset)
+        )
         assert by_obj.id == dataset.id
 
         # Get by dict
         by_dict = await _await_or_return(
-            Client().datasets.get_dataset(dataset={"id": dataset.id, "name": unique_name})
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                dataset={"id": dataset.id, "name": unique_name}
+            )
         )
         assert by_dict.id == dataset.id
 
@@ -386,10 +404,10 @@ Who wrote Hamlet?,Shakespeare,literature
         self,
         is_async: bool,
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
-        user = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -399,13 +417,15 @@ Who wrote Hamlet?,Shakespeare,literature
         # Test dataset not found
         with pytest.raises(ValueError, match="Dataset not found"):
             await _await_or_return(
-                Client().datasets.get_dataset(dataset="non_existent_dataset_xyz123")
+                Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                    dataset="non_existent_dataset_xyz123"
+                )
             )
 
         # Test invalid input data
         with pytest.raises(ValueError, match="inputs must be non-empty"):
             await _await_or_return(
-                Client().datasets.create_dataset(
+                Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                     name="test",
                     inputs=[],
                     outputs=[],
@@ -419,11 +439,11 @@ Who wrote Hamlet?,Shakespeare,literature
         is_async: bool,
         role_or_user: _RoleOrUser,
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
         """Test that dataset.examples can be passed directly to add_examples_to_dataset."""
-        user = _get_user(role_or_user).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", user.create_api_key())
+        user = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(user.create_api_key(_app))
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -433,7 +453,7 @@ Who wrote Hamlet?,Shakespeare,literature
         # Create source dataset with multiple examples
         source_name = f"test_source_{uuid.uuid4().hex[:8]}"
         source_dataset = await _await_or_return(
-            Client().datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=source_name,
                 inputs=[
                     {"question": "What is Python?", "difficulty": "easy"},
@@ -458,7 +478,7 @@ Who wrote Hamlet?,Shakespeare,literature
         # Create empty target dataset
         target_name = f"test_target_{uuid.uuid4().hex[:8]}"
         target_dataset = await _await_or_return(
-            Client().datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=target_name,
                 inputs=[{"placeholder": "initial"}],
                 outputs=[{"placeholder": "initial"}],
@@ -469,7 +489,7 @@ Who wrote Hamlet?,Shakespeare,literature
 
         # Pass dataset.examples directly to add_examples_to_dataset
         updated_dataset = await _await_or_return(
-            Client().datasets.add_examples_to_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.add_examples_to_dataset(
                 dataset=target_dataset,
                 examples=source_dataset.examples,  # Direct pass of examples list
             )
@@ -491,7 +511,7 @@ Who wrote Hamlet?,Shakespeare,literature
         # Also test passing a subset of examples
         subset_target_name = f"test_subset_{uuid.uuid4().hex[:8]}"
         subset_dataset = await _await_or_return(
-            Client().datasets.create_dataset(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=subset_target_name,
                 examples=source_dataset.examples[:2],  # Only first 2 examples
             )

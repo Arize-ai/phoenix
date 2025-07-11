@@ -1,11 +1,11 @@
 import { ReactNode } from "react";
-import { Pressable } from "react-aria";
 
 import {
   Flex,
   RichTooltip,
   Text,
   TooltipTrigger,
+  TriggerWrap,
   View,
 } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/utility/Truncate";
@@ -31,9 +31,7 @@ export function AnnotationTooltip({
 }) {
   return (
     <TooltipTrigger delay={500}>
-      <Pressable>
-        <div>{children}</div>
-      </Pressable>
+      <TriggerWrap>{children}</TriggerWrap>
       <RichTooltip offset={3}>
         <Flex
           direction={layout === "horizontal" ? "row" : "column"}

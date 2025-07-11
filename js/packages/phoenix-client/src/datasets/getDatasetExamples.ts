@@ -2,6 +2,7 @@ import invariant from "tiny-invariant";
 import { createClient } from "../client";
 import { ClientFn } from "../types/core";
 import { DatasetSelector, DatasetExamples } from "../types/datasets";
+import { getDatasetInfoByName } from "./getDatasetInfoByName";
 
 export type GetDatasetExamplesParams = ClientFn & {
   dataset: DatasetSelector;
@@ -15,10 +16,20 @@ export async function getDatasetExamples({
   dataset,
 }: GetDatasetExamplesParams): Promise<DatasetExamples> {
   const client = _client || createClient();
+  let datasetId: string;
+  if ("datasetName" in dataset) {
+    const datasetInfo = await getDatasetInfoByName({
+      client,
+      datasetName: dataset.datasetName,
+    });
+    datasetId = datasetInfo.id;
+  } else {
+    datasetId = dataset.datasetId;
+  }
   const response = await client.GET("/v1/datasets/{id}/examples", {
     params: {
       path: {
-        id: dataset.datasetId,
+        id: datasetId,
       },
     },
   });

@@ -1,4 +1,4 @@
-import { forwardRef, ReactNode, Ref } from "react";
+import { CSSProperties, forwardRef, ReactNode, Ref } from "react";
 import { Tooltip as AriaTooltip } from "react-aria-components";
 import { css } from "@emotion/react";
 
@@ -6,13 +6,29 @@ import { Heading, Text, View } from "@phoenix/components";
 
 import { richTooltipCSS } from "./styles";
 import { TooltipProps } from "./types";
-export interface RichTooltipProps extends TooltipProps {}
+export interface RichTooltipProps extends TooltipProps {
+  /**
+   * The width of the tooltip. If not provided, the tooltip will grow up to 300px to fit the content.
+   */
+  width?: CSSProperties["width"];
+}
 
+/**
+ * RichTooltip component
+ *
+ * Use this component for tooltips that require rich content, such as description lists, charts, titles with paragraphs, or other complex layouts.
+ * Ideal when you need more than a short sentence. If you only need a simple, brief tooltip, use the Tooltip component instead.
+ */
 function RichTooltip(props: RichTooltipProps, ref: Ref<HTMLDivElement>) {
-  const { children, css: propCSS, ...otherProps } = props;
+  const { children, css: propCSS, width, ...otherProps } = props;
 
   return (
-    <AriaTooltip {...otherProps} ref={ref} css={css(richTooltipCSS, propCSS)}>
+    <AriaTooltip
+      {...otherProps}
+      ref={ref}
+      css={css(richTooltipCSS, propCSS)}
+      style={width ? { width } : { maxWidth: "300px" }}
+    >
       {children}
     </AriaTooltip>
   );

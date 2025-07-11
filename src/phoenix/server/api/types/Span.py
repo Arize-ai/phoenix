@@ -19,7 +19,6 @@ from typing_extensions import Annotated, TypeAlias
 import phoenix.trace.schemas as trace_schema
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.dataloaders import types as dataloader_types
 from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_input,
     get_dataset_example_output,
@@ -828,104 +827,6 @@ class Span(Node):
             )
             for entry in entries
         ]
-
-    @strawberry.field
-    async def cumulative_cost_summary(self, info: Info[Context, None]) -> Optional[SpanCostSummary]:
-        max_depth = 0
-        descendant_rowids = await info.context.data_loaders.span_descendants.load(
-            (self.span_rowid, max_depth)
-        )
-        span_costs = await info.context.data_loaders.span_cost_by_span.load_many(
-            (self.span_rowid, *descendant_rowids)
-        )
-        total_cost: Optional[float] = None
-        total_tokens: Optional[float] = None
-        prompt_cost: Optional[float] = None
-        prompt_tokens: Optional[float] = None
-        completion_cost: Optional[float] = None
-        completion_tokens: Optional[float] = None
-        for span_cost in span_costs:
-            if span_cost is None:
-                continue
-            if span_cost.total_cost is not None:
-                total_cost = (total_cost or 0) + span_cost.total_cost
-            if span_cost.total_tokens is not None:
-                total_tokens = (total_tokens or 0) + span_cost.total_tokens
-            if span_cost.prompt_cost is not None:
-                prompt_cost = (prompt_cost or 0) + span_cost.prompt_cost
-            if span_cost.prompt_tokens is not None:
-                prompt_tokens = (prompt_tokens or 0) + span_cost.prompt_tokens
-            if span_cost.completion_cost is not None:
-                completion_cost = (completion_cost or 0) + span_cost.completion_cost
-            if span_cost.completion_tokens is not None:
-                completion_tokens = (completion_tokens or 0) + span_cost.completion_tokens
-        return SpanCostSummary(
-            prompt=CostBreakdown(
-                tokens=prompt_tokens,
-                cost=prompt_cost,
-            ),
-            completion=CostBreakdown(
-                tokens=completion_tokens,
-                cost=completion_cost,
-            ),
-            total=CostBreakdown(
-                tokens=total_tokens,
-                cost=total_cost,
-            ),
-        )
-
-    @strawberry.field
-    async def cumulative_cost_detail_summary_entries(
-        self, info: Info[Context, None]
-    ) -> list[SpanCostDetailSummaryEntry]:
-        max_depth = 0
-        descendant_rowids = await info.context.data_loaders.span_descendants.load(
-            (self.span_rowid, max_depth)
-        )
-        entry_lists = (
-            await info.context.data_loaders.span_cost_detail_summary_entries_by_span.load_many(
-                (self.span_rowid, *descendant_rowids)
-            )
-        )
-
-        TokenType: TypeAlias = str
-        IsPrompt: TypeAlias = bool
-        grouped_entries: dict[
-            IsPrompt, dict[TokenType, list[dataloader_types.SpanCostDetailSummaryEntry]]
-        ] = {}
-
-        for entries in entry_lists:
-            for entry in entries:
-                is_prompt = entry.is_prompt
-                token_type = entry.token_type
-                if is_prompt not in grouped_entries:
-                    grouped_entries[is_prompt] = {}
-                if token_type not in grouped_entries[is_prompt]:
-                    grouped_entries[is_prompt][token_type] = []
-                grouped_entries[is_prompt][token_type].append(entry)
-
-        result: list[SpanCostDetailSummaryEntry] = []
-        for is_prompt in (True, False):
-            entries_by_token_type = grouped_entries[is_prompt]
-            for token_type, entries in sorted(entries_by_token_type.items()):
-                cost: Optional[float] = None
-                tokens: Optional[float] = None
-                for entry in entries:
-                    if entry.value.cost is not None:
-                        cost = (cost or 0) + entry.value.cost
-                    if entry.value.tokens is not None:
-                        tokens = (tokens or 0) + entry.value.tokens
-                result.append(
-                    SpanCostDetailSummaryEntry(
-                        token_type=token_type,
-                        is_prompt=is_prompt,
-                        value=CostBreakdown(
-                            tokens=tokens,
-                            cost=cost,
-                        ),
-                    )
-                )
-        return result
 
 
 def _hide_embedding_vectors(attributes: Mapping[str, Any]) -> Mapping[str, Any]:

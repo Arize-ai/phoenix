@@ -12,6 +12,7 @@ def test_user_auth_method_migration(
     _engine: Engine,
     _alembic_config: Config,
     _db_backend: Literal["sqlite", "postgresql"],
+    _schema: str,
 ) -> None:
     """Test the migration that adds the auth_method column to the users table.
 
@@ -50,10 +51,10 @@ def test_user_auth_method_migration(
     """
     # no migrations applied yet
     with pytest.raises(BaseException, match="alembic_version"):
-        _version_num(_engine)
+        _version_num(_engine, _schema)
 
     # apply migrations up to right before auth method migration
-    _up(_engine, _alembic_config, "8a3764fe7f1a")
+    _up(_engine, _alembic_config, "8a3764fe7f1a", _schema)
 
     # Create test users
     with _engine.connect() as conn:
@@ -121,7 +122,7 @@ def test_user_auth_method_migration(
         conn.commit()
 
     # Run the auth method migration
-    _up(_engine, _alembic_config, "6a88424799fe")
+    _up(_engine, _alembic_config, "6a88424799fe", _schema)
 
     # Test post-migration constraints
     with _engine.connect() as conn:
@@ -216,7 +217,7 @@ def test_user_auth_method_migration(
         ), "Expected non_local_auth_has_no_password constraint violation"
 
     # Test downgrade
-    _down(_engine, _alembic_config, "8a3764fe7f1a")
+    _down(_engine, _alembic_config, "8a3764fe7f1a", _schema)
 
     # Verify downgrade state
     with _engine.connect() as conn:
