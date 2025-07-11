@@ -13,6 +13,7 @@ import {
 
 import { Text } from "@phoenix/components";
 import {
+  ChartColors,
   ChartTooltip,
   ChartTooltipItem,
   useChartColors,
@@ -20,6 +21,8 @@ import {
 } from "@phoenix/components/chart";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 import { calculateGranularity } from "@phoenix/utils/timeSeriesUtils";
+
+import { CHART_COLORS } from "./constants/colorConstants";
 
 const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
@@ -185,11 +188,15 @@ interface StackedBarChartProps {
     error: number;
   }>;
   height?: number | string;
+  firstColor?: keyof ChartColors;
+  secondColor?: keyof ChartColors;
 }
 
 function StackedBarChart({
   data = chartData,
-  height = 400,
+  height = 200,
+  firstColor = "red300",
+  secondColor = "default",
 }: StackedBarChartProps) {
   const timeRange = {
     start: new Date("2021-01-01"),
@@ -240,13 +247,13 @@ function StackedBarChart({
           />
           <Tooltip
             content={<TooltipContent />}
-            cursor={{ fill: "var(--chart-cursor-fill-color)" }}
+            cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
           />
-          <Bar dataKey="error" stackId="a" fill={colors.red300} />
+          <Bar dataKey="error" stackId="a" fill={colors[firstColor]} />
           <Bar
             dataKey="ok"
             stackId="a"
-            fill={colors.default}
+            fill={colors[secondColor]}
             radius={[2, 2, 0, 0]}
           />
 
@@ -267,6 +274,14 @@ const meta: Meta<typeof StackedBarChart> = {
     height: {
       control: { type: "number" },
       description: "Height of the chart",
+    },
+    firstColor: {
+      control: { type: "select" },
+      options: CHART_COLORS,
+    },
+    secondColor: {
+      control: { type: "select" },
+      options: CHART_COLORS,
     },
   },
 };

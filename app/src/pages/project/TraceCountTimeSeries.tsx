@@ -170,7 +170,7 @@ export function TraceCountTimeSeries() {
         <Tooltip
           content={<TooltipContent />}
           // TODO formalize this
-          cursor={{ fill: "var(--chart-cursor-fill-color)" }}
+          cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
         />
         <Bar dataKey="error" stackId="a" fill={colors.red300} />
         <Bar
