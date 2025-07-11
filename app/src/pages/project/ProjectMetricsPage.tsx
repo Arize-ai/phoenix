@@ -23,8 +23,14 @@ function MetricPanelHeader({ title, subtitle }: MetricPanelHeaderProps) {
       `}
       className="dashboard-panel-header"
     >
-      <Heading>{title}</Heading>
-      {subtitle && <Text>{subtitle}</Text>}
+      <Flex direction="column">
+        <Heading>{title}</Heading>
+        {subtitle && (
+          <Text size="XS" color="grey-600">
+            {subtitle}
+          </Text>
+        )}
+      </Flex>
     </div>
   );
 }
@@ -34,7 +40,7 @@ interface MetricPanelProps extends MetricPanelHeaderProps {
 }
 
 export const MetricPanel = forwardRef(function MetricPanel(
-  { title, children }: MetricPanelProps,
+  { title, subtitle, children }: MetricPanelProps,
   ref: React.Ref<HTMLDivElement>
 ) {
   return (
@@ -55,7 +61,7 @@ export const MetricPanel = forwardRef(function MetricPanel(
           height: 100%;
         `}
       >
-        <MetricPanelHeader title={title} />
+        <MetricPanelHeader title={title} subtitle={subtitle} />
         <div
           css={css`
             flex: 1 1 auto;
@@ -87,12 +93,14 @@ export function ProjectMetricsPage() {
       `}
     >
       <Flex direction="row" gap="size-100">
+        <MetricPanel
+          title="Traces over time"
+          subtitle="Overall volume of traces"
+        >
+          <TraceCountTimeSeries />
+        </MetricPanel>
         <MetricPanel title="Feedback scores" subtitle="Daily averages">
           {"Feedback scores chart goes here"}
-        </MetricPanel>
-
-        <MetricPanel title="Number of traces" subtitle="Daily totals">
-          <TraceCountTimeSeries />
         </MetricPanel>
       </Flex>
       <Flex direction="row" gap="size-100">

@@ -28,114 +28,114 @@ const numberFormatter = new Intl.NumberFormat([], {
 const chartData = [
   {
     timestamp: "2021-01-01",
-    traceCount: 100,
-    errorCount: 10,
+    ok: 100,
+    error: 10,
   },
   {
     timestamp: "2021-01-02",
-    traceCount: 120,
-    errorCount: 15,
+    ok: 120,
+    error: 15,
   },
   {
     timestamp: "2021-01-03",
-    traceCount: 80,
-    errorCount: 5,
+    ok: 80,
+    error: 5,
   },
   {
     timestamp: "2021-01-04",
-    traceCount: 150,
-    errorCount: 20,
+    ok: 150,
+    error: 20,
   },
   {
     timestamp: "2021-01-05",
-    traceCount: 110,
-    errorCount: 8,
+    ok: 110,
+    error: 8,
   },
   {
     timestamp: "2021-01-06",
-    traceCount: 90,
-    errorCount: 12,
+    ok: 90,
+    error: 12,
   },
   {
     timestamp: "2021-01-07",
-    traceCount: 130,
-    errorCount: 18,
+    ok: 130,
+    error: 18,
   },
   {
     timestamp: "2021-01-08",
-    traceCount: 95,
-    errorCount: 7,
+    ok: 95,
+    error: 7,
   },
   {
     timestamp: "2021-01-09",
-    traceCount: 140,
-    errorCount: 22,
+    ok: 140,
+    error: 22,
   },
   {
     timestamp: "2021-01-10",
-    traceCount: 105,
-    errorCount: 11,
+    ok: 105,
+    error: 11,
   },
   {
     timestamp: "2021-01-11",
-    traceCount: 125,
-    errorCount: 16,
+    ok: 125,
+    error: 16,
   },
 ];
 
 const lowVolumeData = [
   {
     timestamp: "2021-01-01",
-    traceCount: 10,
-    errorCount: 1,
+    ok: 10,
+    error: 1,
   },
   {
     timestamp: "2021-01-02",
-    traceCount: 12,
-    errorCount: 0,
+    ok: 12,
+    error: 0,
   },
   {
     timestamp: "2021-01-03",
-    traceCount: 8,
-    errorCount: 2,
+    ok: 8,
+    error: 2,
   },
   {
     timestamp: "2021-01-04",
-    traceCount: 15,
-    errorCount: 1,
+    ok: 15,
+    error: 1,
   },
   {
     timestamp: "2021-01-05",
-    traceCount: 11,
-    errorCount: 0,
+    ok: 11,
+    error: 0,
   },
 ];
 
 const highVolumeData = [
   {
     timestamp: "2021-01-01",
-    traceCount: 1000,
-    errorCount: 100,
+    ok: 1000,
+    error: 100,
   },
   {
     timestamp: "2021-01-02",
-    traceCount: 1200,
-    errorCount: 150,
+    ok: 1200,
+    error: 150,
   },
   {
     timestamp: "2021-01-03",
-    traceCount: 800,
-    errorCount: 50,
+    ok: 800,
+    error: 50,
   },
   {
     timestamp: "2021-01-04",
-    traceCount: 1500,
-    errorCount: 200,
+    ok: 1500,
+    error: 200,
   },
   {
     timestamp: "2021-01-05",
-    traceCount: 1100,
-    errorCount: 80,
+    ok: 1100,
+    error: 80,
   },
 ];
 
@@ -160,14 +160,14 @@ function TooltipContent({
           new Date(label)
         )}`}</Text>
         <ChartTooltipItem
-          color={chartColors.red500}
+          color={chartColors.red300}
           name={payload[1]?.payload.metricName ?? "Errors"}
           value={metricString}
         />
         <ChartTooltipItem
           color={chartColors.gray500}
           shape="square"
-          name="Total Traces"
+          name="Count"
           value={predictionCountString}
         />
       </ChartTooltip>
@@ -180,8 +180,8 @@ function TooltipContent({
 interface StackedBarChartProps {
   data?: Array<{
     timestamp: string;
-    traceCount: number;
-    errorCount: number;
+    ok: number;
+    error: number;
   }>;
   height?: number | string;
 }
@@ -207,18 +207,21 @@ function StackedBarChart({
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={data}
-          margin={{ top: 25, right: 18, left: 0, bottom: 0 }}
+          margin={{ top: 0, right: 18, left: 0, bottom: 0 }}
+          barSize={10}
         >
           <XAxis
             dataKey="timestamp"
             tickFormatter={(x) => timeTickFormatter(new Date(x))}
             style={{ fill: "var(--ac-global-text-color-700)" }}
+            stroke="var(--ac-global-color-grey-400)"
           />
           <YAxis
             stroke="var(--ac-global-color-grey-500)"
             label={{
               value: "Trace Count",
               angle: -90,
+              offset: 10,
               style: {
                 textAnchor: "middle",
                 fill: "var(--ac-global-text-color-900)",
@@ -234,15 +237,15 @@ function StackedBarChart({
             vertical={false}
           />
           <Tooltip content={<TooltipContent />} />
-          <Bar dataKey="errorCount" stackId="a" fill={colors.red500} />
+          <Bar dataKey="error" stackId="a" fill={colors.red300} />
           <Bar
-            dataKey="traceCount"
+            dataKey="ok"
             stackId="a"
-            fill={colors.gray600}
+            fill={colors.default}
             radius={[2, 2, 0, 0]}
           />
 
-          <Legend align="left" />
+          <Legend align="left" iconType="circle" iconSize={8} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -250,7 +253,7 @@ function StackedBarChart({
 }
 
 const meta: Meta<typeof StackedBarChart> = {
-  title: "Charts/StackedBarChart",
+  title: "Charts/StackedTimeSeriesBarChart",
   component: StackedBarChart,
   parameters: {
     layout: "padded",

@@ -27,58 +27,58 @@ const numberFormatter = new Intl.NumberFormat([], {
 const chartData = [
   {
     timestamp: "2021-01-01",
-    traceCount: 100,
-    errorCount: 10,
+    ok: 100,
+    error: 10,
   },
   {
     timestamp: "2021-01-02",
-    traceCount: 100,
-    errorCount: 10,
+    ok: 100,
+    error: 10,
   },
   {
     timestamp: "2021-01-03",
-    traceCount: 100,
-    errorCount: 10,
+    ok: 100,
+    error: 10,
   },
   {
     timestamp: "2021-01-04",
-    traceCount: 100,
-    errorCount: 10,
+    ok: 100,
+    error: 10,
   },
   {
     timestamp: "2021-01-05",
-    traceCount: 100,
-    errorCount: 10,
+    ok: 100,
+    error: 10,
   },
   {
     timestamp: "2021-01-06",
-    traceCount: 100,
-    errorCount: 10,
+    ok: 100,
+    error: 10,
   },
   {
     timestamp: "2021-01-07",
-    traceCount: 100,
-    errorCount: 10,
+    ok: 100,
+    error: 10,
   },
   {
     timestamp: "2021-01-08",
-    traceCount: 100,
-    errorCount: 10,
+    ok: 100,
+    error: 10,
   },
   {
     timestamp: "2021-01-09",
-    traceCount: 100,
-    errorCount: 10,
+    ok: 100,
+    error: 10,
   },
   {
     timestamp: "2021-01-10",
-    traceCount: 100,
-    errorCount: 10,
+    ok: 100,
+    error: 10,
   },
   {
     timestamp: "2021-01-11",
-    traceCount: 100,
-    errorCount: 10,
+    ok: 100,
+    error: 10,
   },
 ];
 
@@ -89,29 +89,30 @@ function TooltipContent({
 }: TooltipProps<number, string>) {
   const chartColors = useChartColors();
   if (active && payload && payload.length) {
-    const metricValue = payload[1]?.value ?? null;
-    const count = payload[0]?.value ?? null;
-    const metricString =
-      typeof metricValue === "number"
-        ? numberFormatter.format(metricValue)
+    const okValue = payload[0]?.value ?? null;
+    const errorValue = payload[1]?.value ?? null;
+    const okString =
+      typeof okValue === "number" ? numberFormatter.format(okValue) : "--";
+    const errorString =
+      typeof errorValue === "number"
+        ? numberFormatter.format(errorValue)
         : "--";
-    const predictionCountString =
-      typeof count === "number" ? numberFormatter.format(count) : "--";
     return (
       <ChartTooltip>
         <Text weight="heavy" size="S">{`${fullTimeFormatter(
           new Date(label)
         )}`}</Text>
         <ChartTooltipItem
-          color={chartColors.red500}
-          name={payload[1]?.payload.metricName ?? "Metric"}
-          value={metricString}
+          color={chartColors.red300}
+          shape="circle"
+          name="error"
+          value={errorString}
         />
         <ChartTooltipItem
-          color={chartColors.gray500}
-          shape="square"
-          name="Count"
-          value={predictionCountString}
+          color={chartColors.default}
+          shape="circle"
+          name="ok"
+          value={okString}
         />
       </ChartTooltip>
     );
@@ -136,19 +137,22 @@ export function TraceCountTimeSeries() {
     <ResponsiveContainer width="100%" height="100%">
       <BarChart
         data={chartData}
-        margin={{ top: 25, right: 18, left: 0, bottom: 0 }}
+        margin={{ top: 0, right: 18, left: 0, bottom: 0 }}
+        barSize={10}
       >
         <XAxis
-          //   {...defaultTimeXAxisProps}
           dataKey="timestamp"
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
           style={{ fill: "var(--ac-global-text-color-700)" }}
+          stroke="var(--ac-global-color-grey-400)"
         />
         <YAxis
           stroke="var(--ac-global-color-grey-500)"
+          width={50}
           label={{
-            value: "Trace Count",
+            value: "Count",
             angle: -90,
+            dx: -10,
             style: {
               textAnchor: "middle",
               fill: "var(--ac-global-text-color-900)",
@@ -163,16 +167,20 @@ export function TraceCountTimeSeries() {
           strokeOpacity={0.5}
           vertical={false}
         />
-        <Tooltip content={<TooltipContent />} />
-        <Bar dataKey="errorCount" stackId="a" fill={colors.red500} />
+        <Tooltip
+          content={<TooltipContent />}
+          // TODO formalize this
+          cursor={{ fill: "var(--ac-global-text-color-300)" }}
+        />
+        <Bar dataKey="error" stackId="a" fill={colors.red300} />
         <Bar
-          dataKey="traceCount"
+          dataKey="ok"
           stackId="a"
-          fill={colors.gray600}
+          fill={colors.default}
           radius={[2, 2, 0, 0]}
         />
 
-        <Legend align="left" />
+        <Legend align="left" iconType="circle" iconSize={8} />
       </BarChart>
     </ResponsiveContainer>
   );
