@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 2.3.2
+
+### Patch Changes
+
+- 6ef8e47: fix dataset pull by name
+
 ## 2.3.1
 
 ### Patch Changes
