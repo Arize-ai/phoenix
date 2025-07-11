@@ -1,21 +1,7 @@
-import { Layouts, Responsive, WidthProvider } from "react-grid-layout";
+import { forwardRef } from "react";
 import { css } from "@emotion/react";
 
-const ResponsiveGridLayout = WidthProvider(Responsive);
-
-const layouts: Layouts = {
-  lg: [
-    { i: "feedback", x: 0, y: 0, w: 6, h: 4 },
-    { i: "traces", x: 6, y: 0, w: 6, h: 4 },
-    { i: "duration", x: 0, y: 4, w: 6, h: 4 },
-    { i: "tokens", x: 6, y: 4, w: 6, h: 4 },
-    { i: "cost", x: 0, y: 8, w: 12, h: 4 },
-  ],
-};
-
-import { forwardRef } from "react";
-
-import { Heading, Text, View } from "@phoenix/components";
+import { Flex, Heading, Text, View } from "@phoenix/components";
 
 import { TraceCountTimeSeries } from "./TraceCountTimeSeries";
 
@@ -74,6 +60,8 @@ export const MetricPanel = forwardRef(function MetricPanel(
           css={css`
             flex: 1 1 auto;
             padding: var(--ac-global-dimension-size-200);
+
+            height: 200px;
           `}
         >
           {children}
@@ -92,48 +80,35 @@ export function ProjectMetricsPage() {
         box-sizing: border-box;
         overflow-y: auto;
         flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        gap: var(--ac-global-dimension-size-100);
+        padding: var(--ac-global-dimension-size-100);
       `}
     >
-      <ResponsiveGridLayout
-        className="layout"
-        layouts={layouts}
-        breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
-        cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
-        rowHeight={80}
-        containerPadding={[16, 16]}
-        isResizable={false}
-        isDraggable={false}
-        draggableHandle=".dashboard-panel-header"
-      >
-        <div key="feedback">
-          <MetricPanel title="Feedback scores" subtitle="Daily averages">
-            {"Feedback scores chart goes here"}
-          </MetricPanel>
-        </div>
-        <div key="traces">
-          <MetricPanel title="Number of traces" subtitle="Daily totals">
-            <TraceCountTimeSeries />
-          </MetricPanel>
-        </div>
-        <div key="duration">
-          <MetricPanel title="Duration" subtitle="Daily quantiles in seconds">
-            {"Duration chart goes here"}
-          </MetricPanel>
-        </div>
-        <div key="tokens">
-          <MetricPanel title="Token usage" subtitle="Daily totals">
-            {"Token usage chart goes here"}
-          </MetricPanel>
-        </div>
-        <div key="cost">
-          <MetricPanel
-            title="Estimated cost"
-            subtitle="Total daily cost in USD"
-          >
-            {"Estimated cost chart goes here"}
-          </MetricPanel>
-        </div>
-      </ResponsiveGridLayout>
+      <Flex direction="row" gap="size-100">
+        <MetricPanel title="Feedback scores" subtitle="Daily averages">
+          {"Feedback scores chart goes here"}
+        </MetricPanel>
+
+        <MetricPanel title="Number of traces" subtitle="Daily totals">
+          <TraceCountTimeSeries />
+        </MetricPanel>
+      </Flex>
+      <Flex direction="row" gap="size-100">
+        <MetricPanel title="Duration" subtitle="Daily quantiles in seconds">
+          {"Duration chart goes here"}
+        </MetricPanel>
+
+        <MetricPanel title="Token usage" subtitle="Daily totals">
+          {"Token usage chart goes here"}
+        </MetricPanel>
+      </Flex>
+      <Flex direction="row" gap="size-100">
+        <MetricPanel title="Estimated cost" subtitle="Total daily cost in USD">
+          {"Estimated cost chart goes here"}
+        </MetricPanel>
+      </Flex>
     </main>
   );
 }
