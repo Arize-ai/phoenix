@@ -41,7 +41,7 @@ export function AIMessageContentRadioGroup({
         <ToggleButton aria-label="text input" id={"text"}>
           <Icon svg={<Icons.MessageSquareOutline />} />
         </ToggleButton>
-        <Tooltip placement="top" offset={10}>
+        <Tooltip placement="top">
           <TooltipArrow />
           Text input
         </Tooltip>
@@ -50,7 +50,7 @@ export function AIMessageContentRadioGroup({
         <ToggleButton aria-label="tool calling" id={"toolCalls"}>
           <Icon svg={<Icons.Code />} />
         </ToggleButton>
-        <Tooltip placement="top" offset={10}>
+        <Tooltip placement="top">
           <TooltipArrow />
           Tool calling
         </Tooltip>

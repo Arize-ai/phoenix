@@ -168,7 +168,7 @@ function SaveButton({ instanceId, dirty }: SaveButtonProps) {
         <Button variant={dirty ? "primary" : undefined} size="S">
           Save
         </Button>
-        <Tooltip offset={5} placement="top">
+        <Tooltip placement="top">
           <TooltipArrow />
           <Content>Save this prompt</Content>
         </Tooltip>

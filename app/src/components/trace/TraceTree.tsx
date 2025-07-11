@@ -160,7 +160,7 @@ function TraceTreeToolbar() {
                 />
               }
             />
-            <Tooltip offset={5}>
+            <Tooltip offset={-5}>
               <TooltipArrow />
               {isCollapsed
                 ? "Expand all nested spans"
@@ -190,7 +190,7 @@ function TraceTreeToolbar() {
                 />
               }
             />
-            <Tooltip offset={5}>
+            <Tooltip offset={-5}>
               <TooltipArrow />
               {showMetricsInTraceTree
                 ? "Hide metrics in trace tree"

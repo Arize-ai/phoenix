@@ -79,7 +79,7 @@ export const PlaygroundOutputMoveButton = ({
       >
         Prompt
       </Button>
-      <Tooltip offset={10}>
+      <Tooltip>
         <TooltipArrow />
         Move the output message to the end of the prompt
       </Tooltip>
