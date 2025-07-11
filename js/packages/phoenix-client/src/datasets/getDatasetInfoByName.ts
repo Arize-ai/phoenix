@@ -15,8 +15,10 @@ export async function getDatasetInfoByName({
 }: GetDatasetParams): Promise<DatasetInfo> {
   const client = _client || createClient();
   const response = await client.GET("/v1/datasets", {
-    query: {
-      name: datasetName,
+    params: {
+      query: {
+        name: datasetName,
+      },
     },
   });
   if (response.data?.data?.length) {
