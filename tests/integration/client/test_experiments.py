@@ -970,3 +970,192 @@ class TestExperimentsIntegration:
             assert output["expected_answer"] != ""
             assert output["metadata_difficulty"] != ""
             assert output["example_id"] != ""
+
+
+class TestEvaluateExperiment:
+    """Test the run_experiment -> evaluate_experiment pattern from legacy implementation."""
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    async def test_run_experiment_then_evaluate_experiment_pattern(
+        self,
+        is_async: bool,
+        role_or_user: UserRoleInput,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Test running experiment without evaluators, then adding evaluations separately."""
+        user = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient
+
+        unique_name = f"test_evaluate_pattern_{uuid.uuid4().hex[:8]}"
+
+        # Create test dataset
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                inputs=[
+                    {"question": "What is 2+2?"},
+                    {"question": "What is the capital of France?"},
+                    {"question": "Who wrote Python?"},
+                ],
+                outputs=[
+                    {"answer": "4"},
+                    {"answer": "Paris"},
+                    {"answer": "Guido van Rossum"},
+                ],
+                metadata=[
+                    {"category": "math"},
+                    {"category": "geography"},
+                    {"category": "programming"},
+                ],
+            )
+        )
+
+        def simple_task(input: Dict[str, Any]) -> str:
+            question = input.get("question", "")
+            if "2+2" in question:
+                return "The answer is 4"
+            elif "capital" in question:
+                return "The capital is Paris"
+            elif "Python" in question:
+                return "Guido van Rossum created Python"
+            else:
+                return "I don't know"
+
+        def accuracy_evaluator(output: str, expected: Dict[str, Any]) -> float:
+            expected_answer = expected.get("answer", "")
+            return 1.0 if expected_answer in output else 0.0
+
+        def length_evaluator(output: str) -> Dict[str, Any]:
+            return {"score": len(output) / 20.0, "label": "length_score"}
+
+        # Step 1: Run experiment WITHOUT evaluators (task execution only)
+        initial_result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
+                dataset=dataset,
+                task=simple_task,
+                experiment_name=f"test_initial_{uuid.uuid4().hex[:8]}",
+                print_summary=False,
+            )
+        )
+
+        # Verify initial result has no evaluations but has task runs
+        assert "experiment_id" in initial_result
+        assert "dataset_id" in initial_result
+        assert "task_runs" in initial_result
+        assert "evaluation_runs" in initial_result
+        assert initial_result["dataset_id"] == dataset.id
+        assert len(initial_result["task_runs"]) == 3
+        assert len(initial_result["evaluation_runs"]) == 0  # No evaluations yet
+
+        # Step 2: Add evaluations to the completed experiment
+        # This will test the new evaluate_experiment method
+        eval_result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).experiments.evaluate_experiment(
+                experiment=initial_result,
+                evaluators=[accuracy_evaluator, length_evaluator],
+                print_summary=False,
+            )
+        )
+
+        # Verify evaluation results
+        assert "experiment_id" in eval_result
+        assert "dataset_id" in eval_result
+        assert "task_runs" in eval_result
+        assert "evaluation_runs" in eval_result
+        assert eval_result["experiment_id"] == initial_result["experiment_id"]
+        assert eval_result["dataset_id"] == dataset.id
+        assert len(eval_result["task_runs"]) == 3  # Same task runs as before
+        assert len(eval_result["evaluation_runs"]) > 0  # Now we have evaluations
+
+        # Verify that we have evaluations for each task run and each evaluator
+        expected_eval_runs = len(eval_result["task_runs"]) * 2  # 2 evaluators
+        assert len(eval_result["evaluation_runs"]) == expected_eval_runs
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_evaluation_consistency_when_implemented(
+        self,
+        is_async: bool,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Test that run_experiment with evaluators produces same results as separate evaluation."""
+        # Test is now enabled since evaluate_experiment is implemented
+
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient
+
+        unique_name = f"test_consistency_{uuid.uuid4().hex[:8]}"
+
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                inputs=[{"text": "Hello world"}, {"text": "Python is great"}],
+                outputs=[{"expected": "greeting"}, {"expected": "programming"}],
+            )
+        )
+
+        def simple_task(input: Dict[str, Any]) -> str:
+            text = input.get("text", "")
+            if "Hello" in text:
+                return "greeting"
+            elif "Python" in text:
+                return "programming"
+            else:
+                return "unknown"
+
+        def accuracy_evaluator(output: str, expected: Dict[str, Any]) -> float:
+            return 1.0 if output == expected.get("expected") else 0.0
+
+        client = Client(base_url=_app.base_url, api_key=api_key)
+
+        # Method 1: Run experiment with evaluators included
+        result_with_evals = await _await_or_return(
+            client.experiments.run_experiment(
+                dataset=dataset,
+                task=simple_task,
+                evaluators=[accuracy_evaluator],  # type: ignore[list-item]
+                experiment_name=f"test_with_evals_{uuid.uuid4().hex[:8]}",
+                print_summary=False,
+            )
+        )
+
+        # Method 2: Run experiment without evaluators, then evaluate separately
+        result_without_evals = await _await_or_return(
+            client.experiments.run_experiment(
+                dataset=dataset,
+                task=simple_task,
+                experiment_name=f"test_without_evals_{uuid.uuid4().hex[:8]}",
+                print_summary=False,
+            )
+        )
+
+        eval_result = await _await_or_return(
+            client.experiments.evaluate_experiment(
+                experiment=result_without_evals,
+                evaluators=[accuracy_evaluator],  # type: ignore[list-item]
+                print_summary=False,
+            )
+        )
+
+        # Both methods should produce equivalent results
+        assert len(result_with_evals["evaluation_runs"]) == len(eval_result["evaluation_runs"])
+        assert len(result_with_evals["task_runs"]) == len(result_without_evals["task_runs"])
+
+        # Evaluation results should be equivalent
+        for eval1, eval2 in zip(
+            result_with_evals["evaluation_runs"], eval_result["evaluation_runs"]
+        ):
+            assert eval1.name == eval2.name
+            assert eval1.result == eval2.result

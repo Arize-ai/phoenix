@@ -295,6 +295,11 @@ ExperimentEvaluator = Union[
     Callable[..., EvaluatorOutput],
     Callable[..., Awaitable[EvaluatorOutput]],
 ]
+ExperimentEvaluators = Union[
+    ExperimentEvaluator,
+    Sequence[ExperimentEvaluator],
+    Mapping[EvaluatorName, ExperimentEvaluator],
+]
 Evaluators = Union[
     ExperimentEvaluator,
     Sequence[ExperimentEvaluator],

@@ -45,6 +45,7 @@ from .types import (
     Evaluators,
     Experiment,
     ExperimentEvaluationRun,
+    ExperimentEvaluators,
     ExperimentRun,
     ExperimentTask,
     RanExperiment,
@@ -214,7 +215,7 @@ def _str_trace_id(trace_id: Union[int, str]) -> str:
     return str(trace_id)
 
 
-def _evaluators_by_name(obj: Optional[Evaluators]) -> Mapping[EvaluatorName, Evaluator]:
+def _evaluators_by_name(obj: Optional[ExperimentEvaluators]) -> Mapping[EvaluatorName, Evaluator]:
     """Convert evaluators input to mapping by name."""
     evaluators_by_name: dict[EvaluatorName, Evaluator] = {}
     if obj is None:
@@ -403,7 +404,7 @@ class Experiments:
         *,
         dataset: Dataset,
         task: ExperimentTask,
-        evaluators: Optional[Evaluators] = None,
+        evaluators: Optional[ExperimentEvaluators] = None,
         experiment_name: Optional[str] = None,
         experiment_description: Optional[str] = None,
         experiment_metadata: Optional[Mapping[str, Any]] = None,
@@ -658,7 +659,7 @@ class Experiments:
         self,
         *,
         experiment: RanExperiment,
-        evaluators: Evaluators,
+        evaluators: ExperimentEvaluators,
         dry_run: bool = False,
         print_summary: bool = True,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -1172,7 +1173,7 @@ class AsyncExperiments:
         *,
         dataset: Dataset,
         task: ExperimentTask,
-        evaluators: Optional[Evaluators] = None,
+        evaluators: Optional[ExperimentEvaluators] = None,
         experiment_name: Optional[str] = None,
         experiment_description: Optional[str] = None,
         experiment_metadata: Optional[Mapping[str, Any]] = None,
