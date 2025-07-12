@@ -194,6 +194,8 @@ export async function runExperiment({
       baseUrl,
       headers: client.config.headers ?? {},
     });
+    // Register the provider
+    provider.register();
     taskTracer = provider.getTracer(projectName);
   }
   if (!record) {
@@ -441,6 +443,7 @@ export async function evaluateExperiment({
       baseUrl,
       headers: client.config.headers ?? {},
     });
+    provider.register();
   } else {
     provider = createNoOpProvider();
   }
