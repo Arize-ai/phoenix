@@ -642,6 +642,7 @@ class Experiments:
                 dry_run=bool(dry_run),
                 print_summary=False,  # We'll handle summary printing in run_experiment
                 timeout=timeout,
+                rate_limit_errors=rate_limit_errors,
             )
             evaluation_runs_list = eval_result["evaluation_runs"]
 
@@ -663,6 +664,7 @@ class Experiments:
         dry_run: bool = False,
         print_summary: bool = True,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+        rate_limit_errors: Optional[RateLimitErrors] = None,
     ) -> RanExperiment:
         """
         Run evaluators on a completed experiment.
@@ -758,7 +760,7 @@ class Experiments:
             eval_resource,
             dry_run,
             timeout,
-            None,  # rate_limit_errors
+            rate_limit_errors,
             project_name,
             dataset,
         )
@@ -1413,6 +1415,7 @@ class AsyncExperiments:
                 print_summary=False,  # We'll handle summary printing in run_experiment
                 timeout=timeout,
                 concurrency=concurrency,
+                rate_limit_errors=rate_limit_errors,
             )
             evaluation_runs_list = eval_result["evaluation_runs"]
 
@@ -1435,6 +1438,7 @@ class AsyncExperiments:
         print_summary: bool = True,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
         concurrency: int = 3,
+        rate_limit_errors: Optional[RateLimitErrors] = None,
     ) -> RanExperiment:
         """
         Run evaluators on a completed experiment (async version).
@@ -1530,7 +1534,7 @@ class AsyncExperiments:
             eval_resource,
             dry_run,
             timeout,
-            None,  # rate_limit_errors
+            rate_limit_errors,
             concurrency,
             project_name,
             dataset,
