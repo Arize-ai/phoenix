@@ -112,8 +112,8 @@ importers:
         specifier: ^1.1.0
         version: 1.1.0
       '@arizeai/openinference-vercel':
-        specifier: ^2.3.0
-        version: 2.3.0(@opentelemetry/api@1.9.0)
+        specifier: ^2.3.1
+        version: 2.3.1(@opentelemetry/api@1.9.0)
       '@opentelemetry/api':
         specifier: ^1.9.0
         version: 1.9.0
@@ -315,8 +315,8 @@ packages:
   '@arizeai/openinference-semantic-conventions@2.1.0':
     resolution: {integrity: sha512-SN8vNn5F45TbA8c+cxXV+nGHeUFzV1KaZKU0R2Ke2JKauIPyHi9VB3DvbeOy4WPScMrcSkGWq3XXQvPm9CDjgA==}
 
-  '@arizeai/openinference-vercel@2.3.0':
-    resolution: {integrity: sha512-xIuEfz+B1XiY8pGkCWkYqIO6QFXKdBLkimn9YNjuT8DaSiJUgrDnRx8CUw1iqHs082shgEQrrsVFCPNpKwtscw==}
+  '@arizeai/openinference-vercel@2.3.1':
+    resolution: {integrity: sha512-LkBtqUvGw2uV89uelVuHePzhCTeNJqL2fLh1v3+XRCgq1D3FSmLtZs04uJYObh894ukcQxtoALpFMtQXCmq6Xg==}
     peerDependencies:
       '@opentelemetry/api': '>=1.7.0 <2.0.0'
 
@@ -2915,7 +2915,7 @@ snapshots:
 
   '@arizeai/openinference-semantic-conventions@2.1.0': {}
 
-  '@arizeai/openinference-vercel@2.3.0(@opentelemetry/api@1.9.0)':
+  '@arizeai/openinference-vercel@2.3.1(@opentelemetry/api@1.9.0)':
     dependencies:
       '@arizeai/openinference-core': 1.0.4
       '@arizeai/openinference-semantic-conventions': 2.1.0
