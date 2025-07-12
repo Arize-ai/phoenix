@@ -24,7 +24,11 @@ classifiers = [
 version = "1.12.0"
 dependencies = [
   "httpx",
+  "tqdm",
   "typing-extensions",
+  "openinference-semantic-conventions",
+  "opentelemetry-sdk",
+  "opentelemetry-exporter-otlp",
 ]
 
 [project.urls]
