@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.12.0...arize-phoenix-client-v1.13.0) (2025-07-12)
+
+
+### Features
+
+* Add experiments module to phoenix-client ([#8375](https://github.com/Arize-ai/phoenix/issues/8375)) ([3df0326](https://github.com/Arize-ai/phoenix/commit/3df032627e8ce52a96e8d6dcd626f7641d0cb011))
+
 ## [1.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.11.0...arize-phoenix-client-v1.12.0) (2025-07-03)
 
 
