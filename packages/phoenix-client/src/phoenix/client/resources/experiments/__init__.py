@@ -499,7 +499,7 @@ class Experiments:
 
         if not dry_run:
             experiment_response = self._client.post(
-                f"/v1/datasets/{dataset.id}/experiments",
+                f"v1/datasets/{dataset.id}/experiments",
                 json=payload,
                 timeout=timeout,
             )
@@ -606,7 +606,7 @@ class Experiments:
 
         # Get the final state of runs from the database if not dry run
         if not dry_run:
-            all_runs = self._client.get(f"/v1/experiments/{experiment['id']}/runs").json()["data"]
+            all_runs = self._client.get(f"v1/experiments/{experiment['id']}/runs").json()["data"]
             task_runs_from_db: list[ExperimentRun] = []
             for run in all_runs:
                 run["start_time"] = datetime.fromisoformat(run["start_time"])
@@ -707,7 +707,7 @@ class Experiments:
         experiment_metadata = experiment["experiment_metadata"]
         try:
             experiment_response = self._client.get(
-                f"/v1/experiments/{experiment_id}", timeout=timeout
+                f"v1/experiments/{experiment_id}", timeout=timeout
             )
             experiment_response.raise_for_status()
             experiment_data = experiment_response.json()["data"]
@@ -720,7 +720,7 @@ class Experiments:
         # Fetch dataset for evaluation context
         try:
             dataset_response = self._client.get(
-                f"/v1/datasets/{dataset_id}/examples",
+                f"v1/datasets/{dataset_id}/examples",
                 params={"version_id": str(dataset_version_id)},
                 timeout=timeout,
             )
@@ -816,7 +816,7 @@ class Experiments:
             if not dry_run:
                 try:
                     resp = self._client.post(
-                        f"/v1/experiments/{experiment['id']}/runs",
+                        f"v1/experiments/{experiment['id']}/runs",
                         json=cached_exp_run,
                         timeout=timeout,
                     )
@@ -906,7 +906,7 @@ class Experiments:
         if not dry_run:
             try:
                 resp = self._client.post(
-                    f"/v1/experiments/{experiment['id']}/runs",
+                    f"v1/experiments/{experiment['id']}/runs",
                     json=exp_run,
                     timeout=timeout,
                 )
@@ -1060,7 +1060,7 @@ class Experiments:
         if not dry_run:
             try:
                 resp = self._client.post(
-                    "/v1/experiment_evaluations",
+                    "v1/experiment_evaluations",
                     json=jsonify(eval_run.__dict__),
                     timeout=timeout,
                 )
@@ -1267,7 +1267,7 @@ class AsyncExperiments:
 
         if not dry_run:
             experiment_response = await self._client.post(
-                f"/v1/datasets/{dataset.id}/experiments",
+                f"v1/datasets/{dataset.id}/experiments",
                 json=payload,
                 timeout=timeout,
             )
@@ -1376,7 +1376,7 @@ class AsyncExperiments:
 
         # Get the final state of runs from the database if not dry run
         if not dry_run:
-            all_runs_response = await self._client.get(f"/v1/experiments/{experiment['id']}/runs")
+            all_runs_response = await self._client.get(f"v1/experiments/{experiment['id']}/runs")
             all_runs = all_runs_response.json()["data"]
             async_task_runs: list[ExperimentRun] = []
             for run in all_runs:
@@ -1480,7 +1480,7 @@ class AsyncExperiments:
         experiment_metadata = experiment["experiment_metadata"]
         try:
             experiment_response = await self._client.get(
-                f"/v1/experiments/{experiment_id}", timeout=timeout
+                f"v1/experiments/{experiment_id}", timeout=timeout
             )
             experiment_response.raise_for_status()
             experiment_data = experiment_response.json()["data"]
@@ -1493,7 +1493,7 @@ class AsyncExperiments:
         # Fetch dataset for evaluation context
         try:
             dataset_response = await self._client.get(
-                f"/v1/datasets/{dataset_id}/examples",
+                f"v1/datasets/{dataset_id}/examples",
                 params={"version_id": str(dataset_version_id)},
                 timeout=timeout,
             )
@@ -1590,7 +1590,7 @@ class AsyncExperiments:
             if not dry_run:
                 try:
                     resp = await self._client.post(
-                        f"/v1/experiments/{experiment['id']}/runs",
+                        f"v1/experiments/{experiment['id']}/runs",
                         json=cached_exp_run,
                         timeout=timeout,
                     )
@@ -1676,7 +1676,7 @@ class AsyncExperiments:
         if not dry_run:
             try:
                 resp = await self._client.post(
-                    f"/v1/experiments/{experiment['id']}/runs",
+                    f"v1/experiments/{experiment['id']}/runs",
                     json=exp_run,
                     timeout=timeout,
                 )
@@ -1832,7 +1832,7 @@ class AsyncExperiments:
         if not dry_run:
             try:
                 resp = await self._client.post(
-                    "/v1/experiment_evaluations",
+                    "v1/experiment_evaluations",
                     json=jsonify(eval_run.__dict__),
                     timeout=timeout,
                 )
