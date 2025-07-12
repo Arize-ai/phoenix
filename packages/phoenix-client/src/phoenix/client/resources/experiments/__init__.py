@@ -931,7 +931,6 @@ class Experiments:
         project_name: str,
         dataset: Dataset,
     ) -> list[ExperimentEvaluationRun]:
-        print("🧠 Evaluation started.")
 
         # Create evaluation input with example data
         evaluation_input: list[tuple[v1.DatasetExample, ExperimentRun, Evaluator]] = []
@@ -1702,8 +1701,6 @@ class AsyncExperiments:
         project_name: str,
         dataset: Dataset,
     ) -> list[ExperimentEvaluationRun]:
-        print("🧠 Evaluation started.")
-
         # Create evaluation input with example data
         evaluation_input: list[tuple[v1.DatasetExample, ExperimentRun, Evaluator]] = []
         for run in task_runs:
