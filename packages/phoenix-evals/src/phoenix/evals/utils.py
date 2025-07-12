@@ -111,7 +111,7 @@ def parse_openai_function_call(raw_output: str) -> Tuple[str, Optional[str]]:
     return unrailed_label, explanation
 
 
-def openai_function_call_kwargs(rails: List[str], provide_explanation: bool) -> Dict[str, Any]:
+def openai_tool_call_kwargs(rails: List[str], provide_explanation: bool) -> Dict[str, Any]:
     """
     Returns keyword arguments needed to invoke an OpenAI model with function
     calling for classification.
@@ -126,8 +126,8 @@ def openai_function_call_kwargs(rails: List[str], provide_explanation: bool) -> 
     """
     openai_function = _default_openai_function(rails, provide_explanation)
     return {
-        "functions": [openai_function],
-        "function_call": {"name": openai_function["name"]},
+        "tools": [openai_function],
+        "tool_choice": {"type": "function", "function": {"name": openai_function["name"]}},
     }
 
 

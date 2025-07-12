@@ -344,8 +344,8 @@ class OpenAIModel(BaseModel):
         messages = self._build_messages(prompt, kwargs.get("instruction"))
         if functions := kwargs.get("functions"):
             invoke_params["functions"] = functions
-        if function_call := kwargs.get("function_call"):
-            invoke_params["function_call"] = function_call
+        if tool_choice := kwargs.get("tool_choice"):
+            invoke_params["tool_choice"] = tool_choice
         response = await self._async_rate_limited_completion(
             messages=messages,
             **invoke_params,
@@ -354,8 +354,8 @@ class OpenAIModel(BaseModel):
         if self._model_uses_legacy_completion_api:
             return str(choice["text"])
         message = choice["message"]
-        if function_call := message.get("function_call"):
-            return str(function_call.get("arguments") or "")
+        if tool_choice := message.get("tool_choice"):
+            return str(tool_choice.get("arguments") or "")
         return str(message["content"])
 
     def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
@@ -366,8 +366,8 @@ class OpenAIModel(BaseModel):
         messages = self._build_messages(prompt=prompt, system_instruction=kwargs.get("instruction"))
         if functions := kwargs.get("functions"):
             invoke_params["functions"] = functions
-        if function_call := kwargs.get("function_call"):
-            invoke_params["function_call"] = function_call
+        if tool_choice := kwargs.get("tool_choice"):
+            invoke_params["tool_choice"] = tool_choice
         response = self._rate_limited_completion(
             messages=messages,
             **invoke_params,
@@ -376,8 +376,8 @@ class OpenAIModel(BaseModel):
         if self._model_uses_legacy_completion_api:
             return str(choice["text"])
         message = choice["message"]
-        if function_call := message.get("function_call"):
-            return str(function_call.get("arguments") or "")
+        if tool_choice := message.get("tool_choice"):
+            return str(tool_choice.get("arguments") or "")
         return str(message["content"])
 
     async def _async_rate_limited_completion(self, **kwargs: Any) -> Any:
@@ -476,7 +476,7 @@ class OpenAIModel(BaseModel):
         return params
 
     @property
-    def supports_function_calling(self) -> bool:
+    def supports_tool_choice(self) -> bool:
         if (
             self._is_azure
             and self.api_version
