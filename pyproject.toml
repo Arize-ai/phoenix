@@ -135,7 +135,7 @@ container = [
   "opentelemetry-proto>=1.12.0",
   "opentelemetry-exporter-otlp",
   "opentelemetry-semantic-conventions",
-  "opentelemetry-instrumentation-fastapi==0.54b0",  # https://github.com/open-telemetry/opentelemetry-python-contrib/issues/3637
+  "opentelemetry-instrumentation-fastapi<0.55b0",  # https://github.com/open-telemetry/opentelemetry-python-contrib/issues/3637
   "opentelemetry-instrumentation-sqlalchemy",
   "opentelemetry-instrumentation-grpc",
   "py-grpc-prometheus",
