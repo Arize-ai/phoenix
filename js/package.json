@@ -40,7 +40,7 @@
     "node": ">=10",
     "pnpm": ">=3"
   },
-  "packageManager": "pnpm@10.2.0",
+  "packageManager": "pnpm@10.13.1",
   "eslintIgnore": [
     "examples/**/*"
   ],

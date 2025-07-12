@@ -87,6 +87,11 @@ export type RunExperimentParams = ClientFn & {
    * @default false
    */
   dryRun?: number | boolean;
+  /**
+   * Whether to set the global tracer provider when running the task
+   * @default true
+   */
+  setGlobalTracerProvider?: boolean;
 };
 
 /**
@@ -133,6 +138,7 @@ export async function runExperiment({
   record = true,
   concurrency = 5,
   dryRun = false,
+  setGlobalTracerProvider = true,
 }: RunExperimentParams): Promise<RanExperiment> {
   let provider: NodeTracerProvider | undefined;
   const isDryRun = typeof dryRun === "number" || dryRun === true;
@@ -194,6 +200,10 @@ export async function runExperiment({
       baseUrl,
       headers: client.config.headers ?? {},
     });
+    // Register the provider
+    if (setGlobalTracerProvider) {
+      provider.register();
+    }
     taskTracer = provider.getTracer(projectName);
   }
   if (!record) {
@@ -263,6 +273,7 @@ export async function runExperiment({
     logger,
     concurrency,
     dryRun,
+    setGlobalTracerProvider,
   });
   ranExperiment.evaluationRuns = evaluationRuns;
 
@@ -407,6 +418,7 @@ export async function evaluateExperiment({
   logger = console,
   concurrency = 5,
   dryRun = false,
+  setGlobalTracerProvider = true,
 }: {
   /**
    * The experiment to evaluate
@@ -426,6 +438,11 @@ export async function evaluateExperiment({
    * @default false
    * */
   dryRun?: boolean | number;
+  /**
+   * Whether to set the global tracer provider when running the evaluators
+   * @default true
+   */
+  setGlobalTracerProvider?: boolean;
 }): Promise<RanExperiment> {
   const isDryRun = typeof dryRun === "number" || dryRun === true;
   const client = _client ?? createClient();
@@ -441,6 +458,9 @@ export async function evaluateExperiment({
       baseUrl,
       headers: client.config.headers ?? {},
     });
+    if (setGlobalTracerProvider) {
+      provider.register();
+    }
   } else {
     provider = createNoOpProvider();
   }
