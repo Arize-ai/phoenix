@@ -2,6 +2,7 @@ import { css, Global } from "@emotion/react";
 
 import { useProvider } from "@arizeai/components";
 
+import { chartThemeCSS } from "./components/chart/ChartStyles";
 import { ThemeContextType } from "./contexts";
 
 /**
@@ -1247,6 +1248,7 @@ export function GlobalStyles() {
         staticCSS,
         themeCSS,
         derivedCSS(theme),
+        chartThemeCSS(theme),
         mediumRootCSS,
         opacitiesCSS,
         appGlobalStylesCSS,
