@@ -23,6 +23,11 @@ export type ChartColors = {
   readonly pink300: string;
   readonly pink400: string;
   readonly pink500: string;
+  readonly red100: string;
+  readonly red200: string;
+  readonly red300: string;
+  readonly red400: string;
+  readonly red500: string;
   readonly gray100: string;
   readonly gray200: string;
   readonly gray300: string;
@@ -57,6 +62,11 @@ const darkColors: ChartColors = Object.freeze({
   pink300: "#F66FB4",
   pink400: "#F33F9B",
   pink500: "#F10E82",
+  red100: "#FFCACA",
+  red200: "#FFA6A6",
+  red300: "#FF7171",
+  red400: "#FF3235",
+  red500: "#F80707",
   gray100: "#f0f0f0",
   gray200: "#d9d9d9",
   gray300: "#bdbdbd",
@@ -92,6 +102,11 @@ const lightColors: ChartColors = Object.freeze({
   pink300: "#F66FB4",
   pink400: "#F99FCD",
   pink500: "#FCCDE5",
+  red100: "#FFCACA",
+  red200: "#FFA6A6",
+  red300: "#FF7171",
+  red400: "#FF3235",
+  red500: "#F80707",
   gray100: "#252525",
   gray200: "#525252",
   gray300: "#737373",

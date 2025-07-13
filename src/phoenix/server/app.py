@@ -16,17 +16,20 @@ from typing import (
     Any,
     NamedTuple,
     Optional,
+    Protocol,
     TypedDict,
     Union,
     cast,
 )
 from urllib.parse import urlparse
 
+import grpc
 import strawberry
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.utils import is_body_allowed_for_status_code
 from grpc.aio import ServerInterceptor
+from grpc_interceptor import AsyncServerInterceptor
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from starlette.datastructures import URL, Secret
@@ -44,7 +47,7 @@ from starlette.types import Scope, StatefulLifespan
 from strawberry.extensions import SchemaExtension
 from strawberry.fastapi import GraphQLRouter
 from strawberry.subscriptions import GRAPHQL_TRANSPORT_WS_PROTOCOL
-from typing_extensions import TypeAlias
+from typing_extensions import TypeAlias, override
 
 import phoenix.trace.v1 as pb
 from phoenix.config import (
@@ -72,6 +75,7 @@ from phoenix.exceptions import PhoenixMigrationError
 from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context, DataLoaders
 from phoenix.server.api.dataloaders import (
+    AnnotationConfigsByProjectDataLoader,
     AnnotationSummaryDataLoader,
     AverageExperimentRunLatencyDataLoader,
     CacheForDataLoaders,
@@ -133,6 +137,7 @@ from phoenix.server.api.routers import (
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.bearer_auth import BearerTokenAuthBackend, is_authenticated
+from phoenix.server.daemons.db_disk_usage_monitor import DbDiskUsageMonitor
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import DmlEvent
@@ -231,6 +236,8 @@ class AppConfig(NamedTuple):
     auto_login_idp_name: Optional[str] = None
     fullstory_org: Optional[str] = None
     """ FullStory organization ID for web analytics tracking """
+    management_url: Optional[str] = None
+    """ URL for a phoenix management interface, only visible to management users """
 
 
 class Static(StaticFiles):
@@ -297,6 +304,7 @@ class Static(StaticFiles):
                     "basic_auth_disabled": self._app_config.basic_auth_disabled,
                     "auto_login_idp_name": self._app_config.auto_login_idp_name,
                     "fullstory_org": self._app_config.fullstory_org,
+                    "management_url": self._app_config.management_url,
                 },
             )
         except Exception as e:
@@ -378,19 +386,16 @@ async def version() -> PlainTextResponse:
     return PlainTextResponse(f"{phoenix_version}")
 
 
-DB_MUTEX: Optional[asyncio.Lock] = None
-
-
 def _db(
-    engine: AsyncEngine, bypass_lock: bool = False
-) -> Callable[[], AbstractAsyncContextManager[AsyncSession]]:
+    engine: AsyncEngine,
+) -> Callable[[Optional[asyncio.Lock]], AbstractAsyncContextManager[AsyncSession]]:
     Session = async_sessionmaker(engine, expire_on_commit=False)
 
     @contextlib.asynccontextmanager
-    async def factory() -> AsyncIterator[AsyncSession]:
+    async def factory(lock: Optional[asyncio.Lock] = None) -> AsyncIterator[AsyncSession]:
         async with contextlib.AsyncExitStack() as stack:
-            if not bypass_lock and DB_MUTEX:
-                await stack.enter_async_context(DB_MUTEX)
+            if lock:
+                await stack.enter_async_context(lock)
             yield await stack.enter_async_context(Session.begin())
 
     return factory
@@ -519,6 +524,7 @@ def _lifespan(
     trace_data_sweeper: Optional[TraceDataSweeper],
     span_cost_calculator: SpanCostCalculator,
     generative_model_store: GenerativeModelStore,
+    db_disk_usage_monitor: DbDiskUsageMonitor,
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
@@ -526,14 +532,14 @@ def _lifespan(
     shutdown_callbacks: Iterable[_Callback] = (),
     read_only: bool = False,
     scaffolder_config: Optional[ScaffolderConfig] = None,
+    grpc_interceptors: Iterable[AsyncServerInterceptor] = (),
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[dict[str, Any]]:
         for callback in startup_callbacks:
             if isinstance((res := callback()), Awaitable):
                 await res
-        global DB_MUTEX
-        DB_MUTEX = asyncio.Lock() if db.dialect is SupportedSQLDialect.SQLITE else None
+        db.lock = asyncio.Lock() if db.dialect is SupportedSQLDialect.SQLITE else None
         async with AsyncExitStack() as stack:
             (
                 enqueue,
@@ -547,7 +553,7 @@ def _lifespan(
                 tracer_provider=tracer_provider,
                 enable_prometheus=enable_prometheus,
                 token_store=token_store,
-                interceptors=user_grpc_interceptors(),
+                interceptors=user_grpc_interceptors() + list(grpc_interceptors),
             )
             await stack.enter_async_context(grpc_server)
             await stack.enter_async_context(dml_event_handler)
@@ -555,6 +561,7 @@ def _lifespan(
                 await stack.enter_async_context(trace_data_sweeper)
             await stack.enter_async_context(span_cost_calculator)
             await stack.enter_async_context(generative_model_store)
+            await stack.enter_async_context(db_disk_usage_monitor)
             if scaffolder_config:
                 scaffolder = Scaffolder(
                     config=scaffolder_config,
@@ -642,6 +649,7 @@ def create_graphql_router(
             last_updated_at=last_updated_at,
             event_queue=event_queue,
             data_loaders=DataLoaders(
+                annotation_configs_by_project=AnnotationConfigsByProjectDataLoader(db),
                 average_experiment_run_latency=AverageExperimentRunLatencyDataLoader(db),
                 dataset_example_revisions=DatasetExampleRevisionsDataLoader(db),
                 dataset_example_spans=DatasetExampleSpansDataLoader(db),
@@ -821,6 +829,34 @@ async def plain_text_http_exception_handler(request: Request, exc: HTTPException
     return PlainTextResponse(str(exc.detail), status_code=exc.status_code, headers=headers)
 
 
+class _HasDbStatus(Protocol):
+    @property
+    def should_not_insert_or_update(self) -> bool: ...
+
+
+class DbDiskUsageInterceptor(AsyncServerInterceptor):
+    def __init__(self, db: _HasDbStatus) -> None:
+        self._db = db
+
+    @override
+    async def intercept(
+        self,
+        method: Callable[[Any, grpc.aio.ServicerContext], Awaitable[Any]],
+        request_or_iterator: Any,
+        context: grpc.aio.ServicerContext,
+        method_name: str,
+    ) -> Any:
+        if (
+            method_name.endswith("trace.v1.TraceService/Export")
+            and self._db.should_not_insert_or_update
+        ):
+            await context.abort(
+                grpc.StatusCode.RESOURCE_EXHAUSTED,
+                "Database disk usage threshold exceeded",
+            )
+        return await method(request_or_iterator, context)
+
+
 def create_app(
     db: DbSessionFactory,
     export_path: Path,
@@ -847,6 +883,7 @@ def create_app(
     basic_auth_disabled: bool = False,
     bulk_inserter_factory: Optional[Callable[..., BulkInserter]] = None,
     allowed_origins: Optional[list[str]] = None,
+    management_url: Optional[str] = None,
 ) -> FastAPI:
     verify_server_environment_variables()
     if model.embedding_dimensions:
@@ -965,6 +1002,8 @@ def create_app(
         from phoenix.server.prometheus import PrometheusMiddleware
 
         middlewares.append(Middleware(PrometheusMiddleware))
+    grpc_interceptors: list[AsyncServerInterceptor] = []
+    grpc_interceptors.append(DbDiskUsageInterceptor(db))
     app = FastAPI(
         title="Arize-Phoenix REST API",
         version=REST_API_VERSION,
@@ -976,6 +1015,8 @@ def create_app(
             trace_data_sweeper=trace_data_sweeper,
             span_cost_calculator=span_cost_calculator,
             generative_model_store=generative_model_store,
+            db_disk_usage_monitor=DbDiskUsageMonitor(db, email_sender),
+            grpc_interceptors=grpc_interceptors,
             token_store=token_store,
             tracer_provider=tracer_provider,
             enable_prometheus=enable_prometheus,
@@ -1026,6 +1067,7 @@ def create_app(
                     basic_auth_disabled=basic_auth_disabled,
                     auto_login_idp_name=auto_login_idp_name,
                     fullstory_org=Settings.fullstory_org,
+                    management_url=management_url,
                 ),
             ),
             name="static",

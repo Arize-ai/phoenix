@@ -40,9 +40,6 @@ export function ProjectPageHeader(props: {
       fragment ProjectPageHeader_stats on Project
       @refetchable(queryName: "ProjectPageHeaderQuery") {
         traceCount(timeRange: $timeRange)
-        tokenCountTotal(timeRange: $timeRange)
-        tokenCountPrompt(timeRange: $timeRange)
-        tokenCountCompletion(timeRange: $timeRange)
         costSummary(timeRange: $timeRange) {
           total {
             cost
@@ -78,9 +75,6 @@ export function ProjectPageHeader(props: {
 
   const latencyMsP50 = data?.latencyMsP50;
   const latencyMsP99 = data?.latencyMsP99;
-  const tokenCountTotal = data?.tokenCountTotal;
-  const tokenCountPrompt = data?.tokenCountPrompt;
-  const tokenCountCompletion = data?.tokenCountCompletion;
   const spanAnnotationNames = data?.spanAnnotationNames?.filter(
     (name) => name !== "note"
   );
@@ -140,38 +134,6 @@ export function ProjectPageHeader(props: {
                 Total Traces
               </Text>
               <Text size="L">{intFormatter(data?.traceCount)}</Text>
-            </Flex>
-            <Flex direction="column" flex="none">
-              <Text elementType="h3" size="S" color="text-700">
-                Total Tokens
-              </Text>
-              <TooltipTrigger delay={0}>
-                <Focusable>
-                  <Text size="L">{intFormatter(tokenCountTotal)}</Text>
-                </Focusable>
-                <RichTooltip placement="bottom">
-                  <TooltipArrow />
-                  <View width="size-3600">
-                    <RichTokenBreakdown
-                      valueLabel="tokens"
-                      totalValue={tokenCountTotal}
-                      formatter={intFormatter}
-                      segments={[
-                        {
-                          name: "Prompt",
-                          value: tokenCountPrompt,
-                          color: "rgba(254, 119, 99, 1)",
-                        },
-                        {
-                          name: "Completion",
-                          value: tokenCountCompletion,
-                          color: "rgba(98, 104, 239, 1)",
-                        },
-                      ]}
-                    />
-                  </View>
-                </RichTooltip>
-              </TooltipTrigger>
             </Flex>
             <Flex direction="column" flex="none">
               <Text elementType="h3" size="S" color="text-700">

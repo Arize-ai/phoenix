@@ -2,11 +2,10 @@ import React, { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Flex, Text } from "@phoenix/components";
+import { Flex } from "@phoenix/components";
 import { AnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/AnnotationSummaryGroup.graphql";
 import { AnnotationLabel } from "@phoenix/components/annotation/AnnotationLabel";
 import { AnnotationSummaryPopover } from "@phoenix/components/annotation/AnnotationSummaryPopover";
-import { AnnotationTooltip } from "@phoenix/components/annotation/AnnotationTooltip";
 import {
   Summary,
   SummaryValue,
@@ -210,22 +209,16 @@ export const AnnotationSummaryGroupStacks = ({
           return null;
         }
         return (
-          <AnnotationTooltip
-            key={latestAnnotation.id}
-            leadingExtra={<Text weight="heavy">Latest annotation</Text>}
-            annotation={latestAnnotation}
-          >
-            <Summary name={latestAnnotation.name}>
-              <SummaryValue
-                name={latestAnnotation.name}
-                meanScore={summary.meanScore}
-                labelFractions={summary.labelFractions}
-                annotationConfig={
-                  categoricalAnnotationConfigsByName[latestAnnotation.name]
-                }
-              />
-            </Summary>
-          </AnnotationTooltip>
+          <Summary name={latestAnnotation.name} key={latestAnnotation.id}>
+            <SummaryValue
+              name={latestAnnotation.name}
+              meanScore={summary.meanScore}
+              labelFractions={summary.labelFractions}
+              annotationConfig={
+                categoricalAnnotationConfigsByName[latestAnnotation.name]
+              }
+            />
+          </Summary>
         );
       })}
     </Flex>

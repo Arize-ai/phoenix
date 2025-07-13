@@ -239,6 +239,7 @@ export function SessionsTable(props: SessionsTableProps) {
     {
       header: "total cost",
       accessorKey: "costSummary.total.cost",
+      id: "costTotal",
       enableSorting: true,
       minSize: 80,
       cell: ({ row, getValue }) => {

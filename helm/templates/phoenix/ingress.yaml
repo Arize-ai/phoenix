@@ -4,8 +4,9 @@ kind: Ingress
 metadata:
   name: "{{ template "phoenix.ingress" . }}"
   namespace: {{ .Release.Namespace | quote }}
-{{- if .Values.ingress.labels }}
   labels:
+    app: {{ .Release.Name }}
+{{- if .Values.ingress.labels }}
 {{ toYaml .Values.ingress.labels | indent 4 }}
 {{- end }}
 {{- if .Values.ingress.annotations}}

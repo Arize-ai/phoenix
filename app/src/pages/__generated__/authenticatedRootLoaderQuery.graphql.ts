@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5089ff4d6b89235bf38f885a33703324>>
+ * @generated SignedSource<<e85d2d9b22f0e148a088a916d6082442>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -119,6 +119,13 @@ return {
           {
             "alias": null,
             "args": null,
+            "kind": "ScalarField",
+            "name": "isManagementUser",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
             "concreteType": "UserRole",
             "kind": "LinkedField",
             "name": "role",
@@ -177,12 +184,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0ed2fca00364586fcdb81df0d8cb934c",
+    "cacheID": "909f2b392805d784bcac384c6d208692",
     "id": null,
     "metadata": {},
     "name": "authenticatedRootLoaderQuery",
     "operationKind": "query",
-    "text": "query authenticatedRootLoaderQuery {\n  ...ViewerContext_viewer\n  viewer {\n    id\n    username\n    email\n    passwordNeedsReset\n  }\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n\nfragment ViewerContext_viewer on Query {\n  viewer {\n    id\n    username\n    email\n    profilePictureUrl\n    role {\n      name\n      id\n    }\n    authMethod\n    ...APIKeysTableFragment\n  }\n}\n"
+    "text": "query authenticatedRootLoaderQuery {\n  ...ViewerContext_viewer\n  viewer {\n    id\n    username\n    email\n    passwordNeedsReset\n  }\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n\nfragment ViewerContext_viewer on Query {\n  viewer {\n    id\n    username\n    email\n    profilePictureUrl\n    isManagementUser\n    role {\n      name\n      id\n    }\n    authMethod\n    ...APIKeysTableFragment\n  }\n}\n"
   }
 };
 })();

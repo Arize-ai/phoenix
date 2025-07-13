@@ -39,7 +39,6 @@ from openai.types.chat.completion_create_params import CompletionCreateParamsBas
 from openai.types.shared_params import ResponseFormatJSONSchema
 from phoenix.client.types import PromptVersion
 from phoenix.client.utils.template_formatters import NO_OP_FORMATTER
-from phoenix.config import get_env_phoenix_admin_secret
 from pydantic import BaseModel, create_model
 
 from ...__generated__.graphql import (
@@ -52,23 +51,23 @@ from ...__generated__.graphql import (
     TextContentValueInput,
     ToolDefinitionInput,
 )
-from .._helpers import _MEMBER, _await_or_return, _GetUser, _gql, _LoggedInUser
+from .._helpers import _MEMBER, _AppInfo, _await_or_return, _GetUser, _LoggedInUser
 
 
 class TestUserMessage:
     def test_user_message(
         self,
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
-        u = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
+        u = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(u.create_api_key(_app))
         x = token_hex(4)
         expected = [{"role": "user", "content": f"hello {x}"}]
-        prompt = _create_chat_prompt(u, template_format="F_STRING")
+        prompt = _create_chat_prompt(_app, u, api_key, template_format="F_STRING")
         messages = prompt.format(variables={"x": x}).messages
         assert not DeepDiff(expected, messages)
-        _can_recreate_via_client(prompt)
+        _can_recreate_via_client(_app, prompt, api_key)
 
 
 class _GetWeather(BaseModel):
@@ -123,10 +122,10 @@ class TestTools:
         self,
         types_: Sequence[type[BaseModel]],
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
-        u = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
+        u = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(u.create_api_key(_app))
         expected: Mapping[str, ChatCompletionToolParam] = {
             t.__name__: cast(
                 ChatCompletionToolParam, json.loads(json.dumps(pydantic_function_tool(t)))
@@ -134,7 +133,7 @@ class TestTools:
             for t in types_
         }
         tools = [ToolDefinitionInput(definition=dict(v)) for v in expected.values()]
-        prompt = _create_chat_prompt(u, tools=tools)
+        prompt = _create_chat_prompt(_app, u, api_key, tools=tools)
         kwargs = prompt.format().kwargs
         assert "tools" in kwargs
         actual: dict[str, ChatCompletionToolParam] = {
@@ -143,7 +142,7 @@ class TestTools:
             if t["type"] == "function" and "parameters" in t["function"]
         }
         assert not DeepDiff(expected, actual)
-        _can_recreate_via_client(prompt)
+        _can_recreate_via_client(_app, prompt, api_key)
 
     @pytest.mark.parametrize(
         "types_",
@@ -155,10 +154,10 @@ class TestTools:
         self,
         types_: Sequence[type[BaseModel]],
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
-        u = _get_user().log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
+        u = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(u.create_api_key(_app))
         expected: dict[str, ToolParam] = {
             t.__name__: ToolParam(
                 name=t.__name__,
@@ -168,7 +167,9 @@ class TestTools:
         }
         tools = [ToolDefinitionInput(definition=dict(v)) for v in expected.values()]
         prompt = _create_chat_prompt(
+            _app,
             u,
+            api_key,
             tools=tools,
             model_provider="ANTHROPIC",
             invocation_parameters={"max_tokens": 1024},
@@ -179,7 +180,7 @@ class TestTools:
         assert not DeepDiff(expected, actual)
         assert "max_tokens" in kwargs
         assert kwargs["max_tokens"] == 1024
-        _can_recreate_via_client(prompt)
+        _can_recreate_via_client(_app, prompt, api_key)
 
 
 class TestToolChoice:
@@ -196,21 +197,23 @@ class TestToolChoice:
         self,
         expected: ChatCompletionToolChoiceOptionParam,
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
-        u = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
+        u = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(u.create_api_key(_app))
         tools = [
             ToolDefinitionInput(definition=json.loads(json.dumps(pydantic_function_tool(t))))
             for t in cast(Iterable[type[BaseModel]], [_GetWeather, _GetPopulation])
         ]
         invocation_parameters = {"tool_choice": expected}
-        prompt = _create_chat_prompt(u, tools=tools, invocation_parameters=invocation_parameters)
+        prompt = _create_chat_prompt(
+            _app, u, api_key, tools=tools, invocation_parameters=invocation_parameters
+        )
         kwargs = prompt.format().kwargs
         assert "tool_choice" in kwargs
         actual = kwargs["tool_choice"]
         assert not DeepDiff(expected, actual)
-        _can_recreate_via_client(prompt)
+        _can_recreate_via_client(_app, prompt, api_key)
 
     @pytest.mark.parametrize(
         "expected",
@@ -224,10 +227,10 @@ class TestToolChoice:
         self,
         expected: ToolChoiceParam,
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
-        u = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
+        u = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(u.create_api_key(_app))
         tools = [
             ToolDefinitionInput(
                 definition=dict(ToolParam(name=t.__name__, input_schema=t.model_json_schema()))
@@ -236,7 +239,9 @@ class TestToolChoice:
         ]
         invocation_parameters = {"max_tokens": 1024, "tool_choice": expected}
         prompt = _create_chat_prompt(
+            _app,
             u,
+            api_key,
             tools=tools,
             invocation_parameters=invocation_parameters,
             model_provider="ANTHROPIC",
@@ -247,7 +252,7 @@ class TestToolChoice:
         assert not DeepDiff(expected, actual)
         assert "max_tokens" in kwargs
         assert kwargs["max_tokens"] == 1024
-        _can_recreate_via_client(prompt)
+        _can_recreate_via_client(_app, prompt, api_key)
 
 
 class _UIType(str, Enum):
@@ -285,27 +290,31 @@ class TestResponseFormat:
         self,
         type_: type[BaseModel],
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
-        u = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
+        u = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(u.create_api_key(_app))
         expected = cast(ResponseFormatJSONSchema, type_to_response_format_param(type_))
         response_format = ResponseFormatInput(definition=dict(expected))
-        prompt = _create_chat_prompt(u, response_format=response_format)
+        prompt = _create_chat_prompt(_app, u, api_key, response_format=response_format)
         kwargs = prompt.format().kwargs
         assert "response_format" in kwargs
         actual = kwargs["response_format"]
         assert not DeepDiff(expected, actual)
-        _can_recreate_via_client(prompt)
+        _can_recreate_via_client(_app, prompt, api_key)
 
 
 class TestUserId:
     QUERY = "query($versionId:ID!){node(id:$versionId){... on PromptVersion{user{id}}}}"
 
-    def test_client(self, _get_user: _GetUser, monkeypatch: pytest.MonkeyPatch) -> None:
-        u = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
-        prompt = px.Client().prompts.create(
+    def test_client(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        u = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(u.create_api_key(_app))
+        prompt = px.Client(endpoint=_app.base_url, api_key=api_key).prompts.create(
             name=token_hex(8),
             version=PromptVersion.from_openai(
                 CompletionCreateParamsBase(
@@ -313,27 +322,32 @@ class TestUserId:
                 )
             ),
         )
-        response, _ = u.gql(query=self.QUERY, variables={"versionId": prompt.id})
+        response, _ = u.gql(_app, query=self.QUERY, variables={"versionId": prompt.id})
         assert u.gid == response["data"]["node"]["user"]["id"]
 
 
-def _can_recreate_via_client(version: PromptVersion) -> None:
+def _can_recreate_via_client(_app: _AppInfo, version: PromptVersion, api_key: str) -> None:
     new_name = token_hex(8)
-    a = px.Client().prompts.create(name=new_name, version=version)
+    base_url = _app.base_url
+    a = px.Client(endpoint=base_url, api_key=api_key).prompts.create(name=new_name, version=version)
     assert version.id != a.id
     expected = version._dumps()
     assert not DeepDiff(expected, a._dumps())
-    b = px.Client().prompts.get(prompt_identifier=new_name)
+    b = px.Client(endpoint=base_url, api_key=api_key).prompts.get(prompt_identifier=new_name)
     assert a.id == b.id
     assert not DeepDiff(expected, b._dumps())
     same_name = new_name
-    c = px.Client().prompts.create(name=same_name, version=version)
+    c = px.Client(endpoint=base_url, api_key=api_key).prompts.create(
+        name=same_name, version=version
+    )
     assert a.id != c.id
     assert not DeepDiff(expected, c._dumps())
 
 
 def _create_chat_prompt(
+    app: _AppInfo,
     u: _LoggedInUser,
+    api_key: str,
     /,
     *,
     messages: Sequence[PromptMessageInput] = (),
@@ -367,9 +381,11 @@ def _create_chat_prompt(
             promptVersion=version,
         ).model_dump(exclude_unset=True)
     }
-    response, _ = u.gql(query=_CREATE_CHAT_PROMPT, variables=variables)
+    response, _ = u.gql(app, query=_CREATE_CHAT_PROMPT, variables=variables)
     prompt_id = response["data"]["createChatPrompt"]["id"]
-    return px.Client().prompts.get(prompt_identifier=prompt_id)
+    return px.Client(endpoint=app.base_url, api_key=api_key).prompts.get(
+        prompt_identifier=prompt_id
+    )
 
 
 _CREATE_CHAT_PROMPT = """
@@ -958,14 +974,14 @@ class TestClient:
         expected: dict[str, Any],
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"],
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
-        u = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
+        u = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(u.create_api_key(_app))
         prompt_identifier = token_hex(16)
         from phoenix.client import Client
 
-        client = Client()
+        client = Client(base_url=_app.base_url, api_key=api_key)
         for model_provider in model_providers.split(","):
             version: PromptVersion = convert(
                 expected,
@@ -989,7 +1005,7 @@ class TestClient:
         is_async: bool,
         use_phoenix_admin_secret: bool,
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
         """Test the version tagging functionality for prompts.
 
@@ -1002,12 +1018,12 @@ class TestClient:
         5. Different prompts can have tags with the same name without affecting each other
         """
         # Set up test environment with logged-in user
-        u1 = _get_user(_MEMBER).log_in()
+        u1 = _get_user(_app, _MEMBER).log_in(_app)
         if use_phoenix_admin_secret:
-            assert (admin_secret := get_env_phoenix_admin_secret())
-            monkeypatch.setenv("PHOENIX_API_KEY", str(admin_secret))
+            assert (admin_secret := _app.admin_secret)
+            api_key = str(admin_secret)
         else:
-            monkeypatch.setenv("PHOENIX_API_KEY", u1.create_api_key())
+            api_key = str(u1.create_api_key(_app))
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -1023,7 +1039,7 @@ class TestClient:
             model_name=token_hex(8),
         )
         prompt1 = await _await_or_return(
-            Client().prompts.create(
+            Client(base_url=_app.base_url, api_key=api_key).prompts.create(
                 name=prompt_identifier,
                 version=version,
             )
@@ -1032,7 +1048,7 @@ class TestClient:
 
         # Verify no tags exist initially
         tags = await _await_or_return(
-            Client().prompts.tags.list(
+            Client(base_url=_app.base_url, api_key=api_key).prompts.tags.list(
                 prompt_version_id=prompt1.id,
             )
         )
@@ -1043,7 +1059,7 @@ class TestClient:
         tag_name = token_hex(8)
         tag_description1 = token_hex(16)
         await _await_or_return(
-            Client().prompts.tags.create(
+            Client(base_url=_app.base_url, api_key=api_key).prompts.tags.create(
                 prompt_version_id=prompt1.id,
                 name=tag_name,
                 description=tag_description1,
@@ -1052,7 +1068,7 @@ class TestClient:
 
         # Verify tag was created with correct attributes
         tags = await _await_or_return(
-            Client().prompts.tags.list(
+            Client(base_url=_app.base_url, api_key=api_key).prompts.tags.list(
                 prompt_version_id=prompt1.id,
             )
         )
@@ -1063,7 +1079,7 @@ class TestClient:
 
         # Verify tag is associated with the correct user
         query = "query($id:ID!){node(id:$id){... on PromptVersionTag{user{id username}}}}"
-        res, _ = _gql(u1, query=query, variables={"id": tags[0]["id"]})
+        res, _ = u1.gql(_app, query=query, variables={"id": tags[0]["id"]})
         if use_phoenix_admin_secret:
             assert res["data"]["node"]["user"]["username"] == "system"
         else:
@@ -1071,7 +1087,7 @@ class TestClient:
 
         # Create a second version of the same prompt
         prompt2 = await _await_or_return(
-            Client().prompts.create(
+            Client(base_url=_app.base_url, api_key=api_key).prompts.create(
                 name=prompt_identifier,
                 version=version,
             )
@@ -1080,22 +1096,22 @@ class TestClient:
 
         # Verify second version has no tags initially
         tags = await _await_or_return(
-            Client().prompts.tags.list(
+            Client(base_url=_app.base_url, api_key=api_key).prompts.tags.list(
                 prompt_version_id=prompt2.id,
             )
         )
         assert not tags
 
         # Change the user api key to a different one
-        u2 = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", u2.create_api_key())
+        u2 = _get_user(_app, _MEMBER).log_in(_app)
+        api_key = str(u2.create_api_key(_app))
 
         # Create a tag with the same name for the second version.
         # This will automatically remove the tag from the first version
         # due to tag name uniqueness.
         tag_description2 = token_hex(16)
         await _await_or_return(
-            Client().prompts.tags.create(
+            Client(base_url=_app.base_url, api_key=api_key).prompts.tags.create(
                 prompt_version_id=prompt2.id,
                 name=tag_name,
                 description=tag_description2,
@@ -1104,7 +1120,7 @@ class TestClient:
 
         # Verify tag was created for second version with the new description
         tags = await _await_or_return(
-            Client().prompts.tags.list(
+            Client(base_url=_app.base_url, api_key=api_key).prompts.tags.list(
                 prompt_version_id=prompt2.id,
             )
         )
@@ -1115,14 +1131,14 @@ class TestClient:
 
         # Verify tag is associated with the correct user
         query = "query($id:ID!){node(id:$id){... on PromptVersionTag{user{id}}}}"
-        res, _ = _gql(u2, query=query, variables={"id": tags[0]["id"]})
+        res, _ = u2.gql(_app, query=query, variables={"id": tags[0]["id"]})
         assert res["data"]["node"]["user"]["id"] == u2.gid
 
         # Verify first version's tag was automatically removed when we created
         # the tag for the second version. This demonstrates that tag names must
         # be unique across all versions.
         tags = await _await_or_return(
-            Client().prompts.tags.list(
+            Client(base_url=_app.base_url, api_key=api_key).prompts.tags.list(
                 prompt_version_id=prompt1.id,
             )
         )
@@ -1132,7 +1148,7 @@ class TestClient:
         # Create a new prompt with a different identifier
         new_prompt_identifier = token_hex(16)
         prompt3 = await _await_or_return(
-            Client().prompts.create(
+            Client(base_url=_app.base_url, api_key=api_key).prompts.create(
                 name=new_prompt_identifier,
                 version=version,
             )
@@ -1143,7 +1159,7 @@ class TestClient:
         # This should NOT affect the tag on prompt2 since they're different prompts
         tag_description3 = token_hex(16)
         await _await_or_return(
-            Client().prompts.tags.create(
+            Client(base_url=_app.base_url, api_key=api_key).prompts.tags.create(
                 prompt_version_id=prompt3.id,
                 name=tag_name,
                 description=tag_description3,
@@ -1152,7 +1168,7 @@ class TestClient:
 
         # Verify tag was created for the new prompt
         tags = await _await_or_return(
-            Client().prompts.tags.list(
+            Client(base_url=_app.base_url, api_key=api_key).prompts.tags.list(
                 prompt_version_id=prompt3.id,
             )
         )
@@ -1163,7 +1179,7 @@ class TestClient:
 
         # Verify prompt2's tag was NOT affected since it's a different prompt
         tags = await _await_or_return(
-            Client().prompts.tags.list(
+            Client(base_url=_app.base_url, api_key=api_key).prompts.tags.list(
                 prompt_version_id=prompt2.id,
             )
         )

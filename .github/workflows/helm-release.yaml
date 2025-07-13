@@ -9,6 +9,8 @@ on:
 jobs:
   check-and-push-helm:
     name: Check PR and Push Helm
+    permissions:
+      contents: read
     # Only run if the PR was merged and matches our pattern
     if: |
       github.event.pull_request.merged == true && 

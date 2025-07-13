@@ -1,5 +1,33 @@
 # @arizeai/phoenix-client
 
+## 2.3.2
+
+### Patch Changes
+
+- 6ef8e47: fix dataset pull by name
+
+## 2.3.1
+
+### Patch Changes
+
+- b3e30db: simplify types for task output in experiments client api
+
+## 2.3.0
+
+### Minor Changes
+
+- 3c97cc7: Add the ability to get a dataset by name
+
+## 2.2.0
+
+### Minor Changes
+
+- 1906611: add getSpan method
+
+### Patch Changes
+
+- 4c52db4: ollama provider added
+
 ## 2.1.1
 
 ### Patch Changes

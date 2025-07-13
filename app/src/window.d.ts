@@ -22,6 +22,7 @@ declare global {
       authenticationEnabled: boolean;
       basicAuthDisabled: boolean;
       oAuth2Idps: OAuth2Idp[];
+      managementUrl?: string | null;
     };
   }
 }

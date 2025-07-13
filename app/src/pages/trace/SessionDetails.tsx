@@ -1,11 +1,17 @@
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
-import { HelpTooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
-
-import { Flex, Text, View } from "@phoenix/components";
+import {
+  Flex,
+  RichTooltip,
+  Text,
+  TooltipTrigger,
+  TriggerWrap,
+  View,
+} from "@phoenix/components";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
+import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 
 import { costFormatter } from "../../utils/numberFormatUtils";
 
@@ -58,13 +64,13 @@ function SessionDetailsHeader({
             <Text elementType="h3" size="S" color="text-700">
               Total Cost
             </Text>
-            <TooltipTrigger delay={0} placement="bottom">
+            <TooltipTrigger delay={0}>
               <TriggerWrap>
                 <Text size="L">
                   {costFormatter(costSummary.total?.cost ?? 0)}
                 </Text>
               </TriggerWrap>
-              <HelpTooltip>
+              <RichTooltip placement="bottom">
                 <View width="size-2400">
                   <Flex direction="column">
                     <Flex justifyContent="space-between">
@@ -85,7 +91,7 @@ function SessionDetailsHeader({
                     </Flex>
                   </Flex>
                 </View>
-              </HelpTooltip>
+              </RichTooltip>
             </TooltipTrigger>
           </Flex>
         ) : null}
@@ -113,7 +119,7 @@ export function SessionDetails(props: SessionDetailsProps) {
   const { sessionId } = props;
   const data = useLazyLoadQuery<SessionDetailsQuery>(
     graphql`
-      query SessionDetailsQuery($id: ID!) {
+      query SessionDetailsQuery($id: ID!, $first: Int) {
         session: node(id: $id) {
           ... on ProjectSession {
             numTraces
@@ -139,45 +145,14 @@ export function SessionDetails(props: SessionDetailsProps) {
             }
             sessionId
             latencyP50: traceLatencyMsQuantile(probability: 0.50)
-            traces {
-              edges {
-                trace: node {
-                  id
-                  traceId
-                  rootSpan {
-                    id
-                    attributes
-                    project {
-                      id
-                    }
-                    input {
-                      value
-                      mimeType
-                    }
-                    output {
-                      value
-                      mimeType
-                    }
-                    cumulativeTokenCountTotal
-                    cumulativeCostSummary {
-                      total {
-                        cost
-                      }
-                    }
-                    latencyMs
-                    startTime
-                    spanId
-                    ...AnnotationSummaryGroup
-                  }
-                }
-              }
-            }
+            ...SessionDetailsTraceList_traces @arguments(first: $first)
           }
         }
       }
     `,
     {
       id: sessionId,
+      first: SESSION_DETAILS_PAGE_SIZE,
     },
     {
       fetchPolicy: "store-and-network",
@@ -204,7 +179,7 @@ export function SessionDetails(props: SessionDetailsProps) {
         latencyP50={data.session.latencyP50}
         sessionId={sessionId}
       />
-      <SessionDetailsTraceList traces={data.session.traces} />
+      <SessionDetailsTraceList tracesRef={data.session} />
     </main>
   );
 }

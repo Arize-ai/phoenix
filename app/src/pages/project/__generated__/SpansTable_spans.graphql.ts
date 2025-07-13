@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bf2471ed8328333a9c038f46cd1015ac>>
+ * @generated SignedSource<<903fad585993583a9273b44db363e90a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,11 +20,6 @@ export type SpansTable_spans$data = {
     readonly edges: ReadonlyArray<{
       readonly span: {
         readonly costSummary?: {
-          readonly total: {
-            readonly cost: number | null;
-          };
-        } | null;
-        readonly cumulativeCostSummary?: {
           readonly total: {
             readonly cost: number | null;
           };
@@ -68,6 +63,11 @@ export type SpansTable_spans$data = {
         readonly statusCode: SpanStatusCode;
         readonly tokenCountTotal?: number | null;
         readonly trace: {
+          readonly costSummary?: {
+            readonly total: {
+              readonly cost: number | null;
+            };
+          };
           readonly id: string;
           readonly traceId: string;
         };
@@ -103,26 +103,35 @@ v2 = {
   "name": "id",
   "storageKey": null
 },
-v3 = [
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "CostBreakdown",
-    "kind": "LinkedField",
-    "name": "total",
-    "plural": false,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "cost",
-        "storageKey": null
-      }
-    ],
-    "storageKey": null
-  }
-],
+v3 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "SpanCostSummary",
+  "kind": "LinkedField",
+  "name": "costSummary",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "CostBreakdown",
+      "kind": "LinkedField",
+      "name": "total",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "cost",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
 v4 = [
   {
     "alias": "value",
@@ -314,16 +323,7 @@ return {
                       "name": "tokenCountTotal",
                       "storageKey": null
                     },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": "SpanCostSummary",
-                      "kind": "LinkedField",
-                      "name": "costSummary",
-                      "plural": false,
-                      "selections": (v3/*: any*/),
-                      "storageKey": null
-                    }
+                    (v3/*: any*/)
                   ]
                 },
                 {
@@ -336,16 +336,6 @@ return {
                       "args": null,
                       "kind": "ScalarField",
                       "name": "cumulativeTokenCountTotal",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": "SpanCostSummary",
-                      "kind": "LinkedField",
-                      "name": "cumulativeCostSummary",
-                      "plural": false,
-                      "selections": (v3/*: any*/),
                       "storageKey": null
                     }
                   ]
@@ -372,6 +362,14 @@ return {
                       "kind": "ScalarField",
                       "name": "traceId",
                       "storageKey": null
+                    },
+                    {
+                      "condition": "rootSpansOnly",
+                      "kind": "Condition",
+                      "passingValue": true,
+                      "selections": [
+                        (v3/*: any*/)
+                      ]
                     }
                   ],
                   "storageKey": null
@@ -579,6 +577,6 @@ return {
 };
 })();
 
-(node as any).hash = "e587056de0604255ba7974c4a3aa4296";
+(node as any).hash = "6d9c8e6ab059fb3f21b93768129924fe";
 
 export default node;

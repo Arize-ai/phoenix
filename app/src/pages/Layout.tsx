@@ -7,6 +7,7 @@ import {
   Brand,
   DocsLink,
   GitHubLink,
+  ManagementLink,
   NavBreadcrumb,
   NavButton,
   NavLink,
@@ -175,6 +176,9 @@ function SideNav() {
                   leadingVisual={<Icon svg={<Icons.PersonOutline />} />}
                 />
               </li>
+              <Suspense>
+                <ManagementLink />
+              </Suspense>
               <li key="logout">
                 <NavButton
                   text="Log Out"

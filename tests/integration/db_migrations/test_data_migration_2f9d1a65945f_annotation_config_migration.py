@@ -13,13 +13,14 @@ def test_annotation_config_migration(
     _engine: Engine,
     _alembic_config: Config,
     _db_backend: Literal["sqlite", "postgresql"],
+    _schema: str,
 ) -> None:
     # no migrations applied yet
     with pytest.raises(BaseException, match="alembic_version"):
-        _version_num(_engine)
+        _version_num(_engine, _schema)
 
     # apply migrations up to right before annotation config migration
-    _up(_engine, _alembic_config, "bc8fea3c2bc8")
+    _up(_engine, _alembic_config, "bc8fea3c2bc8", _schema)
 
     # insert entities to be annotated
     now = datetime.now(timezone.utc)
@@ -392,7 +393,7 @@ def test_annotation_config_migration(
             assert "valid_annotator_kind" in str(exc_info.value)
 
         # run the annotation config migration
-        _up(_engine, _alembic_config, "2f9d1a65945f")
+        _up(_engine, _alembic_config, "2f9d1a65945f", _schema)
 
         # verify new columns exist and have been backfilled
         with _engine.connect() as conn:
@@ -817,7 +818,7 @@ def test_annotation_config_migration(
             )
             conn.commit()
 
-        _down(_engine, _alembic_config, "bc8fea3c2bc8")
+        _down(_engine, _alembic_config, "bc8fea3c2bc8", _schema)
 
 
 def _create_trace_annotation_pre_migration(

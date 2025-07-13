@@ -43,6 +43,9 @@ import { PromptVersionDetailsPage } from "./pages/prompt/PromptVersionDetailsPag
 import { promptVersionLoader } from "./pages/prompt/promptVersionLoader";
 import { promptVersionsLoader } from "./pages/prompt/promptVersionsLoader";
 import { PromptVersionsPage } from "./pages/prompt/PromptVersionsPage";
+import { sessionRedirectLoader } from "./pages/redirects/sessionRedirectLoader";
+import { spanRedirectLoader } from "./pages/redirects/spanRedirectLoader";
+import { traceRedirectLoader } from "./pages/redirects/traceRedirectLoader";
 import { settingsDataPageLoader } from "./pages/settings/settingsDataPageLoader";
 import { sessionLoader } from "./pages/trace/sessionLoader";
 import { SessionPage } from "./pages/trace/SessionPage";
@@ -96,6 +99,7 @@ import {
   SupportPage,
   TracePage,
 } from "./pages";
+
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path="/" errorElement={<ErrorElement />}>
@@ -250,11 +254,9 @@ const router = createBrowserRouter(
               </Route>
               <Route
                 path="compare"
-                handle={{
-                  crumb: () => "compare",
-                }}
-                loader={experimentCompareLoader}
                 element={<ExperimentComparePage />}
+                loader={experimentCompareLoader}
+                handle={{ crumb: () => "compare" }}
               />
             </Route>
           </Route>
@@ -393,6 +395,21 @@ const router = createBrowserRouter(
               loader={settingsDataPageLoader}
             />
           </Route>
+          <Route
+            path="/redirects/spans/:span_otel_id"
+            loader={spanRedirectLoader}
+            errorElement={<ErrorElement />}
+          />
+          <Route
+            path="/redirects/traces/:trace_otel_id"
+            loader={traceRedirectLoader}
+            errorElement={<ErrorElement />}
+          />
+          <Route
+            path="/redirects/sessions/:session_otel_id"
+            loader={sessionRedirectLoader}
+            errorElement={<ErrorElement />}
+          />
         </Route>
       </Route>
     </Route>
