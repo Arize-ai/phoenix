@@ -223,6 +223,18 @@ def date_trunc(
         >>> date_trunc(SupportedSQLDialect.SQLITE, "day", Span.start_time, -300)
     """
     if dialect is SupportedSQLDialect.POSTGRESQL:
+        # Note: the usage of the timezone parameter in the form of e.g. "+05:00"
+        # appears to be an undocumented feature of PostgreSQL's date_trunc function.
+        # Below is an example query and its output executed on PostgreSQL v12 and v17.
+        # SELECT date_trunc('day', TIMESTAMP WITH TIME ZONE '2001-02-16 15:38:40-05'),
+        #        date_trunc('day', TIMESTAMP WITH TIME ZONE '2001-02-16 20:38:40+00', '+05:00'),
+        #        date_trunc('day', TIMESTAMP WITH TIME ZONE '2001-02-16 20:38:40+00', '-05:00');
+        # ┌────────────────────────┬────────────────────────┬────────────────────────┐
+        # │       date_trunc       │       date_trunc       │       date_trunc       │
+        # ├────────────────────────┼────────────────────────┼────────────────────────┤
+        # │ 2001-02-16 00:00:00+00 │ 2001-02-16 05:00:00+00 │ 2001-02-16 19:00:00+00 │
+        # └────────────────────────┴────────────────────────┴────────────────────────┘
+        # (1 row)
         sign = "-" if utc_offset_minutes >= 0 else "+"
         timezone = f"{sign}{abs(utc_offset_minutes) // 60}:{abs(utc_offset_minutes) % 60:02d}"
         return sa.func.date_trunc(field, source, timezone)
