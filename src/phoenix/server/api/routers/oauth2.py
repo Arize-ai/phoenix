@@ -173,7 +173,7 @@ async def create_tokens(
         user_info = _parse_user_info(user_info)
     except MissingEmailScope as error:
         return _redirect_to_login(request=request, error=str(error))
-    
+
     try:
         async with request.app.state.db() as session:
             user = await _process_oauth2_user(
@@ -241,7 +241,7 @@ def _parse_user_info(user_info: dict[str, Any]) -> UserInfo:
     """
     assert isinstance(subject := user_info.get("sub"), (str, int))
     idp_user_id = str(subject)
-    
+
     # Check if email is present and is a string
     email = user_info.get("email")
     if not isinstance(email, str):
@@ -249,7 +249,7 @@ def _parse_user_info(user_info: dict[str, Any]) -> UserInfo:
             "The OIDC provider did not return the email scope. "
             "Please ensure your OIDC provider is configured to include the 'email' scope."
         )
-    
+
     assert isinstance(username := user_info.get("name"), str) or username is None
     assert (
         isinstance(profile_picture_url := user_info.get("picture"), str)
@@ -555,6 +555,7 @@ class NotInvited(Exception):
 
 class MissingEmailScope(Exception):
     """Raised when the OIDC provider does not return the email scope."""
+
     pass
 
 
