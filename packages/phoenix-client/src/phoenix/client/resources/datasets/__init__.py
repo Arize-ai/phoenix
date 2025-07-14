@@ -178,14 +178,14 @@ class Dataset:
 
         return pd.DataFrame.from_records(records).set_index("example_id")  # pyright: ignore[reportUnknownMemberType]
 
-    def to_json(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Convert the dataset to a JSON-serializable dictionary.
 
         Example:
             >>> dataset = client.datasets.get_dataset(dataset="my-dataset")
-            >>> json_data = dataset.to_json()
-            >>> restored = Dataset.from_json(json_data)
+            >>> json_data = dataset.to_dict()
+            >>> restored = Dataset.from_dict(json_data)
         """
         return {
             "id": self.id,
@@ -201,12 +201,12 @@ class Dataset:
         }
 
     @classmethod
-    def from_json(cls, json_data: dict[str, Any]) -> "Dataset":
+    def from_dict(cls, json_data: dict[str, Any]) -> "Dataset":
         """
         Create a Dataset instance from a JSON-serializable dictionary.
 
         Args:
-            json_data: Dictionary containing dataset information, typically from to_json()
+            json_data: Dictionary containing dataset information, typically from to_dict()
 
         Returns:
             A Dataset instance with the provided data
@@ -216,8 +216,8 @@ class Dataset:
             KeyError: If json_data is missing required keys
 
         Example:
-            >>> json_data = dataset.to_json()
-            >>> restored = Dataset.from_json(json_data)
+            >>> json_data = dataset.to_dict()
+            >>> restored = Dataset.from_dict(json_data)
             >>> assert restored.id == dataset.id
         """
         required_fields = {"id", "name", "version_id", "examples"}

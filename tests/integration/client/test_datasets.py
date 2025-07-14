@@ -603,7 +603,7 @@ Who wrote Hamlet?,Shakespeare,literature
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        """Test that Dataset.to_json() and Dataset.from_json() work correctly for round-tripping."""
+        """Test that Dataset.to_dict() and Dataset.from_dict() work correctly for round-tripping."""
         user = _get_user(_app, _MEMBER).log_in(_app)
         api_key = str(user.create_api_key(_app))
 
@@ -661,7 +661,7 @@ Who wrote Hamlet?,Shakespeare,literature
             )
         )
 
-        json_data = original_dataset.to_json()
+        json_data = original_dataset.to_dict()
 
         assert json_data["id"] == original_dataset.id
         assert json_data["name"] == original_dataset.name
@@ -675,7 +675,7 @@ Who wrote Hamlet?,Shakespeare,literature
         if json_data.get("updated_at"):
             assert isinstance(json_data["updated_at"], str)
 
-        restored_dataset = Dataset.from_json(json_data)
+        restored_dataset = Dataset.from_dict(json_data)
 
         assert restored_dataset.id == original_dataset.id
         assert restored_dataset.name == original_dataset.name
@@ -704,4 +704,4 @@ Who wrote Hamlet?,Shakespeare,literature
 
         invalid_json = {"id": "test", "name": "test"}
         with pytest.raises(ValueError, match="Missing required fields"):
-            Dataset.from_json(invalid_json)
+            Dataset.from_dict(invalid_json)
