@@ -31,21 +31,21 @@ const dash = (size: Size) => keyframes`
     stroke-dasharray: ${DASH_SHORT(size)}, ${CIRCUMFERENCE(size)};
     stroke-dashoffset: 0;
   }
-  30% {
+  80% {
     stroke-dasharray: ${DASH_LONG(size)}, ${CIRCUMFERENCE(size)};
-    stroke-dashoffset: 0;
+    stroke-dashoffset: ${-1 * CIRCUMFERENCE(size)};
   }
   100% {
     stroke-dasharray: ${DASH_SHORT(size)}, ${CIRCUMFERENCE(size)};
-    stroke-dashoffset: ${-1 * CIRCUMFERENCE(size)};
+    stroke-dashoffset: ${-1 * CIRCUMFERENCE(size) * 1.25};
   }
 `;
 
 export const progressCircleIndeterminateCSS = (size: Size) => css`
   .progress-circle__svg {
-    animation: ${spin} 1.2s linear infinite;
+    animation: ${spin} 3s linear infinite;
   }
   .progress-circle__arc {
-    animation: ${dash(size)} 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    animation: ${dash(size)} 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   }
 `;
