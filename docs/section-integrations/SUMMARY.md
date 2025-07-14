@@ -45,6 +45,8 @@
   * [BeeAI Tracing (Python)](frameworks/beeai/beeai-tracing-python.md)
 * [CrewAI](frameworks/crewai/README.md)
   * [CrewAI Tracing](frameworks/crewai/crewai-tracing.md)
+* [Dify](frameworks/dify/README.md)
+  * [Dify Tracing](frameworks/dify/dify-tracing.md)
 * [DSPy](frameworks/dspy/README.md)
   * [DSPy Tracing](frameworks/dspy/dspy-tracing.md)
 * [Flowise](frameworks/flowise/README.md)

@@ -1,16 +1,5 @@
 ---
 description: Create flows using Microsoft PromptFlow and send their traces to Phoenix
-layout:
-  title:
-    visible: true
-  description:
-    visible: true
-  tableOfContents:
-    visible: true
-  outline:
-    visible: true
-  pagination:
-    visible: true
 ---
 
 # Prompt Flow Tracing
