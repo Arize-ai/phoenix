@@ -6,19 +6,28 @@ import json
 import os
 from datetime import datetime, timedelta
 
-import openai
 from dotenv import load_dotenv
-from mcp.server.fastmcp import FastMCP
-from pydantic import BaseModel
+
+# 1. Load environment variables
+load_dotenv()
 
 from phoenix.otel import register
 
-load_dotenv()
+# Connect to your Arize instance
+tracer_provider = register(project_name="test_mcp_project")
 
-tracer_provider = register(
-    auto_instrument=True,
-    endpoint="http://localhost:6006/v1/traces",
-)
+# 2. Set up instrumentation BEFORE any imports that use MCP
+from openinference.instrumentation.mcp import MCPInstrumentor
+from openinference.instrumentation.openai_agents import OpenAIAgentsInstrumentor
+
+# Apply instrumentation before any MCP imports
+MCPInstrumentor().instrument(tracer_provider=tracer_provider)
+OpenAIAgentsInstrumentor().instrument(tracer_provider=tracer_provider)
+
+# 3. Only NOW import modules that use MCP
+import openai
+from mcp.server.fastmcp import FastMCP
+from pydantic import BaseModel
 
 # Get a tracer
 tracer = tracer_provider.get_tracer("financial-analysis-server")
