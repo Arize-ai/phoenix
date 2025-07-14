@@ -7,7 +7,11 @@ import {
   TriggerWrap,
 } from "@phoenix/components/tooltip";
 
-import { GLOBAL_COLORS } from "./constants/colorConstants";
+import {
+  CATEGORICAL_CHART_COLORS,
+  GLOBAL_COLORS,
+  SEMANTIC_CHART_COLORS,
+} from "./constants/colorConstants";
 
 const meta: Meta = {
   title: "Colors",
@@ -53,3 +57,43 @@ const Template: StoryFn = () => {
 };
 
 export const Default = Template.bind({});
+
+const CategoricalTemplate: StoryFn = () => (
+  <Flex direction="row" wrap>
+    {CATEGORICAL_CHART_COLORS.map((color) => (
+      <TooltipTrigger key={color} delay={0}>
+        <TriggerWrap>
+          <View
+            backgroundColor={color}
+            height={40}
+            width={40}
+            padding="size-50"
+          ></View>
+        </TriggerWrap>
+        <Tooltip>{color}</Tooltip>
+      </TooltipTrigger>
+    ))}
+  </Flex>
+);
+
+export const CategorialChart = CategoricalTemplate.bind({});
+
+const SemanticChartTemplate: StoryFn = () => (
+  <Flex direction="row" wrap>
+    {SEMANTIC_CHART_COLORS.map((color) => (
+      <TooltipTrigger key={color} delay={0}>
+        <TriggerWrap>
+          <View
+            backgroundColor={color}
+            height={40}
+            width={40}
+            padding="size-50"
+          ></View>
+        </TriggerWrap>
+        <Tooltip>{color}</Tooltip>
+      </TooltipTrigger>
+    ))}
+  </Flex>
+);
+
+export const SemanticChart = SemanticChartTemplate.bind({});
