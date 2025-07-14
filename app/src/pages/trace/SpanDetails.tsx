@@ -765,11 +765,15 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                     borderWidth="thin"
                     padding="size-200"
                   >
-                    <CopyToClipboard text={promptTemplateObject.template}>
+                    <CopyToClipboard
+                      text={formatPromptTemplate(promptTemplateObject)}
+                    >
                       <Text color="text-700" fontStyle="italic">
                         prompt template
                       </Text>
-                      <PreBlock>{promptTemplateObject.template}</PreBlock>
+                      <PreBlock>
+                        {formatPromptTemplate(promptTemplateObject)}
+                      </PreBlock>
                     </CopyToClipboard>
                   </View>
                   <View
@@ -1488,36 +1492,38 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
               "function-call",
             ]}
           >
-            {/* when the message is a tool result, show the tool result in a disclosure */}
-            {messageContent && role.toLowerCase() === "tool" ? (
-              <Disclosure id="tool-content">
-                <DisclosureTrigger
-                  arrowPosition="start"
-                  justifyContent="space-between"
-                >
-                  <Text>
-                    Tool Result{toolResultId ? `: ${toolResultId}` : ""}
-                  </Text>
-                  {toolResultId ? (
-                    <CopyToClipboardButton text={toolResultId} />
-                  ) : null}
-                </DisclosureTrigger>
-                <DisclosurePanel>
-                  <View width="100%">
-                    <ConnectedMarkdownBlock>
-                      {messageContent}
-                    </ConnectedMarkdownBlock>
-                  </View>
-                </DisclosurePanel>
-              </Disclosure>
-            ) : // when the message is any other kind, just show the content without a disclosure
-            messageContent ? (
-              <View width="100%">
-                <ConnectedMarkdownBlock>
-                  {messageContent}
-                </ConnectedMarkdownBlock>
-              </View>
-            ) : null}
+            {
+              // when the message is a tool result, show the tool result in a disclosure
+              messageContent && role.toLowerCase() === "tool" ? (
+                <Disclosure id="tool-content">
+                  <DisclosureTrigger
+                    arrowPosition="start"
+                    justifyContent="space-between"
+                  >
+                    <Text>
+                      Tool Result{toolResultId ? `: ${toolResultId}` : ""}
+                    </Text>
+                    {toolResultId ? (
+                      <CopyToClipboardButton text={toolResultId} />
+                    ) : null}
+                  </DisclosureTrigger>
+                  <DisclosurePanel>
+                    <View width="100%">
+                      <ConnectedMarkdownBlock>
+                        {messageContent}
+                      </ConnectedMarkdownBlock>
+                    </View>
+                  </DisclosurePanel>
+                </Disclosure>
+              ) : // when the message is any other kind, just show the content without a disclosure
+              messageContent ? (
+                <View width="100%">
+                  <ConnectedMarkdownBlock>
+                    {messageContent}
+                  </ConnectedMarkdownBlock>
+                </View>
+              ) : null
+            }
             {(toolCalls?.length ?? 0) > 0
               ? toolCalls?.map((toolCall, idx) => {
                   if (!toolCall) {
@@ -2047,3 +2053,31 @@ const attributesContextualHelp = (
     </View>
   </Flex>
 );
+
+function formatPromptTemplate(promptTemplate: AttributePromptTemplate | null) {
+  if (promptTemplate == null) {
+    return "";
+  }
+  const { template, variables } = promptTemplate;
+
+  // If template is missing but we have variables, create a fallback
+  if (template == null || template === "") {
+    // If we have variables but no template, try to construct a simple template
+    if (variables) {
+      try {
+        const parsedVars =
+          typeof variables === "string" ? JSON.parse(variables) : variables;
+        // Create a simple template showing just the variable names in Mustache format
+        return Object.keys(parsedVars)
+          .map((key) => `{{${key}}}`)
+          .join("\n");
+      } catch (e) {
+        return "No template available";
+      }
+    }
+    return "No template available";
+  }
+
+  // Always return the raw template without substitution
+  return template;
+}
