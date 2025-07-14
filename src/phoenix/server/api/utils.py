@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta
-from typing import Iterator, Literal, assert_never
+from typing import Iterator, Literal
 
 from sqlalchemy import delete
+from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
