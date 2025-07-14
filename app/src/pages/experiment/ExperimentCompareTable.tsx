@@ -161,11 +161,11 @@ const annotationTooltipExtraCSS = css`
 const tableCSS = css`
   // fixes table row sizing issues with full height cell children
   // this enables features like hovering anywhere on a cell to display controls
-  height: fit-content;
+  // height: fit-content; // table-specific sizing behavior
   font-size: var(--ac-global-font-size-s);
   width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
+  // border-collapse: separate; // table-specific property
+  // border-spacing: 0; // table-specific property
   thead {
     position: sticky;
     top: 0;
@@ -194,7 +194,7 @@ const tableCSS = css`
         .sort-icon {
           margin-left: var(--ac-global-dimension-size-50);
           font-size: var(--ac-global-font-size-xs);
-          vertical-align: middle;
+          // vertical-align: middle; // table-specific property
           display: inline-block;
         }
         &:hover .resizer {
@@ -228,7 +228,7 @@ const tableCSS = css`
   tbody:not(.is-empty) {
     tr {
       // when paired with table.height:fit-content, allows table cells and their children to fill entire row height
-      height: 100%;
+      // height: 100%; // may not work as expected with grid
       &:not(:last-of-type) {
         & > td {
           border-bottom: 1px solid var(--ac-global-border-color-default);
@@ -690,7 +690,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           />
         </View>
         <div
-          // css={tableWrapCSS}
+          css={tableWrapCSS}
           onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
           ref={tableContainerRef}
           style={{
@@ -700,21 +700,30 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           }}
         >
           <table
-            css={
-              css()
-              // tableCSS,
+            css={css(
+              tableCSS
               // borderedTableCSS,
-            }
+            )}
             style={{
-              // ...columnSizeVars,
-              // width: table.getTotalSize(),
-              // minWidth: "100%",
+              ...columnSizeVars,
+              width: table.getTotalSize(),
+              minWidth: "100%",
               display: "grid",
             }}
           >
-            <thead>
+            <thead
+              style={{
+                display: "grid",
+                position: "sticky",
+                top: 0,
+                zIndex: 1,
+              }}
+            >
               {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id}>
+                <tr
+                  key={headerGroup.id}
+                  style={{ display: "flex", width: "100%" }}
+                >
                   {headerGroup.headers.map((header) => (
                     <th
                       key={header.id}
