@@ -225,7 +225,6 @@ class Dataset:
             missing = required_fields - set(json_data.keys())
             raise ValueError(f"Missing required fields in json_data: {missing}")
 
-        # Reconstruct dataset_info structure
         dataset_info = {
             "id": json_data["id"],
             "name": json_data["name"],
@@ -235,7 +234,7 @@ class Dataset:
             dataset_info["description"] = json_data["description"]
 
         if json_data.get("metadata"):
-            dataset_info["metadata"] = json_data["metadata"]
+            dataset_info["metadata"] = deepcopy(json_data["metadata"])
 
         if json_data.get("created_at"):
             dataset_info["created_at"] = json_data["created_at"]
@@ -246,10 +245,9 @@ class Dataset:
         if json_data.get("example_count") is not None:
             dataset_info["example_count"] = json_data["example_count"]
 
-        # Reconstruct examples_data structure
         examples_data = {
             "version_id": json_data["version_id"],
-            "examples": json_data["examples"],
+            "examples": deepcopy(json_data["examples"]),
         }
 
         return cls(dataset_info, examples_data)  # type: ignore[arg-type]
