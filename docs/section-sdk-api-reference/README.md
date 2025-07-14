@@ -1,3 +1,7 @@
+---
+hidden: true
+---
+
 # Overview
 
 Phoenix provides SDK and API access to log, query, and evaluate LLM traces across Python, TypeScript, and REST interfaces. Our documentation offers flexible integration points to fit your workflow.

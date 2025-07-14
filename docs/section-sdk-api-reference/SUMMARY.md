@@ -2,6 +2,23 @@
 
 * [Overview](README.md)
 
+## Rest API
+
+* [Overview](rest-api/overview.md)
+* [Reference](https://phoenix-demo.arize.com/apis)
+* [Annotation Configs](rest-api/annotation-configs.md)
+
+***
+
+* [Annotations](annotations.md)
+* [Datasets](datasets.md)
+* [Experiments](experiments.md)
+* [Spans](spans.md)
+* [Traces](traces.md)
+* [Prompts](prompts.md)
+* [Projects](projects.md)
+* [Users](users.md)
+
 ## Python
 
 * [Overview](python/overview.md)
@@ -21,20 +38,3 @@
 ## TypeScript Packages
 
 * [MCP Server](typescript-packages/mcp-server.md)
-
-## Rest API
-
-* [Overview](rest-api/overview.md)
-* [Reference](https://phoenix-demo.arize.com/apis)
-
-***
-
-* [Annotation Configs](annotation-configs.md)
-* [Annotations](annotations.md)
-* [Datasets](datasets.md)
-* [Experiments](experiments.md)
-* [Spans](spans.md)
-* [Traces](traces.md)
-* [Prompts](prompts.md)
-* [Projects](projects.md)
-* [Users](users.md)

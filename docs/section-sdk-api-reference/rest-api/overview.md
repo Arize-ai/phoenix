@@ -1,3 +1,7 @@
+---
+hidden: true
+---
+
 # Overview
 
 The Phoenix REST API allows you to access and interact with observability data programmatically. You can use it to retrieve project information, query traces and spans, access prompts, and automate analysis workflows directly from your environment.
