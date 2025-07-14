@@ -4,7 +4,7 @@
     "incremental": true /* Save .tsbuildinfo files to allow for incremental compilation of projects. */,
     "composite": true /* Enable constraints that allow a TypeScript project to be used with project references. */,
     /* Language and Environment */
-    "target": "es2016" /* Set the JavaScript language version for emitted JavaScript and include compatible library declarations. */,
+    "target": "es2017" /* Set the JavaScript language version for emitted JavaScript and include compatible library declarations. */,
     "lib": [
       "esnext"
     ] /* Specify a set of bundled library declaration files that describe the target runtime environment. */,
