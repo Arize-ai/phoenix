@@ -103,8 +103,8 @@ def llm_span(start_time: int, end_time: int) -> None:
     span.end(end_time=end_time)
 
 
-for _ in range(randint(1, 10_000)):
-    start_time = int(fake.date_time_between("-6M", "now", tzinfo=timezone.utc).timestamp() * 1e9)
+for _ in range(randint(1, 100)):
+    start_time = int(fake.date_time_between("-72h", "now", tzinfo=timezone.utc).timestamp() * 1e9)
     end_time = start_time + randint(10_000_000, 10_000_000_000)
     llm_span(start_time, end_time)
 

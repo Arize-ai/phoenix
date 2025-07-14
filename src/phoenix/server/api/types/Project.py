@@ -46,6 +46,7 @@ from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.TimeSeries import TimeSeries, TimeSeriesDataPoint
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
+from phoenix.server.api.utils import get_timestamp_range
 from phoenix.trace.dsl import SpanFilter
 
 DEFAULT_PAGE_SIZE = 30
@@ -736,12 +737,27 @@ class Project(Node):
                 stmt = stmt.where(time_range.start <= models.Span.start_time)
             if time_range.end:
                 stmt = stmt.where(models.Span.start_time < time_range.end)
+        data = {}
         async with info.context.db() as session:
-            data = [
-                TimeSeriesDataPoint(timestamp=_as_datetime(t), value=v)
-                async for t, v in await session.stream(stmt)
-            ]
-        return SpanCountTimeSeries(data=data)
+            async for t, v in await session.stream(stmt):
+                timestamp = _as_datetime(t)
+                data[timestamp] = TimeSeriesDataPoint(timestamp=timestamp, value=v)
+        if data:
+            min_time = min(data.values(), key=lambda x: x.timestamp).timestamp
+            if time_range and time_range.start:
+                min_time = min(min_time, time_range.start)
+            max_time = max(data.values(), key=lambda x: x.timestamp).timestamp
+            if time_range and time_range.end:
+                max_time = max(max_time, time_range.end)
+            for timestamp in get_timestamp_range(
+                start_time=min_time,
+                end_time=max_time,
+                stride=field,
+                utc_offset_minutes=utc_offset_minutes,
+            ):
+                if timestamp not in data:
+                    data[timestamp] = TimeSeriesDataPoint(timestamp=timestamp, value=0)
+        return SpanCountTimeSeries(data=sorted(data.values(), key=lambda x: x.timestamp))
 
     @strawberry.field
     async def trace_count_time_series(
@@ -779,12 +795,27 @@ class Project(Node):
                 stmt = stmt.where(time_range.start <= models.Trace.start_time)
             if time_range.end:
                 stmt = stmt.where(models.Trace.start_time < time_range.end)
+        data = {}
         async with info.context.db() as session:
-            data = [
-                TimeSeriesDataPoint(timestamp=_as_datetime(t), value=v)
-                async for t, v in await session.stream(stmt)
-            ]
-        return TraceCountTimeSeries(data=data)
+            async for t, v in await session.stream(stmt):
+                timestamp = _as_datetime(t)
+                data[timestamp] = TimeSeriesDataPoint(timestamp=timestamp, value=v)
+        if data:
+            min_time = min(data.values(), key=lambda x: x.timestamp).timestamp
+            if time_range and time_range.start:
+                min_time = min(min_time, time_range.start)
+            max_time = max(data.values(), key=lambda x: x.timestamp).timestamp
+            if time_range and time_range.end:
+                max_time = max(max_time, time_range.end)
+            for timestamp in get_timestamp_range(
+                start_time=min_time,
+                end_time=max_time,
+                stride=field,
+                utc_offset_minutes=utc_offset_minutes,
+            ):
+                if timestamp not in data:
+                    data[timestamp] = TimeSeriesDataPoint(timestamp=timestamp, value=0)
+        return TraceCountTimeSeries(data=sorted(data.values(), key=lambda x: x.timestamp))
 
 
 @strawberry.type
