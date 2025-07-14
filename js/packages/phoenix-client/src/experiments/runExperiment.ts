@@ -88,7 +88,9 @@ export type RunExperimentParams = ClientFn & {
    */
   dryRun?: number | boolean;
   /**
-   * Whether to set the global tracer provider when running the task
+   * Whether to set the global tracer provider when running the task.
+   * If set to false, a locally scoped tracer will be created but will not get registered.
+   * This may cause certain spans to not be picked up by Phoenix. Notably libraries like the AI SDK that leverage the global tracer.
    * @default true
    */
   setGlobalTracerProvider?: boolean;
