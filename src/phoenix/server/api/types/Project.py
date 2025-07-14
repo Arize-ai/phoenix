@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import operator
-from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Optional
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, Optional, cast
 
 import strawberry
 from aioitertools.itertools import islice
@@ -16,16 +16,16 @@ from strawberry.relay import Connection, Node, NodeID
 from strawberry.types import Info
 from typing_extensions import assert_never
 
-from phoenix.datetime_utils import right_open_time_range
+from phoenix.datetime_utils import normalize_datetime, right_open_time_range
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect, get_time_interval_bucket_boundaries
+from phoenix.db.helpers import SupportedSQLDialect, date_trunc
 from phoenix.server.api.context import Context
-from phoenix.server.api.input_types.Granularity import Granularity
 from phoenix.server.api.input_types.ProjectSessionSort import (
     ProjectSessionColumn,
     ProjectSessionSort,
 )
 from phoenix.server.api.input_types.SpanSort import SpanSort, SpanSortConfig
+from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBinScale
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
@@ -46,7 +46,6 @@ from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.TimeSeries import TimeSeries, TimeSeriesDataPoint
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
-from phoenix.server.api.utils import get_parameters_for_simple_time_series
 from phoenix.trace.dsl import SpanFilter
 
 DEFAULT_PAGE_SIZE = 30
@@ -705,26 +704,39 @@ class Project(Node):
         self,
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
-        granularity: Optional[Granularity] = UNSET,
+        time_bin_config: Optional[TimeBinConfig] = UNSET,
     ) -> SpanCountTimeSeries:
-        stop_time, interval_seconds = get_parameters_for_simple_time_series(time_range, granularity)
-        timestamp_column = models.Span.start_time
-        _, bucket_stop_time = get_time_interval_bucket_boundaries(
-            timestamp_column=timestamp_column,
-            stop_time=stop_time,
-            interval_seconds=interval_seconds,
-            dialect=info.context.db.dialect,
-        )
+        dialect = info.context.db.dialect
+        utc_offset_minutes = 0
+        field: Literal["minute", "hour", "day", "week", "month", "year"] = "hour"
+        if time_bin_config:
+            utc_offset_minutes = time_bin_config.utc_offset_minutes
+            if time_bin_config.scale is TimeBinScale.MINUTE:
+                field = "minute"
+            elif time_bin_config.scale is TimeBinScale.HOUR:
+                field = "hour"
+            elif time_bin_config.scale is TimeBinScale.DAY:
+                field = "day"
+            elif time_bin_config.scale is TimeBinScale.WEEK:
+                field = "week"
+            elif time_bin_config.scale is TimeBinScale.MONTH:
+                field = "month"
+            elif time_bin_config.scale is TimeBinScale.YEAR:
+                field = "year"
+        bucket = date_trunc(dialect, field, models.Span.start_time, utc_offset_minutes)
         stmt = (
-            select(bucket_stop_time, func.count(models.Span.id))
-            .join(models.Trace)
+            select(bucket, func.count(models.Span.id))
+            .join_from(models.Span, models.Trace)
             .where(models.Trace.project_rowid == self.project_rowid)
-            .where(timestamp_column < stop_time)
-            .group_by(bucket_stop_time)
-            .order_by(bucket_stop_time)
+            .group_by(bucket)
         )
-        if time_range and time_range.start:
-            stmt = stmt.where(time_range.start <= timestamp_column)
+        if time_range:
+            if time_range.start:
+                stmt = stmt.where(time_range.start <= models.Span.start_time)
+            if time_range.end:
+                stmt = stmt.where(models.Span.start_time < time_range.end)
+        # print(stmt.compile(dialect=sqlite.dialect(), compile_kwargs={"literal_binds": True}))
+        print(stmt.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}))
         async with info.context.db() as session:
             data = [
                 TimeSeriesDataPoint(timestamp=_as_datetime(t), value=v)
@@ -737,25 +749,38 @@ class Project(Node):
         self,
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
-        granularity: Optional[Granularity] = UNSET,
+        time_bin_config: Optional[TimeBinConfig] = UNSET,
     ) -> TraceCountTimeSeries:
-        stop_time, interval_seconds = get_parameters_for_simple_time_series(time_range, granularity)
-        timestamp_column = models.Trace.start_time
-        _, bucket_stop_time = get_time_interval_bucket_boundaries(
-            timestamp_column=timestamp_column,
-            stop_time=stop_time,
-            interval_seconds=interval_seconds,
-            dialect=info.context.db.dialect,
-        )
+        dialect = info.context.db.dialect
+        utc_offset_minutes = 0
+        field: Literal["minute", "hour", "day", "week", "month", "year"] = "hour"
+        if time_bin_config:
+            utc_offset_minutes = time_bin_config.utc_offset_minutes
+            if time_bin_config.scale is TimeBinScale.MINUTE:
+                field = "minute"
+            elif time_bin_config.scale is TimeBinScale.HOUR:
+                field = "hour"
+            elif time_bin_config.scale is TimeBinScale.DAY:
+                field = "day"
+            elif time_bin_config.scale is TimeBinScale.WEEK:
+                field = "week"
+            elif time_bin_config.scale is TimeBinScale.MONTH:
+                field = "month"
+            elif time_bin_config.scale is TimeBinScale.YEAR:
+                field = "year"
         stmt = (
-            select(bucket_stop_time, func.count(models.Trace.id))
-            .filter_by(project_rowid=self.project_rowid)
-            .where(timestamp_column < stop_time)
-            .group_by(bucket_stop_time)
-            .order_by(bucket_stop_time)
+            select(
+                date_trunc(dialect, field, models.Trace.start_time, utc_offset_minutes),
+                func.count(models.Trace.id),
+            )
+            .where(models.Trace.project_rowid == self.project_rowid)
+            .group_by(date_trunc(dialect, field, models.Trace.start_time, utc_offset_minutes))
         )
-        if time_range and time_range.start:
-            stmt = stmt.where(time_range.start <= timestamp_column)
+        if time_range:
+            if time_range.start:
+                stmt = stmt.where(time_range.start <= models.Trace.start_time)
+            if time_range.end:
+                stmt = stmt.where(models.Trace.start_time < time_range.end)
         async with info.context.db() as session:
             data = [
                 TimeSeriesDataPoint(timestamp=_as_datetime(t), value=v)
@@ -782,5 +807,5 @@ def _as_datetime(value: Any) -> datetime:
     if isinstance(value, datetime):
         return value
     if isinstance(value, str):
-        return datetime.fromisoformat(value)
+        return cast(datetime, normalize_datetime(datetime.fromisoformat(value), timezone.utc))
     raise ValueError(f"Cannot convert {value} to datetime")

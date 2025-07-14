@@ -1,7 +1,7 @@
 from collections.abc import Callable, Hashable, Iterable
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional, TypeVar
+from typing import Any, Literal, Optional, TypeVar
 
 import sqlalchemy as sa
 from openinference.semconv.trace import (
@@ -178,114 +178,64 @@ def exclude_experiment_projects(
     ).where(models.Experiment.project_name.is_(None))
 
 
-def get_time_interval_bucket_boundaries(
-    timestamp_column: QueryableAttribute[datetime],
-    stop_time: datetime,
-    interval_seconds: int,
+def date_trunc(
     dialect: SupportedSQLDialect,
-) -> tuple[SQLColumnExpression[datetime], SQLColumnExpression[datetime]]:
-    """Generate SQL expressions for time-based interval bucket boundaries.
-
-    Creates SQL expressions that group timestamps into fixed-duration buckets,
-    calculated backwards from end_time. Supports PostgreSQL and SQLite.
-
-    Args:
-        timestamp_column: SQL column containing timestamps to bucket
-        stop_time: Reference time for calculating bucket boundaries
-        interval_seconds: Duration of each bucket in seconds
-        dialect: SQL dialect to generate expressions for
-
-    Returns:
-        Tuple of (interval_start, interval_end) SQL expressions where:
-        - interval_start is inclusive (>=)
-        - interval_end is exclusive (<)
-
-    Raises:
-        ValueError: If interval_seconds is zero or negative
-
-    Example:
-        >>> end_time = datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-        >>> start_expr, end_expr = get_time_interval_bucket_boundaries(
-        ...     timestamp_column=models.Span.start_time,
-        ...     stop_time=stop_time,
-        ...     interval_seconds=3600,  # 1 hour
-        ...     dialect=SupportedSQLDialect.POSTGRESQL,
-        ... )
-        >>> stmt = select(start_expr.label('bucket_start'),
-        ...               end_expr.label('bucket_end')).group_by(start_expr, end_expr)
-
-    Notes:
-        - Buckets are right-exclusive: [start, end)
-        - Calculated backwards from end_time
-        - Handles timezone-aware datetimes
-        - Minimum resolution: 1 second
-    """
-    # Validate inputs
-    if interval_seconds <= 0:
-        raise ValueError("Interval seconds must be positive")
-
+    field: Literal["minute", "hour", "day", "week", "month", "year"],
+    source: QueryableAttribute[datetime],
+    utc_offset_minutes: int = 0,
+) -> SQLColumnExpression[datetime]:
     if dialect is SupportedSQLDialect.POSTGRESQL:
-        return _get_time_interval_bucket_boundaries_for_postgresql(
-            timestamp_column=timestamp_column,
-            stop_time=stop_time,
-            interval_seconds=interval_seconds,
-        )
+        sign = "-" if utc_offset_minutes >= 0 else "+"
+        timezone = f"{sign}{abs(utc_offset_minutes) // 60}:{abs(utc_offset_minutes) % 60:02d}"
+        return sa.func.date_trunc(field, source, timezone)
     elif dialect is SupportedSQLDialect.SQLITE:
-        return _get_time_interval_bucket_boundaries_for_sqlite(
-            timestamp_column=timestamp_column,
-            stop_time=stop_time,
-            interval_seconds=interval_seconds,
-        )
+        return _date_trunc_for_sqlite(field, source, utc_offset_minutes)
     else:
         assert_never(dialect)
 
 
-def _get_time_interval_bucket_boundaries_for_sqlite(
-    timestamp_column: QueryableAttribute[datetime],
-    stop_time: datetime,
-    interval_seconds: int,
-) -> tuple[SQLColumnExpression[datetime], SQLColumnExpression[datetime]]:
-    """Generate SQL expressions for time-based interval bucket boundaries for SQLite."""
-    # SQLite uses unixepoch for epoch conversion
-    stop_time_epoch = func.unixepoch(sa.literal(stop_time))
-    timestamp_epoch = func.unixepoch(timestamp_column)
+def _date_trunc_for_sqlite(
+    field: Literal["minute", "hour", "day", "week", "month", "year"],
+    source: QueryableAttribute[datetime],
+    utc_offset_minutes: int = 0,
+) -> SQLColumnExpression[datetime]:
+    # SQLite does not have a built-in date truncation function, so we use datetime functions
+    # First apply UTC offset, then truncate
+    offset_source = func.datetime(source, f"{utc_offset_minutes} minutes")
 
-    # Calculate interval number for each row
-    epoch_diff = stop_time_epoch - timestamp_epoch
-    interval_number = func.floor(epoch_diff / interval_seconds)
+    if field == "minute":
+        t = func.datetime(func.strftime("%Y-%m-%d %H:%M:00", offset_source))
+    elif field == "hour":
+        t = func.datetime(func.strftime("%Y-%m-%d %H:00:00", offset_source))
+    elif field == "day":
+        t = func.datetime(func.strftime("%Y-%m-%d 00:00:00", offset_source))
+    elif field == "week":
+        # Truncate to Monday (start of week)
+        # SQLite strftime('%w') returns: 0=Sunday, 1=Monday, ..., 6=Saturday
+        dow = func.strftime("%w", offset_source)
+        t = func.datetime(
+            case(
+                (dow == "0", func.date(offset_source, "-6 days")),  # Sunday -> go back 6 days
+                (dow == "1", func.date(offset_source, "+0 days")),  # Monday -> stay
+                (dow == "2", func.date(offset_source, "-1 days")),  # Tuesday -> go back 1 day
+                (dow == "3", func.date(offset_source, "-2 days")),  # Wednesday -> go back 2 days
+                (dow == "4", func.date(offset_source, "-3 days")),  # Thursday -> go back 3 days
+                (dow == "5", func.date(offset_source, "-4 days")),  # Friday -> go back 4 days
+                (dow == "6", func.date(offset_source, "-5 days")),  # Saturday -> go back 5 days
+            ),
+            "00:00:00",
+        )
+    elif field == "month":
+        # Extract year and month, then construct first day of month
+        year = func.strftime("%Y", offset_source)
+        month = func.strftime("%m", offset_source)
+        t = func.datetime(year + "-" + month + "-01 00:00:00")
+    elif field == "year":
+        # Extract year, then construct first day of year
+        year = func.strftime("%Y", offset_source)
+        t = func.datetime(year + "-01-01 00:00:00")
+    else:
+        raise ValueError(f"Unsupported field for date truncation: {field}")
 
-    # Calculate interval boundaries
-    interval_start_epoch = stop_time_epoch - ((interval_number + 1) * interval_seconds)
-    interval_stop_epoch = stop_time_epoch - (interval_number * interval_seconds)
-
-    # Round to seconds by truncating epoch to integer seconds
-    interval_start_epoch = func.cast(interval_start_epoch, Integer)
-    interval_stop_epoch = func.cast(interval_stop_epoch, Integer)
-
-    interval_start = func.datetime(interval_start_epoch, "unixepoch")
-    interval_stop = func.datetime(interval_stop_epoch, "unixepoch")
-
-    return interval_start, interval_stop
-
-
-def _get_time_interval_bucket_boundaries_for_postgresql(
-    timestamp_column: QueryableAttribute[datetime],
-    stop_time: datetime,
-    interval_seconds: int,
-) -> tuple[SQLColumnExpression[datetime], SQLColumnExpression[datetime]]:
-    """Generate SQL expressions for time-based interval bucket boundaries for PostgreSQL."""
-    # Calculate interval number for each row
-    epoch_diff = func.extract("epoch", sa.literal(stop_time) - timestamp_column)
-    interval_number = func.floor(epoch_diff / interval_seconds)
-
-    # Calculate interval boundaries using epoch arithmetic instead of interval arithmetic
-    # Convert to epoch seconds, do arithmetic, then convert back to timestamp
-    stop_time_epoch = func.extract("epoch", sa.literal(stop_time))
-
-    interval_start_epoch = stop_time_epoch - ((interval_number + 1) * interval_seconds)
-    interval_stop_epoch = stop_time_epoch - (interval_number * interval_seconds)
-
-    interval_start = func.to_timestamp(interval_start_epoch)
-    interval_stop = func.to_timestamp(interval_stop_epoch)
-
-    return interval_start, interval_stop
+    # Convert back to UTC by subtracting the offset
+    return func.datetime(t, f"{-utc_offset_minutes} minutes")
