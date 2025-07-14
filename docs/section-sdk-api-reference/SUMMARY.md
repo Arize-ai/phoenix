@@ -1,12 +1,9 @@
 # Table of contents
 
-* [Overview](README.md)
-
 ## Rest API
 
-* [Overview](rest-api/overview.md)
 * [Reference](https://phoenix-demo.arize.com/apis)
-* [Annotation Configs](rest-api/annotation-configs.md)
+* [Annotation Configs](README.md)
 
 ***
 
@@ -18,6 +15,8 @@
 * [Prompts](prompts.md)
 * [Projects](projects.md)
 * [Users](users.md)
+* [REST API Overview](overview.md)
+* [Overview](<README (1).md>)
 
 ## Python
 
