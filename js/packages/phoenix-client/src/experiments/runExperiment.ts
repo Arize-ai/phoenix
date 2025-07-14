@@ -469,7 +469,7 @@ export async function evaluateExperiment({
     : provider.getTracer("evaluators");
   const nRuns =
     typeof dryRun === "number"
-      ? Math.max(dryRun, Object.keys(experiment.runs).length)
+      ? Math.min(dryRun, Object.keys(experiment.runs).length)
       : Object.keys(experiment.runs).length;
   const dataset = await getDataset({
     dataset: { datasetId: experiment.datasetId },
