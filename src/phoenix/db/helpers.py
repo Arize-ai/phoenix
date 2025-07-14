@@ -1,7 +1,7 @@
 from collections.abc import Callable, Hashable, Iterable
 from datetime import datetime
 from enum import Enum
-from typing import Any, Literal, Optional, TypeVar
+from typing import Any, Literal, Optional, TypeVar, Union
 
 import sqlalchemy as sa
 from openinference.semconv.trace import (
@@ -181,7 +181,7 @@ def exclude_experiment_projects(
 def date_trunc(
     dialect: SupportedSQLDialect,
     field: Literal["minute", "hour", "day", "week", "month", "year"],
-    source: QueryableAttribute[datetime],
+    source: Union[QueryableAttribute[datetime], sa.TextClause],
     utc_offset_minutes: int = 0,
 ) -> SQLColumnExpression[datetime]:
     """
@@ -234,7 +234,7 @@ def date_trunc(
 
 def _date_trunc_for_sqlite(
     field: Literal["minute", "hour", "day", "week", "month", "year"],
-    source: QueryableAttribute[datetime],
+    source: Union[QueryableAttribute[datetime], sa.TextClause],
     utc_offset_minutes: int = 0,
 ) -> SQLColumnExpression[datetime]:
     """

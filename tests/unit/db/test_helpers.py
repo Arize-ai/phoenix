@@ -1,5 +1,5 @@
 import itertools
-from datetime import timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 from typing import Iterable, Literal, cast
 
@@ -10,6 +10,7 @@ from faker import Faker
 from sqlalchemy import func
 from typing_extensions import assert_never
 
+from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, date_trunc
 from phoenix.server.types import DbSessionFactory
@@ -24,7 +25,7 @@ class TestDateTrunc:
         db: DbSessionFactory,
     ) -> list[models.Project]:
         projects = []
-        for _ in range(10):
+        for _ in range(1000):
             created_at = fake.date_time_between(
                 start_date="-2y",
                 tzinfo=timezone.utc,
@@ -106,3 +107,235 @@ class TestDateTrunc:
                     f"dialect={db.dialect}"
                 )
                 raise AssertionError(f"Failed {test_desc}")
+
+    @pytest.mark.parametrize(
+        "timestamp, expected, field, utc_offset_minutes",
+        [
+            # Test minute truncation
+            pytest.param(
+                "2024-01-15T12:34:56+00:00",
+                "2024-01-15T12:34:00+00:00",
+                "minute",
+                0,
+                id="minute_no_offset",
+            ),
+            pytest.param(
+                "2024-01-15T12:34:56+00:00",
+                "2024-01-15T12:34:00+00:00",
+                "minute",
+                60,  # UTC+1
+                id="minute_plus_1_hour",
+            ),
+            pytest.param(
+                "2024-01-15T12:34:56+00:00",
+                "2024-01-15T12:34:00+00:00",
+                "minute",
+                -300,  # UTC-5
+                id="minute_minus_5_hours",
+            ),
+            # Test hour truncation
+            pytest.param(
+                "2024-01-15T12:34:56+00:00",
+                "2024-01-15T12:00:00+00:00",
+                "hour",
+                0,
+                id="hour_no_offset",
+            ),
+            pytest.param(
+                "2024-01-15T12:34:56+00:00",
+                "2024-01-15T12:30:00+00:00",
+                "hour",
+                90,  # UTC+1:30
+                id="hour_plus_1_5_hours",
+            ),
+            pytest.param(
+                "2024-01-15T12:34:56+00:00",
+                "2024-01-15T12:00:00+00:00",
+                "hour",
+                -480,  # UTC-8
+                id="hour_minus_8_hours",
+            ),
+            # Test day truncation
+            pytest.param(
+                "2024-01-15T12:34:56+00:00",
+                "2024-01-15T00:00:00+00:00",
+                "day",
+                0,
+                id="day_no_offset",
+            ),
+            pytest.param(
+                "2024-01-15T12:34:56+00:00",
+                "2024-01-14T22:00:00+00:00",
+                "day",
+                120,  # UTC+2
+                id="day_plus_2_hours",
+            ),
+            pytest.param(
+                "2024-01-15T12:34:56+00:00",
+                "2024-01-15T10:00:00+00:00",
+                "day",
+                -600,  # UTC-10
+                id="day_minus_10_hours",
+            ),
+            pytest.param(
+                "2024-01-15T02:34:56+00:00",
+                "2024-01-14T03:00:00+00:00",
+                "day",
+                -180,  # UTC-3
+                id="day_cross_boundary_minus_3_hours",
+            ),
+            # Test week truncation (Monday start)
+            pytest.param(
+                "2024-01-01T00:00:00+00:00",  # Monday
+                "2024-01-01T00:00:00+00:00",
+                "week",
+                0,
+                id="week_monday_no_offset",
+            ),
+            pytest.param(
+                "2024-01-03T12:34:56+00:00",  # Wednesday
+                "2024-01-01T00:00:00+00:00",  # Previous Monday
+                "week",
+                0,
+                id="week_wednesday_no_offset",
+            ),
+            pytest.param(
+                "2024-01-07T23:59:59+00:00",  # Sunday
+                "2024-01-01T00:00:00+00:00",  # Previous Monday
+                "week",
+                0,
+                id="week_sunday_no_offset",
+            ),
+            pytest.param(
+                "2024-01-03T12:34:56+00:00",  # Wednesday
+                "2023-12-31T20:00:00+00:00",
+                "week",
+                240,  # UTC+4
+                id="week_wednesday_plus_4_hours",
+            ),
+            # Test month truncation
+            pytest.param(
+                "2024-01-15T12:34:56+00:00",
+                "2024-01-01T00:00:00+00:00",
+                "month",
+                0,
+                id="month_no_offset",
+            ),
+            pytest.param(
+                "2024-02-29T12:34:56+00:00",  # Leap year
+                "2024-02-01T00:00:00+00:00",
+                "month",
+                0,
+                id="month_leap_year_february",
+            ),
+            pytest.param(
+                "2024-12-31T23:59:59+00:00",
+                "2024-12-01T00:00:00+00:00",
+                "month",
+                0,
+                id="month_december_end",
+            ),
+            pytest.param(
+                "2024-01-15T12:34:56+00:00",
+                "2024-01-01T07:00:00+00:00",
+                "month",
+                -420,  # UTC-7
+                id="month_minus_7_hours",
+            ),
+            pytest.param(
+                "2024-02-01T02:34:56+00:00",
+                "2024-01-01T03:00:00+00:00",
+                "month",
+                -180,  # UTC-3
+                id="month_cross_boundary_minus_3_hours",
+            ),
+            # Test year truncation
+            pytest.param(
+                "2024-06-15T12:34:56+00:00",
+                "2024-01-01T00:00:00+00:00",
+                "year",
+                0,
+                id="year_no_offset",
+            ),
+            pytest.param(
+                "2024-12-31T23:59:59+00:00",
+                "2024-01-01T00:00:00+00:00",
+                "year",
+                0,
+                id="year_december_end",
+            ),
+            pytest.param(
+                "2024-06-15T12:34:56+00:00",
+                "2023-12-31T18:00:00+00:00",
+                "year",
+                360,  # UTC+6
+                id="year_plus_6_hours",
+            ),
+            pytest.param(
+                "2024-01-01T02:34:56+00:00",
+                "2023-01-01T05:00:00+00:00",
+                "year",
+                -300,  # UTC-5
+                id="year_cross_boundary_minus_5_hours",
+            ),
+            # Test edge cases with large offsets
+            pytest.param(
+                "2024-01-15T12:34:56+00:00",
+                "2024-01-15T12:00:00+00:00",
+                "hour",
+                720,  # UTC+12
+                id="hour_plus_12_hours_extreme",
+            ),
+            pytest.param(
+                "2024-01-15T12:34:56+00:00",
+                "2024-01-15T12:00:00+00:00",
+                "hour",
+                -720,  # UTC-12
+                id="hour_minus_12_hours_extreme",
+            ),
+            # Test specific time zone scenarios
+            pytest.param(
+                "2024-03-10T07:30:00+00:00",  # DST transition day
+                "2024-03-09T08:00:00+00:00",
+                "day",
+                -480,  # PST (UTC-8)
+                id="day_dst_transition_pst",
+            ),
+            pytest.param(
+                "2024-11-03T06:30:00+00:00",  # DST transition day
+                "2024-11-03T05:00:00+00:00",
+                "day",
+                -300,  # EST (UTC-5)
+                id="day_dst_transition_est",
+            ),
+        ],
+    )
+    async def test_select_date_trunc(
+        self,
+        db: DbSessionFactory,
+        timestamp: str,
+        expected: str,
+        field: Literal["minute", "hour", "day", "week", "month", "year"],
+        utc_offset_minutes: int,
+    ) -> None:
+        # Convert string inputs to datetime objects
+        timestamp_dt = datetime.fromisoformat(timestamp)
+        expected_dt = datetime.fromisoformat(expected)
+
+        stmt = sa.select(
+            date_trunc(
+                db.dialect,
+                field,
+                sa.text(":dt").bindparams(dt=timestamp_dt),
+                utc_offset_minutes,
+            )
+        )
+
+        async with db() as session:
+            actual = await session.scalar(stmt)
+        assert actual is not None
+        if db.dialect is SupportedSQLDialect.SQLITE:
+            # SQLite returns timestamps as strings, convert to datetime
+            assert isinstance(actual, str)
+            actual = normalize_datetime(datetime.fromisoformat(actual), timezone.utc)
+        assert actual == expected_dt
