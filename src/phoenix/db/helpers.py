@@ -184,6 +184,44 @@ def date_trunc(
     source: QueryableAttribute[datetime],
     utc_offset_minutes: int = 0,
 ) -> SQLColumnExpression[datetime]:
+    """
+    Truncate a datetime to the specified field with optional UTC offset adjustment.
+
+    This function provides a cross-dialect way to truncate datetime values to a specific
+    time unit (minute, hour, day, week, month, or year). It handles UTC offset conversion
+    by applying the offset before truncation and then converting back to UTC.
+
+    Args:
+        dialect: The SQL dialect to use (PostgreSQL or SQLite).
+        field: The time unit to truncate to. Valid values are:
+            - "minute": Truncate to the start of the minute (seconds set to 0)
+            - "hour": Truncate to the start of the hour (minutes and seconds set to 0)
+            - "day": Truncate to the start of the day (time set to 00:00:00)
+            - "week": Truncate to the start of the week (Monday at 00:00:00)
+            - "month": Truncate to the first day of the month (day set to 1, time to 00:00:00)
+            - "year": Truncate to the first day of the year (date set to Jan 1, time to 00:00:00)
+        source: The datetime column or expression to truncate.
+        utc_offset_minutes: UTC offset in minutes to apply before truncation.
+            Positive values represent time zones ahead of UTC (e.g., +60 for UTC+1).
+            Negative values represent time zones behind UTC (e.g., -300 for UTC-5).
+            Defaults to 0 (no offset).
+
+    Returns:
+        A SQL column expression representing the truncated datetime in UTC.
+
+    Note:
+        - For PostgreSQL, uses the native `date_trunc` function with timezone support.
+        - For SQLite, implements custom truncation logic using datetime functions.
+        - Week truncation starts on Monday (ISO 8601 standard).
+        - The result is always returned in UTC, regardless of the input offset.
+
+    Examples:
+        >>> # Truncate to hour with no offset
+        >>> date_trunc(SupportedSQLDialect.POSTGRESQL, "hour", Span.start_time)
+
+        >>> # Truncate to day with UTC-5 offset (Eastern Time)
+        >>> date_trunc(SupportedSQLDialect.SQLITE, "day", Span.start_time, -300)
+    """
     if dialect is SupportedSQLDialect.POSTGRESQL:
         sign = "-" if utc_offset_minutes >= 0 else "+"
         timezone = f"{sign}{abs(utc_offset_minutes) // 60}:{abs(utc_offset_minutes) % 60:02d}"
@@ -199,6 +237,45 @@ def _date_trunc_for_sqlite(
     source: QueryableAttribute[datetime],
     utc_offset_minutes: int = 0,
 ) -> SQLColumnExpression[datetime]:
+    """
+    SQLite-specific implementation of datetime truncation with UTC offset handling.
+
+    This private helper function implements date truncation for SQLite databases, which
+    lack a native date_trunc function. It uses SQLite's datetime and strftime functions
+    to achieve the same result as PostgreSQL's date_trunc function.
+
+    Args:
+        field: The time unit to truncate to. Valid values are:
+            - "minute": Truncate to the start of the minute (seconds set to 0)
+            - "hour": Truncate to the start of the hour (minutes and seconds set to 0)
+            - "day": Truncate to the start of the day (time set to 00:00:00)
+            - "week": Truncate to the start of the week (Monday at 00:00:00)
+            - "month": Truncate to the first day of the month (day set to 1, time to 00:00:00)
+            - "year": Truncate to the first day of the year (date set to Jan 1, time to 00:00:00)
+        source: The datetime column or expression to truncate.
+        utc_offset_minutes: UTC offset in minutes to apply before truncation.
+            Positive values represent time zones ahead of UTC (e.g., +60 for UTC+1).
+            Negative values represent time zones behind UTC (e.g., -300 for UTC-5).
+
+    Returns:
+        A SQL column expression representing the truncated datetime in UTC.
+
+    Implementation Details:
+        - Uses SQLite's strftime() function to format and extract date components
+        - Applies UTC offset before truncation using datetime(source, "N minutes")
+        - Converts result back to UTC by subtracting the offset
+        - Week truncation uses day-of-week calculations where:
+            * strftime('%w') returns 0=Sunday, 1=Monday, ..., 6=Saturday
+            * Truncates to Monday (start of week) using case-based day adjustments
+        - Month/year truncation reconstructs dates using extracted components
+
+    Raises:
+        ValueError: If the field parameter is not one of the supported values.
+
+    Note:
+        This is a private helper function intended only for use by the date_trunc function
+        when the dialect is SupportedSQLDialect.SQLITE.
+    """
     # SQLite does not have a built-in date truncation function, so we use datetime functions
     # First apply UTC offset, then truncate
     offset_source = func.datetime(source, f"{utc_offset_minutes} minutes")
