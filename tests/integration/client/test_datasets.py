@@ -596,11 +596,10 @@ Who wrote Hamlet?,Shakespeare,literature
         assert "answer" in first_example.output
         assert "category" in first_example.metadata
 
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    @pytest.mark.parametrize("is_async", [True, False])
     async def test_dataset_json_round_trip(
         self,
         is_async: bool,
-        role_or_user: UserRoleInput,
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
