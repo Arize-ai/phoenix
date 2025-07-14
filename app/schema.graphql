@@ -1712,8 +1712,8 @@ type Project implements Node {
   traceRetentionPolicy: ProjectTraceRetentionPolicy!
   createdAt: DateTime!
   updatedAt: DateTime!
-  spanCountTimeSeries(timeRange: TimeRange, granularity: Granularity): SpanCountTimeSeries!
-  traceCountTimeSeries(timeRange: TimeRange, granularity: Granularity): TraceCountTimeSeries!
+  spanCountTimeSeries(timeRange: TimeRange, timeBinConfig: TimeBinConfig): SpanCountTimeSeries!
+  traceCountTimeSeries(timeRange: TimeRange, timeBinConfig: TimeBinConfig): TraceCountTimeSeries!
 }
 
 enum ProjectColumn {
@@ -2469,6 +2469,23 @@ type TextContentValue {
 
 input TextContentValueInput {
   text: String!
+}
+
+input TimeBinConfig {
+  """The scale of time bins for aggregation."""
+  scale: TimeBinScale! = HOUR
+
+  """Offset in minutes from UTC for local time binning."""
+  utcOffsetMinutes: Int! = 0
+}
+
+enum TimeBinScale {
+  MINUTE
+  HOUR
+  DAY
+  WEEK
+  MONTH
+  YEAR
 }
 
 input TimeRange {

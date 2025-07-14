@@ -735,8 +735,6 @@ class Project(Node):
                 stmt = stmt.where(time_range.start <= models.Span.start_time)
             if time_range.end:
                 stmt = stmt.where(models.Span.start_time < time_range.end)
-        # print(stmt.compile(dialect=sqlite.dialect(), compile_kwargs={"literal_binds": True}))
-        print(stmt.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}))
         async with info.context.db() as session:
             data = [
                 TimeSeriesDataPoint(timestamp=_as_datetime(t), value=v)
@@ -768,13 +766,11 @@ class Project(Node):
                 field = "month"
             elif time_bin_config.scale is TimeBinScale.YEAR:
                 field = "year"
+        bucket = date_trunc(dialect, field, models.Trace.start_time, utc_offset_minutes)
         stmt = (
-            select(
-                date_trunc(dialect, field, models.Trace.start_time, utc_offset_minutes),
-                func.count(models.Trace.id),
-            )
+            select(bucket, func.count(models.Trace.id))
             .where(models.Trace.project_rowid == self.project_rowid)
-            .group_by(date_trunc(dialect, field, models.Trace.start_time, utc_offset_minutes))
+            .group_by(bucket)
         )
         if time_range:
             if time_range.start:
