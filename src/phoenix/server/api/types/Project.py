@@ -729,6 +729,7 @@ class Project(Node):
             .join_from(models.Span, models.Trace)
             .where(models.Trace.project_rowid == self.project_rowid)
             .group_by(bucket)
+            .order_by(bucket)
         )
         if time_range:
             if time_range.start:
@@ -771,6 +772,7 @@ class Project(Node):
             select(bucket, func.count(models.Trace.id))
             .where(models.Trace.project_rowid == self.project_rowid)
             .group_by(bucket)
+            .order_by(bucket)
         )
         if time_range:
             if time_range.start:
