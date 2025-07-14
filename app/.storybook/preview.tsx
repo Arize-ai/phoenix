@@ -9,19 +9,23 @@ import React, { PropsWithChildren } from "react";
  * A Component that renders a background for the story based on the theme
  * @returns
  */
-function StoryBackground() {
+function StoryBackground({
+  children,
+  padding,
+}: {
+  children: React.ReactNode;
+  padding?: string;
+}) {
   return (
     <div
       data-testid="story-background"
       style={{
         backgroundColor: "var(--ac-global-background-color-default)",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        position: "relative",
+        padding: padding ?? "0",
       }}
-    />
+    >
+      {children}
+    </div>
   );
 }
 const preview: Preview = {
@@ -64,35 +68,49 @@ const preview: Preview = {
         themes = [globals.theme];
       }
 
+      const numThemes = themes.length;
+
       const contents = themes.map((theme) => (
         <div
           key={theme}
-          style={{ width: "100%", height: "100%", position: "absolute" }}
+          style={{ width: "100%", height: "100%", position: "relative" }}
         >
           <Provider theme={theme} mountGlobalStyles={false}>
             <ThemeProvider theme={theme}>
               <MemoryRouter initialEntries={["/"]}>
                 <GlobalStyles />
-                <StoryBackground />
-                <Story />
+                <StoryBackground
+                  padding={
+                    // Add padding to the story entries if we have multiple themes so that we can see a background color
+                    numThemes < 1 ? "0" : "var(--ac-global-dimension-size-500)"
+                  }
+                >
+                  <Story />
+                </StoryBackground>
               </MemoryRouter>
             </ThemeProvider>
           </Provider>
         </div>
       ));
+
+      // If we only have one theme, we can just return the story
+      if (numThemes === 1) {
+        return contents[0];
+      }
+
       return (
-        <div
+        <ul
           style={{
             display: "flex",
             flexDirection: "row",
-            gap: "2rem",
             width: "100%",
             height: "100%",
-            minHeight: globals.theme === "all" ? "100vh" : "auto",
           }}
         >
-          {contents}
-        </div>
+          {contents.map((content, index) => (
+            <li key={index}>{content}</li>
+          ))}
+        </ul>
       );
     },
   ],
