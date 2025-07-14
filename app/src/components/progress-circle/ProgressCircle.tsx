@@ -15,12 +15,13 @@ function ProgressCircle({
   isIndeterminate,
   value,
   size = "M",
+  "aria-label": ariaLabel,
 }: ProgressCircleProps) {
   return (
     <ProgressBar
-      aria-label="Loading…"
       value={value}
       isIndeterminate={isIndeterminate}
+      aria-label={ariaLabel}
       css={css(
         isIndeterminate ? progressCircleIndeterminateCSS(size) : undefined
       )}
