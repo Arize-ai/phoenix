@@ -184,6 +184,11 @@ module.exports = {
         module: "@arizeai/components",
         use: "Tooltip or RichTooltip from @phoenix/components",
       },
+      {
+        name: "ProgressCircle",
+        module: "@arizeai/components",
+        use: "import { ProgressCircle } from '@phoenix/components'",
+      },
     ],
     "no-duplicate-imports": "error",
   },
