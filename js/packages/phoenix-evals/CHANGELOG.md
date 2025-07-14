@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 0.0.4
+
+### Patch Changes
+
+- 2609fcd: bump target JS to es2017 for native async
+
 ## 0.0.3
 
 ### Patch Changes
