@@ -1,5 +1,19 @@
 # Changelog
 
+## [11.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.6.2...arize-phoenix-v11.7.0) (2025-07-13)
+
+
+### Features
+
+* Add experiments module to phoenix-client ([#8375](https://github.com/Arize-ai/phoenix/issues/8375)) ([3df0326](https://github.com/Arize-ai/phoenix/commit/3df032627e8ce52a96e8d6dcd626f7641d0cb011))
+* **metrics:** timeseries bar chart ([#8554](https://github.com/Arize-ai/phoenix/issues/8554)) ([f03d263](https://github.com/Arize-ai/phoenix/commit/f03d263f0d2dd1aa2e1eb4a257ffea041064f132))
+
+
+### Bug Fixes
+
+* remove version upperbound on protobuf ([#8550](https://github.com/Arize-ai/phoenix/issues/8550)) ([8a915df](https://github.com/Arize-ai/phoenix/commit/8a915df60398b9eb0a72d3870fcce9bd1cf9da5e))
+* restrict version of fastapi instrumentor for container builds ([#8558](https://github.com/Arize-ai/phoenix/issues/8558)) ([38f301d](https://github.com/Arize-ai/phoenix/commit/38f301d3c254113f96ea79b8b0e4e8300408a534))
+
 ## [11.6.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.6.1...arize-phoenix-v11.6.2) (2025-07-10)
 
 
