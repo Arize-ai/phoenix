@@ -9,13 +9,13 @@ import {
 
 // Demo data
 const data = [
-  { name: "Page A", uv: 4000, pv: 2400, amt: 2400 },
-  { name: "Page B", uv: 3000, pv: 1398, amt: 2210 },
-  { name: "Page C", uv: 2000, pv: 9800, amt: 2290 },
-  { name: "Page D", uv: 2780, pv: 3908, amt: 2000 },
-  { name: "Page E", uv: 1890, pv: 4800, amt: 2181 },
-  { name: "Page F", uv: 2390, pv: 3800, amt: 2500 },
-  { name: "Page G", uv: 3490, pv: 4300, amt: 2100 },
+  { timestamp: "Page A", value: 2400 },
+  { timestamp: "Page B", value: 1398 },
+  { timestamp: "Page C", value: 9800 },
+  { timestamp: "Page D", value: 3908 },
+  { timestamp: "Page E", value: 4800 },
+  { timestamp: "Page F", value: 3800 },
+  { timestamp: "Page G", value: 4300 },
 ];
 
 const color = "#8884d8"; // You can replace with a design token if available
@@ -35,7 +35,7 @@ export function DashboardBarChart() {
           </linearGradient>
         </defs>
         <XAxis
-          dataKey="name"
+          dataKey="timestamp"
           style={{ fill: "var(--ac-global-text-color-700)" }}
         />
         <YAxis
@@ -56,7 +56,7 @@ export function DashboardBarChart() {
           stroke="var(--ac-global-color-grey-500)"
           strokeOpacity={0.5}
         />
-        <Bar dataKey="pv" fill="url(#dashboardBarColor)" spacing={15} />
+        <Bar dataKey="value" fill="url(#dashboardBarColor)" spacing={15} />
       </BarChart>
     </ResponsiveContainer>
   );
