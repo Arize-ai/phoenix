@@ -451,7 +451,14 @@ class _FilterTranslator(_ProjectionTranslator):
                 args.append(self.visit(ast.Compare(left=left, ops=[op], comparators=[comparator])))
                 left = comparator
             return ast.Call(func=ast.Name(id="and_", ctx=ast.Load()), args=args, keywords=[])
+
         left, op, right = self.visit(node.left), node.ops[0], self.visit(node.comparators[0])
+
+        # NEW: Block equality/inequality with lists or tuples
+        if isinstance(op, ast.Eq) or isinstance(op, ast.NotEq):
+            if isinstance(right, (ast.List, ast.Tuple)):
+                raise SyntaxError("Invalid comparison ")
+
         if _is_subscript(left, "attributes"):
             left = _cast_as("String", left)
         if _is_subscript(right, "attributes"):
@@ -460,6 +467,7 @@ class _FilterTranslator(_ProjectionTranslator):
             right = _cast_as("Float", right)
         elif not _is_float(left) and _is_float(right):
             left = _cast_as("Float", left)
+
         if isinstance(op, (ast.In, ast.NotIn)):
             if _is_string_attribute(right) or ast.unparse(right) in _NAMES:
                 call = ast.Call(
@@ -473,6 +481,14 @@ class _FilterTranslator(_ProjectionTranslator):
                     )
                 return call
             elif isinstance(right, (ast.List, ast.Tuple)):
+                if len(right.elts) == 0:
+                    # NEW: Handle empty lists/tuples safely
+                    return ast.Name(
+                        id="sqlalchemy.sql.false"
+                        if isinstance(op, ast.In)
+                        else "sqlalchemy.sql.true",
+                        ctx=ast.Load(),
+                    )
                 attr = "in_" if isinstance(op, ast.In) else "not_in"
                 return ast.Call(
                     func=ast.Attribute(value=left, attr=attr, ctx=ast.Load()),
@@ -481,6 +497,7 @@ class _FilterTranslator(_ProjectionTranslator):
                 )
             else:
                 raise SyntaxError(f"invalid expression: {ast.unparse(op)}")
+
         if isinstance(op, ast.Is):
             op = ast.Eq()
         elif isinstance(op, ast.IsNot):
