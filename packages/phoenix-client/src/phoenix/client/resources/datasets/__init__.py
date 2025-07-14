@@ -178,6 +178,80 @@ class Dataset:
 
         return pd.DataFrame.from_records(records).set_index("example_id")  # pyright: ignore[reportUnknownMemberType]
 
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Convert the dataset to a JSON-serializable dictionary.
+
+        Example:
+            >>> dataset = client.datasets.get_dataset(dataset="my-dataset")
+            >>> json_data = dataset.to_dict()
+            >>> restored = Dataset.from_dict(json_data)
+        """
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "metadata": deepcopy(self.metadata),
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            # Additional fields from DatasetWithExampleCount and ListDatasetExamplesData
+            "example_count": self.example_count,
+            "version_id": self.version_id,
+            "examples": deepcopy(self.examples),
+        }
+
+    @classmethod
+    def from_dict(cls, json_data: dict[str, Any]) -> "Dataset":
+        """
+        Create a Dataset instance from a JSON-serializable dictionary.
+
+        Args:
+            json_data: Dictionary containing dataset information, typically from to_dict()
+
+        Returns:
+            A Dataset instance with the provided data
+
+        Raises:
+            ValueError: If required fields are missing from json_data
+            KeyError: If json_data is missing required keys
+
+        Example:
+            >>> json_data = dataset.to_dict()
+            >>> restored = Dataset.from_dict(json_data)
+            >>> assert restored.id == dataset.id
+        """
+        required_fields = {"id", "name", "version_id", "examples"}
+        if not all(field in json_data for field in required_fields):
+            missing = required_fields - set(json_data.keys())
+            raise ValueError(f"Missing required fields in json_data: {missing}")
+
+        dataset_info = {
+            "id": json_data["id"],
+            "name": json_data["name"],
+        }
+
+        if json_data.get("description") is not None:
+            dataset_info["description"] = json_data["description"]
+
+        if json_data.get("metadata"):
+            dataset_info["metadata"] = deepcopy(json_data["metadata"])
+
+        if json_data.get("created_at"):
+            dataset_info["created_at"] = json_data["created_at"]
+
+        if json_data.get("updated_at"):
+            dataset_info["updated_at"] = json_data["updated_at"]
+
+        if json_data.get("example_count") is not None:
+            dataset_info["example_count"] = json_data["example_count"]
+
+        examples_data = {
+            "version_id": json_data["version_id"],
+            "examples": deepcopy(json_data["examples"]),
+        }
+
+        return cls(dataset_info, examples_data)  # type: ignore[arg-type]
+
 
 # Type alias for flexible dataset identification
 DatasetIdentifier = Union[
