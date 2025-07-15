@@ -1,17 +1,15 @@
 import React, { forwardRef, Ref } from "react";
-import { useProgressBar } from "react-aria";
 import { ProgressBar } from "react-aria-components";
 
 import { progressCircleCSS } from "./styles";
-import type { ProgressCircleProps } from "./types";
+import { ProgressCircleProps } from "./types";
 
 function ProgressCircle(props: ProgressCircleProps, ref: Ref<HTMLDivElement>) {
   const { isIndeterminate = false, value, size = "M" } = props;
-  const { progressBarProps } = useProgressBar(props);
 
   return (
     <ProgressBar
-      {...progressBarProps}
+      {...props}
       data-size={size}
       data-indeterminate={isIndeterminate || undefined}
       css={progressCircleCSS}

@@ -1,8 +1,7 @@
+import { ProgressBarProps } from "react-aria-components";
+
 export type Size = "S" | "M";
 
-export interface ProgressCircleProps {
-  isIndeterminate?: boolean;
-  value?: number;
+export interface ProgressCircleProps extends ProgressBarProps {
   size?: Size;
-  "aria-label"?: string;
 }

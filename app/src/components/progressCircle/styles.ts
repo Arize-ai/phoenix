@@ -57,6 +57,7 @@ export const progressCircleCSS = css`
     width: var(--progress-circle-size);
     height: var(--progress-circle-size);
     fill: none;
+    display: block;
   }
 
   .progress-circle__background {
