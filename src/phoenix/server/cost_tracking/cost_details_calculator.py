@@ -117,7 +117,6 @@ class SpanCostDetailsCalculator:
             (True, "prompt", self._prompt, prompt_details),
             (False, "completion", self._completion, completion_details),
         ):
-            calculator_key = "input" if is_prompt else "output"
             # Extract detailed token counts from span attributes
             details = get_attribute_value(attributes, f"llm.token_count.{prefix}_details")
             if isinstance(details, dict) and details:
@@ -129,6 +128,7 @@ class SpanCostDetailsCalculator:
 
                     # Calculate cost using specific calculator or fallback to default
                     calculator = None
+                    calculator_key = "input" if is_prompt else "output"
                     if token_type in calculators:
                         # Use specific calculator for this token type
                         calculator = calculators[token_type]
