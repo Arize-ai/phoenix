@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { useTimeRange } from "@phoenix/components/datetime";
@@ -11,6 +12,13 @@ export function TraceCountDashboardBarChart({
   projectId: string;
 }) {
   const { timeRange } = useTimeRange();
+  const { start, end } = useMemo(() => {
+    return {
+      start: timeRange?.start?.toISOString(),
+      end: timeRange?.end?.toISOString(),
+    };
+  }, [timeRange]);
+
   const data = useLazyLoadQuery<TraceCountDashboardBarChartQuery>(
     graphql`
       query TraceCountDashboardBarChartQuery(
@@ -32,8 +40,8 @@ export function TraceCountDashboardBarChart({
     {
       projectId,
       timeRange: {
-        start: timeRange.start?.toISOString(),
-        end: timeRange.end?.toISOString(),
+        start,
+        end,
       },
     }
   );
