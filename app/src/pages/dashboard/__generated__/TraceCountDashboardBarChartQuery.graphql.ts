@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<af9aca0d762ec70eb641b6b11c019890>>
+ * @generated SignedSource<<44eb7e32829c77b7abb4f25ec005ba9b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,8 +9,13 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type TimeRange = {
+  end?: string | null;
+  start?: string | null;
+};
 export type TraceCountDashboardBarChartQuery$variables = {
   projectId: string;
+  timeRange: TimeRange;
 };
 export type TraceCountDashboardBarChartQuery$data = {
   readonly project: {
@@ -33,6 +38,11 @@ var v0 = [
     "defaultValue": null,
     "kind": "LocalArgument",
     "name": "projectId"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "timeRange"
   }
 ],
 v1 = [
@@ -47,7 +57,13 @@ v2 = {
   "selections": [
     {
       "alias": null,
-      "args": null,
+      "args": [
+        {
+          "kind": "Variable",
+          "name": "timeRange",
+          "variableName": "timeRange"
+        }
+      ],
       "concreteType": "TraceCountTimeSeries",
       "kind": "LinkedField",
       "name": "traceCountTimeSeries",
@@ -143,16 +159,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "fd129efdfe61a18e9ae5f058b905a9b4",
+    "cacheID": "fcd7618e220b66eb502b1d6e8621fcd7",
     "id": null,
     "metadata": {},
     "name": "TraceCountDashboardBarChartQuery",
     "operationKind": "query",
-    "text": "query TraceCountDashboardBarChartQuery(\n  $projectId: ID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      traceCountTimeSeries {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query TraceCountDashboardBarChartQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      traceCountTimeSeries(timeRange: $timeRange) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "9a44777d1da2574629b4f8f1f464e5dd";
+(node as any).hash = "a08e15f481bd6adcea164824552eb91f";
 
 export default node;
