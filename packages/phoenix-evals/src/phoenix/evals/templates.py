@@ -86,7 +86,7 @@ class PromptTemplate:
         # if variables is not None:
         #     self.variables = variables
         # else:
-        #     self.variables = self._parse_variables(self.template)
+        self.variables = self._parse_variables(self.template)
 
     def prompt(self, options: Optional[PromptOptions] = None) -> List[PromptPartTemplate]:
         return self.template
