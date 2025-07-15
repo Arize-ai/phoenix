@@ -9,6 +9,12 @@ import type {
 } from "./__generated__/TraceCountDashboardBarChartQuery.graphql";
 import { DashboardBarChart } from "./DashboardBarChart";
 
+const YEAR = 60 * 60 * 24 * 365;
+const MONTH = 60 * 60 * 24 * 30;
+const WEEK = 60 * 60 * 24 * 7;
+const DAY = 60 * 60 * 24;
+const HOUR = 60 * 60;
+
 export function TraceCountDashboardBarChart({
   projectId,
 }: {
@@ -22,20 +28,15 @@ export function TraceCountDashboardBarChart({
     if (startTime) {
       const endTime = timeRange.end || new Date();
       const duration = (endTime.getTime() - startTime.getTime()) / 1000; // in seconds
-      if (duration > 60 * 60 * 24 * 365 * 5) {
-        // 5 years
+      if (duration > 5 * YEAR) {
         scale = "YEAR";
-      } else if (duration > 60 * 60 * 24 * 30 * 5) {
-        // 5 months
+      } else if (duration > 5 * MONTH) {
         scale = "MONTH";
-      } else if (duration > 60 * 60 * 24 * 7 * 5) {
-        // 5 weeks
+      } else if (duration > 5 * WEEK) {
         scale = "WEEK";
-      } else if (duration > 60 * 60 * 24 * 5) {
-        // 5 days
+      } else if (duration > 5 * DAY) {
         scale = "DAY";
-      } else if (duration > 60 * 60 * 5) {
-        // 5 hours
+      } else if (duration > 5 * HOUR) {
         scale = "HOUR";
       } else {
         scale = "MINUTE";
