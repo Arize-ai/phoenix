@@ -42,18 +42,18 @@ async function createRunLLMClient(): Promise<Client> {
 /**
  * Calls the chat tool on the RunLLM MCP server
  */
-export async function callRunLLMChat({
-  question,
+export async function callRunLLMQuery({
+  query,
 }: {
-  question: string;
+  query: string;
 }): Promise<string> {
   const client = await createRunLLMClient();
 
   // Call the chat tool with the user's question
   const result = await client.callTool({
-    name: "chat",
+    name: "search",
     arguments: {
-      message: question,
+      query: query,
     },
   });
 
@@ -81,14 +81,14 @@ export const initializeSupportTools = async ({
     "phoenix-support",
     PHOENIX_SUPPORT_DESCRIPTION,
     {
-      question: z
+      query: z
         .string()
         .describe(
           "Your question about Arize Phoenix, OpenInference, or related topics"
         ),
     },
-    async ({ question }) => {
-      const result = await callRunLLMChat({ question });
+    async ({ query }) => {
+      const result = await callRunLLMQuery({ query });
       return {
         content: [
           {
