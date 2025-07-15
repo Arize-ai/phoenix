@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<44eb7e32829c77b7abb4f25ec005ba9b>>
+ * @generated SignedSource<<35d7a03eace47aeeddaad891cf2586a2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,12 +9,18 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type TimeBinScale = "DAY" | "HOUR" | "MINUTE" | "MONTH" | "WEEK" | "YEAR";
 export type TimeRange = {
   end?: string | null;
   start?: string | null;
 };
+export type TimeBinConfig = {
+  scale?: TimeBinScale;
+  utcOffsetMinutes?: number;
+};
 export type TraceCountDashboardBarChartQuery$variables = {
   projectId: string;
+  timeBinConfig: TimeBinConfig;
   timeRange: TimeRange;
 };
 export type TraceCountDashboardBarChartQuery$data = {
@@ -33,31 +39,39 @@ export type TraceCountDashboardBarChartQuery = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "projectId"
-  },
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "timeRange"
-  }
-],
-v1 = [
+var v0 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "projectId"
+},
+v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "timeBinConfig"
+},
+v2 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "timeRange"
+},
+v3 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "projectId"
   }
 ],
-v2 = {
+v4 = {
   "kind": "InlineFragment",
   "selections": [
     {
       "alias": null,
       "args": [
+        {
+          "kind": "Variable",
+          "name": "timeBinConfig",
+          "variableName": "timeBinConfig"
+        },
         {
           "kind": "Variable",
           "name": "timeRange",
@@ -103,20 +117,24 @@ v2 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v1/*: any*/),
+      (v2/*: any*/)
+    ],
     "kind": "Fragment",
     "metadata": null,
     "name": "TraceCountDashboardBarChartQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v1/*: any*/),
+        "args": (v3/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/)
+          (v4/*: any*/)
         ],
         "storageKey": null
       }
@@ -126,13 +144,17 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v2/*: any*/),
+      (v1/*: any*/)
+    ],
     "kind": "Operation",
     "name": "TraceCountDashboardBarChartQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v1/*: any*/),
+        "args": (v3/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -145,7 +167,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v2/*: any*/),
+          (v4/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -159,16 +181,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "fcd7618e220b66eb502b1d6e8621fcd7",
+    "cacheID": "483c2cf7b5f4112e182dc470d991b77a",
     "id": null,
     "metadata": {},
     "name": "TraceCountDashboardBarChartQuery",
     "operationKind": "query",
-    "text": "query TraceCountDashboardBarChartQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      traceCountTimeSeries(timeRange: $timeRange) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query TraceCountDashboardBarChartQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      traceCountTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a08e15f481bd6adcea164824552eb91f";
+(node as any).hash = "59fb9d0aa25879011089f57f4b1f0d61";
 
 export default node;
