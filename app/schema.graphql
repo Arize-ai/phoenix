@@ -1713,7 +1713,7 @@ type Project implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   spanCountTimeSeries(timeRange: TimeRange, timeBinConfig: TimeBinConfig): SpanCountTimeSeries!
-  traceCountTimeSeries(timeRange: TimeRange, timeBinConfig: TimeBinConfig): TraceCountTimeSeries!
+  traceCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceCountTimeSeries!
 }
 
 enum ProjectColumn {
