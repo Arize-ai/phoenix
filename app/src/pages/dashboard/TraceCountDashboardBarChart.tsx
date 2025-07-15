@@ -3,7 +3,10 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { useTimeRange } from "@phoenix/components/datetime";
 
-import type { TimeBinScale,TraceCountDashboardBarChartQuery } from "./__generated__/TraceCountDashboardBarChartQuery.graphql";
+import type {
+  TimeBinScale,
+  TraceCountDashboardBarChartQuery,
+} from "./__generated__/TraceCountDashboardBarChartQuery.graphql";
 import { DashboardBarChart } from "./DashboardBarChart";
 
 export function TraceCountDashboardBarChart({
@@ -12,43 +15,34 @@ export function TraceCountDashboardBarChart({
   projectId: string;
 }) {
   const { timeRange } = useTimeRange();
-<<<<<<< Updated upstream
-  const { start, end } = useMemo(() => {
-    return {
-      start: timeRange?.start?.toISOString(),
-      end: timeRange?.end?.toISOString(),
-    };
-  }, [timeRange]);
-=======
-  const { start, end, scale } = useMemo(() => {
-    // console.log(`timeRange.start: ${timeRange.start}`);
-    console.log(`timeRange.end: ${timeRange.end}`);
+  const utcOffsetMinutes = 0;
+  const scale = useMemo(() => {
     const startTime = timeRange.start;
-    const endTime = timeRange.end || new Date();
     let scale: TimeBinScale = "HOUR";
     if (startTime) {
-      const duration = endTime.getTime() - startTime.getTime();
-      if (duration > 1000 * 60 * 60 * 24 * 365 * 5) { // 5 years
+      const endTime = timeRange.end || new Date();
+      const duration = (endTime.getTime() - startTime.getTime()) / 1000; // in seconds
+      if (duration > 60 * 60 * 24 * 365 * 5) {
+        // 5 years
         scale = "YEAR";
-      } else if (duration > 1000 * 60 * 60 * 24 * 30 * 5) { // 5 months
+      } else if (duration > 60 * 60 * 24 * 30 * 5) {
+        // 5 months
         scale = "MONTH";
-      } else if (duration > 1000 * 60 * 60 * 24 * 7 * 5) { // 5 weeks
+      } else if (duration > 60 * 60 * 24 * 7 * 5) {
+        // 5 weeks
         scale = "WEEK";
-      } else if (duration > 1000 * 60 * 60 * 24 * 5) { // 5 days
+      } else if (duration > 60 * 60 * 24 * 5) {
+        // 5 days
         scale = "DAY";
-      } else if (duration > 1000 * 60 * 60 * 5) { // 5 hours
+      } else if (duration > 60 * 60 * 5) {
+        // 5 hours
         scale = "HOUR";
       } else {
         scale = "MINUTE";
       }
     }
-    return {
-      start: startTime?.toISOString(),
-      end: endTime.toISOString(),
-      scale,
-    };
-  }, [timeRange.start, timeRange.end]);
->>>>>>> Stashed changes
+    return scale;
+  }, [timeRange]);
 
   const data = useLazyLoadQuery<TraceCountDashboardBarChartQuery>(
     graphql`
@@ -59,7 +53,10 @@ export function TraceCountDashboardBarChart({
       ) {
         project: node(id: $projectId) {
           ... on Project {
-            traceCountTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {
+            traceCountTimeSeries(
+              timeRange: $timeRange
+              timeBinConfig: $timeBinConfig
+            ) {
               data {
                 timestamp
                 value
@@ -72,14 +69,12 @@ export function TraceCountDashboardBarChart({
     {
       projectId,
       timeRange: {
-        start,
-        end,
-<<<<<<< Updated upstream
-=======
+        start: timeRange.start?.toISOString(),
+        end: timeRange.end?.toISOString(),
       },
       timeBinConfig: {
         scale,
->>>>>>> Stashed changes
+        utcOffsetMinutes,
       },
     }
   );
