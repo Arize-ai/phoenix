@@ -78,10 +78,14 @@ class PromptTemplate:
         self,
         template: Union[str, List[PromptPartTemplate]],
         delimiters: Tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
+        variables: Optional[List[str]] = None,
     ):
         self.template: List[PromptPartTemplate] = self._normalize_template(template)
         self._start_delim, self._end_delim = delimiters
-        self.variables = self._parse_variables(self.template)
+        if variables is None:
+            self.variables = self._parse_variables(self.template)
+        else:
+            self.variables = variables
 
     def prompt(self, options: Optional[PromptOptions] = None) -> List[PromptPartTemplate]:
         return self.template
