@@ -744,37 +744,6 @@ class TestSpanCostDetailsCalculator:
                         detail.cost_per_token is None
                     ), f"Expected {domain} detail for {token_type} to have no cost per token"
 
-    def test_missing_required_token_types(self) -> None:
-        """
-        Test that missing required token types raise ValueError.
-
-        The SpanCostDetailsCalculator requires at least:
-        - One "input" token type for prompt tokens
-        - One "output" token type for completion tokens
-
-        This test verifies that appropriate errors are raised when these
-        requirements are not met.
-        """
-        # Missing input token type
-        with pytest.raises(
-            ValueError, match="Token prices for prompt must include an 'input' token type"
-        ):
-            SpanCostDetailsCalculator(
-                [
-                    models.TokenPrice(token_type="output", is_prompt=False, base_rate=0.002),
-                ]
-            )
-
-        # Missing output token type
-        with pytest.raises(
-            ValueError, match="Token prices for completion must include an 'output' token type"
-        ):
-            SpanCostDetailsCalculator(
-                [
-                    models.TokenPrice(token_type="input", is_prompt=True, base_rate=0.001),
-                ]
-            )
-
     def test_missing_token_count_section(self) -> None:
         """
         Test handling of spans without token count data.

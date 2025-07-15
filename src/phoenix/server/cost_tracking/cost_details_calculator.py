@@ -1,5 +1,5 @@
 from itertools import chain
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable, Mapping, Optional
 
 from typing_extensions import TypeAlias
 
@@ -60,8 +60,6 @@ class SpanCostDetailsCalculator:
             for p in prices
             if p.is_prompt
         }
-        if "input" not in self._prompt:
-            raise ValueError("Token prices for prompt must include an 'input' token type")
 
         # Create calculators for completion token types (is_prompt=False)
         self._completion: Mapping[_TokenType, TokenCostCalculator] = {
@@ -69,8 +67,6 @@ class SpanCostDetailsCalculator:
             for p in prices
             if not p.is_prompt
         }
-        if "output" not in self._completion:
-            raise ValueError("Token prices for completion must include an 'output' token type")
 
     def calculate_details(
         self,
@@ -112,6 +108,8 @@ class SpanCostDetailsCalculator:
         """
         prompt_details: dict[_TokenType, models.SpanCostDetail] = {}
         completion_details: dict[_TokenType, models.SpanCostDetail] = {}
+        cost: Optional[float]
+        cost_per_token: Optional[float]
 
         # Phase 1: Process detailed token counts from span attributes
         for is_prompt, prefix, calculators, results in (
@@ -171,11 +169,13 @@ class SpanCostDetailsCalculator:
             if tokens <= 0:
                 continue
 
-            # Calculate cost using guaranteed default calculator (input/output are required)
-            cost = calculators[token_type].calculate_cost(attributes, tokens)
-
-            # Calculate cost per token (avoid division by zero)
-            cost_per_token = cost / tokens if cost and tokens else None
+            # Calculate cost using calculator if available
+            cost = None
+            cost_per_token = None
+            if token_type in calculators:
+                calculator = calculators[token_type]
+                cost = calculator.calculate_cost(attributes, tokens)
+                cost_per_token = cost / tokens if cost and tokens else None
 
             detail = models.SpanCostDetail(
                 token_type=token_type,

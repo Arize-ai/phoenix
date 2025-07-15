@@ -5,7 +5,6 @@ from asyncio import sleep
 from datetime import datetime
 from typing import Any, Mapping, NamedTuple, Optional
 
-from sqlalchemy import inspect
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
@@ -84,18 +83,13 @@ class SpanCostCalculator(DaemonTask):
             start_time=start_time,
             attributes=attributes,
         )
-        if not cost_model:
-            return None
-        if not isinstance(inspect(cost_model).attrs.token_prices.loaded_value, list):
-            return None
-
-        calculator = SpanCostDetailsCalculator(cost_model.token_prices)
+        calculator = SpanCostDetailsCalculator(cost_model.token_prices if cost_model else [])
         details = calculator.calculate_details(attributes)
         if not details:
             return None
 
         cost = models.SpanCost(
-            model_id=cost_model.id,
+            model_id=cost_model.id if cost_model else None,
             span_start_time=start_time,
         )
         for detail in details:
