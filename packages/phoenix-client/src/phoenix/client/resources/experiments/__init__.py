@@ -664,6 +664,16 @@ class Experiments:
         returning a RanExperiment object that can be used with evaluate_experiment to run
         additional evaluations.
 
+        Args:
+            experiment_id: The ID of the experiment to retrieve.
+
+        Returns:
+            A RanExperiment object containing the experiment data, task runs, and evaluation runs.
+
+        Raises:
+            ValueError: If the experiment is not found.
+            httpx.HTTPStatusError: If the API returns an error response.
+
         Example:
             >>> client = Client()
             >>> experiment = client.experiments.get_experiment(experiment_id="123")
@@ -674,16 +684,6 @@ class Experiments:
             ...     ],
             ...     print_summary=True,
             ... )
-
-        Args:
-            experiment_id: The ID of the experiment to retrieve.
-
-        Returns:
-            A RanExperiment object containing the experiment data, task runs, and evaluation runs.
-
-        Raises:
-            ValueError: If the experiment is not found.
-            httpx.HTTPStatusError: If the API returns an error response.
         """
         # Get experiment metadata using existing endpoint
         try:
@@ -1545,6 +1545,16 @@ class AsyncExperiments:
         returning a RanExperiment object that can be used with evaluate_experiment to run
         additional evaluations.
 
+        Args:
+            experiment_id: The ID of the experiment to retrieve.
+
+        Returns:
+            A RanExperiment object containing the experiment data, task runs, and evaluation runs.
+
+        Raises:
+            ValueError: If the experiment is not found.
+            httpx.HTTPStatusError: If the API returns an error response.
+
         Example:
             >>> client = AsyncClient()
             >>> experiment = await client.experiments.get_experiment(experiment_id="123")
@@ -1555,16 +1565,6 @@ class AsyncExperiments:
             ...     ],
             ...     print_summary=True,
             ... )
-
-        Args:
-            experiment_id: The ID of the experiment to retrieve.
-
-        Returns:
-            A RanExperiment object containing the experiment data, task runs, and evaluation runs.
-
-        Raises:
-            ValueError: If the experiment is not found.
-            httpx.HTTPStatusError: If the API returns an error response.
         """
         # Get experiment metadata using existing endpoint
         try:
