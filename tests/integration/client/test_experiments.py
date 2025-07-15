@@ -1233,7 +1233,9 @@ class TestEvaluateExperiment:
         assert retrieved_experiment["experiment_id"] == initial_result["experiment_id"]
         assert retrieved_experiment["dataset_id"] == initial_result["dataset_id"]
         assert len(retrieved_experiment["task_runs"]) == len(initial_result["task_runs"])
-        assert len(retrieved_experiment["evaluation_runs"]) == len(initial_result["evaluation_runs"])
+        assert len(retrieved_experiment["evaluation_runs"]) == len(
+            initial_result["evaluation_runs"]
+        )
 
         task_outputs = [run["output"] for run in retrieved_experiment["task_runs"]]
         assert "The answer is 4" in task_outputs
@@ -1263,11 +1265,13 @@ class TestEvaluateExperiment:
         assert len(final_result["evaluation_runs"]) == expected_eval_runs
 
         accuracy_evals = [
-            eval_run for eval_run in final_result["evaluation_runs"]
+            eval_run
+            for eval_run in final_result["evaluation_runs"]
             if eval_run.name == "accuracy_evaluator"
         ]
         length_evals = [
-            eval_run for eval_run in final_result["evaluation_runs"]
+            eval_run
+            for eval_run in final_result["evaluation_runs"]
             if eval_run.name == "length_evaluator"
         ]
 

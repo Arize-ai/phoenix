@@ -37,7 +37,8 @@ def run_experiment(
     This function creates or configures a client and runs an experiment. An experiment is a
     user-defined task that runs on each example in a dataset. The results from each experiment
     can be evaluated using any number of evaluators to measure the behavior of the task. The
-    experiment and evaluation results are stored in the Phoenix database for comparison and analysis.
+    experiment and evaluation results are stored in the Phoenix database for comparison and
+    analysis.
 
     A `task` is either a synchronous function that returns a JSON serializable output. If the
     `task` is a function of one argument then that argument will be bound to the `input` field
@@ -217,7 +218,8 @@ async def async_run_experiment(
     This function creates or configures an async client and runs an experiment. An experiment is a
     user-defined task that runs on each example in a dataset. The results from each experiment
     can be evaluated using any number of evaluators to measure the behavior of the task. The
-    experiment and evaluation results are stored in the Phoenix database for comparison and analysis.
+    experiment and evaluation results are stored in the Phoenix database for comparison and
+    analysis.
 
     A `task` is either a synchronous or asynchronous function that returns a JSON serializable
     output. If the `task` is a function of one argument then that argument will be bound to the
@@ -491,7 +493,10 @@ async def async_get_experiment(
             ... )
 
         Using with async_evaluate_experiment:
-            >>> from phoenix.client.experiments import async_get_experiment, async_evaluate_experiment
+            >>> from phoenix.client.experiments import (
+            ...     async_get_experiment,
+            ...     async_evaluate_experiment,
+            ... )
             >>> experiment = await async_get_experiment(experiment_id="123")
             >>> evaluated = await async_evaluate_experiment(
             ...     experiment=experiment,
@@ -699,7 +704,10 @@ async def async_evaluate_experiment(
 
     Example:
         Basic usage:
-            >>> from phoenix.client.experiments import async_get_experiment, async_evaluate_experiment
+            >>> from phoenix.client.experiments import (
+            ...     async_get_experiment,
+            ...     async_evaluate_experiment,
+            ... )
             >>> experiment = await async_get_experiment(experiment_id="123")
             >>> async def accuracy_evaluator(output, expected):
             ...     return 1.0 if output == expected else 0.0
