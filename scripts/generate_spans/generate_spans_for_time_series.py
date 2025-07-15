@@ -1,3 +1,10 @@
+# /// script
+# dependencies = [
+#   "pandas",
+#   "opentelemetry-sdk",
+#   "opentelemetry-exporter-otlp",
+# ]
+# ///
 from datetime import datetime, timedelta, timezone
 from io import StringIO
 from random import randint, sample
@@ -6,13 +13,10 @@ from typing import Iterator, Optional, cast
 
 import numpy as np
 import pandas as pd
-from faker import Faker
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-
-fake = Faker()
 
 endpoint = "http://localhost:6006/v1/traces"
 
