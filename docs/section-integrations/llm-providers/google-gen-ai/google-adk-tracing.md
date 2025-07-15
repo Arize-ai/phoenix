@@ -13,7 +13,7 @@ Launch Phoenix
 ### Install <a href="#install" id="install"></a>
 
 ```bash
-pip install openinference-instrumentation-google-adk google-adk arize-phoenix-otel opentelemetry-sdk opentelemetry-exporter-otlp
+pip install openinference-instrumentation-google-adk google-adk arize-phoenix-otel
 ```
 
 ### Setup <a href="#setup" id="setup"></a>
@@ -24,19 +24,16 @@ Set the `GOOGLE_API_KEY` environment variable. Refer to Google's [ADK documentat
 export GOOGLE_API_KEY=[your_key_here]
 ```
 
-To enable automatic tracing for Google ADK SDK, initialize the `GoogleADKInstrumentor` and configure the OpenTelemetry tracer to export these traces to Phoenix
+Use the register function to connect your application to Phoenix.
 
 ```python
-from openinference.instrumentation.google_adk import GoogleADKInstrumentor
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk import trace as trace_sdk
-from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
+from phoenix.otel import register
 
-endpoint = "http://127.0.0.1:6006/v1/traces"
-tracer_provider = trace_sdk.TracerProvider()
-tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
-
-GoogleADKInstrumentor().instrument(tracer_provider=tracer_provider)
+# Configure the Phoenix tracer
+tracer_provider = register(
+  project_name="my-llm-app", # Default is 'default'
+  auto_instrument=True # Auto-instrument your app based on installed OI dependencies
+)
 ```
 
 ### Observe <a href="#observe" id="observe"></a>
@@ -105,19 +102,6 @@ async def main():
 if __name__ == "__main__":
     asyncio.run(main())
 ```
-
-You can now simply run the file:
-
-```python
-python your_file_name.py
-```
-
-And observe the traces at:
-
-```python
-http://localhost:6006/projects
-```
-
 
 {% hint style="info" %}
 This instrumentation will support additional features as the Google ADK SDK evolves. Refer to [this page](https://pypi.org/project/openinference-instrumentation-google-adk/#description) for the latest status.
