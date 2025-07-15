@@ -16,7 +16,7 @@ from strawberry.relay import Connection, Node, NodeID
 from strawberry.types import Info
 from typing_extensions import assert_never
 
-from phoenix.datetime_utils import normalize_datetime, right_open_time_range
+from phoenix.datetime_utils import get_timestamp_range, normalize_datetime, right_open_time_range
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, date_trunc
 from phoenix.server.api.context import Context
@@ -46,7 +46,6 @@ from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.TimeSeries import TimeSeries, TimeSeriesDataPoint
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
-from phoenix.server.api.utils import get_timestamp_range
 from phoenix.trace.dsl import SpanFilter
 
 DEFAULT_PAGE_SIZE = 30

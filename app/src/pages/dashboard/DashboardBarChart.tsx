@@ -3,38 +3,134 @@ import {
   BarChart,
   CartesianGrid,
   ResponsiveContainer,
+  Tooltip,
+  TooltipProps,
   XAxis,
   YAxis,
 } from "recharts";
 
-const color = "#8884d8"; // You can replace with a design token if available
+import {
+  ChartTooltip,
+  ChartTooltipItem,
+  defaultBarChartTooltipProps,
+  useChartColors,
+} from "@phoenix/components/chart";
+
+import type { TimeBinScale } from "./__generated__/TraceCountDashboardBarChartQuery.graphql";
 
 type DashboardBarChartProps = {
   data: { timestamp: string; value: number | null }[];
+  scale: TimeBinScale;
 };
 
-export function DashboardBarChart(props: DashboardBarChartProps) {
-  // Optionally, you could use useMemo for chartData if you need to transform data
+// Format timestamp based on scale
+const formatTimestamp = (timestamp: string, scale: TimeBinScale): string => {
+  const date = new Date(timestamp);
+
+  switch (scale) {
+    case "YEAR":
+      return date.getFullYear().toString();
+    case "MONTH":
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        year: "numeric",
+      });
+    case "WEEK":
+    case "DAY":
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      });
+    case "HOUR":
+      return date.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+      });
+    case "MINUTE":
+      return date.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    default: {
+      // This should never happen due to TypeScript's exhaustiveness checking
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const _exhaustiveCheck: never = scale;
+      return timestamp;
+    }
+  }
+};
+
+// Helper function to determine if labels should be angled
+const shouldAngleLabels = (scale: TimeBinScale): boolean => {
+  return scale === "HOUR" || scale === "MINUTE";
+};
+
+export function DashboardBarChart({ data, scale }: DashboardBarChartProps) {
+  const colors = useChartColors();
+  const angleLabels = shouldAngleLabels(scale);
+
+  // Custom tooltip content - defined inside component to access scale
+  const TooltipContent = ({
+    active,
+    payload,
+    label,
+  }: TooltipProps<number, string>) => {
+    if (!active || !payload || !payload.length) return null;
+
+    const data = payload[0];
+    const value = data.value;
+    const timestamp = label;
+
+    return (
+      <ChartTooltip>
+        <ChartTooltipItem
+          color={barColor}
+          name="Time"
+          value={formatTimestamp(timestamp, scale)}
+        />
+        <ChartTooltipItem
+          color={barColor}
+          name="Traces"
+          value={typeof value === "number" ? value.toLocaleString() : "--"}
+        />
+      </ChartTooltip>
+    );
+  };
+
+  // Use theme-appropriate colors following existing patterns
+  const barColor = colors.blue400;
+  const barGradientId = "dashboardBarGradient";
+
   return (
     <ResponsiveContainer>
       <BarChart
-        data={props.data}
-        margin={{ top: 25, right: 18, left: 18, bottom: 50 }}
+        data={data}
+        margin={{
+          top: 25,
+          right: 18,
+          left: 18,
+          bottom: angleLabels ? 60 : 50,
+        }}
       >
         <defs>
-          <linearGradient id="dashboardBarColor" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={color} stopOpacity={1} />
-            <stop offset="95%" stopColor={color} stopOpacity={0.5} />
+          <linearGradient id={barGradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={barColor} stopOpacity={1} />
+            <stop offset="95%" stopColor={barColor} stopOpacity={0.5} />
           </linearGradient>
         </defs>
+
         <XAxis
           dataKey="timestamp"
+          tickFormatter={(timestamp) => formatTimestamp(timestamp, scale)}
           style={{ fill: "var(--ac-global-text-color-700)" }}
+          angle={angleLabels ? -45 : 0}
+          textAnchor={angleLabels ? "end" : "middle"}
+          height={angleLabels ? 60 : 50}
         />
+
         <YAxis
           stroke="var(--ac-global-color-grey-500)"
           label={{
-            value: "Value",
+            value: "Trace Count",
             angle: -90,
             position: "insideLeft",
             style: {
@@ -44,12 +140,19 @@ export function DashboardBarChart(props: DashboardBarChartProps) {
           }}
           style={{ fill: "var(--ac-global-text-color-700)" }}
         />
+
         <CartesianGrid
           strokeDasharray="4 4"
           stroke="var(--ac-global-color-grey-500)"
           strokeOpacity={0.5}
         />
-        <Bar dataKey="value" fill="url(#dashboardBarColor)" spacing={15} />
+
+        <Tooltip
+          {...defaultBarChartTooltipProps}
+          content={<TooltipContent />}
+        />
+
+        <Bar dataKey="value" fill={`url(#${barGradientId})`} />
       </BarChart>
     </ResponsiveContainer>
   );

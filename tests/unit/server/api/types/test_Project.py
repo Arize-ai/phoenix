@@ -2090,8 +2090,8 @@ class TestProject:
                     actual_data = []
                     for data_point in res["data"]:
                         timestamp = datetime.fromisoformat(data_point["timestamp"])
-                        value = data_point["value"]
-                        actual_data.append({"timestamp": timestamp, "count": value})
+                        if value := data_point["value"]:
+                            actual_data.append({"timestamp": timestamp, "count": value})
                     actual_summary = pd.DataFrame(actual_data).sort_values("timestamp")
 
                 # Handle empty results

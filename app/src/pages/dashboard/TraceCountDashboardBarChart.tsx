@@ -21,10 +21,14 @@ export function TraceCountDashboardBarChart({
   projectId: string;
 }) {
   const { timeRange } = useTimeRange();
-  const utcOffsetMinutes = 0;
+  // Get the local timezone offset in minutes from UTC
+  // Note: getTimezoneOffset() returns the offset in minutes that the timezone is behind UTC
+  // For example, if you're in EST (UTC-5), it returns 300 (5 hours * 60 minutes)
+  // Since we need the offset FROM UTC, we negate this value
+  const utcOffsetMinutes = -new Date().getTimezoneOffset();
   const scale = useMemo(() => {
     const startTime = timeRange.start;
-    let scale: TimeBinScale = "HOUR";
+    let scale: TimeBinScale = "DAY";
     if (startTime) {
       const endTime = timeRange.end || new Date();
       const duration = (endTime.getTime() - startTime.getTime()) / 1000; // in seconds
@@ -85,5 +89,5 @@ export function TraceCountDashboardBarChart({
       value: datum.value,
     })
   );
-  return <DashboardBarChart data={chartData} />;
+  return <DashboardBarChart data={chartData} scale={scale} />;
 }

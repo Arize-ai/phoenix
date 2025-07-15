@@ -94,17 +94,17 @@ export function DashboardPage() {
         >
           <div key="a">
             <DashboardPanel title="Grid Item A">
-              <DashboardBarChart data={data} />
+              <DashboardBarChart data={data} scale="DAY" />
             </DashboardPanel>
           </div>
           <div key="b">
             <DashboardPanel title="Grid Item B">
-              <DashboardBarChart data={data} />
+              <DashboardBarChart data={data} scale="DAY" />
             </DashboardPanel>
           </div>
           <div key="c">
             <DashboardPanel title="Grid Item C">
-              <DashboardBarChart data={data} />
+              <DashboardBarChart data={data} scale="DAY" />
             </DashboardPanel>
           </div>
         </ResponsiveGridLayout>
