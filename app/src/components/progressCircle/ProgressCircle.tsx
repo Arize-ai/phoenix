@@ -1,70 +1,33 @@
-import { forwardRef, Ref } from "react";
+import React, { forwardRef, Ref } from "react";
 import { useProgressBar } from "react-aria";
 import { ProgressBar } from "react-aria-components";
-import { css } from "@emotion/react";
 
-import {
-  CENTER,
-  CIRCUMFERENCE,
-  progressCircleIndeterminateCSS,
-  RADIUS,
-  SIZES,
-  STROKE_WIDTHS,
-} from "./styles";
+import { progressCircleCSS } from "./styles";
 import type { ProgressCircleProps } from "./types";
 
 function ProgressCircle(props: ProgressCircleProps, ref: Ref<HTMLDivElement>) {
-  const { isIndeterminate, value, size = "M" } = props;
+  const { isIndeterminate = false, value, size = "M" } = props;
   const { progressBarProps } = useProgressBar(props);
+
   return (
     <ProgressBar
       {...progressBarProps}
-      value={value}
-      css={css(
-        isIndeterminate ? progressCircleIndeterminateCSS(size) : undefined
-      )}
+      data-size={size}
+      data-indeterminate={isIndeterminate || undefined}
+      css={progressCircleCSS}
       ref={ref}
+      style={
+        !isIndeterminate && value != null
+          ? ({ "--progress-circle-value": value } as React.CSSProperties)
+          : undefined
+      }
     >
-      {({ percentage }) => (
-        <>
-          <svg
-            width={SIZES[size]}
-            height={SIZES[size]}
-            viewBox={`0 0 ${SIZES[size]} ${SIZES[size]}`}
-            fill="none"
-            className="progress-circle__svg"
-          >
-            {/* Background track */}
-            <circle
-              cx={CENTER(size)}
-              cy={CENTER(size)}
-              r={RADIUS(size)}
-              stroke="var(--ac-global-color-grey-300)"
-              strokeWidth={STROKE_WIDTHS[size]}
-            />
-            {/* Progress arc */}
-            <circle
-              cx={CENTER(size)}
-              cy={CENTER(size)}
-              r={RADIUS(size)}
-              stroke="var(--ac-global-color-primary)"
-              strokeWidth={STROKE_WIDTHS[size]}
-              strokeDasharray={
-                isIndeterminate
-                  ? undefined
-                  : `${CIRCUMFERENCE(size)} ${CIRCUMFERENCE(size)}`
-              }
-              strokeDashoffset={
-                isIndeterminate
-                  ? undefined
-                  : CIRCUMFERENCE(size) -
-                    ((percentage ?? 0) / 100) * CIRCUMFERENCE(size)
-              }
-              className="progress-circle__arc"
-            />
-          </svg>
-        </>
-      )}
+      <svg className="progress-circle__svg">
+        {/* Background track */}
+        <circle className="progress-circle__background" />
+        {/* Progress arc */}
+        <circle className="progress-circle__arc" />
+      </svg>
     </ProgressBar>
   );
 }
