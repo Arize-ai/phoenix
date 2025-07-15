@@ -638,12 +638,12 @@ class TestSpanCostDetailsCalculator:
                 },
                 {
                     "input": _Cost(
-                        tokens=100, cost=0.0, cost_per_token=None
+                        tokens=100, cost=0.0, cost_per_token=0.0
                     ),  # 0.0 cost means None cost_per_token
                 },
                 {
                     "output": _Cost(
-                        tokens=50, cost=0.0, cost_per_token=None
+                        tokens=50, cost=0.0, cost_per_token=0.0
                     ),  # 0.0 cost means None cost_per_token
                 },
                 [
@@ -682,6 +682,36 @@ class TestSpanCostDetailsCalculator:
                     models.TokenPrice(token_type="output", is_prompt=False, base_rate=0.002),
                 ],
                 id="zero_cost_rate_with_fallback",
+            ),
+            pytest.param(
+                {
+                    "llm": {
+                        "token_count": {
+                            "prompt": 100,
+                            "completion": 50,
+                            "prompt_details": {
+                                "image": 30,
+                                "audio": 40,
+                                "video": 30,
+                            },
+                            "completion_details": {
+                                "reasoning": 25,
+                                "output": 25,
+                            },
+                        }
+                    }
+                },
+                {
+                    "image": _Cost(tokens=30, cost=None, cost_per_token=None),
+                    "audio": _Cost(tokens=40, cost=None, cost_per_token=None),
+                    "video": _Cost(tokens=30, cost=None, cost_per_token=None),
+                },
+                {
+                    "reasoning": _Cost(tokens=25, cost=None, cost_per_token=None),
+                    "output": _Cost(tokens=25, cost=None, cost_per_token=None),
+                },
+                [],  # empty prices
+                id="no_prices_provided_records_tokens_but_not_costs",
             ),
         ],
     )

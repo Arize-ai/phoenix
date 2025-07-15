@@ -108,6 +108,7 @@ class SpanCostDetailsCalculator:
         """
         prompt_details: dict[_TokenType, models.SpanCostDetail] = {}
         completion_details: dict[_TokenType, models.SpanCostDetail] = {}
+        calculator: Optional[TokenCostCalculator]
         cost: Optional[float]
         cost_per_token: Optional[float]
 
@@ -116,6 +117,7 @@ class SpanCostDetailsCalculator:
             (True, "prompt", self._prompt, prompt_details),
             (False, "completion", self._completion, completion_details),
         ):
+            calculator_key = "input" if is_prompt else "output"
             # Extract detailed token counts from span attributes
             details = get_attribute_value(attributes, f"llm.token_count.{prefix}_details")
             if isinstance(details, dict) and details:
@@ -126,18 +128,18 @@ class SpanCostDetailsCalculator:
                     tokens = max(0, int(token_count))
 
                     # Calculate cost using specific calculator or fallback to default
+                    calculator = None
                     if token_type in calculators:
                         # Use specific calculator for this token type
                         calculator = calculators[token_type]
-                    else:
-                        # Fallback to default calculator: "input" for prompts,
-                        # "output" for completions
-                        key = "input" if is_prompt else "output"
-                        calculator = calculators[key]
-                    cost = calculator.calculate_cost(attributes, tokens)
+                    elif calculator_key in calculators:
+                        calculator = calculators[calculator_key]
 
-                    # Calculate cost per token (avoid division by zero)
-                    cost_per_token = cost / tokens if tokens else None
+                    cost = None
+                    cost_per_token = None
+                    if calculator:
+                        cost = calculator.calculate_cost(attributes, tokens)
+                        cost_per_token = cost / tokens if tokens else None
 
                     detail = models.SpanCostDetail(
                         token_type=token_type,
@@ -175,7 +177,7 @@ class SpanCostDetailsCalculator:
             if token_type in calculators:
                 calculator = calculators[token_type]
                 cost = calculator.calculate_cost(attributes, tokens)
-                cost_per_token = cost / tokens if cost and tokens else None
+                cost_per_token = cost / tokens if tokens else None
 
             detail = models.SpanCostDetail(
                 token_type=token_type,
