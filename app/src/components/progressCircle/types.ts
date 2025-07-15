@@ -1,7 +1,11 @@
 import { ProgressBarProps } from "react-aria-components";
 
-export type Size = "S" | "M";
+import { ComponentSize } from "@phoenix/components/types";
 
 export interface ProgressCircleProps extends ProgressBarProps {
-  size?: Size;
+  /**
+   * The size of the progress circle
+   * @default 'M'
+   */
+  size?: Omit<ComponentSize, "L">;
 }
