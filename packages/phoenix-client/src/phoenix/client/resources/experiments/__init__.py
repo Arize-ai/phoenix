@@ -329,13 +329,11 @@ class Experiments:
     An `evaluator` is either a synchronous or asynchronous function that returns an evaluation
     result object, which can take any of the following forms:
 
-    - phoenix.experiments.types.EvaluationResult with optional fields for score, label,
-      explanation and metadata
+    - an EvaluationResult dict with optional fields for score, label, explanation and metadata
     - a `bool`, which will be interpreted as a score of 0 or 1 plus a label of "True" or "False"
     - a `float`, which will be interpreted as a score
     - a `str`, which will be interpreted as a label
     - a 2-`tuple` of (`float`, `str`), which will be interpreted as (score, explanation)
-    - a dictionary with any of: "label", "score" and "explanation" keys
 
     If the `evaluator` is a function of one argument then that argument will be
     bound to the `output` of the task. Alternatively, the `evaluator` can be a function of any
@@ -421,10 +419,10 @@ class Experiments:
         behavior of the task. The experiment and evaluation results are stored in the Phoenix
         database for comparison and analysis.
 
-        A `task` is either a synchronous function that returns a JSON serializable
-        output. If the `task` is a function of one argument then that argument will be bound to the
-        `input` field of the dataset example. Alternatively, the `task` can be a function of any
-        combination of specific argument names that will be bound to special values:
+        A `task` is a synchronous function that returns a JSON serializable output. If the `task`
+        is a function of one argument then that argument will be bound to the `input` field of the
+        dataset example. Alternatively, the `task` can be a function of any combination of specific
+        argument names that will be bound to special values:
 
         - `input`: The input field of the dataset example
         - `expected`: The expected or reference output of the dataset example
@@ -435,13 +433,11 @@ class Experiments:
         An `evaluator` is either a synchronous function that returns an evaluation
         result object, which can take any of the following forms:
 
-        - phoenix.experiments.types.EvaluationResult with optional fields for score, label,
-          explanation and metadata
+        - an EvaluationResult dict with optional fields for score, label, explanation and metadata
         - a `bool`, which will be interpreted as a score of 0 or 1 plus a label of "True" or "False"
         - a `float`, which will be interpreted as a score
         - a `str`, which will be interpreted as a label
         - a 2-`tuple` of (`float`, `str`), which will be interpreted as (score, explanation)
-        - a dictionary with any of: "label", "score" and "explanation" keys
 
         If the `evaluator` is a function of one argument then that argument will be
         bound to the `output` of the task. Alternatively, the `evaluator` can be a function of any
@@ -788,13 +784,11 @@ class Experiments:
         An `evaluator` is either a synchronous or asynchronous function that returns an evaluation
         result object, which can take any of the following forms:
 
-        - phoenix.experiments.types.EvaluationResult with optional fields for score, label,
-          explanation and metadata
+        - an EvaluationResult dict with optional fields for score, label, explanation and metadata
         - a `bool`, which will be interpreted as a score of 0 or 1 plus a label of "True" or "False"
         - a `float`, which will be interpreted as a score
         - a `str`, which will be interpreted as a label
         - a 2-`tuple` of (`float`, `str`), which will be interpreted as (score, explanation)
-        - a dictionary with any of: "label", "score" and "explanation" keys
 
         Args:
             experiment: The experiment to evaluate, returned from `run_experiment`.
@@ -1321,13 +1315,11 @@ class AsyncExperiments:
         An `evaluator` is either a synchronous or asynchronous function that returns an evaluation
         result object, which can take any of the following forms:
 
-        - phoenix.experiments.types.EvaluationResult with optional fields for score, label,
-          explanation and metadata
+        - an EvaluationResult dict with optional fields for score, label, explanation and metadata
         - a `bool`, which will be interpreted as a score of 0 or 1 plus a label of "True" or "False"
         - a `float`, which will be interpreted as a score
         - a `str`, which will be interpreted as a label
         - a 2-`tuple` of (`float`, `str`), which will be interpreted as (score, explanation)
-        - a dictionary with any of: "label", "score" and "explanation" keys
 
         If the `evaluator` is a function of one argument then that argument will be
         bound to the `output` of the task. Alternatively, the `evaluator` can be a function of any
@@ -1677,13 +1669,11 @@ class AsyncExperiments:
         An `evaluator` is either a synchronous function that returns an evaluation
         result object, which can take any of the following forms:
 
-        - phoenix.experiments.types.EvaluationResult with optional fields for score, label,
-          explanation and metadata
+        - an EvaluationResult dict with optional fields for score, label, explanation and metadata
         - a `bool`, which will be interpreted as a score of 0 or 1 plus a label of "True" or "False"
         - a `float`, which will be interpreted as a score
         - a `str`, which will be interpreted as a label
         - a 2-`tuple` of (`float`, `str`), which will be interpreted as (score, explanation)
-        - a dictionary with any of: "label", "score" and "explanation" keys
 
         Args:
             experiment: The experiment ID or RanExperiment object to evaluate.

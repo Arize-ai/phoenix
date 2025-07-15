@@ -1,7 +1,5 @@
 from typing import Any, Mapping, Optional, Union
 
-import httpx
-
 from phoenix.client.client import AsyncClient, Client
 from phoenix.client.resources.datasets import Dataset
 from phoenix.client.resources.experiments.types import (
@@ -16,10 +14,6 @@ DEFAULT_TIMEOUT_IN_SECONDS = 60
 
 def run_experiment(
     *,
-    base_url: Union[str, httpx.URL, None] = None,
-    api_key: Optional[str] = None,
-    headers: Optional[Mapping[str, str]] = None,
-    http_client: Optional[httpx.Client] = None,
     dataset: Dataset,
     task: ExperimentTask,
     evaluators: Optional[ExperimentEvaluators] = None,
@@ -30,20 +24,20 @@ def run_experiment(
     dry_run: Union[bool, int] = False,
     print_summary: bool = True,
     timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    client: Optional[Client] = None,
 ) -> RanExperiment:
     """
     Run an experiment using a given dataset of examples.
 
-    This function creates or configures a client and runs an experiment. An experiment is a
-    user-defined task that runs on each example in a dataset. The results from each experiment
-    can be evaluated using any number of evaluators to measure the behavior of the task. The
-    experiment and evaluation results are stored in the Phoenix database for comparison and
-    analysis.
+    An experiment is a user-defined task that runs on each example in a dataset. The results from
+    each experiment can be evaluated using any number of evaluators to measure the behavior of the
+    task. The experiment and evaluation results are stored in the Phoenix database for comparison
+    and analysis.
 
-    A `task` is either a synchronous function that returns a JSON serializable output. If the
-    `task` is a function of one argument then that argument will be bound to the `input` field
-    of the dataset example. Alternatively, the `task` can be a function of any combination of
-    specific argument names that will be bound to special values:
+    A `task` is a synchronous function that returns a JSON serializable output. If the `task` is a
+    function of one argument then that argument will be bound to the `input` field of the dataset
+    example. Alternatively, the `task` can be a function of any combination of specific argument
+    names that will be bound to special values:
 
     - `input`: The input field of the dataset example
     - `expected`: The expected or reference output of the dataset example
@@ -54,13 +48,11 @@ def run_experiment(
     An `evaluator` is either a synchronous function that returns an evaluation result object,
     which can take any of the following forms:
 
-    - phoenix.experiments.types.EvaluationResult with optional fields for score, label,
-      explanation and metadata
+    - an EvaluationResult dict with optional fields for score, label, explanation and metadata
     - a `bool`, which will be interpreted as a score of 0 or 1 plus a label of "True" or "False"
     - a `float`, which will be interpreted as a score
     - a `str`, which will be interpreted as a label
     - a 2-`tuple` of (`float`, `str`), which will be interpreted as (score, explanation)
-    - a dictionary with any of: "label", "score" and "explanation" keys
 
     If the `evaluator` is a function of one argument then that argument will be bound to the
     `output` of the task. Alternatively, the `evaluator` can be a function of any combination
@@ -75,15 +67,6 @@ def run_experiment(
     Phoenix also provides pre-built evaluators in the `phoenix.experiments.evaluators` module.
 
     Args:
-        base_url: The base URL for the API endpoint. If not provided, it will be read from the
-            environment variables or fall back to http://localhost:6006/.
-        api_key: The API key for authentication. If provided, it will be included in the
-            Authorization header as a bearer token. Defaults to None.
-        headers: Additional headers to be included in the HTTP requests. Defaults to None.
-            This is ignored if http_client is provided. Additional headers may be added from
-            the environment variables, but won't override specified values.
-        http_client: An instance of httpx.Client to be used for making HTTP requests. If not
-            provided, a new instance will be created. Defaults to None.
         dataset: The dataset on which to run the experiment.
         task: The task to run on each example in the dataset.
         evaluators: A single evaluator or sequence of evaluators used to evaluate the results
@@ -101,6 +84,8 @@ def run_experiment(
             Defaults to True.
         timeout: The timeout for the task execution in seconds. Use this to run longer tasks
             to avoid re-queuing the same task multiple times. Defaults to 60.
+        client: A Phoenix client instance to use for the experiment. If not provided, a new client
+            will be configured from environment variables. Defaults to None.
 
     Returns:
         A dictionary containing the experiment results.
@@ -179,7 +164,7 @@ def run_experiment(
             ...     experiment_name="greeting-experiment"
             ... )
     """
-    client = Client(base_url=base_url, api_key=api_key, headers=headers, http_client=http_client)
+    client = client or Client()
     return client.experiments.run_experiment(
         dataset=dataset,
         task=task,
@@ -196,10 +181,6 @@ def run_experiment(
 
 async def async_run_experiment(
     *,
-    base_url: Union[str, httpx.URL, None] = None,
-    api_key: Optional[str] = None,
-    headers: Optional[Mapping[str, str]] = None,
-    http_client: Optional[httpx.AsyncClient] = None,
     dataset: Dataset,
     task: ExperimentTask,
     evaluators: Optional[ExperimentEvaluators] = None,
@@ -211,15 +192,15 @@ async def async_run_experiment(
     print_summary: bool = True,
     concurrency: int = 3,
     timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    client: Optional[AsyncClient] = None,
 ) -> RanExperiment:
     """
     Run an experiment using a given dataset of examples (async version).
 
-    This function creates or configures an async client and runs an experiment. An experiment is a
-    user-defined task that runs on each example in a dataset. The results from each experiment
-    can be evaluated using any number of evaluators to measure the behavior of the task. The
-    experiment and evaluation results are stored in the Phoenix database for comparison and
-    analysis.
+    An experiment is a user-defined task that runs on each example in a dataset. The results from
+    each experiment can be evaluated using any number of evaluators to measure the behavior of the
+    task. The experiment and evaluation results are stored in the Phoenix database for comparison
+    and analysis.
 
     A `task` is either a synchronous or asynchronous function that returns a JSON serializable
     output. If the `task` is a function of one argument then that argument will be bound to the
@@ -235,13 +216,11 @@ async def async_run_experiment(
     An `evaluator` is either a synchronous or asynchronous function that returns an evaluation
     result object, which can take any of the following forms:
 
-    - phoenix.experiments.types.EvaluationResult with optional fields for score, label,
-      explanation and metadata
+    - an EvaluationResult dict with optional fields for score, label, explanation and metadata
     - a `bool`, which will be interpreted as a score of 0 or 1 plus a label of "True" or "False"
     - a `float`, which will be interpreted as a score
     - a `str`, which will be interpreted as a label
     - a 2-`tuple` of (`float`, `str`), which will be interpreted as (score, explanation)
-    - a dictionary with any of: "label", "score" and "explanation" keys
 
     If the `evaluator` is a function of one argument then that argument will be bound to the
     `output` of the task. Alternatively, the `evaluator` can be a function of any combination
@@ -364,9 +343,7 @@ async def async_run_experiment(
             ...     concurrency=5
             ... )
     """
-    client = AsyncClient(
-        base_url=base_url, api_key=api_key, headers=headers, http_client=http_client
-    )
+    client = client or AsyncClient()
     return await client.experiments.run_experiment(
         dataset=dataset,
         task=task,
@@ -384,30 +361,20 @@ async def async_run_experiment(
 
 def get_experiment(
     *,
-    base_url: Union[str, httpx.URL, None] = None,
-    api_key: Optional[str] = None,
-    headers: Optional[Mapping[str, str]] = None,
-    http_client: Optional[httpx.Client] = None,
     experiment_id: str,
+    client: Optional[Client] = None,
 ) -> RanExperiment:
     """
     Get a completed experiment by ID.
 
-    This function creates or configures a client and retrieves a completed experiment with all its
-    task runs and evaluation runs, returning a RanExperiment object that can be used with
-    evaluate_experiment to run additional evaluations.
+    This function retrieves a completed experiment with all its task runs and evaluation runs,
+    returning a RanExperiment object that can be used with evaluate_experiment to run additional
+    evaluations.
 
     Args:
-        base_url: The base URL for the API endpoint. If not provided, it will be read from the
-            environment variables or fall back to http://localhost:6006/.
-        api_key: The API key for authentication. If provided, it will be included in the
-            Authorization header as a bearer token. Defaults to None.
-        headers: Additional headers to be included in the HTTP requests. Defaults to None.
-            This is ignored if http_client is provided. Additional headers may be added from
-            the environment variables, but won't override specified values.
-        http_client: An instance of httpx.Client to be used for making HTTP requests. If not
-            provided, a new instance will be created. Defaults to None.
         experiment_id: The ID of the experiment to retrieve.
+        client: A Phoenix client instance to use for the experiment. If not provided, a new client
+            will be configured from environment variables. Defaults to None.
 
     Returns:
         A RanExperiment object containing the experiment data, task runs, and evaluation runs.
@@ -420,13 +387,6 @@ def get_experiment(
         Basic usage:
             >>> from phoenix.client.experiments import get_experiment
             >>> experiment = get_experiment(experiment_id="123")
-
-        With client configuration:
-            >>> experiment = get_experiment(
-            ...     base_url="https://app.phoenix.arize.com",
-            ...     api_key="your-api-key",
-            ...     experiment_id="123"
-            ... )
 
         Using with evaluate_experiment:
             >>> from phoenix.client.experiments import get_experiment, evaluate_experiment
@@ -442,36 +402,26 @@ def get_experiment(
             >>> client = Client()
             >>> experiment = client.experiments.get_experiment(experiment_id="123")
     """
-    client = Client(base_url=base_url, api_key=api_key, headers=headers, http_client=http_client)
+    client = client or Client()
     return client.experiments.get_experiment(experiment_id=experiment_id)
 
 
 async def async_get_experiment(
     *,
-    base_url: Union[str, httpx.URL, None] = None,
-    api_key: Optional[str] = None,
-    headers: Optional[Mapping[str, str]] = None,
-    http_client: Optional[httpx.AsyncClient] = None,
     experiment_id: str,
+    client: Optional[AsyncClient] = None,
 ) -> RanExperiment:
     """
     Get a completed experiment by ID (async version).
 
-    This function creates or configures an async client and retrieves a completed experiment with
-    all its task runs and evaluation runs, returning a RanExperiment object that can be used with
-    async_evaluate_experiment to run additional evaluations.
+    This function retrieves a completed experiment with all its task runs and evaluation runs,
+    returning a RanExperiment object that can be used with async_evaluate_experiment to run
+    additional evaluations.
 
     Args:
-        base_url: The base URL for the API endpoint. If not provided, it will be read from the
-            environment variables or fall back to http://localhost:6006/.
-        api_key: The API key for authentication. If provided, it will be included in the
-            Authorization header as a bearer token. Defaults to None.
-        headers: Additional headers to be included in the HTTP requests. Defaults to None.
-            This is ignored if http_client is provided. Additional headers may be added from
-            the environment variables, but won't override specified values.
-        http_client: An instance of httpx.AsyncClient to be used for making HTTP requests. If not
-            provided, a new instance will be created. Defaults to None.
         experiment_id: The ID of the experiment to retrieve.
+        client: A Phoenix client instance to use for the experiment. If not provided, a new client
+            will be configured from environment variables. Defaults to None.
 
     Returns:
         A RanExperiment object containing the experiment data, task runs, and evaluation runs.
@@ -484,13 +434,6 @@ async def async_get_experiment(
         Basic usage:
             >>> from phoenix.client.experiments import async_get_experiment
             >>> experiment = await async_get_experiment(experiment_id="123")
-
-        With client configuration:
-            >>> experiment = await async_get_experiment(
-            ...     base_url="https://app.phoenix.arize.com",
-            ...     api_key="your-api-key",
-            ...     experiment_id="123"
-            ... )
 
         Using with async_evaluate_experiment:
             >>> from phoenix.client.experiments import (
@@ -509,39 +452,31 @@ async def async_get_experiment(
             >>> client = AsyncClient()
             >>> experiment = await client.experiments.get_experiment(experiment_id="123")
     """
-    client = AsyncClient(
-        base_url=base_url, api_key=api_key, headers=headers, http_client=http_client
-    )
+    client = client or AsyncClient()
     return await client.experiments.get_experiment(experiment_id=experiment_id)
 
 
 def evaluate_experiment(
     *,
-    base_url: Union[str, httpx.URL, None] = None,
-    api_key: Optional[str] = None,
-    headers: Optional[Mapping[str, str]] = None,
-    http_client: Optional[httpx.Client] = None,
     experiment: RanExperiment,
     evaluators: ExperimentEvaluators,
     dry_run: bool = False,
     print_summary: bool = True,
     timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     rate_limit_errors: Optional[RateLimitErrors] = None,
+    client: Optional[Client] = None,
 ) -> RanExperiment:
     """
     Run evaluators on a completed experiment.
 
-    This function creates or configures a client and runs evaluators on a completed experiment.
     An evaluator is either a synchronous or asynchronous function that returns an evaluation
     result object, which can take any of the following forms:
 
-    - phoenix.experiments.types.EvaluationResult with optional fields for score, label,
-      explanation and metadata
+    - an EvaluationResult dict with optional fields for score, label, explanation and metadata
     - a `bool`, which will be interpreted as a score of 0 or 1 plus a label of "True" or "False"
     - a `float`, which will be interpreted as a score
     - a `str`, which will be interpreted as a label
     - a 2-`tuple` of (`float`, `str`), which will be interpreted as (score, explanation)
-    - a dictionary with any of: "label", "score" and "explanation" keys
 
     If the `evaluator` is a function of one argument then that argument will be bound to the
     `output` of the task. Alternatively, the `evaluator` can be a function of any combination
@@ -556,15 +491,6 @@ def evaluate_experiment(
     Phoenix also provides pre-built evaluators in the `phoenix.experiments.evaluators` module.
 
     Args:
-        base_url: The base URL for the API endpoint. If not provided, it will be read from the
-            environment variables or fall back to http://localhost:6006/.
-        api_key: The API key for authentication. If provided, it will be included in the
-            Authorization header as a bearer token. Defaults to None.
-        headers: Additional headers to be included in the HTTP requests. Defaults to None.
-            This is ignored if http_client is provided. Additional headers may be added from
-            the environment variables, but won't override specified values.
-        http_client: An instance of httpx.Client to be used for making HTTP requests. If not
-            provided, a new instance will be created. Defaults to None.
         experiment: The experiment to evaluate, returned from `run_experiment` or `get_experiment`.
         evaluators: A single evaluator or sequence of evaluators used to evaluate the results
             of the experiment.
@@ -574,6 +500,8 @@ def evaluate_experiment(
         timeout: The timeout for the evaluation execution in seconds. Defaults to 60.
         rate_limit_errors: An exception or sequence of exceptions to adaptively throttle on.
             Defaults to None.
+        client: A Phoenix client instance to use for the experiment. If not provided, a new client
+            will be configured from environment variables. Defaults to None.
 
     Returns:
         A dictionary containing the evaluation results with the same format as run_experiment.
@@ -591,16 +519,6 @@ def evaluate_experiment(
             >>> evaluated = evaluate_experiment(
             ...     experiment=experiment,
             ...     evaluators=[accuracy_evaluator]
-            ... )
-
-        With client configuration:
-            >>> evaluated = evaluate_experiment(
-            ...     base_url="https://app.phoenix.arize.com",
-            ...     api_key="your-api-key",
-            ...     experiment=experiment,
-            ...     evaluators=[accuracy_evaluator],
-            ...     dry_run=True,
-            ...     print_summary=True
             ... )
 
         Using dynamic binding for evaluators:
@@ -621,7 +539,7 @@ def evaluate_experiment(
             ...     evaluators=[accuracy_evaluator]
             ... )
     """
-    client = Client(base_url=base_url, api_key=api_key, headers=headers, http_client=http_client)
+    client = client or Client()
     return client.experiments.evaluate_experiment(
         experiment=experiment,
         evaluators=evaluators,
@@ -634,10 +552,6 @@ def evaluate_experiment(
 
 async def async_evaluate_experiment(
     *,
-    base_url: Union[str, httpx.URL, None] = None,
-    api_key: Optional[str] = None,
-    headers: Optional[Mapping[str, str]] = None,
-    http_client: Optional[httpx.AsyncClient] = None,
     experiment: RanExperiment,
     evaluators: ExperimentEvaluators,
     dry_run: bool = False,
@@ -645,21 +559,19 @@ async def async_evaluate_experiment(
     timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     concurrency: int = 3,
     rate_limit_errors: Optional[RateLimitErrors] = None,
+    client: Optional[AsyncClient] = None,
 ) -> RanExperiment:
     """
     Run evaluators on a completed experiment (async version).
 
-    This function creates or configures an async client and runs evaluators on a completed
-    experiment. An evaluator is either a synchronous or asynchronous function that returns an
+    An evaluator is either a synchronous or asynchronous function that returns an
     evaluation result object, which can take any of the following forms:
 
-    - phoenix.experiments.types.EvaluationResult with optional fields for score, label,
-      explanation and metadata
+    - an EvaluationResult dict with optional fields for score, label, explanation and metadata
     - a `bool`, which will be interpreted as a score of 0 or 1 plus a label of "True" or "False"
     - a `float`, which will be interpreted as a score
     - a `str`, which will be interpreted as a label
     - a 2-`tuple` of (`float`, `str`), which will be interpreted as (score, explanation)
-    - a dictionary with any of: "label", "score" and "explanation" keys
 
     If the `evaluator` is a function of one argument then that argument will be bound to the
     `output` of the task. Alternatively, the `evaluator` can be a function of any combination
@@ -674,15 +586,6 @@ async def async_evaluate_experiment(
     Phoenix also provides pre-built evaluators in the `phoenix.experiments.evaluators` module.
 
     Args:
-        base_url: The base URL for the API endpoint. If not provided, it will be read from the
-            environment variables or fall back to http://localhost:6006/.
-        api_key: The API key for authentication. If provided, it will be included in the
-            Authorization header as a bearer token. Defaults to None.
-        headers: Additional headers to be included in the HTTP requests. Defaults to None.
-            This is ignored if http_client is provided. Additional headers may be added from
-            the environment variables, but won't override specified values.
-        http_client: An instance of httpx.AsyncClient to be used for making HTTP requests. If not
-            provided, a new instance will be created. Defaults to None.
         experiment: The experiment to evaluate, returned from `async_run_experiment` or
             `async_get_experiment`.
         evaluators: A single evaluator or sequence of evaluators used to evaluate the results
@@ -694,6 +597,8 @@ async def async_evaluate_experiment(
         concurrency: Specifies the concurrency for evaluation execution. Defaults to 3.
         rate_limit_errors: An exception or sequence of exceptions to adaptively throttle on.
             Defaults to None.
+        client: A Phoenix client instance to use for the experiment. If not provided, a new client
+            will be configured from environment variables. Defaults to None.
 
     Returns:
         A dictionary containing the evaluation results with the same format as async_run_experiment.
@@ -716,17 +621,6 @@ async def async_evaluate_experiment(
             ...     evaluators=[accuracy_evaluator]
             ... )
 
-        With client configuration:
-            >>> evaluated = await async_evaluate_experiment(
-            ...     base_url="https://app.phoenix.arize.com",
-            ...     api_key="your-api-key",
-            ...     experiment=experiment,
-            ...     evaluators=[accuracy_evaluator],
-            ...     dry_run=True,
-            ...     print_summary=True,
-            ...     concurrency=5
-            ... )
-
         Using dynamic binding for evaluators:
             >>> async def my_evaluator(output, input, expected, metadata):
             ...     # Evaluator can access task output and example fields
@@ -747,9 +641,7 @@ async def async_evaluate_experiment(
             ...     concurrency=5
             ... )
     """
-    client = AsyncClient(
-        base_url=base_url, api_key=api_key, headers=headers, http_client=http_client
-    )
+    client = client or AsyncClient()
     return await client.experiments.evaluate_experiment(
         experiment=experiment,
         evaluators=evaluators,
