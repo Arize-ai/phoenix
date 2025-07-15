@@ -9,6 +9,7 @@ import {
   YAxis,
 } from "recharts";
 
+import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
@@ -16,6 +17,7 @@ import {
   useChartColors,
 } from "@phoenix/components/chart";
 import { useBinTimeTickFormatter } from "@phoenix/components/chart/useBinTimeTickFormatter";
+import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import type { TimeBinScale } from "./__generated__/TraceCountDashboardBarChartQuery.graphql";
 
@@ -24,50 +26,8 @@ type DashboardBarChartProps = {
   scale: TimeBinScale;
 };
 
-// Format timestamp based on scale
-const formatTimestamp = (timestamp: string, scale: TimeBinScale): string => {
-  const date = new Date(timestamp);
-
-  switch (scale) {
-    case "YEAR":
-      return date.getFullYear().toString();
-    case "MONTH":
-      return date.toLocaleDateString("en-US", {
-        month: "short",
-        year: "numeric",
-      });
-    case "WEEK":
-    case "DAY":
-      return date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      });
-    case "HOUR":
-      return date.toLocaleTimeString("en-US", {
-        hour: "2-digit",
-      });
-    case "MINUTE":
-      return date.toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    default: {
-      // This should never happen due to TypeScript's exhaustiveness checking
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const _exhaustiveCheck: never = scale;
-      return timestamp;
-    }
-  }
-};
-
-// Helper function to determine if labels should be angled
-const shouldAngleLabels = (scale: TimeBinScale): boolean => {
-  return scale === "HOUR" || scale === "MINUTE";
-};
-
 export function DashboardBarChart({ data, scale }: DashboardBarChartProps) {
   const colors = useChartColors();
-  const angleLabels = shouldAngleLabels(scale);
 
   // Custom tooltip content - defined inside component to access scale
   const TooltipContent = ({
@@ -79,15 +39,12 @@ export function DashboardBarChart({ data, scale }: DashboardBarChartProps) {
 
     const data = payload[0];
     const value = data.value;
-    const timestamp = label;
 
     return (
       <ChartTooltip>
-        <ChartTooltipItem
-          color={barColor}
-          name="Time"
-          value={formatTimestamp(timestamp, scale)}
-        />
+        <Text weight="heavy" size="S">{`${fullTimeFormatter(
+          new Date(label)
+        )}`}</Text>
         <ChartTooltipItem
           color={barColor}
           name="Traces"
@@ -111,7 +68,7 @@ export function DashboardBarChart({ data, scale }: DashboardBarChartProps) {
           top: 25,
           right: 18,
           left: 18,
-          bottom: angleLabels ? 60 : 50,
+          bottom: 50,
         }}
       >
         <defs>
@@ -125,9 +82,7 @@ export function DashboardBarChart({ data, scale }: DashboardBarChartProps) {
           dataKey="timestamp"
           tickFormatter={(timestamp) => timeTickFormatter(new Date(timestamp))}
           style={{ fill: "var(--ac-global-text-color-700)" }}
-          angle={angleLabels ? -45 : 0}
-          textAnchor={angleLabels ? "end" : "middle"}
-          height={angleLabels ? 60 : 50}
+          textAnchor="middle"
         />
 
         <YAxis
