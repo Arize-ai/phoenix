@@ -15,6 +15,7 @@ import {
   defaultBarChartTooltipProps,
   useChartColors,
 } from "@phoenix/components/chart";
+import { useBinTimeTickFormatter } from "@phoenix/components/chart/useBinTimeTickFormatter";
 
 import type { TimeBinScale } from "./__generated__/TraceCountDashboardBarChartQuery.graphql";
 
@@ -100,6 +101,8 @@ export function DashboardBarChart({ data, scale }: DashboardBarChartProps) {
   const barColor = colors.blue400;
   const barGradientId = "dashboardBarGradient";
 
+  const timeTickFormatter = useBinTimeTickFormatter({ scale });
+
   return (
     <ResponsiveContainer>
       <BarChart
@@ -120,7 +123,7 @@ export function DashboardBarChart({ data, scale }: DashboardBarChartProps) {
 
         <XAxis
           dataKey="timestamp"
-          tickFormatter={(timestamp) => formatTimestamp(timestamp, scale)}
+          tickFormatter={(timestamp) => timeTickFormatter(new Date(timestamp))}
           style={{ fill: "var(--ac-global-text-color-700)" }}
           angle={angleLabels ? -45 : 0}
           textAnchor={angleLabels ? "end" : "middle"}
