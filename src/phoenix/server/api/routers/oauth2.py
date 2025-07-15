@@ -241,8 +241,6 @@ def _parse_user_info(user_info: dict[str, Any]) -> UserInfo:
     """
     assert isinstance(subject := user_info.get("sub"), (str, int))
     idp_user_id = str(subject)
-
-    # Check if email is present and is a string
     email = user_info.get("email")
     if not isinstance(email, str):
         raise MissingEmailScope(
@@ -554,7 +552,9 @@ class NotInvited(Exception):
 
 
 class MissingEmailScope(Exception):
-    """Raised when the OIDC provider does not return the email scope."""
+    """
+    Raised when the OIDC provider does not return the email scope.
+    """
 
     pass
 
