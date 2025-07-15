@@ -244,8 +244,7 @@ def _parse_user_info(user_info: dict[str, Any]) -> UserInfo:
     email = user_info.get("email")
     if not isinstance(email, str):
         raise MissingEmailScope(
-            "The OIDC provider did not return the email scope. "
-            "Please ensure your OIDC provider is configured to include the 'email' scope."
+            "Please ensure your OIDC provider is configured to use the 'email' scope."
         )
 
     assert isinstance(username := user_info.get("name"), str) or username is None
