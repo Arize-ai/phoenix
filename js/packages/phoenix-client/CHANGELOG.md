@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 2.3.4
+
+### Patch Changes
+
+- 20db91d: Add tracing to evals, add tracing controls
+
 ## 2.3.3
 
 ### Patch Changes
