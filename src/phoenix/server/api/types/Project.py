@@ -755,7 +755,7 @@ class Project(Node):
                 utc_offset_minutes=utc_offset_minutes,
             ):
                 if timestamp not in data:
-                    data[timestamp] = TimeSeriesDataPoint(timestamp=timestamp, value=0)
+                    data[timestamp] = TimeSeriesDataPoint(timestamp=timestamp)
         return SpanCountTimeSeries(data=sorted(data.values(), key=lambda x: x.timestamp))
 
     @strawberry.field
@@ -813,7 +813,7 @@ class Project(Node):
                 utc_offset_minutes=utc_offset_minutes,
             ):
                 if timestamp not in data:
-                    data[timestamp] = TimeSeriesDataPoint(timestamp=timestamp, value=0)
+                    data[timestamp] = TimeSeriesDataPoint(timestamp=timestamp)
         return TraceCountTimeSeries(data=sorted(data.values(), key=lambda x: x.timestamp))
 
 

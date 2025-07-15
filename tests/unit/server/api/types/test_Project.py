@@ -2090,7 +2090,7 @@ class TestProject:
                     actual_data = []
                     for data_point in res["data"]:
                         timestamp = datetime.fromisoformat(data_point["timestamp"])
-                        if value := data_point["value"]:
+                        if (value := data_point["value"]) is not None:
                             actual_data.append({"timestamp": timestamp, "count": value})
                     actual_summary = pd.DataFrame(actual_data).sort_values("timestamp")
 
