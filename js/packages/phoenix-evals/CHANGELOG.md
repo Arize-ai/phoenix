@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 0.0.5
+
+### Patch Changes
+
+- 20db91d: Add tracing to evals, add tracing controls
+
 ## 0.0.4
 
 ### Patch Changes
