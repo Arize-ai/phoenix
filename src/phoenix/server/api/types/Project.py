@@ -820,7 +820,7 @@ class Project(Node):
             utc_offset_minutes=utc_offset_minutes,
         ):
             if timestamp not in data:
-                data[timestamp] = TimeSeriesDataPoint(timestamp=timestamp)
+                data[timestamp] = TimeSeriesDataPoint(timestamp=timestamp, value=0.0)
         return TraceCountTimeSeries(data=sorted(data.values(), key=lambda x: x.timestamp))
 
 
