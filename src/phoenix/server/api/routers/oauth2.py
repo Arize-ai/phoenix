@@ -169,7 +169,11 @@ async def create_tokens(
             error=f"OAuth2 IDP {idp_name} does not appear to support OpenID Connect.",
         )
     user_info = await oauth2_client.parse_id_token(token_data, nonce=stored_nonce)
-    user_info = _parse_user_info(user_info)
+    try:
+        user_info = _parse_user_info(user_info)
+    except MissingEmailScope as error:
+        return _redirect_to_login(request=request, error=str(error))
+
     try:
         async with request.app.state.db() as session:
             user = await _process_oauth2_user(
@@ -237,7 +241,12 @@ def _parse_user_info(user_info: dict[str, Any]) -> UserInfo:
     """
     assert isinstance(subject := user_info.get("sub"), (str, int))
     idp_user_id = str(subject)
-    assert isinstance(email := user_info.get("email"), str)
+    email = user_info.get("email")
+    if not isinstance(email, str):
+        raise MissingEmailScope(
+            "Please ensure your OIDC provider is configured to use the 'email' scope."
+        )
+
     assert isinstance(username := user_info.get("name"), str) or username is None
     assert (
         isinstance(profile_picture_url := user_info.get("picture"), str)
@@ -538,6 +547,14 @@ class SignInNotAllowed(Exception):
 
 
 class NotInvited(Exception):
+    pass
+
+
+class MissingEmailScope(Exception):
+    """
+    Raised when the OIDC provider does not return the email scope.
+    """
+
     pass
 
 
