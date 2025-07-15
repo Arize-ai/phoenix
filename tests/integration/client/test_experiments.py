@@ -1161,3 +1161,124 @@ class TestEvaluateExperiment:
         ):
             assert eval1.name == eval2.name
             assert eval1.result == eval2.result
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    async def test_get_experiment_and_evaluate(
+        self,
+        is_async: bool,
+        role_or_user: UserRoleInput,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        user = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient
+
+        unique_name = f"test_get_experiment_{uuid.uuid4().hex[:8]}"
+
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                inputs=[
+                    {"question": "What is 2+2?"},
+                    {"question": "What is the capital of France?"},
+                ],
+                outputs=[
+                    {"answer": "4"},
+                    {"answer": "Paris"},
+                ],
+                metadata=[
+                    {"category": "math"},
+                    {"category": "geography"},
+                ],
+            )
+        )
+
+        def simple_task(input: Dict[str, Any]) -> str:
+            question = input.get("question", "")
+            if "2+2" in question:
+                return "The answer is 4"
+            elif "capital" in question:
+                return "The capital is Paris"
+            else:
+                return "I don't know"
+
+        client = Client(base_url=_app.base_url, api_key=api_key)
+
+        initial_result = await _await_or_return(
+            client.experiments.run_experiment(
+                dataset=dataset,
+                task=simple_task,
+                experiment_name=f"test_get_exp_{uuid.uuid4().hex[:8]}",
+                print_summary=False,
+            )
+        )
+
+        assert "experiment_id" in initial_result
+        assert "dataset_id" in initial_result
+        assert "task_runs" in initial_result
+        assert "evaluation_runs" in initial_result
+        assert len(initial_result["task_runs"]) == 2
+        assert len(initial_result["evaluation_runs"]) == 0
+
+        retrieved_experiment = await _await_or_return(
+            client.experiments.get_experiment(experiment_id=initial_result["experiment_id"])
+        )
+
+        assert retrieved_experiment["experiment_id"] == initial_result["experiment_id"]
+        assert retrieved_experiment["dataset_id"] == initial_result["dataset_id"]
+        assert len(retrieved_experiment["task_runs"]) == len(initial_result["task_runs"])
+        assert len(retrieved_experiment["evaluation_runs"]) == len(initial_result["evaluation_runs"])
+
+        task_outputs = [run["output"] for run in retrieved_experiment["task_runs"]]
+        assert "The answer is 4" in task_outputs
+        assert "The capital is Paris" in task_outputs
+
+        def accuracy_evaluator(output: str, expected: Dict[str, Any]) -> float:
+            expected_answer = expected.get("answer", "")
+            return 1.0 if expected_answer in output else 0.0
+
+        def length_evaluator(output: str) -> Dict[str, Any]:
+            return {"score": len(output) / 20.0, "label": "length_score"}
+
+        final_result = await _await_or_return(
+            client.experiments.evaluate_experiment(
+                experiment=retrieved_experiment,
+                evaluators=[accuracy_evaluator, length_evaluator],
+                print_summary=False,
+            )
+        )
+
+        assert final_result["experiment_id"] == initial_result["experiment_id"]
+        assert final_result["dataset_id"] == initial_result["dataset_id"]
+        assert len(final_result["task_runs"]) == 2  # Same task runs
+        assert len(final_result["evaluation_runs"]) > 0  # Now has evaluations
+
+        expected_eval_runs = len(final_result["task_runs"]) * 2
+        assert len(final_result["evaluation_runs"]) == expected_eval_runs
+
+        accuracy_evals = [
+            eval_run for eval_run in final_result["evaluation_runs"]
+            if eval_run.name == "accuracy_evaluator"
+        ]
+        length_evals = [
+            eval_run for eval_run in final_result["evaluation_runs"]
+            if eval_run.name == "length_evaluator"
+        ]
+
+        assert len(accuracy_evals) == 2
+        assert len(length_evals) == 2
+
+        for eval_run in accuracy_evals:
+            assert eval_run.result is not None
+            assert eval_run.result.get("score") == 1.0
+
+        for eval_run in length_evals:
+            assert eval_run.result is not None
+            assert "score" in eval_run.result
+            assert eval_run.result.get("label") == "length_score"

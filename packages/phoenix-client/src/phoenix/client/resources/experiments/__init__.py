@@ -656,6 +656,115 @@ class Experiments:
 
         return ran_experiment
 
+    def get_experiment(self, *, experiment_id: str) -> RanExperiment:
+        """
+        Get a completed experiment by ID.
+
+        This method retrieves a completed experiment with all its task runs and evaluation runs,
+        returning a RanExperiment object that can be used with evaluate_experiment to run
+        additional evaluations.
+
+        Example:
+            >>> client = Client()
+            >>> experiment = client.experiments.get_experiment(experiment_id="123")
+            >>> client.experiments.evaluate_experiment(
+            ...     experiment=experiment,
+            ...     evaluators=[
+            ...         correctness,
+            ...     ],
+            ...     print_summary=True,
+            ... )
+
+        Args:
+            experiment_id: The ID of the experiment to retrieve.
+
+        Returns:
+            A RanExperiment object containing the experiment data, task runs, and evaluation runs.
+
+        Raises:
+            ValueError: If the experiment is not found.
+            httpx.HTTPStatusError: If the API returns an error response.
+        """
+        # Get experiment metadata using existing endpoint
+        try:
+            experiment_response = self._client.get(f"v1/experiments/{experiment_id}")
+            experiment_response.raise_for_status()
+            experiment_data = experiment_response.json()["data"]
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ValueError(f"Experiment not found: {experiment_id}")
+            raise
+
+        # Get experiment runs using existing endpoint
+        try:
+            runs_response = self._client.get(f"v1/experiments/{experiment_id}/runs")
+            runs_response.raise_for_status()
+            runs_data = runs_response.json()["data"]
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                # Experiment exists but has no runs
+                runs_data = []
+            else:
+                raise
+
+        # Transform runs data to RanExperiment format
+        task_runs: list[ExperimentRun] = []
+        evaluation_runs: list[ExperimentEvaluationRun] = []
+
+        for run_data in runs_data:
+            # Create task run
+            task_run: ExperimentRun = {
+                "id": run_data["id"],
+                "dataset_example_id": run_data["dataset_example_id"],
+                "experiment_id": experiment_id,
+                "repetition_number": run_data["repetition_number"],
+                "output": run_data["output"],
+                "start_time": run_data["start_time"],
+                "end_time": run_data["end_time"],
+            }
+
+            # Add optional fields if present
+            if run_data.get("trace_id"):
+                task_run["trace_id"] = run_data["trace_id"]
+            if run_data.get("error"):
+                task_run["error"] = run_data["error"]
+
+            task_runs.append(task_run)
+
+            # Create evaluation runs from annotations if present
+            for annotation in run_data.get("annotations", []):
+                eval_result = None
+                if annotation.get("label") is not None or annotation.get("score") is not None or annotation.get("explanation") is not None:
+                    eval_result = {
+                        "label": annotation.get("label"),
+                        "score": annotation.get("score"),
+                        "explanation": annotation.get("explanation"),
+                    }
+
+                eval_run = ExperimentEvaluationRun(
+                    id=annotation["id"],
+                    experiment_run_id=run_data["id"],
+                    start_time=datetime.fromisoformat(annotation["start_time"]),
+                    end_time=datetime.fromisoformat(annotation["end_time"]),
+                    name=annotation["name"],
+                    annotator_kind=annotation["annotator_kind"],
+                    error=annotation.get("error"),
+                    result=eval_result,
+                    trace_id=annotation.get("trace_id"),
+                    metadata=annotation.get("metadata", {}),
+                )
+                evaluation_runs.append(eval_run)
+
+        ran_experiment: RanExperiment = {
+            "experiment_id": experiment_id,
+            "dataset_id": experiment_data["dataset_id"],
+            "task_runs": task_runs,
+            "evaluation_runs": evaluation_runs,
+            "experiment_metadata": experiment_data.get("metadata", {}),
+        }
+
+        return ran_experiment
+
     def evaluate_experiment(
         self,
         *,
@@ -1425,6 +1534,115 @@ class AsyncExperiments:
                 f"Experiment completed with {len(ran_experiment['task_runs'])} task runs and "
                 f"{len(ran_experiment['evaluation_runs'])} evaluation runs"
             )
+
+        return ran_experiment
+
+    async def get_experiment(self, *, experiment_id: str) -> RanExperiment:
+        """
+        Get a completed experiment by ID (async version).
+
+        This method retrieves a completed experiment with all its task runs and evaluation runs,
+        returning a RanExperiment object that can be used with evaluate_experiment to run
+        additional evaluations.
+
+        Example:
+            >>> client = AsyncClient()
+            >>> experiment = await client.experiments.get_experiment(experiment_id="123")
+            >>> await client.experiments.evaluate_experiment(
+            ...     experiment=experiment,
+            ...     evaluators=[
+            ...         correctness,
+            ...     ],
+            ...     print_summary=True,
+            ... )
+
+        Args:
+            experiment_id: The ID of the experiment to retrieve.
+
+        Returns:
+            A RanExperiment object containing the experiment data, task runs, and evaluation runs.
+
+        Raises:
+            ValueError: If the experiment is not found.
+            httpx.HTTPStatusError: If the API returns an error response.
+        """
+        # Get experiment metadata using existing endpoint
+        try:
+            experiment_response = await self._client.get(f"v1/experiments/{experiment_id}")
+            experiment_response.raise_for_status()
+            experiment_data = experiment_response.json()["data"]
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ValueError(f"Experiment not found: {experiment_id}")
+            raise
+
+        # Get experiment runs using existing endpoint
+        try:
+            runs_response = await self._client.get(f"v1/experiments/{experiment_id}/runs")
+            runs_response.raise_for_status()
+            runs_data = runs_response.json()["data"]
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                # Experiment exists but has no runs
+                runs_data = []
+            else:
+                raise
+
+        # Transform runs data to RanExperiment format
+        task_runs: list[ExperimentRun] = []
+        evaluation_runs: list[ExperimentEvaluationRun] = []
+
+        for run_data in runs_data:
+            # Create task run
+            task_run: ExperimentRun = {
+                "id": run_data["id"],
+                "dataset_example_id": run_data["dataset_example_id"],
+                "experiment_id": experiment_id,
+                "repetition_number": run_data["repetition_number"],
+                "output": run_data["output"],
+                "start_time": run_data["start_time"],
+                "end_time": run_data["end_time"],
+            }
+
+            # Add optional fields if present
+            if run_data.get("trace_id"):
+                task_run["trace_id"] = run_data["trace_id"]
+            if run_data.get("error"):
+                task_run["error"] = run_data["error"]
+
+            task_runs.append(task_run)
+
+            # Create evaluation runs from annotations if present
+            for annotation in run_data.get("annotations", []):
+                eval_result = None
+                if annotation.get("label") is not None or annotation.get("score") is not None or annotation.get("explanation") is not None:
+                    eval_result = {
+                        "label": annotation.get("label"),
+                        "score": annotation.get("score"),
+                        "explanation": annotation.get("explanation"),
+                    }
+
+                eval_run = ExperimentEvaluationRun(
+                    id=annotation["id"],
+                    experiment_run_id=run_data["id"],
+                    start_time=datetime.fromisoformat(annotation["start_time"]),
+                    end_time=datetime.fromisoformat(annotation["end_time"]),
+                    name=annotation["name"],
+                    annotator_kind=annotation["annotator_kind"],
+                    error=annotation.get("error"),
+                    result=eval_result,
+                    trace_id=annotation.get("trace_id"),
+                    metadata=annotation.get("metadata", {}),
+                )
+                evaluation_runs.append(eval_run)
+
+        ran_experiment: RanExperiment = {
+            "experiment_id": experiment_id,
+            "dataset_id": experiment_data["dataset_id"],
+            "task_runs": task_runs,
+            "evaluation_runs": evaluation_runs,
+            "experiment_metadata": experiment_data.get("metadata", {}),
+        }
 
         return ran_experiment
 
