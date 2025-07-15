@@ -41,8 +41,7 @@ tracer_provider = register(
 Now that you have tracing setup, all Google ADK SDK requests will be streamed to Phoenix for observability and evaluation.
 
 ```python
-import nest_asyncio
-nest_asyncio.apply()
+import asyncio
 
 from google.adk.agents import Agent
 from google.adk.runners import InMemoryRunner
@@ -79,26 +78,29 @@ agent = Agent(
    tools=[get_weather]
 )
 
-
-app_name = "test_instrumentation"
-user_id = "test_user"
-session_id = "test_session"
-runner = InMemoryRunner(agent=agent, app_name=app_name)
-session_service = runner.session_service
-await session_service.create_session(
-    app_name=app_name,
-    user_id=user_id,
-    session_id=session_id
-)
-async for event in runner.run_async(
-    user_id=user_id,
-    session_id=session_id,
-    new_message=types.Content(role="user", parts=[
-        types.Part(text="What is the weather in New York?")]
+async def main():
+    app_name = "test_instrumentation"
+    user_id = "test_user"
+    session_id = "test_session"
+    runner = InMemoryRunner(agent=agent, app_name=app_name)
+    session_service = runner.session_service
+    await session_service.create_session(
+        app_name=app_name,
+        user_id=user_id,
+        session_id=session_id
     )
-):
-    if event.is_final_response():
-        print(event.content.parts[0].text.strip())
+    async for event in runner.run_async(
+        user_id=user_id,
+        session_id=session_id,
+        new_message=types.Content(role="user", parts=[
+            types.Part(text="What is the weather in New York?")]
+        )
+    ):
+        if event.is_final_response():
+            print(event.content.parts[0].text.strip())
+
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
 {% hint style="info" %}
