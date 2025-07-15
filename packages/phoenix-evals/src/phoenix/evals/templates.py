@@ -82,10 +82,11 @@ class PromptTemplate:
     ):
         self.template: List[PromptPartTemplate] = self._normalize_template(template)
         self._start_delim, self._end_delim = delimiters
-        if variables is None:
-            self.variables = self._parse_variables(self.template)
-        else:
+        # option to override the variables
+        if variables is not None:
             self.variables = variables
+        else:
+            self.variables = self._parse_variables(self.template)
 
     def prompt(self, options: Optional[PromptOptions] = None) -> List[PromptPartTemplate]:
         return self.template
