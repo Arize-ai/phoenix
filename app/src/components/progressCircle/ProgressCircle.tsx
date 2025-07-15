@@ -1,3 +1,5 @@
+import { forwardRef, Ref } from "react";
+import { useProgressBar } from "react-aria";
 import { ProgressBar } from "react-aria-components";
 import { css } from "@emotion/react";
 
@@ -11,20 +13,17 @@ import {
 } from "./styles";
 import type { ProgressCircleProps } from "./types";
 
-function ProgressCircle({
-  isIndeterminate,
-  value,
-  size = "M",
-  "aria-label": ariaLabel,
-}: ProgressCircleProps) {
+function ProgressCircle(props: ProgressCircleProps, ref: Ref<HTMLDivElement>) {
+  const { isIndeterminate, value, size = "M" } = props;
+  const { progressBarProps } = useProgressBar(props);
   return (
     <ProgressBar
+      {...progressBarProps}
       value={value}
-      isIndeterminate={isIndeterminate}
-      aria-label={ariaLabel}
       css={css(
         isIndeterminate ? progressCircleIndeterminateCSS(size) : undefined
       )}
+      ref={ref}
     >
       {({ percentage }) => (
         <>
@@ -70,4 +69,5 @@ function ProgressCircle({
   );
 }
 
-export { ProgressCircle };
+const _ProgressCircle = forwardRef(ProgressCircle);
+export { _ProgressCircle as ProgressCircle };
