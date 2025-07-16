@@ -4,7 +4,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
   RectangleProps,
   ResponsiveContainer,
   Tooltip,
@@ -12,6 +11,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { css } from "@emotion/react";
 
 import { Text } from "@phoenix/components";
 import {
@@ -435,13 +435,72 @@ interface StackedBarChartProps {
   height?: number | string;
 }
 
+// Custom Legend component that properly handles wrapping
+interface CustomLegendProps {
+  segmentKeys: string[];
+  barColors: string[];
+  yAxisWidth: number;
+  legendRef?: React.RefObject<HTMLDivElement>;
+}
+
+function CustomLegend({
+  segmentKeys,
+  barColors,
+  yAxisWidth,
+  legendRef,
+}: CustomLegendProps) {
+  return (
+    <div
+      ref={legendRef}
+      css={css`
+        display: flex;
+        flex-wrap: wrap;
+        row-gap: 8px;
+        column-gap: 12px;
+        align-items: center;
+        padding-left: ${yAxisWidth}px;
+        width: calc(100% - ${yAxisWidth}px);
+        max-width: 100%;
+        margin-top: -10px; /* Negative margin to pull legend closer to chart */
+        margin-bottom: 0;
+      `}
+    >
+      {segmentKeys.map((key, index) => (
+        <div
+          key={key}
+          css={css`
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: var(--ac-global-text-color-700);
+            font-size: 12px;
+          `}
+        >
+          <div
+            css={css`
+              width: 8px;
+              height: 8px;
+              border-radius: 50%;
+              background-color: ${barColors[index]};
+              flex-shrink: 0;
+            `}
+          />
+          <span>{key}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function StackedBarChart({
   data = chartData,
   height = 200,
 }: StackedBarChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
+  const legendRef = useRef<HTMLDivElement>(null);
   // Default to zero so that failures to adapt are obvious
   const [yAxisWidth, setYAxisWidth] = useState(0);
+  const [legendHeight, setLegendHeight] = useState(0);
 
   const timeRange = {
     start: new Date("2021-01-01"),
@@ -470,7 +529,7 @@ function StackedBarChart({
   useEffect(() => {
     if (chartRef.current) {
       // Wait for chart to fully render
-      const measureYAxis = () => {
+      const measureChart = () => {
         const chart = chartRef.current;
         if (!chart) return;
 
@@ -485,31 +544,42 @@ function StackedBarChart({
         if (gridLine) {
           const gridBbox = gridLine.getBoundingClientRect();
           const chartBbox = chart.getBoundingClientRect();
-          // Calculate distance from chart left edge to grid line
-          const measuredWidth = gridBbox.left - chartBbox.left;
 
-          if (measuredWidth > 0 && measuredWidth < 200) {
-            // Sanity check
-            setYAxisWidth(Math.ceil(measuredWidth));
+          // Calculate Y-axis width
+          const measuredYAxisWidth = gridBbox.left - chartBbox.left;
+
+          if (measuredYAxisWidth > 0 && measuredYAxisWidth < 200) {
+            setYAxisWidth(Math.ceil(measuredYAxisWidth));
           }
+        }
+
+        // Measure legend height
+        if (legendRef.current) {
+          const legendRect = legendRef.current.getBoundingClientRect();
+          setLegendHeight(Math.ceil(legendRect.height));
         }
       };
 
-      setTimeout(measureYAxis, 50);
-      setTimeout(measureYAxis, 200);
+      setTimeout(measureChart, 20);
     }
   }, [data]); // Re-measure if data changes
 
+  // Calculate the chart height based on total height minus legend height
+  const chartHeight =
+    typeof height === "number"
+      ? Math.max(height - legendHeight, 100) // Ensure minimum chart height
+      : height;
+
   return (
     <div ref={chartRef} style={{ width: "100%", height }}>
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height={chartHeight}>
         <BarChart
           data={data}
           margin={{
             top: 5,
             right: 5,
             left: leftMargin,
-            bottom: 5,
+            bottom: 8,
           }}
           barSize={10}
         >
@@ -559,23 +629,14 @@ function StackedBarChart({
               shape={<CustomBar />}
             />
           ))}
-
-          <Legend
-            align="left"
-            iconType="circle"
-            iconSize={8}
-            wrapperStyle={{
-              paddingLeft: `${yAxisWidth}px`, // Use measured Y-axis width for precise alignment
-              marginLeft: 0,
-            }}
-            formatter={(value) => (
-              <span style={{ color: "var(--ac-global-text-color-700)" }}>
-                {value}
-              </span>
-            )}
-          />
         </BarChart>
       </ResponsiveContainer>
+      <CustomLegend
+        segmentKeys={segmentKeys}
+        barColors={barColors}
+        yAxisWidth={yAxisWidth}
+        legendRef={legendRef}
+      />
     </div>
   );
 }
