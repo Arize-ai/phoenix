@@ -471,6 +471,7 @@ function StackedBarChart({
               radius={
                 index === segmentKeys.length - 1 ? [2, 2, 0, 0] : undefined
               }
+              isAnimationActive={false}
             />
           ))}
 
