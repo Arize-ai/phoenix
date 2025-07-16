@@ -70,6 +70,7 @@ import {
   CompactJSONCell,
   LoadMoreRow,
 } from "@phoenix/components/table";
+import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import {
   Tooltip,
@@ -156,106 +157,6 @@ const annotationTooltipExtraCSS = css`
   align-items: center;
   color: var(--ac-global-color-primary);
   gap: var(--ac-global-dimension-size-50);
-`;
-
-const tableCSS = css`
-  // fixes table row sizing issues with full height cell children
-  // this enables features like hovering anywhere on a cell to display controls
-  // height: fit-content; // table-specific sizing behavior
-  font-size: var(--ac-global-font-size-s);
-  width: 100%;
-  // border-collapse: separate; // table-specific property
-  // border-spacing: 0; // table-specific property
-  thead {
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    tr {
-      th {
-        padding: var(--ac-global-dimension-size-50)
-          var(--ac-global-dimension-size-200);
-        background-color: var(--ac-global-color-grey-100);
-        position: relative;
-        text-align: left;
-        user-select: none;
-        border-bottom: 1px solid var(--ac-global-border-color-default);
-        &:not(:last-of-type) {
-          border-right: 1px solid var(--ac-global-border-color-default);
-        }
-        .sort {
-          /* The sortable part of the header */
-          cursor: pointer;
-          display: flex;
-          flex-direction: row;
-          align-items: center;
-
-          gap: var(--ac-global-dimension-size-50);
-        }
-        .sort-icon {
-          margin-left: var(--ac-global-dimension-size-50);
-          font-size: var(--ac-global-font-size-xs);
-          // vertical-align: middle; // table-specific property
-          display: inline-block;
-        }
-        &:hover .resizer {
-          background: var(--ac-global-color-grey-300);
-        }
-        div.resizer {
-          display: inline-block;
-
-          width: 2px;
-          height: 100%;
-          position: absolute;
-          right: 0;
-          top: 0;
-          cursor: grab;
-          z-index: 4;
-          touch-action: none;
-          &.isResizing,
-          &:hover {
-            background: var(--ac-global-color-primary);
-          }
-        }
-        // Style action menu buttons in the header
-        .ac-button[data-size="compact"][data-childless="true"] {
-          padding: 0;
-          border: none;
-          background-color: transparent;
-        }
-      }
-    }
-  }
-  tbody:not(.is-empty) {
-    tr {
-      // when paired with table.height:fit-content, allows table cells and their children to fill entire row height
-      // height: 100%; // may not work as expected with grid
-      &:not(:last-of-type) {
-        & > td {
-          border-bottom: 1px solid var(--ac-global-border-color-default);
-        }
-      }
-      & > td {
-        padding: var(--ac-global-dimension-size-100)
-          var(--ac-global-dimension-size-200);
-      }
-      &[data-selected="true"] {
-        background-color: var(--ac-global-color-primary-100);
-      }
-    }
-  }
-`;
-
-const borderedTableCSS = css`
-  tbody:not(.is-empty) {
-    tr {
-      & > td {
-        border-bottom: 1px solid var(--ac-global-border-color-default);
-      }
-      & > td:not(:last-of-type) {
-        border-right: 1px solid var(--ac-global-border-color-default);
-      }
-    }
-  }
 `;
 
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
@@ -693,37 +594,18 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           css={tableWrapCSS}
           onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
           ref={tableContainerRef}
-          style={{
-            overflow: "auto", //our scrollable table container
-            position: "relative", //needed for sticky header
-            height: "800px", //should be a fixed height
-          }}
         >
           <table
-            css={css(
-              tableCSS
-              // borderedTableCSS,
-            )}
+            css={css(tableCSS, borderedTableCSS)}
             style={{
               ...columnSizeVars,
               width: table.getTotalSize(),
               minWidth: "100%",
-              display: "grid",
             }}
           >
-            <thead
-              style={{
-                display: "grid",
-                position: "sticky",
-                top: 0,
-                zIndex: 1,
-              }}
-            >
+            <thead>
               {table.getHeaderGroups().map((headerGroup) => (
-                <tr
-                  key={headerGroup.id}
-                  style={{ display: "flex", width: "100%" }}
-                >
+                <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
                     <th
                       key={header.id}
@@ -841,37 +723,23 @@ function TableBody<T>({
   const rows = table.getRowModel().rows;
   const virtualizer = useVirtualizer({
     count: rows.length,
-    estimateSize: () => 350, //estimate row height for accurate scrollbar dragging
     getScrollElement: () => tableContainerRef.current,
-    //measure dynamic row height, except in firefox because it measures table border height incorrectly
-    measureElement:
-      typeof window !== "undefined" &&
-      navigator.userAgent.indexOf("Firefox") === -1
-        ? (element) => element?.getBoundingClientRect().height
-        : undefined,
+    estimateSize: () => 350, // an estimate of the max row height
     overscan: 5,
   });
   const virtualRows = virtualizer.getVirtualItems();
   return (
-    <tbody
-      style={{
-        display: "grid",
-        height: `${virtualizer.getTotalSize()}px`, //tells scrollbar how big the table is
-        position: "relative", //needed for absolute positioning of rows
-      }}
-    >
-      {virtualRows.map((virtualRow) => {
+    <tbody>
+      {virtualRows.map((virtualRow, index) => {
         const row = rows[virtualRow.index];
         return (
           <tr
-            data-index={virtualRow.index} //needed for dynamic row height measurement
-            ref={(node) => virtualizer.measureElement(node)} //measure dynamic row height
             key={row.id}
             style={{
-              display: "flex",
-              position: "absolute",
-              transform: `translateY(${virtualRow.start}px)`, //this should always be a `style` as it changes on scroll
-              width: "100%",
+              height: `${virtualRow.size}px`,
+              transform: `translateY(${
+                virtualRow.start - index * virtualRow.size
+              }px)`,
             }}
           >
             {row.getVisibleCells().map((cell) => {
@@ -879,7 +747,6 @@ function TableBody<T>({
                 <td
                   key={cell.id}
                   style={{
-                    // display: 'flex',
                     width: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
                     maxWidth: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
                     padding: 0,
