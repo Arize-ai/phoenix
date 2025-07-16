@@ -20,7 +20,11 @@ import {
   Table,
   useReactTable,
 } from "@tanstack/react-table";
-import { useVirtualizer, VirtualItem } from "@tanstack/react-virtual";
+import {
+  useVirtualizer,
+  VirtualItem,
+  Virtualizer,
+} from "@tanstack/react-virtual";
 import { css } from "@emotion/react";
 
 import { Card, CardProps } from "@arizeai/components";
@@ -692,6 +696,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 isLoadingNext={isLoadingNext}
                 rows={rows}
                 virtualRows={virtualRows}
+                rowVirtualizer={rowVirtualizer}
               />
             ) : (
               <TableBody
@@ -701,6 +706,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 isLoadingNext={isLoadingNext}
                 rows={rows}
                 virtualRows={virtualRows}
+                rowVirtualizer={rowVirtualizer}
               />
             )}
           </table>
@@ -731,6 +737,7 @@ function TableBody<T>({
   isLoadingNext,
   rows,
   virtualRows,
+  rowVirtualizer,
 }: {
   table: Table<T>;
   hasNext: boolean;
@@ -738,11 +745,17 @@ function TableBody<T>({
   isLoadingNext: boolean;
   rows: Row<T>[];
   virtualRows: VirtualItem[];
+  rowVirtualizer: Virtualizer<HTMLDivElement, HTMLTableRowElement>;
 }) {
   return (
     <tbody>
       {virtualRows.map((row) => (
-        <TableRow key={row.index} virtualRow={row} row={rows[row.index]} />
+        <TableRow
+          key={row.index}
+          virtualRow={row}
+          row={rows[row.index]}
+          rowVirtualizer={rowVirtualizer}
+        />
       ))}
       {hasNext ? (
         <LoadMoreRow
@@ -758,12 +771,18 @@ function TableBody<T>({
 function TableRow<RowType>({
   virtualRow,
   row,
+  rowVirtualizer,
 }: {
   virtualRow: VirtualItem;
   row: Row<RowType>;
+  rowVirtualizer: Virtualizer<HTMLDivElement, HTMLTableRowElement>;
 }) {
   return (
-    <tr key={virtualRow.index}>
+    <tr
+      key={virtualRow.index}
+      data-index={virtualRow.index} //needed for dynamic row height measurement
+      ref={(node) => rowVirtualizer.measureElement(node)} //measure dynamic row height
+    >
       {row.getVisibleCells().map((cell) => {
         return (
           <td
