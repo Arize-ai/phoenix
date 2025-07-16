@@ -141,7 +141,6 @@ export function ModelsTable({
             tokenType
             kind
             costPerMillionTokens
-            costPerToken
           }
         }
       }

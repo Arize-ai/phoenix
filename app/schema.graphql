@@ -371,9 +371,11 @@ input ContinuousAnnotationConfigInput {
 }
 
 type CostBreakdown {
+  """
+  Total number of tokens, including tokens for which no cost was computed.
+  """
   tokens: Float
   cost: Float
-  costPerToken: Float
 }
 
 input CreateAnnotationConfigInput {
