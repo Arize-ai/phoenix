@@ -42,7 +42,3 @@ pnpm build
 ```bash
 pnpm test
 ```
-
-## License
-
-ELv2
