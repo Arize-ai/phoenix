@@ -4,6 +4,7 @@ import {
   BarChart,
   CartesianGrid,
   Legend,
+  RectangleProps,
   ResponsiveContainer,
   Tooltip,
   TooltipProps,
@@ -390,6 +391,41 @@ function TooltipContent({
   return null;
 }
 
+// Custom bar shape that includes a 2px gap at the top
+const CustomBar = (props: RectangleProps) => {
+  const { fill, x = 0, y = 0, width = 0, height = 0, radius } = props;
+
+  // Don't render if height is too small
+  if (height < 0.1) return null;
+
+  // Render bar with 2px gap at top (except for very small bars)
+  const gapHeight = height > 2 ? 2 : 0;
+  const barHeight = height - gapHeight;
+  const barY = y + gapHeight;
+
+  // Handle radius for the top segment
+  const radiusAttr =
+    radius && typeof radius !== "number" && Array.isArray(radius)
+      ? {
+          rx: radius[0],
+          ry: radius[1],
+        }
+      : {};
+
+  return (
+    <g>
+      <rect
+        x={x}
+        y={barY}
+        width={width}
+        height={barHeight}
+        fill={fill}
+        {...radiusAttr}
+      />
+    </g>
+  );
+};
+
 interface StackedBarChartProps {
   data?: Array<{
     timestamp: string;
@@ -472,6 +508,7 @@ function StackedBarChart({
                 index === segmentKeys.length - 1 ? [2, 2, 0, 0] : undefined
               }
               isAnimationActive={false}
+              shape={<CustomBar />}
             />
           ))}
 
