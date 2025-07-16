@@ -1,5 +1,26 @@
 # @arizeai/phoenix-mcp
 
+## 2.2.6
+
+### Patch Changes
+
+- a045486: update phoenix-support-mcp
+
+## 2.2.5
+
+### Patch Changes
+
+- Updated dependencies [20db91d]
+  - @arizeai/phoenix-client@2.3.4
+
+## 2.2.4
+
+### Patch Changes
+
+- 2609fcd: bump target JS to es2017 for native async
+- Updated dependencies [2609fcd]
+  - @arizeai/phoenix-client@2.3.3
+
 ## 2.2.3
 
 ### Patch Changes

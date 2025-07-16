@@ -8,7 +8,7 @@ from typing import Any, Optional
 
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan
-from opentelemetry.trace import INVALID_TRACE_ID
+from opentelemetry.trace import INVALID_SPAN_ID
 from wrapt import apply_patch, resolve_path, wrap_function_wrapper
 
 
@@ -29,7 +29,7 @@ class SpanModifier:
         Args:
           span: ReadableSpan: the span to modify
         """
-        if (ctx := span._context) is None or ctx.span_id == INVALID_TRACE_ID:
+        if (ctx := span._context) is None or ctx.span_id == INVALID_SPAN_ID:
             return
         span._resource = span._resource.merge(self._resource)
 

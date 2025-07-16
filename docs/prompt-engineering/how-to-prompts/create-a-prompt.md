@@ -34,7 +34,7 @@ Prompts can be loaded back into the Playground at any time by clicking on "open 
 
 
 
-To view the details of a prompt, click on the prompt name. You will be taken to the prompt details view. The prompt details view shows all the [parts of the prompt](../concepts-prompts.md#prompt) that has been saved (e.x. the model used, the invocation parameters, etc.)
+To view the details of a prompt, click on the prompt name. You will be taken to the prompt details view. The prompt details view shows all the [parts of the prompt](https://app.gitbook.com/s/fqGNxHHFrgwnCxgUBNsJ/prompt-engineering/prompts-concepts#prompt) that has been saved (ex: the model used, the invocation parameters, etc.)
 
 <figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt_details.png" alt=""><figcaption><p>The details of a prompt shows everything that is saved about a prompt</p></figcaption></figure>
 
@@ -42,7 +42,7 @@ To view the details of a prompt, click on the prompt name. You will be taken to 
 
 ### Making edits to a prompt
 
-Once you've crated a prompt, you probably need to make tweaks over time. The best way to make tweaks to a prompt is using the playground.  Depending on how destructive a change you are making you might want to just create a new [prompt version](../concepts-prompts.md#prompt-version) or [clone](create-a-prompt.md#cloning-a-prompt) the prompt.
+Once you've crated a prompt, you probably need to make tweaks over time. The best way to make tweaks to a prompt is using the playground.  Depending on how destructive a change you are making you might want to just create a new [prompt version](https://app.gitbook.com/s/fqGNxHHFrgwnCxgUBNsJ/prompt-engineering/prompts-concepts#prompt-version) or [clone](create-a-prompt.md#cloning-a-prompt) the prompt.
 
 #### Editing a prompt in the playground
 

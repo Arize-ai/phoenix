@@ -3,45 +3,92 @@ import {
   BarChart,
   CartesianGrid,
   ResponsiveContainer,
+  Tooltip,
+  TooltipProps,
   XAxis,
   YAxis,
 } from "recharts";
 
-// Demo data
-const data = [
-  { name: "Page A", uv: 4000, pv: 2400, amt: 2400 },
-  { name: "Page B", uv: 3000, pv: 1398, amt: 2210 },
-  { name: "Page C", uv: 2000, pv: 9800, amt: 2290 },
-  { name: "Page D", uv: 2780, pv: 3908, amt: 2000 },
-  { name: "Page E", uv: 1890, pv: 4800, amt: 2181 },
-  { name: "Page F", uv: 2390, pv: 3800, amt: 2500 },
-  { name: "Page G", uv: 3490, pv: 4300, amt: 2100 },
-];
+import { Text } from "@phoenix/components";
+import {
+  ChartTooltip,
+  ChartTooltipItem,
+  defaultBarChartTooltipProps,
+  useChartColors,
+} from "@phoenix/components/chart";
+import { useBinTimeTickFormatter } from "@phoenix/components/chart/useBinTimeTickFormatter";
+import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
-const color = "#8884d8"; // You can replace with a design token if available
+import type { TimeBinScale } from "./__generated__/TraceCountDashboardBarChartQuery.graphql";
 
-export function DashboardBarChart() {
-  // Optionally, you could use useMemo for chartData if you need to transform data
+type DashboardBarChartProps = {
+  data: { timestamp: string; value: number | null }[];
+  scale: TimeBinScale;
+};
+
+export function DashboardBarChart({ data, scale }: DashboardBarChartProps) {
+  const colors = useChartColors();
+
+  // Custom tooltip content - defined inside component to access scale
+  const TooltipContent = ({
+    active,
+    payload,
+    label,
+  }: TooltipProps<number, string>) => {
+    if (!active || !payload || !payload.length) return null;
+
+    const data = payload[0];
+    const value = data.value;
+
+    return (
+      <ChartTooltip>
+        <Text weight="heavy" size="S">{`${fullTimeFormatter(
+          new Date(label)
+        )}`}</Text>
+        <ChartTooltipItem
+          color={barColor}
+          name="Traces"
+          value={typeof value === "number" ? value.toLocaleString() : "--"}
+        />
+      </ChartTooltip>
+    );
+  };
+
+  // Use theme-appropriate colors following existing patterns
+  const barColor = colors.blue400;
+  const barGradientId = "dashboardBarGradient";
+
+  const timeTickFormatter = useBinTimeTickFormatter({ scale });
+
   return (
     <ResponsiveContainer>
       <BarChart
         data={data}
-        margin={{ top: 25, right: 18, left: 18, bottom: 50 }}
+        margin={{
+          top: 25,
+          right: 18,
+          left: 18,
+          bottom: 50,
+        }}
       >
         <defs>
-          <linearGradient id="dashboardBarColor" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={color} stopOpacity={1} />
-            <stop offset="95%" stopColor={color} stopOpacity={0.5} />
+          <linearGradient id={barGradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={barColor} stopOpacity={1} />
+            <stop offset="95%" stopColor={barColor} stopOpacity={0.5} />
           </linearGradient>
         </defs>
+
         <XAxis
-          dataKey="name"
+          dataKey="timestamp"
+          tickFormatter={(timestamp) => timeTickFormatter(new Date(timestamp))}
           style={{ fill: "var(--ac-global-text-color-700)" }}
+          textAnchor="middle"
         />
+
         <YAxis
           stroke="var(--ac-global-color-grey-500)"
           label={{
-            value: "Value",
+            value: "Trace Count",
             angle: -90,
             position: "insideLeft",
             style: {
@@ -51,12 +98,19 @@ export function DashboardBarChart() {
           }}
           style={{ fill: "var(--ac-global-text-color-700)" }}
         />
+
         <CartesianGrid
           strokeDasharray="4 4"
           stroke="var(--ac-global-color-grey-500)"
           strokeOpacity={0.5}
         />
-        <Bar dataKey="pv" fill="url(#dashboardBarColor)" spacing={15} />
+
+        <Tooltip
+          {...defaultBarChartTooltipProps}
+          content={<TooltipContent />}
+        />
+
+        <Bar dataKey="value" fill={`url(#${barGradientId})`} />
       </BarChart>
     </ResponsiveContainer>
   );

@@ -7,7 +7,7 @@ There are two endpoints that matter in Phoenix:
 
 #### **Application Endpoint**
 
-If you're accessing a Phoenix Cloud instance through our website, then your endpoint is `https://app.phoenix.arize.com`
+If you're accessing a Phoenix Cloud instance through our website, then your endpoint is available under the `Hostname` field of your Settings page.
 
 If you're self-hosting Phoenix, then you choose the endpoint when you set up the app. The default value is `http://localhost:6006`
 
@@ -15,7 +15,7 @@ To set this endpoint, use the `PHOENIX_COLLECTOR_ENDPOINT` environment variable.
 
 #### **OTEL Tracing Endpoint**
 
-If you're accessing a Phoenix Cloud instance through our website, then your OTEL tracing endpoint is `https://app.phoenix.arize.com/v1/traces`
+If you're accessing a Phoenix Cloud instance through our website, then your endpoint is available under the `Hostname` field of your Settings page.
 
 If you're self-hosting Phoenix, then you choose the endpoint when you set up the app. The default values are:
 

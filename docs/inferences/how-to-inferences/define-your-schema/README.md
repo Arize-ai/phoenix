@@ -7,7 +7,7 @@ description: How to create Phoenix inferences and schemas for common data format
 This guide shows you how to define Phoenix inferences using your own data.
 
 {% hint style="info" %}
-* For a conceptual overview of the Phoenix API, including a high-level introduction to the notion of inferences and schemas, see [Phoenix Basics](../../inferences.md#schemas).
+* For a conceptual overview of the Phoenix API, including a high-level introduction to the notion of inferences and schemas, see [here](https://arize-phoenix.readthedocs.io/en/latest/).
 * For a comprehensive description of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](../../inference-and-schema.md).
 {% endhint %}
 

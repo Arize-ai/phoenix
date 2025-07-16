@@ -12,17 +12,18 @@
   * [Anthropic Tracing](llm-providers/anthropic/anthropic-tracing.md)
   * [Anthropic Evals](llm-providers/anthropic/anthropic-evals.md)
 * [Google](llm-providers/google-gen-ai/README.md)
-  * [Google GenAI Tracing](llm-providers/google-gen-ai/google-genai-tracing.md)
+  * [Google Gen AI Tracing](llm-providers/google-gen-ai/google-genai-tracing.md)
   * [Google ADK Tracing](llm-providers/google-gen-ai/google-adk-tracing.md)
   * [Gemini Evals](llm-providers/google-gen-ai/gemini-evals.md)
+  * [Google Gen AI Evals](llm-providers/google-gen-ai/google-gen-ai-evals.md)
+* [Groq](llm-providers/groq/README.md)
+  * [Groq Tracing](llm-providers/groq/groq-tracing.md)
 * [LiteLLM](llm-providers/litellm/README.md)
   * [LiteLLM Tracing](llm-providers/litellm/litellm-tracing.md)
   * [LiteLLM Evals](llm-providers/litellm/litellm-evals.md)
 * [MistralAI](llm-providers/mistralai/README.md)
   * [MistralAI Tracing](llm-providers/mistralai/mistralai-tracing.md)
   * [MistralAI Evals](llm-providers/mistralai/mistralai-evals.md)
-* [Groq](llm-providers/groq/README.md)
-  * [Groq Tracing](llm-providers/groq/groq-tracing.md)
 * [OpenAI](llm-providers/openai/README.md)
   * [OpenAI Tracing](llm-providers/openai/openai-tracing.md)
   * [OpenAI Evals](llm-providers/openai/openai-evals.md)
@@ -38,10 +39,14 @@
   * [Agno Tracing](frameworks/agno/agno-tracing.md)
 * [AutoGen](frameworks/autogen/README.md)
   * [AutoGen Tracing](frameworks/autogen/autogen-tracing.md)
+  * [AutoGen AgentChat Tracing](frameworks/autogen/autogen-agentchat-tracing.md)
 * [BeeAI](frameworks/beeai/README.md)
   * [BeeAI Tracing (JS)](frameworks/beeai/beeai-tracing-js.md)
+  * [BeeAI Tracing (Python)](frameworks/beeai/beeai-tracing-python.md)
 * [CrewAI](frameworks/crewai/README.md)
   * [CrewAI Tracing](frameworks/crewai/crewai-tracing.md)
+* [Dify](frameworks/dify/README.md)
+  * [Dify Tracing](frameworks/dify/dify-tracing.md)
 * [DSPy](frameworks/dspy/README.md)
   * [DSPy Tracing](frameworks/dspy/dspy-tracing.md)
 * [Flowise](frameworks/flowise/README.md)
@@ -82,10 +87,21 @@
 * [Vercel](vercel/README.md)
   * [Vercel AI SDK Tracing (JS)](vercel/vercel-ai-sdk-tracing-js.md)
 
-## Evaluation Libraries
+## Evaluation Integrations
 
-* [Cleanlab](evaluation-libraries/cleanlab.md)
-* [Ragas](evaluation-libraries/ragas.md)
+* [Amazon Bedrock](https://arize.com/docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-evals)
+* [Anthropic](https://arize.com/docs/phoenix/integrations/llm-providers/anthropic/anthropic-evals)
+* [Cleanlab](evaluation-integrations/cleanlab.md)
+* [Gemini Evals](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/gemini-evals)
+* [Google Gen AI](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-gen-ai-evals)
+* [LiteLLM](https://arize.com/docs/phoenix/integrations/llm-providers/litellm/litellm-evals)
+* [MistralAI](https://arize.com/docs/phoenix/integrations/llm-providers/mistralai/mistralai-evals)
+* [OpenAI](https://arize.com/docs/phoenix/integrations/llm-providers/openai/openai-evals)
+* [Ragas](evaluation-integrations/ragas.md)
+
+***
+
+* [VertexAI](https://arize.com/docs/phoenix/integrations/llm-providers/vertexai/vertexai-evals)
 
 ## Vector Databases
 

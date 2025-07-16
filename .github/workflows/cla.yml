@@ -21,8 +21,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          path-to-signatures: 'signatures/version1/cla.json'
-          path-to-document: 'https://github.com/Arize-ai/phoenix/blob/main/CLA.md'
-          branch: 'cla'
-          allowlist: gitbook-bot, github-actions, dependabot[bot]
-
+          path-to-signatures: "signatures/version1/cla.json"
+          path-to-document: "https://github.com/Arize-ai/phoenix/blob/main/CLA.md"
+          branch: "cla"
+          allowlist: gitbook-bot, github-actions, dependabot[bot], cursoragent

@@ -1,23 +1,30 @@
 # ruff: noqa: E501
 import base64
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from secrets import token_hex
-from typing import Any, Dict, List, Optional
+from typing import Any, Literal
 
 import httpx
+import pandas as pd
 import pytest
+from faker import Faker
 from sqlalchemy import insert
 from strawberry.relay import GlobalID
+from typing_extensions import assert_never
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
+from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBinScale
+from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.pagination import Cursor, CursorSortColumn, CursorSortColumnDataType
 from phoenix.server.api.types.Project import Project
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
 from ...._helpers import _add_project, _add_project_session, _add_span, _add_trace, _gid, _node
+
+fake = Faker()
 
 PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
 
@@ -1587,160 +1594,63 @@ class TestProject:
             cursor = res["edges"][0]["cursor"]
 
     @pytest.fixture
-    async def _span_count_time_series_data(
+    async def _time_series_data(
         self,
         db: DbSessionFactory,
     ) -> _Data:
-        """Creates a minimal dataset for testing span_count_time_series.
+        """Creates a dataset for testing span_count_time_series using random timestamps.
 
-        Creates spans across different hours to test:
-        1. Basic time series grouping
-        2. Time range filtering
-        3. Edge cases with spans at hour boundaries
-        4. Discontinuities in timestamps
+        Creates spans with random timestamps distributed across different time periods
+        to test time series grouping and filtering functionality. The spans are created
+        within the last day to ensure they fall within reasonable time buckets.
+
+        Returns:
+            _Data object containing:
+            - projects: List of test projects
+            - traces: List of test traces
+            - spans: List of test spans with random timestamps
         """
-        projects, traces = [], []
-        spans: List[models.Span] = []
+        projects: list[models.Project] = []
+        traces: list[models.Trace] = []
+        spans: list[models.Span] = []
+
         async with db() as session:
             # Create a test project
             projects.append(models.Project(name=token_hex(8)))
             session.add(projects[-1])
             await session.flush()
 
-            # Create spans across different hours
-            base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+            # Create multiple traces with spans at different times
+            for _ in range(10):
+                # Generate random trace start time within the test time range (2024-01-01)
+                trace_start = fake.date_time_between(
+                    start_date=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end_date=datetime.fromisoformat("2024-01-01T23:59:59+00:00"),
+                    tzinfo=timezone.utc,
+                )
+                trace_start = trace_start.replace(microsecond=0)
+                trace_end = trace_start + timedelta(seconds=30)
 
-            # Create spans in first hour (2 spans)
-            trace = models.Trace(
-                trace_id=token_hex(16),
-                project_rowid=projects[-1].id,
-                start_time=base_time,
-                end_time=base_time + timedelta(minutes=30),
-            )
-            session.add(trace)
-            await session.flush()
+                # Create trace
+                trace = models.Trace(
+                    trace_id=token_hex(16),
+                    project_rowid=projects[-1].id,
+                    start_time=trace_start,
+                    end_time=trace_end,
+                )
+                session.add(trace)
+                await session.flush()
+                traces.append(trace)
 
-            spans.extend(
-                [
-                    models.Span(
-                        trace_rowid=trace.id,
-                        span_id=token_hex(8),
-                        parent_id=None,
-                        name="span1",
-                        span_kind="CHAIN",
-                        start_time=base_time + timedelta(minutes=15),
-                        end_time=base_time + timedelta(minutes=30),
-                        attributes={},
-                        events=[],
-                        status_code="OK",
-                        status_message="",
-                        cumulative_error_count=0,
-                        cumulative_llm_token_count_prompt=0,
-                        cumulative_llm_token_count_completion=0,
-                    ),
-                    models.Span(
-                        trace_rowid=trace.id,
-                        span_id=token_hex(8),
-                        parent_id=None,
-                        name="span2",
-                        span_kind="CHAIN",
-                        start_time=base_time + timedelta(minutes=45),
-                        end_time=base_time + timedelta(minutes=60),
-                        attributes={},
-                        events=[],
-                        status_code="OK",
-                        status_message="",
-                        cumulative_error_count=0,
-                        cumulative_llm_token_count_prompt=0,
-                        cumulative_llm_token_count_completion=0,
-                    ),
-                ]
-            )
-            traces.append(trace)
-
-            # Create spans in second hour (3 spans)
-            trace = models.Trace(
-                trace_id=token_hex(16),
-                project_rowid=projects[-1].id,
-                start_time=base_time + timedelta(hours=1),
-                end_time=base_time + timedelta(hours=1, minutes=30),
-            )
-            session.add(trace)
-            await session.flush()
-
-            spans.extend(
-                [
-                    models.Span(
-                        trace_rowid=trace.id,
-                        span_id=token_hex(8),
-                        parent_id=None,
-                        name="span3",
-                        span_kind="CHAIN",
-                        start_time=base_time + timedelta(hours=1, minutes=15),
-                        end_time=base_time + timedelta(hours=1, minutes=30),
-                        attributes={},
-                        events=[],
-                        status_code="OK",
-                        status_message="",
-                        cumulative_error_count=0,
-                        cumulative_llm_token_count_prompt=0,
-                        cumulative_llm_token_count_completion=0,
-                    ),
-                    models.Span(
-                        trace_rowid=trace.id,
-                        span_id=token_hex(8),
-                        parent_id=None,
-                        name="span4",
-                        span_kind="CHAIN",
-                        start_time=base_time + timedelta(hours=1, minutes=30),
-                        end_time=base_time + timedelta(hours=1, minutes=45),
-                        attributes={},
-                        events=[],
-                        status_code="OK",
-                        status_message="",
-                        cumulative_error_count=0,
-                        cumulative_llm_token_count_prompt=0,
-                        cumulative_llm_token_count_completion=0,
-                    ),
-                    models.Span(
-                        trace_rowid=trace.id,
-                        span_id=token_hex(8),
-                        parent_id=None,
-                        name="span5",
-                        span_kind="CHAIN",
-                        start_time=base_time + timedelta(hours=1, minutes=45),
-                        end_time=base_time + timedelta(hours=2),
-                        attributes={},
-                        events=[],
-                        status_code="OK",
-                        status_message="",
-                        cumulative_error_count=0,
-                        cumulative_llm_token_count_prompt=0,
-                        cumulative_llm_token_count_completion=0,
-                    ),
-                ]
-            )
-            traces.append(trace)
-
-            # Create a span exactly at hour boundary (2:00:00)
-            trace = models.Trace(
-                trace_id=token_hex(16),
-                project_rowid=projects[-1].id,
-                start_time=base_time + timedelta(hours=2),
-                end_time=base_time + timedelta(hours=2, minutes=30),
-            )
-            session.add(trace)
-            await session.flush()
-
-            spans.append(
-                models.Span(
+                # Create span for this trace
+                span = models.Span(
                     trace_rowid=trace.id,
                     span_id=token_hex(8),
                     parent_id=None,
-                    name="span6",
-                    span_kind="CHAIN",
-                    start_time=base_time + timedelta(hours=2),  # Exactly at 2:00:00
-                    end_time=base_time + timedelta(hours=2, minutes=30),
+                    name=token_hex(8),
+                    span_kind="LLM",
+                    start_time=trace_start,
+                    end_time=trace_end,
                     attributes={},
                     events=[],
                     status_code="OK",
@@ -1749,41 +1659,8 @@ class TestProject:
                     cumulative_llm_token_count_prompt=0,
                     cumulative_llm_token_count_completion=0,
                 )
-            )
-            traces.append(trace)
-
-            # Create a span in hour 4 (skipping hour 3 to create a discontinuity)
-            trace = models.Trace(
-                trace_id=token_hex(16),
-                project_rowid=projects[-1].id,
-                start_time=base_time + timedelta(hours=4),
-                end_time=base_time + timedelta(hours=4, minutes=30),
-            )
-            session.add(trace)
-            await session.flush()
-
-            spans.append(
-                models.Span(
-                    trace_rowid=trace.id,
-                    span_id=token_hex(8),
-                    parent_id=None,
-                    name="span7",
-                    span_kind="CHAIN",
-                    start_time=base_time + timedelta(hours=4, minutes=15),
-                    end_time=base_time + timedelta(hours=4, minutes=30),
-                    attributes={},
-                    events=[],
-                    status_code="OK",
-                    status_message="",
-                    cumulative_error_count=0,
-                    cumulative_llm_token_count_prompt=0,
-                    cumulative_llm_token_count_completion=0,
-                )
-            )
-            traces.append(trace)
-
+                spans.append(span)
             session.add_all(spans)
-            await session.flush()
 
         return _Data(
             spans=spans,
@@ -1791,141 +1668,434 @@ class TestProject:
             projects=projects,
         )
 
-    @pytest.mark.parametrize(
-        "time_range,expected_counts,description",
-        [
-            pytest.param(
-                None,
-                {
-                    datetime.fromisoformat("2024-01-01T00:00:00+00:00"): 2,
-                    datetime.fromisoformat("2024-01-01T01:00:00+00:00"): 3,
-                    datetime.fromisoformat("2024-01-01T02:00:00+00:00"): 1,
-                    datetime.fromisoformat("2024-01-01T04:00:00+00:00"): 1,
-                },
-                "no time range",
-                id="no_time_range",
-            ),
-            pytest.param(
-                {
-                    "start": datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
-                    "end": datetime.fromisoformat("2024-01-01T02:00:00+00:00"),
-                },
-                {
-                    datetime.fromisoformat("2024-01-01T01:00:00+00:00"): 3,
-                },
-                "middle hour only",
-                id="middle_hour_only",
-            ),
-            pytest.param(
-                {
-                    "start": datetime.fromisoformat("2024-01-01T01:45:00+00:00"),
-                    "end": datetime.fromisoformat("2024-01-01T02:15:00+00:00"),
-                },
-                {
-                    datetime.fromisoformat("2024-01-01T01:00:00+00:00"): 3,  # All spans in hour 1
-                    datetime.fromisoformat("2024-01-01T02:00:00+00:00"): 1,  # Span at 2:00:00
-                },
-                "span at hour boundary",
-                id="span_at_hour_boundary",
-            ),
-            pytest.param(
-                {
-                    "start": datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
-                    "end": datetime.fromisoformat("2024-01-01T01:30:00+00:00"),
-                },
-                {
-                    datetime.fromisoformat("2024-01-01T01:00:00+00:00"): 3,  # All spans in hour 1
-                },
-                "start at hour boundary",
-                id="start_at_hour_boundary",
-            ),
-            pytest.param(
-                {
-                    "start": datetime.fromisoformat("2024-01-01T01:30:00+00:00"),
-                    "end": datetime.fromisoformat("2024-01-01T02:00:00+00:00"),
-                },
-                {
-                    datetime.fromisoformat("2024-01-01T01:00:00+00:00"): 3,  # All spans in hour 1
-                },
-                "end at hour boundary",
-                id="end_at_hour_boundary",
-            ),
-            pytest.param(
-                {
-                    "start": datetime.fromisoformat("2024-01-01T03:00:00+00:00"),
-                    "end": datetime.fromisoformat("2024-01-01T04:00:00+00:00"),
-                },
-                {},
-                "no spans in range",
-                id="no_spans_in_range",
-            ),
-            pytest.param(
-                {
-                    "start": datetime.fromisoformat("2024-01-01T02:00:00+00:00"),
-                    "end": datetime.fromisoformat("2024-01-01T05:00:00+00:00"),
-                },
-                {
-                    datetime.fromisoformat("2024-01-01T02:00:00+00:00"): 1,
-                    datetime.fromisoformat("2024-01-01T04:00:00+00:00"): 1,
-                },
-                "time range with discontinuity",
-                id="time_range_with_discontinuity",
-            ),
-        ],
-    )
-    async def test_span_count_time_series(
-        self,
-        _span_count_time_series_data: _Data,
-        httpx_client: httpx.AsyncClient,
-        time_range: Optional[Dict[str, datetime]],
-        expected_counts: Dict[datetime, int],
-        description: str,
-    ) -> None:
-        """Test the span_count_time_series field.
-
-        This test verifies that:
-        1. The field returns the correct time series data grouped by hour
-        2. The time range filtering works correctly
-        3. Edge cases with spans at hour boundaries are handled correctly
-        4. Empty result sets are handled correctly
-        5. Time range edge cases are handled correctly
-
-        Args:
-            time_range: The time range to filter spans by, or None for no filtering
-            expected_counts: The expected counts for each hour in the time range
-            description: A description of the test case
-        """
-        project = _span_count_time_series_data.projects[0]
-
-        # Construct the GraphQL query based on whether a time range is provided
-        if time_range is None:
-            field = "spanCountTimeSeries{data{timestamp value}}"
+    @staticmethod
+    def _count_rows(
+        df: pd.DataFrame,
+        field: Literal["minute", "hour", "day", "week", "month", "year"],
+        utc_offset_minutes: int,
+    ) -> pd.DataFrame:
+        offset_tz = timezone(timedelta(minutes=utc_offset_minutes))
+        t = df.loc[:, "timestamp"].dt.tz_convert(offset_tz)
+        if field == "minute":
+            t = t.dt.floor("T")
+        elif field == "hour":
+            t = t.dt.floor("H")
+        elif field == "day":
+            t = t.dt.floor("D")
+        elif field == "week":
+            t = t.dt.to_period("W").dt.start_time.dt.tz_localize(offset_tz)
+        elif field == "month":
+            t = t.dt.to_period("M").dt.start_time.dt.tz_localize(offset_tz)
+        elif field == "year":
+            t = t.dt.to_period("Y").dt.start_time.dt.tz_localize(offset_tz)
         else:
-            # Format the datetime in a way that Strawberry accepts
-            start_str = time_range["start"].strftime("%Y-%m-%dT%H:%M:%S.000000+00:00")
-            end_str = time_range["end"].strftime("%Y-%m-%dT%H:%M:%S.000000+00:00")
-            field = f'spanCountTimeSeries(timeRange:{{start:"{start_str}",end:"{end_str}"}}){{data{{timestamp value}}}}'
+            assert_never(field)
+        t = t.dt.tz_convert(timezone.utc)
+        return df.groupby(t).size().reset_index(name="count")
 
-        res = await self._node(field, project, httpx_client)
+    async def test_time_series(
+        self,
+        _time_series_data: _Data,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Test the span_count_time_series field using pandas validation.
 
-        # Verify the structure of the response
-        assert "data" in res
-        assert isinstance(res["data"], list)
+        This comprehensive test verifies that the SQL-based time series calculation matches
+        pandas-based calculations using the same logic. It covers:
 
-        if not expected_counts:
-            assert len(res["data"]) == 0, f"Expected empty data for {description}"
-            return
+        **Time Granularities:**
+        - Minute-level aggregation
+        - Hourly aggregation (default)
+        - Daily aggregation
+        - Weekly aggregation
+        - Monthly aggregation
+        - Yearly aggregation
 
-        # Verify the data points
-        for data_point in res["data"]:
-            timestamp = datetime.fromisoformat(data_point["timestamp"])
-            value = data_point["value"]
-            assert (
-                timestamp in expected_counts
-            ), f"Unexpected timestamp: {timestamp} for {description}"
-            assert (
-                value == expected_counts[timestamp]
-            ), f"Expected count {expected_counts[timestamp]} for hour {timestamp}, got {value} for {description}"
+        **UTC Offset Scenarios:**
+        - No offset (UTC+0)
+        - Positive offsets (UTC+1, UTC+5.5, UTC+8, UTC+9, UTC+13, UTC+14)
+        - Negative offsets (UTC-5, UTC-8, UTC-12)
+        - Fractional hour offsets (UTC+1.5)
+
+        **Time Range Edge Cases:**
+        - Empty result sets (no data in range)
+        - Very narrow time ranges (1 second, 1 minute)
+        - Limited data points
+        - Boundary conditions (start == end)
+        - Partial range specifications (start-only, end-only)
+        - No time range specified (all data)
+
+        **Boundary Conditions:**
+        - Cross-day boundaries with offsets
+        - Month boundaries (including leap year)
+        - Year-end boundaries
+        - Leap year date boundaries
+
+        **Real-world Timezone Examples:**
+        - PST (UTC-8)
+        - EST (UTC-5)
+        - IST (UTC+5.5)
+        - JST (UTC+9)
+        - Line Islands (UTC+14)
+        - Baker Island (UTC-12)
+
+        Each test case validates both span and trace count time series.
+        """
+        project = _time_series_data.projects[0]
+
+        test_cases = [
+            # === BASIC HOURLY TESTS ===
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
+                ),
+                None,
+                "default_hourly_no_offset",
+            ),
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T03:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
+                "hourly_no_offset",
+            ),
+            # === MINUTE GRANULARITY TESTS ===
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T01:30:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=0),
+                "minute_no_offset",
+            ),
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T02:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=60),
+                "minute_with_positive_offset",
+            ),
+            # === DAILY GRANULARITY TESTS ===
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.DAY, utc_offset_minutes=0),
+                "daily_no_offset",
+            ),
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.DAY, utc_offset_minutes=-480),  # PST offset
+                "daily_with_negative_offset",
+            ),
+            # === WEEKLY GRANULARITY TESTS ===
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-08T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.WEEK, utc_offset_minutes=0),
+                "weekly_no_offset",
+            ),
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-08T00:00:00+00:00"),
+                ),
+                TimeBinConfig(
+                    scale=TimeBinScale.WEEK, utc_offset_minutes=330
+                ),  # India Standard Time
+                "weekly_with_positive_offset",
+            ),
+            # === MONTHLY GRANULARITY TESTS ===
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-02-01T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.MONTH, utc_offset_minutes=0),
+                "monthly_no_offset",
+            ),
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-03-01T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.MONTH, utc_offset_minutes=-300),  # EST offset
+                "monthly_with_negative_offset",
+            ),
+            # === YEARLY GRANULARITY TESTS ===
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2025-01-01T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.YEAR, utc_offset_minutes=0),
+                "yearly_no_offset",
+            ),
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2023-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2025-01-01T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.YEAR, utc_offset_minutes=540),  # JST offset
+                "yearly_with_positive_offset",
+            ),
+            # === EDGE CASES ===
+            # Empty result set (time range with no data)
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2023-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2023-01-01T01:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
+                "empty_result_set",
+            ),
+            # Very narrow time range
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T12:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T12:00:01+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=0),
+                "narrow_time_range",
+            ),
+            # Limited data points
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T00:30:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=0),
+                "limited_data_points",
+            ),
+            # Boundary condition: Start equals end
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T12:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T12:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
+                "zero_duration_range",
+            ),
+            # === PARTIAL TIME RANGE TESTS ===
+            # Only start time specified
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T12:00:00+00:00"),
+                    end=None,
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
+                "only_start_time",
+            ),
+            # === LARGE UTC OFFSET TESTS ===
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=780),  # +13 hours
+                "large_positive_offset",
+            ),
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=-720),  # -12 hours
+                "large_negative_offset",
+            ),
+            # === BOUNDARY CONDITION TESTS ===
+            # Cross-day boundary with offset
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T22:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T02:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=480),  # +8 hours
+                "cross_day_boundary",
+            ),
+            # Test with fractional hour offset
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T06:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=90),  # +1.5 hours
+                "fractional_hour_offset",
+            ),
+            # Test with leap year boundaries
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-02-28T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-03-01T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.DAY, utc_offset_minutes=0),
+                "leap_year_boundary",
+            ),
+            # Test with month boundary at different scales
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-31T22:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-02-01T02:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
+                "month_boundary_hourly",
+            ),
+            # Test with daylight saving time-like offset changes
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T06:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=-480),  # PST
+                "dst_like_offset",
+            ),
+            # Test with extreme small time range at minute level
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T12:30:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T12:31:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=0),
+                "single_minute_range",
+            ),
+            # Test with year-end boundary
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-12-31T22:00:00+00:00"),
+                    end=datetime.fromisoformat("2025-01-01T02:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
+                "year_end_boundary",
+            ),
+            # Test with maximum reasonable offset (UTC+14)
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
+                ),
+                TimeBinConfig(
+                    scale=TimeBinScale.HOUR, utc_offset_minutes=840
+                ),  # +14 hours (Line Islands)
+                "maximum_positive_offset",
+            ),
+            # Test with minimum reasonable offset (UTC-12)
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
+                ),
+                TimeBinConfig(
+                    scale=TimeBinScale.HOUR, utc_offset_minutes=-720
+                ),  # -12 hours (Baker Island)
+                "minimum_negative_offset",
+            ),
+        ]
+
+        for time_range, time_bin_config, test_desc in test_cases:
+            # Calculate expected results using pandas (same logic as SQL)
+            records = _time_series_data.spans
+            data_df = pd.DataFrame([{"timestamp": s.start_time} for s in records]).sort_values(
+                "timestamp"
+            )
+
+            # Apply time range filtering if specified
+            if time_range and time_range.start:
+                data_df = data_df[data_df["timestamp"] >= time_range.start]
+            if time_range and time_range.end:
+                data_df = data_df[data_df["timestamp"] < time_range.end]
+
+            if data_df.empty:
+                expected_summary = pd.DataFrame(columns=["timestamp", "count"])
+            else:
+                expected_summary = self._count_rows(
+                    data_df,
+                    field=time_bin_config.scale.value if time_bin_config else "hour",
+                    utc_offset_minutes=time_bin_config.utc_offset_minutes if time_bin_config else 0,
+                )
+
+            # Execute GraphQL query
+            project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+            variables: dict[str, Any] = {"id": project_gid}
+
+            query = """
+                query($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {{
+                    node(id: $id) {{
+                        ... on Project {{
+                            {obj}CountTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {{
+                                data {{
+                                    timestamp
+                                    value
+                                }}
+                            }}
+                        }}
+                    }}
+                }}
+            """
+
+            if time_range:
+                time_range_vars = {}
+                if time_range.start:
+                    time_range_vars["start"] = time_range.start.isoformat()
+                if time_range.end:
+                    time_range_vars["end"] = time_range.end.isoformat()
+                if time_range_vars:
+                    variables["timeRange"] = time_range_vars
+            if time_bin_config:
+                variables["timeBinConfig"] = {
+                    "scale": time_bin_config.scale.value.upper(),
+                    "utcOffsetMinutes": time_bin_config.utc_offset_minutes,
+                }
+
+            # Execute GraphQL query
+            for obj in ["span", "trace"]:
+                response = await gql_client.execute(
+                    query=query.format(obj=obj), variables=variables
+                )
+                assert not response.errors
+                assert (data := response.data) is not None
+                res = data["node"][f"{obj}CountTimeSeries"]
+
+                # Verify the structure of the response
+                assert "data" in res
+                assert isinstance(res["data"], list)
+
+                # Convert response to DataFrame for comparison
+                if not res["data"]:
+                    actual_summary = pd.DataFrame(columns=["timestamp", "count"])
+                else:
+                    actual_data = []
+                    for data_point in res["data"]:
+                        timestamp = datetime.fromisoformat(data_point["timestamp"])
+                        if (value := data_point["value"]) is not None:
+                            actual_data.append({"timestamp": timestamp, "count": value})
+                    actual_summary = pd.DataFrame(
+                        actual_data,
+                        columns=["timestamp", "count"],
+                    ).sort_values("timestamp")
+
+                # Handle empty results
+                if expected_summary.empty:
+                    assert actual_summary.empty, f"Expected empty summary for {obj} in {test_desc}"
+                    continue
+
+                actual_summary["timestamp"] = pd.to_datetime(actual_summary["timestamp"])
+
+                # Verify SQL results match pandas calculation
+                try:
+                    pd.testing.assert_frame_equal(
+                        actual_summary, expected_summary, check_dtype=False
+                    )
+                except AssertionError as e:
+                    raise AssertionError(f"Test failed for {obj} in {test_desc}") from e
 
     @pytest.mark.parametrize(
         "expectation,condition",

@@ -1,4 +1,5 @@
 import { LanguageModel } from "ai";
+import { WithTelemetry } from "./otel";
 
 /**
  * The arguments for an evaluation
@@ -63,8 +64,8 @@ export type ClassificationChoicesMap = Record<string, number>;
 /**
  * The arguments for creating a classification-based evaluator
  */
-export interface CreateClassifierArgs {
-  /**
+export interface CreateClassifierArgs extends WithTelemetry {
+  /*
    * The LLM to use for classification / evaluation
    */
   model: LanguageModel;

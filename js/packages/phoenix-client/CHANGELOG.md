@@ -1,5 +1,17 @@
 # @arizeai/phoenix-client
 
+## 2.3.4
+
+### Patch Changes
+
+- 20db91d: Add tracing to evals, add tracing controls
+
+## 2.3.3
+
+### Patch Changes
+
+- 2609fcd: bump target JS to es2017 for native async
+
 ## 2.3.2
 
 ### Patch Changes

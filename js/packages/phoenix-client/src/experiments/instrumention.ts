@@ -1,10 +1,10 @@
 import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
 import { resourceFromAttributes } from "@opentelemetry/resources";
-import { SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
 import { HeadersOptions } from "openapi-fetch";
+import { OpenInferenceSimpleSpanProcessor } from "@arizeai/openinference-vercel";
 
 /**
  * Creates a provider that exports traces to Phoenix.
@@ -28,14 +28,16 @@ export function createProvider({
       [SEMRESATTRS_PROJECT_NAME]: projectName,
     }),
     spanProcessors: [
-      new SimpleSpanProcessor(
-        new OTLPTraceExporter({
+      // We opt to use the OpenInferenceSimpleSpanProcessor instead of the SimpleSpanProcessor
+      // Since so many AI applications use the AI SDK
+      new OpenInferenceSimpleSpanProcessor({
+        exporter: new OTLPTraceExporter({
           url: `${baseUrl}/v1/traces`,
           headers: Array.isArray(headers)
             ? Object.fromEntries(headers)
             : headers,
-        })
-      ),
+        }),
+      }),
     ],
   });
 

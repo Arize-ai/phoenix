@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import nock from "nock";
 import { createClassifier } from "../../src/llm/createClassifier";
 import { openai } from "@ai-sdk/openai";
+import * as generateClassificationModule from "../../src/llm/generateClassification";
 
 describe("createClassifier", () => {
   beforeEach(() => {
@@ -127,5 +128,71 @@ Is the answer above factual or hallucinated based on the query and reference tex
 
     expect(result.label).toBe("hallucinated");
     expect(result.score).toBe(0);
+  });
+
+  it("should have telemetry enabled by default", async () => {
+    // Mock the generateClassification function to spy on telemetry configuration
+    const mockGenerateClassification = vi
+      .spyOn(generateClassificationModule, "generateClassification")
+      .mockResolvedValue({
+        label: "factual",
+        explanation: "This is a test explanation",
+      });
+
+    const classifier = createClassifier({
+      model,
+      choices: { factual: 1, hallucinated: 0 },
+      promptTemplate: hallucinationPromptTemplate,
+      // Note: we're not explicitly setting telemetry options here
+    });
+
+    await classifier({
+      output: "Arize Phoenix is open source.",
+      input: "Is Arize Phoenix Open Source?",
+      reference:
+        "Arize Phoenix is a platform for building and deploying AI applications. It is open source.",
+    });
+
+    // Verify that generateClassification was called without telemetry property (defaults to enabled in generateClassification)
+    expect(mockGenerateClassification).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        telemetry: expect.anything(),
+      })
+    );
+
+    vi.restoreAllMocks();
+  });
+
+  it("should respect explicitly disabled telemetry", async () => {
+    // Mock the generateClassification function to spy on telemetry configuration
+    const mockGenerateClassification = vi
+      .spyOn(generateClassificationModule, "generateClassification")
+      .mockResolvedValue({
+        label: "factual",
+        explanation: "This is a test explanation",
+      });
+
+    const classifier = createClassifier({
+      model,
+      choices: { factual: 1, hallucinated: 0 },
+      promptTemplate: hallucinationPromptTemplate,
+      telemetry: { isEnabled: false }, // Explicitly disable telemetry
+    });
+
+    await classifier({
+      output: "Arize Phoenix is open source.",
+      input: "Is Arize Phoenix Open Source?",
+      reference:
+        "Arize Phoenix is a platform for building and deploying AI applications. It is open source.",
+    });
+
+    // Verify that generateClassification was called with telemetry disabled
+    expect(mockGenerateClassification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        telemetry: { isEnabled: false },
+      })
+    );
+
+    vi.restoreAllMocks();
   });
 });

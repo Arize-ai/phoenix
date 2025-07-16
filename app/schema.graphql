@@ -1712,9 +1712,8 @@ type Project implements Node {
   traceRetentionPolicy: ProjectTraceRetentionPolicy!
   createdAt: DateTime!
   updatedAt: DateTime!
-
-  """Hourly span count for the project."""
-  spanCountTimeSeries(timeRange: TimeRange): SpanCountTimeSeries!
+  spanCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): SpanCountTimeSeries!
+  traceCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceCountTimeSeries!
 }
 
 enum ProjectColumn {
@@ -2472,6 +2471,23 @@ input TextContentValueInput {
   text: String!
 }
 
+input TimeBinConfig {
+  """The scale of time bins for aggregation."""
+  scale: TimeBinScale! = HOUR
+
+  """Offset in minutes from UTC for local time binning."""
+  utcOffsetMinutes: Int! = 0
+}
+
+enum TimeBinScale {
+  MINUTE
+  HOUR
+  DAY
+  WEEK
+  MONTH
+  YEAR
+}
+
 input TimeRange {
   """The start of the time range"""
   start: DateTime = null
@@ -2631,6 +2647,10 @@ type TraceConnection {
 
   """Contains the nodes in this connection"""
   edges: [TraceEdge!]!
+}
+
+type TraceCountTimeSeries implements TimeSeries {
+  data: [TimeSeriesDataPoint!]!
 }
 
 """An edge in a connection."""

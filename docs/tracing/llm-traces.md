@@ -4,11 +4,11 @@ description: Tracing the execution of LLM applications using Telemetry
 
 # Overview: Tracing
 
-Phoenix traces AI applications, via OpenTelemetry and has first-class integrations with LlamaIndex, Langchain, OpenAI, and others.
+Phoenix traces AI applications, via OpenTelemetry and has first-class integrations with LlamaIndex, LangChain, OpenAI, and others.
 
 LLM tracing records the paths taken by requests as they propagate through multiple steps or components of an LLM application. For example, when a user interacts with an LLM application, tracing can capture the sequence of operations, such as document retrieval, embedding generation, language model invocation, and response generation to provide a detailed timeline of the request's execution.
 
-Tracing is a helpful tool for understanding how your LLM application works. Phoenix offers comprehensive tracing capabilities that are not tied to any specific LLM vendor or framework. Phoenix accepts traces over the OpenTelemetry protocol (OTLP) and supports first-class instrumentation for a variety of frameworks ( [LlamaIndex](integrations-tracing/llamaindex.md), [LangChain](integrations-tracing/langchain.md),[ DSPy](integrations-tracing/dspy.md)), SDKs ([OpenAI](integrations-tracing/openai.md), [Bedrock](integrations-tracing/bedrock.md), [Mistral](integrations-tracing/mistralai.md), [Vertex](integrations-tracing/vertexai.md)), and Languages. (Python, Javascript, etc.)
+Tracing is a helpful tool for understanding how your LLM application works. Phoenix offers comprehensive tracing capabilities that are not tied to any specific LLM vendor or framework. Phoenix accepts traces over the OpenTelemetry protocol (OTLP) and supports first-class instrumentation for a variety of frameworks ( [LlamaIndex](https://arize.com/docs/phoenix/integrations/frameworks/llamaindex), [LangChain](https://arize.com/docs/phoenix/integrations/frameworks/langchain), [DSPy](https://arize.com/docs/phoenix/integrations/frameworks/dspy/dspy-tracing)), SDKs ([OpenAI](https://arize.com/docs/phoenix/integrations/llm-providers/openai), [Bedrock](https://arize.com/docs/phoenix/integrations/llm-providers/amazon-bedrock), [Mistral](https://arize.com/docs/phoenix/integrations/llm-providers/mistralai), [Vertex](https://arize.com/docs/phoenix/integrations/llm-providers/vertexai)), and Languages. (Python, Javascript, etc.)
 
 <figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix_tracing.png" alt=""><figcaption><p>View the inner workings for your LLM Application</p></figcaption></figure>
 
@@ -29,5 +29,5 @@ By using tracing in Phoenix, you can gain increased visibility into your LLM app
 ## Next steps
 
 * To get started, check out the [Quickstart guide](llm-traces-1/).
-* Read more about [what traces are](broken-reference) and [how traces work](broken-reference)[.](llm-traces.md#how-does-tracing-work)
+* Read more about [What are Traces](https://app.gitbook.com/s/fqGNxHHFrgwnCxgUBNsJ/tracing/what-are-traces "mention") and [How Tracing Works](https://app.gitbook.com/s/fqGNxHHFrgwnCxgUBNsJ/tracing/how-tracing-works "mention")[.](llm-traces.md#how-does-tracing-work)
 * Check out the [How-To Guides](how-to-tracing/) for specific tutorials.

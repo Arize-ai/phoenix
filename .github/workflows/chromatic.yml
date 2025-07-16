@@ -1,11 +1,6 @@
 name: "Chromatic"
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "app/**"
   pull_request:
     paths:
       - "app/**"

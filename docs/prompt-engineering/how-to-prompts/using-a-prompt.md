@@ -122,7 +122,7 @@ const promptByVersionId = await getPrompt({ versionId: "b5678" })
 
 ### Pulling a prompt by Tag
 
-Pulling by prompt by [tag](../concepts-prompts.md#prompt-version-tag) is most useful when you want a particular version of a prompt to be automatically used in a specific environment (say "staging").  To pull prompts by tag, you must [tag-a-prompt.md](tag-a-prompt.md "mention") in the UI first.
+Pulling by prompt by [tag](https://app.gitbook.com/s/fqGNxHHFrgwnCxgUBNsJ/prompt-engineering/prompts-concepts#prompt-version-tag) is most useful when you want a particular version of a prompt to be automatically used in a specific environment (say "staging").  To pull prompts by tag, you must [tag-a-prompt.md](tag-a-prompt.md "mention") in the UI first.
 
 <figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt_version_tagging.png" alt=""><figcaption><p>You can control the prompt version tags in the UI.</p></figcaption></figure>
 
@@ -158,7 +158,7 @@ A Prompt pulled in this way can be automatically updated in your application by 
 
 ## Using a prompt
 
-The phoenix clients support formatting the prompt with variables, and providing the messages, model information, [tools](../concepts-prompts.md#tools), and response format (when applicable).
+The phoenix clients support formatting the prompt with variables, and providing the messages, model information, [tools](https://app.gitbook.com/s/fqGNxHHFrgwnCxgUBNsJ/prompt-engineering/prompts-concepts#tools), and response format (when applicable).
 
 The Phoenix Client libraries make it simple to transform prompts to the SDK that you are using (no proxying necessary!)
 

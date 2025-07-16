@@ -1,12 +1,11 @@
 import asyncio
 import contextlib
-import os
-import tempfile
 from asyncio import AbstractEventLoop
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from functools import partial
 from importlib.metadata import version
 from random import getrandbits
+from secrets import token_hex
 from typing import Any, Literal
 
 import httpx
@@ -14,6 +13,7 @@ import pytest
 from _pytest.config import Config
 from _pytest.fixtures import SubRequest
 from _pytest.terminal import TerminalReporter
+from _pytest.tmpdir import TempPathFactory
 from asgi_lifespan import LifespanManager
 from faker import Faker
 from httpx import AsyncByteStream, Request, Response
@@ -148,23 +148,22 @@ def sqlalchemy_dialect(dialect: str) -> Any:
 @pytest.fixture(scope="function")
 async def sqlite_engine(
     request: SubRequest,
+    tmp_path_factory: TempPathFactory,
 ) -> AsyncIterator[AsyncEngine]:
     config = request.config
     url = URL.create("sqlite+aiosqlite")
-    with contextlib.ExitStack() as stack:
-        if config.getoption("--sqlite-on-disk"):
-            temp_dir = stack.enter_context(tempfile.TemporaryDirectory())
-            db_file = os.path.join(temp_dir, "test.db")
-            print(f"SQLite file: {db_file}")
-            url = url.set(database=db_file)
-        else:
-            url = url.set(database=":memory:")
-        engine = aio_sqlite_engine(url, migrate=False)
-        async with engine.begin() as conn:
-            await conn.run_sync(models.Base.metadata.drop_all)
-            await conn.run_sync(models.Base.metadata.create_all)
-        yield engine
-        await engine.dispose()
+    if config.getoption("--sqlite-on-disk"):
+        db_file = tmp_path_factory.mktemp("sqlite") / f"_{token_hex(8)}.db"
+        print(f"SQLite file: {db_file}")
+        url = url.set(database=str(db_file))
+    else:
+        url = url.set(database=":memory:")
+    engine = aio_sqlite_engine(url, migrate=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(models.Base.metadata.drop_all)
+        await conn.run_sync(models.Base.metadata.create_all)
+    yield engine
+    await engine.dispose()
 
 
 @pytest.fixture(scope="function")

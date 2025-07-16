@@ -24,6 +24,16 @@ const layouts: Layouts = {
   ],
 };
 
+const data = [
+  { timestamp: "Page A", value: 2400 },
+  { timestamp: "Page B", value: 1398 },
+  { timestamp: "Page C", value: 9800 },
+  { timestamp: "Page D", value: 3908 },
+  { timestamp: "Page E", value: 4800 },
+  { timestamp: "Page F", value: 3800 },
+  { timestamp: "Page G", value: 4300 },
+];
+
 const gridContainerCSS = css`
   width: 100%;
   height: 100%;
@@ -84,17 +94,17 @@ export function DashboardPage() {
         >
           <div key="a">
             <DashboardPanel title="Grid Item A">
-              <DashboardBarChart />
+              <DashboardBarChart data={data} scale="DAY" />
             </DashboardPanel>
           </div>
           <div key="b">
             <DashboardPanel title="Grid Item B">
-              <DashboardBarChart />
+              <DashboardBarChart data={data} scale="DAY" />
             </DashboardPanel>
           </div>
           <div key="c">
             <DashboardPanel title="Grid Item C">
-              <DashboardBarChart />
+              <DashboardBarChart data={data} scale="DAY" />
             </DashboardPanel>
           </div>
         </ResponsiveGridLayout>

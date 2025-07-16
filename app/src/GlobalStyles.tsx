@@ -1228,6 +1228,15 @@ const ReactGridLayoutCSS = css`
   }
 `;
 
+const chartCSS = css`
+  .ac-theme--dark {
+    --chart-tooltip-cursor-fill-color: rgba(255, 255, 255, 0.2);
+  }
+  .ac-theme--light {
+    --chart-tooltip-cursor-fill-color: rgba(0, 0, 0, 0.2);
+  }
+`;
+
 export function GlobalStyles() {
   const { theme = "dark" } = useProvider();
   const themeCSS = theme === "dark" ? darkThemeCSS : lightThemeCSS;
@@ -1242,7 +1251,8 @@ export function GlobalStyles() {
         opacitiesCSS,
         appGlobalStylesCSS,
         codeMirrorOverridesCSS,
-        ReactGridLayoutCSS
+        ReactGridLayoutCSS,
+        chartCSS
       )}
     />
   );

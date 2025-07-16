@@ -129,6 +129,7 @@ async function main() {
       context: example.input.context as string,
       output: answer as string,
     });
+
     return {
       expected_label: useHalluination ? "hallucinated" : "factual",
       ...evalResult,
@@ -137,7 +138,7 @@ async function main() {
   runExperiment({
     experimentName: "hallucination-eval",
     experimentDescription: "Evaluate the hallucination of the model",
-    concurrency: 1,
+    concurrency: 8,
     dataset: dataset,
     task,
     evaluators: [correctEvaluator],

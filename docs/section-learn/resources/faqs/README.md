@@ -10,6 +10,8 @@ coverY: 0
 
 ### [What is LlamaTrace vs Phoenix Cloud?](what-is-llamatrace-vs-phoenix-cloud.md)
 
+### [Phoenix Cloud Migration Guide: Legacy to New Version](phoenix-cloud-migration-guide-legacy-to-new-version.md)
+
 ### [Langfuse alternative? Arize Phoenix vs Langfuse](langfuse-alternatives.md)
 
 ### [LangSmith alternative? Arize Phoenix vs LangSmith](langsmith-alternatives.md)
