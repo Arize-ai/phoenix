@@ -459,12 +459,19 @@ function StackedBarChart({
     (token) => `var(--ac-global-color-${token})`
   );
 
+  const leftMargin = 0;
+
   return (
     <div style={{ width: "100%", height }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={data}
-          margin={{ top: 0, right: 18, left: 0, bottom: 0 }}
+          margin={{
+            top: 5,
+            right: 5,
+            left: leftMargin,
+            bottom: 5,
+          }}
           barSize={10}
         >
           <XAxis
@@ -475,14 +482,16 @@ function StackedBarChart({
           />
           <YAxis
             stroke="var(--ac-global-color-grey-500)"
-            width={50}
+            tick={{ fontSize: 12 }}
             label={{
               value: "Trace Count",
               angle: -90,
-              dx: -10,
+              position: "insideLeft",
+              offset: 12,
               style: {
                 textAnchor: "middle",
                 fill: "var(--ac-global-text-color-900)",
+                fontSize: 12,
               },
             }}
             style={{ fill: "var(--ac-global-text-color-700)" }}
