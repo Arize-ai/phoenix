@@ -1026,13 +1026,9 @@ async def _paginate_span_by_trace_start_time(
                 retries=0,
             )
             edges.extend(more.edges[:num_needed])
-            if start_cursor is None:
-                start_cursor = more.page_info.start_cursor
-            if len(edges) < first:
-                end_cursor = more.page_info.end_cursor
-            else:
-                end_cursor = edges[-1].cursor
-            has_next_page = more.page_info.has_next_page
+            start_cursor = start_cursor or more.page_info.start_cursor
+            end_cursor = more.page_info.end_cursor if len(edges) < first else edges[-1].cursor
+            has_next_page = len(more.edges) > num_needed or more.page_info.has_next_page
             retries -= 1
     return Connection(
         edges=edges,

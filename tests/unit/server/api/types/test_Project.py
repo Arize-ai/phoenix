@@ -2363,6 +2363,18 @@ async def test_paginate_spans_by_trace_start_time(
     - Handles orphan spans based on orphan_span_as_root_span parameter
     - Supports time range filtering on trace start times
     - May return empty edges while has_next_page=True when traces have no matching spans
+    - **RETRY LOGIC**: When insufficient edges are found (len(edges) < first) but has_next_page=True,
+      the function automatically retries pagination with larger batch sizes (max(first, 1000))
+      up to 10 times (retries=10) to collect enough spans. This handles cases where many traces
+      exist but lack matching root spans.
+
+    Implementation Details:
+    - Uses CTEs (Common Table Expressions) for efficient trace-based pagination
+    - PostgreSQL: Uses DISTINCT ON for deduplication
+    - SQLite: Uses Python groupby() for deduplication (too complex for SQLite DISTINCT)
+    - SQL ordering: trace start_time -> trace id -> span start_time (ASC for earliest) -> span id (DESC)
+    - Cursors contain trace rowid + trace start_time, NOT span data
+    - Over-fetches by 1 trace to determine has_next_page efficiently
 
     Test Data Setup:
     ================
