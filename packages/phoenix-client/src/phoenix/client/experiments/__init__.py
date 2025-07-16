@@ -580,8 +580,8 @@ async def async_evaluate_experiment(
     """
     Run evaluators on a completed experiment (async version).
 
-    An evaluator is either a synchronous or asynchronous function that returns an
-    evaluation result object, which can take any of the following forms:
+    An evaluator is either a synchronous or asynchronous function that returns an evaluation
+    result object, which can take any of the following forms:
 
     - an EvaluationResult dict with optional fields for score, label, explanation and metadata
     - a `bool`, which will be interpreted as a score of 0 or 1 plus a label of "True" or "False"
@@ -602,8 +602,7 @@ async def async_evaluate_experiment(
     Phoenix also provides pre-built evaluators in the `phoenix.experiments.evaluators` module.
 
     Args:
-        experiment: The experiment to evaluate, returned from `async_run_experiment` or
-            `async_get_experiment`.
+        experiment: The experiment to evaluate, returned from `run_experiment`.
         evaluators: A single evaluator or sequence of evaluators used to evaluate the results
             of the experiment.
         dry_run: Run the evaluation in dry-run mode. When set, evaluation results will not be
