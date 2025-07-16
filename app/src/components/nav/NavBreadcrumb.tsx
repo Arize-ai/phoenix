@@ -1,6 +1,6 @@
 import { useMatches, useNavigate } from "react-router";
 
-import { Breadcrumbs, Item } from "@arizeai/components";
+import { Breadcrumbs, Item } from "@phoenix/components";
 
 export type CrumbFn = (data: unknown) => string;
 type Matches = ReturnType<typeof useMatches>;
@@ -27,7 +27,7 @@ export function NavBreadcrumb() {
 
   return (
     <Breadcrumbs
-      onAction={(index) => {
+      onAction={(index: string | number) => {
         // Action here is the index of the breadcrumb
         navigate(matchesWithCrumb[Number(index)].pathname);
       }}
