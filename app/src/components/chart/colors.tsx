@@ -160,3 +160,35 @@ export const getChartColor = (index: number, colors: ChartColors) => {
   const colorKey = `${group}${shade}` as keyof ChartColors;
   return colors[colorKey] || colors.default;
 };
+
+export type SemanticChartColor = "danger" | "success" | "warning" | "info";
+
+const SemanticChartLightColors: Record<SemanticChartColor, string> = {
+  danger: "var(--ac-global-color-red-700)",
+  success: "var(--ac-global-color-celery-700)",
+  warning: "var(--ac-global-color-orange-700)",
+  info: "var(--ac-global-color-blue-700)",
+};
+
+const SemanticChartDarkColors: Record<SemanticChartColor, string> = {
+  danger: "var(--ac-global-color-red-700)",
+  success: "var(--ac-global-color-celery-700)",
+  warning: "var(--ac-global-color-orange-700)",
+  info: "var(--ac-global-color-blue-700)",
+};
+
+export const SEMANTIC_CHART_COLORS = Object.keys(
+  SemanticChartLightColors
+) as SemanticChartColor[];
+
+export const useSemanticChartColors = (): Record<
+  SemanticChartColor,
+  string
+> => {
+  const { theme } = useTheme();
+  return useMemo(
+    () =>
+      theme === "dark" ? SemanticChartDarkColors : SemanticChartLightColors,
+    [theme]
+  );
+};

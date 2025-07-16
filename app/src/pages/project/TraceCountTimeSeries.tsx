@@ -15,6 +15,7 @@ import {
   ChartTooltip,
   ChartTooltipItem,
   useChartColors,
+  useSemanticChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
@@ -87,6 +88,7 @@ function TooltipContent({
   payload,
   label,
 }: TooltipProps<number, string>) {
+  const SemanticChartColors = useSemanticChartColors();
   const chartColors = useChartColors();
   if (active && payload && payload.length) {
     const okValue = payload[0]?.value ?? null;
@@ -103,7 +105,7 @@ function TooltipContent({
           new Date(label)
         )}`}</Text>
         <ChartTooltipItem
-          color={chartColors.red500}
+          color={SemanticChartColors.danger}
           shape="circle"
           name="error"
           value={errorString}
@@ -133,6 +135,7 @@ export function TraceCountTimeSeries() {
   });
 
   const colors = useChartColors();
+  const SemanticChartColors = useSemanticChartColors();
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart
@@ -172,7 +175,7 @@ export function TraceCountTimeSeries() {
           // TODO formalize this
           cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
         />
-        <Bar dataKey="error" stackId="a" fill={colors.red300} />
+        <Bar dataKey="error" stackId="a" fill={SemanticChartColors.danger} />
         <Bar
           dataKey="ok"
           stackId="a"
