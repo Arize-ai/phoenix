@@ -607,7 +607,7 @@ class Experiments:
             for run in all_runs:
                 run["start_time"] = datetime.fromisoformat(run["start_time"])
                 run["end_time"] = datetime.fromisoformat(run["end_time"])
-                task_runs_from_db.append(run)  # Already in TypedDict format
+                task_runs_from_db.append(run)
             task_runs = task_runs_from_db
 
             # Check if we got all expected runs
@@ -691,7 +691,6 @@ class Experiments:
                 raise ValueError(f"Experiment not found: {experiment_id}")
             raise
 
-                # Get experiment runs with real IDs
         try:
             runs_response = self._client.get(f"v1/experiments/{experiment_id}/runs")
             runs_response.raise_for_status()
@@ -716,7 +715,7 @@ class Experiments:
 
         json_lookup = {}
         for record in json_data:  # pyright: ignore [reportUnknownVariableType]
-            key = (record["example_id"], record["repetition_number"])  # pyright: ignore [reportUnknownMemberType]
+            key = (record["example_id"], record["repetition_number"])  # pyright: ignore [reportUnknownMemberType, reportUnknownVariableType]
             json_lookup[key] = record
 
         task_runs: list[ExperimentRun] = []
@@ -726,8 +725,8 @@ class Experiments:
             task_run: ExperimentRun = cast(ExperimentRun, run_data)  # pyright: ignore [reportUnknownArgumentType]
             task_runs.append(task_run)
 
-            lookup_key = (run_data["dataset_example_id"], run_data["repetition_number"])  # pyright: ignore [reportUnknownMemberType]
-            json_record = json_lookup.get(lookup_key)
+            lookup_key = (run_data["dataset_example_id"], run_data["repetition_number"])  # pyright: ignore [reportUnknownMemberType, reportUnknownVariableType]
+            json_record = json_lookup.get(lookup_key)  # pyright: ignore [reportUnknownVariableType, reportUnknownMemberType]
             if not json_record:
                 continue
 
@@ -1496,7 +1495,7 @@ class AsyncExperiments:
             for run in all_runs:
                 run["start_time"] = datetime.fromisoformat(run["start_time"])
                 run["end_time"] = datetime.fromisoformat(run["end_time"])
-                async_task_runs.append(run)  # Already in TypedDict format
+                async_task_runs.append(run)
             task_runs = async_task_runs
 
             # Check if we got all expected runs
@@ -1581,7 +1580,6 @@ class AsyncExperiments:
                 raise ValueError(f"Experiment not found: {experiment_id}")
             raise
 
-                # Get experiment runs with real IDs
         try:
             runs_response = await self._client.get(f"v1/experiments/{experiment_id}/runs")
             runs_response.raise_for_status()
@@ -1606,7 +1604,7 @@ class AsyncExperiments:
 
         json_lookup = {}
         for record in json_data:  # pyright: ignore [reportUnknownVariableType]
-            key = (record["example_id"], record["repetition_number"])  # pyright: ignore [reportUnknownMemberType]
+            key = (record["example_id"], record["repetition_number"])  # pyright: ignore [reportUnknownMemberType, reportUnknownVariableType]
             json_lookup[key] = record
 
         task_runs: list[ExperimentRun] = []
@@ -1616,8 +1614,8 @@ class AsyncExperiments:
             task_run: ExperimentRun = cast(ExperimentRun, run_data)  # pyright: ignore [reportUnknownArgumentType]
             task_runs.append(task_run)
 
-            lookup_key = (run_data["dataset_example_id"], run_data["repetition_number"])  # pyright: ignore [reportUnknownMemberType]
-            json_record = json_lookup.get(lookup_key)
+            lookup_key = (run_data["dataset_example_id"], run_data["repetition_number"])  # pyright: ignore [reportUnknownMemberType, reportUnknownVariableType]
+            json_record = json_lookup.get(lookup_key)  # pyright: ignore [reportUnknownVariableType, reportUnknownMemberType]
             if not json_record:
                 continue
 
