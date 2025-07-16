@@ -9,7 +9,7 @@ export function main() {
   const program = new Command();
 
   program
-    .name("phoenix-cli")
+    .name("px")
     .description("A command-line interface for Phoenix")
     .version("1.0.0");
 
