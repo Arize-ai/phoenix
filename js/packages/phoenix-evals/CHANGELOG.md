@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 0.0.6
+
+### Patch Changes
+
+- a57ec81: add telemetry controls
+
 ## 0.0.5
 
 ### Patch Changes
