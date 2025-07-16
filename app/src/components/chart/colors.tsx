@@ -192,3 +192,63 @@ export const useSemanticChartColors = (): Record<
     [theme]
   );
 };
+
+type CategoryChartColor =
+  | "category1"
+  | "category2"
+  | "category3"
+  | "category4"
+  | "category5"
+  | "category6"
+  | "category7"
+  | "category8"
+  | "category9"
+  | "category10"
+  | "category11"
+  | "category12";
+
+const CategoryChartLightColors: Record<CategoryChartColor, string> = {
+  category1: "var(--ac-global-color-blue-900)",
+  category2: "var(--ac-global-color-purple-1100)",
+  category3: "var(--ac-global-color-magenta-800)",
+  category4: "var(--ac-global-color-indigo-600)",
+  category5: "var(--ac-global-color-blue-700)",
+  category6: "var(--ac-global-color-indigo-1100)",
+  category7: "var(--ac-global-color-orange-600)",
+  category8: "var(--ac-global-color-celery-400)",
+  category9: "var(--ac-global-color-seafoam-600)",
+  category10: "var(--ac-global-color-green-1000)",
+  category11: "var(--ac-global-color-yellow-400)",
+  category12: "var(--ac-global-color-red-1100)",
+};
+
+const CategoryChartDarkColors: Record<CategoryChartColor, string> = {
+  category1: "var(--ac-global-color-blue-900)",
+  category2: "var(--ac-global-color-purple-1100)",
+  category3: "var(--ac-global-color-magenta-800)",
+  category4: "var(--ac-global-color-indigo-600)",
+  category5: "var(--ac-global-color-blue-700)",
+  category6: "var(--ac-global-color-indigo-1100)",
+  category7: "var(--ac-global-color-orange-600)",
+  category8: "var(--ac-global-color-celery-400)",
+  category9: "var(--ac-global-color-seafoam-600)",
+  category10: "var(--ac-global-color-green-1000)",
+  category11: "var(--ac-global-color-yellow-400)",
+  category12: "var(--ac-global-color-red-1100)",
+};
+
+export const useCategoryChartColors = (): Record<
+  CategoryChartColor,
+  string
+> => {
+  const { theme } = useTheme();
+  return useMemo(
+    () =>
+      theme === "dark" ? CategoryChartDarkColors : CategoryChartLightColors,
+    [theme]
+  );
+};
+
+export const CATEGORY_CHART_COLORS = Object.keys(
+  CategoryChartLightColors
+) as CategoryChartColor[];
