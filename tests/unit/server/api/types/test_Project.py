@@ -2569,9 +2569,9 @@ async def test_paginate_spans_by_trace_start_time(
     edges = page["edges"]
     page_info = page["pageInfo"]
 
-    # Should only return root-span-5 (latest real root span)
-    assert len(edges) == 1
+    assert len(edges) == 2
     assert edges[0]["node"]["name"] == "root-span-5"
+    assert edges[1]["node"]["name"] == "root-span-3"
     assert page_info["hasNextPage"] is True  # More traces to check
     assert page_info["hasPreviousPage"] is False
 
@@ -2582,7 +2582,7 @@ async def test_paginate_spans_by_trace_start_time(
         == b"5:DATETIME:2024-01-01T05:00:00+00:00"
     )
     assert (
-        base64.b64decode(page_info["endCursor"].encode()) == b"4:DATETIME:2024-01-01T04:00:00+00:00"
+        base64.b64decode(page_info["endCursor"].encode()) == b"3:DATETIME:2024-01-01T03:00:00+00:00"
     )
 
     # Page 2: Continue pagination after trace 5
@@ -2604,17 +2604,17 @@ async def test_paginate_spans_by_trace_start_time(
     edges = page["edges"]
     page_info = page["pageInfo"]
 
-    # Should return root-span-3 (skipping trace 4 which only has orphan span)
-    assert len(edges) == 1
+    assert len(edges) == 2
     assert edges[0]["node"]["name"] == "root-span-3"
-    assert page_info["hasNextPage"] is True  # Still have trace 1 to check
+    assert edges[1]["node"]["name"] == "root-span-1"
+    assert page_info["hasNextPage"] is False
     assert page_info["hasPreviousPage"] is False
     assert (
         base64.b64decode(page_info["startCursor"].encode())
-        == b"4:DATETIME:2024-01-01T04:00:00+00:00"  # Trace 4 processed but no span returned
+        == b"4:DATETIME:2024-01-01T04:00:00+00:00"  # Trace 3 yielded the span
     )
     assert (
-        base64.b64decode(page_info["endCursor"].encode()) == b"2:DATETIME:2024-01-01T02:00:00+00:00"
+        base64.b64decode(page_info["endCursor"].encode()) == b"1:DATETIME:2024-01-01T01:00:00+00:00"
     )
 
     # Page 3: Continue pagination after trace 3
@@ -2625,7 +2625,7 @@ async def test_paginate_spans_by_trace_start_time(
         variables={
             "projectId": project_gid,
             "first": 4,
-            "after": base64.b64encode(b"2:DATETIME:2024-01-01T02:00:00+00:00").decode(),
+            "after": base64.b64encode(b"3:DATETIME:2024-01-01T03:00:00+00:00").decode(),
         },
     )
 
@@ -2643,7 +2643,7 @@ async def test_paginate_spans_by_trace_start_time(
     assert page_info["hasPreviousPage"] is False
     assert (
         base64.b64decode(page_info["startCursor"].encode())
-        == b"1:DATETIME:2024-01-01T01:00:00+00:00"
+        == b"2:DATETIME:2024-01-01T02:00:00+00:00"
     )
     assert (
         base64.b64decode(page_info["endCursor"].encode()) == b"1:DATETIME:2024-01-01T01:00:00+00:00"
@@ -2669,8 +2669,9 @@ async def test_paginate_spans_by_trace_start_time(
     page_info = asc_page["pageInfo"]
 
     # Should return first span in ascending order (oldest trace with real root span)
-    assert len(edges) == 1
+    assert len(edges) == 2
     assert edges[0]["node"]["name"] == "root-span-1"
+    assert edges[1]["node"]["name"] == "root-span-3"
     assert page_info["hasNextPage"] is True
 
     # ========================================
