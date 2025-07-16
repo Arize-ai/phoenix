@@ -22,11 +22,13 @@ export function createHallucinationEvaluator(
   const {
     choices = HALLUCINATION_CHOICES,
     promptTemplate = HALLUCINATION_TEMPLATE,
+    ...rest
   } = args;
   const hallucinationEvaluatorFn = createClassifier<string, string>({
     ...args,
     promptTemplate,
     choices,
+    ...rest,
   });
   return hallucinationEvaluatorFn;
 }

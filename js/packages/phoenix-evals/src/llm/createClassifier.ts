@@ -28,7 +28,7 @@ function choicesToLabels(
 export function createClassifier<OutputType, InputType>(
   args: CreateClassifierArgs
 ): EvaluatorFn<OutputType, InputType> {
-  const { model, choices, promptTemplate } = args;
+  const { model, choices, promptTemplate, ...rest } = args;
 
   return async (
     args: EvaluationArgs<OutputType, InputType>
@@ -46,6 +46,7 @@ export function createClassifier<OutputType, InputType>(
       model,
       labels: choicesToLabels(choices),
       prompt,
+      ...rest,
     });
 
     // Post-process the classification result and map it to the choices
