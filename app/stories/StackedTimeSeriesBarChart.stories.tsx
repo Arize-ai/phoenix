@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import {
   Bar,
@@ -438,6 +439,10 @@ function StackedBarChart({
   data = chartData,
   height = 200,
 }: StackedBarChartProps) {
+  const chartRef = useRef<HTMLDivElement>(null);
+  // Default to zero so that failures to adapt are obvious
+  const [yAxisWidth, setYAxisWidth] = useState(0);
+
   const timeRange = {
     start: new Date("2021-01-01"),
     end: new Date("2021-01-11"),
@@ -461,8 +466,42 @@ function StackedBarChart({
 
   const leftMargin = 0;
 
+  // Measure the actual Y-axis width after render
+  useEffect(() => {
+    if (chartRef.current) {
+      // Wait for chart to fully render
+      const measureYAxis = () => {
+        const chart = chartRef.current;
+        if (!chart) return;
+
+        // Find the vertical grid line (start of data area)
+        const gridLine =
+          chart.querySelector(
+            '.recharts-cartesian-axis-line[orientation="left"]'
+          ) ||
+          chart.querySelector(".recharts-cartesian-grid-vertical line") ||
+          chart.querySelector(".recharts-yAxis line");
+
+        if (gridLine) {
+          const gridBbox = gridLine.getBoundingClientRect();
+          const chartBbox = chart.getBoundingClientRect();
+          // Calculate distance from chart left edge to grid line
+          const measuredWidth = gridBbox.left - chartBbox.left;
+
+          if (measuredWidth > 0 && measuredWidth < 200) {
+            // Sanity check
+            setYAxisWidth(Math.ceil(measuredWidth));
+          }
+        }
+      };
+
+      setTimeout(measureYAxis, 50);
+      setTimeout(measureYAxis, 200);
+    }
+  }, [data]); // Re-measure if data changes
+
   return (
-    <div style={{ width: "100%", height }}>
+    <div ref={chartRef} style={{ width: "100%", height }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={data}
@@ -525,6 +564,10 @@ function StackedBarChart({
             align="left"
             iconType="circle"
             iconSize={8}
+            wrapperStyle={{
+              paddingLeft: `${yAxisWidth}px`, // Use measured Y-axis width for precise alignment
+              marginLeft: 0,
+            }}
             formatter={(value) => (
               <span style={{ color: "var(--ac-global-text-color-700)" }}>
                 {value}
