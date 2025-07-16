@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.13.0...arize-phoenix-client-v1.13.1) (2025-07-16)
+
+
+### Bug Fixes
+
+* Do not access API for experiment evaluations in dry_run mode ([#8606](https://github.com/Arize-ai/phoenix/issues/8606)) ([b8c77fb](https://github.com/Arize-ai/phoenix/commit/b8c77fb2d2d397e13f55aec86b978be2bd9dbfa6))
+
 ## [1.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.12.0...arize-phoenix-client-v1.13.0) (2025-07-16)
 
 
