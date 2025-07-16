@@ -78,7 +78,7 @@ class PromptTemplate:
         self,
         template: Union[str, List[PromptPartTemplate]],
         delimiters: Tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
-        # variables: Optional[List[str]] = None,
+        variables: Optional[List[str]] = None,
     ):
         self.template: List[PromptPartTemplate] = self._normalize_template(template)
         self._start_delim, self._end_delim = delimiters
