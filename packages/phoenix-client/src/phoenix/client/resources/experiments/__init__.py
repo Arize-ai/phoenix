@@ -691,7 +691,7 @@ class Experiments:
                 raise ValueError(f"Experiment not found: {experiment_id}")
             raise
 
-        # Get experiment runs using existing endpoint
+                # Get experiment runs with real IDs
         try:
             runs_response = self._client.get(f"v1/experiments/{experiment_id}/runs")
             runs_response.raise_for_status()
@@ -703,27 +703,36 @@ class Experiments:
             else:
                 raise
 
-        # Transform runs data to RanExperiment format
+        try:
+            json_response = self._client.get(f"v1/experiments/{experiment_id}/json")
+            json_response.raise_for_status()
+            json_data = json_response.json()
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                # Experiment exists but has no runs
+                json_data = []
+            else:
+                raise
+
+        json_lookup = {}
+        for record in json_data:  # pyright: ignore [reportUnknownVariableType]
+            key = (record["example_id"], record["repetition_number"])  # pyright: ignore [reportUnknownMemberType]
+            json_lookup[key] = record
+
         task_runs: list[ExperimentRun] = []
         evaluation_runs: list[ExperimentEvaluationRun] = []
 
         for run_data in runs_data:  # pyright: ignore [reportUnknownVariableType]
-            # Convert timestamps in-place to match run_experiment pattern
-            run_data["start_time"] = datetime.fromisoformat(run_data["start_time"])  # pyright: ignore [reportUnknownArgumentType]
-            run_data["end_time"] = datetime.fromisoformat(run_data["end_time"])  # pyright: ignore [reportUnknownArgumentType]
-
-            # Create task run
             task_run: ExperimentRun = cast(ExperimentRun, run_data)  # pyright: ignore [reportUnknownArgumentType]
-            task_run["experiment_id"] = experiment_id
             task_runs.append(task_run)
 
-            # Create evaluation runs from annotations if present
-            for annotation in run_data.get("annotations", []):  # pyright: ignore [reportUnknownMemberType, reportUnknownVariableType]
-                # Check for required fields before processing
-                required_fields = ["id", "start_time", "end_time", "name", "annotator_kind"]
-                if not all(field in annotation for field in required_fields):  # pyright: ignore [reportUnknownMemberType]
-                    continue
+            lookup_key = (run_data["dataset_example_id"], run_data["repetition_number"])  # pyright: ignore [reportUnknownMemberType]
+            json_record = json_lookup.get(lookup_key)
+            if not json_record:
+                continue
 
+            # Create evaluation runs from annotations if present
+            for annotation in json_record.get("annotations", []):  # pyright: ignore [reportUnknownMemberType, reportUnknownVariableType]
                 eval_result = None
                 if (
                     annotation.get("label") is not None  # pyright: ignore [reportUnknownMemberType]
@@ -742,8 +751,8 @@ class Experiments:
                 # Only create evaluation runs for annotations that have evaluation data
                 if eval_result is not None:
                     eval_run = ExperimentEvaluationRun(
-                        id=annotation["id"],  # pyright: ignore [reportUnknownArgumentType]
-                        experiment_run_id=run_data["id"],  # pyright: ignore [reportUnknownArgumentType]
+                        id=f"ExperimentEvaluation:{len(evaluation_runs) + 1}",  # Generate temp ID
+                        experiment_run_id=run_data["id"], # pyright: ignore [reportUnknownArgumentType]
                         start_time=datetime.fromisoformat(annotation["start_time"]),  # pyright: ignore [reportUnknownArgumentType]
                         end_time=datetime.fromisoformat(annotation["end_time"]),  # pyright: ignore [reportUnknownArgumentType]
                         name=annotation["name"],  # pyright: ignore [reportUnknownArgumentType]
@@ -1572,7 +1581,7 @@ class AsyncExperiments:
                 raise ValueError(f"Experiment not found: {experiment_id}")
             raise
 
-        # Get experiment runs using existing endpoint
+                # Get experiment runs with real IDs
         try:
             runs_response = await self._client.get(f"v1/experiments/{experiment_id}/runs")
             runs_response.raise_for_status()
@@ -1584,25 +1593,36 @@ class AsyncExperiments:
             else:
                 raise
 
-        # Transform runs data to RanExperiment format
+        try:
+            json_response = await self._client.get(f"v1/experiments/{experiment_id}/json")
+            json_response.raise_for_status()
+            json_data = json_response.json()
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                # Experiment exists but has no runs
+                json_data = []
+            else:
+                raise
+
+        json_lookup = {}
+        for record in json_data:  # pyright: ignore [reportUnknownVariableType]
+            key = (record["example_id"], record["repetition_number"])  # pyright: ignore [reportUnknownMemberType]
+            json_lookup[key] = record
+
         task_runs: list[ExperimentRun] = []
         evaluation_runs: list[ExperimentEvaluationRun] = []
 
         for run_data in runs_data:  # pyright: ignore [reportUnknownVariableType]
-            run_data["start_time"] = datetime.fromisoformat(run_data["start_time"])  # pyright: ignore [reportUnknownArgumentType]
-            run_data["end_time"] = datetime.fromisoformat(run_data["end_time"])  # pyright: ignore [reportUnknownArgumentType]
-
-            # Create task run
             task_run: ExperimentRun = cast(ExperimentRun, run_data)  # pyright: ignore [reportUnknownArgumentType]
-            task_run["experiment_id"] = experiment_id
             task_runs.append(task_run)
 
-            # Create evaluation runs from annotations if present
-            for annotation in run_data.get("annotations", []):  # pyright: ignore [reportUnknownMemberType, reportUnknownVariableType]
-                required_fields = ["id", "start_time", "end_time", "name", "annotator_kind"]
-                if not all(field in annotation for field in required_fields):  # pyright: ignore [reportUnknownMemberType]
-                    continue
+            lookup_key = (run_data["dataset_example_id"], run_data["repetition_number"])  # pyright: ignore [reportUnknownMemberType]
+            json_record = json_lookup.get(lookup_key)
+            if not json_record:
+                continue
 
+            # Create evaluation runs from annotations if present
+            for annotation in json_record.get("annotations", []):  # pyright: ignore [reportUnknownMemberType, reportUnknownVariableType]
                 eval_result = None
                 if (
                     annotation.get("label") is not None  # pyright: ignore [reportUnknownMemberType]
@@ -1620,7 +1640,7 @@ class AsyncExperiments:
 
                 if eval_result is not None:
                     eval_run = ExperimentEvaluationRun(
-                        id=annotation["id"],  # pyright: ignore [reportUnknownArgumentType]
+                        id=f"ExperimentEvaluation:{len(evaluation_runs) + 1}",  # Generate temp ID
                         experiment_run_id=run_data["id"],  # pyright: ignore [reportUnknownArgumentType]
                         start_time=datetime.fromisoformat(annotation["start_time"]),  # pyright: ignore [reportUnknownArgumentType]
                         end_time=datetime.fromisoformat(annotation["end_time"]),  # pyright: ignore [reportUnknownArgumentType]
