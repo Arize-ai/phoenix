@@ -824,27 +824,30 @@ class Experiments:
             dry_run = True
 
         if dry_run:
+            dataset_version_id = None
             try:
-                dataset_response = self._client.get(
-                    f"v1/datasets/{dataset_id}/examples",
+                dataset_info_response = self._client.get(
+                    f"v1/datasets/{dataset_id}",
                     timeout=timeout,
                 )
-                dataset_response.raise_for_status()
-                dataset_data = dataset_response.json()["data"]
+                dataset_info_response.raise_for_status()
+                dataset_info = dataset_info_response.json()["data"]
+                dataset_version_id = dataset_info.get("version_id")
+                
+                dataset_examples_response = self._client.get(
+                    f"v1/datasets/{dataset_id}/examples",
+                    params={"version_id": str(dataset_version_id)} if dataset_version_id else {},
+                    timeout=timeout,
+                )
+                dataset_examples_response.raise_for_status()
+                dataset_data = dataset_examples_response.json()["data"]
             except HTTPStatusError:
                 raise ValueError(f"Failed to fetch dataset for dry run evaluation: {dataset_id}")
 
             from phoenix.client.resources.datasets import Dataset
 
             dataset = Dataset(
-                dataset_info={
-                    "id": dataset_id,
-                    "name": "dataset",
-                    "description": "",
-                    "metadata": {},
-                    "created_at": datetime.now(timezone.utc).isoformat(),
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
-                },
+                dataset_info=dataset_info,
                 examples_data=dataset_data,
             )
             project_name = ""
@@ -862,27 +865,28 @@ class Experiments:
                 raise
 
             try:
-                dataset_response = self._client.get(
+                dataset_info_response = self._client.get(
+                    f"v1/datasets/{dataset_id}",
+                    params={"version_id": str(dataset_version_id)},
+                    timeout=timeout,
+                )
+                dataset_info_response.raise_for_status()
+                dataset_info = dataset_info_response.json()["data"]
+                
+                dataset_examples_response = self._client.get(
                     f"v1/datasets/{dataset_id}/examples",
                     params={"version_id": str(dataset_version_id)},
                     timeout=timeout,
                 )
-                dataset_response.raise_for_status()
-                dataset_data = dataset_response.json()["data"]
+                dataset_examples_response.raise_for_status()
+                dataset_data = dataset_examples_response.json()["data"]
             except HTTPStatusError:
                 raise ValueError(f"Failed to fetch dataset for experiment: {experiment_id}")
 
             from phoenix.client.resources.datasets import Dataset
 
             dataset = Dataset(
-                dataset_info={
-                    "id": dataset_id,
-                    "name": experiment_data.get("dataset_name", ""),
-                    "description": experiment_data.get("dataset_description"),
-                    "metadata": experiment_data.get("dataset_metadata", {}),
-                    "created_at": experiment_data.get("dataset_created_at"),
-                    "updated_at": experiment_data.get("dataset_updated_at"),
-                },
+                dataset_info=dataset_info,
                 examples_data=dataset_data,
             )
             project_name = experiment_data.get("project_name", "")
@@ -1742,27 +1746,30 @@ class AsyncExperiments:
             dry_run = True
 
         if dry_run:
+            dataset_version_id = None
             try:
-                dataset_response = await self._client.get(
-                    f"v1/datasets/{dataset_id}/examples",
+                dataset_info_response = await self._client.get(
+                    f"v1/datasets/{dataset_id}",
                     timeout=timeout,
                 )
-                dataset_response.raise_for_status()
-                dataset_data = dataset_response.json()["data"]
+                dataset_info_response.raise_for_status()
+                dataset_info = dataset_info_response.json()["data"]
+                dataset_version_id = dataset_info.get("version_id")
+                
+                dataset_examples_response = await self._client.get(
+                    f"v1/datasets/{dataset_id}/examples",
+                    params={"version_id": str(dataset_version_id)} if dataset_version_id else {},
+                    timeout=timeout,
+                )
+                dataset_examples_response.raise_for_status()
+                dataset_data = dataset_examples_response.json()["data"]
             except HTTPStatusError:
                 raise ValueError(f"Failed to fetch dataset for dry run evaluation: {dataset_id}")
 
             from phoenix.client.resources.datasets import Dataset
 
             dataset = Dataset(
-                dataset_info={
-                    "id": dataset_id,
-                    "name": "dataset",
-                    "description": "",
-                    "metadata": {},
-                    "created_at": datetime.now(timezone.utc).isoformat(),
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
-                },
+                dataset_info=dataset_info,
                 examples_data=dataset_data,
             )
             project_name = ""
@@ -1780,27 +1787,28 @@ class AsyncExperiments:
                 raise
 
             try:
-                dataset_response = await self._client.get(
+                dataset_info_response = await self._client.get(
+                    f"v1/datasets/{dataset_id}",
+                    params={"version_id": str(dataset_version_id)},
+                    timeout=timeout,
+                )
+                dataset_info_response.raise_for_status()
+                dataset_info = dataset_info_response.json()["data"]
+                
+                dataset_examples_response = await self._client.get(
                     f"v1/datasets/{dataset_id}/examples",
                     params={"version_id": str(dataset_version_id)},
                     timeout=timeout,
                 )
-                dataset_response.raise_for_status()
-                dataset_data = dataset_response.json()["data"]
+                dataset_examples_response.raise_for_status()
+                dataset_data = dataset_examples_response.json()["data"]
             except HTTPStatusError:
                 raise ValueError(f"Failed to fetch dataset for experiment: {experiment_id}")
 
             from phoenix.client.resources.datasets import Dataset
 
             dataset = Dataset(
-                dataset_info={
-                    "id": dataset_id,
-                    "name": experiment_data.get("dataset_name", ""),
-                    "description": experiment_data.get("dataset_description"),
-                    "metadata": experiment_data.get("dataset_metadata", {}),
-                    "created_at": experiment_data.get("dataset_created_at"),
-                    "updated_at": experiment_data.get("dataset_updated_at"),
-                },
+                dataset_info=dataset_info,
                 examples_data=dataset_data,
             )
             project_name = experiment_data.get("project_name", "")
