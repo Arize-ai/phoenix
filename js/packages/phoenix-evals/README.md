@@ -78,3 +78,101 @@ console.log(result);
 ```
 
 See the complete example in [`examples/classifier_example.ts`](examples/classifier_example.ts).
+
+### Pre-Built Evaluators
+
+The library includes several pre-built evaluators for common evaluation tasks. These evaluators come with optimized prompts and can be used directly with any AI SDK model.
+
+```typescript
+import { createHallucinationEvaluator } from "@arizeai/phoenix-evals/llm";
+import { openai } from "@ai-sdk/openai";
+const model = openai("gpt-4o-mini");
+
+// Hallucination Detection
+const hallucinationEvaluator = createHallucinationEvaluator({
+  model,
+});
+
+// Use the evaluators
+const result = await hallucinationEvaluator({
+  input: "What is the capital of France?",
+  context: "France is a country in Europe. Paris is its capital city.",
+  output: "The capital of France is London.",
+});
+
+console.log(result);
+// Output: { label: "hallucinated", score: 0, explanation: "..." }
+```
+
+## Experimentation with Phoenix
+
+This package works seamlessly with [`@arizeai/phoenix-client`](https://www.npmjs.com/package/@arizeai/phoenix-client) to enable experimentation workflows. You can create datasets, run experiments, and trace evaluation calls for analysis and debugging.
+
+### Running Experiments
+
+To run experiments with your evaluations, install the phoenix-client
+
+```bash
+npm install @arizeai/phoenix-client
+```
+
+```typescript
+import { createHallucinationEvaluator } from "@arizeai/phoenix-evals/llm";
+import { openai } from "@ai-sdk/openai";
+import { createDataset } from "@arizeai/phoenix-client/datasets";
+import {
+  asEvaluator,
+  runExperiment,
+} from "@arizeai/phoenix-client/experiments";
+
+// Create your evaluator
+const hallucinationEvaluator = createHallucinationEvaluator({
+  model: openai("gpt-4o-mini"),
+});
+
+// Create a dataset for your experiment
+const dataset = await createDataset({
+  name: "hallucination-eval",
+  description: "Evaluate the hallucination of the model",
+  examples: [
+    {
+      input: {
+        question: "Is Phoenix Open-Source?",
+        context: "Phoenix is Open-Source.",
+      },
+    },
+    // ... more examples
+  ],
+});
+
+// Define your experimental task
+const task = async (example) => {
+  // Your AI system's response to the question
+  return "Phoenix is not Open-Source";
+};
+
+// Create a custom evaluator to validate results
+const hallucinationCheck = asEvaluator({
+  name: "hallucination",
+  kind: "LLM",
+  evaluate: async ({ input, output }) => {
+    // Use the hallucination evaluator from phoenix-evals
+    const result = await hallucinationEvaluator({
+      input: input.question,
+      context: input.context, // Note: uses 'context' not 'reference'
+      output: output,
+    });
+
+    return result; // Return the evaluation result
+  },
+});
+
+// Run the experiment with automatic tracing
+runExperiment({
+  experimentName: "hallucination-eval",
+  experimentDescription: "Evaluate the hallucination of the model",
+  dataset: dataset,
+  task,
+  evaluators: [hallucinationCheck],
+});
+```
