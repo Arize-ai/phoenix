@@ -274,12 +274,12 @@ class TestDbDiskUsageMonitor:
         # GraphQL mutations that create new data (API keys, datasets, etc.)
         # should be blocked because they involve database insertions.
         # The system should return "locked" errors for these operations.
-        with pytest.raises(Exception, match="locked"):
+        with pytest.raises(Exception, match="storage"):
             _create_api_key(_app, access_token)
 
         for field in ['createDataset(input:{name:"' + token_hex(8) + '"}){dataset{id}}']:
             query = "mutation{" + field + "}"
-            with pytest.raises(Exception, match="locked"):
+            with pytest.raises(Exception, match="storage"):
                 _gql(_app, access_token, query=query)
 
         # ========================================================================
