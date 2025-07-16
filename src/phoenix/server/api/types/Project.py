@@ -1014,11 +1014,12 @@ async def _paginate_span_by_trace_start_time(
             has_next_page = False
     if first and len(edges) < first and has_next_page:
         while retries and (num_needed := first - len(edges)) and has_next_page:
+            batch_size = max(first, 1000)
             more = await _paginate_span_by_trace_start_time(
                 db=db,
                 project_rowid=project_rowid,
                 time_range=time_range,
-                first=first,
+                first=batch_size,
                 after=end_cursor,
                 sort=sort,
                 orphan_span_as_root_span=orphan_span_as_root_span,
