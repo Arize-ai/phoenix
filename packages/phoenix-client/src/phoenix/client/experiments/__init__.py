@@ -1,6 +1,7 @@
-from typing import Any, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Any, Mapping, Optional, Union
 
-from phoenix.client.client import AsyncClient, Client
+if TYPE_CHECKING:
+    from phoenix.client.client import AsyncClient, Client
 from phoenix.client.resources.datasets import Dataset
 from phoenix.client.resources.experiments.types import (
     ExperimentEvaluators,
@@ -24,7 +25,7 @@ def run_experiment(
     dry_run: Union[bool, int] = False,
     print_summary: bool = True,
     timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    client: Optional[Client] = None,
+    client: Optional["Client"] = None,
 ) -> RanExperiment:
     """
     Run an experiment using a given dataset of examples.
@@ -164,7 +165,9 @@ def run_experiment(
             ...     experiment_name="greeting-experiment"
             ... )
     """
-    client = client or Client()
+    if client is None:
+        from phoenix.client.client import Client
+        client = Client()
     return client.experiments.run_experiment(
         dataset=dataset,
         task=task,
@@ -192,7 +195,7 @@ async def async_run_experiment(
     print_summary: bool = True,
     concurrency: int = 3,
     timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    client: Optional[AsyncClient] = None,
+    client: Optional["AsyncClient"] = None,
 ) -> RanExperiment:
     """
     Run an experiment using a given dataset of examples (async version).
@@ -343,7 +346,9 @@ async def async_run_experiment(
             ...     concurrency=5
             ... )
     """
-    client = client or AsyncClient()
+    if client is None:
+        from phoenix.client.client import AsyncClient
+        client = AsyncClient()
     return await client.experiments.run_experiment(
         dataset=dataset,
         task=task,
@@ -362,7 +367,7 @@ async def async_run_experiment(
 def get_experiment(
     *,
     experiment_id: str,
-    client: Optional[Client] = None,
+    client: Optional["Client"] = None,
 ) -> RanExperiment:
     """
     Get a completed experiment by ID.
@@ -402,14 +407,16 @@ def get_experiment(
             >>> client = Client()
             >>> experiment = client.experiments.get_experiment(experiment_id="123")
     """
-    client = client or Client()
+    if client is None:
+        from phoenix.client.client import Client
+        client = Client()
     return client.experiments.get_experiment(experiment_id=experiment_id)
 
 
 async def async_get_experiment(
     *,
     experiment_id: str,
-    client: Optional[AsyncClient] = None,
+    client: Optional["AsyncClient"] = None,
 ) -> RanExperiment:
     """
     Get a completed experiment by ID (async version).
@@ -452,7 +459,9 @@ async def async_get_experiment(
             >>> client = AsyncClient()
             >>> experiment = await client.experiments.get_experiment(experiment_id="123")
     """
-    client = client or AsyncClient()
+    if client is None:
+        from phoenix.client.client import AsyncClient
+        client = AsyncClient()
     return await client.experiments.get_experiment(experiment_id=experiment_id)
 
 
@@ -464,7 +473,7 @@ def evaluate_experiment(
     print_summary: bool = True,
     timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     rate_limit_errors: Optional[RateLimitErrors] = None,
-    client: Optional[Client] = None,
+    client: Optional["Client"] = None,
 ) -> RanExperiment:
     """
     Run evaluators on a completed experiment.
@@ -539,7 +548,9 @@ def evaluate_experiment(
             ...     evaluators=[accuracy_evaluator]
             ... )
     """
-    client = client or Client()
+    if client is None:
+        from phoenix.client.client import Client
+        client = Client()
     return client.experiments.evaluate_experiment(
         experiment=experiment,
         evaluators=evaluators,
@@ -559,7 +570,7 @@ async def async_evaluate_experiment(
     timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     concurrency: int = 3,
     rate_limit_errors: Optional[RateLimitErrors] = None,
-    client: Optional[AsyncClient] = None,
+    client: Optional["AsyncClient"] = None,
 ) -> RanExperiment:
     """
     Run evaluators on a completed experiment (async version).
@@ -641,7 +652,9 @@ async def async_evaluate_experiment(
             ...     concurrency=5
             ... )
     """
-    client = client or AsyncClient()
+    if client is None:
+        from phoenix.client.client import AsyncClient
+        client = AsyncClient()
     return await client.experiments.evaluate_experiment(
         experiment=experiment,
         evaluators=evaluators,

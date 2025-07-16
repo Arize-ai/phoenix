@@ -715,8 +715,8 @@ class Experiments:
                 "experiment_id": experiment_id,
                 "repetition_number": run_data["repetition_number"],  # pyright: ignore [reportUnknownArgumentType]
                 "output": run_data["output"],  # pyright: ignore [reportUnknownArgumentType]
-                "start_time": run_data["start_time"],  # pyright: ignore [reportUnknownArgumentType]
-                "end_time": run_data["end_time"],  # pyright: ignore [reportUnknownArgumentType]
+                "start_time": datetime.fromisoformat(run_data["start_time"]),  # pyright: ignore [reportUnknownArgumentType]
+                "end_time": datetime.fromisoformat(run_data["end_time"]),  # pyright: ignore [reportUnknownArgumentType]
             }
 
             # Add optional fields if present
@@ -731,10 +731,10 @@ class Experiments:
             for annotation in run_data.get("annotations", []):  # pyright: ignore [reportUnknownMemberType, reportUnknownVariableType]
                 eval_result = None
                 if (
-                    annotation.get("label") is not None
-                    or annotation.get("score") is not None
-                    or annotation.get("explanation") is not None
-                ):  # pyright: ignore [reportUnknownMemberType]
+                    annotation.get("label") is not None  # pyright: ignore [reportUnknownMemberType]
+                    or annotation.get("score") is not None  # pyright: ignore [reportUnknownMemberType]
+                    or annotation.get("explanation") is not None  # pyright: ignore [reportUnknownMemberType]
+                ):
                     eval_result = cast(
                         EvaluationResult,
                         {  # pyright: ignore [reportUnknownVariableType]
@@ -1599,8 +1599,8 @@ class AsyncExperiments:
                 "experiment_id": experiment_id,
                 "repetition_number": run_data["repetition_number"],  # pyright: ignore [reportUnknownArgumentType]
                 "output": run_data["output"],  # pyright: ignore [reportUnknownArgumentType]
-                "start_time": run_data["start_time"],  # pyright: ignore [reportUnknownArgumentType]
-                "end_time": run_data["end_time"],  # pyright: ignore [reportUnknownArgumentType]
+                "start_time": datetime.fromisoformat(run_data["start_time"]),  # pyright: ignore [reportUnknownArgumentType]
+                "end_time": datetime.fromisoformat(run_data["end_time"]),  # pyright: ignore [reportUnknownArgumentType]
             }
 
             # Add optional fields if present
@@ -1615,10 +1615,10 @@ class AsyncExperiments:
             for annotation in run_data.get("annotations", []):  # pyright: ignore [reportUnknownMemberType, reportUnknownVariableType]
                 eval_result = None
                 if (
-                    annotation.get("label") is not None
-                    or annotation.get("score") is not None
-                    or annotation.get("explanation") is not None
-                ):  # pyright: ignore [reportUnknownMemberType]
+                    annotation.get("label") is not None  # pyright: ignore [reportUnknownMemberType]
+                    or annotation.get("score") is not None  # pyright: ignore [reportUnknownMemberType]
+                    or annotation.get("explanation") is not None  # pyright: ignore [reportUnknownMemberType]
+                ):
                     eval_result = cast(
                         EvaluationResult,
                         {  # pyright: ignore [reportUnknownVariableType]
