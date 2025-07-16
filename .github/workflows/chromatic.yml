@@ -3,7 +3,7 @@ name: "Chromatic"
 on:
   pull_request:
     paths:
-      - "app/stories/**"
+      - "app/**"
 
 permissions:
   contents: read
