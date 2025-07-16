@@ -91,3 +91,23 @@ export const progressCircleCSS = css`
     }
   }
 `;
+
+export const progressBarCSS = css`
+  inline-size: var(--ac-global-dimension-size-2400);
+
+  .bar {
+    forced-color-adjust: none;
+    height: var(--ac-global-dimension-size-75);
+    border-radius: 3px;
+    overflow: hidden;
+    background-color: var(
+      --mod-barloader-track-color,
+      var(--ac-global-color-grey-300)
+    );
+  }
+
+  .fill {
+    background: var(--mod-barloader-fill-color, var(--ac-global-color-primary));
+    height: 100%;
+  }
+`;

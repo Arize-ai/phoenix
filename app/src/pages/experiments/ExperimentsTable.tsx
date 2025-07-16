@@ -10,12 +10,11 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { ProgressBar } from "@arizeai/components";
-
 import {
   Flex,
   Heading,
   Link,
+  ProgressBar,
   RichTooltip,
   Text,
   TooltipTrigger,
