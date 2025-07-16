@@ -65,11 +65,7 @@ import {
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
 import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
 import { resizeHandleCSS } from "@phoenix/components/resize";
-import {
-  CellTop,
-  CompactJSONCell,
-  LoadMoreRow,
-} from "@phoenix/components/table";
+import { CellTop, CompactJSONCell } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import {
@@ -140,6 +136,7 @@ const defaultCardProps: Partial<CardProps> = {
 };
 
 const tableWrapCSS = css`
+  position: relative;
   flex: 1 1 auto;
   overflow: auto;
   // Make sure the table fills up the remaining space
@@ -159,6 +156,7 @@ const annotationTooltipExtraCSS = css`
   gap: var(--ac-global-dimension-size-50);
 `;
 
+const PAGE_SIZE = 10;
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const [dialog, setDialog] = useState<ReactNode>(null);
   const {
@@ -544,7 +542,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           !isLoadingNext &&
           hasNext
         ) {
-          loadNext(50);
+          loadNext(PAGE_SIZE);
         }
       }
     },
@@ -557,7 +555,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       refetch(
         {
           after: null,
-          first: 50,
+          first: PAGE_SIZE,
           filterCondition,
           baselineExperimentId,
           compareExperimentIds,
@@ -672,18 +670,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               <MemoizedTableBody
                 table={table}
                 tableContainerRef={tableContainerRef}
-                hasNext={hasNext}
-                onLoadNext={() => loadNext(50)}
-                isLoadingNext={isLoadingNext}
               />
             ) : (
-              <TableBody
-                table={table}
-                tableContainerRef={tableContainerRef}
-                hasNext={hasNext}
-                onLoadNext={() => loadNext(50)}
-                isLoadingNext={isLoadingNext}
-              />
+              <TableBody table={table} tableContainerRef={tableContainerRef} />
             )}
           </table>
         </div>
@@ -710,15 +699,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
 function TableBody<T>({
   table,
   tableContainerRef,
-  hasNext,
-  onLoadNext,
-  isLoadingNext,
 }: {
   table: Table<T>;
   tableContainerRef: RefObject<HTMLDivElement>;
-  hasNext: boolean;
-  onLoadNext: () => void;
-  isLoadingNext: boolean;
 }) {
   const rows = table.getRowModel().rows;
   const virtualizer = useVirtualizer({
@@ -759,13 +742,6 @@ function TableBody<T>({
           </tr>
         );
       })}
-      {hasNext ? (
-        <LoadMoreRow
-          onLoadMore={onLoadNext}
-          key="load-more"
-          isLoadingNext={isLoadingNext}
-        />
-      ) : null}
     </tbody>
   );
 }

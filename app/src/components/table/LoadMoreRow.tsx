@@ -1,4 +1,5 @@
-import { css } from "@emotion/react";
+import { forwardRef } from "react";
+import { css, SerializedStyles } from "@emotion/react";
 
 import {
   LoadMoreButton,
@@ -7,6 +8,7 @@ import {
 
 const rowCSS = css`
   position: relative;
+  height: 100px !important;
 `;
 const tdCSS = css`
   position: absolute;
@@ -18,19 +20,36 @@ const tdCSS = css`
   align-items: center;
 `;
 
+export interface LoadMoreRowProps extends LoadMoreButtonProps {
+  css?: SerializedStyles;
+  className?: string;
+}
+
 /**
  * A table row that is used to load more data.
  * @returns A table row that is used to load more data.
  */
-export function LoadMoreRow({
-  onLoadMore,
-  isLoadingNext,
-}: LoadMoreButtonProps) {
-  return (
-    <tr css={rowCSS}>
-      <td colSpan={100} css={tdCSS}>
-        <LoadMoreButton onLoadMore={onLoadMore} isLoadingNext={isLoadingNext} />
-      </td>
-    </tr>
-  );
-}
+export const LoadMoreRow = forwardRef<HTMLTableRowElement, LoadMoreRowProps>(
+  function LoadMoreRow(
+    { onLoadMore, isLoadingNext, className, ...props },
+    ref
+  ) {
+    const { css: propCSS } = props;
+    return (
+      <tr
+        ref={ref}
+        css={css(rowCSS, propCSS)}
+        data-testid="load-more-row"
+        className={className}
+        {...props}
+      >
+        <td colSpan={100} css={tdCSS}>
+          <LoadMoreButton
+            onLoadMore={onLoadMore}
+            isLoadingNext={isLoadingNext}
+          />
+        </td>
+      </tr>
+    );
+  }
+);
