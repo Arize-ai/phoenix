@@ -16,9 +16,11 @@ import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
+  Row,
   Table,
   useReactTable,
 } from "@tanstack/react-table";
+import { useVirtualizer, VirtualItem } from "@tanstack/react-virtual";
 import { css } from "@emotion/react";
 
 import { Card, CardProps } from "@arizeai/components";
@@ -272,6 +274,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       }, {} as ExperimentInfoMap) || {}
     );
   }, [data]);
+
   const tableData: TableRow[] = useMemo(
     () =>
       data.compareExperiments.edges.map((edge) => {
@@ -507,6 +510,20 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     columnResizeMode: "onChange",
   });
 
+  // Important: Keep the row virtualizer in the lowest component possible to avoid unnecessary re-renders.
+  const rowVirtualizer = useVirtualizer<HTMLDivElement, HTMLTableRowElement>({
+    count: tableData.length,
+    estimateSize: () => 350, //estimate row height for accurate scrollbar dragging
+    getScrollElement: () => tableContainerRef.current,
+    //measure dynamic row height, except in firefox because it measures table border height incorrectly
+    measureElement:
+      typeof window !== "undefined" &&
+      navigator.userAgent.indexOf("Firefox") === -1
+        ? (element) => element?.getBoundingClientRect().height
+        : undefined,
+    overscan: 5,
+  });
+
   /**
    * Instead of calling `column.getSize()` on every render for every header
    * and especially every data cell (very expensive),
@@ -529,6 +546,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   }, [table.getState().columnSizingInfo, table.getState().columnSizing]);
 
   const rows = table.getRowModel().rows;
+  const virtualRows = rowVirtualizer.getVirtualItems();
 
   const isEmpty = rows.length === 0;
 
@@ -672,6 +690,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 hasNext={hasNext}
                 onLoadNext={() => loadNext(50)}
                 isLoadingNext={isLoadingNext}
+                rows={rows}
+                virtualRows={virtualRows}
               />
             ) : (
               <TableBody
@@ -679,6 +699,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 hasNext={hasNext}
                 onLoadNext={() => loadNext(50)}
                 isLoadingNext={isLoadingNext}
+                rows={rows}
+                virtualRows={virtualRows}
               />
             )}
           </table>
@@ -704,35 +726,23 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
 
 //un-memoized normal table body component - see memoized version below
 function TableBody<T>({
-  table,
   hasNext,
   onLoadNext,
   isLoadingNext,
+  rows,
+  virtualRows,
 }: {
   table: Table<T>;
   hasNext: boolean;
   onLoadNext: () => void;
   isLoadingNext: boolean;
+  rows: Row<T>[];
+  virtualRows: VirtualItem[];
 }) {
   return (
     <tbody>
-      {table.getRowModel().rows.map((row) => (
-        <tr key={row.id}>
-          {row.getVisibleCells().map((cell) => {
-            return (
-              <td
-                key={cell.id}
-                style={{
-                  width: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
-                  maxWidth: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
-                  padding: 0,
-                }}
-              >
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-              </td>
-            );
-          })}
-        </tr>
+      {virtualRows.map((row) => (
+        <TableRow key={row.index} virtualRow={row} row={rows[row.index]} />
       ))}
       {hasNext ? (
         <LoadMoreRow
@@ -742,6 +752,33 @@ function TableBody<T>({
         />
       ) : null}
     </tbody>
+  );
+}
+
+function TableRow<RowType>({
+  virtualRow,
+  row,
+}: {
+  virtualRow: VirtualItem;
+  row: Row<RowType>;
+}) {
+  return (
+    <tr key={virtualRow.index}>
+      {row.getVisibleCells().map((cell) => {
+        return (
+          <td
+            key={cell.id}
+            style={{
+              width: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
+              maxWidth: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
+              padding: 0,
+            }}
+          >
+            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+          </td>
+        );
+      })}
+    </tr>
   );
 }
 //special memoized wrapper for our table body that we will use during column resizing
