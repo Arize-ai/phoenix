@@ -1,5 +1,11 @@
 # @arizeai/phoenix-mcp
 
+## 2.2.6
+
+### Patch Changes
+
+- a045486: update phoenix-support-mcp
+
 ## 2.2.5
 
 ### Patch Changes
