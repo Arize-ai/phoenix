@@ -748,7 +748,7 @@ export function SpansTable(props: SpansTableProps) {
               </tr>
             ))}
           </thead>
-          {isEmpty ? (
+          {isEmpty && !hasNext ? (
             <ProjectTableEmpty projectName={data.name} />
           ) : columnSizingInfo.isResizingColumn ? (
             <MemoizedTableBody

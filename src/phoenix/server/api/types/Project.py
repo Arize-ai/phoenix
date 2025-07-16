@@ -872,6 +872,7 @@ async def _paginate_span_by_trace_start_time(
     after: Optional[CursorString] = None,
     sort: SpanSort = SpanSort(col=SpanColumn.startTime, dir=SortDir.desc),
     orphan_span_as_root_span: Optional[bool] = True,
+    retries: int = 10,
 ) -> Connection[Span]:
     """Return one representative root span per trace, ordered by trace start time.
 
@@ -892,6 +893,9 @@ async def _paginate_span_by_trace_start_time(
         orphan_span_as_root_span: Whether to include orphan spans as root spans.
             True: spans with parent_id=NULL OR pointing to non-existent spans.
             False: only spans with parent_id=NULL.
+        retries: Maximum number of retry attempts when insufficient edges are found.
+            When traces exist but lack root spans, the function retries pagination
+            to find traces with spans. Set to 0 to disable retries.
 
     Returns:
         Connection[Span] with:
@@ -1008,6 +1012,27 @@ async def _paginate_span_by_trace_start_time(
             await records.__anext__()
         except StopAsyncIteration:
             has_next_page = False
+    if first and len(edges) < first and has_next_page:
+        while retries and (num_needed := first - len(edges)) and has_next_page:
+            more = await _paginate_span_by_trace_start_time(
+                db=db,
+                project_rowid=project_rowid,
+                time_range=time_range,
+                first=first,
+                after=end_cursor,
+                sort=sort,
+                orphan_span_as_root_span=orphan_span_as_root_span,
+                retries=0,
+            )
+            edges.extend(more.edges[:num_needed])
+            if start_cursor is None:
+                start_cursor = more.page_info.start_cursor
+            if len(edges) < first:
+                end_cursor = more.page_info.end_cursor
+            else:
+                end_cursor = edges[-1].cursor
+            has_next_page = more.page_info.has_next_page
+            retries -= 1
     return Connection(
         edges=edges,
         page_info=PageInfo(
