@@ -62,6 +62,7 @@ from phoenix.config import (
     get_env_host,
     get_env_host_root_path,
     get_env_port,
+    get_env_support_email,
     server_instrumentation_is_enabled,
     verify_server_environment_variables,
 )
@@ -850,10 +851,13 @@ class DbDiskUsageInterceptor(AsyncServerInterceptor):
             method_name.endswith("trace.v1.TraceService/Export")
             and self._db.should_not_insert_or_update
         ):
-            await context.abort(
-                grpc.StatusCode.RESOURCE_EXHAUSTED,
-                "Database disk usage threshold exceeded",
+            details = (
+                "Database operations are disabled due to insufficient storage. "
+                "Please delete old data or increase storage."
             )
+            if support_email := get_env_support_email():
+                details += f" Need help? Contact us at {support_email}"
+            await context.abort(grpc.StatusCode.RESOURCE_EXHAUSTED, details)
         return await method(request_or_iterator, context)
 
 
