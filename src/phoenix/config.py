@@ -248,7 +248,11 @@ this URL.
 """
 ENV_PHOENIX_SUPPORT_EMAIL = "PHOENIX_SUPPORT_EMAIL"
 """
-The email address to include in error messages.
+The support email address to display in error messages and notifications.
+
+When set, this email will be included in error messages for insufficient storage
+conditions and database usage notification emails, providing users with a direct
+contact for assistance. If not set, error messages will not include contact information.
 """
 
 # SMTP settings
@@ -1603,10 +1607,22 @@ def get_env_management_url() -> Optional[str]:
 
 
 def get_env_support_email() -> Optional[str]:
+    """
+    Get the support email address from the PHOENIX_SUPPORT_EMAIL environment variable.
+
+    Returns:
+        The support email address if set, None otherwise.
+    """
     return getenv(ENV_PHOENIX_SUPPORT_EMAIL)
 
 
 def validate_env_support_email() -> None:
+    """
+    Validate the support email address configured in PHOENIX_SUPPORT_EMAIL.
+
+    Raises:
+        ValueError: If the email address is invalid.
+    """
     if not (email := get_env_support_email()):
         return
     try:

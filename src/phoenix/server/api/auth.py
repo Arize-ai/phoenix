@@ -24,12 +24,22 @@ class IsNotReadOnly(Authorization):
 
 class IsLocked(BasePermission):
     """
-    Disables mutations and subscriptions that create or update data but allows
-    queries and delete mutations.
+    Permission class that restricts data-modifying operations when insufficient storage.
+
+    When database storage capacity is exceeded, this permission blocks mutations and
+    subscriptions that create or update data, while allowing queries and delete mutations
+    to continue. This prevents database overflow while maintaining read access and the
+    ability to free up space through deletions.
+
+    Raises:
+        InsufficientStorage: When storage capacity is exceeded and data operations
+            are temporarily disabled. The error includes guidance for resolution
+            and support contact information if configured.
     """
 
     @override
     def on_unauthorized(self) -> None:
+        """Create user-friendly error message when storage operations are blocked."""
         message = (
             "Database operations are disabled due to insufficient storage. "
             "Please delete old data or increase storage."
@@ -40,6 +50,7 @@ class IsLocked(BasePermission):
 
     @override
     def has_permission(self, source: Any, info: Info, **kwargs: Any) -> bool:
+        """Check if database operations are allowed based on storage capacity and lock status."""
         return not (info.context.db.should_not_insert_or_update or info.context.locked)
 
 
