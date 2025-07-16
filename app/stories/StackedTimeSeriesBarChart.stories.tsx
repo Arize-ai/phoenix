@@ -501,6 +501,7 @@ function StackedBarChart({
   // Default to zero so that failures to adapt are obvious
   const [yAxisWidth, setYAxisWidth] = useState(0);
   const [legendHeight, setLegendHeight] = useState(0);
+  const [isReady, setIsReady] = useState(false);
 
   const timeRange = {
     start: new Date("2021-01-01"),
@@ -527,6 +528,9 @@ function StackedBarChart({
 
   // Measure the actual Y-axis width after render
   useEffect(() => {
+    // Reset ready state when data changes
+    setIsReady(false);
+
     if (chartRef.current) {
       // Wait for chart to fully render
       const measureChart = () => {
@@ -558,6 +562,9 @@ function StackedBarChart({
           const legendRect = legendRef.current.getBoundingClientRect();
           setLegendHeight(Math.ceil(legendRect.height));
         }
+
+        // Mark as ready to trigger fade-in
+        setIsReady(true);
       };
 
       setTimeout(measureChart, 20);
@@ -571,7 +578,15 @@ function StackedBarChart({
       : height;
 
   return (
-    <div ref={chartRef} style={{ width: "100%", height }}>
+    <div
+      ref={chartRef}
+      style={{
+        width: "100%",
+        height,
+        opacity: isReady ? 1 : 0,
+        transition: "opacity 200ms ease-in-out",
+      }}
+    >
       <ResponsiveContainer width="100%" height={chartHeight}>
         <BarChart
           data={data}
