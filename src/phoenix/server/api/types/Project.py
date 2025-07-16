@@ -907,6 +907,7 @@ async def _paginate_span_by_trace_start_time(
         - Spans ordered by trace start time, not span start time
         - Cursors track trace positions for efficient large-scale pagination
     """
+    # Build base trace query ordered by start time
     traces = select(
         models.Trace.id,
         models.Trace.start_time,
@@ -921,11 +922,15 @@ async def _paginate_span_by_trace_start_time(
             models.Trace.start_time.asc(),
             models.Trace.id.asc(),
         )
+
+    # Apply time range filters
     if time_range:
         if time_range.start:
             traces = traces.where(time_range.start <= models.Trace.start_time)
         if time_range.end:
             traces = traces.where(models.Trace.start_time < time_range.end)
+
+    # Apply cursor pagination
     if after:
         cursor = Cursor.from_string(after)
         assert cursor.sort_column
@@ -936,14 +941,17 @@ async def _paginate_span_by_trace_start_time(
                 (cursor.sort_column.value, cursor.rowid),
             )
         )
+
+    # Limit for pagination
     if first:
         traces = traces.limit(
             first + 1  # over-fetch by one to determine whether there's a next page
         )
     traces_cte = traces.cte()
-    # A root span can be either a span with no parent_id or an orphan span
-    # (a span whose parent_id references a span that doesn't exist in the database)
+
+    # Define join condition for root spans
     if orphan_span_as_root_span:
+        # Include both NULL parent_id and orphaned spans
         parent_spans = select(models.Span.span_id).alias("parent_spans")
         onclause = and_(
             models.Span.trace_rowid == traces_cte.c.id,
@@ -953,10 +961,13 @@ async def _paginate_span_by_trace_start_time(
             ),
         )
     else:
+        # Only explicit root spans (parent_id is NULL)
         onclause = and_(
             models.Span.trace_rowid == traces_cte.c.id,
             models.Span.parent_id.is_(None),
         )
+
+    # Join traces with root spans (left join allows traces without spans)
     stmt = select(
         traces_cte.c.id,
         traces_cte.c.start_time,
@@ -967,6 +978,8 @@ async def _paginate_span_by_trace_start_time(
         onclause=onclause,
         isouter=True,
     )
+
+    # Order by trace time, then pick earliest span per trace
     if sort.dir is SortDir.desc:
         stmt = stmt.order_by(
             traces_cte.c.start_time.desc(),
@@ -981,6 +994,8 @@ async def _paginate_span_by_trace_start_time(
             models.Span.start_time.asc(),  # earliest span
             models.Span.id.desc(),
         )
+
+    # Use DISTINCT for PostgreSQL, manual grouping for SQLite
     if db.dialect is SupportedSQLDialect.POSTGRESQL:
         stmt = stmt.distinct(traces_cte.c.start_time, traces_cte.c.id)
     elif db.dialect is SupportedSQLDialect.SQLITE:
@@ -988,6 +1003,8 @@ async def _paginate_span_by_trace_start_time(
         pass
     else:
         assert_never(db.dialect)
+
+    # Process results and build edges
     edges: list[Edge[Span]] = []
     start_cursor: Optional[str] = None
     end_cursor: Optional[str] = None
@@ -1005,6 +1022,7 @@ async def _paginate_span_by_trace_start_time(
                 start_cursor = str(cursor)
             end_cursor = str(cursor)
             first_record = group[0]
+            # Only create edge if trace has a root span
             if (span_rowid := first_record[2]) is not None:
                 edges.append(Edge(node=Span(span_rowid=span_rowid), cursor=str(cursor)))
         has_next_page = True
@@ -1012,8 +1030,11 @@ async def _paginate_span_by_trace_start_time(
             await records.__anext__()
         except StopAsyncIteration:
             has_next_page = False
+
+    # Retry if we need more edges and more traces exist
     if first and len(edges) < first and has_next_page:
         while retries and (num_needed := first - len(edges)) and has_next_page:
+            retries -= 1
             batch_size = max(first, 1000)
             more = await _paginate_span_by_trace_start_time(
                 db=db,
@@ -1029,7 +1050,7 @@ async def _paginate_span_by_trace_start_time(
             start_cursor = start_cursor or more.page_info.start_cursor
             end_cursor = more.page_info.end_cursor if len(edges) < first else edges[-1].cursor
             has_next_page = len(more.edges) > num_needed or more.page_info.has_next_page
-            retries -= 1
+
     return Connection(
         edges=edges,
         page_info=PageInfo(
