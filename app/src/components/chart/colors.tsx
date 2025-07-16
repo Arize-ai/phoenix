@@ -193,7 +193,6 @@ export const useSemanticChartColors = (): Record<
   );
 };
 
-
 type CategoryChartColor =
   | "category1"
   | "category2"
