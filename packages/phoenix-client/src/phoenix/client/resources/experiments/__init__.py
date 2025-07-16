@@ -824,7 +824,29 @@ class Experiments:
             dry_run = True
 
         if dry_run:
-            dataset = None
+            try:
+                dataset_response = self._client.get(
+                    f"v1/datasets/{dataset_id}/examples",
+                    timeout=timeout,
+                )
+                dataset_response.raise_for_status()
+                dataset_data = dataset_response.json()["data"]
+            except HTTPStatusError:
+                raise ValueError(f"Failed to fetch dataset for dry run evaluation: {dataset_id}")
+
+            from phoenix.client.resources.datasets import Dataset
+
+            dataset = Dataset(
+                dataset_info={
+                    "id": dataset_id,
+                    "name": "dataset",
+                    "description": "",
+                    "metadata": {},
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                },
+                examples_data=dataset_data,
+            )
             project_name = ""
         else:
             try:
@@ -1720,7 +1742,29 @@ class AsyncExperiments:
             dry_run = True
 
         if dry_run:
-            dataset = None
+            try:
+                dataset_response = await self._client.get(
+                    f"v1/datasets/{dataset_id}/examples",
+                    timeout=timeout,
+                )
+                dataset_response.raise_for_status()
+                dataset_data = dataset_response.json()["data"]
+            except HTTPStatusError:
+                raise ValueError(f"Failed to fetch dataset for dry run evaluation: {dataset_id}")
+
+            from phoenix.client.resources.datasets import Dataset
+
+            dataset = Dataset(
+                dataset_info={
+                    "id": dataset_id,
+                    "name": "dataset",
+                    "description": "",
+                    "metadata": {},
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                },
+                examples_data=dataset_data,
+            )
             project_name = ""
         else:
             try:
