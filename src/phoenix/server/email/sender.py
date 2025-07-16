@@ -8,7 +8,7 @@ from anyio import to_thread
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from typing_extensions import TypeAlias
 
-from phoenix.config import get_env_root_url
+from phoenix.config import get_env_root_url, get_env_support_email
 
 EMAIL_TEMPLATE_FOLDER = Path(__file__).parent / "templates"
 
@@ -96,6 +96,7 @@ class SimpleEmailSender:
             current_usage_gibibytes=current_usage_gibibytes,
             allocated_storage_gibibytes=allocated_storage_gibibytes,
             notification_threshold_percentage=notification_threshold_percentage,
+            support_email=get_env_support_email(),
         )
 
         msg = EmailMessage()

@@ -25,6 +25,7 @@ Usage:
 from fastapi import HTTPException, Request
 from fastapi import status as fastapi_status
 
+from phoenix.config import get_env_support_email
 from phoenix.server.bearer_auth import PhoenixUser
 
 
@@ -55,8 +56,13 @@ def require_admin(request: Request) -> None:
 
 def is_not_locked(request: Request) -> None:
     if request.app.state.db.should_not_insert_or_update:
+        detail = (
+            "Database operations are disabled due to insufficient storage. "
+            "Please delete old data or increase storage."
+        )
+        if support_email := get_env_support_email():
+            detail += f" Need help? Contact us at {support_email}"
         raise HTTPException(
             status_code=fastapi_status.HTTP_507_INSUFFICIENT_STORAGE,
-            detail="Operations that insert or update database "
-            "records are currently not allowed.",
+            detail=detail,
         )
