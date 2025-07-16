@@ -36,4 +36,6 @@
 
 ## TypeScript Packages
 
-* [MCP Server](typescript-packages/mcp-server.md)
+* [@arizeai/phoenix-mcp](typescript-packages/mcp-server.md)
+* [@arizeai/phoenix-client](typescript-packages/arizeai-phoenix-client.md)
+* [@arizeai/phoenix-evals](typescript-packages/arizeai-phoenix-evals.md)
