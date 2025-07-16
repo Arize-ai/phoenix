@@ -246,7 +246,14 @@ The URL to use for redirecting to a management interface that may be hosting Pho
 the current user is within PHOENIX_ADMINS, a link will be added to the navigation menu to return to
 this URL.
 """
+ENV_PHOENIX_SUPPORT_EMAIL = "PHOENIX_SUPPORT_EMAIL"
+"""
+The support email address to display in error messages and notifications.
 
+When set, this email will be included in error messages for insufficient storage
+conditions and database usage notification emails, providing users with a direct
+contact for assistance. If not set, error messages will not include contact information.
+"""
 
 # SMTP settings
 ENV_PHOENIX_SMTP_HOSTNAME = "PHOENIX_SMTP_HOSTNAME"
@@ -1599,6 +1606,31 @@ def get_env_management_url() -> Optional[str]:
     return getenv(ENV_PHOENIX_MANAGEMENT_URL)
 
 
+def get_env_support_email() -> Optional[str]:
+    """
+    Get the support email address from the PHOENIX_SUPPORT_EMAIL environment variable.
+
+    Returns:
+        The support email address if set, None otherwise.
+    """
+    return getenv(ENV_PHOENIX_SUPPORT_EMAIL)
+
+
+def validate_env_support_email() -> None:
+    """
+    Validate the support email address configured in PHOENIX_SUPPORT_EMAIL.
+
+    Raises:
+        ValueError: If the email address is invalid.
+    """
+    if not (email := get_env_support_email()):
+        return
+    try:
+        validate_email(email, check_deliverability=False)
+    except EmailNotValidError as e:
+        raise ValueError(f"Invalid email in {ENV_PHOENIX_SUPPORT_EMAIL}: '{email}'") from e
+
+
 def verify_server_environment_variables() -> None:
     """Verify that the environment variables are set correctly. Raises an error otherwise."""
     get_env_root_url()
@@ -1607,6 +1639,7 @@ def verify_server_environment_variables() -> None:
     get_env_database_allocated_storage_capacity_gibibytes()
     get_env_database_usage_email_warning_threshold_percentage()
     get_env_database_usage_insertion_blocking_threshold_percentage()
+    validate_env_support_email()
 
     # Notify users about deprecated environment variables if they are being used.
     if os.getenv("PHOENIX_ENABLE_WEBSOCKETS") is not None:
