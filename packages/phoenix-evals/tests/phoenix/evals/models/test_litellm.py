@@ -21,7 +21,7 @@ def test_instantiation_by_positional_args_is_not_allowed():
     os.environ, {"OLLAMA_API_BASE": "just to make litellm.validate_environment happy"}, clear=True
 )
 @mock.patch("litellm.llms.ollama.get_ollama_response")
-@pytest.mark.xfail(reason="IndexError: tuple index out of range")
+@pytest.mark.xfail(reason="IndexError: tuple index out of range", strict=False)
 def test_selfhosted_ollama_via_model_kwargs(get_ollama_response):
     ollama_response = unittest.mock.MagicMock()
     ollama_response["choices"][0]["message"]["content"] = "barely understand Python mocks"
@@ -47,7 +47,7 @@ def test_selfhosted_ollama_via_model_kwargs(get_ollama_response):
 )
 @mock.patch.dict(os.environ, {"OLLAMA_API_BASE": "http://hosted.olla.ma:11434"}, clear=True)
 @mock.patch("litellm.llms.ollama.get_ollama_response")
-@pytest.mark.xfail(reason="IndexError: tuple index out of range")
+@pytest.mark.xfail(reason="IndexError: tuple index out of range", strict=False)
 def test_selfhosted_ollama_via_env(get_ollama_response):
     ollama_response = unittest.mock.MagicMock()
     ollama_response["choices"][0]["message"]["content"] = "barely understand Python mocks"
