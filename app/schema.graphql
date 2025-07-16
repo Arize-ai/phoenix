@@ -1712,8 +1712,8 @@ type Project implements Node {
   traceRetentionPolicy: ProjectTraceRetentionPolicy!
   createdAt: DateTime!
   updatedAt: DateTime!
-  spanCountTimeSeries(timeRange: TimeRange, timeBinConfig: TimeBinConfig): SpanCountTimeSeries!
-  traceCountTimeSeries(timeRange: TimeRange, timeBinConfig: TimeBinConfig): TraceCountTimeSeries!
+  spanCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): SpanCountTimeSeries!
+  traceCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceCountTimeSeries!
 }
 
 enum ProjectColumn {

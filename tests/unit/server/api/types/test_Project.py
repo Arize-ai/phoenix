@@ -1886,12 +1886,6 @@ class TestProject:
                 "zero_duration_range",
             ),
             # === PARTIAL TIME RANGE TESTS ===
-            # No time range specified (should include all data)
-            (
-                None,
-                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
-                "no_time_range_specified",
-            ),
             # Only start time specified
             (
                 TimeRange(
@@ -1900,15 +1894,6 @@ class TestProject:
                 ),
                 TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
                 "only_start_time",
-            ),
-            # Only end time specified
-            (
-                TimeRange(
-                    start=None,
-                    end=datetime.fromisoformat("2024-01-01T12:00:00+00:00"),
-                ),
-                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
-                "only_end_time",
             ),
             # === LARGE UTC OFFSET TESTS ===
             (
@@ -2042,7 +2027,7 @@ class TestProject:
             variables: dict[str, Any] = {"id": project_gid}
 
             query = """
-                query($id: ID!, $timeRange: TimeRange, $timeBinConfig: TimeBinConfig) {{
+                query($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {{
                     node(id: $id) {{
                         ... on Project {{
                             {obj}CountTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {{
@@ -2090,9 +2075,12 @@ class TestProject:
                     actual_data = []
                     for data_point in res["data"]:
                         timestamp = datetime.fromisoformat(data_point["timestamp"])
-                        value = data_point["value"]
-                        actual_data.append({"timestamp": timestamp, "count": value})
-                    actual_summary = pd.DataFrame(actual_data).sort_values("timestamp")
+                        if (value := data_point["value"]) is not None:
+                            actual_data.append({"timestamp": timestamp, "count": value})
+                    actual_summary = pd.DataFrame(
+                        actual_data,
+                        columns=["timestamp", "count"],
+                    ).sort_values("timestamp")
 
                 # Handle empty results
                 if expected_summary.empty:

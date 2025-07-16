@@ -16,10 +16,11 @@ from strawberry.relay import Connection, Node, NodeID
 from strawberry.types import Info
 from typing_extensions import assert_never
 
-from phoenix.datetime_utils import normalize_datetime, right_open_time_range
+from phoenix.datetime_utils import get_timestamp_range, normalize_datetime, right_open_time_range
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, date_trunc
 from phoenix.server.api.context import Context
+from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.ProjectSessionSort import (
     ProjectSessionColumn,
     ProjectSessionSort,
@@ -703,9 +704,12 @@ class Project(Node):
     async def span_count_time_series(
         self,
         info: Info[Context, None],
-        time_range: Optional[TimeRange] = UNSET,
+        time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
     ) -> SpanCountTimeSeries:
+        if time_range.start is None:
+            raise BadRequest("Start time is required")
+
         dialect = info.context.db.dialect
         utc_offset_minutes = 0
         field: Literal["minute", "hour", "day", "week", "month", "year"] = "hour"
@@ -731,25 +735,46 @@ class Project(Node):
             .group_by(bucket)
             .order_by(bucket)
         )
-        if time_range:
-            if time_range.start:
-                stmt = stmt.where(time_range.start <= models.Span.start_time)
-            if time_range.end:
-                stmt = stmt.where(models.Span.start_time < time_range.end)
+        if time_range.start:
+            stmt = stmt.where(time_range.start <= models.Span.start_time)
+        if time_range.end:
+            stmt = stmt.where(models.Span.start_time < time_range.end)
+
+        data = {}
         async with info.context.db() as session:
-            data = [
-                TimeSeriesDataPoint(timestamp=_as_datetime(t), value=v)
-                async for t, v in await session.stream(stmt)
-            ]
-        return SpanCountTimeSeries(data=data)
+            async for t, v in await session.stream(stmt):
+                timestamp = _as_datetime(t)
+                data[timestamp] = TimeSeriesDataPoint(timestamp=timestamp, value=v)
+
+        data_timestamps: list[datetime] = [data_point.timestamp for data_point in data.values()]
+        min_time = min([*data_timestamps, time_range.start])
+        max_time = max(
+            [
+                *data_timestamps,
+                *([time_range.end] if time_range.end else []),
+            ],
+            default=datetime.now(timezone.utc),
+        )
+        for timestamp in get_timestamp_range(
+            start_time=min_time,
+            end_time=max_time,
+            stride=field,
+            utc_offset_minutes=utc_offset_minutes,
+        ):
+            if timestamp not in data:
+                data[timestamp] = TimeSeriesDataPoint(timestamp=timestamp)
+        return SpanCountTimeSeries(data=sorted(data.values(), key=lambda x: x.timestamp))
 
     @strawberry.field
     async def trace_count_time_series(
         self,
         info: Info[Context, None],
-        time_range: Optional[TimeRange] = UNSET,
+        time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
     ) -> TraceCountTimeSeries:
+        if time_range.start is None:
+            raise BadRequest("Start time is required")
+
         dialect = info.context.db.dialect
         utc_offset_minutes = 0
         field: Literal["minute", "hour", "day", "week", "month", "year"] = "hour"
@@ -779,12 +804,30 @@ class Project(Node):
                 stmt = stmt.where(time_range.start <= models.Trace.start_time)
             if time_range.end:
                 stmt = stmt.where(models.Trace.start_time < time_range.end)
+        data = {}
         async with info.context.db() as session:
-            data = [
-                TimeSeriesDataPoint(timestamp=_as_datetime(t), value=v)
-                async for t, v in await session.stream(stmt)
-            ]
-        return TraceCountTimeSeries(data=data)
+            async for t, v in await session.stream(stmt):
+                timestamp = _as_datetime(t)
+                data[timestamp] = TimeSeriesDataPoint(timestamp=timestamp, value=v)
+
+        data_timestamps: list[datetime] = [data_point.timestamp for data_point in data.values()]
+        min_time = min([*data_timestamps, time_range.start])
+        max_time = max(
+            [
+                *data_timestamps,
+                *([time_range.end] if time_range.end else []),
+            ],
+            default=datetime.now(timezone.utc),
+        )
+        for timestamp in get_timestamp_range(
+            start_time=min_time,
+            end_time=max_time,
+            stride=field,
+            utc_offset_minutes=utc_offset_minutes,
+        ):
+            if timestamp not in data:
+                data[timestamp] = TimeSeriesDataPoint(timestamp=timestamp)
+        return TraceCountTimeSeries(data=sorted(data.values(), key=lambda x: x.timestamp))
 
 
 @strawberry.type

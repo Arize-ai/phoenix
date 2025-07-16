@@ -1,22 +1,27 @@
-from datetime import timezone
+# /// script
+# dependencies = [
+#   "pandas",
+#   "opentelemetry-sdk",
+#   "opentelemetry-exporter-otlp",
+# ]
+# ///
+from datetime import datetime, timedelta, timezone
 from io import StringIO
 from random import randint, sample
 from secrets import token_hex
+from typing import Iterator, Optional, cast
 
 import numpy as np
 import pandas as pd
-from faker import Faker
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-
-fake = Faker()
+from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
 endpoint = "http://localhost:6006/v1/traces"
 
 tracer_provider = TracerProvider(resource=Resource({"openinference.project.name": "TIME_SERIES"}))
-tracer_provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint)))
+tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
 tracer = tracer_provider.get_tracer(__name__)
 
 
@@ -52,15 +57,15 @@ def random_split(total: int, n: int = 5, alpha: float = 1.0) -> list[int]:
     # Distribute the remainder
     remainder = total - np.sum(numbers)
 
-    # Add 1 to the positions with largest fractional parts
+    # Add 1 to the positions with the largest fractional parts
     fractional_parts = scaled - numbers
     indices = np.argsort(fractional_parts)[-remainder:]
     numbers[indices] += 1
 
-    return numbers.tolist()
+    return cast(list[int], numbers.tolist())
 
 
-def llm_span(start_time: int, end_time: int) -> None:
+def llm_span(start_time: int, end_time: int) -> ReadableSpan:
     """
     Generate a synthetic LLM span with random token counts and model information.
 
@@ -101,11 +106,90 @@ def llm_span(start_time: int, end_time: int) -> None:
         span.set_attribute("llm.provider", str(row.provider))
         span.set_attribute("llm.model_name", str(row.model_name))
     span.end(end_time=end_time)
+    return span
 
 
-for _ in range(randint(1, 10_000)):
-    start_time = int(fake.date_time_between("-6M", "now", tzinfo=timezone.utc).timestamp() * 1e9)
+def generate_timestamps(
+    start_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None,
+    rates: Optional[dict[str, float]] = None,
+    local_tz: Optional[timezone] = None,
+) -> Iterator[datetime]:
+    """
+    Generate random timestamps with different rates based on local time periods.
+
+    Creates timestamps with different rates for:
+    - Business hours (9 AM - 5 PM local weekdays): Higher rate
+    - Evening hours (5 PM - 11 PM local weekdays): Medium rate
+    - Night hours (11 PM - 9 AM local weekdays): Low rate
+    - Weekend hours (local weekends): Low rate throughout
+
+    Args:
+        start_time: Start of time range in UTC. Defaults to 90 days ago.
+        end_time: End of time range in UTC. Defaults to now.
+        rates: Dictionary with hourly event rates:
+            - "business": Events per hour during business hours (default: 20)
+            - "evening": Events per hour during evening hours (default: 3)
+            - "night": Events per hour during night hours (default: 0.5)
+            - "weekend": Events per hour during weekends (default: 2)
+        local_tz: Local timezone for determining business hours.
+                  Defaults to system timezone.
+
+    Yields:
+        UTC datetime objects in chronological order.
+    """
+    if not start_time:
+        start_time = datetime.now(timezone.utc) - timedelta(days=90)
+    if not end_time:
+        end_time = datetime.now(timezone.utc)
+    if rates is None:
+        rates = {"business": 20, "evening": 3, "night": 0.5, "weekend": 2}
+    if local_tz is None:
+        # Use system timezone as default
+        local_tz = datetime.now().astimezone().tzinfo
+
+    current = start_time.astimezone(local_tz).replace(minute=0, second=0, microsecond=0)
+
+    while current < end_time:
+        # Convert to local time to determine time period
+        is_weekend = current.weekday() >= 5
+        hour = current.hour
+
+        if is_weekend:
+            rate = rates["weekend"]
+        elif 9 <= hour < 17:  # Business hours (local time)
+            rate = rates["business"]
+        elif 17 <= hour < 23:  # Evening hours (local time)
+            rate = rates["evening"]
+        else:  # Night hours (23-24 and 0-9, local time)
+            rate = rates["night"]
+
+        # Generate events for this hour
+        if n := np.random.poisson(rate):
+            # Generate random timestamps within this hour
+            times = current.timestamp() + np.random.uniform(0, 3600, n)
+            for t in sorted(times):
+                yield datetime.fromtimestamp(t, timezone.utc)
+
+        current += timedelta(hours=1)
+
+
+spans = []
+
+for t in sorted(generate_timestamps(), reverse=True):
+    start_time = int(t.timestamp() * 1e9)
     end_time = start_time + randint(10_000_000, 10_000_000_000)
-    llm_span(start_time, end_time)
+    spans.append(llm_span(start_time, end_time))
+
+# use pandas to summarize count group by calendar day
+local_tz = datetime.now().astimezone().tzinfo
+t = pd.Series([pd.to_datetime(span.start_time, unit="ns") for span in spans])
+
+# Convert UTC to local timezone before grouping by date
+t_local = t.dt.tz_localize("UTC").dt.tz_convert(local_tz)
+
+# Set pandas to display all rows without truncation
+pd.set_option("display.max_rows", None)
+print(t_local.dt.date.value_counts().sort_index())
 
 tracer_provider.force_flush()
