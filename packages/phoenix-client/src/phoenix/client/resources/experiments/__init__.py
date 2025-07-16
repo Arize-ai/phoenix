@@ -708,27 +708,22 @@ class Experiments:
         evaluation_runs: list[ExperimentEvaluationRun] = []
 
         for run_data in runs_data:  # pyright: ignore [reportUnknownVariableType]
+            # Convert timestamps in-place to match run_experiment pattern
+            run_data["start_time"] = datetime.fromisoformat(run_data["start_time"])  # pyright: ignore [reportUnknownArgumentType]
+            run_data["end_time"] = datetime.fromisoformat(run_data["end_time"])  # pyright: ignore [reportUnknownArgumentType]
+
             # Create task run
-            task_run: ExperimentRun = {
-                "id": run_data["id"],  # pyright: ignore [reportUnknownArgumentType]
-                "dataset_example_id": run_data["dataset_example_id"],  # pyright: ignore [reportUnknownArgumentType]
-                "experiment_id": experiment_id,
-                "repetition_number": run_data["repetition_number"],  # pyright: ignore [reportUnknownArgumentType]
-                "output": run_data["output"],  # pyright: ignore [reportUnknownArgumentType]
-                "start_time": datetime.fromisoformat(run_data["start_time"]),  # pyright: ignore [reportUnknownArgumentType]
-                "end_time": datetime.fromisoformat(run_data["end_time"]),  # pyright: ignore [reportUnknownArgumentType]
-            }
-
-            # Add optional fields if present
-            if run_data.get("trace_id"):  # pyright: ignore [reportUnknownMemberType]
-                task_run["trace_id"] = run_data["trace_id"]  # pyright: ignore [reportUnknownArgumentType]
-            if run_data.get("error"):  # pyright: ignore [reportUnknownMemberType]
-                task_run["error"] = run_data["error"]  # pyright: ignore [reportUnknownArgumentType]
-
+            task_run: ExperimentRun = cast(ExperimentRun, run_data)  # pyright: ignore [reportUnknownArgumentType]
+            task_run["experiment_id"] = experiment_id
             task_runs.append(task_run)
 
             # Create evaluation runs from annotations if present
             for annotation in run_data.get("annotations", []):  # pyright: ignore [reportUnknownMemberType, reportUnknownVariableType]
+                # Check for required fields before processing
+                required_fields = ["id", "start_time", "end_time", "name", "annotator_kind"]
+                if not all(field in annotation for field in required_fields):  # pyright: ignore [reportUnknownMemberType]
+                    continue
+
                 eval_result = None
                 if (
                     annotation.get("label") is not None  # pyright: ignore [reportUnknownMemberType]
@@ -744,19 +739,21 @@ class Experiments:
                         },
                     )
 
-                eval_run = ExperimentEvaluationRun(
-                    id=annotation["id"],  # pyright: ignore [reportUnknownArgumentType]
-                    experiment_run_id=run_data["id"],  # pyright: ignore [reportUnknownArgumentType]
-                    start_time=datetime.fromisoformat(annotation["start_time"]),  # pyright: ignore [reportUnknownArgumentType]
-                    end_time=datetime.fromisoformat(annotation["end_time"]),  # pyright: ignore [reportUnknownArgumentType]
-                    name=annotation["name"],  # pyright: ignore [reportUnknownArgumentType]
-                    annotator_kind=annotation["annotator_kind"],  # pyright: ignore [reportUnknownArgumentType]
-                    error=annotation.get("error"),  # pyright: ignore [reportUnknownMemberType, reportUnknownArgumentType]
-                    result=eval_result,  # pyright: ignore [reportArgumentType]
-                    trace_id=annotation.get("trace_id"),  # pyright: ignore [reportUnknownMemberType, reportUnknownArgumentType]
-                    metadata=annotation.get("metadata", {}),  # pyright: ignore [reportUnknownMemberType, reportUnknownArgumentType]
-                )
-                evaluation_runs.append(eval_run)
+                # Only create evaluation runs for annotations that have evaluation data
+                if eval_result is not None:
+                    eval_run = ExperimentEvaluationRun(
+                        id=annotation["id"],  # pyright: ignore [reportUnknownArgumentType]
+                        experiment_run_id=run_data["id"],  # pyright: ignore [reportUnknownArgumentType]
+                        start_time=datetime.fromisoformat(annotation["start_time"]),  # pyright: ignore [reportUnknownArgumentType]
+                        end_time=datetime.fromisoformat(annotation["end_time"]),  # pyright: ignore [reportUnknownArgumentType]
+                        name=annotation["name"],  # pyright: ignore [reportUnknownArgumentType]
+                        annotator_kind=annotation["annotator_kind"],  # pyright: ignore [reportUnknownArgumentType]
+                        error=annotation.get("error"),  # pyright: ignore [reportUnknownMemberType, reportUnknownArgumentType]
+                        result=eval_result,  # pyright: ignore [reportArgumentType]
+                        trace_id=annotation.get("trace_id"),  # pyright: ignore [reportUnknownMemberType, reportUnknownArgumentType]
+                        metadata=annotation.get("metadata", {}),  # pyright: ignore [reportUnknownMemberType, reportUnknownArgumentType]
+                    )
+                    evaluation_runs.append(eval_run)
 
         ran_experiment: RanExperiment = {
             "experiment_id": experiment_id,
@@ -1592,27 +1589,20 @@ class AsyncExperiments:
         evaluation_runs: list[ExperimentEvaluationRun] = []
 
         for run_data in runs_data:  # pyright: ignore [reportUnknownVariableType]
+            run_data["start_time"] = datetime.fromisoformat(run_data["start_time"])  # pyright: ignore [reportUnknownArgumentType]
+            run_data["end_time"] = datetime.fromisoformat(run_data["end_time"])  # pyright: ignore [reportUnknownArgumentType]
+
             # Create task run
-            task_run: ExperimentRun = {
-                "id": run_data["id"],  # pyright: ignore [reportUnknownArgumentType]
-                "dataset_example_id": run_data["dataset_example_id"],  # pyright: ignore [reportUnknownArgumentType]
-                "experiment_id": experiment_id,
-                "repetition_number": run_data["repetition_number"],  # pyright: ignore [reportUnknownArgumentType]
-                "output": run_data["output"],  # pyright: ignore [reportUnknownArgumentType]
-                "start_time": datetime.fromisoformat(run_data["start_time"]),  # pyright: ignore [reportUnknownArgumentType]
-                "end_time": datetime.fromisoformat(run_data["end_time"]),  # pyright: ignore [reportUnknownArgumentType]
-            }
-
-            # Add optional fields if present
-            if run_data.get("trace_id"):  # pyright: ignore [reportUnknownMemberType]
-                task_run["trace_id"] = run_data["trace_id"]  # pyright: ignore [reportUnknownArgumentType]
-            if run_data.get("error"):  # pyright: ignore [reportUnknownMemberType]
-                task_run["error"] = run_data["error"]  # pyright: ignore [reportUnknownArgumentType]
-
+            task_run: ExperimentRun = cast(ExperimentRun, run_data)  # pyright: ignore [reportUnknownArgumentType]
+            task_run["experiment_id"] = experiment_id
             task_runs.append(task_run)
 
             # Create evaluation runs from annotations if present
             for annotation in run_data.get("annotations", []):  # pyright: ignore [reportUnknownMemberType, reportUnknownVariableType]
+                required_fields = ["id", "start_time", "end_time", "name", "annotator_kind"]
+                if not all(field in annotation for field in required_fields):  # pyright: ignore [reportUnknownMemberType]
+                    continue
+
                 eval_result = None
                 if (
                     annotation.get("label") is not None  # pyright: ignore [reportUnknownMemberType]
@@ -1628,19 +1618,20 @@ class AsyncExperiments:
                         },
                     )
 
-                eval_run = ExperimentEvaluationRun(
-                    id=annotation["id"],  # pyright: ignore [reportUnknownArgumentType]
-                    experiment_run_id=run_data["id"],  # pyright: ignore [reportUnknownArgumentType]
-                    start_time=datetime.fromisoformat(annotation["start_time"]),  # pyright: ignore [reportUnknownArgumentType]
-                    end_time=datetime.fromisoformat(annotation["end_time"]),  # pyright: ignore [reportUnknownArgumentType]
-                    name=annotation["name"],  # pyright: ignore [reportUnknownArgumentType]
-                    annotator_kind=annotation["annotator_kind"],  # pyright: ignore [reportUnknownArgumentType]
-                    error=annotation.get("error"),  # pyright: ignore [reportUnknownMemberType, reportUnknownArgumentType]
-                    result=eval_result,  # pyright: ignore [reportArgumentType]
-                    trace_id=annotation.get("trace_id"),  # pyright: ignore [reportUnknownMemberType, reportUnknownArgumentType]
-                    metadata=annotation.get("metadata", {}),  # pyright: ignore [reportUnknownMemberType, reportUnknownArgumentType]
-                )
-                evaluation_runs.append(eval_run)
+                if eval_result is not None:
+                    eval_run = ExperimentEvaluationRun(
+                        id=annotation["id"],  # pyright: ignore [reportUnknownArgumentType]
+                        experiment_run_id=run_data["id"],  # pyright: ignore [reportUnknownArgumentType]
+                        start_time=datetime.fromisoformat(annotation["start_time"]),  # pyright: ignore [reportUnknownArgumentType]
+                        end_time=datetime.fromisoformat(annotation["end_time"]),  # pyright: ignore [reportUnknownArgumentType]
+                        name=annotation["name"],  # pyright: ignore [reportUnknownArgumentType]
+                        annotator_kind=annotation["annotator_kind"],  # pyright: ignore [reportUnknownArgumentType]
+                        error=annotation.get("error"),  # pyright: ignore [reportUnknownMemberType, reportUnknownArgumentType]
+                        result=eval_result,  # pyright: ignore [reportArgumentType]
+                        trace_id=annotation.get("trace_id"),  # pyright: ignore [reportUnknownMemberType, reportUnknownArgumentType]
+                        metadata=annotation.get("metadata", {}),  # pyright: ignore [reportUnknownMemberType, reportUnknownArgumentType]
+                    )
+                    evaluation_runs.append(eval_run)
 
         ran_experiment: RanExperiment = {
             "experiment_id": experiment_id,

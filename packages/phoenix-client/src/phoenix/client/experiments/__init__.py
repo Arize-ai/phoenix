@@ -167,6 +167,7 @@ def run_experiment(
     """
     if client is None:
         from phoenix.client.client import Client
+
         client = Client()
     return client.experiments.run_experiment(
         dataset=dataset,
@@ -348,6 +349,7 @@ async def async_run_experiment(
     """
     if client is None:
         from phoenix.client.client import AsyncClient
+
         client = AsyncClient()
     return await client.experiments.run_experiment(
         dataset=dataset,
@@ -409,6 +411,7 @@ def get_experiment(
     """
     if client is None:
         from phoenix.client.client import Client
+
         client = Client()
     return client.experiments.get_experiment(experiment_id=experiment_id)
 
@@ -461,6 +464,7 @@ async def async_get_experiment(
     """
     if client is None:
         from phoenix.client.client import AsyncClient
+
         client = AsyncClient()
     return await client.experiments.get_experiment(experiment_id=experiment_id)
 
@@ -550,6 +554,7 @@ def evaluate_experiment(
     """
     if client is None:
         from phoenix.client.client import Client
+
         client = Client()
     return client.experiments.evaluate_experiment(
         experiment=experiment,
@@ -654,6 +659,7 @@ async def async_evaluate_experiment(
     """
     if client is None:
         from phoenix.client.client import AsyncClient
+
         client = AsyncClient()
     return await client.experiments.evaluate_experiment(
         experiment=experiment,
