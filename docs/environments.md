@@ -14,9 +14,16 @@ If you are set up, see [Quickstarts](quickstart.md) to start using Phoenix in yo
 
 If you're using Phoenix Cloud, be sure to set the proper environment variables to connect to your instance:
 
-```bash
-export PHOENIX_CLIENT_HEADERS = "api_key=ENTER YOUR API KEY"
-export PHOENIX_COLLECTOR_ENDPOINT = "https://app.phoenix.arize.com"
+```python
+import os
+
+# Add Phoenix API Key for tracing
+os.environ["PHOENIX_API_KEY"] = "ADD YOUR PHOENIX API KEY"
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "ADD YOUR PHOENIX HOSTNAME"
+
+# If you created your Phoenix Cloud instance before June 24th, 2025,
+# you also need to set the API key as a header
+os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={os.getenv('PHOENIX_API_KEY')}"
 ```
 
 ### Container

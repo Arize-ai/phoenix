@@ -74,17 +74,6 @@ span = get_current_span()
 span_id = format_span_id(span.get_span_context().span_id)
 ```
 
-For LangChain, import `get_current_span` from our instrumentation library instead.
-
-```python
-from opentelemetry.trace import format_span_id
-from openinference.instrumentation.langchain import get_current_span
-
-span = get_current_span()
-if span is not None:
-   span_id = format_span_id(span.get_span_context().span_id)
-```
-
 You can use the span\_id to send an annotation associated with that span.
 
 ```python

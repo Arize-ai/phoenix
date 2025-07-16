@@ -243,7 +243,7 @@ Create your [free account](https://arize.com/join) and see the full suite of [Ar
 
 ## Where to go from here?
 
-* Read more about Embeddings Analysis [here](use-cases-inferences/embeddings-analysis.md)
+* Read more about Embeddings Analysis [here](how-to-inferences/generating-embeddings.md).
 
 ***
 

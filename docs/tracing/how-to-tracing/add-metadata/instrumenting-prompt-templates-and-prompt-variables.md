@@ -47,7 +47,7 @@ def call_fn(*args, **kwargs):
 {% endtab %}
 
 {% tab title="JS" %}
-We provide a `setPromptTemplate` function which allows you to set a template, version, and variables on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference [auto instrumentations](../../integrations-tracing/#javascript) will then pick up these attributes and add them to any spans created within the `context.with` callback. The components of a prompt template are:
+We provide a `setPromptTemplate` function which allows you to set a template, version, and variables on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference [auto instrumentations](broken-reference) will then pick up these attributes and add them to any spans created within the `context.with` callback. The components of a prompt template are:
 
 * template - a string with templated variables ex. `"hello {{name}}"`
 * variables - an object with variable names and their values ex. `{name: "world"}`

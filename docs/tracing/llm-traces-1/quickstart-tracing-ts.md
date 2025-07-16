@@ -2,46 +2,18 @@
 
 ## Overview
 
-Phoenix supports three main options to collect traces:
+Phoenix supports two main options to collect traces:
 
 1. Use [automatic instrumentation](https://arize.com/docs/phoenix/integrations) to capture all calls made to supported frameworks.
 2. Use [base OpenTelemetry ](../how-to-tracing/setup-tracing/custom-spans.md)instrumentation. Supported in [Python](../how-to-tracing/setup-tracing/custom-spans.md) and [TS / JS](../how-to-tracing/setup-tracing/javascript.md), among many other languages.
 
-This example uses options 2 and 3.
-
 ## Launch Phoenix
 
-### Using Phoenix Cloud
-
-1. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
-2. Grab your API key from the Keys option on the left bar.
-3. In your code, configure environment variables for your endpoint and API key:
-
-<pre class="language-sh"><code class="lang-sh"><strong># .env, or shell environment
-</strong>
-# Add Phoenix API Key for tracing
-PHOENIX_API_KEY="ADD YOUR API KEY"
-# And Collector Endpoint for Phoenix Cloud
-PHOENIX_COLLECTOR_ENDPOINT="https://app.phoenix.arize.com"
-</code></pre>
-
-### Using Self-hosted Phoenix
-
-1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, see [self-hosting](https://arize.com/docs/phoenix/self-hosting).
-2. In your code, configure environment variables for your endpoint and API key:
-
-```shell
-# .env, or shell environment
-
-# Collector Endpoint for your self hosted Phoenix, like localhost
-PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
-# (optional) If authentication enabled, add Phoenix API Key for tracing
-PHOENIX_API_KEY="ADD YOUR API KEY"
-```
+{% include "../../.gitbook/includes/launch-phoenix-ts.md" %}
 
 ## Connect to Phoenix <a href="#connect-your-app" id="connect-your-app"></a>
 
-To collect traces from your application, you must configure an OpenTelemetry TracerProvider to send traces to Phoenix.&#x20;
+To collect traces from your application, you must configure an OpenTelemetry TracerProvider to send traces to Phoenix.
 
 ```bash
 # npm, pnpm, yarn, etc
@@ -123,7 +95,7 @@ Our program is now ready to trace calls made by an llm library, but it will not 
 
 ## Trace all calls made to a library
 
-Phoenix can capture all calls made to supported libraries automatically. Just install the [respective OpenInference library](../integrations-tracing/#javascript):
+Phoenix can capture all calls made to supported libraries automatically. Just install the [respective OpenInference library](broken-reference):
 
 ```bash
 # npm, pnpm, yarn, etc
@@ -169,7 +141,7 @@ registerInstrumentations({
 {% endtabs %}
 
 {% hint style="info" %}
-Your project can be configured for CommonJS or ESM via many methods. It can depend on your installed runtime (Node, Deno, etc), as well as configuration within your \`package.json\`. Consult your runtime documentation for more details.&#x20;
+Your project can be configured for CommonJS or ESM via many methods. It can depend on your installed runtime (Node, Deno, etc), as well as configuration within your \`package.json\`. Consult your runtime documentation for more details.
 {% endhint %}
 
 Finally, in your app code, invoke OpenAI:

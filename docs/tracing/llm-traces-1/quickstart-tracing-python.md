@@ -12,43 +12,7 @@ This example uses options 1 and 2.
 
 ## Launch Phoenix
 
-{% tabs %}
-{% tab title="Using Phoenix Cloud" %}
-1. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
-2. Grab your API key from the Keys option on the left bar.
-3. In your code, set your endpoint and API key:
-
-```python
-import os
-
-# Add Phoenix API Key for tracing
-PHOENIX_API_KEY = "ADD YOUR API KEY"
-PHOENIX_ENDPOINT = "https://app.phoenix.arize.com/v1/traces"
-
-os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
-```
-
-{% hint style="warning" %}
-Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](https://arize.com/docs/phoenix/learn/faqs/what-is-my-phoenix-endpoint)
-{% endhint %}
-{% endtab %}
-
-{% tab title="Using Self-hosted Phoenix" %}
-1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, [see self-hosting](https://arize.com/docs/phoenix/self-hosting).
-2. In your code, set your endpoint:
-
-```python
-import os
-
-# Update this with your self-hosted endpoint
-PHOENIX_ENDPOINT = "http://localhost:6006/v1/traces"
-```
-
-{% hint style="warning" %}
-Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](https://arize.com/docs/phoenix/learn/faqs/what-is-my-phoenix-endpoint)
-{% endhint %}
-{% endtab %}
-{% endtabs %}
+{% include "../../.gitbook/includes/launch-phoenix-python.md" %}
 
 ## Connect to Phoenix <a href="#connect-your-app" id="connect-your-app"></a>
 
@@ -65,7 +29,6 @@ from phoenix.otel import register
 tracer_provider = register(
   project_name="my-llm-app", # Default is 'default'
   auto_instrument=True, # See 'Trace all calls made to a library' below
-  endpoint=PHOENIX_ENDPOINT,
 )
 tracer = tracer_provider.get_tracer(__name__)
 ```
@@ -84,7 +47,7 @@ Input and output attributes are set automatically based on `my_func`'s parameter
 
 ## Trace all calls made to a library
 
-Phoenix can also capture all calls made to supported libraries automatically. Just install the [respective OpenInference library](../integrations-tracing/):
+Phoenix can also capture all calls made to supported libraries automatically. Just install the [respective OpenInference library](broken-reference):
 
 ```
 pip install openinference-instrumentation-openai
