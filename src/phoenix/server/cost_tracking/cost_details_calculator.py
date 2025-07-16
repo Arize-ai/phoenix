@@ -60,6 +60,8 @@ class SpanCostDetailsCalculator:
             for p in prices
             if p.is_prompt
         }
+        if self._prompt and "input" not in self._prompt:
+            raise ValueError("Token prices for prompt must include an 'input' token type")
 
         # Create calculators for completion token types (is_prompt=False)
         self._completion: Mapping[_TokenType, TokenCostCalculator] = {
@@ -67,6 +69,8 @@ class SpanCostDetailsCalculator:
             for p in prices
             if not p.is_prompt
         }
+        if self._completion and "output" not in self._completion:
+            raise ValueError("Token prices for completion must include an 'output' token type")
 
     def calculate_details(
         self,
