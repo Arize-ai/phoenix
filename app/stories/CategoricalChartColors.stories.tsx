@@ -2,7 +2,7 @@ import { Meta, StoryFn } from "@storybook/react";
 
 import { Flex } from "@phoenix/components";
 import {
-  CATEGORY_CHART_COLORS,
+  CATEGORICAL_CHART_COLORS,
   useCategoryChartColors,
 } from "@phoenix/components/chart/colors";
 import {
@@ -21,7 +21,7 @@ const Template: StoryFn = () => {
   const colors = useCategoryChartColors();
   return (
     <Flex direction="column" gap="size-100">
-      {CATEGORY_CHART_COLORS.map((colorKey) => (
+      {CATEGORICAL_CHART_COLORS.map((colorKey) => (
         <TooltipTrigger key={colorKey} delay={0}>
           <TriggerWrap>
             <div

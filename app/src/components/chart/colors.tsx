@@ -193,7 +193,7 @@ export const useSemanticChartColors = (): Record<
   );
 };
 
-type CategoryChartColor =
+type CategoricalChartColor =
   | "category1"
   | "category2"
   | "category3"
@@ -207,7 +207,7 @@ type CategoryChartColor =
   | "category11"
   | "category12";
 
-const CategoryChartLightColors: Record<CategoryChartColor, string> = {
+const CategoryChartLightColors: Record<CategoricalChartColor, string> = {
   category1: "var(--ac-global-color-blue-900)",
   category2: "var(--ac-global-color-purple-1100)",
   category3: "var(--ac-global-color-magenta-800)",
@@ -222,7 +222,7 @@ const CategoryChartLightColors: Record<CategoryChartColor, string> = {
   category12: "var(--ac-global-color-red-1100)",
 };
 
-const CategoryChartDarkColors: Record<CategoryChartColor, string> = {
+const CategoryChartDarkColors: Record<CategoricalChartColor, string> = {
   category1: "var(--ac-global-color-blue-900)",
   category2: "var(--ac-global-color-purple-1100)",
   category3: "var(--ac-global-color-magenta-800)",
@@ -238,7 +238,7 @@ const CategoryChartDarkColors: Record<CategoryChartColor, string> = {
 };
 
 export const useCategoryChartColors = (): Record<
-  CategoryChartColor,
+  CategoricalChartColor,
   string
 > => {
   const { theme } = useTheme();
@@ -249,6 +249,6 @@ export const useCategoryChartColors = (): Record<
   );
 };
 
-export const CATEGORY_CHART_COLORS = Object.keys(
+export const CATEGORICAL_CHART_COLORS = Object.keys(
   CategoryChartLightColors
-) as CategoryChartColor[];
+) as CategoricalChartColor[];
