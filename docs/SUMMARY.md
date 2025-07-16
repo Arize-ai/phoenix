@@ -127,3 +127,4 @@
 * [Access Control (RBAC)](settings/access-control-rbac.md)
 * [API Keys](settings/api-keys.md)
 * [Data Retention](settings/data-retention.md)
+* [Phoenix to Arize AX Migration](settings/phoenix-to-arize-ax-migration.md)
