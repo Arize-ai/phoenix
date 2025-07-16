@@ -74,7 +74,6 @@ import {
   CompactJSONCell,
   LoadMoreRow,
 } from "@phoenix/components/table";
-import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import {
   Tooltip,
@@ -146,13 +145,6 @@ const defaultCardProps: Partial<CardProps> = {
 const tableWrapCSS = css`
   flex: 1 1 auto;
   overflow: auto;
-  // Make sure the table fills up the remaining space
-  table {
-    min-width: 100%;
-    td {
-      vertical-align: top;
-    }
-  }
 `;
 
 const annotationTooltipExtraCSS = css`
@@ -614,9 +606,13 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           css={tableWrapCSS}
           onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
           ref={tableContainerRef}
+          style={{
+            overflow: "auto", //our scrollable table container
+            position: "relative", //needed for sticky header
+            height: "800px",
+          }}
         >
           <table
-            css={css(tableCSS, borderedTableCSS)}
             style={{
               ...columnSizeVars,
               width: table.getTotalSize(),
@@ -782,6 +778,12 @@ function TableRow<RowType>({
       key={virtualRow.index}
       data-index={virtualRow.index} //needed for dynamic row height measurement
       ref={(node) => rowVirtualizer.measureElement(node)} //measure dynamic row height
+      style={{
+        display: "flex",
+        position: "absolute",
+        transform: `translateY(${virtualRow.start}px)`, //this should always be a `style` as it changes on scroll
+        width: "100%",
+      }}
     >
       {row.getVisibleCells().map((cell) => {
         return (
