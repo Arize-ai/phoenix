@@ -42,7 +42,6 @@ from .types import (
     EvaluationResult,
     Evaluator,
     EvaluatorName,
-    Evaluators,
     Experiment,
     ExperimentEvaluationRun,
     ExperimentEvaluators,
@@ -786,7 +785,7 @@ class Experiments:
         """
         Run evaluators on a completed experiment.
 
-        An `evaluator` is either a synchronous or asynchronous function that returns an evaluation
+        An `evaluator` is a synchronous function that returns an evaluation
         result object, which can take any of the following forms:
 
         - an EvaluationResult dict with optional fields for score, label, explanation and metadata
@@ -820,46 +819,52 @@ class Experiments:
         task_runs = experiment["task_runs"]
         dataset_id = experiment["dataset_id"]
         experiment_metadata = experiment["experiment_metadata"]
-        try:
-            experiment_response = self._client.get(
-                f"v1/experiments/{experiment_id}", timeout=timeout
+
+        if experiment_id == DRY_RUN:
+            dry_run = True
+
+        if dry_run:
+            dataset = None
+            project_name = ""
+        else:
+            try:
+                experiment_response = self._client.get(
+                    f"v1/experiments/{experiment_id}", timeout=timeout
+                )
+                experiment_response.raise_for_status()
+                experiment_data = experiment_response.json()["data"]
+                dataset_version_id = experiment_data["dataset_version_id"]
+            except HTTPStatusError as e:
+                if e.response.status_code == 404:
+                    raise ValueError(f"Experiment not found: {experiment_id}")
+                raise
+
+            try:
+                dataset_response = self._client.get(
+                    f"v1/datasets/{dataset_id}/examples",
+                    params={"version_id": str(dataset_version_id)},
+                    timeout=timeout,
+                )
+                dataset_response.raise_for_status()
+                dataset_data = dataset_response.json()["data"]
+            except HTTPStatusError:
+                raise ValueError(f"Failed to fetch dataset for experiment: {experiment_id}")
+
+            from phoenix.client.resources.datasets import Dataset
+
+            dataset = Dataset(
+                dataset_info={
+                    "id": dataset_id,
+                    "name": experiment_data.get("dataset_name", ""),
+                    "description": experiment_data.get("dataset_description"),
+                    "metadata": experiment_data.get("dataset_metadata", {}),
+                    "created_at": experiment_data.get("dataset_created_at"),
+                    "updated_at": experiment_data.get("dataset_updated_at"),
+                },
+                examples_data=dataset_data,
             )
-            experiment_response.raise_for_status()
-            experiment_data = experiment_response.json()["data"]
-            dataset_version_id = experiment_data["dataset_version_id"]
-        except HTTPStatusError as e:
-            if e.response.status_code == 404:
-                raise ValueError(f"Experiment not found: {experiment_id}")
-            raise
+            project_name = experiment_data.get("project_name", "")
 
-        # Fetch dataset for evaluation context
-        try:
-            dataset_response = self._client.get(
-                f"v1/datasets/{dataset_id}/examples",
-                params={"version_id": str(dataset_version_id)},
-                timeout=timeout,
-            )
-            dataset_response.raise_for_status()
-            dataset_data = dataset_response.json()["data"]
-        except HTTPStatusError:
-            raise ValueError(f"Failed to fetch dataset for experiment: {experiment_id}")
-
-        from phoenix.client.resources.datasets import Dataset
-
-        dataset = Dataset(
-            dataset_info={
-                "id": dataset_id,
-                "name": experiment_data.get("dataset_name", ""),
-                "description": experiment_data.get("dataset_description"),
-                "metadata": experiment_data.get("dataset_metadata", {}),
-                "created_at": experiment_data.get("dataset_created_at"),
-                "updated_at": experiment_data.get("dataset_updated_at"),
-            },
-            examples_data=dataset_data,
-        )
-
-        # Create evaluation tracer
-        project_name = experiment_data.get("project_name", "")
         eval_tracer, eval_resource = _get_tracer(
             None if dry_run else "evaluators",
             str(self._client.base_url),
@@ -867,6 +872,8 @@ class Experiments:
         )
 
         print("🧠 Evaluation started.")
+        if dry_run:
+            print("🌵️ This is a dry-run evaluation.")
 
         eval_runs = self._run_evaluations(
             task_runs,
@@ -880,7 +887,6 @@ class Experiments:
             dataset,
         )
 
-        # Combine existing evaluation runs with new ones
         all_evaluation_runs = eval_runs
         all_evaluation_runs = experiment["evaluation_runs"] + eval_runs
 
@@ -1665,7 +1671,7 @@ class AsyncExperiments:
         self,
         *,
         experiment: RanExperiment,
-        evaluators: Evaluators,
+        evaluators: ExperimentEvaluators,
         dry_run: bool = False,
         print_summary: bool = True,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -1673,9 +1679,9 @@ class AsyncExperiments:
         rate_limit_errors: Optional[RateLimitErrors] = None,
     ) -> RanExperiment:
         """
-        Run evaluators on a completed experiment (async version).
+        Run evaluators on a completed experiment.
 
-        An `evaluator` is either a synchronous function that returns an evaluation
+        An `evaluator` is either a synchronous or asynchronous function that returns an evaluation
         result object, which can take any of the following forms:
 
         - an EvaluationResult dict with optional fields for score, label, explanation and metadata
@@ -1685,7 +1691,7 @@ class AsyncExperiments:
         - a 2-`tuple` of (`float`, `str`), which will be interpreted as (score, explanation)
 
         Args:
-            experiment: The experiment ID or RanExperiment object to evaluate.
+            experiment: The experiment to evaluate, returned from `run_experiment`.
             evaluators: A single evaluator or sequence of evaluators used to
                 evaluate the results of the experiment.
             dry_run: Run the evaluation in dry-run mode. When set, evaluation results will
@@ -1709,46 +1715,52 @@ class AsyncExperiments:
         task_runs = experiment["task_runs"]
         dataset_id = experiment["dataset_id"]
         experiment_metadata = experiment["experiment_metadata"]
-        try:
-            experiment_response = await self._client.get(
-                f"v1/experiments/{experiment_id}", timeout=timeout
+
+        if experiment_id == DRY_RUN:
+            dry_run = True
+
+        if dry_run:
+            dataset = None
+            project_name = ""
+        else:
+            try:
+                experiment_response = await self._client.get(
+                    f"v1/experiments/{experiment_id}", timeout=timeout
+                )
+                experiment_response.raise_for_status()
+                experiment_data = experiment_response.json()["data"]
+                dataset_version_id = experiment_data["dataset_version_id"]
+            except HTTPStatusError as e:
+                if e.response.status_code == 404:
+                    raise ValueError(f"Experiment not found: {experiment_id}")
+                raise
+
+            try:
+                dataset_response = await self._client.get(
+                    f"v1/datasets/{dataset_id}/examples",
+                    params={"version_id": str(dataset_version_id)},
+                    timeout=timeout,
+                )
+                dataset_response.raise_for_status()
+                dataset_data = dataset_response.json()["data"]
+            except HTTPStatusError:
+                raise ValueError(f"Failed to fetch dataset for experiment: {experiment_id}")
+
+            from phoenix.client.resources.datasets import Dataset
+
+            dataset = Dataset(
+                dataset_info={
+                    "id": dataset_id,
+                    "name": experiment_data.get("dataset_name", ""),
+                    "description": experiment_data.get("dataset_description"),
+                    "metadata": experiment_data.get("dataset_metadata", {}),
+                    "created_at": experiment_data.get("dataset_created_at"),
+                    "updated_at": experiment_data.get("dataset_updated_at"),
+                },
+                examples_data=dataset_data,
             )
-            experiment_response.raise_for_status()
-            experiment_data = experiment_response.json()["data"]
-            dataset_version_id = experiment_data["dataset_version_id"]
-        except HTTPStatusError as e:
-            if e.response.status_code == 404:
-                raise ValueError(f"Experiment not found: {experiment_id}")
-            raise
+            project_name = experiment_data.get("project_name", "")
 
-        # Fetch dataset for evaluation context
-        try:
-            dataset_response = await self._client.get(
-                f"v1/datasets/{dataset_id}/examples",
-                params={"version_id": str(dataset_version_id)},
-                timeout=timeout,
-            )
-            dataset_response.raise_for_status()
-            dataset_data = dataset_response.json()["data"]
-        except HTTPStatusError:
-            raise ValueError(f"Failed to fetch dataset for experiment: {experiment_id}")
-
-        from phoenix.client.resources.datasets import Dataset
-
-        dataset = Dataset(
-            dataset_info={
-                "id": dataset_id,
-                "name": experiment_data.get("dataset_name", ""),
-                "description": experiment_data.get("dataset_description"),
-                "metadata": experiment_data.get("dataset_metadata", {}),
-                "created_at": experiment_data.get("dataset_created_at"),
-                "updated_at": experiment_data.get("dataset_updated_at"),
-            },
-            examples_data=dataset_data,
-        )
-
-        # Create evaluation tracer
-        project_name = experiment_data.get("project_name", "")
         eval_tracer, eval_resource = _get_tracer(
             None if dry_run else "evaluators",
             str(self._client.base_url),
@@ -1756,8 +1768,10 @@ class AsyncExperiments:
         )
 
         print("🧠 Evaluation started.")
+        if dry_run:
+            print("🌵️ This is a dry-run evaluation.")
 
-        eval_runs = await self._run_evaluations_async(
+        eval_runs = await self._run_evaluations(
             task_runs,
             evaluators_by_name,
             eval_tracer,
@@ -1770,7 +1784,6 @@ class AsyncExperiments:
             dataset,
         )
 
-        # Combine existing evaluation runs with new ones
         all_evaluation_runs = eval_runs
         all_evaluation_runs = experiment["evaluation_runs"] + eval_runs
 
@@ -1922,7 +1935,7 @@ class AsyncExperiments:
 
         return exp_run
 
-    async def _run_evaluations_async(
+    async def _run_evaluations(
         self,
         task_runs: list[ExperimentRun],
         evaluators_by_name: Mapping[EvaluatorName, Evaluator],
