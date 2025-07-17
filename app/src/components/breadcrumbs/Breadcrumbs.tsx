@@ -1,10 +1,17 @@
 import React, { ReactNode } from "react";
+import { useBreadcrumbItem,useBreadcrumbs } from "react-aria";
 import { css } from "@emotion/react";
 
 export interface BreadcrumbsProps {
   children: ReactNode;
   onAction?: (index: string | number) => void;
   className?: string;
+}
+
+interface BreadcrumbItemProps {
+  children: ReactNode;
+  isCurrent?: boolean;
+  onPress?: () => void;
 }
 
 const breadcrumbsCSS = css`
@@ -35,7 +42,7 @@ const breadcrumbsCSS = css`
     font-weight: normal;
   }
 
-  button {
+  button, span {
     background: none;
     border: none;
     padding: 0;
@@ -45,7 +52,7 @@ const breadcrumbsCSS = css`
     font-size: inherit;
     font-family: inherit;
     
-    &:hover {
+    &:hover:not([aria-current]) {
       color: var(--ac-global-text-color-900);
       text-decoration: underline;
     }
@@ -57,37 +64,59 @@ const breadcrumbsCSS = css`
     }
   }
 
-  .breadcrumb-current {
+  [aria-current="page"] {
     color: var(--ac-global-text-color-900);
     font-weight: 500;
+    cursor: default;
   }
 `;
 
-export function Breadcrumbs({ children, onAction, className }: BreadcrumbsProps) {
-  const childrenArray = React.Children.toArray(children);
+function BreadcrumbItem({ children, isCurrent, onPress }: BreadcrumbItemProps) {
+  const ref = React.useRef<HTMLLIElement>(null);
+  const { itemProps } = useBreadcrumbItem(
+    {
+      children,
+      isCurrent,
+      onPress,
+      elementType: onPress ? 'button' : 'span',
+    },
+    ref
+  );
 
   return (
-    <nav css={breadcrumbsCSS} className={className} aria-label="Breadcrumb">
+    <li {...itemProps} ref={ref}>
+      {onPress ? (
+        <button type="button" onClick={onPress}>
+          {children}
+        </button>
+      ) : (
+        <span aria-current="page">
+          {children}
+        </span>
+      )}
+    </li>
+  );
+}
+
+export function Breadcrumbs({ children, onAction, className }: BreadcrumbsProps) {
+  const childrenArray = React.Children.toArray(children);
+  const { navProps } = useBreadcrumbs({});
+
+  return (
+    <nav {...navProps} css={breadcrumbsCSS} className={className}>
       <ol>
         {childrenArray.map((child, index) => {
           const isLast = index === childrenArray.length - 1;
+          const childContent = React.isValidElement(child) ? child.props.children : child;
           
           return (
-            <li key={index}>
-              {isLast ? (
-                <span className="breadcrumb-current" aria-current="page">
-                  {React.isValidElement(child) ? child.props.children : child}
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => onAction?.(index)}
-                  aria-label={`Go to ${React.isValidElement(child) ? child.props.children : child}`}
-                >
-                  {React.isValidElement(child) ? child.props.children : child}
-                </button>
-              )}
-            </li>
+            <BreadcrumbItem
+              key={index}
+              isCurrent={isLast}
+              onPress={!isLast ? () => onAction?.(index) : undefined}
+            >
+              {childContent}
+            </BreadcrumbItem>
           );
         })}
       </ol>
