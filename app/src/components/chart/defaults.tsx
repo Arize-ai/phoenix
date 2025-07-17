@@ -1,4 +1,4 @@
-import { ReferenceLineProps, TooltipProps, XAxisProps } from "recharts";
+import { LabelProps, TooltipProps, XAxisProps } from "recharts";
 
 /**
  * Re-usable default props for the XAxis component.
@@ -13,15 +13,16 @@ export const defaultTimeXAxisProps: XAxisProps = {
   padding: "gap",
 };
 
-export const defaultSelectedTimestampReferenceLineProps: ReferenceLineProps = {
+export const defaultSelectedTimestampReferenceLineProps = {
   stroke: "var(--ac-global-color-grey-900)",
-  label: {
-    value: "▼",
-    position: "top",
-    style: {
-      fill: "#fabe32",
-      fontSize: "var(--ac-global-font-size-xs)",
-    },
+};
+
+export const defaultSelectedTimestampReferenceLineLabelProps: LabelProps = {
+  value: "▼",
+  position: "top",
+  style: {
+    fill: "#fabe32",
+    fontSize: "var(--ac-global-font-size-xs)",
   },
 };
 
