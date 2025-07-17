@@ -117,10 +117,10 @@ class AsyncExecutor(Executor):
         self.exit_on_error = exit_on_error
         self.base_priority = 0
         # Disable signal handling in background threads
-        if threading.current_thread() is not threading.main_thread():
-            self.termination_signal: Optional[signal.Signals] = None
-        else:
-            self.termination_signal: Optional[signal.Signals] = termination_signal
+        is_background_thread = threading.current_thread() is not threading.main_thread()
+        self.termination_signal: Optional[signal.Signals] = (
+            None if is_background_thread else termination_signal
+        )
         self.timeout: int = timeout or 120
 
     async def producer(
