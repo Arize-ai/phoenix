@@ -110,7 +110,7 @@ class AsyncExecutor(Executor):
         termination_signal (signal.Signals, optional): The signal handled to terminate the executor.
 
         task_timeout (int, optional): The maximum time in seconds to wait for a task to complete.
-            Defaults to 120.
+            Defaults to 20.
 
         backoff_seconds (float, optional): The time to wait before retrying a timed-out task.
             Defaults to 0.0.
@@ -125,7 +125,7 @@ class AsyncExecutor(Executor):
         exit_on_error: bool = True,
         fallback_return_value: Union[Unset, Any] = _unset,
         termination_signal: signal.Signals = signal.SIGINT,
-        task_timeout: int = 120,
+        task_timeout: int = 20,
         backoff_seconds: float = 0.0,
     ):
         self.generate = generation_fn
@@ -198,6 +198,8 @@ class AsyncExecutor(Executor):
                     outputs[index] = generate_task.result()
                     execution_details[index].complete()
                     execution_details[index].log_runtime(task_start_time)
+                    runtime = time.time() - task_start_time
+                    tqdm.write(f"✅ Task {index}: Completed in {runtime:.2f}s")
                     progress_bar.update()
                 elif termination_event.is_set():
                     # discard the pending task and remaining items in the queue
@@ -213,7 +215,9 @@ class AsyncExecutor(Executor):
                     marked_done = True
                     continue
                 else:
-                    tqdm.write(f"Worker timeout after {self.task_timeout}s, requeuing")
+                    retry_count = abs(priority)
+                    tqdm.write(f"Worker timeout after {self.task_timeout}s, requeuing (task {index}, attempt {retry_count + 1})")
+                    
                     # Cancel the hanging task to prevent resource leaks
                     if not generate_task.done():
                         generate_task.cancel()
@@ -226,12 +230,19 @@ class AsyncExecutor(Executor):
                     execution_details[index].log_exception(TimeoutError(f"Task timeout after {self.task_timeout}s"))
                     execution_details[index].log_runtime(task_start_time)
                     
+                    # Check if we should keep retrying
+                    if retry_count >= self.max_retries:
+                        execution_details[index].fail()
+                        tqdm.write(f"Task {index}: Max retries ({self.max_retries}) reached, giving up")
+                        progress_bar.update()
+                        continue
+                    
                     # Optional backoff before requeuing
                     if self.backoff_seconds > 0:
                         await asyncio.sleep(self.backoff_seconds)
                     
-                    # task timeouts are requeued at the same priority
-                    await queue.put((priority, item))
+                    # task timeouts are requeued with decreased priority (increased retry count)
+                    await queue.put((priority - 1, item))
             except Exception as exc:
                 execution_details[index].log_exception(exc)
                 execution_details[index].log_runtime(task_start_time)
@@ -256,12 +267,21 @@ class AsyncExecutor(Executor):
                     termination_event_watcher.cancel()
 
     async def execute(self, inputs: Sequence[Any]) -> Tuple[List[Any], List[ExecutionDetails]]:
-        print("🚀 New Version: AsyncExecutor with timeout leak fix is running!")
+        import os
+        print(f"🚀 New Version: AsyncExecutor with timeout leak fix is running! (timeout: {self.task_timeout}s)")
+        print(f"🔍 Process PID: {os.getpid()} (use 'kill -9 {os.getpid()}' to force kill if needed)")
+        print(f"📊 Starting execution: {len(inputs)} tasks, {self.concurrency} workers, {self.task_timeout}s timeout, {self.max_retries} max retries")
         termination_event = asyncio.Event()
+        termination_handled = False
 
         def termination_handler(signum: int, frame: Any) -> None:
-            termination_event.set()
-            tqdm.write("Process was interrupted. The return value will be incomplete...")
+            nonlocal termination_handled
+            if not termination_handled:
+                termination_handled = True
+                termination_event.set()
+                tqdm.write("Process was interrupted. The return value will be incomplete...")
+            else:
+                tqdm.write("Additional interrupt signal received, already handling...")
 
         original_handler = signal.signal(self.termination_signal, termination_handler)
         outputs = [self.fallback_return_value] * len(inputs)
@@ -296,13 +316,39 @@ class AsyncExecutor(Executor):
             for _ in range(self.concurrency)
         ]
 
+        tqdm.write("🔄 All tasks submitted, waiting for completion...")
         await asyncio.gather(producer, *consumers)
+        
+        tqdm.write("🔄 Producer and consumers finished, waiting for queue to empty...")
         join_task = asyncio.create_task(queue.join())
         termination_event_watcher = asyncio.create_task(termination_event.wait())
+        
+        # Add periodic status updates during queue.join() wait
+        async def periodic_status():
+            while not join_task.done() and not termination_event_watcher.done():
+                await asyncio.sleep(5)  # Print every 5 seconds
+                if not join_task.done():
+                    completed = sum(1 for d in execution_details if d.status != ExecutionStatus.DID_NOT_RUN)
+                    tqdm.write(f"🔄 Still waiting for cleanup... {completed}/{len(inputs)} tasks completed, queue size: {queue.qsize()}")
+        
+        status_task = asyncio.create_task(periodic_status())
+        
+        # Add timeout to prevent infinite hangs
+        timeout_task = asyncio.create_task(asyncio.sleep(30))  # 30 second timeout
+        
         done, pending = await asyncio.wait(
-            [join_task, termination_event_watcher], return_when=asyncio.FIRST_COMPLETED
+            [join_task, termination_event_watcher, status_task, timeout_task], 
+            return_when=asyncio.FIRST_COMPLETED
         )
+        
+        # Cancel the status and timeout tasks
+        if not status_task.done():
+            status_task.cancel()
+        if not timeout_task.done():
+            timeout_task.cancel()
+            
         if termination_event_watcher in done:
+            tqdm.write("🛑 Termination event detected, cancelling remaining tasks...")
             # Cancel all tasks
             if not join_task.done():
                 join_task.cancel()
@@ -311,12 +357,31 @@ class AsyncExecutor(Executor):
             for task in consumers:
                 if not task.done():
                     task.cancel()
+        elif timeout_task in done:
+            tqdm.write("⏰ Timeout reached during cleanup, forcing completion...")
+            # Cancel join task and proceed
+            if not join_task.done():
+                join_task.cancel()
+        else:
+            tqdm.write("✅ Queue join completed successfully")
 
         if not termination_event_watcher.done():
             termination_event_watcher.cancel()
 
         # reset the SIGTERM handler
         signal.signal(self.termination_signal, original_handler)  # reset the SIGTERM handler
+        
+        # Print summary
+        total_timeouts = sum(details.timeout_count for details in execution_details)
+        total_failures = sum(1 for details in execution_details if details.status == ExecutionStatus.FAILED)
+        total_retries = sum(details.exception_count for details in execution_details)
+        completed_tasks = sum(1 for details in execution_details if details.status != ExecutionStatus.DID_NOT_RUN)
+        pending_tasks = [i for i, details in enumerate(execution_details) if details.status == ExecutionStatus.DID_NOT_RUN]
+        
+        tqdm.write(f"📊 Execution summary: {completed_tasks}/{len(inputs)} completed, {total_timeouts} timeouts, {total_failures} failures, {total_retries} retries")
+        if pending_tasks:
+            tqdm.write(f"⚠️  Pending tasks: {pending_tasks[:10]}{'...' if len(pending_tasks) > 10 else ''}")
+        
         return outputs, execution_details
 
     def run(self, inputs: Sequence[Any]) -> Tuple[List[Any], List[ExecutionDetails]]:
@@ -431,7 +496,7 @@ def get_executor_on_sync_context(
     max_retries: int = 10,
     exit_on_error: bool = True,
     fallback_return_value: Union[Unset, Any] = _unset,
-    task_timeout: int = 120,
+    task_timeout: int = 20,
     backoff_seconds: float = 0.0,
 ) -> Executor:
     if threading.current_thread() is not threading.main_thread():

@@ -99,7 +99,7 @@ class OpenAIModel(BaseModel):
         initial_rate_limit (int, optional): The initial internal rate limit in allowed requests
             per second for making LLM calls. This limit adjusts dynamically based on rate
             limit errors. Defaults to 10.
-        timeout (int, optional): Pheonix timeout for API requests in seconds. Defaults to 120.
+        timeout (int, optional): Pheonix timeout for API requests in seconds. Defaults to 20.
         api_version (str, optional): The version of the Azure API to use. Defaults to None.
             https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#rest-api-versioning
         azure_endpoint (str, optional): The endpoint to use for azure openai. Available in the
@@ -145,7 +145,7 @@ class OpenAIModel(BaseModel):
     model_kwargs: Dict[str, Any] = field(default_factory=dict)
     request_timeout: Optional[Union[float, Tuple[float, float]]] = None
     initial_rate_limit: int = 10
-    timeout: int = 120
+    timeout: int = 20
 
     # Azure options
     api_version: Optional[str] = field(default=None)

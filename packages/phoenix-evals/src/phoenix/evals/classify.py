@@ -320,7 +320,7 @@ def llm_classify(
         max_retries=max_retries,
         exit_on_error=exit_on_error,
         fallback_return_value=fallback_return_value,
-        timeout=model._timeout,
+        task_timeout=model._timeout,
     )
 
     list_of_inputs: Union[Tuple[Any], List[Any]]
@@ -454,7 +454,7 @@ def run_evals(
         tqdm_bar_format=get_tqdm_progress_bar_formatter("run_evals"),
         exit_on_error=True,
         fallback_return_value=(None, None, None),
-        timeout=timeout,
+        task_timeout=timeout,
     )
 
     total_records = len(dataframe)
