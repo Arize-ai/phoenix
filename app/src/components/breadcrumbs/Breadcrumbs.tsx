@@ -1,5 +1,5 @@
 import React, { ReactNode } from "react";
-import { useBreadcrumbItem,useBreadcrumbs } from "react-aria";
+import { useBreadcrumbItem, useBreadcrumbs } from "react-aria";
 import { css } from "@emotion/react";
 
 export interface BreadcrumbsProps {
@@ -42,7 +42,8 @@ const breadcrumbsCSS = css`
     font-weight: normal;
   }
 
-  button, span {
+  button,
+  span {
     background: none;
     border: none;
     padding: 0;
@@ -51,12 +52,12 @@ const breadcrumbsCSS = css`
     text-decoration: none;
     font-size: inherit;
     font-family: inherit;
-    
+
     &:hover:not([aria-current]) {
       color: var(--ac-global-text-color-900);
       text-decoration: underline;
     }
-    
+
     &:focus {
       outline: 2px solid var(--ac-global-color-primary);
       outline-offset: 2px;
@@ -78,7 +79,7 @@ function BreadcrumbItem({ children, isCurrent, onPress }: BreadcrumbItemProps) {
       children,
       isCurrent,
       onPress,
-      elementType: onPress ? 'button' : 'span',
+      elementType: onPress ? "button" : "span",
     },
     ref
   );
@@ -90,15 +91,17 @@ function BreadcrumbItem({ children, isCurrent, onPress }: BreadcrumbItemProps) {
           {children}
         </button>
       ) : (
-        <span aria-current="page">
-          {children}
-        </span>
+        <span aria-current="page">{children}</span>
       )}
     </li>
   );
 }
 
-export function Breadcrumbs({ children, onAction, className }: BreadcrumbsProps) {
+export function Breadcrumbs({
+  children,
+  onAction,
+  className,
+}: BreadcrumbsProps) {
   const childrenArray = React.Children.toArray(children);
   const { navProps } = useBreadcrumbs({});
 
@@ -107,8 +110,10 @@ export function Breadcrumbs({ children, onAction, className }: BreadcrumbsProps)
       <ol>
         {childrenArray.map((child, index) => {
           const isLast = index === childrenArray.length - 1;
-          const childContent = React.isValidElement(child) ? child.props.children : child;
-          
+          const childContent = React.isValidElement(child)
+            ? child.props.children
+            : child;
+
           return (
             <BreadcrumbItem
               key={index}
@@ -122,4 +127,4 @@ export function Breadcrumbs({ children, onAction, className }: BreadcrumbsProps)
       </ol>
     </nav>
   );
-} 
+}
