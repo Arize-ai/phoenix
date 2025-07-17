@@ -30,7 +30,7 @@ spec:
                         value: "6006"
                       - name: PHOENIX_SQL_DATABASE_URL
                         value: "postgresql://postgres:postgres123@postgres:5432/postgres"
-                  image: arizephoenix/phoenix:version-11.7.0
+                  image: arizephoenix/phoenix:version-11.8.0
                   name: phoenix
                   ports:
                       - containerPort: 6006
