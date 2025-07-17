@@ -15,9 +15,6 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
-  defaultCartesianGridProps,
-  defaultXAxisProps,
-  defaultYAxisProps,
   useChartColors,
   useSemanticChartColors,
   useTimeTickFormatter,
@@ -25,13 +22,10 @@ import {
 import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
+import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
-import type { TraceCountTimeSeriesQuery } from "./__generated__/TraceCountTimeSeriesQuery.graphql";
-
-const numberFormatter = new Intl.NumberFormat([], {
-  maximumFractionDigits: 2,
-});
+import type { TraceTokenCountTimeSeriesQuery } from "./__generated__/TraceTokenCountTimeSeriesQuery.graphql";
 
 function TooltipContent({
   active,
@@ -41,14 +35,14 @@ function TooltipContent({
   const SemanticChartColors = useSemanticChartColors();
   const chartColors = useChartColors();
   if (active && payload && payload.length) {
-    // For stacked bar charts, payload[0] is the first bar (error), payload[1] is the second bar (ok)
-    const errorValue = payload[0]?.value ?? null;
-    const okValue = payload[1]?.value ?? null;
-    const okString =
-      typeof okValue === "number" ? numberFormatter.format(okValue) : "--";
-    const errorString =
-      typeof errorValue === "number"
-        ? numberFormatter.format(errorValue)
+    // For stacked bar charts, payload[0] is the first bar (prompt), payload[1] is the second bar (completion)
+    const promptValue = payload[0]?.value ?? null;
+    const completionValue = payload[1]?.value ?? null;
+    const promptString =
+      typeof promptValue === "number" ? intFormatter(promptValue) : "--";
+    const completionString =
+      typeof completionValue === "number"
+        ? intFormatter(completionValue)
         : "--";
     return (
       <ChartTooltip>
@@ -58,16 +52,16 @@ function TooltipContent({
           )}`}</Text>
         )}
         <ChartTooltipItem
-          color={SemanticChartColors.danger}
+          color={SemanticChartColors.info}
           shape="circle"
-          name="error"
-          value={errorString}
+          name="prompt"
+          value={promptString}
         />
         <ChartTooltipItem
           color={chartColors.default}
           shape="circle"
-          name="ok"
-          value={okString}
+          name="completion"
+          value={completionString}
         />
       </ChartTooltip>
     );
@@ -76,28 +70,33 @@ function TooltipContent({
   return null;
 }
 
-export function TraceCountTimeSeries({ projectId }: { projectId: string }) {
+export function TraceTokenCountTimeSeries({
+  projectId,
+}: {
+  projectId: string;
+}) {
   const { timeRange } = useTimeRange();
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
 
-  const data = useLazyLoadQuery<TraceCountTimeSeriesQuery>(
+  const data = useLazyLoadQuery<TraceTokenCountTimeSeriesQuery>(
     graphql`
-      query TraceCountTimeSeriesQuery(
+      query TraceTokenCountTimeSeriesQuery(
         $projectId: ID!
         $timeRange: TimeRange!
         $timeBinConfig: TimeBinConfig!
       ) {
         project: node(id: $projectId) {
           ... on Project {
-            traceCountByStatusTimeSeries(
+            traceTokenCountTimeSeries(
               timeRange: $timeRange
               timeBinConfig: $timeBinConfig
             ) {
               data {
                 timestamp
-                okCount
-                errorCount
+                promptTokenCount
+                completionTokenCount
+                totalTokenCount
               }
             }
           }
@@ -117,11 +116,11 @@ export function TraceCountTimeSeries({ projectId }: { projectId: string }) {
     }
   );
 
-  const chartData = (data.project.traceCountByStatusTimeSeries?.data ?? []).map(
+  const chartData = (data.project.traceTokenCountTimeSeries?.data ?? []).map(
     (datum) => ({
       timestamp: datum.timestamp,
-      ok: datum.okCount,
-      error: datum.errorCount,
+      prompt: datum.promptTokenCount ?? 0,
+      completion: datum.completionTokenCount ?? 0,
     })
   );
 
@@ -148,32 +147,40 @@ export function TraceCountTimeSeries({ projectId }: { projectId: string }) {
         barSize={10}
       >
         <XAxis
-          {...defaultXAxisProps}
           dataKey="timestamp"
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
+          style={{ fill: "var(--ac-global-text-color-700)" }}
+          stroke="var(--ac-global-color-grey-400)"
         />
         <YAxis
-          {...defaultYAxisProps}
+          stroke="var(--ac-global-color-grey-500)"
           width={50}
           label={{
-            value: "Count",
+            value: "Tokens",
             angle: -90,
             dx: -10,
             style: {
               textAnchor: "middle",
-              fill: "var(--chart-axis-label-color)",
+              fill: "var(--ac-global-text-color-900)",
             },
           }}
+          style={{ fill: "var(--ac-global-text-color-700)" }}
         />
-        <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
+
+        <CartesianGrid
+          strokeDasharray="4 4"
+          stroke="var(--ac-global-color-grey-500)"
+          strokeOpacity={0.5}
+          vertical={false}
+        />
         <Tooltip
           content={TooltipContent}
           // TODO formalize this
           cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
         />
-        <Bar dataKey="error" stackId="a" fill={SemanticChartColors.danger} />
+        <Bar dataKey="prompt" stackId="a" fill={SemanticChartColors.info} />
         <Bar
-          dataKey="ok"
+          dataKey="completion"
           stackId="a"
           fill={colors.default}
           radius={[2, 2, 0, 0]}

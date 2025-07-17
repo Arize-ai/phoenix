@@ -1,10 +1,15 @@
 import { forwardRef } from "react";
+import { useParams } from "react-router";
 import { css } from "@emotion/react";
 
 import { Flex, Heading, Text, View } from "@phoenix/components";
 import { TraceErrorsTimeSeries } from "@phoenix/pages/project/TraceErrorsTimeSeries";
 
+import { SpanAnnotationScoreTimeSeries } from "./SpanAnnotationScoreTimeSeries";
 import { TraceCountTimeSeries } from "./TraceCountTimeSeries";
+import { TraceLatencyPercentilesTimeSeries } from "./TraceLatencyPercentilesTimeSeries";
+import { TraceTokenCostTimeSeries } from "./TraceTokenCostTimeSeries";
+import { TraceTokenCountTimeSeries } from "./TraceTokenCountTimeSeries";
 
 interface MetricPanelHeaderProps {
   title: string;
@@ -79,6 +84,10 @@ export const MetricPanel = forwardRef(function MetricPanel(
 });
 
 export function ProjectMetricsPage() {
+  const { projectId } = useParams();
+  if (!projectId) {
+    throw new Error("projectId is required");
+  }
   return (
     <main
       css={css`
@@ -98,27 +107,26 @@ export function ProjectMetricsPage() {
           title="Traces over time"
           subtitle="Overall volume of traces"
         >
-          <TraceCountTimeSeries />
+          <TraceCountTimeSeries projectId={projectId} />
         </MetricPanel>
         <MetricPanel title="Trace count (errors only)">
           <TraceErrorsTimeSeries />
         </MetricPanel>
       </Flex>
       <Flex direction="row" gap="size-100">
-        <MetricPanel title="Duration" subtitle="Daily quantiles in seconds">
-          {"Duration chart goes here"}
+        <MetricPanel title="Latency" subtitle="Latency percentiles">
+          <TraceLatencyPercentilesTimeSeries projectId={projectId} />
         </MetricPanel>
-
         <MetricPanel title="Token usage" subtitle="Daily totals">
-          {"Token usage chart goes here"}
+          <TraceTokenCountTimeSeries projectId={projectId} />
         </MetricPanel>
       </Flex>
       <Flex direction="row" gap="size-100">
         <MetricPanel title="Estimated cost" subtitle="Total daily cost in USD">
-          {"Estimated cost chart goes here"}
+          <TraceTokenCostTimeSeries projectId={projectId} />
         </MetricPanel>
-        <MetricPanel title="Feedback scores" subtitle="Daily averages">
-          {"Feedback scores chart goes here"}
+        <MetricPanel title="Feedback scores" subtitle="Average scores">
+          <SpanAnnotationScoreTimeSeries projectId={projectId} />
         </MetricPanel>
       </Flex>
     </main>
