@@ -1302,3 +1302,77 @@ class TestEvaluateExperiment:
             assert eval_run.result is not None
             assert "score" in eval_run.result
             assert eval_run.result.get("label") == "length_score"
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    async def test_dry_run_with_evaluate_experiment(
+        self,
+        is_async: bool,
+        role_or_user: UserRoleInput,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        user = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient
+
+        unique_name = f"test_dry_run_eval_{uuid.uuid4().hex[:8]}"
+
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                inputs=[
+                    {"text": "Hello world"},
+                    {"text": "Python is great"},
+                ],
+                outputs=[
+                    {"expected": "greeting"},
+                    {"expected": "programming"},
+                ],
+            )
+        )
+
+        def simple_task(input: Dict[str, Any]) -> str:
+            text = input.get("text", "")
+            if "Hello" in text:
+                return "greeting"
+            elif "Python" in text:
+                return "programming"
+            else:
+                return "unknown"
+
+        def accuracy_evaluator(output: str, expected: Dict[str, Any]) -> float:
+            return 1.0 if output == expected.get("expected") else 0.0
+
+        client = Client(base_url=_app.base_url, api_key=api_key)
+
+        dry_run_result = await _await_or_return(
+            client.experiments.run_experiment(
+                dataset=dataset,
+                task=simple_task,
+                experiment_name=f"test_dry_run_{uuid.uuid4().hex[:8]}",
+                dry_run=True,
+                print_summary=False,
+            )
+        )
+
+        assert dry_run_result["experiment_id"] == "DRY_RUN"
+        assert len(dry_run_result["task_runs"]) == 1
+        assert len(dry_run_result["evaluation_runs"]) == 0
+
+        eval_result = await _await_or_return(
+            client.experiments.evaluate_experiment(
+                experiment=dry_run_result,
+                evaluators=[accuracy_evaluator],
+                dry_run=True,
+                print_summary=False,
+            )
+        )
+
+        assert eval_result["experiment_id"] == "DRY_RUN"
+        assert len(eval_result["task_runs"]) == 1
+        assert len(eval_result["evaluation_runs"]) == 1

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7a8150371b6aef84496be9f21efe4819>>
+ * @generated SignedSource<<ca8bb56d94981513b62a855201578fec>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -26,7 +26,6 @@ export type ModelsTable_generativeModels$data = {
     readonly startTime: string | null;
     readonly tokenPrices: ReadonlyArray<{
       readonly costPerMillionTokens: number;
-      readonly costPerToken: number;
       readonly kind: TokenKind;
       readonly tokenType: string;
     }>;
@@ -147,13 +146,6 @@ return {
               "kind": "ScalarField",
               "name": "costPerMillionTokens",
               "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "costPerToken",
-              "storageKey": null
             }
           ],
           "storageKey": null
@@ -167,6 +159,6 @@ return {
 };
 })();
 
-(node as any).hash = "1cd03416c0889ec899ff5f6b8fc92c9a";
+(node as any).hash = "72e6b970ebca0dd6ce7b1e6e8e75cbc9";
 
 export default node;
