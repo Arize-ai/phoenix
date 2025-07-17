@@ -13,6 +13,7 @@ export interface ProgressCircleProps extends ReactAriaProgressBarProps {
 export interface ProgressBarProps extends ReactAriaProgressBarProps {
   /**
    * The width of the progress bar (e.g. '200px', '100%')
+   * @default '192px'
    */
   width?: StyleProps["width"];
 }

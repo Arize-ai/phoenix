@@ -16,11 +16,12 @@ function ProgressBar(
       style={{ width }}
     >
       {({ percentage }) => (
-        <>
-          <div className="bar">
-            <div className="fill" style={{ width: percentage + "%" }} />
-          </div>
-        </>
+        <div className="progress-bar__track">
+          <div
+            className="progress-bar__fill"
+            style={{ width: percentage + "%" }}
+          />
+        </div>
       )}
     </ReactAriaProgressBar>
   );
