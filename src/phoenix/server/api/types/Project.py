@@ -872,7 +872,7 @@ async def _paginate_span_by_trace_start_time(
     after: Optional[CursorString] = None,
     sort: SpanSort = SpanSort(col=SpanColumn.startTime, dir=SortDir.desc),
     orphan_span_as_root_span: Optional[bool] = True,
-    retries: int = 10,
+    retries: int = 3,
 ) -> Connection[Span]:
     """Return one representative root span per trace, ordered by trace start time.
 
