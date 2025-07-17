@@ -94,6 +94,8 @@ class AsyncExecutor(Executor):
             that encounter errors. Defaults to _unset.
 
         termination_signal (signal.Signals, optional): The signal handled to terminate the executor.
+            Defaults to signal.SIGINT. Set to None to disable signal handling (automatically
+            disabled in background threads).
     """
 
     def __init__(
@@ -104,7 +106,7 @@ class AsyncExecutor(Executor):
         max_retries: int = 10,
         exit_on_error: bool = True,
         fallback_return_value: Union[Unset, Any] = _unset,
-        termination_signal: signal.Signals = signal.SIGINT,
+        termination_signal: Optional[signal.Signals] = signal.SIGINT,
         timeout: Optional[int] = None,
     ):
         self.generate = generation_fn
@@ -114,7 +116,11 @@ class AsyncExecutor(Executor):
         self.max_retries = max_retries
         self.exit_on_error = exit_on_error
         self.base_priority = 0
-        self.termination_signal = termination_signal
+        # Disable signal handling in background threads
+        if threading.current_thread() is not threading.main_thread():
+            self.termination_signal: Optional[signal.Signals] = None
+        else:
+            self.termination_signal: Optional[signal.Signals] = termination_signal
         self.timeout: int = timeout or 120
 
     async def producer(
@@ -226,7 +232,10 @@ class AsyncExecutor(Executor):
             termination_event.set()
             tqdm.write("Process was interrupted. The return value will be incomplete...")
 
-        original_handler = signal.signal(self.termination_signal, termination_handler)
+        # Only set up signal handling if we have a termination signal (main thread)
+        original_handler = None
+        if self.termination_signal is not None:
+            original_handler = signal.signal(self.termination_signal, termination_handler)
         outputs = [self.fallback_return_value] * len(inputs)
         execution_details = [ExecutionDetails() for _ in range(len(inputs))]
         progress_bar = tqdm(
@@ -278,8 +287,9 @@ class AsyncExecutor(Executor):
         if not termination_event_watcher.done():
             termination_event_watcher.cancel()
 
-        # reset the SIGTERM handler
-        signal.signal(self.termination_signal, original_handler)  # reset the SIGTERM handler
+        # reset the signal handler if we set one
+        if self.termination_signal is not None and original_handler is not None:
+            signal.signal(self.termination_signal, original_handler)
         return outputs, execution_details
 
     def run(self, inputs: Sequence[Any]) -> Tuple[List[Any], List[ExecutionDetails]]:
@@ -321,7 +331,11 @@ class SyncExecutor(Executor):
         self.tqdm_bar_format = tqdm_bar_format
         self.max_retries = max_retries
         self.exit_on_error = exit_on_error
-        self.termination_signal = termination_signal
+        # Disable signal handling in background threads
+        if threading.current_thread() is not threading.main_thread():
+            self.termination_signal = None
+        else:
+            self.termination_signal = termination_signal
 
         self._terminate = False
 
