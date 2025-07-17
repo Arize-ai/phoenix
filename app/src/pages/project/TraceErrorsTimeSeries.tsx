@@ -1,83 +1,66 @@
-import {
-  useChartColors,
-  useSemanticChartColors,
-} from "@phoenix/components/chart";
+import { useSemanticChartColors } from "@phoenix/components/chart";
 import { TimeSeriesBarChart } from "@phoenix/components/chart/TimeSeriesBarChart";
 
 const chartData = [
   {
     timestamp: "2021-01-01",
-    ok: 100,
-    error: 10,
+    error: 0,
   },
   {
     timestamp: "2021-01-02",
-    ok: 100,
-    error: 10,
+    error: 0,
   },
   {
     timestamp: "2021-01-03",
-    ok: 100,
-    error: 10,
+    error: 0,
   },
   {
     timestamp: "2021-01-04",
-    ok: 100,
     error: 10,
   },
   {
     timestamp: "2021-01-05",
-    ok: 100,
-    error: 10,
+    error: 30,
   },
   {
     timestamp: "2021-01-06",
-    ok: 100,
-    error: 10,
+    error: 0,
   },
   {
     timestamp: "2021-01-07",
-    ok: 100,
-    error: 10,
+    error: 40,
   },
   {
     timestamp: "2021-01-08",
-    ok: 100,
-    error: 10,
+    error: 0,
   },
   {
     timestamp: "2021-01-09",
-    ok: 100,
     error: 10,
   },
   {
     timestamp: "2021-01-10",
-    ok: 100,
-    error: 10,
+    error: 0,
   },
   {
     timestamp: "2021-01-11",
-    ok: 100,
-    error: 10,
+    error: 0,
   },
 ];
 
-export function TraceCountTimeSeries() {
+export function TraceErrorsTimeSeries() {
   const timeRange = {
     start: new Date("2021-01-01"),
     end: new Date("2021-01-11"),
   };
-
-  const colors = useChartColors();
   const SemanticChartColors = useSemanticChartColors();
   return (
     <TimeSeriesBarChart
       data={chartData}
       colorMap={{
-        ok: colors.default,
         error: SemanticChartColors.danger,
       }}
-      orderedKeys={["error", "ok"]}
+      orderedKeys={["error"]}
       timeRange={timeRange}
     />
   );
