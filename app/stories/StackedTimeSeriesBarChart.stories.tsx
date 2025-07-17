@@ -1,28 +1,28 @@
+import { useEffect, useRef, useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
+  RectangleProps,
   ResponsiveContainer,
   Tooltip,
   TooltipProps,
   XAxis,
   YAxis,
 } from "recharts";
+import { css } from "@emotion/react";
 
 import { Text } from "@phoenix/components";
 import {
-  ChartColors,
   ChartTooltip,
   ChartTooltipItem,
-  useChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 import { calculateGranularity } from "@phoenix/utils/timeSeriesUtils";
 
-import { CHART_COLORS } from "./constants/colorConstants";
+import { CATEGORICAL_CHART_COLORS } from "./constants/colorConstants";
 
 const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
@@ -86,59 +86,275 @@ const chartData = [
   },
 ];
 
-const lowVolumeData = [
+// Data for 6 segments
+const sixSegmentData = [
   {
     timestamp: "2021-01-01",
-    ok: 10,
-    error: 1,
+    segment1: 20,
+    segment2: 30,
+    segment3: 25,
+    segment4: 15,
+    segment5: 35,
+    segment6: 40,
   },
   {
     timestamp: "2021-01-02",
-    ok: 12,
-    error: 0,
+    segment1: 25,
+    segment2: 28,
+    segment3: 22,
+    segment4: 18,
+    segment5: 30,
+    segment6: 38,
   },
   {
     timestamp: "2021-01-03",
-    ok: 8,
-    error: 2,
+    segment1: 18,
+    segment2: 32,
+    segment3: 28,
+    segment4: 20,
+    segment5: 25,
+    segment6: 35,
   },
   {
     timestamp: "2021-01-04",
-    ok: 15,
-    error: 1,
+    segment1: 30,
+    segment2: 35,
+    segment3: 20,
+    segment4: 25,
+    segment5: 40,
+    segment6: 45,
   },
   {
     timestamp: "2021-01-05",
-    ok: 11,
-    error: 0,
+    segment1: 22,
+    segment2: 26,
+    segment3: 30,
+    segment4: 16,
+    segment5: 28,
+    segment6: 42,
+  },
+  {
+    timestamp: "2021-01-06",
+    segment1: 24,
+    segment2: 29,
+    segment3: 26,
+    segment4: 19,
+    segment5: 32,
+    segment6: 36,
+  },
+  {
+    timestamp: "2021-01-07",
+    segment1: 28,
+    segment2: 33,
+    segment3: 24,
+    segment4: 22,
+    segment5: 38,
+    segment6: 41,
+  },
+  {
+    timestamp: "2021-01-08",
+    segment1: 19,
+    segment2: 27,
+    segment3: 29,
+    segment4: 17,
+    segment5: 26,
+    segment6: 37,
+  },
+  {
+    timestamp: "2021-01-09",
+    segment1: 31,
+    segment2: 36,
+    segment3: 21,
+    segment4: 24,
+    segment5: 39,
+    segment6: 44,
+  },
+  {
+    timestamp: "2021-01-10",
+    segment1: 23,
+    segment2: 25,
+    segment3: 27,
+    segment4: 15,
+    segment5: 29,
+    segment6: 40,
+  },
+  {
+    timestamp: "2021-01-11",
+    segment1: 26,
+    segment2: 31,
+    segment3: 23,
+    segment4: 21,
+    segment5: 34,
+    segment6: 39,
   },
 ];
 
-const highVolumeData = [
+// Data for 12 segments
+const twelveSegmentData = [
   {
     timestamp: "2021-01-01",
-    ok: 1000,
-    error: 100,
+    segment1: 10,
+    segment2: 12,
+    segment3: 8,
+    segment4: 15,
+    segment5: 11,
+    segment6: 13,
+    segment7: 9,
+    segment8: 14,
+    segment9: 7,
+    segment10: 16,
+    segment11: 10,
+    segment12: 12,
   },
   {
     timestamp: "2021-01-02",
-    ok: 1200,
-    error: 150,
+    segment1: 11,
+    segment2: 13,
+    segment3: 9,
+    segment4: 14,
+    segment5: 12,
+    segment6: 15,
+    segment7: 8,
+    segment8: 13,
+    segment9: 10,
+    segment10: 17,
+    segment11: 11,
+    segment12: 14,
   },
   {
     timestamp: "2021-01-03",
-    ok: 800,
-    error: 50,
+    segment1: 9,
+    segment2: 11,
+    segment3: 10,
+    segment4: 13,
+    segment5: 10,
+    segment6: 14,
+    segment7: 7,
+    segment8: 15,
+    segment9: 8,
+    segment10: 16,
+    segment11: 9,
+    segment12: 13,
   },
   {
     timestamp: "2021-01-04",
-    ok: 1500,
-    error: 200,
+    segment1: 12,
+    segment2: 14,
+    segment3: 11,
+    segment4: 16,
+    segment5: 13,
+    segment6: 16,
+    segment7: 10,
+    segment8: 17,
+    segment9: 9,
+    segment10: 18,
+    segment11: 12,
+    segment12: 15,
   },
   {
     timestamp: "2021-01-05",
-    ok: 1100,
-    error: 80,
+    segment1: 10,
+    segment2: 12,
+    segment3: 9,
+    segment4: 14,
+    segment5: 11,
+    segment6: 15,
+    segment7: 8,
+    segment8: 14,
+    segment9: 7,
+    segment10: 17,
+    segment11: 10,
+    segment12: 13,
+  },
+  {
+    timestamp: "2021-01-06",
+    segment1: 11,
+    segment2: 13,
+    segment3: 10,
+    segment4: 15,
+    segment5: 12,
+    segment6: 14,
+    segment7: 9,
+    segment8: 16,
+    segment9: 8,
+    segment10: 18,
+    segment11: 11,
+    segment12: 14,
+  },
+  {
+    timestamp: "2021-01-07",
+    segment1: 13,
+    segment2: 15,
+    segment3: 11,
+    segment4: 17,
+    segment5: 14,
+    segment6: 17,
+    segment7: 10,
+    segment8: 18,
+    segment9: 9,
+    segment10: 19,
+    segment11: 13,
+    segment12: 16,
+  },
+  {
+    timestamp: "2021-01-08",
+    segment1: 9,
+    segment2: 11,
+    segment3: 8,
+    segment4: 13,
+    segment5: 10,
+    segment6: 13,
+    segment7: 7,
+    segment8: 14,
+    segment9: 6,
+    segment10: 15,
+    segment11: 9,
+    segment12: 12,
+  },
+  {
+    timestamp: "2021-01-09",
+    segment1: 14,
+    segment2: 16,
+    segment3: 12,
+    segment4: 18,
+    segment5: 15,
+    segment6: 18,
+    segment7: 11,
+    segment8: 19,
+    segment9: 10,
+    segment10: 20,
+    segment11: 14,
+    segment12: 17,
+  },
+  {
+    timestamp: "2021-01-10",
+    segment1: 10,
+    segment2: 12,
+    segment3: 9,
+    segment4: 14,
+    segment5: 11,
+    segment6: 14,
+    segment7: 8,
+    segment8: 15,
+    segment9: 7,
+    segment10: 16,
+    segment11: 10,
+    segment12: 13,
+  },
+  {
+    timestamp: "2021-01-11",
+    segment1: 12,
+    segment2: 14,
+    segment3: 10,
+    segment4: 16,
+    segment5: 13,
+    segment6: 16,
+    segment7: 9,
+    segment8: 17,
+    segment9: 8,
+    segment10: 18,
+    segment11: 12,
+    segment12: 15,
   },
 ];
 
@@ -147,33 +363,28 @@ function TooltipContent({
   payload,
   label,
 }: TooltipProps<number, string>) {
-  const chartColors = useChartColors();
   if (active && payload && payload.length) {
-    const metricValue = payload[1]?.value ?? null;
-    const count = payload[0]?.value ?? null;
-    const metricString =
-      typeof metricValue === "number"
-        ? numberFormatter.format(metricValue)
-        : "--";
-    const predictionCountString =
-      typeof count === "number" ? numberFormatter.format(count) : "--";
     return (
       <ChartTooltip>
         <Text weight="heavy" size="S">{`${fullTimeFormatter(
           new Date(label)
         )}`}</Text>
-        <ChartTooltipItem
-          color={chartColors.red300}
-          shape="circle"
-          name="error"
-          value={metricString}
-        />
-        <ChartTooltipItem
-          color={chartColors.default}
-          shape="circle"
-          name="ok"
-          value={predictionCountString}
-        />
+        {payload.map((entry, index) => (
+          <ChartTooltipItem
+            key={entry.dataKey}
+            color={
+              entry.color ||
+              `var(--ac-global-color-${CATEGORICAL_CHART_COLORS[index]})`
+            }
+            shape="circle"
+            name={String(entry.dataKey)}
+            value={
+              typeof entry.value === "number"
+                ? numberFormatter.format(entry.value)
+                : "--"
+            }
+          />
+        ))}
       </ChartTooltip>
     );
   }
@@ -181,23 +392,147 @@ function TooltipContent({
   return null;
 }
 
+// Custom bar shape that includes a 2px gap at the top
+const CustomBar = (props: RectangleProps) => {
+  const { fill, x = 0, y = 0, width = 0, height = 0, radius } = props;
+
+  // Don't render if height is too small
+  if (height < 0.1) return null;
+
+  // Check if we should round the top corners
+  const shouldRoundTop =
+    radius &&
+    ((typeof radius === "number" && radius > 0) ||
+      (Array.isArray(radius) && radius.length > 0 && radius[0] > 0));
+
+  // Skip gap for topmost segment. Without this, the topmost segment
+  // also gets reduced by 2, resulting in a bar that's 2px shy of the
+  // correct total height for all segments.
+  //
+  // This skip method distributes Y-axis distortion in a very slightly
+  // uneven way, since the top bar is taller by a fraction of ~1/(total/2).
+  //
+  /// This seems acceptably small, but if it's not, there's an even
+  // less distorting method that I'm avoiding for readability:
+  // instead of skipping the subtraction entirely on the top
+  // element, halve the subtraction on the first and last element,
+  // so the first and last el are 1px larger, further halving
+  // any distortion.
+  const gapHeight = !shouldRoundTop && height > 2 ? 2 : 0;
+  const barHeight = height - gapHeight;
+  const barY = y + gapHeight;
+
+  // Get the radius value (default to 2 if radius is specified)
+  const r = shouldRoundTop
+    ? typeof radius === "number"
+      ? radius
+      : radius[0] || 2
+    : 0;
+
+  if (shouldRoundTop && r > 0) {
+    // Draw a path with only top corners rounded
+    const path = `
+      M ${x + r} ${barY}
+      L ${x + width - r} ${barY}
+      Q ${x + width} ${barY} ${x + width} ${barY + r}
+      L ${x + width} ${barY + barHeight}
+      L ${x} ${barY + barHeight}
+      L ${x} ${barY + r}
+      Q ${x} ${barY} ${x + r} ${barY}
+      Z
+    `;
+
+    return (
+      <g>
+        <path d={path} fill={fill} />
+      </g>
+    );
+  }
+
+  // Fallback to regular rectangle for non-rounded bars
+  return (
+    <g>
+      <rect x={x} y={barY} width={width} height={barHeight} fill={fill} />
+    </g>
+  );
+};
+
 interface StackedBarChartProps {
   data?: Array<{
     timestamp: string;
-    ok: number;
-    error: number;
+    [key: string]: string | number;
   }>;
   height?: number | string;
-  firstColor?: keyof ChartColors;
-  secondColor?: keyof ChartColors;
+}
+
+// Custom Legend component that properly handles wrapping
+interface CustomLegendProps {
+  segmentKeys: string[];
+  barColors: string[];
+  yAxisWidth: number;
+  legendRef?: React.RefObject<HTMLDivElement>;
+}
+
+function CustomLegend({
+  segmentKeys,
+  barColors,
+  yAxisWidth,
+  legendRef,
+}: CustomLegendProps) {
+  return (
+    <div
+      ref={legendRef}
+      css={css`
+        display: flex;
+        flex-wrap: wrap;
+        row-gap: 8px;
+        column-gap: 12px;
+        align-items: center;
+        padding-left: ${yAxisWidth}px;
+        width: calc(100% - ${yAxisWidth}px);
+        max-width: 100%;
+        margin-top: -10px; /* Negative margin to pull legend closer to chart */
+        margin-bottom: 0;
+      `}
+    >
+      {segmentKeys.map((key, index) => (
+        <div
+          key={key}
+          css={css`
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: var(--ac-global-text-color-700);
+            font-size: 12px;
+          `}
+        >
+          <div
+            css={css`
+              width: 8px;
+              height: 8px;
+              border-radius: 50%;
+              background-color: ${barColors[index]};
+              flex-shrink: 0;
+            `}
+          />
+          <span>{key}</span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function StackedBarChart({
   data = chartData,
   height = 200,
-  firstColor = "red300",
-  secondColor = "default",
 }: StackedBarChartProps) {
+  const chartRef = useRef<HTMLDivElement>(null);
+  const legendRef = useRef<HTMLDivElement>(null);
+  // Default to zero so that failures to adapt are obvious
+  const [yAxisWidth, setYAxisWidth] = useState(0);
+  const [legendHeight, setLegendHeight] = useState(0);
+  const [isReady, setIsReady] = useState(false);
+
   const timeRange = {
     start: new Date("2021-01-01"),
     end: new Date("2021-01-11"),
@@ -208,14 +543,89 @@ function StackedBarChart({
     samplingIntervalMinutes: granularity.samplingIntervalMinutes,
   });
 
-  const colors = useChartColors();
+  // Get segment keys from the first data item (excluding timestamp)
+  const segmentKeys =
+    data && data.length > 0
+      ? Object.keys(data[0]).filter((key) => key !== "timestamp")
+      : [];
+
+  // Use the appropriate number of categorical colors based on actual segments
+  const barColors = CATEGORICAL_CHART_COLORS.slice(0, segmentKeys.length).map(
+    (token) => `var(--ac-global-color-${token})`
+  );
+
+  const leftMargin = 0;
+
+  // Measure the actual Y-axis width after render
+  useEffect(() => {
+    // Reset ready state when data changes
+    setIsReady(false);
+
+    if (chartRef.current) {
+      // Wait for chart to fully render
+      const measureChart = () => {
+        const chart = chartRef.current;
+        if (!chart) return;
+
+        // Find the vertical grid line (start of data area)
+        const gridLine =
+          chart.querySelector(
+            '.recharts-cartesian-axis-line[orientation="left"]'
+          ) ||
+          chart.querySelector(".recharts-cartesian-grid-vertical line") ||
+          chart.querySelector(".recharts-yAxis line");
+
+        if (gridLine) {
+          const gridBbox = gridLine.getBoundingClientRect();
+          const chartBbox = chart.getBoundingClientRect();
+
+          // Calculate Y-axis width
+          const measuredYAxisWidth = gridBbox.left - chartBbox.left;
+
+          if (measuredYAxisWidth > 0 && measuredYAxisWidth < 200) {
+            setYAxisWidth(Math.ceil(measuredYAxisWidth));
+          }
+        }
+
+        // Measure legend height
+        if (legendRef.current) {
+          const legendRect = legendRef.current.getBoundingClientRect();
+          setLegendHeight(Math.ceil(legendRect.height));
+        }
+
+        // Mark as ready to trigger fade-in
+        setIsReady(true);
+      };
+
+      setTimeout(measureChart, 20);
+    }
+  }, [data]); // Re-measure if data changes
+
+  // Calculate the chart height based on total height minus legend height
+  const chartHeight =
+    typeof height === "number"
+      ? Math.max(height - legendHeight, 100) // Ensure minimum chart height
+      : height;
 
   return (
-    <div style={{ width: "100%", height }}>
-      <ResponsiveContainer width="100%" height="100%">
+    <div
+      ref={chartRef}
+      style={{
+        width: "100%",
+        height,
+        opacity: isReady ? 1 : 0,
+        transition: "opacity 200ms ease-in-out",
+      }}
+    >
+      <ResponsiveContainer width="100%" height={chartHeight}>
         <BarChart
           data={data}
-          margin={{ top: 0, right: 18, left: 0, bottom: 0 }}
+          margin={{
+            top: 5,
+            right: 5,
+            left: leftMargin,
+            bottom: 8,
+          }}
           barSize={10}
         >
           <XAxis
@@ -226,14 +636,16 @@ function StackedBarChart({
           />
           <YAxis
             stroke="var(--ac-global-color-grey-500)"
-            width={50}
+            tick={{ fontSize: 12 }}
             label={{
               value: "Trace Count",
               angle: -90,
-              dx: -10,
+              position: "insideLeft",
+              offset: 12,
               style: {
                 textAnchor: "middle",
                 fill: "var(--ac-global-text-color-900)",
+                fontSize: 12,
               },
             }}
             style={{ fill: "var(--ac-global-text-color-700)" }}
@@ -249,17 +661,27 @@ function StackedBarChart({
             content={<TooltipContent />}
             cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
           />
-          <Bar dataKey="error" stackId="a" fill={colors[firstColor]} />
-          <Bar
-            dataKey="ok"
-            stackId="a"
-            fill={colors[secondColor]}
-            radius={[2, 2, 0, 0]}
-          />
-
-          <Legend align="left" iconType="circle" iconSize={8} />
+          {segmentKeys.map((key, index) => (
+            <Bar
+              key={key}
+              dataKey={key}
+              stackId="a"
+              fill={barColors[index]}
+              radius={
+                index === segmentKeys.length - 1 ? [2, 2, 0, 0] : undefined
+              }
+              isAnimationActive={false}
+              shape={<CustomBar />}
+            />
+          ))}
         </BarChart>
       </ResponsiveContainer>
+      <CustomLegend
+        segmentKeys={segmentKeys}
+        barColors={barColors}
+        yAxisWidth={yAxisWidth}
+        legendRef={legendRef}
+      />
     </div>
   );
 }
@@ -275,37 +697,29 @@ const meta: Meta<typeof StackedBarChart> = {
       control: { type: "number" },
       description: "Height of the chart",
     },
-    firstColor: {
-      control: { type: "select" },
-      options: CHART_COLORS,
-    },
-    secondColor: {
-      control: { type: "select" },
-      options: CHART_COLORS,
-    },
   },
 };
 
 export default meta;
 type Story = StoryObj<typeof StackedBarChart>;
 
-export const Default: Story = {
+export const TwoSegments: Story = {
   args: {
     data: chartData,
     height: 400,
   },
 };
 
-export const LowVolume: Story = {
+export const SixSegments: Story = {
   args: {
-    data: lowVolumeData,
+    data: sixSegmentData,
     height: 400,
   },
 };
 
-export const HighVolume: Story = {
+export const TwelveSegments: Story = {
   args: {
-    data: highVolumeData,
+    data: twelveSegmentData,
     height: 400,
   },
 };

@@ -234,3 +234,25 @@ export const CHART_COLORS: (keyof ChartColors)[] = [
   "primary",
   "reference",
 ];
+
+export const CATEGORICAL_CHART_COLORS: ColorValue[] = [
+  "blue-800",
+  "purple-800",
+  "indigo-600",
+  "fuchsia-700",
+  "magenta-800",
+  "blue-700",
+  "magenta-500",
+  "cyan-600",
+  "purple-1100",
+  "purple-500",
+  "cyan-800",
+  "seafoam-500",
+];
+
+export const SEMANTIC_CHART_COLORS: ColorValue[] = [
+  "celery-600",
+  "red-700",
+  "grey-500",
+  "grey-900",
+];
