@@ -46,6 +46,8 @@ class ExecutionDetails:
         self.exceptions: List[Exception] = []
         self.status = ExecutionStatus.DID_NOT_RUN
         self.execution_seconds: float = 0
+        self.timeout_count: int = 0
+        self.exception_count: int = 0
 
     def fail(self) -> None:
         self.status = ExecutionStatus.FAILED
@@ -58,9 +60,22 @@ class ExecutionDetails:
 
     def log_exception(self, exc: Exception) -> None:
         self.exceptions.append(exc)
+        if isinstance(exc, TimeoutError):
+            self.timeout_count += 1
+        else:
+            self.exception_count += 1
 
     def log_runtime(self, start_time: float) -> None:
         self.execution_seconds += time.time() - start_time
+
+    def to_dict(self) -> dict:
+        return {
+            "status": self.status.value,
+            "exceptions": [repr(e) for e in self.exceptions],
+            "timeout_count": self.timeout_count,
+            "exception_count": self.exception_count,
+            "execution_seconds": round(self.execution_seconds, 3),
+        }
 
 
 class Executor(Protocol):
@@ -93,6 +108,12 @@ class AsyncExecutor(Executor):
             that encounter errors. Defaults to _unset.
 
         termination_signal (signal.Signals, optional): The signal handled to terminate the executor.
+
+        task_timeout (int, optional): The maximum time in seconds to wait for a task to complete.
+            Defaults to 120.
+
+        backoff_seconds (float, optional): The time to wait before retrying a timed-out task.
+            Defaults to 0.0.
     """
 
     def __init__(
@@ -104,6 +125,8 @@ class AsyncExecutor(Executor):
         exit_on_error: bool = True,
         fallback_return_value: Union[Unset, Any] = _unset,
         termination_signal: signal.Signals = signal.SIGINT,
+        task_timeout: int = 120,
+        backoff_seconds: float = 0.0,
     ):
         self.generate = generation_fn
         self.fallback_return_value = fallback_return_value
@@ -113,6 +136,8 @@ class AsyncExecutor(Executor):
         self.exit_on_error = exit_on_error
         self.base_priority = 0
         self.termination_signal = termination_signal
+        self.task_timeout = task_timeout
+        self.backoff_seconds = backoff_seconds
 
     async def producer(
         self,
@@ -165,7 +190,7 @@ class AsyncExecutor(Executor):
                 termination_event_watcher = asyncio.create_task(termination_event.wait())
                 done, pending = await asyncio.wait(
                     [generate_task, termination_event_watcher],
-                    timeout=120,
+                    timeout=self.task_timeout,
                     return_when=asyncio.FIRST_COMPLETED,
                 )
 
@@ -188,10 +213,25 @@ class AsyncExecutor(Executor):
                     marked_done = True
                     continue
                 else:
-                    tqdm.write("Worker timeout, requeuing")
+                    tqdm.write(f"Worker timeout after {self.task_timeout}s, requeuing")
+                    # Cancel the hanging task to prevent resource leaks
+                    if not generate_task.done():
+                        generate_task.cancel()
+                        try:
+                            await generate_task
+                        except asyncio.CancelledError:
+                            pass
+                    
+                    # Log the timeout as an exception for tracking
+                    execution_details[index].log_exception(TimeoutError(f"Task timeout after {self.task_timeout}s"))
+                    execution_details[index].log_runtime(task_start_time)
+                    
+                    # Optional backoff before requeuing
+                    if self.backoff_seconds > 0:
+                        await asyncio.sleep(self.backoff_seconds)
+                    
                     # task timeouts are requeued at the same priority
                     await queue.put((priority, item))
-                    execution_details[index].log_runtime(task_start_time)
             except Exception as exc:
                 execution_details[index].log_exception(exc)
                 execution_details[index].log_runtime(task_start_time)
@@ -216,6 +256,7 @@ class AsyncExecutor(Executor):
                     termination_event_watcher.cancel()
 
     async def execute(self, inputs: Sequence[Any]) -> Tuple[List[Any], List[ExecutionDetails]]:
+        print("🚀 New Version: AsyncExecutor with timeout leak fix is running!")
         termination_event = asyncio.Event()
 
         def termination_handler(signum: int, frame: Any) -> None:
@@ -382,6 +423,8 @@ def get_executor_on_sync_context(
     max_retries: int = 10,
     exit_on_error: bool = True,
     fallback_return_value: Union[Unset, Any] = _unset,
+    task_timeout: int = 120,
+    backoff_seconds: float = 0.0,
 ) -> Executor:
     if threading.current_thread() is not threading.main_thread():
         # run evals synchronously if not in the main thread
@@ -417,6 +460,8 @@ def get_executor_on_sync_context(
                 max_retries=max_retries,
                 exit_on_error=exit_on_error,
                 fallback_return_value=fallback_return_value,
+                task_timeout=task_timeout,
+                backoff_seconds=backoff_seconds,
             )
         else:
             logger.warning(
@@ -439,6 +484,8 @@ def get_executor_on_sync_context(
             max_retries=max_retries,
             exit_on_error=exit_on_error,
             fallback_return_value=fallback_return_value,
+            task_timeout=task_timeout,
+            backoff_seconds=backoff_seconds,
         )
 
 
