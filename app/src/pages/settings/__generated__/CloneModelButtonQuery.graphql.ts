@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dbb1839a06e52771dbf10fa67d598401>>
+ * @generated SignedSource<<4bb751a9dc9947c7ebf98ff35a2617de>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -24,7 +24,6 @@ export type CloneModelButtonQuery$data = {
     readonly startTime?: string | null;
     readonly tokenPrices?: ReadonlyArray<{
       readonly costPerMillionTokens: number;
-      readonly costPerToken: number;
       readonly kind: TokenKind;
       readonly tokenType: string;
     }>;
@@ -120,13 +119,6 @@ v8 = {
       "kind": "ScalarField",
       "name": "costPerMillionTokens",
       "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "costPerToken",
-      "storageKey": null
     }
   ],
   "storageKey": null
@@ -208,16 +200,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "45cd1db550a23d19841fd50896301189",
+    "cacheID": "c6375c02dea693149c710391a257a587",
     "id": null,
     "metadata": {},
     "name": "CloneModelButtonQuery",
     "operationKind": "query",
-    "text": "query CloneModelButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on GenerativeModel {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      startTime\n      tokenPrices {\n        tokenType\n        kind\n        costPerMillionTokens\n        costPerToken\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query CloneModelButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on GenerativeModel {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      startTime\n      tokenPrices {\n        tokenType\n        kind\n        costPerMillionTokens\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "cba8eee925e486e55b778eeea3ee350c";
+(node as any).hash = "b0ce69ce5cc1eb1d694234678e1d6169";
 
 export default node;

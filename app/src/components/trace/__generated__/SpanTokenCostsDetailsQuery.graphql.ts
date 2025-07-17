@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0937e546624fc4b6e55fd1e50d14e084>>
+ * @generated SignedSource<<e62acdec0064cfee3df753016706fa57>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,7 +20,6 @@ export type SpanTokenCostsDetailsQuery$data = {
       readonly tokenType: string;
       readonly value: {
         readonly cost: number | null;
-        readonly costPerToken: number | null;
         readonly tokens: number | null;
       };
     }>;
@@ -159,13 +158,6 @@ v5 = {
               "kind": "ScalarField",
               "name": "tokens",
               "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "costPerToken",
-              "storageKey": null
             }
           ],
           "storageKey": null
@@ -230,16 +222,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "3606008da79f928102b0c41aa786f983",
+    "cacheID": "76a8269902195041de07d13cdf853e14",
     "id": null,
     "metadata": {},
     "name": "SpanTokenCostsDetailsQuery",
     "operationKind": "query",
-    "text": "query SpanTokenCostsDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      costSummary {\n        total {\n          cost\n        }\n        prompt {\n          cost\n        }\n        completion {\n          cost\n        }\n      }\n      costDetailSummaryEntries {\n        tokenType\n        isPrompt\n        value {\n          cost\n          tokens\n          costPerToken\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query SpanTokenCostsDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      costSummary {\n        total {\n          cost\n        }\n        prompt {\n          cost\n        }\n        completion {\n          cost\n        }\n      }\n      costDetailSummaryEntries {\n        tokenType\n        isPrompt\n        value {\n          cost\n          tokens\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "81b75a15348659ad11157406f324ac85";
+(node as any).hash = "2b8791832440bdad2d98eb3b3a168fd7";
 
 export default node;

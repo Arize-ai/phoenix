@@ -47,7 +47,6 @@ const ModelQuery = graphql`
           tokenType
           kind
           costPerMillionTokens
-          costPerToken
         }
       }
     }

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<620b15774ea791690bdb460a512edc2c>>
+ * @generated SignedSource<<640c10731d11ad5955eb1951d6447fa6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -230,13 +230,6 @@ return {
                         "kind": "ScalarField",
                         "name": "costPerMillionTokens",
                         "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "costPerToken",
-                        "storageKey": null
                       }
                     ],
                     "storageKey": null
@@ -253,12 +246,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "978c0dccdacaa8f56202c6ce03b69170",
+    "cacheID": "9af795e38598e145b0f52303ab7b1112",
     "id": null,
     "metadata": {},
     "name": "NewModelButtonCreateModelMutation",
     "operationKind": "mutation",
-    "text": "mutation NewModelButtonCreateModelMutation(\n  $input: CreateModelMutationInput!\n) {\n  createModel(input: $input) {\n    query {\n      generativeModels {\n        id\n      }\n      ...ModelsTable_generativeModels\n    }\n  }\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels {\n    id\n    name\n    provider\n    namePattern\n    providerKey\n    startTime\n    createdAt\n    updatedAt\n    lastUsedAt\n    kind\n    tokenPrices {\n      tokenType\n      kind\n      costPerMillionTokens\n      costPerToken\n    }\n  }\n}\n"
+    "text": "mutation NewModelButtonCreateModelMutation(\n  $input: CreateModelMutationInput!\n) {\n  createModel(input: $input) {\n    query {\n      generativeModels {\n        id\n      }\n      ...ModelsTable_generativeModels\n    }\n  }\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels {\n    id\n    name\n    provider\n    namePattern\n    providerKey\n    startTime\n    createdAt\n    updatedAt\n    lastUsedAt\n    kind\n    tokenPrices {\n      tokenType\n      kind\n      costPerMillionTokens\n    }\n  }\n}\n"
   }
 };
 })();
