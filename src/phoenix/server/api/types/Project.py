@@ -5,14 +5,14 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, Optional, cast
 
 import strawberry
-from aioitertools.itertools import islice
+from aioitertools.itertools import groupby, islice
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import desc, distinct, func, or_, select
+from sqlalchemy import and_, desc, distinct, exists, func, or_, select
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.sql.expression import tuple_
 from strawberry import ID, UNSET, Private, lazy
-from strawberry.relay import Connection, Node, NodeID
+from strawberry.relay import Connection, Edge, Node, NodeID, PageInfo
 from strawberry.types import Info
 from typing_extensions import assert_never
 
@@ -25,7 +25,7 @@ from phoenix.server.api.input_types.ProjectSessionSort import (
     ProjectSessionColumn,
     ProjectSessionSort,
 )
-from phoenix.server.api.input_types.SpanSort import SpanSort, SpanSortConfig
+from phoenix.server.api.input_types.SpanSort import SpanColumn, SpanSort, SpanSortConfig
 from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBinScale
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
@@ -36,6 +36,7 @@ from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     Cursor,
     CursorSortColumn,
+    CursorSortColumnDataType,
     CursorString,
     connection_from_cursors_and_nodes,
     connection_from_list,
@@ -47,6 +48,7 @@ from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.TimeSeries import TimeSeries, TimeSeriesDataPoint
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
+from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 
 DEFAULT_PAGE_SIZE = 30
@@ -264,6 +266,16 @@ class Project(Node):
         filter_condition: Optional[str] = UNSET,
         orphan_span_as_root_span: Optional[bool] = True,
     ) -> Connection[Span]:
+        if root_spans_only and not filter_condition and sort and sort.col is SpanColumn.startTime:
+            return await _paginate_span_by_trace_start_time(
+                db=info.context.db,
+                project_rowid=self.project_rowid,
+                time_range=time_range,
+                first=first,
+                after=after,
+                sort=sort,
+                orphan_span_as_root_span=orphan_span_as_root_span,
+            )
         stmt = (
             select(models.Span.id)
             .select_from(models.Span)
@@ -850,3 +862,201 @@ def _as_datetime(value: Any) -> datetime:
     if isinstance(value, str):
         return cast(datetime, normalize_datetime(datetime.fromisoformat(value), timezone.utc))
     raise ValueError(f"Cannot convert {value} to datetime")
+
+
+async def _paginate_span_by_trace_start_time(
+    db: DbSessionFactory,
+    project_rowid: int,
+    time_range: Optional[TimeRange] = None,
+    first: Optional[int] = DEFAULT_PAGE_SIZE,
+    after: Optional[CursorString] = None,
+    sort: SpanSort = SpanSort(col=SpanColumn.startTime, dir=SortDir.desc),
+    orphan_span_as_root_span: Optional[bool] = True,
+    retries: int = 3,
+) -> Connection[Span]:
+    """Return one representative root span per trace, ordered by trace start time.
+
+    **Note**: Despite the function name, cursors are based on trace rowids, not span rowids.
+    This is because we paginate by traces (one span per trace), not individual spans.
+
+    **Important**: The edges list can be empty while has_next_page=True. This happens
+    when traces exist but have no matching root spans. Pagination continues because there
+    may be more traces ahead with spans.
+
+    Args:
+        db: Database session factory.
+        project_rowid: Project ID to query spans from.
+        time_range: Optional time range filter on trace start times.
+        first: Maximum number of edges to return (default: DEFAULT_PAGE_SIZE).
+        after: Cursor for pagination (points to trace position, not span).
+        sort: Sort by trace start time (asc/desc only).
+        orphan_span_as_root_span: Whether to include orphan spans as root spans.
+            True: spans with parent_id=NULL OR pointing to non-existent spans.
+            False: only spans with parent_id=NULL.
+        retries: Maximum number of retry attempts when insufficient edges are found.
+            When traces exist but lack root spans, the function retries pagination
+            to find traces with spans. Set to 0 to disable retries.
+
+    Returns:
+        Connection[Span] with:
+        - edges: At most one Edge per trace (may be empty list).
+        - page_info: Pagination info based on trace positions.
+
+    Key Points:
+        - Traces without root spans produce NO edges
+        - Spans ordered by trace start time, not span start time
+        - Cursors track trace positions for efficient large-scale pagination
+    """
+    # Build base trace query ordered by start time
+    traces = select(
+        models.Trace.id,
+        models.Trace.start_time,
+    ).where(models.Trace.project_rowid == project_rowid)
+    if sort.dir is SortDir.desc:
+        traces = traces.order_by(
+            models.Trace.start_time.desc(),
+            models.Trace.id.desc(),
+        )
+    else:
+        traces = traces.order_by(
+            models.Trace.start_time.asc(),
+            models.Trace.id.asc(),
+        )
+
+    # Apply time range filters
+    if time_range:
+        if time_range.start:
+            traces = traces.where(time_range.start <= models.Trace.start_time)
+        if time_range.end:
+            traces = traces.where(models.Trace.start_time < time_range.end)
+
+    # Apply cursor pagination
+    if after:
+        cursor = Cursor.from_string(after)
+        assert cursor.sort_column
+        compare = operator.lt if sort.dir is SortDir.desc else operator.gt
+        traces = traces.where(
+            compare(
+                tuple_(models.Trace.start_time, models.Trace.id),
+                (cursor.sort_column.value, cursor.rowid),
+            )
+        )
+
+    # Limit for pagination
+    if first:
+        traces = traces.limit(
+            first + 1  # over-fetch by one to determine whether there's a next page
+        )
+    traces_cte = traces.cte()
+
+    # Define join condition for root spans
+    if orphan_span_as_root_span:
+        # Include both NULL parent_id and orphaned spans
+        parent_spans = select(models.Span.span_id).alias("parent_spans")
+        onclause = and_(
+            models.Span.trace_rowid == traces_cte.c.id,
+            or_(
+                models.Span.parent_id.is_(None),
+                ~exists().where(models.Span.parent_id == parent_spans.c.span_id),
+            ),
+        )
+    else:
+        # Only spans with no parent (parent_id is NULL, excludes orphaned spans)
+        onclause = and_(
+            models.Span.trace_rowid == traces_cte.c.id,
+            models.Span.parent_id.is_(None),
+        )
+
+    # Join traces with root spans (left join allows traces without spans)
+    stmt = select(
+        traces_cte.c.id,
+        traces_cte.c.start_time,
+        models.Span.id,
+    ).join_from(
+        traces_cte,
+        models.Span,
+        onclause=onclause,
+        isouter=True,
+    )
+
+    # Order by trace time, then pick earliest span per trace
+    if sort.dir is SortDir.desc:
+        stmt = stmt.order_by(
+            traces_cte.c.start_time.desc(),
+            traces_cte.c.id.desc(),
+            models.Span.start_time.asc(),  # earliest span
+            models.Span.id.desc(),
+        )
+    else:
+        stmt = stmt.order_by(
+            traces_cte.c.start_time.asc(),
+            traces_cte.c.id.asc(),
+            models.Span.start_time.asc(),  # earliest span
+            models.Span.id.desc(),
+        )
+
+    # Use DISTINCT for PostgreSQL, manual grouping for SQLite
+    if db.dialect is SupportedSQLDialect.POSTGRESQL:
+        stmt = stmt.distinct(traces_cte.c.start_time, traces_cte.c.id)
+    elif db.dialect is SupportedSQLDialect.SQLITE:
+        # too complicated for SQLite, so we rely on groupby() below
+        pass
+    else:
+        assert_never(db.dialect)
+
+    # Process results and build edges
+    edges: list[Edge[Span]] = []
+    start_cursor: Optional[str] = None
+    end_cursor: Optional[str] = None
+    async with db() as session:
+        records = groupby(await session.stream(stmt), key=lambda record: record[:2])
+        async for (trace_rowid, trace_start_time), group in islice(records, first):
+            cursor = Cursor(
+                rowid=trace_rowid,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.DATETIME,
+                    value=trace_start_time,
+                ),
+            )
+            if start_cursor is None:
+                start_cursor = str(cursor)
+            end_cursor = str(cursor)
+            first_record = group[0]
+            # Only create edge if trace has a root span
+            if (span_rowid := first_record[2]) is not None:
+                edges.append(Edge(node=Span(span_rowid=span_rowid), cursor=str(cursor)))
+        has_next_page = True
+        try:
+            await records.__anext__()
+        except StopAsyncIteration:
+            has_next_page = False
+
+    # Retry if we need more edges and more traces exist
+    if first and len(edges) < first and has_next_page:
+        while retries and (num_needed := first - len(edges)) and has_next_page:
+            retries -= 1
+            batch_size = max(first, 1000)
+            more = await _paginate_span_by_trace_start_time(
+                db=db,
+                project_rowid=project_rowid,
+                time_range=time_range,
+                first=batch_size,
+                after=end_cursor,
+                sort=sort,
+                orphan_span_as_root_span=orphan_span_as_root_span,
+                retries=0,
+            )
+            edges.extend(more.edges[:num_needed])
+            start_cursor = start_cursor or more.page_info.start_cursor
+            end_cursor = more.page_info.end_cursor if len(edges) < first else edges[-1].cursor
+            has_next_page = len(more.edges) > num_needed or more.page_info.has_next_page
+
+    return Connection(
+        edges=edges,
+        page_info=PageInfo(
+            start_cursor=start_cursor,
+            end_cursor=end_cursor,
+            has_previous_page=False,
+            has_next_page=has_next_page,
+        ),
+    )
