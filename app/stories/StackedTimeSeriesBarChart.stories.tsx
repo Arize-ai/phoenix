@@ -399,16 +399,28 @@ const CustomBar = (props: RectangleProps) => {
   // Don't render if height is too small
   if (height < 0.1) return null;
 
-  // Render bar with 2px gap at top (except for very small bars)
-  const gapHeight = height > 2 ? 2 : 0;
-  const barHeight = height - gapHeight;
-  const barY = y + gapHeight;
-
   // Check if we should round the top corners
   const shouldRoundTop =
     radius &&
     ((typeof radius === "number" && radius > 0) ||
       (Array.isArray(radius) && radius.length > 0 && radius[0] > 0));
+
+  // Skip gap for topmost segment. Without this, the topmost segment
+  // also gets reduced by 2, resulting in a bar that's 2px shy of the
+  // correct total height for all segments.
+  //
+  // This skip method distributes Y-axis distortion in a very slightly
+  // uneven way, since the top bar is taller by a fraction of ~1/(total/2).
+  //
+  /// This seems acceptably small, but if it's not, there's an even
+  // less distorting method that I'm avoiding for readability:
+  // instead of skipping the subtraction entirely on the top
+  // element, halve the subtraction on the first and last element,
+  // so the first and last el are 1px larger, further halving
+  // any distortion.
+  const gapHeight = !shouldRoundTop && height > 2 ? 2 : 0;
+  const barHeight = height - gapHeight;
+  const barY = y + gapHeight;
 
   // Get the radius value (default to 2 if radius is specified)
   const r = shouldRoundTop
