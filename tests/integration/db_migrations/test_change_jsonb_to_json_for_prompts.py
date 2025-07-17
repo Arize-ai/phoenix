@@ -13,6 +13,7 @@ def test_change_jsonb_to_json_for_prompts(
     _engine: Engine,
     _alembic_config: Config,
     _db_backend: Literal["sqlite", "postgresql"],
+    _schema: str,
 ) -> None:
     """
     Test the migration that changes the column type from JSONB to JSON for the
@@ -27,10 +28,10 @@ def test_change_jsonb_to_json_for_prompts(
     """
     # Verify we're starting from a clean state
     with pytest.raises(BaseException, match="alembic_version"):
-        _version_num(_engine)
+        _version_num(_engine, _schema)
 
     # Run the migration that creates the prompt_versions table
-    _up(_engine, _alembic_config, "bc8fea3c2bc8")
+    _up(_engine, _alembic_config, "bc8fea3c2bc8", _schema)
 
     # Sample data for testing - intentionally using keys in arbitrary order
     # to demonstrate the difference between JSONB and JSON in PostgreSQL
@@ -139,7 +140,7 @@ def test_change_jsonb_to_json_for_prompts(
             assert result[1] != json.dumps(response_format_data)
 
     # STEP 2: Run the migration to change JSONB to JSON
-    _up(_engine, _alembic_config, "8a3764fe7f1a")
+    _up(_engine, _alembic_config, "8a3764fe7f1a", _schema)
 
     # Verify the migration worked correctly
     with _engine.connect() as conn:
@@ -189,7 +190,7 @@ def test_change_jsonb_to_json_for_prompts(
             assert re.search(r"\bresponse_format\s+JSON\b", table_def) is not None
 
     # STEP 3: Test downgrade back to JSONB
-    _down(_engine, _alembic_config, "bc8fea3c2bc8")
+    _down(_engine, _alembic_config, "bc8fea3c2bc8", _schema)
 
     # Verify the downgrade worked correctly
     with _engine.connect() as conn:

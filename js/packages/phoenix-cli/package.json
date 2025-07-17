@@ -1,0 +1,47 @@
+{
+  "name": "@arizeai/phoenix-cli",
+  "version": "0.0.1",
+  "description": "A command-line interface for Phoenix",
+  "main": "dist/src/index.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/src/index.d.ts",
+  "bin": {
+    "phoenix-cli": "dist/src/index.js"
+  },
+  "files": [
+    "dist",
+    "src",
+    "package.json"
+  ],
+  "scripts": {
+    "clean": "rimraf dist",
+    "prebuild": "pnpm run clean",
+    "build": "tsc --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
+    "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
+    "dev": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest --typecheck"
+  },
+  "keywords": [
+    "phoenix",
+    "cli",
+    "arize",
+    "llmops"
+  ],
+  "author": "oss@arize.com",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.0",
+    "typescript": "^5.8.2",
+    "vitest": "^2.1.9",
+    "rimraf": "^5.0.10",
+    "tsc-alias": "^1.8.11"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=18"
+  }
+}

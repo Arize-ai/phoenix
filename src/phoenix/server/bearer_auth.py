@@ -7,10 +7,10 @@ from typing import Any, Optional, cast
 import grpc
 from fastapi import HTTPException, Request, WebSocket, WebSocketException
 from grpc_interceptor import AsyncServerInterceptor
-from grpc_interceptor.exceptions import Unauthenticated
 from starlette.authentication import AuthCredentials, AuthenticationBackend, BaseUser
 from starlette.requests import HTTPConnection
 from starlette.status import HTTP_401_UNAUTHORIZED
+from typing_extensions import override
 
 from phoenix import config
 from phoenix.auth import (
@@ -100,16 +100,19 @@ class PhoenixSystemUser(PhoenixUser):
 
 
 class ApiKeyInterceptor(HasTokenStore, AsyncServerInterceptor):
+    @override
     async def intercept(
         self,
-        method: Callable[[Any, grpc.ServicerContext], Awaitable[Any]],
+        method: Callable[[Any, grpc.aio.ServicerContext], Awaitable[Any]],
         request_or_iterator: Any,
-        context: grpc.ServicerContext,
+        context: grpc.aio.ServicerContext,
         method_name: str,
     ) -> Any:
-        for datum in context.invocation_metadata():
-            if datum.key.lower() == "authorization":
-                scheme, _, token = datum.value.partition(" ")
+        for key, value in context.invocation_metadata() or ():
+            if key.lower() == "authorization":
+                if isinstance(value, bytes):
+                    value = value.decode("utf-8")
+                scheme, _, token = value.partition(" ")
                 if scheme.lower() != "bearer" or not token:
                     break
                 if (
@@ -119,16 +122,16 @@ class ApiKeyInterceptor(HasTokenStore, AsyncServerInterceptor):
                 ):
                     return await method(request_or_iterator, context)
                 claims = await self._token_store.read(Token(token))
-                if not (isinstance(claims, UserClaimSet) and isinstance(claims.subject, UserId)):
+                if (
+                    not (
+                        isinstance(claims, (ApiKeyClaims, AccessTokenClaims))
+                        and isinstance(claims.subject, UserId)
+                    )
+                    or claims.status is not ClaimSetStatus.VALID
+                ):
                     break
-                if not isinstance(claims, (ApiKeyClaims, AccessTokenClaims)):
-                    raise Unauthenticated(details="Invalid token")
-                if claims.status is ClaimSetStatus.EXPIRED:
-                    raise Unauthenticated(details="Expired token")
-                if claims.status is ClaimSetStatus.VALID:
-                    return await method(request_or_iterator, context)
-                raise Unauthenticated()
-        raise Unauthenticated()
+                return await method(request_or_iterator, context)
+        await context.abort(grpc.StatusCode.UNAUTHENTICATED)
 
 
 async def is_authenticated(

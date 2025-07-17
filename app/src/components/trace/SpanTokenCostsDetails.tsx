@@ -28,7 +28,6 @@ export function SpanTokenCostsDetails(props: { spanNodeId: string }) {
               value {
                 cost
                 tokens
-                costPerToken
               }
             }
           }

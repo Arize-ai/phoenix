@@ -539,31 +539,31 @@ export const darkThemeCSS = css`
     --ac-global-color-fuchsia-200: rgb(var(--ac-global-color-fuchsia-200-rgb));
     --ac-global-color-fuchsia-300-rgb: 120, 0, 120;
     --ac-global-color-fuchsia-300: rgb(var(--ac-global-color-fuchsia-300-rgb));
-    --ac-global-color-fuchsia-400-rgb: 145, 0, 78;
+    --ac-global-color-fuchsia-400-rgb: 146, 0, 147;
     --ac-global-color-fuchsia-400: rgb(var(--ac-global-color-fuchsia-400-rgb));
     --ac-global-color-fuchsia-500-rgb: 169, 19, 170;
     --ac-global-color-fuchsia-500: rgb(var(--ac-global-color-fuchsia-500-rgb));
-    --ac-global-color-fuchsia-600-rgb: 209, 43, 114;
+    --ac-global-color-fuchsia-600-rgb: 191, 43, 191;
     --ac-global-color-fuchsia-600: rgb(var(--ac-global-color-fuchsia-600-rgb));
-    --ac-global-color-fuchsia-700-rgb: 227, 69, 137;
+    --ac-global-color-fuchsia-700-rgb: 211, 65, 213;
     --ac-global-color-fuchsia-700: rgb(var(--ac-global-color-fuchsia-700-rgb));
-    --ac-global-color-fuchsia-800-rgb: 241, 97, 156;
+    --ac-global-color-fuchsia-800-rgb: 228, 91, 229;
     --ac-global-color-fuchsia-800: rgb(var(--ac-global-color-fuchsia-800-rgb));
-    --ac-global-color-fuchsia-900-rgb: 252, 124, 173;
+    --ac-global-color-fuchsia-900-rgb: 239, 120, 238;
     --ac-global-color-fuchsia-900: rgb(var(--ac-global-color-fuchsia-900-rgb));
-    --ac-global-color-fuchsia-1000-rgb: 255, 152, 191;
+    --ac-global-color-fuchsia-1000-rgb: 246, 149, 243;
     --ac-global-color-fuchsia-1000: rgb(
       var(--ac-global-color-fuchsia-1000-rgb)
     );
-    --ac-global-color-fuchsia-1100-rgb: 255, 179, 207;
+    --ac-global-color-fuchsia-1100-rgb: 251, 175, 246;
     --ac-global-color-fuchsia-1100: rgb(
       var(--ac-global-color-fuchsia-1100-rgb)
     );
-    --ac-global-color-fuchsia-1200-rgb: 254, 202, 221;
+    --ac-global-color-fuchsia-1200-rgb: 254, 199, 248;
     --ac-global-color-fuchsia-1200: rgb(
       var(--ac-global-color-fuchsia-1200-rgb)
     );
-    --ac-global-color-fuchsia-1300-rgb: 255, 221, 233;
+    --ac-global-color-fuchsia-1300-rgb: 255, 220, 250;
     --ac-global-color-fuchsia-1300: rgb(
       var(--ac-global-color-fuchsia-1300-rgb)
     );
@@ -1228,6 +1228,15 @@ const ReactGridLayoutCSS = css`
   }
 `;
 
+const chartCSS = css`
+  .ac-theme--dark {
+    --chart-tooltip-cursor-fill-color: rgba(255, 255, 255, 0.2);
+  }
+  .ac-theme--light {
+    --chart-tooltip-cursor-fill-color: rgba(0, 0, 0, 0.2);
+  }
+`;
+
 export function GlobalStyles() {
   const { theme = "dark" } = useProvider();
   const themeCSS = theme === "dark" ? darkThemeCSS : lightThemeCSS;
@@ -1242,7 +1251,8 @@ export function GlobalStyles() {
         opacitiesCSS,
         appGlobalStylesCSS,
         codeMirrorOverridesCSS,
-        ReactGridLayoutCSS
+        ReactGridLayoutCSS,
+        chartCSS
       )}
     />
   );

@@ -1,13 +1,14 @@
 import { Layouts, Responsive, WidthProvider } from "react-grid-layout";
 import { useLoaderData } from "react-router";
+import { invariant } from "@apollo/client/utilities/globals";
 import { css } from "@emotion/react";
 
 import { Flex, Heading, View } from "@phoenix/components";
 import { ConnectedLastNTimeRangePicker } from "@phoenix/components/datetime";
 
-import { DashboardBarChart } from "./DashboardBarChart";
 import { DashboardPanel } from "./DashboardPanel";
 import { projectDashboardLoader } from "./projectDashboardLoader";
+import { TraceCountDashboardBarChart } from "./TraceCountDashboardBarChart";
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const layouts: Layouts = {
@@ -19,6 +20,7 @@ const layouts: Layouts = {
 
 export function ProjectDashboardPage() {
   const { project } = useLoaderData<typeof projectDashboardLoader>();
+  invariant(project.id, "Project ID is required");
   return (
     <main
       css={css`
@@ -60,12 +62,7 @@ export function ProjectDashboardPage() {
             title="Trace Counts"
             subtitle="number of traces over time"
           >
-            <DashboardBarChart />
-          </DashboardPanel>
-        </div>
-        <div key="b">
-          <DashboardPanel title="Grid Item B">
-            <DashboardBarChart />
+            <TraceCountDashboardBarChart projectId={project.id} />
           </DashboardPanel>
         </div>
       </ResponsiveGridLayout>

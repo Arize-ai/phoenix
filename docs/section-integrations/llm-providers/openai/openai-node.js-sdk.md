@@ -96,6 +96,39 @@ openai.chat.completions
 
 After setting up instrumentation and running your  OpenAI application, traces will appear in the Phoenix UI for visualization and analysis.
 
+## Custom Tracer Provider
+
+You can specify a custom tracer provider for OpenAI instrumentation in multiple ways:
+
+### Method 1: Pass tracerProvider on instantiation
+
+```typescript
+const instrumentation = new OpenAIInstrumentation({
+  tracerProvider: customTracerProvider,
+});
+instrumentation.manuallyInstrument(OpenAI);
+```
+
+### Method 2: Set tracerProvider after instantiation
+
+```typescript
+const instrumentation = new OpenAIInstrumentation();
+instrumentation.setTracerProvider(customTracerProvider);
+instrumentation.manuallyInstrument(OpenAI);
+```
+
+### Method 3: Pass tracerProvider to registerInstrumentations
+
+```typescript
+const instrumentation = new OpenAIInstrumentation();
+instrumentation.manuallyInstrument(OpenAI);
+
+registerInstrumentations({
+  instrumentations: [instrumentation],
+  tracerProvider: customTracerProvider,
+});
+```
+
 ## Resources
 
 * [Example project](https://github.com/Arize-ai/openinference/tree/main/js/examples/openai)

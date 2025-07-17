@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d40287dc77a8558575e3c356028c0349>>
+ * @generated SignedSource<<c0f815052c6d02046dee4250604c7f4f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -139,12 +139,17 @@ return {
     {
       "defaultValue": null,
       "kind": "LocalArgument",
-      "name": "datasetId"
+      "name": "baselineExperimentId"
     },
     {
       "defaultValue": null,
       "kind": "LocalArgument",
-      "name": "experimentIds"
+      "name": "compareExperimentIds"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "datasetId"
     },
     {
       "defaultValue": null,
@@ -187,8 +192,13 @@ return {
       "args": [
         {
           "kind": "Variable",
-          "name": "experimentIds",
-          "variableName": "experimentIds"
+          "name": "baselineExperimentId",
+          "variableName": "baselineExperimentId"
+        },
+        {
+          "kind": "Variable",
+          "name": "compareExperimentIds",
+          "variableName": "compareExperimentIds"
         },
         {
           "kind": "Variable",
@@ -564,6 +574,6 @@ return {
 };
 })();
 
-(node as any).hash = "61cd7128e7b057c1d22776135ce38026";
+(node as any).hash = "a4625896f8c59c20b5b08c9a498658aa";
 
 export default node;

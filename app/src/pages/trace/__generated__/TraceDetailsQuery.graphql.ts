@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<64485ee3ecdded57a20ced99ddf68bc1>>
+ * @generated SignedSource<<37ed0d55df8fad12264b6e221fe4213b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,6 +18,17 @@ export type TraceDetailsQuery$variables = {
 export type TraceDetailsQuery$data = {
   readonly project: {
     readonly trace?: {
+      readonly costSummary: {
+        readonly completion: {
+          readonly cost: number | null;
+        };
+        readonly prompt: {
+          readonly cost: number | null;
+        };
+        readonly total: {
+          readonly cost: number | null;
+        };
+      };
       readonly latencyMs: number | null;
       readonly projectSessionId: string | null;
       readonly spans: {
@@ -263,6 +274,56 @@ v8 = {
     }
   ],
   "storageKey": "spans(first:1000)"
+},
+v9 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "cost",
+    "storageKey": null
+  }
+],
+v10 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "SpanCostSummary",
+  "kind": "LinkedField",
+  "name": "costSummary",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "CostBreakdown",
+      "kind": "LinkedField",
+      "name": "prompt",
+      "plural": false,
+      "selections": (v9/*: any*/),
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "CostBreakdown",
+      "kind": "LinkedField",
+      "name": "completion",
+      "plural": false,
+      "selections": (v9/*: any*/),
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "CostBreakdown",
+      "kind": "LinkedField",
+      "name": "total",
+      "plural": false,
+      "selections": (v9/*: any*/),
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -295,7 +356,8 @@ return {
                 "selections": [
                   (v4/*: any*/),
                   (v8/*: any*/),
-                  (v7/*: any*/)
+                  (v7/*: any*/),
+                  (v10/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -348,6 +410,7 @@ return {
                   (v4/*: any*/),
                   (v8/*: any*/),
                   (v7/*: any*/),
+                  (v10/*: any*/),
                   (v5/*: any*/)
                 ],
                 "storageKey": null
@@ -363,16 +426,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "18662a3774f2ad488c41a0262fabf5a9",
+    "cacheID": "11ead68138be33327972520ed0a0ea09",
     "id": null,
     "metadata": {},
     "name": "TraceDetailsQuery",
     "operationKind": "query",
-    "text": "query TraceDetailsQuery(\n  $traceId: ID!\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        projectSessionId\n        spans(first: 1000) {\n          edges {\n            span: node {\n              id\n              spanId\n              name\n              spanKind\n              statusCode\n              startTime\n              parentId\n              latencyMs\n              tokenCountTotal\n              spanAnnotationSummaries {\n                labels\n                count\n                labelCount\n                labelFractions {\n                  fraction\n                  label\n                }\n                name\n                scoreCount\n                meanScore\n              }\n            }\n          }\n        }\n        latencyMs\n        id\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query TraceDetailsQuery(\n  $traceId: ID!\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        projectSessionId\n        spans(first: 1000) {\n          edges {\n            span: node {\n              id\n              spanId\n              name\n              spanKind\n              statusCode\n              startTime\n              parentId\n              latencyMs\n              tokenCountTotal\n              spanAnnotationSummaries {\n                labels\n                count\n                labelCount\n                labelFractions {\n                  fraction\n                  label\n                }\n                name\n                scoreCount\n                meanScore\n              }\n            }\n          }\n        }\n        latencyMs\n        costSummary {\n          prompt {\n            cost\n          }\n          completion {\n            cost\n          }\n          total {\n            cost\n          }\n        }\n        id\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7f8f1e64c42b5e66d51dc1325c064d8c";
+(node as any).hash = "2c97785cc9a789cbebe59a993e72529d";
 
 export default node;

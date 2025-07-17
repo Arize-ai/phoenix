@@ -24,6 +24,7 @@ types-cachetools
 types-jsonschema
 types-protobuf
 types-psutil
+types-python-dateutil
 types-requests
 types-setuptools
 types-tabulate

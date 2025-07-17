@@ -37,6 +37,39 @@ Instrumentation version >1.0.0 supports both attribute masking and context attri
 
 <table data-full-width="false"><thead><tr><th width="226">Instrumentation Version</th><th width="177" align="center">LangChain ^0.3.0</th><th width="181" align="center">LangChain ^0.2.0</th><th align="center">LangChain ^0.1.0</th></tr></thead><tbody><tr><td>>1.0.0</td><td align="center">✅</td><td align="center">✅</td><td align="center">✅</td></tr><tr><td>>0.2.0</td><td align="center">❌</td><td align="center">✅</td><td align="center">✅</td></tr><tr><td>>0.1.0</td><td align="center">❌</td><td align="center">❌</td><td align="center">✅</td></tr></tbody></table>
 
+## Custom Tracer Provider
+
+You can specify a custom tracer provider for LangChain instrumentation in multiple ways:
+
+### Method 1: Pass tracerProvider on instantiation
+
+```typescript
+const lcInstrumentation = new LangChainInstrumentation({
+  tracerProvider: customTracerProvider,
+});
+lcInstrumentation.manuallyInstrument(CallbackManagerModule);
+```
+
+### Method 2: Set tracerProvider after instantiation
+
+```typescript
+const lcInstrumentation = new LangChainInstrumentation();
+lcInstrumentation.setTracerProvider(customTracerProvider);
+lcInstrumentation.manuallyInstrument(CallbackManagerModule);
+```
+
+### Method 3: Pass tracerProvider to registerInstrumentations
+
+```typescript
+const lcInstrumentation = new LangChainInstrumentation();
+lcInstrumentation.manuallyInstrument(CallbackManagerModule);
+
+registerInstrumentations({
+  instrumentations: [lcInstrumentation],
+  tracerProvider: customTracerProvider,
+});
+```
+
 ## Resources
 
 * [Example project](https://github.com/Arize-ai/openinference/blob/main/js/packages/openinference-instrumentation-langchain/examples)

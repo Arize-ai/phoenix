@@ -597,7 +597,6 @@ const PROJECT_METRICS_QUERY = graphql`
       ... on Project {
         traceCount(timeRange: $timeRange)
         latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)
-        tokenCountTotal(timeRange: $timeRange)
       }
     }
   }
@@ -609,12 +608,6 @@ function ProjectMetricsLoadingSkeleton() {
       <Flex direction="column" flex="none" gap="size-100">
         <Text elementType="h3" size="S" color="text-700">
           Total Traces
-        </Text>
-        <Skeleton width={60} height={20} animation="wave" />
-      </Flex>
-      <Flex direction="column" flex="none" gap="size-100">
-        <Text elementType="h3" size="S" color="text-700">
-          Total Tokens
         </Text>
         <Skeleton width={60} height={20} animation="wave" />
       </Flex>
@@ -694,7 +687,7 @@ function ProjectMetricsRow({
   flexProps?: Partial<FlexProps>;
 }) {
   const {
-    project: { traceCount, tokenCountTotal, latencyMsP50 },
+    project: { traceCount, latencyMsP50 },
   } = project;
   return (
     <Flex
@@ -703,19 +696,13 @@ function ProjectMetricsRow({
       minHeight="size-600"
       {...flexProps}
     >
-      <Flex direction="column" flex="none">
+      <Flex direction="column">
         <Text elementType="h3" size="S" color="text-700">
           Total Traces
         </Text>
         <Text size="L">{intFormatter(traceCount)}</Text>
       </Flex>
-      <Flex direction="column" flex="none">
-        <Text elementType="h3" size="S" color="text-700">
-          Total Tokens
-        </Text>
-        <Text size="L">{intFormatter(tokenCountTotal)}</Text>
-      </Flex>
-      <Flex direction="column" flex="none">
+      <Flex direction="column">
         <Text elementType="h3" size="S" color="text-700">
           Latency P50
         </Text>
@@ -787,7 +774,6 @@ function ProjectsTable({
                   flexProps={{
                     justifyContent: "start",
                     gap: "size-800",
-                    wrap: "wrap",
                     rowGap: "size-100",
                   }}
                   projectId={row.original.id}

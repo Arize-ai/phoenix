@@ -47,7 +47,6 @@ const ModelQuery = graphql`
           tokenType
           kind
           costPerMillionTokens
-          costPerToken
         }
       }
     }
@@ -83,7 +82,6 @@ function EditModelDialogContent({
               tokenType
               kind
               costPerMillionTokens
-              costPerToken
             }
           }
           __typename

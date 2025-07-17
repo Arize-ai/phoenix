@@ -10,3 +10,14 @@ declare type OpenTimeRange = {
   start?: Date | null;
   end?: Date | null;
 };
+
+/**
+ * The way in which to bin a time range. Should be kept in sync with GraphQL API
+ */
+declare type TimeBinScale =
+  | "DAY"
+  | "HOUR"
+  | "MINUTE"
+  | "MONTH"
+  | "WEEK"
+  | "YEAR";

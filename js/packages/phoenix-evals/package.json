@@ -1,0 +1,75 @@
+{
+  "name": "@arizeai/phoenix-evals",
+  "version": "0.0.6",
+  "description": "A library for running evaluations for AI use cases",
+  "main": "dist/src/index.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/src/index.js"
+    },
+    "./llm/*": {
+      "import": "./dist/esm/llm/*.js",
+      "require": "./dist/src/llm/*.js"
+    },
+    "./template/*": {
+      "import": "./dist/esm/template/*.js",
+      "require": "./dist/src/template/*.js"
+    },
+    "./templates/*": {
+      "import": "./dist/esm/default_templates/*.js",
+      "require": "./dist/src/default_templates/*.js"
+    },
+    "./types/*": {
+      "import": "./dist/esm/types/*.d.ts",
+      "require": "./dist/src/types/*.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "package.json"
+  ],
+  "scripts": {
+    "clean": "rimraf dist",
+    "prebuild": "pnpm run clean",
+    "build": "tsc --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
+    "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json && rimraf dist/test dist/examples",
+    "type:check": "tsc --noEmit",
+    "test": "vitest --typecheck",
+    "docs": "typedoc",
+    "docs:preview": "pnpx http-server ./docs -p 8080 -o"
+  },
+  "keywords": [
+    "evals",
+    "phoenix",
+    "llm",
+    "evaluation"
+  ],
+  "author": "oss@arize.com",
+  "license": "ELv2",
+  "devDependencies": {
+    "@ai-sdk/openai": "^1.1.15",
+    "@arizeai/openinference-instrumentation-openai": "^2.3.0",
+    "@arizeai/phoenix-client": "workspace:*",
+    "@types/mustache": "^4.2.6",
+    "@types/node": "^24.0.10",
+    "nock": "^14.0.5",
+    "tsx": "^4.19.3",
+    "typedoc": "^0.27.9",
+    "typescript": "^5.8.2",
+    "vitest": "^2.1.9"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "ai": "^4.1.47",
+    "mustache": "^4.2.0",
+    "zod": "^3.25.75"
+  }
+}

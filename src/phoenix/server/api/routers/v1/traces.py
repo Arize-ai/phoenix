@@ -2,7 +2,7 @@ import gzip
 import zlib
 from typing import Any, Literal, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
 from google.protobuf.message import DecodeError
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
@@ -24,6 +24,7 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.insertion.helpers import as_kv
 from phoenix.db.insertion.types import Precursors
+from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import TraceAnnotationInsertEvent
 from phoenix.trace.otel import decode_otlp_span
@@ -37,6 +38,7 @@ router = APIRouter(tags=["traces"])
 
 @router.post(
     "/traces",
+    dependencies=[Depends(is_not_locked)],
     operation_id="addTraces",
     summary="Send traces",
     responses=add_errors_to_responses(
@@ -160,6 +162,7 @@ class AnnotateTracesResponseBody(ResponseBody[list[InsertedTraceAnnotation]]):
 
 @router.post(
     "/trace_annotations",
+    dependencies=[Depends(is_not_locked)],
     operation_id="annotateTraces",
     summary="Create trace annotations",
     responses=add_errors_to_responses(

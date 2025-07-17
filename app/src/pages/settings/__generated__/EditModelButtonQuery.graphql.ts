@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e14fba9d8b97538c74a2cdbba638901c>>
+ * @generated SignedSource<<a274c4861438d0d814ef6bb5ba19ce2f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -24,7 +24,6 @@ export type EditModelButtonQuery$data = {
     readonly startTime?: string | null;
     readonly tokenPrices?: ReadonlyArray<{
       readonly costPerMillionTokens: number;
-      readonly costPerToken: number;
       readonly kind: TokenKind;
       readonly tokenType: string;
     }>;
@@ -120,13 +119,6 @@ v8 = {
       "kind": "ScalarField",
       "name": "costPerMillionTokens",
       "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "costPerToken",
-      "storageKey": null
     }
   ],
   "storageKey": null
@@ -208,16 +200,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "94035deacbeb699c090c32f1dab0a095",
+    "cacheID": "72a1442aa25a624a43220712bc801182",
     "id": null,
     "metadata": {},
     "name": "EditModelButtonQuery",
     "operationKind": "query",
-    "text": "query EditModelButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on GenerativeModel {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      startTime\n      tokenPrices {\n        tokenType\n        kind\n        costPerMillionTokens\n        costPerToken\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query EditModelButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on GenerativeModel {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      startTime\n      tokenPrices {\n        tokenType\n        kind\n        costPerMillionTokens\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "726bd062b9036cbb060000c85c05de8e";
+(node as any).hash = "20d5b9316e7f67962f1480b7705015fb";
 
 export default node;

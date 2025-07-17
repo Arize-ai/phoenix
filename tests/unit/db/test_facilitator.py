@@ -176,7 +176,7 @@ class TestEnsureModelCosts:
         import json
 
         manifest_file = tmp_path / "test_model_cost_manifest.json"
-        manifest_file.write_text(json.dumps([]))
+        manifest_file.write_text(json.dumps({"models": []}))
 
         # Monkey patch the global variable to point to our test file
         from phoenix.db import facilitator
@@ -213,11 +213,11 @@ class TestEnsureModelCosts:
             )
             return {model.name for model in deleted_models}
 
-    def _update_manifest(self, manifest_path: Path, data: list[dict[str, Any]]) -> None:
+    def _update_manifest(self, manifest_path: Path, models: list[dict[str, Any]]) -> None:
         """Update manifest file with new data."""
         import json
 
-        manifest_path.write_text(json.dumps(data, indent=2))
+        manifest_path.write_text(json.dumps({"models": models}, indent=2))
 
     async def test_ensure_model_costs(
         self,
@@ -228,7 +228,7 @@ class TestEnsureModelCosts:
         Comprehensive test of _ensure_model_costs function covering:
         1. Empty manifest (no models created)
         2. Model creation from manifest
-        3. Model updates (provider, regex, token prices)
+        3. Model updates (name_pattern, token prices)
         4. Token price additions and removals
         5. Model cleanup (soft deletion of obsolete models)
         """
@@ -251,24 +251,56 @@ class TestEnsureModelCosts:
         # === STEP 2: Create new models ===
         initial_manifest: list[dict[str, Any]] = [
             {
-                "model": "test-model-1",
-                "provider": "test-provider",
-                "input": 0.000001,
-                "output": 0.000002,
-                "cache_write": 0.0000001,
-                "cache_read": 0.0000005,
-                "audio": 0.000003,
-                "regex": r"(?i)^(test-model-1)$",
+                "name": "test-model-1",
+                "name_pattern": r"(?i)^(test-model-1)$",
+                "token_prices": [
+                    {
+                        "base_rate": 0.000001,
+                        "is_prompt": True,
+                        "token_type": "input",
+                    },
+                    {
+                        "base_rate": 0.000002,
+                        "is_prompt": False,
+                        "token_type": "output",
+                    },
+                    {
+                        "base_rate": 0.0000001,
+                        "is_prompt": True,
+                        "token_type": "cache_write",
+                    },
+                    {
+                        "base_rate": 0.0000005,
+                        "is_prompt": True,
+                        "token_type": "cache_read",
+                    },
+                    {
+                        "base_rate": 0.000003,
+                        "is_prompt": True,
+                        "token_type": "audio",
+                    },
+                    {
+                        "base_rate": 0.000003,
+                        "is_prompt": False,
+                        "token_type": "audio",
+                    },
+                ],
             },
             {
-                "model": "test-model-2",
-                "provider": "another-provider",
-                "input": 0.000005,
-                "output": 0.000010,
-                "cache_write": None,  # Testing None values
-                "cache_read": None,
-                "audio": None,
-                "regex": r"(?i)^(test-model-2|alt-name-2)$",
+                "name": "test-model-2",
+                "name_pattern": r"(?i)^(test-model-2|alt-name-2)$",
+                "token_prices": [
+                    {
+                        "base_rate": 0.000005,
+                        "is_prompt": True,
+                        "token_type": "input",
+                    },
+                    {
+                        "base_rate": 0.000010,
+                        "is_prompt": False,
+                        "token_type": "output",
+                    },
+                ],
             },
         ]
         self._update_manifest(_patch_manifest, initial_manifest)
@@ -281,12 +313,11 @@ class TestEnsureModelCosts:
 
         # Verify model 1 details
         model1 = built_in_models["test-model-1"]
-        assert model1.provider == "test-provider"
         assert model1.name_pattern.pattern == r"(?i)^(test-model-1)$"
         assert model1.is_built_in is True
         assert model1.deleted_at is None
 
-        # Check token prices for model 1 (should have all types except None values)
+        # Check token prices for model 1 (should have all types)
         actual_prices_1 = self._extract_token_prices(model1)
         expected_prices_1 = {
             ("input", True): 0.000001,
@@ -300,9 +331,8 @@ class TestEnsureModelCosts:
             actual_prices_1 == expected_prices_1
         ), f"Model 1 token prices mismatch: got {actual_prices_1}, expected {expected_prices_1}"
 
-        # Verify model 2 details (minimal pricing due to None values)
+        # Verify model 2 details (minimal pricing)
         model2 = built_in_models["test-model-2"]
-        assert model2.provider == "another-provider"
         assert model2.name_pattern.pattern == r"(?i)^(test-model-2|alt-name-2)$"
 
         actual_prices_2 = self._extract_token_prices(model2)
@@ -315,39 +345,83 @@ class TestEnsureModelCosts:
         ), f"Model 2 token prices mismatch: got {actual_prices_2}, expected {expected_prices_2}"
 
         # === STEP 3: Update existing models ===
-        # Update model 1: change provider, regex, and some prices
+        # Update model 1: change name_pattern and some prices
         # Update model 2: add cache prices
         # Add model 3: audio-only model
         updated_manifest: list[dict[str, Any]] = [
             {
-                "model": "test-model-1",
-                "provider": "updated-provider",  # Changed
-                "input": 0.000002,  # Changed price
-                "output": 0.000002,  # Same price
-                "cache_write": None,  # Removed (was 0.0000001)
-                "cache_read": 0.000001,  # Changed price
-                "audio": 0.000005,  # Changed price
-                "regex": r"(?i)^(test-model-1|new-alias)$",  # Changed regex
+                "name": "test-model-1",
+                "name_pattern": r"(?i)^(test-model-1|new-alias)$",  # Changed name_pattern
+                "token_prices": [
+                    {
+                        "base_rate": 0.000002,
+                        "is_prompt": True,
+                        "token_type": "input",
+                    },  # Changed price
+                    {
+                        "base_rate": 0.000002,
+                        "is_prompt": False,
+                        "token_type": "output",
+                    },  # Same price
+                    {
+                        "base_rate": 0.000001,
+                        "is_prompt": True,
+                        "token_type": "cache_read",
+                    },  # Changed price
+                    {
+                        "base_rate": 0.000005,
+                        "is_prompt": True,
+                        "token_type": "audio",
+                    },  # Changed price
+                    {
+                        "base_rate": 0.000005,
+                        "is_prompt": False,
+                        "token_type": "audio",
+                    },  # Changed price
+                    # cache_write removed
+                ],
             },
             {
-                "model": "test-model-2",
-                "provider": "another-provider",  # Same
-                "input": 0.000005,  # Same
-                "output": 0.000015,  # Changed
-                "cache_write": 0.000001,  # Added
-                "cache_read": 0.000002,  # Added
-                "audio": None,  # Still None
-                "regex": r"(?i)^(test-model-2|alt-name-2)$",  # Same
+                "name": "test-model-2",
+                "name_pattern": r"(?i)^(test-model-2|alt-name-2)$",  # Same
+                "token_prices": [
+                    {
+                        "base_rate": 0.000005,
+                        "is_prompt": True,
+                        "token_type": "input",
+                    },  # Same
+                    {
+                        "base_rate": 0.000015,
+                        "is_prompt": False,
+                        "token_type": "output",
+                    },  # Changed
+                    {
+                        "base_rate": 0.000001,
+                        "is_prompt": True,
+                        "token_type": "cache_write",
+                    },  # Added
+                    {
+                        "base_rate": 0.000002,
+                        "is_prompt": True,
+                        "token_type": "cache_read",
+                    },  # Added
+                ],
             },
             {
-                "model": "audio-model",
-                "provider": "audio-provider",
-                "input": None,
-                "output": None,
-                "cache_write": None,
-                "cache_read": None,
-                "audio": 0.000008,  # Audio-only pricing
-                "regex": r"(?i)^(audio-model)$",
+                "name": "audio-model",
+                "name_pattern": r"(?i)^(audio-model)$",
+                "token_prices": [
+                    {
+                        "base_rate": 0.000008,
+                        "is_prompt": True,
+                        "token_type": "audio",
+                    },  # Audio-only pricing
+                    {
+                        "base_rate": 0.000008,
+                        "is_prompt": False,
+                        "token_type": "audio",
+                    },
+                ],
             },
         ]
         self._update_manifest(_patch_manifest, updated_manifest)
@@ -360,7 +434,6 @@ class TestEnsureModelCosts:
 
         # Verify model 1 updates
         model1_updated = built_in_models["test-model-1"]
-        assert model1_updated.provider == "updated-provider"
         assert model1_updated.name_pattern.pattern == r"(?i)^(test-model-1|new-alias)$"
 
         actual_prices_1_updated = self._extract_token_prices(model1_updated)
@@ -391,7 +464,6 @@ class TestEnsureModelCosts:
 
         # Verify new audio model
         audio_model = built_in_models["audio-model"]
-        assert audio_model.provider == "audio-provider"
         actual_prices_audio = self._extract_token_prices(audio_model)
         expected_prices_audio = {
             ("audio", True): 0.000008,
@@ -405,14 +477,23 @@ class TestEnsureModelCosts:
         # Keep only model 2, remove model 1 and audio model
         final_manifest: list[dict[str, Any]] = [
             {
-                "model": "test-model-2",
-                "provider": "final-provider",  # One more update
-                "input": 0.000010,  # Final price change
-                "output": 0.000020,
-                "cache_write": None,  # Remove cache prices
-                "cache_read": None,
-                "audio": 0.000030,  # Add audio pricing
-                "regex": r"(?i)^(final-model-2)$",  # Final regex change
+                "name": "test-model-2",
+                "name_pattern": r"(?i)^(final-model-2)$",  # Final name_pattern change
+                "token_prices": [
+                    {
+                        "base_rate": 0.000010,
+                        "is_prompt": True,
+                        "token_type": "input",
+                    },  # Final price change
+                    {"base_rate": 0.000020, "is_prompt": False, "token_type": "output"},
+                    {
+                        "base_rate": 0.000030,
+                        "is_prompt": True,
+                        "token_type": "audio",
+                    },  # Add audio pricing
+                    {"base_rate": 0.000030, "is_prompt": False, "token_type": "audio"},
+                    # cache prices removed
+                ],
             }
         ]
         self._update_manifest(_patch_manifest, final_manifest)
@@ -428,7 +509,6 @@ class TestEnsureModelCosts:
 
         # Verify final model 2 state
         final_model2 = active_models["test-model-2"]
-        assert final_model2.provider == "final-provider"
         assert final_model2.name_pattern.pattern == r"(?i)^(final-model-2)$"
 
         actual_prices_final = self._extract_token_prices(final_model2)

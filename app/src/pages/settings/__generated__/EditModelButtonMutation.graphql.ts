@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<65aaf2568fe042984452864790261824>>
+ * @generated SignedSource<<6d5e9efb0253b237206106fe733be288>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -39,7 +39,6 @@ export type EditModelButtonMutation$data = {
       readonly startTime: string | null;
       readonly tokenPrices: ReadonlyArray<{
         readonly costPerMillionTokens: number;
-        readonly costPerToken: number;
         readonly kind: TokenKind;
         readonly tokenType: string;
       }>;
@@ -152,13 +151,6 @@ v1 = [
                 "kind": "ScalarField",
                 "name": "costPerMillionTokens",
                 "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "costPerToken",
-                "storageKey": null
               }
             ],
             "storageKey": null
@@ -195,16 +187,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "2cd69e87f89ddd56818276e36454264a",
+    "cacheID": "527afcf6cbbf906d8ddc80b5a34cdb3a",
     "id": null,
     "metadata": {},
     "name": "EditModelButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation EditModelButtonMutation(\n  $input: UpdateModelMutationInput!\n) {\n  updateModel(input: $input) {\n    model {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      startTime\n      tokenPrices {\n        tokenType\n        kind\n        costPerMillionTokens\n        costPerToken\n      }\n    }\n    __typename\n  }\n}\n"
+    "text": "mutation EditModelButtonMutation(\n  $input: UpdateModelMutationInput!\n) {\n  updateModel(input: $input) {\n    model {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      startTime\n      tokenPrices {\n        tokenType\n        kind\n        costPerMillionTokens\n      }\n    }\n    __typename\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f5f78e4d9841faaa69b7a514f33a3929";
+(node as any).hash = "ffba87369eaaf51ba050d13e4f417efa";
 
 export default node;

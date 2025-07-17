@@ -1,11 +1,6 @@
 import { css } from "@emotion/react";
 
-import {
-  FieldColorDesignation,
-  HelpTooltip,
-  TooltipTrigger,
-  TriggerWrap,
-} from "@arizeai/components";
+import { FieldColorDesignation } from "@arizeai/components";
 
 import {
   Button,
@@ -13,11 +8,13 @@ import {
   Label,
   ListBox,
   Popover,
+  RichTooltip,
   Select,
   SelectChevronUpDownIcon,
   SelectItem,
   SelectValue,
   Text,
+  TooltipTrigger,
 } from "@phoenix/components";
 import { useInferences } from "@phoenix/contexts";
 import { TimePreset, useTimeRange } from "@phoenix/contexts/TimeRangeContext";
@@ -66,88 +63,83 @@ export function PrimaryInferencesTimeRange(_: PrimaryInferencesTimeRangeProps) {
     <div css={triggerWrapCSS}>
       <FieldColorDesignation color={"designationTurquoise"}>
         <TooltipTrigger>
-          <TriggerWrap>
-            <Select
-              selectedKey={selectedTimePreset}
-              data-testid="inferences-time-range"
-              aria-label={`Time range for the primary inferences`}
-              onSelectionChange={(key) => {
-                if (key !== selectedTimePreset) {
-                  setTimePreset(key as TimePreset);
-                }
-              }}
-              css={primaryInferencesSelectCSS}
-            >
-              <Label>{nameAbbr} inferences</Label>
-              <Button>
-                <SelectValue />
-                <SelectChevronUpDownIcon />
-              </Button>
-              <Text slot="description">{""}</Text>
-              <Popover>
-                <ListBox>
-                  <SelectItem key={TimePreset.all} id={TimePreset.all}>
-                    All
-                  </SelectItem>
-                  <SelectItem
-                    key={TimePreset.last_hour}
-                    id={TimePreset.last_hour}
-                  >
-                    Last Hour
-                  </SelectItem>
-                  <SelectItem
-                    key={TimePreset.last_day}
-                    id={TimePreset.last_day}
-                  >
-                    Last Day
-                  </SelectItem>
-                  <SelectItem
-                    key={TimePreset.last_week}
-                    id={TimePreset.last_week}
-                  >
-                    Last Week
-                  </SelectItem>
-                  <SelectItem
-                    key={TimePreset.last_month}
-                    id={TimePreset.last_month}
-                  >
-                    Last Month
-                  </SelectItem>
-                  <SelectItem
-                    key={TimePreset.last_3_months}
-                    id={TimePreset.last_3_months}
-                  >
-                    Last 3 Months
-                  </SelectItem>
-                  <SelectItem
-                    key={TimePreset.first_hour}
-                    id={TimePreset.first_hour}
-                  >
-                    First Hour
-                  </SelectItem>
-                  <SelectItem
-                    key={TimePreset.first_day}
-                    id={TimePreset.first_day}
-                  >
-                    First Day
-                  </SelectItem>
-                  <SelectItem
-                    key={TimePreset.first_week}
-                    id={TimePreset.first_week}
-                  >
-                    First Week
-                  </SelectItem>
-                  <SelectItem
-                    key={TimePreset.first_month}
-                    id={TimePreset.first_month}
-                  >
-                    First Month
-                  </SelectItem>
-                </ListBox>
-              </Popover>
-            </Select>
-          </TriggerWrap>
-          <HelpTooltip>
+          <Select
+            selectedKey={selectedTimePreset}
+            data-testid="inferences-time-range"
+            aria-label={`Time range for the primary inferences`}
+            onSelectionChange={(key) => {
+              if (key !== selectedTimePreset) {
+                setTimePreset(key as TimePreset);
+              }
+            }}
+            css={primaryInferencesSelectCSS}
+          >
+            <Label>{nameAbbr} inferences</Label>
+            <Button>
+              <SelectValue />
+              <SelectChevronUpDownIcon />
+            </Button>
+            <Text slot="description">{""}</Text>
+            <Popover>
+              <ListBox>
+                <SelectItem key={TimePreset.all} id={TimePreset.all}>
+                  All
+                </SelectItem>
+                <SelectItem
+                  key={TimePreset.last_hour}
+                  id={TimePreset.last_hour}
+                >
+                  Last Hour
+                </SelectItem>
+                <SelectItem key={TimePreset.last_day} id={TimePreset.last_day}>
+                  Last Day
+                </SelectItem>
+                <SelectItem
+                  key={TimePreset.last_week}
+                  id={TimePreset.last_week}
+                >
+                  Last Week
+                </SelectItem>
+                <SelectItem
+                  key={TimePreset.last_month}
+                  id={TimePreset.last_month}
+                >
+                  Last Month
+                </SelectItem>
+                <SelectItem
+                  key={TimePreset.last_3_months}
+                  id={TimePreset.last_3_months}
+                >
+                  Last 3 Months
+                </SelectItem>
+                <SelectItem
+                  key={TimePreset.first_hour}
+                  id={TimePreset.first_hour}
+                >
+                  First Hour
+                </SelectItem>
+                <SelectItem
+                  key={TimePreset.first_day}
+                  id={TimePreset.first_day}
+                >
+                  First Day
+                </SelectItem>
+                <SelectItem
+                  key={TimePreset.first_week}
+                  id={TimePreset.first_week}
+                >
+                  First Week
+                </SelectItem>
+                <SelectItem
+                  key={TimePreset.first_month}
+                  id={TimePreset.first_month}
+                >
+                  First Month
+                </SelectItem>
+              </ListBox>
+            </Popover>
+          </Select>
+          <RichTooltip>
             <section
               css={css`
                 h4 {
@@ -159,7 +151,7 @@ export function PrimaryInferencesTimeRange(_: PrimaryInferencesTimeRangeProps) {
               <div>start: {fullTimeFormatter(timeRange.start)}</div>
               <div>end: {fullTimeFormatter(timeRange.end)}</div>
             </section>
-          </HelpTooltip>
+          </RichTooltip>
         </TooltipTrigger>
       </FieldColorDesignation>
     </div>

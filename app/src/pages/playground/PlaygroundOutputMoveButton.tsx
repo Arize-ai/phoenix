@@ -1,6 +1,11 @@
-import { Tooltip, TooltipTrigger } from "@arizeai/components";
-
-import { Button, Icon, Icons } from "@phoenix/components";
+import {
+  Button,
+  Icon,
+  Icons,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+} from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import {
   ChatMessage,
@@ -27,7 +32,7 @@ export const PlaygroundOutputMoveButton = ({
   const instanceId = instance.id;
   const addMessage = usePlaygroundContext((state) => state.addMessage);
   return (
-    <TooltipTrigger delay={500} offset={10}>
+    <TooltipTrigger delay={500}>
       <Button
         size="S"
         leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
@@ -74,7 +79,10 @@ export const PlaygroundOutputMoveButton = ({
       >
         Prompt
       </Button>
-      <Tooltip>Move the output message to the end of the prompt</Tooltip>
+      <Tooltip>
+        <TooltipArrow />
+        Move the output message to the end of the prompt
+      </Tooltip>
     </TooltipTrigger>
   );
 };

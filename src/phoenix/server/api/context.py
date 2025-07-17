@@ -15,6 +15,7 @@ from phoenix.auth import (
 from phoenix.core.model_schema import Model
 from phoenix.db import models
 from phoenix.server.api.dataloaders import (
+    AnnotationConfigsByProjectDataLoader,
     AnnotationSummaryDataLoader,
     AverageExperimentRunLatencyDataLoader,
     CacheForDataLoaders,
@@ -82,6 +83,7 @@ from phoenix.server.types import (
 
 @dataclass
 class DataLoaders:
+    annotation_configs_by_project: AnnotationConfigsByProjectDataLoader
     annotation_summaries: AnnotationSummaryDataLoader
     average_experiment_run_latency: AverageExperimentRunLatencyDataLoader
     dataset_example_revisions: DatasetExampleRevisionsDataLoader

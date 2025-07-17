@@ -25,7 +25,7 @@ from phoenix.db.helpers import SupportedSQLDialect, exclude_experiment_projects
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import NotFound, Unauthorized
+from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.helpers.experiment_run_filters import (
     ExperimentRunFilterConditionSyntaxError,
@@ -62,7 +62,13 @@ from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, Gene
 from phoenix.server.api.types.InferenceModel import InferenceModel
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
-from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
+from phoenix.server.api.types.pagination import (
+    ConnectionArgs,
+    Cursor,
+    CursorString,
+    connection_from_cursors_and_nodes,
+    connection_from_list,
+)
 from phoenix.server.api.types.PlaygroundModel import PlaygroundModel
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
@@ -329,27 +335,22 @@ class Query:
     async def compare_experiments(
         self,
         info: Info[Context, None],
-        experiment_ids: list[GlobalID],
+        baseline_experiment_id: GlobalID,
+        compare_experiment_ids: list[GlobalID],
         first: Optional[int] = 50,
         after: Optional[CursorString] = UNSET,
         filter_condition: Optional[str] = UNSET,
     ) -> Connection[ExperimentComparison]:
-        # Handle empty experiment_ids gracefully
-        if not experiment_ids:
-            return connection_from_list(
-                data=[],
-                args=ConnectionArgs(
-                    first=first,
-                    after=after if isinstance(after, CursorString) else None,
-                ),
-            )
-
-        experiment_ids_ = [
+        if baseline_experiment_id in compare_experiment_ids:
+            raise BadRequest("Compare experiment IDs cannot contain the baseline experiment ID")
+        if len(set(compare_experiment_ids)) < len(compare_experiment_ids):
+            raise BadRequest("Compare experiment IDs must be unique")
+        experiment_ids = [
             from_global_id_with_expected_type(experiment_id, models.Experiment.__name__)
-            for experiment_id in experiment_ids
+            for experiment_id in (baseline_experiment_id, *compare_experiment_ids)
         ]
-        if len(set(experiment_ids_)) != len(experiment_ids_):
-            raise ValueError("Experiment IDs must be unique.")
+        cursor = Cursor.from_string(after) if after else None
+        page_size = first or 50
 
         async with info.context.db() as session:
             validation_result = (
@@ -366,18 +367,18 @@ class Query:
                         models.Experiment.dataset_version_id == models.DatasetVersion.id,
                     )
                     .where(
-                        models.Experiment.id.in_(experiment_ids_),
+                        models.Experiment.id.in_(experiment_ids),
                     )
                 )
             ).first()
             if validation_result is None:
-                raise ValueError("No experiments could be found for input IDs.")
+                raise NotFound("No experiments could be found for input IDs.")
 
             num_datasets, dataset_id, version_id, num_resolved_experiment_ids = validation_result
             if num_datasets != 1:
-                raise ValueError("Experiments must belong to the same dataset.")
-            if num_resolved_experiment_ids != len(experiment_ids_):
-                raise ValueError("Unable to resolve one or more experiment IDs.")
+                raise BadRequest("Experiments must belong to the same dataset.")
+            if num_resolved_experiment_ids != len(experiment_ids):
+                raise NotFound("Unable to resolve one or more experiment IDs.")
 
             revision_ids = (
                 select(func.max(models.DatasetExampleRevision.id))
@@ -407,16 +408,21 @@ class Query:
                     ),
                 )
                 .order_by(models.DatasetExample.id.desc())
+                .limit(page_size + 1)
             )
+            if cursor is not None:
+                examples_query = examples_query.where(models.DatasetExample.id < cursor.rowid)
 
             if filter_condition:
                 examples_query = update_examples_query_with_filter_condition(
                     query=examples_query,
                     filter_condition=filter_condition,
-                    experiment_ids=experiment_ids_,
+                    experiment_ids=experiment_ids,
                 )
 
             examples = (await session.scalars(examples_query)).all()
+            has_next_page = len(examples) > page_size
+            examples = examples[:page_size]
 
             ExampleID: TypeAlias = int
             ExperimentID: TypeAlias = int
@@ -430,17 +436,20 @@ class Query:
                         models.ExperimentRun.dataset_example_id.in_(
                             example.id for example in examples
                         ),
-                        models.ExperimentRun.experiment_id.in_(experiment_ids_),
+                        models.ExperimentRun.experiment_id.in_(experiment_ids),
                     )
                 )
                 .options(joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id))
+                .order_by(
+                    models.ExperimentRun.repetition_number.asc()
+                )  # repetitions are not currently implemented, but this ensures that the repetitions will be properly ordered once implemented # noqa: E501
             ):
                 runs[run.dataset_example_id][run.experiment_id].append(run)
 
-        experiment_comparisons = []
+        cursors_and_nodes = []
         for example in examples:
             run_comparison_items = []
-            for experiment_id in experiment_ids_:
+            for experiment_id in experiment_ids:
                 run_comparison_items.append(
                     RunComparisonItem(
                         experiment_id=GlobalID(Experiment.__name__, str(experiment_id)),
@@ -452,23 +461,21 @@ class Query:
                         ],
                     )
                 )
-            experiment_comparisons.append(
-                ExperimentComparison(
+            experiment_comparison = ExperimentComparison(
+                id_attr=example.id,
+                example=DatasetExample(
                     id_attr=example.id,
-                    example=DatasetExample(
-                        id_attr=example.id,
-                        created_at=example.created_at,
-                        version_id=version_id,
-                    ),
-                    run_comparison_items=run_comparison_items,
-                )
+                    created_at=example.created_at,
+                    version_id=version_id,
+                ),
+                run_comparison_items=run_comparison_items,
             )
-        return connection_from_list(
-            data=experiment_comparisons,
-            args=ConnectionArgs(
-                first=first,
-                after=after if isinstance(after, CursorString) else None,
-            ),
+            cursors_and_nodes.append((Cursor(rowid=example.id), experiment_comparison))
+
+        return connection_from_cursors_and_nodes(
+            cursors_and_nodes=cursors_and_nodes,
+            has_previous_page=False,  # set to false since we are only doing forward pagination (https://relay.dev/graphql/connections.htm#sec-undefined.PageInfo.Fields) # noqa: E501
+            has_next_page=has_next_page,
         )
 
     @strawberry.field
@@ -977,13 +984,14 @@ class Query:
             #     stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
             # stats = _consolidate_sqlite_db_table_stats(stats)
         elif info.context.db.dialect is SupportedSQLDialect.POSTGRESQL:
-            stmt = text(f"""\
+            nspname = getenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA) or "public"
+            stmt = text("""\
                 SELECT c.relname, pg_total_relation_size(c.oid)
                 FROM pg_class as c
                 INNER JOIN pg_namespace as n ON n.oid = c.relnamespace
                 WHERE c.relkind = 'r'
-                AND n.nspname = '{getenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA) or "public"}';
-            """)
+                AND n.nspname = :nspname;
+            """).bindparams(nspname=nspname)
             try:
                 async with info.context.db() as session:
                     stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))

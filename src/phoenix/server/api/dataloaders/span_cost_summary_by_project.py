@@ -119,20 +119,18 @@ def _get_stmt(
             coalesce(func.sum(models.SpanCost.completion_tokens), 0).label("completion_tokens"),
             coalesce(func.sum(models.SpanCost.total_tokens), 0).label("total_tokens"),
         )
-        .select_from(models.Trace)
-        .join(models.Span, models.Span.trace_rowid == models.Trace.id)
-        .join(models.SpanCost, models.Span.id == models.SpanCost.span_rowid)
+        .join_from(models.SpanCost, models.Trace)
         .group_by(pid)
     )
 
     if start_time:
-        stmt = stmt.where(start_time <= models.Span.start_time)
+        stmt = stmt.where(start_time <= models.Trace.start_time)
     if end_time:
-        stmt = stmt.where(models.Span.start_time < end_time)
+        stmt = stmt.where(models.Trace.start_time < end_time)
 
     if filter_condition:
         sf = SpanFilter(filter_condition)
-        stmt = sf(stmt)
+        stmt = sf(stmt.join_from(models.SpanCost, models.Span))
 
     project_ids = [rowid for rowid in params]
     stmt = stmt.where(pid.in_(project_ids))

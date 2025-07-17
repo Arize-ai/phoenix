@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<74500ec0715aa8f178a86d56fa154d35>>
+ * @generated SignedSource<<22f0cd62c4db2cf41d51c2aa52c4b130>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,7 +20,6 @@ export type SessionTokenCostsDetailsQuery$data = {
       readonly tokenType: string;
       readonly value: {
         readonly cost: number | null;
-        readonly costPerToken: number | null;
         readonly tokens: number | null;
       };
     }>;
@@ -103,13 +102,6 @@ v3 = {
               "kind": "ScalarField",
               "name": "tokens",
               "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "costPerToken",
-              "storageKey": null
             }
           ],
           "storageKey": null
@@ -174,16 +166,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "17461d3f024b145cb749667629153482",
+    "cacheID": "5c5cd200597f3c5c5415851c9d8a52fd",
     "id": null,
     "metadata": {},
     "name": "SessionTokenCostsDetailsQuery",
     "operationKind": "query",
-    "text": "query SessionTokenCostsDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on ProjectSession {\n      costDetailSummaryEntries {\n        tokenType\n        isPrompt\n        value {\n          cost\n          tokens\n          costPerToken\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query SessionTokenCostsDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on ProjectSession {\n      costDetailSummaryEntries {\n        tokenType\n        isPrompt\n        value {\n          cost\n          tokens\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "40ef5f19f7cb10d3f7ccf197adae074e";
+(node as any).hash = "4ff1881d1c2662709204991c58108dcb";
 
 export default node;

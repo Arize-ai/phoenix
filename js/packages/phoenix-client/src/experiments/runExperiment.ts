@@ -87,6 +87,13 @@ export type RunExperimentParams = ClientFn & {
    * @default false
    */
   dryRun?: number | boolean;
+  /**
+   * Whether to set the global tracer provider when running the task.
+   * If set to false, a locally scoped tracer will be created but will not get registered.
+   * This may cause certain spans to not be picked up by Phoenix. Notably libraries like the AI SDK that leverage the global tracer.
+   * @default true
+   */
+  setGlobalTracerProvider?: boolean;
 };
 
 /**
@@ -133,6 +140,7 @@ export async function runExperiment({
   record = true,
   concurrency = 5,
   dryRun = false,
+  setGlobalTracerProvider = true,
 }: RunExperimentParams): Promise<RanExperiment> {
   let provider: NodeTracerProvider | undefined;
   const isDryRun = typeof dryRun === "number" || dryRun === true;
@@ -194,6 +202,10 @@ export async function runExperiment({
       baseUrl,
       headers: client.config.headers ?? {},
     });
+    // Register the provider
+    if (setGlobalTracerProvider) {
+      provider.register();
+    }
     taskTracer = provider.getTracer(projectName);
   }
   if (!record) {
@@ -263,6 +275,7 @@ export async function runExperiment({
     logger,
     concurrency,
     dryRun,
+    setGlobalTracerProvider,
   });
   ranExperiment.evaluationRuns = evaluationRuns;
 
@@ -335,10 +348,7 @@ function runTaskWithExamples({
       };
       try {
         const taskOutput = await promisifyResult(task(example));
-        thisRun.output =
-          typeof taskOutput === "string"
-            ? taskOutput
-            : JSON.stringify(taskOutput);
+        thisRun.output = taskOutput;
       } catch (error) {
         thisRun.error =
           error instanceof Error ? error.message : "Unknown error";
@@ -410,6 +420,7 @@ export async function evaluateExperiment({
   logger = console,
   concurrency = 5,
   dryRun = false,
+  setGlobalTracerProvider = true,
 }: {
   /**
    * The experiment to evaluate
@@ -429,6 +440,11 @@ export async function evaluateExperiment({
    * @default false
    * */
   dryRun?: boolean | number;
+  /**
+   * Whether to set the global tracer provider when running the evaluators
+   * @default true
+   */
+  setGlobalTracerProvider?: boolean;
 }): Promise<RanExperiment> {
   const isDryRun = typeof dryRun === "number" || dryRun === true;
   const client = _client ?? createClient();
@@ -444,6 +460,9 @@ export async function evaluateExperiment({
       baseUrl,
       headers: client.config.headers ?? {},
     });
+    if (setGlobalTracerProvider) {
+      provider.register();
+    }
   } else {
     provider = createNoOpProvider();
   }
@@ -452,7 +471,7 @@ export async function evaluateExperiment({
     : provider.getTracer("evaluators");
   const nRuns =
     typeof dryRun === "number"
-      ? Math.max(dryRun, Object.keys(experiment.runs).length)
+      ? Math.min(dryRun, Object.keys(experiment.runs).length)
       : Object.keys(experiment.runs).length;
   const dataset = await getDataset({
     dataset: { datasetId: experiment.datasetId },

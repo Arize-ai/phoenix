@@ -38,6 +38,7 @@ import { IndeterminateCheckboxCell } from "@phoenix/components/table/Indetermina
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { TraceTokenCosts } from "@phoenix/components/trace";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
@@ -204,6 +205,11 @@ export function SpansTable(props: SpansTableProps) {
                 trace {
                   id
                   traceId
+                  costSummary @include(if: $rootSpansOnly) {
+                    total {
+                      cost
+                    }
+                  }
                 }
                 input {
                   value: truncatedValue
@@ -234,11 +240,6 @@ export function SpansTable(props: SpansTableProps) {
                   hit
                 }
                 costSummary @skip(if: $rootSpansOnly) {
-                  total {
-                    cost
-                  }
-                }
-                cumulativeCostSummary @include(if: $rootSpansOnly) {
                   total {
                     cost
                   }
@@ -514,7 +515,7 @@ export function SpansTable(props: SpansTableProps) {
     {
       header: rootSpansOnly ? "cumulative cost" : "total cost",
       accessorKey: rootSpansOnly
-        ? "cumulativeCostSummary.total.cost"
+        ? "trace.costSummary.total.cost"
         : "costSummary.total.cost",
       id: rootSpansOnly ? "cumulativeTokenCostTotal" : "tokenCostTotal",
       cell: ({ row, getValue }) => {
@@ -523,7 +524,9 @@ export function SpansTable(props: SpansTableProps) {
           return "--";
         }
         const span = row.original;
-        return (
+        return rootSpansOnly ? (
+          <TraceTokenCosts totalCost={value} nodeId={span.trace.id} size="S" />
+        ) : (
           <SpanTokenCosts totalCost={value} spanNodeId={span.id} size="S" />
         );
       },
@@ -745,7 +748,11 @@ export function SpansTable(props: SpansTableProps) {
               </tr>
             ))}
           </thead>
-          {isEmpty ? (
+          {isEmpty && !hasNext ? (
+            // The trace-based pagination optimization (https://github.com/Arize-ai/phoenix/pull/8539)
+            // can result in isEmpty=true and hasNext=true when traces exist but lack matching root
+            // spans. This is an undesirable edge case. The optimization is a stopgap solution that
+            // will be replaced to eliminate this condition.
             <ProjectTableEmpty projectName={data.name} />
           ) : columnSizingInfo.isResizingColumn ? (
             <MemoizedTableBody
