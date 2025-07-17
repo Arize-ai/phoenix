@@ -99,7 +99,7 @@ class AsyncExecutor(Executor):
             Defaults to None.
 
         max_retries (int, optional): The maximum number of times to retry on exceptions.
-            Defaults to 10.
+            Defaults to 4.
 
         exit_on_error (bool, optional): Whether to exit execution on the first encountered error.
             Defaults to True.
@@ -121,7 +121,7 @@ class AsyncExecutor(Executor):
         generation_fn: Callable[[Any], Coroutine[Any, Any, Any]],
         concurrency: int = 3,
         tqdm_bar_format: Optional[str] = None,
-        max_retries: int = 10,
+        max_retries: int = 4,
         exit_on_error: bool = True,
         fallback_return_value: Union[Unset, Any] = _unset,
         termination_signal: signal.Signals = signal.SIGINT,
@@ -233,7 +233,7 @@ class AsyncExecutor(Executor):
                     # Check if we should keep retrying
                     if retry_count >= self.max_retries:
                         execution_details[index].fail()
-                        tqdm.write(f"Task {index}: Max retries ({self.max_retries}) reached, giving up")
+                        tqdm.write(f"❌ Task {index}: Max retries ({self.max_retries}) reached, FAILING permanently")
                         progress_bar.update()
                         continue
                     
@@ -320,16 +320,29 @@ class AsyncExecutor(Executor):
         await asyncio.gather(producer, *consumers)
         
         tqdm.write("🔄 Producer and consumers finished, waiting for queue to empty...")
+        completed = sum(1 for d in execution_details if d.status != ExecutionStatus.DID_NOT_RUN)
+        failed = sum(1 for d in execution_details if d.status == ExecutionStatus.FAILED)
+        succeeded = sum(1 for d in execution_details if d.status in [ExecutionStatus.COMPLETED, ExecutionStatus.COMPLETED_WITH_RETRIES])
+        pending = [i for i, d in enumerate(execution_details) if d.status == ExecutionStatus.DID_NOT_RUN]
+        tqdm.write(f"📊 Pre-join status: {succeeded} success, {failed} failed, {len(pending)} pending, queue: {queue.qsize()}")
+        if pending:
+            tqdm.write(f"   📋 Pending before join: {pending}")
+        
         join_task = asyncio.create_task(queue.join())
         termination_event_watcher = asyncio.create_task(termination_event.wait())
         
         # Add periodic status updates during queue.join() wait
         async def periodic_status():
             while not join_task.done() and not termination_event_watcher.done():
-                await asyncio.sleep(5)  # Print every 5 seconds
+                await asyncio.sleep(2)  # Print every 2 seconds
                 if not join_task.done():
                     completed = sum(1 for d in execution_details if d.status != ExecutionStatus.DID_NOT_RUN)
-                    tqdm.write(f"🔄 Still waiting for cleanup... {completed}/{len(inputs)} tasks completed, queue size: {queue.qsize()}")
+                    failed = sum(1 for d in execution_details if d.status == ExecutionStatus.FAILED)
+                    succeeded = sum(1 for d in execution_details if d.status in [ExecutionStatus.COMPLETED, ExecutionStatus.COMPLETED_WITH_RETRIES])
+                    pending = [i for i, d in enumerate(execution_details) if d.status == ExecutionStatus.DID_NOT_RUN]
+                    tqdm.write(f"🔄 Cleanup status: {succeeded} success, {failed} failed, {len(pending)} pending, queue: {queue.qsize()}")
+                    if pending:
+                        tqdm.write(f"   📋 Pending tasks: {pending[:10]}{'...' if len(pending) > 10 else ''}")
         
         status_task = asyncio.create_task(periodic_status())
         
@@ -358,7 +371,13 @@ class AsyncExecutor(Executor):
                 if not task.done():
                     task.cancel()
         elif timeout_task in done:
-            tqdm.write("⏰ Timeout reached during cleanup, forcing completion...")
+            completed = sum(1 for d in execution_details if d.status != ExecutionStatus.DID_NOT_RUN)
+            failed = sum(1 for d in execution_details if d.status == ExecutionStatus.FAILED)
+            succeeded = sum(1 for d in execution_details if d.status in [ExecutionStatus.COMPLETED, ExecutionStatus.COMPLETED_WITH_RETRIES])
+            pending = [i for i, d in enumerate(execution_details) if d.status == ExecutionStatus.DID_NOT_RUN]
+            tqdm.write(f"⏰ TIMEOUT during cleanup! Final: {succeeded} success, {failed} failed, {len(pending)} pending, queue: {queue.qsize()}")
+            if pending:
+                tqdm.write(f"   📋 Still pending: {pending}")
             # Cancel join task and proceed
             if not join_task.done():
                 join_task.cancel()
@@ -378,9 +397,13 @@ class AsyncExecutor(Executor):
         completed_tasks = sum(1 for details in execution_details if details.status != ExecutionStatus.DID_NOT_RUN)
         pending_tasks = [i for i, details in enumerate(execution_details) if details.status == ExecutionStatus.DID_NOT_RUN]
         
-        tqdm.write(f"📊 Execution summary: {completed_tasks}/{len(inputs)} completed, {total_timeouts} timeouts, {total_failures} failures, {total_retries} retries")
+        successful_tasks = sum(1 for details in execution_details if details.status in [ExecutionStatus.COMPLETED, ExecutionStatus.COMPLETED_WITH_RETRIES])
+        tqdm.write(f"📊 FINAL SUMMARY: {successful_tasks} success, {total_failures} failed, {len(pending_tasks)} pending | {total_timeouts} timeouts, {total_retries} retries")
         if pending_tasks:
-            tqdm.write(f"⚠️  Pending tasks: {pending_tasks[:10]}{'...' if len(pending_tasks) > 10 else ''}")
+            tqdm.write(f"⚠️  Tasks that never completed: {pending_tasks[:10]}{'...' if len(pending_tasks) > 10 else ''}")
+        if total_failures > 0:
+            failed_tasks = [i for i, details in enumerate(execution_details) if details.status == ExecutionStatus.FAILED]
+            tqdm.write(f"❌ Failed tasks: {failed_tasks[:10]}{'...' if len(failed_tasks) > 10 else ''}")
         
         return outputs, execution_details
 
@@ -400,7 +423,7 @@ class SyncExecutor(Executor):
             to None. If None, the progress bar is disabled.
 
         max_retries (int, optional): The maximum number of times to retry on exceptions. Defaults to
-            10.
+            4.
 
         exit_on_error (bool, optional): Whether to exit execution on the first encountered error.
             Defaults to True.
@@ -413,7 +436,7 @@ class SyncExecutor(Executor):
         self,
         generation_fn: Callable[[Any], Any],
         tqdm_bar_format: Optional[str] = None,
-        max_retries: int = 10,
+        max_retries: int = 4,
         exit_on_error: bool = True,
         fallback_return_value: Union[Unset, Any] = _unset,
         termination_signal: Optional[signal.Signals] = signal.SIGINT,
@@ -493,7 +516,7 @@ def get_executor_on_sync_context(
     run_sync: bool = False,
     concurrency: int = 3,
     tqdm_bar_format: Optional[str] = None,
-    max_retries: int = 10,
+    max_retries: int = 4,
     exit_on_error: bool = True,
     fallback_return_value: Union[Unset, Any] = _unset,
     task_timeout: int = 20,
