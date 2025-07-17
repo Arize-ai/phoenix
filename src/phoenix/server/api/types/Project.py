@@ -961,7 +961,7 @@ async def _paginate_span_by_trace_start_time(
             ),
         )
     else:
-        # Only explicit root spans (parent_id is NULL)
+        # Only spans with no parent (parent_id is NULL, excludes orphaned spans)
         onclause = and_(
             models.Span.trace_rowid == traces_cte.c.id,
             models.Span.parent_id.is_(None),
