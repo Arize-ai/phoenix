@@ -94,7 +94,7 @@ class AsyncExecutor(Executor):
             that encounter errors. Defaults to _unset.
 
         termination_signal (signal.Signals, optional): The signal handled to terminate the executor.
-            Defaults to signal.SIGINT. Signal handling is automatically disabled when 
+            Defaults to signal.SIGINT. Signal handling is automatically disabled when
             execute() is called from background threads.
     """
 
