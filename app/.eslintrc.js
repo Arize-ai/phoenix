@@ -189,6 +189,11 @@ module.exports = {
         module: "@arizeai/components",
         use: "import { ProgressCircle } from '@phoenix/components'",
       },
+      {
+        name: "ProgressBar",
+        module: "@arizeai/components",
+        use: "import { ProgressBar } from '@phoenix/components'",
+      },
     ],
     "no-duplicate-imports": "error",
   },
