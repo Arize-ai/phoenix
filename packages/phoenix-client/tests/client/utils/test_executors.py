@@ -557,3 +557,115 @@ def test_executor_factory_returns_async_not_in_thread_if_async_context() -> None
 
     if not exception_log.empty():
         raise exception_log.get()
+
+
+@pytest.mark.skipif(platform.system() == "Windows", reason="SIGUSR1 not supported on Windows")
+def test_executor_fails_in_background_thread() -> None:
+    def sync_fn(x: int) -> int:
+        time.sleep(0.01)
+        return x
+
+    signal_error_caught = False
+    unexpected_errors: list[Exception] = []
+
+    def run_executor_with_forced_signals() -> None:
+        nonlocal signal_error_caught
+        try:
+            executor = SyncExecutor(sync_fn, termination_signal=None)
+
+            executor.termination_signal = signal.SIGUSR1  # type: ignore[attr-defined, unused-ignore]
+
+            executor.run(range(10))
+
+            unexpected_errors.append(
+                AssertionError("Expected ValueError but execution completed normally")
+            )
+        except ValueError as e:
+            if "signal only works in main thread" in str(e):
+                signal_error_caught = True  # This is what we expect
+            else:
+                unexpected_errors.append(e)
+        except Exception as e:
+            unexpected_errors.append(e)
+
+    test_thread = threading.Thread(target=run_executor_with_forced_signals)
+    test_thread.start()
+    test_thread.join()
+
+    assert signal_error_caught, "Expected ValueError about signal handling in main thread"
+    assert not unexpected_errors, f"Unexpected errors occurred: {unexpected_errors}"
+
+
+@pytest.mark.skipif(platform.system() == "Windows", reason="SIGUSR1 not supported on Windows")
+def test_executor_disables_signal_handling_in_background_thread() -> None:
+    def sync_fn(x: int) -> int:
+        return x
+
+    signals_disabled = False
+    execution_successful = False
+    errors: list[Exception] = []
+
+    def run_executor() -> None:
+        nonlocal signals_disabled, execution_successful
+        try:
+            executor = SyncExecutor(
+                sync_fn,
+                termination_signal=signal.SIGUSR1,  # type: ignore[attr-defined, unused-ignore]
+            )
+
+            signals_disabled = executor.termination_signal is None
+
+            outputs, _ = executor.run(range(10))
+            execution_successful = len(outputs) == 10
+
+        except Exception as e:
+            errors.append(e)
+
+    test_thread = threading.Thread(target=run_executor)
+    test_thread.start()
+    test_thread.join()
+
+    assert not errors, f"Unexpected errors in background thread: {errors}"
+
+    assert (
+        signals_disabled
+    ), "Signal handling should be automatically disabled in background threads"
+
+    assert execution_successful, "Executor should work normally in background threads"
+
+
+@pytest.mark.skipif(platform.system() == "Windows", reason="SIGUSR1 not supported on Windows")
+def test_async_executor_fails_in_background_thread() -> None:
+    async def async_fn(x: int) -> int:
+        await asyncio.sleep(0.001)
+        return x
+
+    signal_error_caught = False
+    unexpected_errors: list[Exception] = []
+
+    def run_async_executor_with_forced_signals() -> None:
+        nonlocal signal_error_caught
+        try:
+            executor = AsyncExecutor(async_fn, termination_signal=None)
+
+            executor.termination_signal = signal.SIGUSR1  # type: ignore[attr-defined, unused-ignore]
+
+            executor.run(range(10))
+
+            unexpected_errors.append(
+                AssertionError("Expected ValueError but execution completed normally")
+            )
+        except ValueError as e:
+            if "signal only works in main thread" in str(e):
+                signal_error_caught = True  # This is what we expect
+            else:
+                unexpected_errors.append(e)
+        except Exception as e:
+            unexpected_errors.append(e)
+
+    test_thread = threading.Thread(target=run_async_executor_with_forced_signals)
+    test_thread.start()
+    test_thread.join()
+
+    assert signal_error_caught, "Expected ValueError about signal handling in main thread"
+    assert not unexpected_errors, f"Unexpected errors occurred: {unexpected_errors}"
