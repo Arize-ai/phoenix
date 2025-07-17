@@ -123,3 +123,9 @@ spec:
           emptyDir: {}
         {{- end }}
       {{- end }}
+      {{- if .Values.serviceAccount.imagePullSecrets }}
+      imagePullSecrets:
+        {{- range .Values.serviceAccount.imagePullSecrets }}
+        - name: {{ . | quote }}
+        {{- end }}
+      {{- end }}

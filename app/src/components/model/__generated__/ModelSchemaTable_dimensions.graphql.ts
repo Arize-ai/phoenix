@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4c04691e02173dace538f50236d2363d>>
+ * @generated SignedSource<<64d4b8e726882c555dd01f6a5bb5073d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -112,7 +112,7 @@ return {
     {
       "alias": null,
       "args": null,
-      "concreteType": "Model",
+      "concreteType": "InferenceModel",
       "kind": "LinkedField",
       "name": "model",
       "plural": false,

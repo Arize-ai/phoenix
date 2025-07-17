@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<327f789766e1db0331139905095db697>>
+ * @generated SignedSource<<1fb3c4288ed65a2d8446c0154e7e6abf>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,6 +14,11 @@ export type RunMetadataFooterQuery$variables = {
 };
 export type RunMetadataFooterQuery$data = {
   readonly span: {
+    readonly costSummary?: {
+      readonly total: {
+        readonly cost: number | null;
+      };
+    } | null;
     readonly id: string;
     readonly latencyMs?: number | null;
     readonly spanId?: string;
@@ -108,6 +113,35 @@ v3 = {
       "kind": "ScalarField",
       "name": "latencyMs",
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "SpanCostSummary",
+      "kind": "LinkedField",
+      "name": "costSummary",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "CostBreakdown",
+          "kind": "LinkedField",
+          "name": "total",
+          "plural": false,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "cost",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
     }
   ],
   "type": "Span",
@@ -166,16 +200,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "24fe0e0ac8fe3f88cbbce31e0dd43e12",
+    "cacheID": "5f0974276186eb5032c3aadb289adbe3",
     "id": null,
     "metadata": {},
     "name": "RunMetadataFooterQuery",
     "operationKind": "query",
-    "text": "query RunMetadataFooterQuery(\n  $spanId: ID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    id\n    ... on Span {\n      spanId\n      trace {\n        id\n        traceId\n        project {\n          id\n        }\n      }\n      tokenCountTotal\n      latencyMs\n    }\n  }\n}\n"
+    "text": "query RunMetadataFooterQuery(\n  $spanId: ID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    id\n    ... on Span {\n      spanId\n      trace {\n        id\n        traceId\n        project {\n          id\n        }\n      }\n      tokenCountTotal\n      latencyMs\n      costSummary {\n        total {\n          cost\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f511626560567f113e6b977bfea1efd3";
+(node as any).hash = "ea9edc5ec856a42e5e53663d6a570de1";
 
 export default node;

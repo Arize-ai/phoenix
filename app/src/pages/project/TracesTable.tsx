@@ -38,7 +38,8 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
-import { TokenCount } from "@phoenix/components/trace/TokenCount";
+import { TraceTokenCosts } from "@phoenix/components/trace/TraceTokenCosts";
+import { TraceTokenCount } from "@phoenix/components/trace/TraceTokenCount";
 import { ISpanItem } from "@phoenix/components/trace/types";
 import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
 import { Truncate } from "@phoenix/components/utility/Truncate";
@@ -236,6 +237,11 @@ export function TracesTable(props: TracesTableProps) {
                   id
                   traceId
                   numSpans
+                  costSummary {
+                    total {
+                      cost
+                    }
+                  }
                 }
                 spanAnnotations {
                   id
@@ -645,9 +651,29 @@ export function TracesTable(props: TracesTableProps) {
             return "--";
           }
           return (
-            <TokenCount
+            <TraceTokenCount
               tokenCountTotal={value as number}
               nodeId={row.original.trace.id}
+            />
+          );
+        },
+      },
+      {
+        header: "total cost",
+        minSize: 80,
+        accessorKey: "trace.costSummary.total.cost",
+        id: "cumulativeTokenCostTotal",
+        cell: ({ row, getValue }) => {
+          const value = getValue();
+          if (value === null || typeof value !== "number") {
+            return "--";
+          }
+          const span = row.original;
+          return (
+            <TraceTokenCosts
+              totalCost={value}
+              nodeId={span.trace.id}
+              size="S"
             />
           );
         },

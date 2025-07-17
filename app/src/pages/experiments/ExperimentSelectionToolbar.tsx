@@ -176,9 +176,17 @@ export function ExperimentSelectionToolbar(
               variant="primary"
               size="S"
               onPress={() => {
-                navigate(
-                  `/datasets/${datasetId}/compare?${selectedExperiments.map((experiment) => `experimentId=${experiment.id}`).join("&")}`
-                );
+                const baselineExperimentId =
+                  selectedExperiments[selectedExperiments.length - 1].id; // treat the oldest experiment as the baseline
+                const compareExperimentIds = selectedExperiments
+                  .slice(0, -1)
+                  .map((exp) => exp.id);
+                const experimentIds = [
+                  baselineExperimentId,
+                  ...compareExperimentIds,
+                ];
+                const queryParams = `?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`;
+                navigate(`/datasets/${datasetId}/compare${queryParams}`);
               }}
               leadingVisual={<Icon svg={<Icons.ArrowCompareOutline />} />}
             >

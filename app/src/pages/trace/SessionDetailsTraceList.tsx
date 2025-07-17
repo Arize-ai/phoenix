@@ -1,26 +1,39 @@
-import { useMemo } from "react";
-import { isNumber, isString } from "lodash";
+import { useCallback, useMemo } from "react";
+import { graphql, usePaginationFragment } from "react-relay";
+import { isNumber, isString, throttle } from "lodash";
+import { css } from "@emotion/react";
 
 import {
   SemanticAttributePrefixes,
   UserAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
 
-import { Flex, Icon, Icons, Link, Text, View } from "@phoenix/components";
+import {
+  Flex,
+  Icon,
+  Icons,
+  Link,
+  Loading,
+  Text,
+  View,
+} from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { JSONBlock } from "@phoenix/components/code";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { TokenCount } from "@phoenix/components/trace/TokenCount";
+import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
+import { TraceTokenCosts } from "@phoenix/components/trace/TraceTokenCosts";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
+import {
+  SessionDetailsTraceList_traces$data,
+  SessionDetailsTraceList_traces$key,
+} from "@phoenix/pages/trace/__generated__/SessionDetailsTraceList_traces.graphql";
+import { MimeType } from "@phoenix/pages/trace/__generated__/SpanDetailsQuery.graphql";
+import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
-import {
-  MimeType,
-  SessionDetailsQuery$data,
-} from "./__generated__/SessionDetailsQuery.graphql";
 import { EditSpanAnnotationsButton } from "./EditSpanAnnotationsButton";
 
 const getUserFromRootSpanAttributes = (attributes: string) => {
@@ -80,8 +93,8 @@ function RootSpanMessage({
 
 type SessionTraceRootSpan = NonNullable<
   NonNullable<
-    SessionDetailsQuery$data["session"]["traces"]
-  >["edges"][number]["trace"]["rootSpan"]
+    SessionDetailsTraceList_traces$data["traces"]["edges"][number]["trace"]
+  >["rootSpan"]
 >;
 
 type RootSpanProps = {
@@ -127,10 +140,16 @@ function RootSpanDetails({
             </Text>
           </Flex>
           <Flex direction={"row"} gap={"size-100"}>
-            <TokenCount
-              tokenCountTotal={rootSpan.cumulativeTokenCountTotal ?? 0}
+            <SpanCumulativeTokenCount
+              tokenCountTotal={rootSpan.cumulativeTokenCountTotal || 0}
               nodeId={rootSpan.id}
             />
+            {rootSpan.trace.costSummary?.total?.cost != null && (
+              <TraceTokenCosts
+                totalCost={rootSpan.trace.costSummary.total.cost}
+                nodeId={rootSpan.trace.id}
+              />
+            )}
             {rootSpan.latencyMs != null ? (
               <LatencyText latencyMs={rootSpan.latencyMs} />
             ) : (
@@ -184,25 +203,101 @@ function RootSpanInputOutput({ rootSpan }: RootSpanProps) {
 }
 
 export function SessionDetailsTraceList({
-  traces,
+  tracesRef,
 }: {
-  traces: SessionDetailsQuery$data["session"]["traces"];
+  tracesRef: SessionDetailsTraceList_traces$key;
 }) {
+  const { data, loadNext, isLoadingNext, hasNext } = usePaginationFragment(
+    graphql`
+      fragment SessionDetailsTraceList_traces on ProjectSession
+      @refetchable(queryName: "SessionDetailsTraceListRefetchQuery")
+      @argumentDefinitions(
+        first: { type: "Int", defaultValue: 50 }
+        after: { type: "String", defaultValue: null }
+      ) {
+        traces(first: $first, after: $after)
+          @connection(key: "SessionDetailsTraceList_traces") {
+          edges {
+            trace: node {
+              id
+              traceId
+              rootSpan {
+                trace {
+                  id
+                  costSummary {
+                    total {
+                      cost
+                    }
+                  }
+                }
+                id
+                attributes
+                project {
+                  id
+                }
+                input {
+                  value
+                  mimeType
+                }
+                output {
+                  value
+                  mimeType
+                }
+                cumulativeTokenCountTotal
+                latencyMs
+                startTime
+                spanId
+                ...AnnotationSummaryGroup
+              }
+            }
+          }
+        }
+      }
+    `,
+    tracesRef
+  );
+
   const sessionRootSpans = useMemo(() => {
-    const edges = traces?.edges || [];
-    return edges
-      .map(({ trace }) => trace)
+    return data.traces?.edges
       .filter(
         (
           trace
         ): trace is typeof trace & {
-          rootSpan: NonNullable<typeof trace.rootSpan>;
-        } => trace.rootSpan !== null
-      );
-  }, [traces]);
+          trace: { rootSpan: NonNullable<typeof trace.trace.rootSpan> };
+        } => trace.trace.rootSpan !== null
+      )
+      .map(({ trace }) => trace);
+  }, [data]);
+
+  const fetchMoreOnBottomReached = useCallback(
+    (containerRefElement?: HTMLDivElement | null) => {
+      if (containerRefElement) {
+        const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
+        const withinRange = scrollHeight - scrollTop - clientHeight < 1024;
+        if (withinRange && !isLoadingNext && hasNext) {
+          loadNext(SESSION_DETAILS_PAGE_SIZE);
+        }
+      }
+    },
+    [hasNext, isLoadingNext, loadNext]
+  );
+
+  const debouncedFetchMoreOnBottomReached = useMemo(
+    () => throttle(fetchMoreOnBottomReached, 100),
+    [fetchMoreOnBottomReached]
+  );
 
   return (
-    <View height={"100%"} flex={"1 1 auto"} overflow={"auto"}>
+    <div
+      css={css`
+        height: 100%;
+        flex: 1 1 auto;
+        overflow: auto;
+      `}
+      onScroll={(e) =>
+        debouncedFetchMoreOnBottomReached(e.target as HTMLDivElement)
+      }
+    >
       {sessionRootSpans.map(({ traceId, rootSpan }, index) => (
         <View
           borderBottomColor={"dark"}
@@ -228,6 +323,15 @@ export function SessionDetailsTraceList({
           </Flex>
         </View>
       ))}
-    </View>
+      {isLoadingNext && (
+        <View
+          borderBottomColor={"dark"}
+          borderBottomWidth={"thin"}
+          padding="size-200"
+        >
+          <Loading />
+        </View>
+      )}
+    </div>
   );
 }

@@ -38,10 +38,13 @@ import { IndeterminateCheckboxCell } from "@phoenix/components/table/Indetermina
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { TraceTokenCosts } from "@phoenix/components/trace";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
-import { TokenCount } from "@phoenix/components/trace/TokenCount";
+import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
+import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
@@ -196,12 +199,17 @@ export function SpansTable(props: SpansTableProps) {
                 statusCode
                 startTime
                 latencyMs
-                tokenCountTotal
-                cumulativeTokenCountTotal
+                tokenCountTotal @skip(if: $rootSpansOnly)
+                cumulativeTokenCountTotal @include(if: $rootSpansOnly)
                 spanId
                 trace {
                   id
                   traceId
+                  costSummary @include(if: $rootSpansOnly) {
+                    total {
+                      cost
+                    }
+                  }
                 }
                 input {
                   value: truncatedValue
@@ -230,6 +238,11 @@ export function SpansTable(props: SpansTableProps) {
                   ndcg
                   precision
                   hit
+                }
+                costSummary @skip(if: $rootSpansOnly) {
+                  total {
+                    cost
+                  }
                 }
                 ...AnnotationSummaryGroup
               }
@@ -481,8 +494,40 @@ export function SpansTable(props: SpansTableProps) {
         const tokenCountTotal = rootSpansOnly
           ? span.cumulativeTokenCountTotal
           : span.tokenCountTotal;
+
+        if (rootSpansOnly) {
+          return (
+            <SpanCumulativeTokenCount
+              tokenCountTotal={tokenCountTotal || 0}
+              nodeId={span.id}
+            />
+          );
+        }
+
         return (
-          <TokenCount tokenCountTotal={tokenCountTotal || 0} nodeId={span.id} />
+          <SpanTokenCount
+            tokenCountTotal={tokenCountTotal || 0}
+            nodeId={span.id}
+          />
+        );
+      },
+    },
+    {
+      header: rootSpansOnly ? "cumulative cost" : "total cost",
+      accessorKey: rootSpansOnly
+        ? "trace.costSummary.total.cost"
+        : "costSummary.total.cost",
+      id: rootSpansOnly ? "cumulativeTokenCostTotal" : "tokenCostTotal",
+      cell: ({ row, getValue }) => {
+        const value = getValue();
+        if (value === null || typeof value !== "number") {
+          return "--";
+        }
+        const span = row.original;
+        return rootSpansOnly ? (
+          <TraceTokenCosts totalCost={value} nodeId={span.trace.id} size="S" />
+        ) : (
+          <SpanTokenCosts totalCost={value} spanNodeId={span.id} size="S" />
         );
       },
     },

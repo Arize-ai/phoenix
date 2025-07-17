@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d1f2bd26b3dd720089c2036bc4cf1e5d>>
+ * @generated SignedSource<<76fde2199b541df2fec45b82c19dccff>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -76,6 +76,11 @@ export type PlaygroundDatasetExamplesTableMutation$data = {
           readonly context: {
             readonly traceId: string;
           };
+          readonly costSummary: {
+            readonly total: {
+              readonly cost: number | null;
+            };
+          } | null;
           readonly id: string;
           readonly latencyMs: number | null;
           readonly project: {
@@ -230,6 +235,35 @@ v3 = [
                       {
                         "alias": null,
                         "args": null,
+                        "concreteType": "SpanCostSummary",
+                        "kind": "LinkedField",
+                        "name": "costSummary",
+                        "plural": false,
+                        "selections": [
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "CostBreakdown",
+                            "kind": "LinkedField",
+                            "name": "total",
+                            "plural": false,
+                            "selections": [
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "cost",
+                                "storageKey": null
+                              }
+                            ],
+                            "storageKey": null
+                          }
+                        ],
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
                         "kind": "ScalarField",
                         "name": "latencyMs",
                         "storageKey": null
@@ -336,16 +370,16 @@ return {
     "selections": (v3/*: any*/)
   },
   "params": {
-    "cacheID": "a5d1d9b9e0ebf2f32f8398b5bca3b281",
+    "cacheID": "830f5ec573d853de6bd811846756d846",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableMutation",
     "operationKind": "mutation",
-    "text": "mutation PlaygroundDatasetExamplesTableMutation(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    __typename\n    experimentId\n    examples {\n      datasetExampleId\n      experimentRunId\n      result {\n        __typename\n        ... on ChatCompletionMutationError {\n          message\n        }\n        ... on ChatCompletionMutationPayload {\n          content\n          errorMessage\n          span {\n            id\n            tokenCountTotal\n            latencyMs\n            project {\n              id\n            }\n            context {\n              traceId\n            }\n          }\n          toolCalls {\n            id\n            function {\n              name\n              arguments\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation PlaygroundDatasetExamplesTableMutation(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    __typename\n    experimentId\n    examples {\n      datasetExampleId\n      experimentRunId\n      result {\n        __typename\n        ... on ChatCompletionMutationError {\n          message\n        }\n        ... on ChatCompletionMutationPayload {\n          content\n          errorMessage\n          span {\n            id\n            tokenCountTotal\n            costSummary {\n              total {\n                cost\n              }\n            }\n            latencyMs\n            project {\n              id\n            }\n            context {\n              traceId\n            }\n          }\n          toolCalls {\n            id\n            function {\n              name\n              arguments\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "4ecdd2ca5fbbdf4a9ae185fa02f8b013";
+(node as any).hash = "da70a5b101d82764b8ec8aadf00e941e";
 
 export default node;

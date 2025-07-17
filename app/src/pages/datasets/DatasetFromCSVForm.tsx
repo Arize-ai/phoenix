@@ -23,6 +23,7 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
+import { fieldBaseCSS } from "@phoenix/components/field/styles";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 type CreateDatasetFromCSVParams = {
@@ -55,10 +56,11 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
     control,
     handleSubmit,
     resetField,
+    setValue,
     formState: { isDirty, isValid },
   } = useForm<CreateDatasetFromCSVParams>({
     defaultValues: {
-      name: "Dataset " + new Date().toISOString(),
+      name: "",
       input_keys: [],
       output_keys: [],
       metadata_keys: [],
@@ -115,6 +117,56 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
         `}
       >
         <Controller
+          control={control}
+          name="file"
+          rules={{ required: "CSV file is required" }}
+          render={({ field: { value: _value, onChange, ...field } }) => {
+            return (
+              <div
+                css={css(
+                  fieldBaseCSS,
+                  css`
+                    display: flex;
+                    flex-direction: column;
+                    gap: var(--ac-global-dimension-size-50);
+                    margin-bottom: var(--ac-global-dimension-size-200);
+                  `
+                )}
+              >
+                <Label>CSV file</Label>
+                <input
+                  {...field}
+                  onChange={(event) => {
+                    onChange(event.target.files);
+                    // Reset columns when a new file is uploaded
+                    resetField("input_keys");
+                    resetField("output_keys");
+                    resetField("metadata_keys");
+                    const file = event.target.files?.[0];
+                    if (file) {
+                      const name = file.name.split(".")[0];
+                      const reader = new FileReader();
+                      reader.onload = function (e) {
+                        if (!e.target) {
+                          return;
+                        }
+                        const text = e.target.result;
+                        const columnNames = getColumnNames(text as string);
+                        setColumns(columnNames);
+                        setValue("name", name);
+                      };
+                      reader.readAsText(file);
+                    }
+                  }}
+                  type="file"
+                  id="file"
+                  accept=".csv"
+                />
+              </div>
+            );
+          }}
+        />
+        <Controller
           name="name"
           control={control}
           rules={{
@@ -162,50 +214,6 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
               )}
             </TextField>
           )}
-        />
-        <Controller
-          control={control}
-          name="file"
-          rules={{ required: "CSV file is required" }}
-          render={({
-            field: { value: _value, onChange, ...field },
-            fieldState: { invalid, error },
-          }) => {
-            return (
-              <Field
-                label="CSV file"
-                validationState={invalid ? "invalid" : "valid"}
-                errorMessage={error?.message}
-              >
-                <input
-                  {...field}
-                  onChange={(event) => {
-                    onChange(event.target.files);
-                    // Reset columns when a new file is uploaded
-                    resetField("input_keys");
-                    resetField("output_keys");
-                    resetField("metadata_keys");
-                    const file = event.target.files?.[0];
-                    if (file) {
-                      const reader = new FileReader();
-                      reader.onload = function (e) {
-                        if (!e.target) {
-                          return;
-                        }
-                        const text = e.target.result;
-                        const columnNames = getColumnNames(text as string);
-                        setColumns(columnNames);
-                      };
-                      reader.readAsText(file);
-                    }
-                  }}
-                  type="file"
-                  id="file"
-                  accept=".csv"
-                />
-              </Field>
-            );
-          }}
         />
 
         <Controller

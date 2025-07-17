@@ -86,3 +86,5 @@ packages/phoenix-evals/docs/build/
 
 # Deployment
 helm/charts/*.tgz
+# mypy
+.mypy_cache

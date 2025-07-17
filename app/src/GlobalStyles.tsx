@@ -975,7 +975,7 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
 
     --ac-highlight-foreground: var(--ac-global-text-color-900);
     --ac-highlight-background: var(--ac-global-color-primary-100);
-    --ac-hover-background: var(--ac-global-color-primary-50);
+    --ac-hover-background: var(--ac-global-color-primary-100);
     --ac-focus-ring-color: var(--ac-global-color-primary-500);
 
     // Text
@@ -1030,7 +1030,7 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     );
 
     // Style for tooltips
-    --ac-global-tooltip-background-color: var(--ac-global-color-grey-100);
+    --ac-global-tooltip-background-color: var(--ac-global-color-grey-50);
     --ac-global-tooltip-border-color: var(--ac-global-color-grey-300);
 
     --ac-global-rounding-xsmall: var(--ac-global-dimension-static-size-25);
@@ -1228,6 +1228,15 @@ const ReactGridLayoutCSS = css`
   }
 `;
 
+const chartCSS = css`
+  .ac-theme--dark {
+    --chart-tooltip-cursor-fill-color: rgba(255, 255, 255, 0.2);
+  }
+  .ac-theme--light {
+    --chart-tooltip-cursor-fill-color: rgba(0, 0, 0, 0.2);
+  }
+`;
+
 export function GlobalStyles() {
   const { theme = "dark" } = useProvider();
   const themeCSS = theme === "dark" ? darkThemeCSS : lightThemeCSS;
@@ -1242,7 +1251,8 @@ export function GlobalStyles() {
         opacitiesCSS,
         appGlobalStylesCSS,
         codeMirrorOverridesCSS,
-        ReactGridLayoutCSS
+        ReactGridLayoutCSS,
+        chartCSS
       )}
     />
   );

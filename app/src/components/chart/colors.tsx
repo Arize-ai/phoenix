@@ -23,6 +23,11 @@ export type ChartColors = {
   readonly pink300: string;
   readonly pink400: string;
   readonly pink500: string;
+  readonly red100: string;
+  readonly red200: string;
+  readonly red300: string;
+  readonly red400: string;
+  readonly red500: string;
   readonly gray100: string;
   readonly gray200: string;
   readonly gray300: string;
@@ -57,6 +62,11 @@ const darkColors: ChartColors = Object.freeze({
   pink300: "#F66FB4",
   pink400: "#F33F9B",
   pink500: "#F10E82",
+  red100: "#FFCACA",
+  red200: "#FFA6A6",
+  red300: "#FF7171",
+  red400: "#FF3235",
+  red500: "#F80707",
   gray100: "#f0f0f0",
   gray200: "#d9d9d9",
   gray300: "#bdbdbd",
@@ -92,6 +102,11 @@ const lightColors: ChartColors = Object.freeze({
   pink300: "#F66FB4",
   pink400: "#F99FCD",
   pink500: "#FCCDE5",
+  red100: "#FFCACA",
+  red200: "#FFA6A6",
+  red300: "#FF7171",
+  red400: "#FF3235",
+  red500: "#F80707",
   gray100: "#252525",
   gray200: "#525252",
   gray300: "#737373",
@@ -107,4 +122,41 @@ const lightColors: ChartColors = Object.freeze({
 export const useChartColors = (): ChartColors => {
   const { theme } = useTheme();
   return useMemo(() => (theme === "dark" ? darkColors : lightColors), [theme]);
+};
+
+/**
+ * Returns a color from the chart colors based on the incoming index
+ * The colors are grouped into 5 shades of each color group
+ *
+ * @example
+ * ```ts
+ * getChartColor(0, ChartColors) // returns ChartColors.blue500
+ * getChartColor(1, ChartColors) // returns ChartColors.orange500
+ * getChartColor(2, ChartColors) // returns ChartColors.purple500
+ * getChartColor(3, ChartColors) // returns ChartColors.pink500
+ * getChartColor(4, ChartColors) // returns ChartColors.gray500
+ * getChartColor(5, ChartColors) // returns ChartColors.blue400
+ * getChartColor(6, ChartColors) // returns ChartColors.orange400
+ * // ...
+ * ```
+ * @param index - item index that will be mapped into a color
+ * @param colors - the colors to use, typically the result of useChartColors()
+ * @returns a color from the chart colors based on the incoming index
+ */
+export const getChartColor = (index: number, colors: ChartColors) => {
+  const colorGroups = [
+    ["blue", 5],
+    ["orange", 5],
+    ["purple", 5],
+    ["pink", 5],
+    ["gray", 5],
+  ] as const;
+  const groupCount = colorGroups.length;
+  const groupIndex = index % groupCount;
+  const shadeIndex = Math.floor(index / groupCount);
+  const [group, maxShades] = colorGroups[groupIndex];
+  // reduce in shades by 100 for each group, each iteration
+  const shade = 500 - 100 * (shadeIndex % maxShades);
+  const colorKey = `${group}${shade}` as keyof ChartColors;
+  return colors[colorKey] || colors.default;
 };

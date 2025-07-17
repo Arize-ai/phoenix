@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9802d63232cb94fe44c76458925e772f>>
+ * @generated SignedSource<<944b1428de4f675089b9b9b7a6397816>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -24,6 +24,20 @@ export type ExperimentsTableFragment$data = {
           readonly meanScore: number | null;
         }>;
         readonly averageRunLatencyMs: number | null;
+        readonly costSummary: {
+          readonly completion: {
+            readonly cost: number | null;
+            readonly tokens: number | null;
+          };
+          readonly prompt: {
+            readonly cost: number | null;
+            readonly tokens: number | null;
+          };
+          readonly total: {
+            readonly cost: number | null;
+            readonly tokens: number | null;
+          };
+        };
         readonly createdAt: string;
         readonly description: string | null;
         readonly errorRate: number | null;
@@ -65,7 +79,23 @@ v2 = {
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
-};
+},
+v3 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "tokens",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "cost",
+    "storageKey": null
+  }
+];
 return {
   "argumentDefinitions": [
     {
@@ -232,6 +262,47 @@ return {
                 {
                   "alias": null,
                   "args": null,
+                  "concreteType": "SpanCostSummary",
+                  "kind": "LinkedField",
+                  "name": "costSummary",
+                  "plural": false,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "CostBreakdown",
+                      "kind": "LinkedField",
+                      "name": "total",
+                      "plural": false,
+                      "selections": (v3/*: any*/),
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "CostBreakdown",
+                      "kind": "LinkedField",
+                      "name": "prompt",
+                      "plural": false,
+                      "selections": (v3/*: any*/),
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "CostBreakdown",
+                      "kind": "LinkedField",
+                      "name": "completion",
+                      "plural": false,
+                      "selections": (v3/*: any*/),
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
                   "concreteType": "ExperimentAnnotationSummary",
                   "kind": "LinkedField",
                   "name": "annotationSummaries",
@@ -314,6 +385,6 @@ return {
 };
 })();
 
-(node as any).hash = "c7c7580fe40888ceb86a1701fe4eedf4";
+(node as any).hash = "6ffa602034c8f755f2d1e8c9c2aa39bb";
 
 export default node;

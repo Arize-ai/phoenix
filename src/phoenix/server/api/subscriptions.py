@@ -62,6 +62,7 @@ from phoenix.server.api.types.Experiment import to_gql_experiment
 from phoenix.server.api.types.ExperimentRun import to_gql_experiment_run
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
+from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.types import DbSessionFactory
 from phoenix.utilities.template_formatters import (
@@ -173,6 +174,19 @@ class Subscription:
             db_span = get_db_span(span, db_trace)
             session.add(db_span)
             await session.flush()
+            try:
+                span_cost = info.context.span_cost_calculator.calculate_cost(
+                    start_time=db_span.start_time,
+                    attributes=span.attributes,
+                )
+            except Exception as e:
+                logger.exception(f"Failed to calculate cost for span {db_span.id}: {e}")
+                span_cost = None
+            if span_cost:
+                span_cost.span_rowid = db_span.id
+                span_cost.trace_rowid = db_span.trace_rowid
+                session.add(span_cost)
+
         info.context.event_queue.put(SpanInsertEvent(ids=(playground_project_id,)))
         yield ChatCompletionSubscriptionResult(span=Span(span_rowid=db_span.id, db_span=db_span))
 
@@ -372,14 +386,18 @@ class Subscription:
                     and not write_already_in_progress
                 ):
                     result_payloads_stream = _chat_completion_result_payloads(
-                        db=info.context.db, results=_drain_no_wait(results)
+                        db=info.context.db,
+                        results=_drain_no_wait(results),
+                        span_cost_calculator=info.context.span_cost_calculator,
                     )
                     task = _create_task_with_timeout(result_payloads_stream)
                     in_progress.append((None, result_payloads_stream, task))
                     last_write_time = datetime.now()
         if remaining_results := await _drain(results):
             async for result_payload in _chat_completion_result_payloads(
-                db=info.context.db, results=remaining_results
+                db=info.context.db,
+                results=remaining_results,
+                span_cost_calculator=info.context.span_cost_calculator,
             ):
                 yield result_payload
 
@@ -463,6 +481,7 @@ async def _chat_completion_result_payloads(
     *,
     db: DbSessionFactory,
     results: Sequence[ChatCompletionResult],
+    span_cost_calculator: SpanCostCalculator,
 ) -> ChatStream:
     if not results:
         return
@@ -470,6 +489,19 @@ async def _chat_completion_result_payloads(
         for _, span, run in results:
             if span:
                 session.add(span)
+                await session.flush()
+                try:
+                    span_cost = span_cost_calculator.calculate_cost(
+                        start_time=span.start_time,
+                        attributes=span.attributes,
+                    )
+                except Exception as e:
+                    logger.exception(f"Failed to calculate cost for span {span.id}: {e}")
+                    span_cost = None
+                if span_cost:
+                    span_cost.span_rowid = span.id
+                    span_cost.trace_rowid = span.trace_rowid
+                    session.add(span_cost)
             session.add(run)
         await session.flush()
     for example_id, span, run in results:
@@ -594,3 +626,5 @@ LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
 PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
+LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
+LLM_PROVIDER = SpanAttributes.LLM_PROVIDER

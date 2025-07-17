@@ -1,5 +1,9 @@
 npm# Migrations
 
+## v10.0.0 to v11.0.0
+
+This release is entirely encapsulated in a set of new tables. Have a nice release!
+
 ## v9.x to v10.0.0
 
 This release updates the `users` table in the database. Migration is expected to be quick.

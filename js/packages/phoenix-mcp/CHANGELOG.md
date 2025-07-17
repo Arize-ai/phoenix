@@ -1,5 +1,40 @@
 # @arizeai/phoenix-mcp
 
+## 2.2.3
+
+### Patch Changes
+
+- Updated dependencies [6ef8e47]
+  - @arizeai/phoenix-client@2.3.2
+
+## 2.2.2
+
+### Patch Changes
+
+- Updated dependencies [b3e30db]
+  - @arizeai/phoenix-client@2.3.1
+
+## 2.2.1
+
+### Patch Changes
+
+- Updated dependencies [3c97cc7]
+  - @arizeai/phoenix-client@2.3.0
+
+## 2.2.0
+
+### Minor Changes
+
+- 468f77b: add phoenix-support tool
+
+## 2.1.11
+
+### Patch Changes
+
+- Updated dependencies [1906611]
+- Updated dependencies [4c52db4]
+  - @arizeai/phoenix-client@2.2.0
+
 ## 2.1.10
 
 ### Patch Changes

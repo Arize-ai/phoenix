@@ -15,6 +15,7 @@ from phoenix.auth import (
 from phoenix.core.model_schema import Model
 from phoenix.db import models
 from phoenix.server.api.dataloaders import (
+    AnnotationConfigsByProjectDataLoader,
     AnnotationSummaryDataLoader,
     AverageExperimentRunLatencyDataLoader,
     CacheForDataLoaders,
@@ -28,6 +29,7 @@ from phoenix.server.api.dataloaders import (
     ExperimentRunAnnotations,
     ExperimentRunCountsDataLoader,
     ExperimentSequenceNumberDataLoader,
+    LastUsedTimesByGenerativeModelIdDataLoader,
     LatencyMsQuantileDataLoader,
     MinStartOrMaxEndTimeDataLoader,
     NumChildSpansDataLoader,
@@ -43,6 +45,18 @@ from phoenix.server.api.dataloaders import (
     SessionTraceLatencyMsQuantileDataLoader,
     SpanAnnotationsDataLoader,
     SpanByIdDataLoader,
+    SpanCostBySpanDataLoader,
+    SpanCostDetailsBySpanCostDataLoader,
+    SpanCostDetailSummaryEntriesByGenerativeModelDataLoader,
+    SpanCostDetailSummaryEntriesByProjectSessionDataLoader,
+    SpanCostDetailSummaryEntriesBySpanDataLoader,
+    SpanCostDetailSummaryEntriesByTraceDataLoader,
+    SpanCostSummaryByExperimentDataLoader,
+    SpanCostSummaryByExperimentRunDataLoader,
+    SpanCostSummaryByGenerativeModelDataLoader,
+    SpanCostSummaryByProjectDataLoader,
+    SpanCostSummaryByProjectSessionDataLoader,
+    SpanCostSummaryByTraceDataLoader,
     SpanDatasetExamplesDataLoader,
     SpanDescendantsDataLoader,
     SpanProjectsDataLoader,
@@ -55,6 +69,7 @@ from phoenix.server.api.dataloaders import (
     UsersDataLoader,
 )
 from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.email.types import EmailSender
 from phoenix.server.types import (
@@ -68,23 +83,27 @@ from phoenix.server.types import (
 
 @dataclass
 class DataLoaders:
+    annotation_configs_by_project: AnnotationConfigsByProjectDataLoader
+    annotation_summaries: AnnotationSummaryDataLoader
     average_experiment_run_latency: AverageExperimentRunLatencyDataLoader
     dataset_example_revisions: DatasetExampleRevisionsDataLoader
     dataset_example_spans: DatasetExampleSpansDataLoader
     document_evaluation_summaries: DocumentEvaluationSummaryDataLoader
     document_evaluations: DocumentEvaluationsDataLoader
     document_retrieval_metrics: DocumentRetrievalMetricsDataLoader
-    annotation_summaries: AnnotationSummaryDataLoader
     experiment_annotation_summaries: ExperimentAnnotationSummaryDataLoader
     experiment_error_rates: ExperimentErrorRatesDataLoader
     experiment_run_annotations: ExperimentRunAnnotations
     experiment_run_counts: ExperimentRunCountsDataLoader
     experiment_sequence_number: ExperimentSequenceNumberDataLoader
+    last_used_times_by_generative_model_id: LastUsedTimesByGenerativeModelIdDataLoader
     latency_ms_quantile: LatencyMsQuantileDataLoader
     min_start_or_max_end_times: MinStartOrMaxEndTimeDataLoader
     num_child_spans: NumChildSpansDataLoader
     num_spans_per_trace: NumSpansPerTraceDataLoader
+    project_by_name: ProjectByNameDataLoader
     project_fields: TableFieldsDataLoader
+    project_trace_retention_policy_fields: TableFieldsDataLoader
     projects_by_trace_retention_policy_id: ProjectIdsByTraceRetentionPolicyIdDataLoader
     prompt_version_sequence_number: PromptVersionSequenceNumberDataLoader
     record_counts: RecordCountDataLoader
@@ -96,6 +115,24 @@ class DataLoaders:
     session_trace_latency_ms_quantile: SessionTraceLatencyMsQuantileDataLoader
     span_annotations: SpanAnnotationsDataLoader
     span_by_id: SpanByIdDataLoader
+    span_cost_by_span: SpanCostBySpanDataLoader
+    span_cost_detail_fields: TableFieldsDataLoader
+    span_cost_detail_summary_entries_by_generative_model: (
+        SpanCostDetailSummaryEntriesByGenerativeModelDataLoader
+    )
+    span_cost_detail_summary_entries_by_project_session: (
+        SpanCostDetailSummaryEntriesByProjectSessionDataLoader
+    )
+    span_cost_detail_summary_entries_by_span: SpanCostDetailSummaryEntriesBySpanDataLoader
+    span_cost_detail_summary_entries_by_trace: SpanCostDetailSummaryEntriesByTraceDataLoader
+    span_cost_details_by_span_cost: SpanCostDetailsBySpanCostDataLoader
+    span_cost_fields: TableFieldsDataLoader
+    span_cost_summary_by_experiment: SpanCostSummaryByExperimentDataLoader
+    span_cost_summary_by_experiment_run: SpanCostSummaryByExperimentRunDataLoader
+    span_cost_summary_by_generative_model: SpanCostSummaryByGenerativeModelDataLoader
+    span_cost_summary_by_project: SpanCostSummaryByProjectDataLoader
+    span_cost_summary_by_project_session: SpanCostSummaryByProjectSessionDataLoader
+    span_cost_summary_by_trace: SpanCostSummaryByTraceDataLoader
     span_dataset_examples: SpanDatasetExamplesDataLoader
     span_descendants: SpanDescendantsDataLoader
     span_fields: TableFieldsDataLoader
@@ -104,11 +141,9 @@ class DataLoaders:
     trace_by_trace_ids: TraceByTraceIdsDataLoader
     trace_fields: TableFieldsDataLoader
     trace_retention_policy_id_by_project_id: TraceRetentionPolicyIdByProjectIdDataLoader
-    project_trace_retention_policy_fields: TableFieldsDataLoader
     trace_root_spans: TraceRootSpansDataLoader
-    project_by_name: ProjectByNameDataLoader
-    users: UsersDataLoader
     user_roles: UserRolesDataLoader
+    users: UsersDataLoader
 
 
 class _NoOp:
@@ -123,6 +158,7 @@ class Context(BaseContext):
     cache_for_dataloaders: Optional[CacheForDataLoaders]
     model: Model
     export_path: Path
+    span_cost_calculator: SpanCostCalculator
     last_updated_at: CanGetLastUpdatedAt = _NoOp()
     event_queue: CanPutItem[DmlEvent] = _NoOp()
     corpus: Optional[Model] = None

@@ -87,7 +87,7 @@ referencing==0.34.0
     # via
     #   jsonschema
     #   jsonschema-specifications
-requests==2.32.2
+requests==2.32.4
     # via streamlit
 rich==13.7.1
     # via streamlit

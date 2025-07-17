@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<59d9e6d9608b08a3ec0ede9f9267b15b>>
+ * @generated SignedSource<<67e23af80f7c237ea124e6e9f8535e08>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -98,6 +98,11 @@ export type TracesTable_spans$data = {
         readonly startTime: string;
         readonly statusCode: SpanStatusCode;
         readonly trace: {
+          readonly costSummary: {
+            readonly total: {
+              readonly cost: number | null;
+            };
+          };
           readonly id: string;
           readonly numSpans: number;
           readonly traceId: string;
@@ -449,6 +454,35 @@ return {
                       "kind": "ScalarField",
                       "name": "numSpans",
                       "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "SpanCostSummary",
+                      "kind": "LinkedField",
+                      "name": "costSummary",
+                      "plural": false,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "CostBreakdown",
+                          "kind": "LinkedField",
+                          "name": "total",
+                          "plural": false,
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "cost",
+                              "storageKey": null
+                            }
+                          ],
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
                     }
                   ],
                   "storageKey": null
@@ -643,6 +677,6 @@ return {
 };
 })();
 
-(node as any).hash = "193763dc6db3300bf3b3b1395effdfe5";
+(node as any).hash = "7b9464214c3fa9d8f90ea19e580855b6";
 
 export default node;

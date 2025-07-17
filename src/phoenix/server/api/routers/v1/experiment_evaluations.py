@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Any, Literal, Optional
 
+from dateutil.parser import isoparse
 from fastapi import APIRouter, HTTPException
 from pydantic import Field
 from starlette.requests import Request
@@ -95,8 +96,8 @@ async def upsert_experiment_evaluation(
             explanation=explanation,
             error=error,
             metadata_=metadata,  # `metadata_` must match database
-            start_time=datetime.fromisoformat(start_time),
-            end_time=datetime.fromisoformat(end_time),
+            start_time=isoparse(start_time),
+            end_time=isoparse(end_time),
             trace_id=payload.get("trace_id"),
         )
         dialect = SupportedSQLDialect(session.bind.dialect.name)

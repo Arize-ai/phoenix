@@ -34,7 +34,7 @@ dependencies = [
   "typing-extensions>=4.6",
   "scipy",
   "wrapt>=1.17.2",
-  "protobuf>=4.25.8, <6.0",
+  "protobuf>=4.25.8",
   "grpcio",
   "grpc-interceptor",
   "tqdm",
@@ -43,7 +43,7 @@ dependencies = [
   "opentelemetry-proto>=1.12.0",  # needed to avoid this issue: https://github.com/Arize-ai/phoenix/issues/2695
   "opentelemetry-exporter-otlp",
   "opentelemetry-semantic-conventions",
-  "openinference-semantic-conventions>=0.1.17",
+  "openinference-semantic-conventions>=0.1.20",
   "openinference-instrumentation>=0.1.32",
   "sqlalchemy[asyncio]>=2.0.4, <3",
   "alembic>=1.3.0, <2",
@@ -59,6 +59,8 @@ dependencies = [
   "authlib",
   "arize-phoenix-client",
   "email-validator",
+  "python-dateutil",
+  "prometheus_client",
 ]
 dynamic = ["version"]
 
@@ -96,13 +98,13 @@ dev = [
   "litellm>=1.0.3,<1.57.5", # windows compatibility broken on 1.57.5 (https://github.com/BerriAI/litellm/issues/7677)
   "google-cloud-aiplatform>=1.3",
   "anthropic>=0.49.0",
-  "prometheus_client",
   "asgi-lifespan",
   "Faker>=30.1.0",
   "portpicker",
   "uvloop; platform_system != 'Windows'",
   "grpc-interceptor[testing]",
   "types-jsonschema",
+  "types-python-dateutil",
 ]
 embeddings = [
   "fast-hdbscan>=0.2.0",
@@ -129,13 +131,15 @@ container = [
   "openai>=1.0.0",
   "azure-identity",
   "aiohttp",  # used by azure-identity via azure.core.pipeline.transport
-  "opentelemetry-sdk",
-  "opentelemetry-proto>=1.12.0",
-  "opentelemetry-exporter-otlp",
-  "opentelemetry-semantic-conventions",
-  "opentelemetry-instrumentation-fastapi",
-  "opentelemetry-instrumentation-sqlalchemy",
-  "opentelemetry-instrumentation-grpc",
+  # Note: when updating opentelemetry dependencies, all packages must use versions
+  # released on the same date (e.g., 1.33.1/0.54b1) to ensure compatibility.
+  "opentelemetry-sdk==1.33.1",
+  "opentelemetry-proto==1.33.1",
+  "opentelemetry-exporter-otlp==1.33.1",
+  "opentelemetry-semantic-conventions==0.54b1",
+  "opentelemetry-instrumentation-fastapi==0.54b1",  # https://github.com/open-telemetry/opentelemetry-python-contrib/issues/3637
+  "opentelemetry-instrumentation-sqlalchemy==0.54b1",
+  "opentelemetry-instrumentation-grpc==0.54b1",
   "py-grpc-prometheus",
   "strawberry-graphql[opentelemetry]==0.270.1",
   "uvloop; platform_system != 'Windows'",

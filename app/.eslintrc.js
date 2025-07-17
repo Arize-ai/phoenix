@@ -164,6 +164,26 @@ module.exports = {
         module: "@arizeai/components",
         use: "import { DialogTrigger } from '@phoenix/components'",
       },
+      {
+        name: "TooltipTrigger",
+        module: "@arizeai/components",
+        use: "import { TooltipTrigger } from '@phoenix/components'",
+      },
+      {
+        name: "TriggerWrap",
+        module: "@arizeai/components",
+        use: "import { TriggerWrap } from '@phoenix/components'",
+      },
+      {
+        name: "HelpTooltip",
+        module: "@arizeai/components",
+        use: "Tooltip or RichTooltip from @phoenix/components",
+      },
+      {
+        name: "ActionTooltip",
+        module: "@arizeai/components",
+        use: "Tooltip or RichTooltip from @phoenix/components",
+      },
     ],
     "no-duplicate-imports": "error",
   },

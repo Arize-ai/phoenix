@@ -85,16 +85,43 @@ export const textFieldCSS = css`
   display: flex;
   flex-direction: column;
   width: 100%;
+  --icon-alignment-offset: 22%;
+  --icon-size: var(--ac-global-font-size-s);
+
+  &:has(label) {
+    --icon-alignment-offset: 52%;
+  }
 
   &[data-size="S"] {
     --textfield-input-height: 30px;
     --textfield-vertical-padding: 6px;
     --textfield-horizontal-padding: 6px;
+    --icon-size: var(--ac-global-font-size-s);
+    --icon-alignment-offset: 22%;
+    &:has(label) {
+      --icon-alignment-offset: 52%;
+    }
   }
   &[data-size="M"] {
     --textfield-input-height: 38px;
     --textfield-vertical-padding: 10px;
     --textfield-horizontal-padding: var(--ac-global-dimension-static-size-200);
+    --icon-size: var(--ac-global-font-size-l);
+    --icon-alignment-offset: 24%;
+    &:has(label) {
+      --icon-alignment-offset: 52%;
+    }
+  }
+
+  &:has(.ac-icon-wrap) {
+    position: relative;
+
+    .react-aria-Input {
+      padding-right: calc(
+        var(--textfield-horizontal-padding) +
+          var(--ac-global-dimension-static-size-200)
+      );
+    }
   }
 
   .react-aria-Input,
@@ -113,12 +140,21 @@ export const textFieldCSS = css`
     box-sizing: border-box;
     outline-offset: -1px;
     outline: var(--ac-global-border-size-thin) solid transparent;
-    &[data-focused] {
+    &[data-focused]:not([data-invalid]) {
       outline: 1px solid var(--ac-global-input-field-border-color-active);
     }
   }
   .react-aria-Input {
     /* TODO: remove this sizing */
     height: var(--textfield-input-height);
+  }
+
+  .ac-icon-wrap {
+    font-size: var(--icon-size);
+    position: absolute;
+    right: var(--textfield-horizontal-padding);
+    top: var(--icon-alignment-offset);
+    transform: translateY(calc(var(--icon-alignment-offset) * -1));
+    color: var(--ac-global-color-info);
   }
 `;

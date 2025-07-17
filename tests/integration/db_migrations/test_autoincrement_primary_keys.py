@@ -18,8 +18,9 @@ from . import _up
 def test_prompt_versions(
     _engine: Engine,
     _alembic_config: Config,
+    _schema: str,
 ) -> None:
-    _up(_engine, _alembic_config, "bc8fea3c2bc8")
+    _up(_engine, _alembic_config, "bc8fea3c2bc8", _schema)
     db = sessionmaker(bind=_engine, expire_on_commit=False)
     with db.begin() as session:
         name = Identifier.model_validate(token_hex(16))

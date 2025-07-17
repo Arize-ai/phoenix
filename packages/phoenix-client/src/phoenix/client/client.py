@@ -6,6 +6,7 @@ import httpx
 
 from phoenix.client.resources.annotations import Annotations, AsyncAnnotations
 from phoenix.client.resources.datasets import AsyncDatasets, Datasets
+from phoenix.client.resources.experiments import AsyncExperiments, Experiments
 from phoenix.client.resources.projects import AsyncProjects, Projects
 from phoenix.client.resources.prompts import AsyncPrompts, Prompts
 from phoenix.client.resources.spans import AsyncSpans, Spans
@@ -57,6 +58,7 @@ class Client:
         self._spans = Spans(value)
         self._annotations = Annotations(value)
         self._datasets = Datasets(value)
+        self._experiments = Experiments(value)
 
     @property
     def prompts(self) -> Prompts:
@@ -108,6 +110,14 @@ class Client:
         """
         return self._datasets
 
+    @property
+    def experiments(self) -> Experiments:
+        """
+        Returns an instance of the Experiments class for interacting with experiment-related
+        API endpoints.
+        """
+        return self._experiments
+
 
 class AsyncClient:
     def __init__(
@@ -153,6 +163,7 @@ class AsyncClient:
         self._spans = AsyncSpans(value)
         self._annotations = AsyncAnnotations(value)
         self._datasets = AsyncDatasets(value)
+        self._experiments = AsyncExperiments(value)
 
     @property
     def prompts(self) -> AsyncPrompts:
@@ -205,6 +216,14 @@ class AsyncClient:
         API endpoints.
         """
         return self._datasets
+
+    @property
+    def experiments(self) -> AsyncExperiments:
+        """
+        Returns an instance of the Asynchronous Experiments class for interacting with
+        experiment-related API endpoints.
+        """
+        return self._experiments
 
 
 def _update_headers(

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0697add693a7184604cd893ab5452d58>>
+ * @generated SignedSource<<12852c10c1801de345c2e84f74839416>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,6 +16,11 @@ export type SessionsTable_sessions$data = {
   readonly sessions: {
     readonly edges: ReadonlyArray<{
       readonly session: {
+        readonly costSummary: {
+          readonly total: {
+            readonly cost: number | null;
+          };
+        };
         readonly endTime: string;
         readonly firstInput: {
           readonly value: string;
@@ -274,6 +279,35 @@ return {
                   "kind": "ScalarField",
                   "name": "traceLatencyMsQuantile",
                   "storageKey": "traceLatencyMsQuantile(probability:0.99)"
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "SpanCostSummary",
+                  "kind": "LinkedField",
+                  "name": "costSummary",
+                  "plural": false,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "CostBreakdown",
+                      "kind": "LinkedField",
+                      "name": "total",
+                      "plural": false,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "cost",
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
                 }
               ],
               "storageKey": null
@@ -341,6 +375,6 @@ return {
 };
 })();
 
-(node as any).hash = "c52b6e8a736a75aaebe4f63f960ad9c1";
+(node as any).hash = "7204fb2692236e72b75f7604adb46755";
 
 export default node;
