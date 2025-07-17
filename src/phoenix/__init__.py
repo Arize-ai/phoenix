@@ -51,3 +51,11 @@ __all__ = [
     "Client",
     "evals",
 ]
+
+# Enable namespace package support for phoenix.client, phoenix.otel, etc.
+try:
+    __path__ = __import__('pkgutil').extend_path(__path__, __name__)
+except NameError:
+    # __path__ might not be defined in some environments
+    import pkgutil
+    __path__ = pkgutil.extend_path([], __name__)
