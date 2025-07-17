@@ -23,6 +23,7 @@ import {
   ChartTooltip,
   ChartTooltipDivider,
   ChartTooltipItem,
+  defaultSelectedTimestampReferenceLineLabelProps,
   defaultSelectedTimestampReferenceLineProps,
   defaultTimeXAxisProps,
   useChartColors,
@@ -437,14 +438,7 @@ export function MetricTimeSeries({
                 {...defaultSelectedTimestampReferenceLineProps}
                 x={selectedTimestamp.getTime()}
                 label={
-                  <Label
-                    value="▼"
-                    position="top"
-                    style={{
-                      fill: "#fabe32",
-                      fontSize: "var(--ac-global-font-size-xs)",
-                    }}
-                  />
+                  <Label {...defaultSelectedTimestampReferenceLineLabelProps} />
                 }
               />
             ) : null}
