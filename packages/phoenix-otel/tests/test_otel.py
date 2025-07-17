@@ -300,10 +300,10 @@ class TestRegister:
 
     def test_register_with_global_tracer_provider_enabled(self) -> None:
         """Test that register can still set global tracer provider when requested."""
-        original_provider = trace_api.get_tracer_provider()
+        trace_api.get_tracer_provider()
         try:
             tracer_provider = register(verbose=False, set_global_tracer_provider=True)
-            
+
             assert isinstance(tracer_provider, TracerProvider)
             try:
                 assert trace_api.get_tracer_provider() == tracer_provider
