@@ -5,7 +5,7 @@ import {
   Legend,
   ResponsiveContainer,
   Tooltip,
-  TooltipProps,
+  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";
@@ -87,7 +87,7 @@ function TooltipContent({
   active,
   payload,
   label,
-}: TooltipProps<number, string>) {
+}: TooltipContentProps<number, string>) {
   const SemanticChartColors = useSemanticChartColors();
   const chartColors = useChartColors();
   if (active && payload && payload.length) {
@@ -101,9 +101,11 @@ function TooltipContent({
         : "--";
     return (
       <ChartTooltip>
-        <Text weight="heavy" size="S">{`${fullTimeFormatter(
-          new Date(label)
-        )}`}</Text>
+        {label && (
+          <Text weight="heavy" size="S">{`${fullTimeFormatter(
+            new Date(label)
+          )}`}</Text>
+        )}
         <ChartTooltipItem
           color={SemanticChartColors.danger}
           shape="circle"
@@ -171,7 +173,7 @@ export function TraceCountTimeSeries() {
           vertical={false}
         />
         <Tooltip
-          content={<TooltipContent />}
+          content={TooltipContent}
           // TODO formalize this
           cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
         />

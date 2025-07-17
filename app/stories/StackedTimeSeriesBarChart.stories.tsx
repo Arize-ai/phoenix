@@ -6,7 +6,7 @@ import {
   Legend,
   ResponsiveContainer,
   Tooltip,
-  TooltipProps,
+  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";
@@ -146,7 +146,7 @@ function TooltipContent({
   active,
   payload,
   label,
-}: TooltipProps<number, string>) {
+}: TooltipContentProps<number, string>) {
   const chartColors = useChartColors();
   if (active && payload && payload.length) {
     const metricValue = payload[1]?.value ?? null;
@@ -159,9 +159,11 @@ function TooltipContent({
       typeof count === "number" ? numberFormatter.format(count) : "--";
     return (
       <ChartTooltip>
-        <Text weight="heavy" size="S">{`${fullTimeFormatter(
-          new Date(label)
-        )}`}</Text>
+        {label && (
+          <Text weight="heavy" size="S">{`${fullTimeFormatter(
+            new Date(label)
+          )}`}</Text>
+        )}
         <ChartTooltipItem
           color={chartColors.red300}
           shape="circle"
@@ -246,7 +248,7 @@ function StackedBarChart({
             vertical={false}
           />
           <Tooltip
-            content={<TooltipContent />}
+            content={TooltipContent}
             cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
           />
           <Bar dataKey="error" stackId="a" fill={colors[firstColor]} />
