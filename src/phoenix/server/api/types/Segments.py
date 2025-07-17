@@ -1,6 +1,6 @@
 import math
 from dataclasses import dataclass
-from typing import Any, List, Optional, Union, overload
+from typing import Any, Optional, Union, overload
 
 import numpy as np
 import pandas as pd
@@ -72,12 +72,12 @@ class Segment:
         default_factory=DatasetValues,
     )
     # TODO add support for a "z" metric list
-    # values: List[Optional[float]]
+    # values: list[Optional[float]]
 
 
 @strawberry.type
 class Segments:
-    segments: List[Segment] = strawberry.field(default_factory=list)
+    segments: list[Segment] = strawberry.field(default_factory=list)
     total_counts: DatasetValues = strawberry.field(
         default_factory=DatasetValues,
     )

@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import {
   flexRender,
@@ -8,8 +8,7 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Icon, Icons } from "@arizeai/components";
-
+import { Icon, Icons } from "@phoenix/components";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -51,7 +50,7 @@ export function DatasetHistoryTable(props: DatasetHistoryTableProps) {
     () => data.versions.edges.map((edge) => edge.node),
     [data]
   );
-  const fetchMoreOnBottomReached = React.useCallback(
+  const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
         const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
@@ -107,9 +106,7 @@ export function DatasetHistoryTable(props: DatasetHistoryTableProps) {
                   {header.isPlaceholder ? null : (
                     <div
                       {...{
-                        className: header.column.getCanSort()
-                          ? "cursor-pointer"
-                          : "",
+                        className: header.column.getCanSort() ? "sort" : "",
                         onClick: header.column.getToggleSortingHandler(),
                         style: {
                           left: header.getStart(),

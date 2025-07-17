@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 /**
  * Utility function that uses the type system to check if a switch statement is exhaustive.
  * If the switch statement is not exhaustive, there will be a type error caught in typescript
@@ -23,6 +25,15 @@ export function isStringOrNull(value: unknown): value is string | null {
 }
 
 /**
+ * A type guard for checking if a value is a string or null
+ */
+export function isStringOrNullOrUndefined(
+  value: unknown
+): value is string | null | undefined {
+  return isStringOrNull(value) || value === undefined;
+}
+
+/**
  * A type guard for checking if a value is a string array
  */
 export function isStringArray(value: unknown): value is string[] {
@@ -40,8 +51,42 @@ export function isObject(value: unknown): value is object {
 }
 
 /**
+ * A type guard for checking if a value is an object with string keys
+ */
+export function isStringKeyedObject(
+  value: unknown
+): value is Record<string, unknown> {
+  return (
+    isObject(value) &&
+    Object.keys(value).every((key) => typeof key === "string")
+  );
+}
+
+/**
  * Makes a type mutable
  */
 export type Mutable<T> = {
   -readonly [P in keyof T]: T[P];
 };
+
+/**
+ * A zod type utility that ensures that the schema is written to correctly match (at least) what is included in the type.
+ * Note it does not guard against extra fields in the schema not present in the type.
+ * @example
+ * ```typescript
+ * const chatMessageSchema = schemaForType<ChatMessage>()(
+ *  z.object({
+ *    id: z.number(),
+ *    role: chatMessageRolesSchema,
+ *    content: z.string(),
+ *  })
+ * );
+ * ```
+ * Taken from the zod maintainer here:
+ * @see https://github.com/colinhacks/zod/issues/372#issuecomment-826380330
+ */
+export const schemaForType =
+  <T>() =>
+  <S extends z.ZodType<T>>(arg: S) => {
+    return arg;
+  };

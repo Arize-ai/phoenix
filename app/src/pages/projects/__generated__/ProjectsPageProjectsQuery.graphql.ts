@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c47d0f2a5fdbadada13bca07e5bacaab>>
+ * @generated SignedSource<<c8b16535855ce9899471aef1ea978b0e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,16 +8,24 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type TimeRange = {
-  end: string;
-  start: string;
+export type ProjectColumn = "endTime" | "name";
+export type ProjectFilterColumn = "name";
+export type SortDir = "asc" | "desc";
+export type ProjectFilter = {
+  col: ProjectFilterColumn;
+  value: string;
+};
+export type ProjectSort = {
+  col: ProjectColumn;
+  dir: SortDir;
 };
 export type ProjectsPageProjectsQuery$variables = {
   after?: string | null;
+  filter?: ProjectFilter | null;
   first?: number | null;
-  timeRange?: TimeRange | null;
+  sort?: ProjectSort | null;
 };
 export type ProjectsPageProjectsQuery$data = {
   readonly " $fragmentSpreads": FragmentRefs<"ProjectsPageProjectsFragment">;
@@ -35,6 +43,11 @@ var v0 = [
     "name": "after"
   },
   {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "filter"
+  },
+  {
     "defaultValue": 50,
     "kind": "LocalArgument",
     "name": "first"
@@ -42,7 +55,7 @@ var v0 = [
   {
     "defaultValue": null,
     "kind": "LocalArgument",
-    "name": "timeRange"
+    "name": "sort"
   }
 ],
 v1 = [
@@ -53,18 +66,27 @@ v1 = [
   },
   {
     "kind": "Variable",
+    "name": "filter",
+    "variableName": "filter"
+  },
+  {
+    "kind": "Variable",
     "name": "first",
     "variableName": "first"
+  },
+  {
+    "kind": "Variable",
+    "name": "sort",
+    "variableName": "sort"
   }
 ],
 v2 = {
-  "kind": "Variable",
-  "name": "timeRange",
-  "variableName": "timeRange"
-},
-v3 = [
-  (v2/*: any*/)
-];
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
@@ -111,13 +133,7 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "id",
-                    "storageKey": null
-                  },
+                  (v2/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -141,37 +157,16 @@ return {
                   },
                   {
                     "alias": null,
-                    "args": (v3/*: any*/),
-                    "kind": "ScalarField",
-                    "name": "traceCount",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
                     "args": null,
                     "kind": "ScalarField",
                     "name": "endTime",
                     "storageKey": null
                   },
                   {
-                    "alias": "latencyMsP50",
-                    "args": [
-                      {
-                        "kind": "Literal",
-                        "name": "probability",
-                        "value": 0.5
-                      },
-                      (v2/*: any*/)
-                    ],
-                    "kind": "ScalarField",
-                    "name": "latencyMsQuantile",
-                    "storageKey": null
-                  },
-                  {
                     "alias": null,
-                    "args": (v3/*: any*/),
+                    "args": null,
                     "kind": "ScalarField",
-                    "name": "tokenCountTotal",
+                    "name": "startTime",
                     "storageKey": null
                   }
                 ],
@@ -198,7 +193,8 @@ return {
                     "kind": "ScalarField",
                     "name": "__typename",
                     "storageKey": null
-                  }
+                  },
+                  (v2/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -236,7 +232,10 @@ return {
       {
         "alias": null,
         "args": (v1/*: any*/),
-        "filters": null,
+        "filters": [
+          "sort",
+          "filter"
+        ],
         "handle": "connection",
         "key": "ProjectsPage_projects",
         "kind": "LinkedHandle",
@@ -245,16 +244,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ead527a5c3ddda0f6c906c99183edf06",
+    "cacheID": "4ce729574f508383c8126b9947ee799c",
     "id": null,
     "metadata": {},
     "name": "ProjectsPageProjectsQuery",
     "operationKind": "query",
-    "text": "query ProjectsPageProjectsQuery(\n  $after: String = null\n  $first: Int = 50\n  $timeRange: TimeRange\n) {\n  ...ProjectsPageProjectsFragment_2HEEH6\n}\n\nfragment ProjectsPageProjectsFragment_2HEEH6 on Query {\n  projects(first: $first, after: $after) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        traceCount(timeRange: $timeRange)\n        endTime\n        latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n        tokenCountTotal(timeRange: $timeRange)\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ProjectsPageProjectsQuery(\n  $after: String = null\n  $filter: ProjectFilter = null\n  $first: Int = 50\n  $sort: ProjectSort = null\n) {\n  ...ProjectsPageProjectsFragment_3JsJJ3\n}\n\nfragment ProjectsPageProjectsFragment_3JsJJ3 on Query {\n  projects(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        endTime\n        startTime\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "56c501357948255461a24411fb6b5847";
+(node as any).hash = "d4c6c361639eeba67a41568089bf699a";
 
 export default node;

@@ -8,6 +8,8 @@ LLM tracing records the paths taken by requests as they propagate through multip
 
 Tracing is a helpful tool for understanding how your LLM application works. Phoenix offers comprehensive tracing capabilities that are not tied to any specific LLM vendor or framework. Phoenix accepts traces over the OpenTelemetry protocol (OTLP) and supports first-class instrumentation for a variety of frameworks ( [LlamaIndex](../tracing/integrations-tracing/llamaindex.md), [LangChain](../tracing/integrations-tracing/langchain.md),[ DSPy](../tracing/integrations-tracing/dspy.md)),  SDKs ([OpenAI](../tracing/integrations-tracing/openai.md), [Bedrock](../tracing/integrations-tracing/bedrock.md), [Mistral](../tracing/integrations-tracing/mistralai.md), [Vertex](../tracing/integrations-tracing/vertexai.md)), and Languages. (Python, Javascript, etc.)
 
+<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix_tracing.png" alt=""><figcaption><p>View the inner workings for your LLM Application</p></figcaption></figure>
+
 Using Phoenix's tracing capabilities can provide important insights into the inner workings of your LLM application. By analyzing the collected trace data, you can identify and address various performance and operational issues and improve the overall reliability and efficiency of your system.
 
 * **Application Latency**: Identify and address slow invocations of LLMs, Retrievers, and other components within your application, enabling you to optimize performance and responsiveness.
@@ -21,8 +23,6 @@ Using Phoenix's tracing capabilities can provide important insights into the inn
 * **LLM Function Calls**: For LLMs with function call capabilities (e.g., OpenAI), you can inspect the function selection and function messages in the input to the LLM, further improving your ability to debug and optimize your application.
 
 By using tracing in Phoenix, you can gain increased visibility into your LLM application, empowering you to identify and address performance bottlenecks, optimize resource utilization, and ensure the overall reliability and effectiveness of your system.
-
-<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/trace_details.png" alt=""><figcaption><p>View the inner workings for your LLM Application</p></figcaption></figure>
 
 To get started, check out the [Quickstart guide](../tracing/llm-traces-1.md)
 

@@ -1,4 +1,4 @@
-from typing import Iterable
+from collections.abc import Iterable
 
 from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.proto.common.v1.common_pb2 import KeyValue

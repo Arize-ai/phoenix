@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<28eea2320d6b7e29ea9d04c777c2fbc8>>
+ * @generated SignedSource<<d1bd97ba73cbf790a4702fbfc5c7beb2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type ExportSelectionButtonExportsQuery$variables = Record<PropertyKey, never>;
 export type ExportSelectionButtonExportsQuery$data = {
   readonly model: {
@@ -27,7 +27,7 @@ var v0 = [
   {
     "alias": null,
     "args": null,
-    "concreteType": "Model",
+    "concreteType": "InferenceModel",
     "kind": "LinkedField",
     "name": "model",
     "plural": false,

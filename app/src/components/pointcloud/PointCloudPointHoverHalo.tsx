@@ -1,4 +1,3 @@
-import React from "react";
 import { Sphere } from "@react-three/drei";
 
 import { usePointCloudContext } from "@phoenix/contexts";

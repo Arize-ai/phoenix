@@ -1,8 +1,0 @@
-bases:
-  - ../../base
-
-resources:
-  - postgres.yaml
-
-patchesStrategicMerge:
-  - patches.yaml

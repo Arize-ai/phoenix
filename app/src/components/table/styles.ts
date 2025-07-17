@@ -1,9 +1,12 @@
 import { CSSProperties } from "react";
 import { Column } from "@tanstack/react-table";
-import { css, Theme } from "@emotion/react";
+import { css } from "@emotion/react";
 
-export const tableCSS = (theme: Theme) => css`
-  font-size: ${theme.typography.sizes.medium.fontSize}px;
+export const tableCSS = css`
+  // fixes table row sizing issues with full height cell children
+  // this enables features like hovering anywhere on a cell to display controls
+  height: fit-content;
+  font-size: var(--ac-global-font-size-s);
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
@@ -13,7 +16,8 @@ export const tableCSS = (theme: Theme) => css`
     z-index: 1;
     tr {
       th {
-        padding: ${theme.spacing.margin4}px ${theme.spacing.margin16}px;
+        padding: var(--ac-global-dimension-size-50)
+          var(--ac-global-dimension-size-200);
         background-color: var(--ac-global-color-grey-100);
         position: relative;
         text-align: left;
@@ -22,12 +26,18 @@ export const tableCSS = (theme: Theme) => css`
         &:not(:last-of-type) {
           border-right: 1px solid var(--ac-global-border-color-default);
         }
-        .cursor-pointer {
+        .sort {
+          /* The sortable part of the header */
           cursor: pointer;
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+
+          gap: var(--ac-global-dimension-size-50);
         }
         .sort-icon {
-          margin-left: ${theme.spacing.margin4}px;
-          font-size: ${theme.typography.sizes.small.fontSize}px;
+          margin-left: var(--ac-global-dimension-size-50);
+          font-size: var(--ac-global-font-size-xs);
           vertical-align: middle;
           display: inline-block;
         }
@@ -50,21 +60,30 @@ export const tableCSS = (theme: Theme) => css`
             background: var(--ac-global-color-primary);
           }
         }
+        // Style action menu buttons in the header
+        .ac-button[data-size="compact"][data-childless="true"] {
+          padding: 0;
+          border: none;
+          background-color: transparent;
+        }
       }
     }
   }
   tbody:not(.is-empty) {
     tr {
+      // when paired with table.height:fit-content, allows table cells and their children to fill entire row height
+      height: 100%;
       &:not(:last-of-type) {
         & > td {
           border-bottom: 1px solid var(--ac-global-border-color-default);
         }
       }
-      &:hover {
-        background-color: rgba(var(--ac-global-color-grey-300-rgb), 0.3);
-      }
       & > td {
-        padding: ${theme.spacing.margin8}px ${theme.spacing.margin16}px;
+        padding: var(--ac-global-dimension-size-100)
+          var(--ac-global-dimension-size-200);
+      }
+      &[data-selected="true"] {
+        background-color: var(--ac-global-color-primary-100);
       }
     }
   }
@@ -73,10 +92,8 @@ export const tableCSS = (theme: Theme) => css`
 export const borderedTableCSS = css`
   tbody:not(.is-empty) {
     tr {
-      &:not(:last-of-type) {
-        & > td {
-          border-bottom: 1px solid var(--ac-global-border-color-default);
-        }
+      & > td {
+        border-bottom: 1px solid var(--ac-global-border-color-default);
       }
       & > td:not(:last-of-type) {
         border-right: 1px solid var(--ac-global-border-color-default);
@@ -85,24 +102,34 @@ export const borderedTableCSS = css`
   }
 `;
 
-export const selectableTableCSS = (theme: Theme) =>
-  css(
-    tableCSS(theme),
-    css`
-      tbody:not(.is-empty) {
-        tr {
-          cursor: pointer;
-        }
+export const interactiveTableCSS = css`
+  tbody:not(.is-empty) {
+    tr {
+      &:hover {
+        background-color: var(--ac-hover-background);
       }
-    `
-  );
+    }
+  }
+`;
 
-export const paginationCSS = (theme: Theme) => css`
+export const selectableTableCSS = css(
+  tableCSS,
+  interactiveTableCSS,
+  css`
+    tbody:not(.is-empty) {
+      tr {
+        cursor: pointer;
+      }
+    }
+  `
+);
+
+export const paginationCSS = css`
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  padding: ${theme.spacing.margin8}px;
-  gap: ${theme.spacing.margin4}px;
+  padding: var(--ac-global-dimension-size-100);
+  gap: var(--ac-global-dimension-size-50);
   border-top: 1px solid var(--ac-global-color-grey-300);
 `;
 
@@ -130,5 +157,6 @@ export function getCommonPinningStyles<Row>(
     position: isPinned ? "sticky" : "relative",
     width: column.getSize(),
     zIndex: isPinned ? 1 : 0,
+    backgroundColor: isPinned ? "var(--ac-global-color-grey-100)" : undefined,
   };
 }

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<05dbde558a09bf7e4418980c51c3d7ed>>
+ * @generated SignedSource<<dc6c1a32ed5f1a733697601bbc62c310>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ExperimentsTableQuery$variables = {
   after?: string | null;
@@ -82,7 +82,23 @@ v5 = {
   "kind": "ScalarField",
   "name": "annotationName",
   "storageKey": null
-};
+},
+v6 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "tokens",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "cost",
+    "storageKey": null
+  }
+];
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
@@ -125,10 +141,6 @@ return {
         "plural": false,
         "selections": [
           (v3/*: any*/),
-          {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
           (v4/*: any*/),
           {
             "kind": "InlineFragment",
@@ -255,6 +267,47 @@ return {
                           {
                             "alias": null,
                             "args": null,
+                            "concreteType": "SpanCostSummary",
+                            "kind": "LinkedField",
+                            "name": "costSummary",
+                            "plural": false,
+                            "selections": [
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "CostBreakdown",
+                                "kind": "LinkedField",
+                                "name": "total",
+                                "plural": false,
+                                "selections": (v6/*: any*/),
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "CostBreakdown",
+                                "kind": "LinkedField",
+                                "name": "prompt",
+                                "plural": false,
+                                "selections": (v6/*: any*/),
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "CostBreakdown",
+                                "kind": "LinkedField",
+                                "name": "completion",
+                                "plural": false,
+                                "selections": (v6/*: any*/),
+                                "storageKey": null
+                              }
+                            ],
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
                             "concreteType": "ExperimentAnnotationSummary",
                             "kind": "LinkedField",
                             "name": "annotationSummaries",
@@ -289,7 +342,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v3/*: any*/)
+                          (v3/*: any*/),
+                          (v4/*: any*/)
                         ],
                         "storageKey": null
                       }
@@ -343,16 +397,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "1db5ce5523fa9a472c91d093b0e6160e",
+    "cacheID": "71600dd65428d25ce1b2d41c72e5568b",
     "id": null,
     "metadata": {},
     "name": "ExperimentsTableQuery",
     "operationKind": "query",
-    "text": "query ExperimentsTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExperimentsTableFragment_2HEEH6\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ExperimentsTableFragment_2HEEH6 on Dataset {\n  experimentAnnotationSummaries {\n    annotationName\n    minScore\n    maxScore\n  }\n  experiments(first: $first, after: $after) {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        description\n        createdAt\n        metadata\n        errorRate\n        runCount\n        averageRunLatencyMs\n        project {\n          id\n        }\n        annotationSummaries {\n          annotationName\n          meanScore\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ExperimentsTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExperimentsTableFragment_2HEEH6\n    id\n  }\n}\n\nfragment ExperimentsTableFragment_2HEEH6 on Dataset {\n  experimentAnnotationSummaries {\n    annotationName\n    minScore\n    maxScore\n  }\n  experiments(first: $first, after: $after) {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        description\n        createdAt\n        metadata\n        errorRate\n        runCount\n        averageRunLatencyMs\n        project {\n          id\n        }\n        costSummary {\n          total {\n            tokens\n            cost\n          }\n          prompt {\n            tokens\n            cost\n          }\n          completion {\n            tokens\n            cost\n          }\n        }\n        annotationSummaries {\n          annotationName\n          meanScore\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c7c7580fe40888ceb86a1701fe4eedf4";
+(node as any).hash = "6ffa602034c8f755f2d1e8c9c2aa39bb";
 
 export default node;

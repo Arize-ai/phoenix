@@ -10,7 +10,7 @@ description: >-
 
 A workflow we see for high quality RAG deployments is generating a golden dataset of questions and a high quality set of answers. These can be in the range of 100-200 but provide a strong check for the AI generated answers. This Eval checks that the human ground truth matches the AI generated answer. Its designed to catch missing data in "half" answers and differences of substance.
 
-#### Example Human vs AI on Arize Docs:
+### Example Human vs AI on Arize Docs:
 
 _**Question:**_
 
@@ -36,6 +36,10 @@ The AI answer is very brief and lacks the specific details that are present in t
 
 Overview of template:
 
+{% hint style="info" %}
+We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/phoenix/evals/default_templates.py#L433).
+{% endhint %}
+
 ```python
 print(HUMAN_VS_AI_PROMPT_TEMPLATE)
 
@@ -56,7 +60,7 @@ Human answer please answer "correct". If the AI answer diverges or does not cont
 idea of the human answer, please answer "incorrect".
 ```
 
-#### How to run Eval:
+## How to run the Human vs AI Eval:
 
 ```python
 from phoenix.evals import (
@@ -85,23 +89,16 @@ relevance_classifications = llm_classify(
 )
 ```
 
-### Benchmark Results:
+## Benchmark Results:
+
+The follow benchmarking data was gathered by comparing various model results to ground truth data. The ground truth data used was a handcrafted dataset consisting of questions about the Arize platform. That[ dataset is availabe here](https://storage.googleapis.com/arize-phoenix-assets/evals/human_vs_ai/human_vs_ai_classifications.csv).
 
 **GPT-4 Results**
 
 <figure><img src="../../../.gitbook/assets/human_vs_ai_gpt-4.png" alt=""><figcaption></figcaption></figure>
 
-#### GPT 3.5:
-
-<figure><img src="../../../.gitbook/assets/human_vs_ai_gpt-3.5.png" alt=""><figcaption></figcaption></figure>
-
-#### GPT 4 turbo:
-
-<figure><img src="../../../.gitbook/assets/huamn_vs_ai_gpt-4 turbo .png" alt=""><figcaption></figcaption></figure>
-
-|           | GPT-4o                                 | GPT-4                                  | GPT-4 Turbo                            | Gemini Pro                             |
-| --------- | -------------------------------------- | -------------------------------------- | -------------------------------------- | -------------------------------------- |
-| Precision | <mark style="color:green;">0.90</mark> | <mark style="color:green;">0.92</mark> | <mark style="color:green;">0.87</mark> | <mark style="color:green;">0.78</mark> |
-| Recall    | <mark style="color:green;">0.56</mark> | <mark style="color:green;">0.74</mark> | <mark style="color:green;">0.69</mark> | <mark style="color:green;">0.87</mark> |
-| F1        | <mark style="color:green;">0.69</mark> | <mark style="color:green;">0.82</mark> | <mark style="color:green;">0.77</mark> | <mark style="color:green;">0.82</mark> |
-
+|           | GPT-4o                                 | GPT-4                                  |
+| --------- | -------------------------------------- | -------------------------------------- |
+| Precision | <mark style="color:green;">0.90</mark> | <mark style="color:green;">0.92</mark> |
+| Recall    | <mark style="color:green;">0.56</mark> | <mark style="color:green;">0.74</mark> |
+| F1        | <mark style="color:green;">0.69</mark> | <mark style="color:green;">0.82</mark> |

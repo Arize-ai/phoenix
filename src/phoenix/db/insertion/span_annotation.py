@@ -1,5 +1,6 @@
+from collections.abc import Mapping
 from datetime import datetime
-from typing import Any, List, Mapping, NamedTuple, Optional, Tuple
+from typing import Any, NamedTuple, Optional
 
 from sqlalchemy import Row, Select, and_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,15 +21,23 @@ from phoenix.server.dml_event import SpanAnnotationDmlEvent
 _Name: TypeAlias = str
 _SpanId: TypeAlias = str
 _SpanRowId: TypeAlias = int
+_Identifier: TypeAlias = str
 _AnnoRowId: TypeAlias = int
 
-_Key: TypeAlias = Tuple[_Name, _SpanId]
-_UniqueBy: TypeAlias = Tuple[_Name, _SpanRowId]
-_Existing: TypeAlias = Tuple[
+
+class _Key(NamedTuple):
+    annotation_name: _Name
+    annotation_identifier: _Identifier
+    span_id: _SpanId
+
+
+_UniqueBy: TypeAlias = tuple[_Name, _SpanRowId, _Identifier]
+_Existing: TypeAlias = tuple[
     _SpanRowId,
     _SpanId,
     Optional[_AnnoRowId],
     Optional[_Name],
+    Optional[_Identifier],
     Optional[datetime],
 ]
 
@@ -41,13 +50,13 @@ class SpanAnnotationQueueInserter(
         SpanAnnotationDmlEvent,
     ],
     table=models.SpanAnnotation,
-    unique_by=("name", "span_rowid"),
+    unique_by=("name", "span_rowid", "identifier"),
 ):
     async def _events(
         self,
         session: AsyncSession,
         *insertions: Insertables.SpanAnnotation,
-    ) -> List[SpanAnnotationDmlEvent]:
+    ) -> list[SpanAnnotationDmlEvent]:
         records = [dict(as_kv(ins.row)) for ins in insertions]
         stmt = self._insert_on_conflict(*records).returning(self.table.id)
         ids = tuple([_ async for _ in await session.stream_scalars(stmt)])
@@ -57,22 +66,26 @@ class SpanAnnotationQueueInserter(
         self,
         session: AsyncSession,
         *parcels: Received[Precursors.SpanAnnotation],
-    ) -> Tuple[
-        List[Received[Insertables.SpanAnnotation]],
-        List[Postponed[Precursors.SpanAnnotation]],
-        List[Received[Precursors.SpanAnnotation]],
+    ) -> tuple[
+        list[Received[Insertables.SpanAnnotation]],
+        list[Postponed[Precursors.SpanAnnotation]],
+        list[Received[Precursors.SpanAnnotation]],
     ]:
-        to_insert: List[Received[Insertables.SpanAnnotation]] = []
-        to_postpone: List[Postponed[Precursors.SpanAnnotation]] = []
-        to_discard: List[Received[Precursors.SpanAnnotation]] = []
+        to_insert: list[Received[Insertables.SpanAnnotation]] = []
+        to_postpone: list[Postponed[Precursors.SpanAnnotation]] = []
+        to_discard: list[Received[Precursors.SpanAnnotation]] = []
 
         stmt = self._select_existing(*map(_key, parcels))
-        existing: List[Row[_Existing]] = [_ async for _ in await session.stream(stmt)]
+        existing: list[Row[_Existing]] = [_ async for _ in await session.stream(stmt)]
         existing_spans: Mapping[str, _SpanAttr] = {
             e.span_id: _SpanAttr(e.span_rowid) for e in existing
         }
         existing_annos: Mapping[_Key, _AnnoAttr] = {
-            (e.name, e.span_id): _AnnoAttr(e.span_rowid, e.id, e.updated_at)
+            _Key(
+                annotation_name=e.name,
+                annotation_identifier=e.identifier,
+                span_id=e.span_id,
+            ): _AnnoAttr(e.span_rowid, e.id, e.updated_at)
             for e in existing
             if e.id is not None and e.name is not None and e.updated_at is not None
         }
@@ -118,19 +131,20 @@ class SpanAnnotationQueueInserter(
         anno = self.table
         span = (
             select(models.Span.id, models.Span.span_id)
-            .where(models.Span.span_id.in_({span_id for _, span_id in keys}))
+            .where(models.Span.span_id.in_({k.span_id for k in keys}))
             .cte()
         )
         onclause = and_(
             span.c.id == anno.span_rowid,
-            anno.name.in_({name for name, _ in keys}),
-            tuple_(anno.name, span.c.span_id).in_(keys),
+            anno.name.in_({k.annotation_name for k in keys}),
+            tuple_(anno.name, anno.identifier, span.c.span_id).in_(keys),
         )
         return select(
             span.c.id.label("span_rowid"),
             span.c.span_id,
             anno.id,
             anno.name,
+            anno.identifier,
             anno.updated_at,
         ).outerjoin_from(span, anno, onclause)
 
@@ -146,11 +160,15 @@ class _AnnoAttr(NamedTuple):
 
 
 def _key(p: Received[Precursors.SpanAnnotation]) -> _Key:
-    return p.item.obj.name, p.item.span_id
+    return _Key(
+        annotation_name=p.item.obj.name,
+        annotation_identifier=p.item.obj.identifier,
+        span_id=p.item.span_id,
+    )
 
 
 def _unique_by(p: Received[Insertables.SpanAnnotation]) -> _UniqueBy:
-    return p.item.obj.name, p.item.span_rowid
+    return p.item.obj.name, p.item.span_rowid, p.item.identifier
 
 
 def _time(p: Received[Any]) -> datetime:

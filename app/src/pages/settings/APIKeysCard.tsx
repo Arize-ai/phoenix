@@ -1,26 +1,32 @@
-import React, { ReactNode, Suspense, useState } from "react";
-import { graphql, useLazyLoadQuery } from "react-relay";
-import { css } from "@emotion/react";
+import { Suspense, useCallback, useState } from "react";
+import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
+import { getLocalTimeZone } from "@internationalized/date";
+
+import { TabbedCard } from "@arizeai/components";
 
 import {
-  Alert,
   Button,
-  Dialog,
-  DialogContainer,
-  Flex,
+  DialogTrigger,
   Icon,
   Icons,
-  TabbedCard,
-  TabPane,
+  LazyTabPanel,
+  Loading,
+  Modal,
+  ModalOverlay,
+  Tab,
+  TabList,
   Tabs,
-  TextField,
   View,
-} from "@arizeai/components";
+} from "@phoenix/components";
+import {
+  APIKeyFormParams,
+  CreateAPIKeyDialog,
+  OneTimeAPIKeyDialog,
+} from "@phoenix/components/auth";
+import { useNotifyError } from "@phoenix/contexts";
 
-import { CopyToClipboardButton, Loading } from "@phoenix/components";
-
+import { APIKeysCardCreateSystemAPIKeyMutation } from "./__generated__/APIKeysCardCreateSystemAPIKeyMutation.graphql";
 import { APIKeysCardQuery } from "./__generated__/APIKeysCardQuery.graphql";
-import { CreateSystemAPIKeyDialog } from "./CreateSystemAPIKeyDialog";
 import { SystemAPIKeysTable } from "./SystemAPIKeysTable";
 import { UserAPIKeysTable } from "./UserAPIKeysTable";
 
@@ -32,32 +38,80 @@ function APIKeysCardContent() {
         ...UserAPIKeysTableFragment
       }
     `,
-    {}
+    {},
+    { fetchPolicy: "network-only" }
   );
 
   return (
     <Tabs>
-      <TabPane title="System Keys" name="System Keys">
+      <TabList>
+        <Tab id="system">System Keys</Tab>
+        <Tab id="user">User Keys</Tab>
+      </TabList>
+      <LazyTabPanel id="system">
         <SystemAPIKeysTable query={query} />
-      </TabPane>
-      {/* TODO(parker): do not render this table for non admins once  https://github.com/Arize-ai/phoenix/issues/4454 is done*/}
-      <TabPane title="User Keys" name="User Keys">
+      </LazyTabPanel>
+      <LazyTabPanel id="user">
         <UserAPIKeysTable query={query} />
-      </TabPane>
+      </LazyTabPanel>
     </Tabs>
   );
 }
 
 export function APIKeysCard() {
-  const [dialog, setDialog] = useState<ReactNode>(null);
-  const showOneTimeAPIKeyDialog = (jwt: string) => {
-    setDialog(<OneTimeAPIKeyDialog jwt={jwt} />);
-  };
-  const showCreateSystemAPIKeyDialog = () => {
-    setDialog(
-      <CreateSystemAPIKeyDialog onSystemKeyCreated={showOneTimeAPIKeyDialog} />
-    );
-  };
+  const [showCreateAPIKeyDialog, setShowCreateAPIKeyDialog] = useState(false);
+  const [showOneTimeAPIKeyJwt, setShowOneTimeAPIKeyJwt] = useState<
+    string | null
+  >(null);
+  const notifyError = useNotifyError();
+
+  const [commit, isCommitting] =
+    useMutation<APIKeysCardCreateSystemAPIKeyMutation>(graphql`
+      mutation APIKeysCardCreateSystemAPIKeyMutation(
+        $name: String!
+        $description: String = null
+        $expiresAt: DateTime = null
+      ) {
+        createSystemApiKey(
+          input: {
+            name: $name
+            description: $description
+            expiresAt: $expiresAt
+          }
+        ) {
+          jwt
+          query {
+            ...SystemAPIKeysTableFragment
+          }
+          apiKey {
+            id
+          }
+        }
+      }
+    `);
+
+  const onSubmit = useCallback(
+    (data: APIKeyFormParams) => {
+      commit({
+        variables: {
+          ...data,
+          expiresAt:
+            data.expiresAt?.toDate(getLocalTimeZone()).toISOString() || null,
+        },
+        onCompleted: (response) => {
+          setShowCreateAPIKeyDialog(false);
+          setShowOneTimeAPIKeyJwt(response.createSystemApiKey.jwt);
+        },
+        onError: (error) => {
+          notifyError({
+            title: "Error creating system key",
+            message: error.message,
+          });
+        },
+      });
+    },
+    [commit, notifyError]
+  );
 
   return (
     <div>
@@ -65,14 +119,27 @@ export function APIKeysCard() {
         title="API Keys"
         variant="compact"
         extra={
-          <Button
-            variant="default"
-            size="compact"
-            icon={<Icon svg={<Icons.PlusCircleOutline />} />}
-            onClick={showCreateSystemAPIKeyDialog}
+          <DialogTrigger
+            isOpen={showCreateAPIKeyDialog}
+            onOpenChange={() => setShowCreateAPIKeyDialog(false)}
           >
-            System Key
-          </Button>
+            <Button
+              size="S"
+              onPress={() => setShowCreateAPIKeyDialog(true)}
+              leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
+            >
+              System Key
+            </Button>
+            <ModalOverlay>
+              <Modal size="M">
+                <CreateAPIKeyDialog
+                  onSubmit={onSubmit}
+                  isCommitting={isCommitting}
+                  defaultName="System"
+                />
+              </Modal>
+            </ModalOverlay>
+          </DialogTrigger>
         }
       >
         <Suspense
@@ -85,41 +152,16 @@ export function APIKeysCard() {
           <APIKeysCardContent />
         </Suspense>
       </TabbedCard>
-      <DialogContainer
-        onDismiss={() => {
-          setDialog(null);
-        }}
+      <DialogTrigger
+        isOpen={!!showOneTimeAPIKeyJwt}
+        onOpenChange={() => setShowOneTimeAPIKeyJwt(null)}
       >
-        {dialog}
-      </DialogContainer>
+        <ModalOverlay>
+          <Modal size="L">
+            <OneTimeAPIKeyDialog jwt={showOneTimeAPIKeyJwt ?? ""} />
+          </Modal>
+        </ModalOverlay>
+      </DialogTrigger>
     </div>
-  );
-}
-
-/**
- * Displays the key one time for the user to copy.
- */
-function OneTimeAPIKeyDialog(props: { jwt: string }) {
-  const { jwt } = props;
-  return (
-    <Dialog title="New API Key Created" isDismissable>
-      <Alert variant="success" banner>
-        You have successfully created a new API key. The API key will only be
-        displayed once below. Please copy and save it in a secure location.
-      </Alert>
-      <div
-        css={css`
-          padding: var(--ac-global-dimension-size-200);
-          .ac-field {
-            width: 100%;
-          }
-        `}
-      >
-        <Flex direction="row" gap="size-100" alignItems="end">
-          <TextField label="API Key" isReadOnly value={jwt} minWidth="100%" />
-          <CopyToClipboardButton text={jwt} size="normal" />
-        </Flex>
-      </div>
-    </Dialog>
   );
 }

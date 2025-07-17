@@ -20,7 +20,7 @@ class JSONB(JSON):
     __visit_name__ = "JSONB"
 
 
-@compiles(JSONB, "sqlite")  # type: ignore
+@compiles(JSONB, "sqlite")
 def _(*args: Any, **kwargs: Any) -> str:
     # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     return "JSONB"
@@ -29,7 +29,7 @@ def _(*args: Any, **kwargs: Any) -> str:
 JSON_ = (
     JSON()
     .with_variant(
-        postgresql.JSONB(),  # type: ignore
+        postgresql.JSONB(),
         "postgresql",
     )
     .with_variant(

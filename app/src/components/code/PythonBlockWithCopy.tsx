@@ -1,5 +1,3 @@
-import React from "react";
-
 import { CopyToClipboardButton } from "../CopyToClipboardButton";
 
 import { PythonBlock } from "./PythonBlock";

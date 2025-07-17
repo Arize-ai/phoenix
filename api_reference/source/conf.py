@@ -16,6 +16,7 @@ import phoenix
 # Path setup for autodoc
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(BASE_DIR, "src", "phoenix"))
+sys.path.insert(0, os.path.join(BASE_DIR, "packages", "phoenix-client", "src", "phoenix"))
 sys.path.insert(0, os.path.join(BASE_DIR, "packages", "phoenix-evals", "src", "phoenix"))
 sys.path.insert(0, os.path.join(BASE_DIR, "packages", "phoenix-otel", "src", "phoenix"))
 
@@ -69,7 +70,7 @@ def setup(app):
 
 # -- Project information -----------------------------------------------------
 
-project = "Phoenix API Reference"
+project = "Phoenix Python Reference"
 copyright = "2024, Arize AI"
 author = "Arize AI"
 
@@ -163,7 +164,7 @@ html_show_sphinx = False
 
 html_theme_options = {
     "logo": {
-        "text": "Phoenix API",
+        "text": "Phoenix Python",
         "image_light": "logo.png",
         "image_dark": "logo.png",
     },
@@ -180,7 +181,7 @@ html_theme_options = {
         },
     ],
     "external_links": [
-        {"name": "Docs", "url": "https://docs.arize.com/phoenix"},
+        {"name": "Phoenix Docs", "url": "https://arize.com/docs/phoenix"},
     ],
     "navbar_align": "content",
     "navbar_start": ["navbar-logo", "version-switcher"],

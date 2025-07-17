@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<faacd4f84859f135396e055af17afb13>>
+ * @generated SignedSource<<c70464ee56bf821921d873b5ad33c38e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ProjectsPageProjectsFragment$data = {
   readonly projects: {
@@ -18,10 +18,8 @@ export type ProjectsPageProjectsFragment$data = {
         readonly gradientEndColor: string;
         readonly gradientStartColor: string;
         readonly id: string;
-        readonly latencyMsP50: number | null;
         readonly name: string;
-        readonly tokenCountTotal: number;
-        readonly traceCount: number;
+        readonly startTime: string | null;
       };
     }>;
   };
@@ -37,14 +35,6 @@ import ProjectsPageProjectsQuery_graphql from './ProjectsPageProjectsQuery.graph
 const node: ReaderFragment = (function(){
 var v0 = [
   "projects"
-],
-v1 = {
-  "kind": "Variable",
-  "name": "timeRange",
-  "variableName": "timeRange"
-},
-v2 = [
-  (v1/*: any*/)
 ];
 return {
   "argumentDefinitions": [
@@ -54,13 +44,19 @@ return {
       "name": "after"
     },
     {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "filter"
+    },
+    {
       "defaultValue": 50,
       "kind": "LocalArgument",
       "name": "first"
     },
     {
-      "kind": "RootArgument",
-      "name": "timeRange"
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "sort"
     }
   ],
   "kind": "Fragment",
@@ -90,7 +86,18 @@ return {
   "selections": [
     {
       "alias": "projects",
-      "args": null,
+      "args": [
+        {
+          "kind": "Variable",
+          "name": "filter",
+          "variableName": "filter"
+        },
+        {
+          "kind": "Variable",
+          "name": "sort",
+          "variableName": "sort"
+        }
+      ],
       "concreteType": "ProjectConnection",
       "kind": "LinkedField",
       "name": "__ProjectsPage_projects_connection",
@@ -142,37 +149,16 @@ return {
                 },
                 {
                   "alias": null,
-                  "args": (v2/*: any*/),
-                  "kind": "ScalarField",
-                  "name": "traceCount",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
                   "args": null,
                   "kind": "ScalarField",
                   "name": "endTime",
                   "storageKey": null
                 },
                 {
-                  "alias": "latencyMsP50",
-                  "args": [
-                    {
-                      "kind": "Literal",
-                      "name": "probability",
-                      "value": 0.5
-                    },
-                    (v1/*: any*/)
-                  ],
-                  "kind": "ScalarField",
-                  "name": "latencyMsQuantile",
-                  "storageKey": null
-                },
-                {
                   "alias": null,
-                  "args": (v2/*: any*/),
+                  "args": null,
                   "kind": "ScalarField",
-                  "name": "tokenCountTotal",
+                  "name": "startTime",
                   "storageKey": null
                 }
               ],
@@ -240,6 +226,6 @@ return {
 };
 })();
 
-(node as any).hash = "56c501357948255461a24411fb6b5847";
+(node as any).hash = "d4c6c361639eeba67a41568089bf699a";
 
 export default node;

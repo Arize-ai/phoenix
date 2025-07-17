@@ -1,8 +1,9 @@
-import React, {
+import {
   createContext,
   PropsWithChildren,
   startTransition,
   useCallback,
+  useContext,
   useState,
 } from "react";
 
@@ -35,7 +36,7 @@ export const StreamStateContext = createContext<StreamStateContextType | null>(
 );
 
 export function useStreamState() {
-  const context = React.useContext(StreamStateContext);
+  const context = useContext(StreamStateContext);
   if (context === null) {
     throw new Error("useStreamState must be used within a StreamStateProvider");
   }

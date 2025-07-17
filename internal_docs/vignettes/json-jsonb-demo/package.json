@@ -1,0 +1,45 @@
+{
+  "name": "pglite-json-jsonb-demo",
+  "version": "1.0.0",
+  "description": "Demonstration of PostgreSQL JSON vs JSONB storage behavior using PGlite or PostgreSQL",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "start": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' --no-warnings src/index.ts",
+    "compare": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' --no-warnings src/compare.ts",
+    "performance": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' --no-warnings src/performance.ts",
+    "query": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' --no-warnings src/query-examples.ts",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "lint": "eslint \"src/**/*.ts\"",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "postgresql",
+    "json",
+    "jsonb",
+    "pglite",
+    "database"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@electric-sql/pglite": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.4",
+    "@types/pg": "^8.11.14",
+    "@typescript-eslint/eslint-plugin": "^7.16.1",
+    "@typescript-eslint/parser": "^7.16.1",
+    "eslint": "^8.57.0",
+    "eslint-plugin-import": "^2.29.1",
+    "pg": "^8.11.3",
+    "prettier": "^3.1.0",
+    "ts-node": "^10.9.2",
+    "typescript": "~5.4.5"
+  },
+  "packageManager": "pnpm@10.2.0",
+  "optionalDependencies": {
+    "pg": "^8.11.3"
+  }
+}

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<74d916e97c00bfa76497de4cce3ba9a5>>
+ * @generated SignedSource<<8c3bf96d39446a9242e6f051aa1cc5d2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Mutation } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type ClearProjectInput = {
   endTime?: string | null;
   id: string;

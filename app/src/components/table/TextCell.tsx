@@ -1,4 +1,3 @@
-import React from "react";
 import { CellContext } from "@tanstack/react-table";
 
 const MAX_LENGTH = 100;
@@ -24,7 +23,7 @@ export function TextCell<TData extends object, TValue>({
   const value = getValue();
   const str =
     value != null && typeof value === "string" ? formatText(value) : "--";
-  return <span title={String(value)}>{str}</span>;
+  return <span>{str}</span>;
 }
 
 /**

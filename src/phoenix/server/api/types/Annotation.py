@@ -1,6 +1,9 @@
+from datetime import datetime
 from typing import Optional
 
 import strawberry
+
+from phoenix.server.api.interceptor import GqlValueMediator
 
 
 @strawberry.interface
@@ -9,7 +12,8 @@ class Annotation:
         description="Name of the annotation, e.g. 'helpfulness' or 'relevance'."
     )
     score: Optional[float] = strawberry.field(
-        description="Value of the annotation in the form of a numeric score."
+        description="Value of the annotation in the form of a numeric score.",
+        default=GqlValueMediator(),
     )
     label: Optional[str] = strawberry.field(
         description="Value of the annotation in the form of a string, e.g. "
@@ -18,4 +22,10 @@ class Annotation:
     explanation: Optional[str] = strawberry.field(
         description="The annotator's explanation for the annotation result (i.e. "
         "score or label, or both) given to the subject."
+    )
+    created_at: datetime = strawberry.field(
+        description="The date and time when the annotation was created."
+    )
+    updated_at: datetime = strawberry.field(
+        description="The date and time when the annotation was last updated."
     )

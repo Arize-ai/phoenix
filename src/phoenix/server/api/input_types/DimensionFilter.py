@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 import strawberry
 from strawberry import UNSET
@@ -52,9 +52,9 @@ class DimensionFilter:
 
     """
 
-    types: Optional[List[DimensionType]] = UNSET
-    shapes: Optional[List[DimensionShape]] = UNSET
-    data_types: Optional[List[DimensionDataType]] = UNSET
+    types: Optional[list[DimensionType]] = UNSET
+    shapes: Optional[list[DimensionShape]] = UNSET
+    data_types: Optional[list[DimensionDataType]] = UNSET
 
     def __post_init__(self) -> None:
         self.types = ensure_list(self.types)

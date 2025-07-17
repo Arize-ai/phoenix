@@ -1,9 +1,10 @@
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
+from phoenix.evals.templates import MultimodalPrompt
 from phoenix.evals.utils import printif
 
 if TYPE_CHECKING:
@@ -51,6 +52,9 @@ class GeminiModel(BaseModel):
         initial_rate_limit (int, optional): The initial internal rate limit in allowed requests
             per second for making LLM calls. This limit adjusts dynamically based on rate
             limit errors. Defaults to 5.
+        timeout (int, optional): The timeout for completion requests in seconds. Defaults to 120.
+        model_kwargs (Dict[str, Any], optional): Additional keyword arguments passed to the Vertex
+            GenerativeModel constructor.
 
     Example:
         .. code-block:: python
@@ -73,11 +77,13 @@ class GeminiModel(BaseModel):
 
     model: str = "gemini-pro"
     temperature: float = 0.0
-    max_tokens: int = 256
+    max_tokens: int = 1024
     top_p: float = 1
     top_k: int = 32
     stop_sequences: List[str] = field(default_factory=list)
     initial_rate_limit: int = 5
+    timeout: int = 120
+    model_kwargs: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self._init_client()
@@ -100,7 +106,7 @@ class GeminiModel(BaseModel):
             self._vertexai = vertexai
             self._vertex = vertex
             self._gcp_exceptions = exceptions
-            self._model = self._vertex.GenerativeModel(self.model)
+            self._model = self._vertex.GenerativeModel(self.model, **self.model_kwargs)
         except ImportError:
             self._raise_import_error(
                 package_name="vertexai",
@@ -135,17 +141,21 @@ class GeminiModel(BaseModel):
             "credentials": self.credentials,
         }
 
-    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]) -> str:
         # instruction is an invalid input to Gemini models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
         kwargs.pop("instruction", None)
 
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
         @self._rate_limiter.limit
         def _rate_limited_completion(
-            prompt: str, generation_config: Dict[str, Any], **kwargs: Any
+            prompt: MultimodalPrompt, generation_config: Dict[str, Any], **kwargs: Any
         ) -> Any:
+            prompt_str = self._construct_prompt(prompt)
             response = self._model.generate_content(
-                contents=prompt, generation_config=generation_config, **kwargs
+                contents=prompt_str, generation_config=generation_config, **kwargs
             )
             return self._parse_response_candidates(response)
 
@@ -157,17 +167,23 @@ class GeminiModel(BaseModel):
 
         return str(response)
 
-    async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    async def _async_generate(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
+    ) -> str:
         # instruction is an invalid input to Gemini models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
         kwargs.pop("instruction", None)
 
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
         @self._rate_limiter.alimit
         async def _rate_limited_completion(
-            prompt: str, generation_config: Dict[str, Any], **kwargs: Any
+            prompt: MultimodalPrompt, generation_config: Dict[str, Any], **kwargs: Any
         ) -> Any:
+            prompt_str = self._construct_prompt(prompt)
             response = await self._model.generate_content_async(
-                contents=prompt, generation_config=generation_config, **kwargs
+                contents=prompt_str, generation_config=generation_config, **kwargs
             )
             return self._parse_response_candidates(response)
 
@@ -201,3 +217,6 @@ class GeminiModel(BaseModel):
             printif(self._verbose, "The 'response' object does not have a 'candidates' attribute.")
             candidate = ""
         return candidate
+
+    def _construct_prompt(self, prompt: MultimodalPrompt) -> str:
+        return prompt.to_text_only_prompt()

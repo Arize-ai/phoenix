@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c8ec1e184e67c6fb2e29fa80864d7f7e>>
+ * @generated SignedSource<<daecace9bba89881b3ee8128f260a286>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ExampleExperimentRunsTableQuery$variables = {
   after?: string | null;
@@ -84,6 +84,7 @@ v5 = {
   "name": "trace",
   "plural": false,
   "selections": [
+    (v4/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -143,10 +144,6 @@ return {
         "plural": false,
         "selections": [
           (v3/*: any*/),
-          {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
           (v4/*: any*/),
           {
             "kind": "InlineFragment",
@@ -293,7 +290,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v3/*: any*/)
+                          (v3/*: any*/),
+                          (v4/*: any*/)
                         ],
                         "storageKey": null
                       }
@@ -347,16 +345,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "2ec7ead16e6df0877bc47db0ed7c7553",
+    "cacheID": "0b278c0b360ced38183ea75b27edca2d",
     "id": null,
     "metadata": {},
     "name": "ExampleExperimentRunsTableQuery",
     "operationKind": "query",
-    "text": "query ExampleExperimentRunsTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExampleExperimentRunsTableFragment_2HEEH6\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ExampleExperimentRunsTableFragment_2HEEH6 on DatasetExample {\n  experimentRuns(first: $first, after: $after) {\n    edges {\n      run: node {\n        id\n        startTime\n        endTime\n        error\n        output\n        trace {\n          traceId\n          projectId\n        }\n        annotations {\n          edges {\n            annotation: node {\n              id\n              name\n              label\n              score\n              explanation\n              annotatorKind\n              trace {\n                traceId\n                projectId\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ExampleExperimentRunsTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExampleExperimentRunsTableFragment_2HEEH6\n    id\n  }\n}\n\nfragment ExampleExperimentRunsTableFragment_2HEEH6 on DatasetExample {\n  experimentRuns(first: $first, after: $after) {\n    edges {\n      run: node {\n        id\n        startTime\n        endTime\n        error\n        output\n        trace {\n          id\n          traceId\n          projectId\n        }\n        annotations {\n          edges {\n            annotation: node {\n              id\n              name\n              label\n              score\n              explanation\n              annotatorKind\n              trace {\n                id\n                traceId\n                projectId\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6ca0f938b309407e8c184a1c13d1c52d";
+(node as any).hash = "73457524533365ed047cb575ee6c93ab";
 
 export default node;

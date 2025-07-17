@@ -1,8 +1,3 @@
-from typing import (
-    Dict,
-    List,
-)
-
 from sqlalchemy import select
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
@@ -12,7 +7,7 @@ from phoenix.server.types import DbSessionFactory
 
 SpanID: TypeAlias = int
 Key: TypeAlias = SpanID
-Result: TypeAlias = List[models.DatasetExample]
+Result: TypeAlias = list[models.DatasetExample]
 
 
 class SpanDatasetExamplesDataLoader(DataLoader[Key, Result]):
@@ -20,10 +15,10 @@ class SpanDatasetExamplesDataLoader(DataLoader[Key, Result]):
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
-    async def _load_fn(self, keys: List[Key]) -> List[Result]:
+    async def _load_fn(self, keys: list[Key]) -> list[Result]:
         span_rowids = keys
         async with self._db() as session:
-            dataset_examples: Dict[Key, List[models.DatasetExample]] = {
+            dataset_examples: dict[Key, list[models.DatasetExample]] = {
                 span_rowid: [] for span_rowid in span_rowids
             }
             async for span_rowid, dataset_example in await session.stream(

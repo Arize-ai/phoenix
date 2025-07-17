@@ -1,1 +1,1 @@
-export * from "./ModelPage";
+export * from "./ModelInferencesPage";

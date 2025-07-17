@@ -1,0 +1,2 @@
+-r common.txt
+google-generativeai>=0.8.4

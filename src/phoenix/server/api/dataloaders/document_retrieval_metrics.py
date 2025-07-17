@@ -1,12 +1,5 @@
 from collections import defaultdict
-from typing import (
-    DefaultDict,
-    Dict,
-    List,
-    Optional,
-    Set,
-    Tuple,
-)
+from typing import Optional
 
 import numpy as np
 from aioitertools.itertools import groupby
@@ -23,8 +16,8 @@ RowId: TypeAlias = int
 NumDocs: TypeAlias = int
 EvalName: TypeAlias = Optional[str]
 
-Key: TypeAlias = Tuple[RowId, EvalName, NumDocs]
-Result: TypeAlias = List[DocumentRetrievalMetrics]
+Key: TypeAlias = tuple[RowId, EvalName, NumDocs]
+Result: TypeAlias = list[DocumentRetrievalMetrics]
 
 
 class DocumentRetrievalMetricsDataLoader(DataLoader[Key, Result]):
@@ -32,7 +25,7 @@ class DocumentRetrievalMetricsDataLoader(DataLoader[Key, Result]):
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
-    async def _load_fn(self, keys: List[Key]) -> List[Result]:
+    async def _load_fn(self, keys: list[Key]) -> list[Result]:
         mda = models.DocumentAnnotation
         stmt = (
             select(
@@ -57,8 +50,8 @@ class DocumentRetrievalMetricsDataLoader(DataLoader[Key, Result]):
             stmt = stmt.where(mda.name.in_(all_eval_names))
         max_position = max(num_docs for _, _, num_docs in keys)
         stmt = stmt.where(mda.document_position < max_position)
-        results: Dict[Key, Result] = {key: [] for key in keys}
-        requested_num_docs: DefaultDict[Tuple[RowId, EvalName], Set[NumDocs]] = defaultdict(set)
+        results: dict[Key, Result] = {key: [] for key in keys}
+        requested_num_docs: defaultdict[tuple[RowId, EvalName], set[NumDocs]] = defaultdict(set)
         for row_id, eval_name, num_docs in results.keys():
             requested_num_docs[(row_id, eval_name)].add(num_docs)
         async with self._db() as session:

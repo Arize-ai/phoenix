@@ -1,4 +1,3 @@
-import React from "react";
 import { css } from "@emotion/react";
 
 export function Logo(props: { size?: number }) {

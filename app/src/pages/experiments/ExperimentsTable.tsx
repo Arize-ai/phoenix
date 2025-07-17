@@ -1,90 +1,124 @@
-import React, {
-  ReactNode,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
+  Table,
   useReactTable,
 } from "@tanstack/react-table";
-import copy from "copy-to-clipboard";
 import { css } from "@emotion/react";
 
+import { ProgressBar } from "@arizeai/components";
+
 import {
-  ActionMenu,
-  Dialog,
-  DialogContainer,
   Flex,
   Heading,
-  HelpTooltip,
-  Icon,
-  Icons,
-  Item,
-  ProgressBar,
+  Link,
+  RichTooltip,
   Text,
   TooltipTrigger,
   TriggerWrap,
   View,
-} from "@arizeai/components";
-
+} from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
-import { JSONBlock } from "@phoenix/components/code";
-import { SequenceNumberLabel } from "@phoenix/components/experiment";
-import { Link } from "@phoenix/components/Link";
-import { CompactJSONCell, IntCell } from "@phoenix/components/table";
+import {
+  ExperimentTokenCount,
+  SequenceNumberToken,
+} from "@phoenix/components/experiment";
+import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
+import {
+  CompactJSONCell,
+  IntCell,
+  LoadMoreRow,
+} from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { useNotifySuccess } from "@phoenix/contexts";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
-import { assertUnreachable } from "@phoenix/typeUtils";
 import {
+  costFormatter,
   floatFormatter,
   formatPercent,
 } from "@phoenix/utils/numberFormatUtils";
-
-import { RunExperimentButton } from "../dataset/RunExperimentButton";
+import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
 import { experimentsLoaderQuery$data } from "./__generated__/experimentsLoaderQuery.graphql";
 import type { ExperimentsTableFragment$key } from "./__generated__/ExperimentsTableFragment.graphql";
 import { ExperimentsTableQuery } from "./__generated__/ExperimentsTableQuery.graphql";
+import { DownloadExperimentActionMenu } from "./DownloadExperimentActionMenu";
 import { ErrorRateCell } from "./ErrorRateCell";
 import { ExperimentSelectionToolbar } from "./ExperimentSelectionToolbar";
 
 const PAGE_SIZE = 100;
 
-export function ExperimentsTableEmpty() {
+const defaultColumnSettings = {
+  minSize: 100,
+} satisfies Partial<ColumnDef<unknown>>;
+
+const TableBody = <T extends { id: string }>({
+  table,
+  hasNext,
+  onLoadNext,
+  isLoadingNext,
+  dataset,
+}: {
+  table: Table<T>;
+  hasNext: boolean;
+  onLoadNext: () => void;
+  isLoadingNext: boolean;
+  dataset: experimentsLoaderQuery$data["dataset"];
+}) => {
+  const navigate = useNavigate();
   return (
-    <tbody className="is-empty">
-      <tr>
-        <td
-          colSpan={100}
-          css={css`
-            text-align: center;
-            padding: var(--ac-global-dimension-size-400) !important;
-            .ac-button {
-              margin-top: var(--ac-global-dimension-size-200);
-              margin-left: auto;
-              margin-right: auto;
-            }
-          `}
-        >
-          No experiments for this dataset. To see how to run experiments on a
-          dataset, check out the documentation.
-          <RunExperimentButton />
-        </td>
-      </tr>
+    <tbody>
+      {table.getRowModel().rows.map((row) => {
+        return (
+          <tr
+            key={row.id}
+            onClick={() => {
+              navigate(
+                `/datasets/${dataset.id}/compare?experimentId=${row.original.id}`
+              );
+            }}
+          >
+            {row.getVisibleCells().map((cell) => {
+              const colSizeVar = `--col-${makeSafeColumnId(cell.column.id)}-size`;
+              return (
+                <td
+                  key={cell.id}
+                  style={{
+                    width: `calc(var(${colSizeVar}) * 1px)`,
+                    maxWidth: `calc(var(${colSizeVar}) * 1px)`,
+                  }}
+                >
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </td>
+              );
+            })}
+          </tr>
+        );
+      })}
+      {hasNext ? (
+        <LoadMoreRow
+          onLoadMore={onLoadNext}
+          key="load-more"
+          isLoadingNext={isLoadingNext}
+        />
+      ) : null}
     </tbody>
   );
-}
+};
+
+// Memoized wrapper for table body to use during column resizing
+export const MemoizedTableBody = memo(
+  TableBody,
+  (prev, next) => prev.table.options.data === next.table.options.data
+) as typeof TableBody;
 
 export function ExperimentsTable({
   dataset,
@@ -93,6 +127,7 @@ export function ExperimentsTable({
 }) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [rowSelection, setRowSelection] = useState({});
+  const [columnSizing, setColumnSizing] = useState({});
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<ExperimentsTableQuery, ExperimentsTableFragment$key>(
       graphql`
@@ -122,6 +157,20 @@ export function ExperimentsTable({
                 averageRunLatencyMs
                 project {
                   id
+                }
+                costSummary {
+                  total {
+                    tokens
+                    cost
+                  }
+                  prompt {
+                    tokens
+                    cost
+                  }
+                  completion {
+                    tokens
+                    cost
+                  }
                 }
                 annotationSummaries {
                   annotationName
@@ -153,12 +202,15 @@ export function ExperimentsTable({
           annotationSummaryMap,
         };
       }),
-    [data]
+    [data.experiments.edges]
   );
+
   type TableRow = (typeof tableData)[number];
+
   const baseColumns: ColumnDef<TableRow>[] = [
     {
       id: "select",
+      maxSize: 50,
       header: ({ table }) => (
         <IndeterminateCheckboxCell
           {...{
@@ -187,8 +239,8 @@ export function ExperimentsTable({
         const experimentId = row.original.id;
         const sequenceNumber = row.original.sequenceNumber;
         return (
-          <Flex direction="row" gap="size-100">
-            <SequenceNumberLabel sequenceNumber={sequenceNumber} />
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <SequenceNumberToken sequenceNumber={sequenceNumber} />
             <Link
               to={`/datasets/${dataset.id}/compare?experimentId=${experimentId}`}
             >
@@ -210,6 +262,7 @@ export function ExperimentsTable({
       cell: TimestampCell,
     },
   ];
+
   const annotationColumns: ColumnDef<TableRow>[] =
     data.experimentAnnotationSummaries.map((annotationSummary) => {
       const { annotationName, minScore, maxScore } = annotationSummary;
@@ -218,7 +271,6 @@ export function ExperimentsTable({
           <Flex
             direction="row"
             gap="size-100"
-            wrap
             alignItems="center"
             justifyContent="end"
           >
@@ -279,6 +331,38 @@ export function ExperimentsTable({
       },
     },
     {
+      header: "total cost",
+      accessorKey: "costSummary.total.cost",
+      meta: {
+        textAlign: "right",
+      },
+      cell: ({ getValue }) => {
+        const value = getValue();
+        if (value === null || typeof value !== "number") {
+          return "--";
+        }
+        return <Text>{`${costFormatter(value)}`}</Text>;
+      },
+    },
+    {
+      header: "total tokens",
+      accessorKey: "costSummary.total.tokens",
+      meta: {
+        textAlign: "right",
+      },
+      cell: ({ getValue, row }) => {
+        const value = getValue() as number | null;
+        const experimentId = row.original.id;
+        return (
+          <ExperimentTokenCount
+            tokenCountTotal={value}
+            experimentId={experimentId}
+            size="S"
+          />
+        );
+      },
+    },
+    {
       header: "error rate",
       accessorKey: "errorRate",
       meta: {
@@ -294,36 +378,47 @@ export function ExperimentsTable({
     },
     {
       id: "actions",
+      maxSize: 120,
       cell: ({ row }) => {
         const project = row.original.project;
         const metadata = row.original.metadata;
         return (
-          <ExperimentActionMenu
-            projectId={project?.id || null}
-            experimentId={row.original.id}
-            metadata={metadata}
-          />
+          <Flex direction="row" gap="size-100">
+            <DownloadExperimentActionMenu experimentId={row.original.id} />
+            <ExperimentActionMenu
+              projectId={project?.id || null}
+              experimentId={row.original.id}
+              metadata={metadata}
+              canDeleteExperiment={true}
+              onExperimentDeleted={() => {
+                refetch({}, { fetchPolicy: "store-and-network" });
+              }}
+            />
+          </Flex>
         );
       },
     },
   ];
+
   const table = useReactTable<TableRow>({
     columns: [...baseColumns, ...annotationColumns, ...tailColumns],
     data: tableData,
-    getCoreRowModel: getCoreRowModel(),
     state: {
       rowSelection,
+      columnSizing,
     },
+    defaultColumn: defaultColumnSettings,
+    columnResizeMode: "onChange",
     onRowSelectionChange: setRowSelection,
+    onColumnSizingChange: setColumnSizing,
+    getCoreRowModel: getCoreRowModel(),
   });
-  const rows = table.getRowModel().rows;
+
   const selectedRows = table.getSelectedRowModel().rows;
   const selectedExperiments = selectedRows.map((row) => row.original);
   const clearSelection = useCallback(() => {
     setRowSelection({});
   }, [setRowSelection]);
-
-  const isEmpty = rows.length === 0;
 
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
@@ -341,63 +436,102 @@ export function ExperimentsTable({
     },
     [hasNext, isLoadingNext, loadNext]
   );
-  const navigate = useNavigate();
+
+  const { columnSizingInfo, columnSizing: columnSizingState } =
+    table.getState();
+  const getFlatHeaders = table.getFlatHeaders;
+
+  /**
+   * Calculate all column sizes at once as CSS variables for performance
+   * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
+   */
+  const [columnSizeVars] = useMemo(() => {
+    const headers = getFlatHeaders();
+    const colSizes: { [key: string]: number } = {};
+    for (let i = 0; i < headers.length; i++) {
+      const header = headers[i]!;
+      colSizes[`--header-${makeSafeColumnId(header.id)}-size`] =
+        header.getSize();
+      colSizes[`--col-${makeSafeColumnId(header.column.id)}-size`] =
+        header.column.getSize();
+    }
+    return [colSizes];
+    // Disabled lint as per tanstack docs linked above
+    // eslint-disable-next-line react-compiler/react-compiler
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getFlatHeaders, columnSizingInfo, columnSizingState]);
+
   return (
     <div
       css={css`
-        flex: 1 1 auto;
+        height: 100%;
         overflow: auto;
-        width: table.getTotalSize();
       `}
       ref={tableContainerRef}
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
     >
-      <table css={selectableTableCSS}>
+      <table
+        css={selectableTableCSS}
+        style={{
+          ...columnSizeVars,
+          width: table.getTotalSize(),
+          minWidth: "100%",
+        }}
+      >
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
                 <th
+                  colSpan={header.colSpan}
                   key={header.id}
+                  style={{
+                    width: `calc(var(--header-${makeSafeColumnId(header.id)}-size) * 1px)`,
+                  }}
                   align={header.column.columnDef?.meta?.textAlign}
                 >
-                  <div>
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext()
-                    )}
-                  </div>
+                  {header.isPlaceholder ? null : (
+                    <>
+                      <div>
+                        <Truncate maxWidth="100%">
+                          {flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                        </Truncate>
+                      </div>
+                      <div
+                        {...{
+                          onMouseDown: header.getResizeHandler(),
+                          onTouchStart: header.getResizeHandler(),
+                          className: `resizer ${
+                            header.column.getIsResizing() ? "isResizing" : ""
+                          }`,
+                        }}
+                      />
+                    </>
+                  )}
                 </th>
               ))}
             </tr>
           ))}
         </thead>
-        {isEmpty ? (
-          <ExperimentsTableEmpty />
+        {columnSizingInfo.isResizingColumn ? (
+          <MemoizedTableBody
+            table={table}
+            hasNext={hasNext}
+            onLoadNext={() => loadNext(PAGE_SIZE)}
+            isLoadingNext={isLoadingNext}
+            dataset={dataset}
+          />
         ) : (
-          <tbody>
-            {rows.map((row) => (
-              <tr
-                key={row.id}
-                onClick={() => {
-                  navigate(
-                    `/datasets/${dataset.id}/compare?experimentId=${row.original.id}`
-                  );
-                }}
-              >
-                {row.getVisibleCells().map((cell) => {
-                  return (
-                    <td key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
+          <TableBody
+            table={table}
+            hasNext={hasNext}
+            onLoadNext={() => loadNext(PAGE_SIZE)}
+            isLoadingNext={isLoadingNext}
+            dataset={dataset}
+          />
         )}
       </table>
       {selectedRows.length ? (
@@ -459,144 +593,39 @@ function AnnotationAggregationCell({
           />
         </div>
       </TriggerWrap>
-      <HelpTooltip>
+      <RichTooltip>
         <View width="size-2400">
           <Heading level={3} weight="heavy">
             {annotationName}
           </Heading>
           <Flex direction="column">
             <Flex justifyContent="space-between">
-              <Text weight="heavy" textSize="small">
+              <Text weight="heavy" size="XS">
                 Mean Score
               </Text>
-              <Text textSize="small">{floatFormatter(value)}</Text>
+              <Text size="XS">{floatFormatter(value)}</Text>
             </Flex>
             <Flex justifyContent="space-between">
-              <Text weight="heavy" textSize="small">
+              <Text weight="heavy" size="XS">
                 All Experiments Min
               </Text>
-              <Text textSize="small">{floatFormatter(min)}</Text>
+              <Text size="XS">{floatFormatter(min)}</Text>
             </Flex>
             <Flex justifyContent="space-between">
-              <Text weight="heavy" textSize="small">
+              <Text weight="heavy" size="XS">
                 All Experiments Max
               </Text>
-              <Text textSize="small">{floatFormatter(max)}</Text>
+              <Text size="XS">{floatFormatter(max)}</Text>
             </Flex>
             <Flex justifyContent="space-between">
-              <Text weight="heavy" textSize="small">
+              <Text weight="heavy" size="XS">
                 Mean Score Percentile
               </Text>
-              <Text textSize="small">{formatPercent(percentile)}</Text>
+              <Text size="XS">{formatPercent(percentile)}</Text>
             </Flex>
           </Flex>
         </View>
-      </HelpTooltip>
+      </RichTooltip>
     </TooltipTrigger>
-  );
-}
-
-export enum ExperimentAction {
-  GO_TO_EXPERIMENT_RUN_TRACES = "GO_TO_EXPERIMENT_RUN_TRACES",
-  COPY_EXPERIMENT_ID = "COPY_EXPERIMENT_ID",
-  VIEW_METADATA = "VIEW_METADATA",
-}
-
-function ExperimentActionMenu(props: {
-  projectId: string | null;
-  experimentId: string;
-  metadata: unknown;
-}) {
-  const { projectId } = props;
-  const navigate = useNavigate();
-  const [dialog, setDialog] = useState<ReactNode>(null);
-  const notifySuccess = useNotifySuccess();
-  return (
-    <div
-      // TODO: add this logic to the ActionMenu component
-      onClick={(e) => {
-        // prevent parent anchor link from being followed
-        e.preventDefault();
-        e.stopPropagation();
-      }}
-    >
-      <ActionMenu
-        buttonSize="compact"
-        align="end"
-        disabledKeys={
-          projectId ? [] : [ExperimentAction.GO_TO_EXPERIMENT_RUN_TRACES]
-        }
-        onAction={(firedAction) => {
-          const action = firedAction as ExperimentAction;
-          switch (action) {
-            case ExperimentAction.GO_TO_EXPERIMENT_RUN_TRACES: {
-              return navigate(`/projects/${projectId}`);
-            }
-            case ExperimentAction.VIEW_METADATA: {
-              setDialog(
-                <Dialog title="Metadata" onDismiss={() => setDialog(null)}>
-                  <JSONBlock value={JSON.stringify(props.metadata, null, 2)} />
-                </Dialog>
-              );
-              break;
-            }
-            case ExperimentAction.COPY_EXPERIMENT_ID: {
-              copy(props.experimentId);
-              notifySuccess({
-                title: "Copied",
-                message: "The experiment ID has been copied to your clipboard",
-              });
-              break;
-            }
-            default: {
-              assertUnreachable(action);
-            }
-          }
-        }}
-      >
-        <Item key={ExperimentAction.GO_TO_EXPERIMENT_RUN_TRACES}>
-          <Flex
-            direction="row"
-            gap="size-75"
-            justifyContent="start"
-            alignItems="center"
-          >
-            <Icon svg={<Icons.Trace />} />
-            <Text>View run traces</Text>
-          </Flex>
-        </Item>
-        <Item key={ExperimentAction.VIEW_METADATA}>
-          <Flex
-            direction="row"
-            gap="size-75"
-            justifyContent="start"
-            alignItems="center"
-          >
-            <Icon svg={<Icons.InfoOutline />} />
-            <Text>View metadata</Text>
-          </Flex>
-        </Item>
-        <Item key={ExperimentAction.COPY_EXPERIMENT_ID}>
-          <Flex
-            direction="row"
-            gap="size-75"
-            justifyContent="start"
-            alignItems="center"
-          >
-            <Icon svg={<Icons.ClipboardCopy />} />
-            <Text>Copy experiment ID</Text>
-          </Flex>
-        </Item>
-      </ActionMenu>
-      <DialogContainer
-        type="modal"
-        isDismissable
-        onDismiss={() => {
-          setDialog(null);
-        }}
-      >
-        {dialog}
-      </DialogContainer>
-    </div>
   );
 }

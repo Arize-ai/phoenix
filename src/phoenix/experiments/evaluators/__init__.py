@@ -10,6 +10,7 @@ from phoenix.experiments.evaluators.llm_evaluators import (
     ConcisenessEvaluator,
     HelpfulnessEvaluator,
     LLMCriteriaEvaluator,
+    LLMRelationalEvaluator,
     RelevanceEvaluator,
 )
 from phoenix.experiments.evaluators.utils import create_evaluator
@@ -26,4 +27,5 @@ __all__ = [
     "LLMCriteriaEvaluator",
     "HelpfulnessEvaluator",
     "RelevanceEvaluator",
+    "LLMRelationalEvaluator",
 ]

@@ -1,6 +1,7 @@
 import functools
 import inspect
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from phoenix.experiments.types import (
     AnnotatorKind,
@@ -134,7 +135,7 @@ def create_evaluator(
             from textdistance import levenshtein
 
             @create_evaluator(kind="CODE", name="levenshtein-distance")
-            def ld(output: str, expected: str) -> Tuple[float, str]:
+            def ld(output: str, expected: str) -> tuple[float, str]:
                 return (
                     levenshtein(output, expected),
                     f"Levenshtein distance between {output} and {expected}"

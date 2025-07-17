@@ -9,15 +9,8 @@ export interface ISpanItem {
   latencyMs: number | null;
   startTime: string;
   parentId: string | null;
-  context: ISpanContext;
-  tokenCountTotal?: number | null;
-  tokenCountPrompt?: number | null;
-  tokenCountCompletion?: number | null;
-  [otherKeys: string]: unknown;
-}
-
-interface ISpanContext {
   spanId: string;
+  tokenCountTotal?: number | null;
   [otherKeys: string]: unknown;
 }
 

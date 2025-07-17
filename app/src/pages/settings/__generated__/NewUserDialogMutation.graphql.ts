@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<140bf0525a033304413948cea0200e29>>
+ * @generated SignedSource<<ea7cfb8562aa738cafadec9c4311965a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,13 +8,16 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Mutation } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
+export type AuthMethod = "LOCAL" | "OAUTH2";
 export type UserRoleInput = "ADMIN" | "MEMBER";
 export type CreateUserInput = {
+  authMethod?: AuthMethod | null;
   email: string;
-  password: string;
+  password?: string | null;
   role: UserRoleInput;
-  username?: string | null;
+  sendWelcomeEmail?: boolean | null;
+  username: string;
 };
 export type NewUserDialogMutation$variables = {
   input: CreateUserInput;

@@ -1,5 +1,4 @@
-import React from "react";
-import { Link as RouterLink, LinkProps } from "react-router-dom";
+import { Link as RouterLink, LinkProps } from "react-router";
 import { css } from "@emotion/react";
 export function Link(props: LinkProps) {
   return (
@@ -12,7 +11,7 @@ export function Link(props: LinkProps) {
     >
       <RouterLink
         css={css`
-          color: var(--ac-global-color-primary);
+          color: var(--ac-global-link-color);
           &:not(:hover) {
             text-decoration: none;
           }

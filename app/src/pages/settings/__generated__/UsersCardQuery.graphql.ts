@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3d4d387e015d37cc173f1296a745d953>>
+ * @generated SignedSource<<66f41fe5219700b7bc6153992c2f5afa>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type UsersCardQuery$variables = Record<PropertyKey, never>;
 export type UsersCardQuery$data = {
@@ -19,7 +19,15 @@ export type UsersCardQuery = {
   variables: UsersCardQuery$variables;
 };
 
-const node: ConcreteRequest = {
+const node: ConcreteRequest = (function(){
+var v0 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+};
+return {
   "fragment": {
     "argumentDefinitions": [],
     "kind": "Fragment",
@@ -65,6 +73,7 @@ const node: ConcreteRequest = {
                 "name": "node",
                 "plural": false,
                 "selections": [
+                  (v0/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -89,6 +98,20 @@ const node: ConcreteRequest = {
                   {
                     "alias": null,
                     "args": null,
+                    "kind": "ScalarField",
+                    "name": "authMethod",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "profilePictureUrl",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
                     "concreteType": "UserRole",
                     "kind": "LinkedField",
                     "name": "role",
@@ -100,7 +123,8 @@ const node: ConcreteRequest = {
                         "kind": "ScalarField",
                         "name": "name",
                         "storageKey": null
-                      }
+                      },
+                      (v0/*: any*/)
                     ],
                     "storageKey": null
                   }
@@ -116,14 +140,15 @@ const node: ConcreteRequest = {
     ]
   },
   "params": {
-    "cacheID": "475e4a6a89583e17246b7f9fe5b0cb84",
+    "cacheID": "7198a3944688637f02a72e35643511d0",
     "id": null,
     "metadata": {},
     "name": "UsersCardQuery",
     "operationKind": "query",
-    "text": "query UsersCardQuery {\n  ...UsersTable_users\n}\n\nfragment UsersTable_users on Query {\n  users {\n    edges {\n      user: node {\n        email\n        username\n        createdAt\n        role {\n          name\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query UsersCardQuery {\n  ...UsersTable_users\n}\n\nfragment UsersTable_users on Query {\n  users {\n    edges {\n      user: node {\n        id\n        email\n        username\n        createdAt\n        authMethod\n        profilePictureUrl\n        role {\n          name\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
+})();
 
 (node as any).hash = "2b3e260c950dd1a6a1a6883ff6fb78c4";
 

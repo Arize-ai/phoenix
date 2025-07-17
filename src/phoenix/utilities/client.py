@@ -3,6 +3,8 @@ from typing import Any
 
 import httpx
 
+from phoenix.config import get_env_client_headers
+
 PHOENIX_SERVER_VERSION_HEADER = "x-phoenix-server-version"
 
 
@@ -12,11 +14,24 @@ class VersionedClient(httpx.Client):
     """
 
     def __init__(self, *args: Any, **kwargs: Any):
-        from phoenix import __version__ as phoenix_version
+        from phoenix.version import __version__ as phoenix_version
 
         super().__init__(*args, **kwargs)
+
+        # Preserve headers set via instantiation, since
+        # they were explicitly entered by the user.
+        for k, v in get_env_client_headers().items():
+            if k not in self.headers:
+                self.headers[k] = v
+
         self._client_phoenix_version = phoenix_version
         self._warned_on_minor_version_mismatch = False
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except BaseException:
+            pass
 
     def _check_version(self, response: httpx.Response) -> None:
         server_version = response.headers.get(PHOENIX_SERVER_VERSION_HEADER)
@@ -69,9 +84,16 @@ class VersionedAsyncClient(httpx.AsyncClient):
     """
 
     def __init__(self, *args: Any, **kwargs: Any):
-        from phoenix import __version__ as phoenix_version
+        from phoenix.version import __version__ as phoenix_version
 
         super().__init__(*args, **kwargs)
+
+        # Preserve headers set via instantiation, since
+        # they were explicitly entered by the user.
+        for k, v in get_env_client_headers().items():
+            if k not in self.headers:
+                self.headers[k] = v
+
         self._client_phoenix_version = phoenix_version
         self._warned_on_minor_version_mismatch = False
 

@@ -1,35 +1,41 @@
-import React, { Suspense, useCallback, useMemo } from "react";
+import { Suspense, useCallback, useMemo } from "react";
 import { Outlet, useLoaderData, useLocation, useNavigate } from "react-router";
+import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
+import { ActionMenu, Item } from "@arizeai/components";
+
 import {
-  ActionMenu,
+  Button,
   Counter,
   Flex,
   Icon,
   Icons,
-  Item,
-  TabPane,
+  LazyTabPanel,
+  Loading,
+  Tab,
+  TabList,
   Tabs,
   Text,
   View,
-} from "@arizeai/components";
-
-import { Loading } from "@phoenix/components";
+} from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
 import {
   DatasetProvider,
   useDatasetContext,
 } from "@phoenix/contexts/DatasetContext";
+import { datasetLoader } from "@phoenix/pages/dataset/datasetLoader";
+import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { datasetLoaderQuery$data } from "./__generated__/datasetLoaderQuery.graphql";
 import { AddDatasetExampleButton } from "./AddDatasetExampleButton";
-import { DatasetCodeDropdown } from "./DatasetCodeDropdown";
+import { DatasetCodeButton } from "./DatasetCodeButton";
 import { DatasetHistoryButton } from "./DatasetHistoryButton";
 import { RunExperimentButton } from "./RunExperimentButton";
 
 export function DatasetPage() {
-  const loaderData = useLoaderData() as datasetLoaderQuery$data;
+  const loaderData = useLoaderData<typeof datasetLoader>();
+  invariant(loaderData, "loaderData is required");
   const latestVersion = useMemo(() => {
     const versions = loaderData.dataset.latestVersions;
     if (versions?.edges && versions.edges.length) {
@@ -114,41 +120,49 @@ function DatasetPageContent({
         paddingBottom="size-50"
         flex="none"
       >
-        <Flex
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-        >
-          <Flex direction="column" justifyContent="space-between">
+        <Flex direction="row" justifyContent="space-between" alignItems="start">
+          <Flex
+            direction="column"
+            justifyContent="space-between"
+            alignItems="start"
+          >
             <Flex direction="row" gap="size-200" alignItems="center">
               {/* TODO(datasets): Add an icon here to make the UI cohesive */}
               {/* <Icon svg={<Icons.DatabaseOutline />} /> */}
               <Flex direction="column">
-                <Text elementType="h1" textSize="xlarge" weight="heavy">
+                <Text elementType="h1" size="L" weight="heavy">
                   {dataset.name}
                 </Text>
                 <Text color="text-700">{dataset.description || "--"}</Text>
               </Flex>
             </Flex>
           </Flex>
-          <Flex direction="row" gap="size-100">
+          <Flex direction="row" gap="size-100" alignItems="center">
             <ActionMenu
               align="end"
+              buttonSize="compact"
               icon={<Icon svg={<Icons.DownloadOutline />} />}
               onAction={(action) => {
                 switch (action) {
                   case "csv":
-                    window.open(`/v1/datasets/${dataset.id}/csv`, "_blank");
+                    window.open(
+                      prependBasename(`/v1/datasets/${dataset.id}/csv`),
+                      "_blank"
+                    );
                     break;
                   case "openai-ft":
                     window.open(
-                      `/v1/datasets/${dataset.id}/jsonl/openai_ft`,
+                      prependBasename(
+                        `/v1/datasets/${dataset.id}/jsonl/openai_ft`
+                      ),
                       "_blank"
                     );
                     break;
                   case "openai-evals":
                     window.open(
-                      `/v1/datasets/${dataset.id}/jsonl/openai_evals`,
+                      prependBasename(
+                        `/v1/datasets/${dataset.id}/jsonl/openai_evals`
+                      ),
                       "_blank"
                     );
                     break;
@@ -160,7 +174,7 @@ function DatasetPageContent({
               <Item key="openai-evals">Download OpenAI Evals JSONL</Item>
             </ActionMenu>
             <DatasetHistoryButton datasetId={dataset.id} />
-            <DatasetCodeDropdown />
+            <DatasetCodeButton />
             <RunExperimentButton />
             <AddDatasetExampleButton
               datasetId={dataset.id}
@@ -173,26 +187,50 @@ function DatasetPageContent({
                 refreshLatestVersion();
               }}
             />
+            <Button
+              size="S"
+              variant="primary"
+              leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+              onPress={() => {
+                navigate(`/playground?datasetId=${dataset.id}`);
+              }}
+            >
+              Playground
+            </Button>
           </Flex>
         </Flex>
       </View>
-      <Tabs onChange={onTabChange} defaultIndex={initialIndex}>
-        <TabPane
-          name="Experiments"
-          extra={<Counter>{dataset.experimentCount}</Counter>}
-        >
+      <Tabs
+        defaultSelectedKey={initialIndex === 0 ? "experiments" : "examples"}
+        onSelectionChange={(key) => {
+          switch (key) {
+            case "experiments":
+              onTabChange(0);
+              break;
+            case "examples":
+              onTabChange(1);
+              break;
+          }
+        }}
+      >
+        <TabList>
+          <Tab id="experiments">
+            Experiments <Counter>{dataset.experimentCount}</Counter>
+          </Tab>
+          <Tab id="examples">
+            Examples <Counter>{dataset.exampleCount}</Counter>
+          </Tab>
+        </TabList>
+        <LazyTabPanel id="experiments">
           <Suspense>
             <Outlet />
           </Suspense>
-        </TabPane>
-        <TabPane
-          name="Examples"
-          extra={<Counter>{dataset.exampleCount}</Counter>}
-        >
+        </LazyTabPanel>
+        <LazyTabPanel id="examples">
           <Suspense>
             <Outlet />
           </Suspense>
-        </TabPane>
+        </LazyTabPanel>
       </Tabs>
     </main>
   );

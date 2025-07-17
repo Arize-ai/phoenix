@@ -1,5 +1,5 @@
 import { fetchQuery, graphql } from "react-relay";
-import { LoaderFunctionArgs } from "react-router-dom";
+import { LoaderFunctionArgs } from "react-router";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
@@ -13,7 +13,7 @@ export async function projectLoader(args: LoaderFunctionArgs) {
   return await fetchQuery<projectLoaderQuery>(
     RelayEnvironment,
     graphql`
-      query projectLoaderQuery($id: GlobalID!) {
+      query projectLoaderQuery($id: ID!) {
         project: node(id: $id) {
           id
           ... on Project {

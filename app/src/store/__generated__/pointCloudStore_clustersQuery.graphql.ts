@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cdb8f833b38755be4313ffaa9ebfc1ea>>
+ * @generated SignedSource<<ebf444bcb686103e4a57beb52672c166>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type PerformanceMetric = "accuracyScore";
 export type InputCoordinate3D = {
   x: number;

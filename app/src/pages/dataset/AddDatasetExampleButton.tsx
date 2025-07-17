@@ -1,6 +1,11 @@
-import React, { ReactNode, useCallback, useState } from "react";
-
-import { Button, DialogContainer, Icon, Icons } from "@arizeai/components";
+import {
+  Button,
+  DialogTrigger,
+  Icon,
+  Icons,
+  Modal,
+  ModalOverlay,
+} from "@phoenix/components";
 
 import { AddDatasetExampleDialog } from "./AddDatasetExampleDialog";
 
@@ -12,36 +17,25 @@ type AddDatasetExampleButtonProps = {
 export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
   const { datasetId, onAddExampleCompleted } = props;
 
-  const [dialog, setDialog] = useState<ReactNode>(null);
-  const onAddExample = useCallback(() => {
-    setDialog(
-      <AddDatasetExampleDialog
-        datasetId={datasetId}
-        onCompleted={() => {
-          onAddExampleCompleted();
-          setDialog(null);
-        }}
-      />
-    );
-  }, [datasetId, onAddExampleCompleted]);
   return (
-    <>
+    <DialogTrigger>
       <Button
-        icon={<Icon svg={<Icons.PlusCircleOutline />} />}
-        size="compact"
-        variant="default"
-        onClick={onAddExample}
+        leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
+        size="S"
+        aria-label="Add Dataset Example"
       >
         Add Example
       </Button>
-      <DialogContainer
-        isDismissable
-        onDismiss={() => {
-          setDialog(null);
-        }}
-      >
-        {dialog}
-      </DialogContainer>
-    </>
+      <ModalOverlay>
+        <Modal size="L">
+          <AddDatasetExampleDialog
+            datasetId={datasetId}
+            onCompleted={() => {
+              onAddExampleCompleted();
+            }}
+          />
+        </Modal>
+      </ModalOverlay>
+    </DialogTrigger>
   );
 }

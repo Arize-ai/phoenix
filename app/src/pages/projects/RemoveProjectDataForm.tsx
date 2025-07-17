@@ -1,11 +1,29 @@
-import React, { useCallback, useRef } from "react";
+import { useCallback, useRef } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
-import { isValid as dateIsValid, parseISO } from "date-fns";
+import {
+  getLocalTimeZone,
+  parseAbsoluteToLocal,
+} from "@internationalized/date";
+import { isValid as dateIsValid } from "date-fns";
+import { css } from "@emotion/react";
 
-import { Button, Flex, Text, TextField, View } from "@arizeai/components";
-
+import {
+  Button,
+  DateField,
+  DateInput,
+  DateSegment,
+  DateValue,
+  FieldError,
+  Flex,
+  Icon,
+  Icons,
+  Label,
+  Text,
+  View,
+} from "@phoenix/components";
 import { ONE_MONTH_MS } from "@phoenix/constants/timeConstants";
+import { useLocalTimeFormatPattern } from "@phoenix/hooks";
 
 import { RemoveProjectDataFormMutation } from "./__generated__/RemoveProjectDataFormMutation.graphql";
 
@@ -15,11 +33,12 @@ type RemoveProjectDataFormProps = {
 };
 
 type RemoveProjectDataFormParams = {
-  endDate: string;
+  endDate: DateValue;
 };
 
 export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
   const { projectId } = props;
+  const dateFormatPattern = useLocalTimeFormatPattern();
   const formRef = useRef<HTMLFormElement>(null);
   const [commit, isCommitting] = useMutation<RemoveProjectDataFormMutation>(
     graphql`
@@ -36,17 +55,19 @@ export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
     handleSubmit,
     setError,
     formState: { isValid },
-  } = useForm({
+  } = useForm<RemoveProjectDataFormParams>({
     defaultValues: {
       // Need to remove the offset to be able to set the defaultValue
-      endDate: new Date(Date.now() - ONE_MONTH_MS).toISOString().slice(0, 16),
-    } as RemoveProjectDataFormParams,
+      endDate: parseAbsoluteToLocal(
+        new Date(Date.now() - ONE_MONTH_MS).toISOString()
+      ),
+    },
   });
 
   const onSubmit = useCallback(
     (params: RemoveProjectDataFormParams) => {
       // Validate date is a valid date
-      const parsedDate = parseISO(params.endDate);
+      const parsedDate = params.endDate.toDate(getLocalTimeZone());
       if (!dateIsValid(parsedDate)) {
         return setError("endDate", {
           message: "Date is not in a valid format",
@@ -74,7 +95,7 @@ export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
     <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
       <View padding="size-200">
         <Text color="danger">
-          {`You are about to remove all data before the following date. This cannot be undone.`}
+          {` This will remove all data before the following date. This cannot be undone.`}
         </Text>
         <Controller
           name="endDate"
@@ -86,17 +107,32 @@ export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
             field: { name, onChange, onBlur, value },
             fieldState: { invalid, error },
           }) => (
-            <TextField
-              label="End Date"
-              type="datetime-local"
-              name={name}
-              description={`The date up to which you want to remove data`}
-              errorMessage={error?.message}
-              validationState={invalid ? "invalid" : "valid"}
+            <DateField
+              isInvalid={invalid}
               onChange={onChange}
+              name={name}
               onBlur={onBlur}
-              defaultValue={value}
-            />
+              value={value}
+              granularity="second"
+              hideTimeZone
+              css={css`
+                .react-aria-DateInput {
+                  width: 100%;
+                }
+              `}
+            >
+              <Label>End Date</Label>
+              <DateInput>
+                {(segment) => <DateSegment segment={segment} />}
+              </DateInput>
+              {error ? (
+                <FieldError>{error.message}</FieldError>
+              ) : (
+                <Text slot="description">
+                  {`The date up to which you want to remove data. The format is ${dateFormatPattern}.`}
+                </Text>
+              )}
+            </DateField>
           )}
         />
       </View>
@@ -111,10 +147,12 @@ export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
           <Button
             type="submit"
             variant="danger"
-            isDisabled={!isValid}
-            size="compact"
-            loading={isCommitting}
-            onClick={() => {
+            isDisabled={!isValid || isCommitting}
+            size="S"
+            leadingVisual={
+              isCommitting ? <Icon svg={<Icons.LoadingOutline />} /> : undefined
+            }
+            onPress={() => {
               // TODO: This is a bit of a hack as the form is not working in a dialog for some reason
               // It probably has to do with the nested DOM structure under which it is being mounted
               formRef.current?.requestSubmit();

@@ -1,4 +1,3 @@
-import React from "react";
 import { useMatches, useNavigate } from "react-router";
 
 import { Breadcrumbs, Item } from "@arizeai/components";

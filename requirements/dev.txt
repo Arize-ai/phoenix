@@ -1,0 +1,9 @@
+asyncpg
+openai
+anthropic>=0.49.0
+google-generativeai
+psycopg[binary,pool]
+uvloop; platform_system != 'Windows'
+fast-hdbscan
+umap-learn
+boto3

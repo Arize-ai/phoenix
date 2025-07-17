@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import Union
 
 import numpy as np
 import numpy.typing as npt
@@ -57,8 +57,8 @@ class UMAPPoint:
 
 @strawberry.type
 class UMAPPoints:
-    data: List[UMAPPoint]
-    reference_data: List[UMAPPoint]
-    clusters: List[Cluster]
-    corpus_data: List[UMAPPoint] = strawberry.field(default_factory=list)
-    context_retrievals: List[Retrieval] = strawberry.field(default_factory=list)
+    data: list[UMAPPoint]
+    reference_data: list[UMAPPoint]
+    clusters: list[Cluster]
+    corpus_data: list[UMAPPoint] = strawberry.field(default_factory=list)
+    context_retrievals: list[Retrieval] = strawberry.field(default_factory=list)

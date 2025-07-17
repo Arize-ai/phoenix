@@ -1,25 +1,19 @@
-import React, { ReactNode, Suspense, useCallback, useState } from "react";
+import { ReactNode, Suspense, useCallback, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate } from "react-router";
 
-import {
-  ActionMenu,
-  Dialog,
-  DialogContainer,
-  Flex,
-  Heading,
-  Icon,
-  Icons,
-  Item,
-  View,
-} from "@arizeai/components";
+// eslint-disable-next-line deprecate/import
+import { ActionMenu, Dialog, DialogContainer, Item } from "@arizeai/components";
 
-import { Loading } from "@phoenix/components";
+import { Flex, Heading, Icon, Icons, Loading, View } from "@phoenix/components";
 import { CreateDatasetForm } from "@phoenix/components/dataset/CreateDatasetForm";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { DatasetsPageQuery } from "./__generated__/DatasetsPageQuery.graphql";
+import { DatasetsTable_datasets$key } from "./__generated__/DatasetsTable_datasets.graphql";
 import { DatasetFromCSVForm } from "./DatasetFromCSVForm";
+import { DatasetsSearch } from "./DatasetsSearch";
 import { DatasetsTable } from "./DatasetsTable";
 
 export function DatasetsPage() {
@@ -48,6 +42,7 @@ export function DatasetsPageContent() {
   const onDatasetCreated = useCallback(() => {
     setFetchKey((prev) => prev + 1);
   }, [setFetchKey]);
+
   return (
     <Flex direction="column" height="100%">
       <View
@@ -56,13 +51,42 @@ export function DatasetsPageContent() {
         borderBottomColor="dark"
         flex="none"
       >
-        <Flex direction="row" justifyContent="space-between">
-          <Heading level={1}>Datasets</Heading>
-          <CreateDatasetActionMenu onDatasetCreated={onDatasetCreated} />
+        <Flex direction="column" gap="size-200">
+          <Flex
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Heading level={1}>Datasets</Heading>
+            <CreateDatasetActionMenu onDatasetCreated={onDatasetCreated} />
+          </Flex>
         </Flex>
       </View>
-      <DatasetsTable query={data} />
+      <DatasetsTableWithSearch query={data} />
     </Flex>
+  );
+}
+
+// New component that manages filter state locally
+function DatasetsTableWithSearch({
+  query,
+}: {
+  query: DatasetsTable_datasets$key;
+}) {
+  const [filter, setFilter] = useState<string>("");
+
+  return (
+    <>
+      <View
+        padding="size-200"
+        flex="none"
+        borderBottomWidth="thin"
+        borderBottomColor="dark"
+      >
+        <DatasetsSearch onChange={setFilter} value={filter} />
+      </View>
+      <DatasetsTable query={query} filter={filter} />
+    </>
   );
 }
 
@@ -101,9 +125,11 @@ function CreateDatasetActionMenu({
             onDatasetCreated();
           }}
           onDatasetCreateError={(error) => {
+            const formattedError =
+              getErrorMessagesFromRelayMutationError(error);
             notifyError({
               title: "Dataset creation failed",
-              message: error.message,
+              message: formattedError?.[0] ?? error.message,
             });
           }}
         />
@@ -129,9 +155,11 @@ function CreateDatasetActionMenu({
             onDatasetCreated();
           }}
           onDatasetCreateError={(error) => {
+            const formattedError =
+              getErrorMessagesFromRelayMutationError(error);
             notifyError({
               title: "Dataset creation failed",
-              message: error.message,
+              message: formattedError?.[0] ?? error.message,
             });
           }}
         />

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import List, Optional, Union, cast
+from typing import Optional, Union, cast
 
 import pandas as pd
 
@@ -28,7 +28,7 @@ class TraceDataExtractor(ABC):
         root_spans_only: Optional[bool] = None,
         project_name: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]: ...
+    ) -> Optional[Union[pd.DataFrame, list[pd.DataFrame]]]: ...
 
     def get_spans_dataframe(
         self,
@@ -58,7 +58,7 @@ class TraceDataExtractor(ABC):
     def get_evaluations(
         self,
         project_name: Optional[str] = None,
-    ) -> List[Evaluations]: ...
+    ) -> list[Evaluations]: ...
 
     def get_trace_dataset(
         self,

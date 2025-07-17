@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<53068c46a6b3b61488315dff4e4ad437>>
+ * @generated SignedSource<<0b147c21920903dfd612e378fa5e63cf>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type UserAPIKeysTableQuery$variables = Record<PropertyKey, never>;
 export type UserAPIKeysTableQuery$data = {
@@ -19,7 +19,15 @@ export type UserAPIKeysTableQuery = {
   variables: UserAPIKeysTableQuery$variables;
 };
 
-const node: ConcreteRequest = {
+const node: ConcreteRequest = (function(){
+var v0 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+};
+return {
   "fragment": {
     "argumentDefinitions": [],
     "kind": "Fragment",
@@ -49,13 +57,7 @@ const node: ConcreteRequest = {
         "name": "userApiKeys",
         "plural": true,
         "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "id",
-            "storageKey": null
-          },
+          (v0/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -83,6 +85,25 @@ const node: ConcreteRequest = {
             "kind": "ScalarField",
             "name": "expiresAt",
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "User",
+            "kind": "LinkedField",
+            "name": "user",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "email",
+                "storageKey": null
+              },
+              (v0/*: any*/)
+            ],
+            "storageKey": null
           }
         ],
         "storageKey": null
@@ -90,15 +111,16 @@ const node: ConcreteRequest = {
     ]
   },
   "params": {
-    "cacheID": "cd87c66812c50e80c23448d835b9ab43",
+    "cacheID": "a91e7a740880f47e1bcd063ede287ed6",
     "id": null,
     "metadata": {},
     "name": "UserAPIKeysTableQuery",
     "operationKind": "query",
-    "text": "query UserAPIKeysTableQuery {\n  ...UserAPIKeysTableFragment\n}\n\nfragment UserAPIKeysTableFragment on Query {\n  userApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n}\n"
+    "text": "query UserAPIKeysTableQuery {\n  ...UserAPIKeysTableFragment\n}\n\nfragment UserAPIKeysTableFragment on Query {\n  userApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n    user {\n      email\n      id\n    }\n  }\n}\n"
   }
 };
+})();
 
-(node as any).hash = "b74ea37cf5a935ebe3ce165a42a5fbf7";
+(node as any).hash = "c2b3a579bcb0ba915523ecb35cae3b44";
 
 export default node;

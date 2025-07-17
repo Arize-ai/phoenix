@@ -1,5 +1,6 @@
+from collections.abc import Mapping
 from datetime import datetime
-from typing import Any, List, Mapping, NamedTuple, Optional, Tuple
+from typing import Any, NamedTuple, Optional
 
 from sqlalchemy import Row, Select, and_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,10 +22,17 @@ _Name: TypeAlias = str
 _TraceId: TypeAlias = str
 _TraceRowId: TypeAlias = int
 _AnnoRowId: TypeAlias = int
+_Identifier: TypeAlias = str
 
-_Key: TypeAlias = Tuple[_Name, _TraceId]
-_UniqueBy: TypeAlias = Tuple[_Name, _TraceRowId]
-_Existing: TypeAlias = Tuple[
+
+class _Key(NamedTuple):
+    annotation_name: _Name
+    annotation_identifier: _Identifier
+    trace_id: _TraceId
+
+
+_UniqueBy: TypeAlias = tuple[_Name, _TraceRowId, _Identifier]
+_Existing: TypeAlias = tuple[
     _TraceRowId,
     _TraceId,
     Optional[_AnnoRowId],
@@ -41,13 +49,13 @@ class TraceAnnotationQueueInserter(
         TraceAnnotationDmlEvent,
     ],
     table=models.TraceAnnotation,
-    unique_by=("name", "trace_rowid"),
+    unique_by=("name", "trace_rowid", "identifier"),
 ):
     async def _events(
         self,
         session: AsyncSession,
         *insertions: Insertables.TraceAnnotation,
-    ) -> List[TraceAnnotationDmlEvent]:
+    ) -> list[TraceAnnotationDmlEvent]:
         records = [dict(as_kv(ins.row)) for ins in insertions]
         stmt = self._insert_on_conflict(*records).returning(self.table.id)
         ids = tuple([_ async for _ in await session.stream_scalars(stmt)])
@@ -57,22 +65,26 @@ class TraceAnnotationQueueInserter(
         self,
         session: AsyncSession,
         *parcels: Received[Precursors.TraceAnnotation],
-    ) -> Tuple[
-        List[Received[Insertables.TraceAnnotation]],
-        List[Postponed[Precursors.TraceAnnotation]],
-        List[Received[Precursors.TraceAnnotation]],
+    ) -> tuple[
+        list[Received[Insertables.TraceAnnotation]],
+        list[Postponed[Precursors.TraceAnnotation]],
+        list[Received[Precursors.TraceAnnotation]],
     ]:
-        to_insert: List[Received[Insertables.TraceAnnotation]] = []
-        to_postpone: List[Postponed[Precursors.TraceAnnotation]] = []
-        to_discard: List[Received[Precursors.TraceAnnotation]] = []
+        to_insert: list[Received[Insertables.TraceAnnotation]] = []
+        to_postpone: list[Postponed[Precursors.TraceAnnotation]] = []
+        to_discard: list[Received[Precursors.TraceAnnotation]] = []
 
         stmt = self._select_existing(*map(_key, parcels))
-        existing: List[Row[_Existing]] = [_ async for _ in await session.stream(stmt)]
+        existing: list[Row[_Existing]] = [_ async for _ in await session.stream(stmt)]
         existing_traces: Mapping[str, _TraceAttr] = {
             e.trace_id: _TraceAttr(e.trace_rowid) for e in existing
         }
         existing_annos: Mapping[_Key, _AnnoAttr] = {
-            (e.name, e.trace_id): _AnnoAttr(e.trace_rowid, e.id, e.updated_at)
+            _Key(
+                annotation_name=e.name,
+                annotation_identifier=e.identifier,
+                trace_id=e.trace_id,
+            ): _AnnoAttr(e.trace_rowid, e.id, e.updated_at)
             for e in existing
             if e.id is not None and e.name is not None and e.updated_at is not None
         }
@@ -118,19 +130,20 @@ class TraceAnnotationQueueInserter(
         anno = self.table
         trace = (
             select(models.Trace.id, models.Trace.trace_id)
-            .where(models.Trace.trace_id.in_({trace_id for _, trace_id in keys}))
+            .where(models.Trace.trace_id.in_({k.trace_id for k in keys}))
             .cte()
         )
         onclause = and_(
             trace.c.id == anno.trace_rowid,
-            anno.name.in_({name for name, _ in keys}),
-            tuple_(anno.name, trace.c.trace_id).in_(keys),
+            anno.name.in_({k.annotation_name for k in keys}),
+            tuple_(anno.name, anno.identifier, trace.c.trace_id).in_(keys),
         )
         return select(
             trace.c.id.label("trace_rowid"),
             trace.c.trace_id,
             anno.id,
             anno.name,
+            anno.identifier,
             anno.updated_at,
         ).outerjoin_from(trace, anno, onclause)
 
@@ -146,11 +159,15 @@ class _AnnoAttr(NamedTuple):
 
 
 def _key(p: Received[Precursors.TraceAnnotation]) -> _Key:
-    return p.item.obj.name, p.item.trace_id
+    return _Key(
+        annotation_name=p.item.obj.name,
+        annotation_identifier=p.item.obj.identifier,
+        trace_id=p.item.trace_id,
+    )
 
 
 def _unique_by(p: Received[Insertables.TraceAnnotation]) -> _UniqueBy:
-    return p.item.obj.name, p.item.trace_rowid
+    return p.item.obj.name, p.item.trace_rowid, p.item.identifier
 
 
 def _time(p: Received[Any]) -> datetime:

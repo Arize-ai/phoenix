@@ -1,31 +1,29 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
+import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, Text, TextProps } from "@arizeai/components";
-
+import { Flex, Icon, Icons, Text, TextProps } from "@phoenix/components";
+import { TextColorValue } from "@phoenix/components/types/style";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
-
 export function LatencyText({
   latencyMs,
-  textSize = "medium",
+  size = "M",
   showIcon = true,
 }: {
   latencyMs: number;
-  textSize?: TextProps["textSize"];
+  size?: TextProps["size"];
   /**
    * Whether to show the clock icon.
    * @default true
    */
   showIcon?: boolean;
 }) {
-  const color = useMemo(() => {
+  const color: TextColorValue = useMemo(() => {
     if (latencyMs < 3000) {
-      return "green-1200";
+      return "success";
     } else if (latencyMs < 8000) {
-      return "yellow-1200";
-    } else if (latencyMs < 12000) {
-      return "orange-1200";
+      return "warning";
     } else {
-      return "red-1200";
+      return "danger";
     }
   }, [latencyMs]);
   const latencyText = useMemo(() => {
@@ -41,13 +39,19 @@ export function LatencyText({
       alignItems="center"
       justifyContent="start"
       gap="size-50"
+      className="latency-text"
     >
       {showIcon ? (
-        <Text color={color} textSize={textSize}>
-          <Icon svg={<Icons.ClockOutline />} />
+        <Text color={color} size={size}>
+          <Icon
+            svg={<Icons.ClockOutline />}
+            css={css`
+              font-size: 1.1em;
+            `}
+          />
         </Text>
       ) : null}
-      <Text color={color} textSize={textSize}>
+      <Text color={color} size={size}>
         {latencyText}
       </Text>
     </Flex>

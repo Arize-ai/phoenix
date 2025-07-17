@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9160b4413f627bfd72aea71f3de41439>>
+ * @generated SignedSource<<a77fc0e595f1292092c13909147cf604>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { Fragment, ReaderFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 export type DimensionType = "actual" | "feature" | "prediction" | "tag";
 import { FragmentRefs } from "relay-runtime";
 export type MetricSelector_dimensions$data = {
@@ -99,10 +99,10 @@ const node: ReaderFragment = {
       "storageKey": "dimensions(include:{\"dataTypes\":[\"numeric\"]})"
     }
   ],
-  "type": "Model",
+  "type": "InferenceModel",
   "abstractKey": null
 };
 
-(node as any).hash = "55d03de16503d7af254c17cef7d18ee0";
+(node as any).hash = "372c00c9d4e2e0512af55c958b21c5e0";
 
 export default node;

@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, List, Optional, Union
+from typing import (
+    Any,
+    Optional,
+    Pattern,  # import from re module when we drop support for 3.8
+    Union,
+)
 
 from phoenix.experiments.evaluators.base import CodeEvaluator
 from phoenix.experiments.types import EvaluationResult, TaskOutput
@@ -72,7 +77,7 @@ class ContainsAnyKeyword(CodeEvaluator):
     An evaluator that checks if any of the keywords are present in the output of an experiment run.
 
     Args:
-        keywords (List[str]): The keywords to search for in the output.
+        keywords (list[str]): The keywords to search for in the output.
         name (str, optional): An optional name for the evaluator. Defaults to
             "ContainsAny(<keywords>)".
 
@@ -85,7 +90,7 @@ class ContainsAnyKeyword(CodeEvaluator):
             run_experiment(dataset, task, evaluators=[ContainsAnyKeyword(["foo", "bar"])])
     """
 
-    def __init__(self, keywords: List[str], name: Optional[str] = None) -> None:
+    def __init__(self, keywords: list[str], name: Optional[str] = None) -> None:
         self.keywords = keywords
         self._name = name or f"ContainsAny({keywords})"
 
@@ -107,7 +112,7 @@ class ContainsAllKeywords(CodeEvaluator):
     An evaluator that checks if all of the keywords are present in the output of an experiment run.
 
     Args:
-        keywords (List[str]): The keywords to search for in the output.
+        keywords (list[str]): The keywords to search for in the output.
         name (str, optional): An optional name for the evaluator. Defaults to
             "ContainsAll(<keywords>)".
 
@@ -120,7 +125,7 @@ class ContainsAllKeywords(CodeEvaluator):
             run_experiment(dataset, task, evaluators=[ContainsAllKeywords(["foo", "bar"])])
     """
 
-    def __init__(self, keywords: List[str], name: Optional[str] = None) -> None:
+    def __init__(self, keywords: list[str], name: Optional[str] = None) -> None:
         self.keywords = keywords
         self._name = name or f"ContainsAll({keywords})"
 
@@ -144,7 +149,7 @@ class MatchesRegex(CodeEvaluator):
     An experiment evaluator that checks if the output of an experiment run matches a regex pattern.
 
     Args:
-        pattern (Union[str, re.Pattern[str]]): The regex pattern to match the output against.
+        pattern (Union[str, Pattern[str]]): The regex pattern to match the output against.
         name (str, optional): An optional name for the evaluator. Defaults to "matches_({pattern})".
 
     Example:
@@ -157,7 +162,7 @@ class MatchesRegex(CodeEvaluator):
             run_experiment(dataset, task, evaluators=[phone_number_evaluator])
     """
 
-    def __init__(self, pattern: Union[str, re.Pattern[str]], name: Optional[str] = None) -> None:
+    def __init__(self, pattern: Union[str, Pattern[str]], name: Optional[str] = None) -> None:
         if isinstance(pattern, str):
             pattern = re.compile(pattern)
         self.pattern = pattern

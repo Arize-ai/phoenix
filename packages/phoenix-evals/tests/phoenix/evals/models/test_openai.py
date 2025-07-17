@@ -9,6 +9,11 @@ OPENAI_API_KEY_ENVVAR_NAME = "OPENAI_API_KEY"
 AZURE_OPENAI_API_KEY_ENVVAR_NAME = "AZURE_OPENAI_API_KEY"
 
 
+def test_instantiation_by_positional_args_is_not_allowed():
+    with pytest.raises(AssertionError, match="positional arguments"):
+        OpenAIModel("gpt-4-turbo-preview")
+
+
 def test_openai_model(monkeypatch):
     """
     Sanity check of the initialization of OpenAI wrapper

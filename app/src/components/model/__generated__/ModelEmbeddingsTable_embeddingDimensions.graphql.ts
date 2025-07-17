@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b125443b2248e14e5f864d50de28bae6>>
+ * @generated SignedSource<<734328b739994e2ebafd57cef92fe046>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ModelEmbeddingsTable_embeddingDimensions$data = {
   readonly model: {
@@ -87,7 +87,7 @@ return {
     {
       "alias": null,
       "args": null,
-      "concreteType": "Model",
+      "concreteType": "InferenceModel",
       "kind": "LinkedField",
       "name": "model",
       "plural": false,

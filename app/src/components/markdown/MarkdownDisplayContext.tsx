@@ -1,4 +1,4 @@
-import React, {
+import {
   createContext,
   PropsWithChildren,
   startTransition,
@@ -12,7 +12,7 @@ import { MarkdownDisplayMode } from "./types";
 
 export type MarkdownDisplayContextType = {
   mode: MarkdownDisplayMode;
-  setMode: (theme: MarkdownDisplayMode) => void;
+  setMode: (mode: MarkdownDisplayMode) => void;
 };
 
 export const MarkdownDisplayContext =

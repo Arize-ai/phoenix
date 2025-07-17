@@ -1,0 +1,53 @@
+name: Python Cron
+permissions:
+  contents: read
+
+on:
+  schedule:
+    - cron: "*/15 15-23 * * 1-5"
+  workflow_dispatch:
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    env:
+      CI_TEST_DB_BACKEND: postgresql
+    services:
+      postgres:
+        image: postgres:12
+        env:
+          POSTGRES_PASSWORD: phoenix
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sessions
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.9
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: 0.6.3
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            requirements/ci.txt
+            requirements/integration-tests.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: uv tool install tox --with tox-uv
+      - run: tox run -e ci_integration_tests
+      - uses: slackapi/slack-github-action@v1
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        with:
+          payload: |
+            {
+              "text": "FAILED Python Integration Test: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }

@@ -1,7 +1,6 @@
-import React from "react";
 import { css } from "@emotion/react";
 
-import { ProgressCircle } from "@arizeai/components";
+import { ProgressCircle } from "@phoenix/components";
 
 export const LoadingMask = () => {
   return (

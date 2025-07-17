@@ -1,20 +1,36 @@
-import React from "react";
+import { useMemo } from "react";
 import { python } from "@codemirror/lang-python";
-import { nord } from "@uiw/codemirror-theme-nord";
-import CodeMirror, { ReactCodeMirrorProps } from "@uiw/react-codemirror";
+import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
+import CodeMirror, {
+  BasicSetupOptions,
+  ReactCodeMirrorProps,
+} from "@uiw/react-codemirror";
 
 import { useTheme } from "@phoenix/contexts";
 
-import { readOnlyCodeMirrorCSS } from "./styles";
-
 type PythonBlockProps = Omit<
   ReactCodeMirrorProps,
-  "theme" | "extensions" | "editable" | "basicSetup"
->;
+  "theme" | "extensions" | "editable"
+> & {
+  basicSetup?: BasicSetupOptions;
+};
 
 export function PythonBlock(props: PythonBlockProps) {
   const { theme } = useTheme();
-  const codeMirrorTheme = theme === "light" ? undefined : nord;
+  const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
+  const { basicSetup: propsBasicSetup = {} } = props;
+  const basicSetup = useMemo(() => {
+    return {
+      lineNumbers: false,
+      foldGutter: true,
+      bracketMatching: true,
+      syntaxHighlighting: true,
+      highlightActiveLine: false,
+      highlightActiveLineGutter: false,
+      ...(propsBasicSetup as object),
+    };
+  }, [propsBasicSetup]);
+
   return (
     <CodeMirror
       value={props.value}
@@ -22,15 +38,7 @@ export function PythonBlock(props: PythonBlockProps) {
       editable={false}
       theme={codeMirrorTheme}
       {...props}
-      basicSetup={{
-        lineNumbers: false,
-        foldGutter: true,
-        bracketMatching: true,
-        syntaxHighlighting: true,
-        highlightActiveLine: false,
-        highlightActiveLineGutter: false,
-      }}
-      css={readOnlyCodeMirrorCSS}
+      basicSetup={basicSetup}
     />
   );
 }

@@ -1,7 +1,18 @@
-import React from "react";
-import { useNavigate, useParams } from "react-router";
+import { Suspense } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 
-import { Dialog, DialogContainer } from "@arizeai/components";
+import { Dialog, Loading, Modal, ModalOverlay } from "@phoenix/components";
+import {
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+} from "@phoenix/components/dialog";
+import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
+import { TraceDetailsPaginator } from "@phoenix/pages/trace/TraceDetailsPaginator";
 
 import { TraceDetails } from "./TraceDetails";
 
@@ -10,19 +21,51 @@ import { TraceDetails } from "./TraceDetails";
  */
 export function TracePage() {
   const { traceId, projectId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { rootPath, tab } = useProjectRootPath();
+  const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
+
+  // if we are focused on a particular span, use that as the subjectId
+  // otherwise, use the traceId
+  const paginationSubjectId = selectedSpanNodeId || traceId;
+
   return (
-    <DialogContainer
-      type="slideOver"
-      isDismissable
-      onDismiss={() => navigate(`/projects/${projectId}`)}
+    <ModalOverlay
+      isOpen
+      onOpenChange={(isOpen) => {
+        if (!isOpen) {
+          navigate(`${rootPath}/${tab}`);
+        }
+      }}
     >
-      <Dialog size="fullscreen" title="Trace Details">
-        <TraceDetails
-          traceId={traceId as string}
-          projectId={projectId as string}
-        />
-      </Dialog>
-    </DialogContainer>
+      <Modal variant="slideover" size="fullscreen">
+        <Dialog>
+          {({ close }) => (
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Trace Details</DialogTitle>
+                <DialogTitleExtra>
+                  <TraceDetailsPaginator currentId={paginationSubjectId} />
+                  <ShareLinkButton
+                    preserveSearchParams
+                    buttonText="Share"
+                    tooltipText="Copy trace link to clipboard"
+                    successText="Trace link copied to clipboard"
+                  />
+                  <DialogCloseButton close={close} />
+                </DialogTitleExtra>
+              </DialogHeader>
+              <Suspense fallback={<Loading />}>
+                <TraceDetails
+                  traceId={traceId as string}
+                  projectId={projectId as string}
+                />
+              </Suspense>
+            </DialogContent>
+          )}
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
   );
 }

@@ -1,10 +1,11 @@
 import gzip
+from collections.abc import Callable
 from itertools import chain
-from typing import Any, Callable, Iterator, Optional, Tuple, Union, cast
+from typing import Any, Iterator, Optional, Union, cast
 
 import pandas as pd
 import pyarrow as pa
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from google.protobuf.message import DecodeError
 from pandas import DataFrame
 from sqlalchemy import select
@@ -27,6 +28,7 @@ from phoenix.db import models
 from phoenix.db.insertion.types import Precursors
 from phoenix.exceptions import PhoenixEvaluationNameIsMissing
 from phoenix.server.api.routers.utils import table_to_bytes
+from phoenix.server.authorization import is_not_locked
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.span_evaluations import (
     DocumentEvaluations,
@@ -39,11 +41,12 @@ from .utils import add_errors_to_responses
 
 EvaluationName: TypeAlias = str
 
-router = APIRouter(tags=["traces"], include_in_schema=False)
+router = APIRouter(tags=["traces"], include_in_schema=True)
 
 
 @router.post(
     "/evaluations",
+    dependencies=[Depends(is_not_locked)],
     operation_id="addEvaluations",
     summary="Add span, trace, or document evaluations",
     status_code=HTTP_204_NO_CONTENT,
@@ -208,8 +211,10 @@ async def _add_evaluations(state: State, evaluations: Evaluations) -> None:
         )
         for index, row in dataframe.iterrows():
             score, label, explanation = _get_annotation_result(row)
-            document_annotation = cls(cast(Union[Tuple[str, int], Tuple[int, str]], index))(
+            document_annotation = cls(cast(Union[tuple[str, int], tuple[int, str]], index))(
                 name=eval_name,
+                identifier="",
+                source="API",
                 annotator_kind="LLM",
                 score=score,
                 label=label,
@@ -222,6 +227,8 @@ async def _add_evaluations(state: State, evaluations: Evaluations) -> None:
             score, label, explanation = _get_annotation_result(row)
             span_annotation = _span_annotation_factory(cast(str, index))(
                 name=eval_name,
+                identifier="",
+                source="API",
                 annotator_kind="LLM",
                 score=score,
                 label=label,
@@ -234,6 +241,8 @@ async def _add_evaluations(state: State, evaluations: Evaluations) -> None:
             score, label, explanation = _get_annotation_result(row)
             trace_annotation = _trace_annotation_factory(cast(str, index))(
                 name=eval_name,
+                identifier="",
+                source="API",
                 annotator_kind="LLM",
                 score=score,
                 label=label,
@@ -245,7 +254,7 @@ async def _add_evaluations(state: State, evaluations: Evaluations) -> None:
 
 def _get_annotation_result(
     row: "pd.Series[Any]",
-) -> Tuple[Optional[float], Optional[str], Optional[str]]:
+) -> tuple[Optional[float], Optional[str], Optional[str]]:
     return (
         cast(Optional[float], row.get("score")),
         cast(Optional[str], row.get("label")),
@@ -257,7 +266,7 @@ def _document_annotation_factory(
     span_id_idx: int,
     document_position_idx: int,
 ) -> Callable[
-    [Union[Tuple[str, int], Tuple[int, str]]],
+    [Union[tuple[str, int], tuple[int, str]]],
     Callable[..., Precursors.DocumentAnnotation],
 ]:
     return lambda index: lambda **kwargs: Precursors.DocumentAnnotation(
@@ -356,6 +365,6 @@ def _read_sql_document_evaluations_into_dataframe(
 
 def _groupby_eval_name(
     evals_dataframe: DataFrame,
-) -> Iterator[Tuple[EvaluationName, DataFrame]]:
+) -> Iterator[tuple[EvaluationName, DataFrame]]:
     for eval_name, evals_dataframe_for_name in evals_dataframe.groupby("name", as_index=False):
         yield str(eval_name), evals_dataframe_for_name

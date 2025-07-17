@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e1b9ec2115d4d844de08733e98b4b001>>
+ * @generated SignedSource<<82fe27050c1e43c58c93c0cbc0142576>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type DimensionDataType = "categorical" | "numeric";
 export type DimensionType = "actual" | "feature" | "prediction" | "tag";
 export type DimensionPickerQuery$variables = Record<PropertyKey, never>;
@@ -36,7 +36,7 @@ var v0 = [
   {
     "alias": null,
     "args": null,
-    "concreteType": "Model",
+    "concreteType": "InferenceModel",
     "kind": "LinkedField",
     "name": "model",
     "plural": false,

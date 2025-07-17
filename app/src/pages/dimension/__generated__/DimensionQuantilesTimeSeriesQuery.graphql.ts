@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b8f1d6a64380a7fccd50ac0648153a18>>
+ * @generated SignedSource<<16488862606f2505ca2cfcb7d35d7d71>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,10 +8,10 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type TimeRange = {
-  end: string;
-  start: string;
+  end?: string | null;
+  start?: string | null;
 };
 export type Granularity = {
   evaluationWindowMinutes: number;
@@ -287,16 +287,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0bb3d9faf9d7f0c2e27995120ae24e1c",
+    "cacheID": "04ae2e4b101a75b965867de769810e0c",
     "id": null,
     "metadata": {},
     "name": "DimensionQuantilesTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query DimensionQuantilesTimeSeriesQuery(\n  $dimensionId: GlobalID!\n  $timeRange: TimeRange!\n  $granularity: Granularity!\n) {\n  dimension: node(id: $dimensionId) {\n    __typename\n    id\n    ... on Dimension {\n      p99TimeSeries: dataQualityTimeSeries(metric: p99, timeRange: $timeRange, granularity: $granularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n      p75TimeSeries: dataQualityTimeSeries(metric: p75, timeRange: $timeRange, granularity: $granularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n      p50TimeSeries: dataQualityTimeSeries(metric: p50, timeRange: $timeRange, granularity: $granularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n      p25TimeSeries: dataQualityTimeSeries(metric: p25, timeRange: $timeRange, granularity: $granularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n      p01TimeSeries: dataQualityTimeSeries(metric: p01, timeRange: $timeRange, granularity: $granularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query DimensionQuantilesTimeSeriesQuery(\n  $dimensionId: ID!\n  $timeRange: TimeRange!\n  $granularity: Granularity!\n) {\n  dimension: node(id: $dimensionId) {\n    __typename\n    id\n    ... on Dimension {\n      p99TimeSeries: dataQualityTimeSeries(metric: p99, timeRange: $timeRange, granularity: $granularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n      p75TimeSeries: dataQualityTimeSeries(metric: p75, timeRange: $timeRange, granularity: $granularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n      p50TimeSeries: dataQualityTimeSeries(metric: p50, timeRange: $timeRange, granularity: $granularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n      p25TimeSeries: dataQualityTimeSeries(metric: p25, timeRange: $timeRange, granularity: $granularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n      p01TimeSeries: dataQualityTimeSeries(metric: p01, timeRange: $timeRange, granularity: $granularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "134f0dad0e0ecc7863dfbb0f437d829b";
+(node as any).hash = "83342058bb8f50dad5bec299b4bc034d";
 
 export default node;

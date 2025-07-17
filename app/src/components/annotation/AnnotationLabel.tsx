@@ -1,15 +1,14 @@
-import React from "react";
+import { PropsWithChildren } from "react";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, Text } from "@arizeai/components";
-
+import { Flex, Icon, Icons, Text } from "@phoenix/components";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import { AnnotationColorSwatch } from "./AnnotationColorSwatch";
 import { Annotation } from "./types";
 
-type AnnotationDisplayPreference = "label" | "score";
+type AnnotationDisplayPreference = "label" | "score" | "none";
 
 export const baseAnnotationLabelCSS = css`
   border-radius: var(--ac-global-dimension-size-50);
@@ -17,9 +16,13 @@ export const baseAnnotationLabelCSS = css`
   padding: var(--ac-global-dimension-size-50)
     var(--ac-global-dimension-size-100);
   transition: background-color 0.2s;
-  &:hover {
-    background-color: var(--ac-global-color-grey-300);
+  &[data-clickable="true"] {
+    cursor: pointer;
+    &:hover {
+      background-color: var(--ac-global-color-grey-300);
+    }
   }
+
   .ac-icon-wrap {
     font-size: 12px;
   }
@@ -56,6 +59,8 @@ const getAnnotationDisplayValue = (
         annotation.label ||
         "n/a"
       );
+    case "none":
+      return "";
     default:
       assertUnreachable(displayPreference);
   }
@@ -65,17 +70,36 @@ export function AnnotationLabel({
   annotation,
   onClick,
   annotationDisplayPreference = "score",
-}: {
+  className,
+  children,
+  clickable: _clickable,
+  showClickableIcon = true,
+}: PropsWithChildren<{
   annotation: Annotation;
+  /**
+   * Override "clickable" detection. By default, clickable will only be true if onClick is provided.
+   * However, you may manually want to set this to true in cases where the annotation is wrapped in a
+   * clickable element (e.g. a dialog trigger, a link, etc).
+   */
+  clickable?: boolean;
+  /**
+   * When an annotation is clickable, this prop controls whether to show the click affordance icon.
+   * @default true
+   */
+  showClickableIcon?: boolean;
   onClick?: () => void;
   /**
    * The preferred value to display in the annotation label.
    * If the provided value is not available, it will fallback to an available value.
+   * - "label": Display the annotation label.
+   * - "score": Display the annotation score.
+   * - "none": Do not display the annotation label or score.
    * @default "score"
    */
   annotationDisplayPreference?: AnnotationDisplayPreference;
-}) {
-  const clickable = typeof onClick == "function";
+  className?: string;
+}>) {
+  const clickable = _clickable ?? typeof onClick == "function";
   const labelValue = getAnnotationDisplayValue(
     annotation,
     annotationDisplayPreference
@@ -84,36 +108,45 @@ export function AnnotationLabel({
   return (
     <div
       role={clickable ? "button" : undefined}
-      css={css(baseAnnotationLabelCSS, clickable && `cursor: pointer;`)}
+      data-clickable={clickable}
+      className={className}
+      css={css(baseAnnotationLabelCSS)}
       aria-label={
         clickable
           ? "Click to view the annotation trace"
           : `Annotation: ${annotation.name}`
       }
       onClick={(e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        onClick && onClick();
+        if (onClick) {
+          e.stopPropagation();
+          e.preventDefault();
+          onClick();
+        }
       }}
     >
       <Flex direction="row" gap="size-100" alignItems="center">
         <AnnotationColorSwatch annotationName={annotation.name} />
         <div css={textCSS}>
-          <Text weight="heavy" textSize="small" color="inherit">
+          <Text weight="heavy" size="XS" color="inherit">
             {annotation.name}
           </Text>
         </div>
-        <div
-          css={css(
-            textCSS,
-            css`
-              margin-left: var(--ac-global-dimension-100);
-            `
-          )}
-        >
-          <Text textSize="small">{labelValue}</Text>
-        </div>
-        {clickable ? <Icon svg={<Icons.ArrowIosForwardOutline />} /> : null}
+        {labelValue && (
+          <div
+            css={css(
+              textCSS,
+              css`
+                margin-left: var(--ac-global-dimension-100);
+              `
+            )}
+          >
+            <Text size="XS">{labelValue}</Text>
+          </div>
+        )}
+        {children}
+        {clickable && showClickableIcon ? (
+          <Icon svg={<Icons.ArrowIosForwardOutline />} />
+        ) : null}
       </Flex>
     </div>
   );

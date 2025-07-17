@@ -1,21 +1,30 @@
-import React, { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
 import {
-  Button,
   Dropdown,
   DropdownProps,
   Field,
   FieldProps,
-  Flex,
-  Form,
   Item,
   ListBox,
+} from "@arizeai/components";
+
+import {
+  Button,
+  FieldError,
+  Flex,
+  Form,
+  Input,
+  Label,
+  Text,
   TextArea,
   TextField,
   View,
-} from "@arizeai/components";
+} from "@phoenix/components";
+import { fieldBaseCSS } from "@phoenix/components/field/styles";
+import { prependBasename } from "@phoenix/utils/routingUtils";
 
 type CreateDatasetFromCSVParams = {
   file: FileList;
@@ -47,10 +56,11 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
     control,
     handleSubmit,
     resetField,
+    setValue,
     formState: { isDirty, isValid },
   } = useForm<CreateDatasetFromCSVParams>({
     defaultValues: {
-      name: "Dataset " + new Date().toISOString(),
+      name: "",
       input_keys: [],
       output_keys: [],
       metadata_keys: [],
@@ -62,7 +72,6 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
   const onSubmit = useCallback(
     (data: CreateDatasetFromCSVParams) => {
       const formData = new FormData();
-
       formData.append("file", data.file[0]);
       formData.append("name", data.name);
       formData.append("description", data.description);
@@ -76,7 +85,7 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
       data.metadata_keys.forEach((key) => {
         formData.append("metadata_keys[]", key);
       });
-      return fetch("/v1/datasets/upload?sync=true", {
+      return fetch(prependBasename("/v1/datasets/upload?sync=true"), {
         method: "POST",
         body: formData,
       })
@@ -108,60 +117,23 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
         `}
       >
         <Controller
-          name="name"
-          control={control}
-          rules={{
-            required: "field is required",
-          }}
-          render={({
-            field: { onChange, onBlur, value },
-            fieldState: { invalid, error },
-          }) => (
-            <TextField
-              label="Dataset Name"
-              description={`The name of the dataset`}
-              errorMessage={error?.message}
-              validationState={invalid ? "invalid" : "valid"}
-              onChange={onChange}
-              onBlur={onBlur}
-              value={value.toString()}
-            />
-          )}
-        />
-        <Controller
-          name="description"
-          control={control}
-          render={({
-            field: { onChange, onBlur, value },
-            fieldState: { invalid, error },
-          }) => (
-            <TextArea
-              label="description"
-              placeholder="Description of the dataset"
-              isRequired={false}
-              height={100}
-              errorMessage={error?.message}
-              validationState={invalid ? "invalid" : "valid"}
-              onChange={onChange}
-              onBlur={onBlur}
-              value={value.toString()}
-            />
-          )}
-        />
-        <Controller
           control={control}
           name="file"
           rules={{ required: "CSV file is required" }}
-          render={({
-            field: { value: _value, onChange, ...field },
-            fieldState: { invalid, error },
-          }) => {
+          render={({ field: { value: _value, onChange, ...field } }) => {
             return (
-              <Field
-                label="CSV file"
-                validationState={invalid ? "invalid" : "valid"}
-                errorMessage={error?.message}
+              <div
+                css={css(
+                  fieldBaseCSS,
+                  css`
+                    display: flex;
+                    flex-direction: column;
+                    gap: var(--ac-global-dimension-size-50);
+                    margin-bottom: var(--ac-global-dimension-size-200);
+                  `
+                )}
               >
+                <Label>CSV file</Label>
                 <input
                   {...field}
                   onChange={(event) => {
@@ -172,6 +144,7 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
                     resetField("metadata_keys");
                     const file = event.target.files?.[0];
                     if (file) {
+                      const name = file.name.split(".")[0];
                       const reader = new FileReader();
                       reader.onload = function (e) {
                         if (!e.target) {
@@ -180,6 +153,7 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
                         const text = e.target.result;
                         const columnNames = getColumnNames(text as string);
                         setColumns(columnNames);
+                        setValue("name", name);
                       };
                       reader.readAsText(file);
                     }
@@ -188,9 +162,58 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
                   id="file"
                   accept=".csv"
                 />
-              </Field>
+              </div>
             );
           }}
+        />
+        <Controller
+          name="name"
+          control={control}
+          rules={{
+            required: "field is required",
+          }}
+          render={({
+            field: { onChange, onBlur, value },
+            fieldState: { invalid, error },
+          }) => (
+            <TextField
+              isInvalid={invalid}
+              onChange={onChange}
+              onBlur={onBlur}
+              value={value.toString()}
+            >
+              <Label>Dataset Name</Label>
+              <Input placeholder="e.x. Golden Dataset" />
+              {error?.message ? (
+                <FieldError>{error.message}</FieldError>
+              ) : (
+                <Text slot="description">The name of the dataset</Text>
+              )}
+            </TextField>
+          )}
+        />
+        <Controller
+          name="description"
+          control={control}
+          render={({
+            field: { onChange, onBlur, value },
+            fieldState: { invalid, error },
+          }) => (
+            <TextField
+              isInvalid={invalid}
+              onChange={onChange}
+              onBlur={onBlur}
+              value={value.toString()}
+            >
+              <Label>Description</Label>
+              <TextArea placeholder="e.x. A dataset for structured data extraction" />
+              {error?.message ? (
+                <FieldError>{error.message}</FieldError>
+              ) : (
+                <Text slot="description">The description of the dataset</Text>
+              )}
+            </TextField>
+          )}
         />
 
         <Controller
@@ -263,8 +286,7 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
             type="submit"
             isDisabled={!isValid}
             variant={isDirty ? "primary" : "default"}
-            size="compact"
-            loading={false}
+            size="S"
           >
             Create Dataset
           </Button>

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ceec0f3392f199eb0837c7b2c15c8c7c>>
+ * @generated SignedSource<<8a0a704d47701ec99dbd41250b75c8be>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type datasetLoaderQuery$variables = {
   id: string;
 };
@@ -202,16 +202,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5b221627cf7e63f41fbec41027cc0951",
+    "cacheID": "997dd3d4849cc24ed81f11148c2a5d39",
     "id": null,
     "metadata": {},
     "name": "datasetLoaderQuery",
     "operationKind": "query",
-    "text": "query datasetLoaderQuery(\n  $id: GlobalID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      description\n      exampleCount\n      experimentCount\n      latestVersions: versions(first: 1, sort: {col: createdAt, dir: desc}) {\n        edges {\n          version: node {\n            id\n            description\n            createdAt\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query datasetLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      description\n      exampleCount\n      experimentCount\n      latestVersions: versions(first: 1, sort: {col: createdAt, dir: desc}) {\n        edges {\n          version: node {\n            id\n            description\n            createdAt\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "469da2debdebd608c88a6ef83c2540aa";
+(node as any).hash = "5ff18bc8372a865b84a24396d3b3782a";
 
 export default node;

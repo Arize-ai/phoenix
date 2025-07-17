@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ColumnDef,
   flexRender,
@@ -8,9 +8,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
-import { Flex, Icon, Icons } from "@arizeai/components";
-
-import { ExternalLink, LinkButton } from "@phoenix/components";
+import { Button, ExternalLink, Flex, Icon, Icons } from "@phoenix/components";
 import { Shape, ShapeIcon } from "@phoenix/components/pointcloud";
 import { FloatCell, TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
@@ -165,14 +163,15 @@ export function PointSelectionTable({
         size: 50,
         cell: ({ row }) => {
           return (
-            <LinkButton
+            <Button
               aria-label="view point details"
-              onClick={() => {
+              size="S"
+              onPress={() => {
                 onPointSelected(row.original.id);
               }}
             >
               view details
-            </LinkButton>
+            </Button>
           );
         },
       },
@@ -201,9 +200,7 @@ export function PointSelectionTable({
                 {header.isPlaceholder ? null : (
                   <div
                     {...{
-                      className: header.column.getCanSort()
-                        ? "cursor-pointer"
-                        : "",
+                      className: header.column.getCanSort() ? "sort" : "",
                       onClick: header.column.getToggleSortingHandler(),
                     }}
                   >

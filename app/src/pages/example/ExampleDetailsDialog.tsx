@@ -1,23 +1,26 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
+import { Card, CardProps } from "@arizeai/components";
+
 import {
-  Button,
-  Card,
-  CardProps,
+  CopyToClipboardButton,
   Dialog,
-  DialogContainer,
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
   Flex,
   Heading,
+  LinkButton,
   View,
-} from "@arizeai/components";
-
-import { CopyToClipboardButton } from "@phoenix/components";
+} from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
 import { resizeHandleCSS } from "@phoenix/components/resize";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useNotifySuccess } from "@phoenix/contexts";
 
 import type { ExampleDetailsDialogQuery } from "./__generated__/ExampleDetailsDialogQuery.graphql";
@@ -27,17 +30,11 @@ import { ExampleExperimentRunsTable } from "./ExampleExperimentRunsTable";
 /**
  * A Slide-over that shows the details of a dataset example.
  */
-export function ExampleDetailsDialog({
-  exampleId,
-  onDismiss,
-}: {
-  exampleId: string;
-  onDismiss: () => void;
-}) {
+export function ExampleDetailsDialog({ exampleId }: { exampleId: string }) {
   const [fetchKey, setFetchKey] = useState(0);
   const data = useLazyLoadQuery<ExampleDetailsDialogQuery>(
     graphql`
-      query ExampleDetailsDialogQuery($exampleId: GlobalID!) {
+      query ExampleDetailsDialogQuery($exampleId: ID!) {
         example: node(id: $exampleId) {
           ... on DatasetExample {
             id
@@ -48,11 +45,12 @@ export function ExampleDetailsDialog({
             }
             span {
               id
-              context {
-                traceId
-              }
-              project {
+              trace {
                 id
+                traceId
+                project {
+                  id
+                }
               }
             }
           }
@@ -78,32 +76,25 @@ export function ExampleDetailsDialog({
     }
     return {
       id: sourceSpan.id,
-      traceId: sourceSpan.context.traceId,
-      projectId: sourceSpan.project.id,
+      traceId: sourceSpan.trace.traceId,
+      projectId: sourceSpan.trace.project.id,
     };
   }, [data]);
   const { input, output, metadata } = revision;
-  const navigate = useNavigate();
   const notifySuccess = useNotifySuccess();
   return (
-    <DialogContainer type="slideOver" isDismissable onDismiss={onDismiss}>
-      <Dialog
-        size="XL"
-        title={`Example: ${exampleId}`}
-        extra={
-          <Flex direction="row" gap="size-100">
+    <Dialog>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Example: {exampleId}</DialogTitle>
+          <DialogTitleExtra>
             {sourceSpanInfo ? (
-              <Button
-                variant="default"
-                size="compact"
-                onClick={() => {
-                  navigate(
-                    `/projects/${sourceSpanInfo.projectId}/traces/${sourceSpanInfo.traceId}?selectedSpanNodeId=${sourceSpanInfo.id}`
-                  );
-                }}
+              <LinkButton
+                size="S"
+                to={`/projects/${sourceSpanInfo.projectId}/traces/${sourceSpanInfo.traceId}?${SELECTED_SPAN_NODE_ID_PARAM}=${sourceSpanInfo.id}`}
               >
                 View Source Span
-              </Button>
+              </LinkButton>
             ) : null}
             <EditExampleButton
               exampleId={exampleId as string}
@@ -116,11 +107,11 @@ export function ExampleDetailsDialog({
                 setFetchKey((key) => key + 1);
               }}
             />
-          </Flex>
-        }
-      >
+            <DialogCloseButton />
+          </DialogTitleExtra>
+        </DialogHeader>
         <PanelGroup direction="vertical" autoSaveId="example-panel-group">
-          <Panel defaultSize={200}>
+          <Panel defaultSize={65}>
             <div
               css={css`
                 overflow-y: auto;
@@ -128,13 +119,7 @@ export function ExampleDetailsDialog({
               `}
             >
               <Flex direction="row" justifyContent="center">
-                <View
-                  width="900px"
-                  paddingStart="auto"
-                  paddingEnd="auto"
-                  paddingTop="size-200"
-                  paddingBottom="size-200"
-                >
+                <View width="900px" padding="size-200">
                   <Flex direction="column" gap="size-200">
                     <Card
                       title="Input"
@@ -163,7 +148,7 @@ export function ExampleDetailsDialog({
             </div>
           </Panel>
           <PanelResizeHandle css={resizeHandleCSS} />
-          <Panel defaultSize={100}>
+          <Panel defaultSize={35}>
             <Flex direction="column" height="100%">
               <View
                 paddingStart="size-200"
@@ -180,8 +165,8 @@ export function ExampleDetailsDialog({
             </Flex>
           </Panel>
         </PanelGroup>
-      </Dialog>
-    </DialogContainer>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -1,9 +1,10 @@
 import logging
 import warnings
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 from phoenix.evals.models.base import BaseModel
+from phoenix.evals.templates import MultimodalPrompt
 
 if TYPE_CHECKING:
     from google.auth.credentials import Credentials
@@ -62,7 +63,7 @@ class VertexAIModel(BaseModel):
     model: str = "text-bison"
     tuned_model: Optional[str] = None
     temperature: float = 0.0
-    max_tokens: int = 256
+    max_tokens: int = 1024
     top_p: float = 0.95
     top_k: int = 40
 
@@ -149,13 +150,22 @@ class VertexAIModel(BaseModel):
     def verbose_generation_info(self) -> str:
         return f"VertexAI invocation parameters: {self.invocation_params}"
 
-    async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    async def _async_generate(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
+    ) -> str:
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
         return self._generate(prompt, **kwargs)
 
-    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]) -> str:
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
+        prompt_str = prompt.to_text_only_prompt()
         invoke_params = self.invocation_params
         response = self._model.predict(
-            prompt=prompt,
+            prompt=prompt_str,
             **invoke_params,
         )
         return str(response.text)

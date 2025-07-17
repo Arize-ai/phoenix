@@ -86,13 +86,15 @@ async def _insert_trace_evaluation(
         explanation=explanation,
         metadata_={},  # `metadata_` must match ORM
         annotator_kind="LLM",
+        identifier="",
+        source="API",
     )
     await session.execute(
         insert_on_conflict(
             values,
             dialect=dialect,
             table=models.TraceAnnotation,
-            unique_by=("name", "trace_rowid"),
+            unique_by=("name", "trace_rowid", "identifier"),
         )
     )
     return TraceEvaluationInsertionEvent(project_rowid, evaluation_name)
@@ -128,13 +130,15 @@ async def _insert_span_evaluation(
         explanation=explanation,
         metadata_={},  # `metadata_` must match ORM
         annotator_kind="LLM",
+        identifier="",
+        source="API",
     )
     await session.execute(
         insert_on_conflict(
             values,
             dialect=dialect,
             table=models.SpanAnnotation,
-            unique_by=("name", "span_rowid"),
+            unique_by=("name", "span_rowid", "identifier"),
         )
     )
     return SpanEvaluationInsertionEvent(project_rowid, evaluation_name)
@@ -179,13 +183,21 @@ async def _insert_document_evaluation(
         explanation=explanation,
         metadata_={},  # `metadata_` must match ORM
         annotator_kind="LLM",
+        identifier="",
+        source="API",
     )
     await session.execute(
         insert_on_conflict(
             values,
             dialect=dialect,
             table=models.DocumentAnnotation,
-            unique_by=("name", "span_rowid", "document_position"),
+            unique_by=(
+                "name",
+                "span_rowid",
+                "document_position",
+                "identifier",
+            ),
+            constraint_name="uq_document_annotations_name_span_rowid_document_pos_identifier",  # The name of the unique constraint is specified manually since the auto-generated name is longer than the Postgres limit of 63 characters  # noqa: E501
         )
     )
     return DocumentEvaluationInsertionEvent(project_rowid, evaluation_name)

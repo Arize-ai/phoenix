@@ -1,9 +1,10 @@
-import React, {
+import {
   startTransition,
   useCallback,
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
@@ -36,14 +37,14 @@ export function ExamplesTable({
 }) {
   const latestVersion = useDatasetContext((state) => state.latestVersion);
   const tableContainerRef = useRef<HTMLDivElement>(null);
-  const [rowSelection, setRowSelection] = React.useState({});
+  const [rowSelection, setRowSelection] = useState({});
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<ExamplesTableQuery, ExamplesTableFragment$key>(
       graphql`
         fragment ExamplesTableFragment on Dataset
         @refetchable(queryName: "ExamplesTableQuery")
         @argumentDefinitions(
-          datasetVersionId: { type: "GlobalID" }
+          datasetVersionId: { type: "ID" }
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 100 }
         ) {

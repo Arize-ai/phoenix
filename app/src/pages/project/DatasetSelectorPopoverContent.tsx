@@ -1,19 +1,17 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { css } from "@emotion/react";
 
+import { Card, Item, ListBox } from "@arizeai/components";
+
 import {
   Button,
-  Card,
   Flex,
-  Icon,
-  Icons,
-  Item,
-  ListBox,
+  Input,
+  SearchField,
   Text,
-  TextField,
   View,
-} from "@arizeai/components";
+} from "@phoenix/components";
 
 import { DatasetSelectorPopoverContent_datasets$key } from "./__generated__/DatasetSelectorPopoverContent_datasets.graphql";
 import { DatasetSelectorPopoverContentDatasetsQuery } from "./__generated__/DatasetSelectorPopoverContentDatasetsQuery.graphql";
@@ -45,26 +43,26 @@ export function DatasetSelectorPopoverContent(
       borderColor="light"
       bodyStyle={{ padding: 0 }}
       extra={
-        <Button variant="default" size="compact" onClick={onCreateNewDataset}>
+        <Button variant="default" size="S" onPress={onCreateNewDataset}>
           New Dataset
         </Button>
       }
     >
       <View padding="size-100">
-        <TextField
-          type="search"
-          placeholder="Search datasets"
-          addonBefore={<Icon svg={<Icons.Search />} />}
+        <SearchField
           onChange={(newSearch) => {
             setSearch(newSearch);
           }}
-        />
+        >
+          <Input placeholder="Search datasets" />
+        </SearchField>
       </View>
       <View borderTopWidth="thin" borderColor="light">
         <div
           css={css`
             height: 400px;
             overflow-y: auto;
+            min-width: 300px;
           `}
         >
           <DatasetsListBox
@@ -116,14 +114,16 @@ function DatasetsListBox(props: {
   const isEmpty = datasets.length === 0;
   if (isEmpty) {
     return (
-      <Flex
-        direction="column"
-        justifyContent="center"
-        alignItems="center"
-        flex="1 1 auto"
-      >
-        <Text>No datasets found</Text>
-      </Flex>
+      <View padding="size-200">
+        <Flex
+          direction="column"
+          justifyContent="center"
+          alignItems="center"
+          flex="1 1 auto"
+        >
+          <Text>No datasets found</Text>
+        </Flex>
+      </View>
     );
   }
   return (

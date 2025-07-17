@@ -1,22 +1,25 @@
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import Field
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from starlette.requests import Request
-from starlette.status import HTTP_404_NOT_FOUND
+from starlette.status import HTTP_404_NOT_FOUND, HTTP_409_CONFLICT
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.models import ExperimentRunOutput
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.authorization import is_not_locked
 from phoenix.server.dml_event import ExperimentRunInsertEvent
 
-from .pydantic_compat import V1RoutesBaseModel
+from .models import V1RoutesBaseModel
 from .utils import ResponseBody, add_errors_to_responses
 
-router = APIRouter(tags=["experiments"], include_in_schema=False)
+router = APIRouter(tags=["experiments"], include_in_schema=True)
 
 
 class ExperimentRun(V1RoutesBaseModel):
@@ -44,12 +47,13 @@ class CreateExperimentRunResponseBodyData(V1RoutesBaseModel):
     id: str = Field(description="The ID of the newly created experiment run")
 
 
-class CreateExperimentResponseBody(ResponseBody[CreateExperimentRunResponseBodyData]):
+class CreateExperimentRunResponseBody(ResponseBody[CreateExperimentRunResponseBodyData]):
     pass
 
 
 @router.post(
     "/experiments/{experiment_id}/runs",
+    dependencies=[Depends(is_not_locked)],
     operation_id="createExperimentRun",
     summary="Create run for an experiment",
     response_description="Experiment run created successfully",
@@ -58,13 +62,17 @@ class CreateExperimentResponseBody(ResponseBody[CreateExperimentRunResponseBodyD
             {
                 "status_code": HTTP_404_NOT_FOUND,
                 "description": "Experiment or dataset example not found",
-            }
+            },
+            {
+                "status_code": HTTP_409_CONFLICT,
+                "description": "This experiment run has already been submitted",
+            },
         ]
     ),
 )
 async def create_experiment_run(
     request: Request, experiment_id: str, request_body: CreateExperimentRunRequestBody
-) -> CreateExperimentResponseBody:
+) -> CreateExperimentRunResponseBody:
     experiment_gid = GlobalID.from_id(experiment_id)
     try:
         experiment_rowid = from_global_id_with_expected_type(experiment_gid, "Experiment")
@@ -101,11 +109,19 @@ async def create_experiment_run(
             end_time=end_time,
             error=error,
         )
-        session.add(exp_run)
-        await session.flush()
+        try:
+            session.add(exp_run)
+            await session.flush()
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+            raise HTTPException(
+                detail="This experiment run has already been submitted",
+                status_code=HTTP_409_CONFLICT,
+            )
     request.state.event_queue.put(ExperimentRunInsertEvent((exp_run.id,)))
     run_gid = GlobalID("ExperimentRun", str(exp_run.id))
-    return CreateExperimentResponseBody(data=CreateExperimentRunResponseBodyData(id=str(run_gid)))
+    return CreateExperimentRunResponseBody(
+        data=CreateExperimentRunResponseBodyData(id=str(run_gid))
+    )
 
 
 class ExperimentRunResponse(ExperimentRun):
@@ -113,7 +129,7 @@ class ExperimentRunResponse(ExperimentRun):
     experiment_id: str = Field(description="The ID of the experiment")
 
 
-class ListExperimentRunsResponseBody(ResponseBody[List[ExperimentRunResponse]]):
+class ListExperimentRunsResponseBody(ResponseBody[list[ExperimentRunResponse]]):
     pass
 
 

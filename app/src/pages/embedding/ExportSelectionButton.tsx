@@ -1,27 +1,36 @@
-import React, { Suspense, useCallback, useState } from "react";
+import { Suspense, useCallback, useState } from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { python } from "@codemirror/lang-python";
-import { nord } from "@uiw/codemirror-theme-nord";
+import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import CodeMirror from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
+import { Download, List, ListItem } from "@arizeai/components";
+
 import {
-  Accordion,
-  AccordionItem,
   Alert,
   Button,
   Dialog,
-  DialogContainer,
-  Download,
+  DialogTrigger,
+  Disclosure,
+  DisclosureGroup,
+  DisclosurePanel,
+  DisclosureTrigger,
   Icon,
-  List,
-  ListItem,
+  Icons,
+  Loading,
+  Modal,
+  ModalOverlay,
   View,
-} from "@arizeai/components";
-
-import { Loading } from "@phoenix/components";
-import { useTheme } from "@phoenix/contexts";
-import { usePointCloudContext } from "@phoenix/contexts";
+} from "@phoenix/components";
+import {
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+} from "@phoenix/components/dialog";
+import { usePointCloudContext, useTheme } from "@phoenix/contexts";
 
 import { ExportSelectionButtonExportsQuery } from "./__generated__/ExportSelectionButtonExportsQuery.graphql";
 import { ExportSelectionButtonMutation } from "./__generated__/ExportSelectionButtonMutation.graphql";
@@ -43,7 +52,7 @@ const codeMirrorCSS = css`
 `;
 function CodeBlock({ value }: { value: string }) {
   const { theme } = useTheme();
-  const codeMirrorTheme = theme === "light" ? undefined : nord;
+  const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
   return (
     <CodeMirror
       value={value}
@@ -71,91 +80,123 @@ export function ExportSelectionButton() {
     `
   );
   const [exportInfo, setExportInfo] = useState<ExportInfo | null>(null);
-  const onClick = useCallback(() => {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const onPress = useCallback(() => {
     commit({
       variables: {
         eventIds: [...selectedEventIds],
       },
       onCompleted: (data) => {
         setExportInfo(data.exportEvents);
+        setIsDialogOpen(true);
       },
     });
   }, [commit, selectedEventIds]);
 
+  const handleOpenChange = (isOpen: boolean) => {
+    setIsDialogOpen(isOpen);
+    if (!isOpen && !exportInfo) {
+      setExportInfo(null);
+    }
+  };
+
   return (
     <>
       <Button
-        variant="default"
-        size="compact"
-        icon={<Icon svg={<Download />} />}
+        size="S"
+        leadingVisual={
+          <Icon
+            svg={
+              isInFlight ? <Icons.LoadingOutline /> : <Icons.DownloadOutline />
+            }
+          />
+        }
         aria-label="Export selection / cluster"
-        loading={isInFlight}
-        onClick={onClick}
+        isDisabled={isInFlight}
+        onPress={onPress}
       >
         {isInFlight ? "Exporting" : "Export"}
       </Button>
-      <DialogContainer
-        type="slideOver"
-        isDismissable
-        onDismiss={() => setExportInfo(null)}
+
+      <DialogTrigger
+        isOpen={isDialogOpen && exportInfo !== null}
+        onOpenChange={handleOpenChange}
       >
-        {exportInfo != null && (
-          <Dialog title="Cluster Exports" size="M">
-            <Alert
-              variant="success"
-              banner
-              title="Export succeeded"
-              extra={
-                <Button
-                  variant="success"
-                  size="compact"
-                  onClick={() => {
-                    window.open(
-                      `/exports?filename=${exportInfo.fileName}`,
-                      "_self"
-                    );
-                  }}
-                >
-                  Download
-                </Button>
-              }
-            ></Alert>
-            <div
-              css={css`
-                display: flex;
-                flex-direction: column;
-                justify-content: space-between;
-                align-items: flex-start;
-                padding: 16px;
-                gap: 16px;
-              `}
-            >
-              <p
-                css={css`
-                  margin: 0;
-                  flex: 1 1 auto;
-                `}
-              >
-                You can retrieve your export in your notebook via
-              </p>
-              <View
-                borderColor="light"
-                borderWidth="thin"
-                borderRadius="medium"
-              >
-                <CodeBlock value={EXPORTS_CODE_SNIPPET} />
-              </View>
-            </div>
-            <Accordion>
-              <AccordionItem id="all-exports" title="Latest Exports">
-                <Suspense fallback={<Loading />}>
-                  <ExportsList />
-                </Suspense>
-              </AccordionItem>
-            </Accordion>
-          </Dialog>
-        )}
-      </DialogContainer>
+        <ModalOverlay isDismissable>
+          <Modal variant="slideover" size="M">
+            <Dialog>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Cluster Exports</DialogTitle>
+                  <DialogTitleExtra>
+                    <DialogCloseButton />
+                  </DialogTitleExtra>
+                </DialogHeader>
+                {exportInfo && (
+                  <>
+                    <Alert
+                      variant="success"
+                      banner
+                      title="Export succeeded"
+                      extra={
+                        <Button
+                          variant="success"
+                          size="S"
+                          onPress={() => {
+                            window.open(
+                              `/exports?filename=${exportInfo.fileName}`,
+                              "_self"
+                            );
+                          }}
+                        >
+                          Download
+                        </Button>
+                      }
+                    ></Alert>
+                    <div
+                      css={css`
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: space-between;
+                        align-items: flex-start;
+                        padding: 16px;
+                        gap: 16px;
+                      `}
+                    >
+                      <p
+                        css={css`
+                          margin: 0;
+                          flex: 1 1 auto;
+                        `}
+                      >
+                        You can retrieve your export in your notebook via
+                      </p>
+                      <View
+                        borderColor="light"
+                        borderWidth="thin"
+                        borderRadius="medium"
+                      >
+                        <CodeBlock value={EXPORTS_CODE_SNIPPET} />
+                      </View>
+                    </div>
+                    <DisclosureGroup defaultExpandedKeys={["all-exports"]}>
+                      <Disclosure id="all-exports">
+                        <DisclosureTrigger>Latest Exports</DisclosureTrigger>
+                        <DisclosurePanel>
+                          <Suspense fallback={<Loading />}>
+                            <ExportsList />
+                          </Suspense>
+                        </DisclosurePanel>
+                      </Disclosure>
+                    </DisclosureGroup>
+                  </>
+                )}
+              </DialogContent>
+            </Dialog>
+          </Modal>
+        </ModalOverlay>
+      </DialogTrigger>
     </>
   );
 }
@@ -190,11 +231,11 @@ function ExportsList() {
           >
             {fileInfo.fileName}
             <Button
-              size="compact"
+              size="S"
               aria-label="Download"
               variant="default"
-              icon={<Icon svg={<Download />} />}
-              onClick={() => {
+              leadingVisual={<Icon svg={<Download />} />}
+              onPress={() => {
                 window.open(`/exports?filename=${fileInfo.fileName}`, "_self");
               }}
             />

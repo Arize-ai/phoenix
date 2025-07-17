@@ -2,7 +2,7 @@
 name = "arize-phoenix-evals"
 description = "LLM Evaluations"
 readme = "README.md"
-requires-python = ">=3.8, <3.13"
+requires-python = ">=3.8, <3.14"
 license = {text="Elastic-2.0"}
 license-files = { paths = ["LICENSE", "IP_NOTICE"] }
 keywords = [
@@ -20,8 +20,9 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
 ]
-version = "0.15.1"
+version = "0.23.0"
 dependencies = [
   "pandas",
   "tqdm",
@@ -35,7 +36,7 @@ dev = [
   "litellm>=1.28.9",
   "openai>=1.0.0",
   "vertexai",
-  "mistralai<1",
+  "mistralai>=1.0.0",
 ]
 test = [
   "openinference-semantic-conventions",
@@ -46,16 +47,17 @@ test = [
   "boto3",
   "litellm>=1.28.9",
   "openai>=1.0.0",
-  "mistralai<1",
+  "mistralai>=1.0.0",
   "vertexai",
   "respx",
   "nest_asyncio",
   "pandas-stubs<=2.0.2.230605",
   "types-tqdm",
+  "lameenc"
 ]
 
 [project.urls]
-Documentation = "https://docs.arize.com/phoenix/"
+Documentation = "https://arize.com/docs/phoenix/"
 Issues = "https://github.com/Arize-ai/phoenix/issues"
 Source = "https://github.com/Arize-ai/phoenix"
 
@@ -101,7 +103,7 @@ force-single-line = false
 "*.ipynb" = ["E402", "E501"]
 
 [tool.ruff.format]
-line-ending = "lf"
+line-ending = "native"
 
 [tool.mypy]
 explicit_package_bases = true

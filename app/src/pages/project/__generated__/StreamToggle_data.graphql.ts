@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<75b14c405b52d9ef7a453a1476913604>>
+ * @generated SignedSource<<db47499276d3678b075fb071e7f6f1c2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type StreamToggle_data$data = {
   readonly id: string;

@@ -1,0 +1,6 @@
+/js @arize-ai/oss-javascript
+/app @arize-ai/oss-javascript
+/src @arize-ai/oss-python
+/packages @arize-ai/oss-python
+/examples @arize-ai/dev-rel @arize-ai/oss-eng
+/tutorials @arize-ai/dev-rel @arize-ai/oss-eng

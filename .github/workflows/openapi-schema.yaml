@@ -1,0 +1,28 @@
+name: OpenAPI Schema Backward Compatibility
+permissions:
+  contents: read
+
+on:
+  push:
+    paths:
+      - "schemas/openapi.json"
+  pull_request:
+    paths:
+      - "schemas/openapi.json"
+
+jobs:
+  openapi-schema-backward-compatibility:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          sparse-checkout: schemas/openapi.json
+          sparse-checkout-cone-mode: false
+      - name: Copy schema file
+        run: |
+          cp schemas/openapi.json .${{ github.sha }}.openapi.json
+          git checkout ${{ github.base_ref }}
+      - uses: docker://openapitools/openapi-diff
+        with:
+          args: --fail-on-incompatible schemas/openapi.json .${{ github.sha }}.openapi.json

@@ -2,6 +2,7 @@ import logging
 import shutil
 from binascii import hexlify
 from collections import defaultdict
+from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from io import StringIO
@@ -9,15 +10,8 @@ from random import getrandbits
 from tempfile import NamedTemporaryFile
 from time import sleep, time
 from typing import (
-    DefaultDict,
-    Dict,
-    Iterable,
-    Iterator,
-    List,
     NamedTuple,
     Optional,
-    Sequence,
-    Tuple,
     cast,
 )
 from urllib.parse import urljoin
@@ -28,7 +22,7 @@ from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
 from httpx import ConnectError, HTTPStatusError
 
 import phoenix.trace.v1 as pb
-from phoenix import Client
+from phoenix.session.client import Client
 from phoenix.trace.schemas import Span
 from phoenix.trace.trace_dataset import TraceDataset
 from phoenix.trace.utils import (
@@ -38,8 +32,6 @@ from phoenix.trace.utils import (
 )
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logger.addHandler(logging.NullHandler())
 
 
 class EvaluationResultSchema(NamedTuple):
@@ -147,6 +139,55 @@ demo_llama_index_rag_fixture = TracesFixture(
     ),
 )
 
+demo_toolcalling_fixture = TracesFixture(
+    name="demo_toolcalling",
+    project_name="demo_agent",
+    description="Tool calling traces",
+    file_name="agents-toolcalling-tracesv2.parquet",
+    dataset_fixtures=(
+        DatasetFixture(
+            file_name="questions.csv.gz",
+            input_keys=("query",),
+            output_keys=("responses",),
+            name="Valid Queries",
+            description="Valid queries for the demo agent",
+        ),
+        DatasetFixture(
+            file_name="invalid_questions.csv.gz",
+            input_keys=("query",),
+            output_keys=("responses",),
+            name="Invalid Queries",
+            description="Invalid queries for the demo agent",
+        ),
+    ),
+)
+
+demo_code_based_agent_fixture = TracesFixture(
+    name="demo_code_based_agent",
+    project_name="demo_agents",
+    description="LangGraph, LlamaIndex, and Code-based agent traces",
+    file_name="agent-demo-traces.parquet",
+)
+demo_langgraph_agent_fixture = TracesFixture(
+    name="demo_langgraph_agent",
+    project_name="demo_agents",
+    description="LangGraph, LlamaIndex, and Code-based agent traces",
+    file_name="langgraph-demo-traces-format-updated.parquet",
+)
+demo_llamaindex_workflows_agent_fixture = TracesFixture(
+    name="demo_llamaindex_workflows_agent",
+    project_name="demo_agents",
+    description="LangGraph, LlamaIndex, and Code-based agent traces",
+    file_name="llamaindex-workflow-demo-traces.parquet",
+)
+
+demo_o1_preview_timeseries_testing_fixture = TracesFixture(
+    name="demo_o1_preview_timeseries_evals",
+    project_name="demo_o1_preview_timeseries",
+    description="Shows the traces for a timeseries evaluation of o1-preview",
+    file_name="o1-traces-preview-testing.parquet",
+)
+
 demo_llama_index_rag_llm_fixture = TracesFixture(
     name="demo_llama_index_rag_llm",
     project_name="demo_llama_index_rag_llm",
@@ -204,6 +245,13 @@ llama_index_rag_fixture = TracesFixture(
     ),
 )
 
+project_sessions_llama_index_rag_arize_docs_fixture = TracesFixture(
+    name="project_sessions_llama_index_rag_arize_docs",
+    project_name="SESSIONS-DEMO",
+    file_name="project_sessions_demo_llama_index_query_engine_arize_docs.parquet",
+    description="RAG queries grouped by session.id and user.id.",
+)
+
 llama_index_calculator_agent_fixture = TracesFixture(
     name="llama_index_calculator_agent",
     description="Traces from running the llama_index with calculator tools.",
@@ -242,6 +290,13 @@ vision_fixture = TracesFixture(
     file_name="vision_fixture_trace_datasets.parquet",
 )
 
+anthropic_tools_fixture = TracesFixture(
+    name="anthropic_tools",
+    project_name="anthropic_tools",
+    description="Anthropic tools traces",
+    file_name="anthropic_tools.parquet",
+)
+
 random_fixture = TracesFixture(
     name="random",
     project_name="demo_random",
@@ -249,9 +304,13 @@ random_fixture = TracesFixture(
     file_name="random.jsonl",
 )
 
-TRACES_FIXTURES: List[TracesFixture] = [
+TRACES_FIXTURES: list[TracesFixture] = [
     demo_llama_index_rag_fixture,
     demo_llama_index_rag_llm_fixture,
+    demo_langgraph_agent_fixture,
+    demo_code_based_agent_fixture,
+    demo_llamaindex_workflows_agent_fixture,
+    demo_o1_preview_timeseries_testing_fixture,
     llama_index_rag_fixture,
     llama_index_rag_fixture_with_davinci,
     langchain_rag_stuff_document_chain_fixture,
@@ -260,12 +319,15 @@ TRACES_FIXTURES: List[TracesFixture] = [
     langchain_qa_with_sources_fixture,
     llama_index_calculator_agent_fixture,
     vision_fixture,
+    anthropic_tools_fixture,
+    project_sessions_llama_index_rag_arize_docs_fixture,
+    demo_toolcalling_fixture,
 ]
 
-NAME_TO_TRACES_FIXTURE: Dict[str, TracesFixture] = {
+NAME_TO_TRACES_FIXTURE: dict[str, TracesFixture] = {
     fixture.name: fixture for fixture in TRACES_FIXTURES
 }
-PROJ_NAME_TO_TRACES_FIXTURE: DefaultDict[str, List[TracesFixture]] = defaultdict(list)
+PROJ_NAME_TO_TRACES_FIXTURE: defaultdict[str, list[TracesFixture]] = defaultdict(list)
 for fixture in TRACES_FIXTURES:
     if fixture.project_name:
         PROJ_NAME_TO_TRACES_FIXTURE[fixture.project_name].append(fixture)
@@ -286,7 +348,7 @@ def get_trace_fixture_by_name(fixture_name: str) -> TracesFixture:
     return NAME_TO_TRACES_FIXTURE[fixture_name]
 
 
-def get_trace_fixtures_by_project_name(proj_name: str) -> List[TracesFixture]:
+def get_trace_fixtures_by_project_name(proj_name: str) -> list[TracesFixture]:
     """
     Returns a dictionary of project name (key) and set of TracesFixtures (value)
     whose project name matches the input name.
@@ -401,7 +463,7 @@ def _read_eval_fixture(eval_fixture: EvaluationFixture) -> Iterator[pb.Evaluatio
             explanation=StringValue(value=cast(str, explanation)) if explanation else None,
         )
         if isinstance(eval_fixture, DocumentEvaluationFixture):
-            span_id, document_position = cast(Tuple[str, int], index)
+            span_id, document_position = cast(tuple[str, int], index)
             # Legacy fixture files contain UUID strings for span_ids. The hyphens in these
             # strings need to be removed because we are also removing the hyphens from the
             # span_ids of their corresponding traces. In general, hyphen is not an allowed
@@ -440,10 +502,10 @@ def _url(
 def reset_fixture_span_ids_and_timestamps(
     spans: Iterable[Span],
     evals: Iterable[pb.Evaluation] = (),
-) -> Tuple[List[Span], List[pb.Evaluation]]:
+) -> tuple[list[Span], list[pb.Evaluation]]:
     old_spans, old_evals = list(spans), list(evals)
-    new_trace_ids: Dict[str, str] = {}
-    new_span_ids: Dict[str, str] = {}
+    new_trace_ids: dict[str, str] = {}
+    new_span_ids: dict[str, str] = {}
     for old_span in old_spans:
         new_trace_ids[old_span.context.trace_id] = _new_trace_id()
         new_span_ids[old_span.context.span_id] = _new_span_id()
@@ -459,8 +521,8 @@ def reset_fixture_span_ids_and_timestamps(
             new_span_ids[span_id] = _new_span_id()
     max_end_time = max(old_span.end_time for old_span in old_spans)
     time_diff = datetime.now(timezone.utc) - max_end_time
-    new_spans: List[Span] = []
-    new_evals: List[pb.Evaluation] = []
+    new_spans: list[Span] = []
+    new_evals: list[pb.Evaluation] = []
     for old_span in old_spans:
         new_trace_id = new_trace_ids[old_span.context.trace_id]
         new_span_id = new_span_ids[old_span.context.span_id]

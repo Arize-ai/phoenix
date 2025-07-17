@@ -1,33 +1,44 @@
-import React, { PropsWithChildren, Suspense, useEffect, useMemo } from "react";
+import { PropsWithChildren, Suspense, useMemo } from "react";
+import { Focusable } from "react-aria";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router";
 import { css } from "@emotion/react";
 
-import { Flex, Text, View } from "@arizeai/components";
-
-import { Loading } from "@phoenix/components";
 import {
-  AnnotationLabel,
-  AnnotationTooltip,
-} from "@phoenix/components/annotation";
-import { resizeHandleCSS } from "@phoenix/components/resize";
+  Flex,
+  LinkButton,
+  Loading,
+  RichTooltip,
+  Text,
+  TooltipArrow,
+  TooltipTrigger,
+  View,
+} from "@phoenix/components";
+import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
 import { useSpanStatusCodeColor } from "@phoenix/components/trace/useSpanStatusCodeColor";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import { costFormatter } from "@phoenix/utils/numberFormatUtils";
+
+import { RichTokenBreakdown } from "../../components/RichTokenCostBreakdown";
 
 import {
   TraceDetailsQuery,
   TraceDetailsQuery$data,
 } from "./__generated__/TraceDetailsQuery.graphql";
 import { SpanDetails } from "./SpanDetails";
-
-export const SELECTED_SPAN_NODE_ID_URL_PARAM = "selectedSpanNodeId";
+import { TraceHeaderRootSpanAnnotations } from "./TraceHeaderRootSpanAnnotations";
 
 type Span = NonNullable<
   TraceDetailsQuery$data["project"]["trace"]
 >["spans"]["edges"][number]["span"];
+
+type CostSummary = NonNullable<
+  TraceDetailsQuery$data["project"]["trace"]
+>["costSummary"];
 
 /**
  * A root span is defined to be a span whose parent span is not in our collection.
@@ -38,7 +49,7 @@ function findRootSpan(spansList: Span[]): Span | null {
   const rootSpan = spansList.find((span) => span.parentId == null);
   if (rootSpan) return rootSpan;
   // Otherwise we need to find all spans whose parent span is not in our collection.
-  const spanIds = new Set(spansList.map((span) => span.context.spanId));
+  const spanIds = new Set(spansList.map((span) => span.spanId));
   const rootSpans = spansList.filter(
     (span) => span.parentId != null && !spanIds.has(span.parentId)
   );
@@ -60,34 +71,48 @@ export function TraceDetails(props: TraceDetailsProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const data = useLazyLoadQuery<TraceDetailsQuery>(
     graphql`
-      query TraceDetailsQuery($traceId: ID!, $id: GlobalID!) {
+      query TraceDetailsQuery($traceId: ID!, $id: ID!) {
         project: node(id: $id) {
           ... on Project {
             trace(traceId: $traceId) {
+              projectSessionId
               spans(first: 1000) {
                 edges {
                   span: node {
                     id
-                    context {
-                      spanId
-                      traceId
-                    }
+                    spanId
                     name
                     spanKind
-                    statusCode: propagatedStatusCode
+                    statusCode
                     startTime
                     parentId
                     latencyMs
                     tokenCountTotal
-                    tokenCountPrompt
-                    tokenCountCompletion
-                    spanAnnotations {
+                    spanAnnotationSummaries {
+                      labels
+                      count
+                      labelCount
+                      labelFractions {
+                        fraction
+                        label
+                      }
                       name
-                      label
-                      score
-                      annotatorKind
+                      scoreCount
+                      meanScore
                     }
                   }
+                }
+              }
+              latencyMs
+              costSummary {
+                prompt {
+                  cost
+                }
+                completion {
+                  cost
+                }
+                total {
+                  cost
                 }
               }
             }
@@ -100,27 +125,17 @@ export function TraceDetails(props: TraceDetailsProps) {
       fetchPolicy: "store-and-network",
     }
   );
+  const traceLatencyMs =
+    data.project.trace?.latencyMs != null ? data.project.trace.latencyMs : null;
+  const costSummary = data?.project?.trace?.costSummary;
   const spansList: Span[] = useMemo(() => {
     const gqlSpans = data.project.trace?.spans.edges || [];
     return gqlSpans.map((node) => node.span);
   }, [data]);
-  const urlSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_URL_PARAM);
+  const urlSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
   const selectedSpanNodeId = urlSpanNodeId ?? spansList[0].id;
   const rootSpan = useMemo(() => findRootSpan(spansList), [spansList]);
 
-  // Clear the selected span param when the component unmounts
-  useEffect(() => {
-    return () => {
-      setSearchParams(
-        (searchParams) => {
-          searchParams.delete("spanNodeId");
-          return searchParams;
-        },
-        { replace: true }
-      );
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
   return (
     <main
       css={css`
@@ -130,7 +145,12 @@ export function TraceDetails(props: TraceDetailsProps) {
         flex-direction: column;
       `}
     >
-      <TraceHeader rootSpan={rootSpan} />
+      <TraceHeader
+        rootSpan={rootSpan}
+        latencyMs={traceLatencyMs}
+        costSummary={costSummary}
+        sessionId={data.project.trace?.projectSessionId}
+      />
       <PanelGroup
         direction="horizontal"
         autoSaveId="trace-panel-group"
@@ -139,7 +159,7 @@ export function TraceDetails(props: TraceDetailsProps) {
           overflow: hidden;
         `}
       >
-        <Panel defaultSize={30} minSize={10} maxSize={70}>
+        <Panel defaultSize={30} minSize={5}>
           <ScrollingPanelContent>
             <TraceTree
               spans={spansList}
@@ -147,7 +167,7 @@ export function TraceDetails(props: TraceDetailsProps) {
               onSpanClick={(span) => {
                 setSearchParams(
                   (searchParams) => {
-                    searchParams.set(SELECTED_SPAN_NODE_ID_URL_PARAM, span.id);
+                    searchParams.set(SELECTED_SPAN_NODE_ID_PARAM, span.id);
                     return searchParams;
                   },
                   { replace: true }
@@ -156,15 +176,12 @@ export function TraceDetails(props: TraceDetailsProps) {
             />
           </ScrollingPanelContent>
         </Panel>
-        <PanelResizeHandle css={resizeHandleCSS} />
+        <PanelResizeHandle css={compactResizeHandleCSS} />
         <Panel>
           <ScrollingTabsWrapper>
             {selectedSpanNodeId ? (
               <Suspense fallback={<Loading />}>
-                <SpanDetails
-                  spanNodeId={selectedSpanNodeId}
-                  projectId={projectId}
-                />
+                <SpanDetails spanNodeId={selectedSpanNodeId} />
               </Suspense>
             ) : null}
           </ScrollingTabsWrapper>
@@ -174,64 +191,115 @@ export function TraceDetails(props: TraceDetailsProps) {
   );
 }
 
-function TraceHeader({ rootSpan }: { rootSpan: Span | null }) {
-  const { latencyMs, statusCode, spanAnnotations } = rootSpan ?? {
-    latencyMs: null,
+function TraceHeader({
+  rootSpan,
+  latencyMs,
+  costSummary,
+  sessionId,
+}: {
+  rootSpan: Span | null;
+  latencyMs: number | null;
+  costSummary?: CostSummary | null;
+  sessionId?: string | null;
+}) {
+  const { projectId } = useParams();
+  const { statusCode } = rootSpan ?? {
     statusCode: "UNSET",
-    spanAnnotations: [],
   };
-  const hasAnnotations = spanAnnotations.length > 0;
   const statusColor = useSpanStatusCodeColor(statusCode);
   return (
-    <View padding="size-200" borderBottomWidth="thin" borderBottomColor="dark">
-      <Flex direction="row" gap="size-400">
+    <View
+      paddingTop="size-100"
+      paddingBottom="size-150"
+      paddingX="size-200"
+      borderBottomWidth="thin"
+      borderBottomColor="dark"
+    >
+      <Flex
+        direction="row"
+        gap="size-400"
+        alignItems="center"
+        css={css`
+          box-sizing: content-box;
+        `}
+      >
         <Flex direction="column">
-          <Text elementType="h3" textSize="medium" color="text-700">
+          <Text elementType="h3" size="S" color="text-700">
             Trace Status
           </Text>
-          <Text textSize="xlarge">
+          <Text size="XL">
             <Flex direction="row" gap="size-50" alignItems="center">
               <SpanStatusCodeIcon statusCode={statusCode} />
-              <Text textSize="xlarge" color={statusColor}>
+              <Text size="L" color={statusColor}>
                 {statusCode}
               </Text>
             </Flex>
           </Text>
         </Flex>
         <Flex direction="column">
-          <Text elementType="h3" textSize="medium" color="text-700">
+          <Text elementType="h3" size="S" color="text-700">
+            Total Cost
+          </Text>
+          <TooltipTrigger delay={0}>
+            <Focusable>
+              <Text size="L">
+                {costFormatter(costSummary?.total?.cost ?? 0)}
+              </Text>
+            </Focusable>
+            <RichTooltip placement="bottom">
+              <TooltipArrow />
+              <View width="size-3600">
+                <RichTokenBreakdown
+                  valueLabel="cost"
+                  totalValue={costSummary?.total?.cost ?? 0}
+                  formatter={costFormatter}
+                  segments={[
+                    {
+                      name: "Prompt",
+                      value: costSummary?.prompt?.cost ?? 0,
+                      color: "rgba(254, 119, 99, 1)",
+                    },
+                    {
+                      name: "Completion",
+                      value: costSummary?.completion?.cost ?? 0,
+                      color: "rgba(98, 104, 239, 1)",
+                    },
+                  ]}
+                />
+              </View>
+            </RichTooltip>
+          </TooltipTrigger>
+        </Flex>
+        <Flex direction="column">
+          <Text elementType="h3" size="S" color="text-700">
             Latency
           </Text>
-          <Text textSize="xlarge">
+          <Text size="XL">
             {typeof latencyMs === "number" ? (
-              <LatencyText latencyMs={latencyMs} textSize="xlarge" />
+              <LatencyText latencyMs={latencyMs} size="L" />
             ) : (
               "--"
             )}
           </Text>
         </Flex>
-        {hasAnnotations ? (
-          <Flex direction="column" gap="size-50">
-            <Text elementType="h3" textSize="medium" color="text-700">
-              Feedback
-            </Text>
-            <Flex direction="row" gap="size-50">
-              {spanAnnotations.map((annotation) => {
-                return (
-                  <AnnotationTooltip
-                    key={annotation.name}
-                    annotation={annotation}
-                  >
-                    <AnnotationLabel
-                      annotation={annotation}
-                      annotationDisplayPreference="label"
-                    />
-                  </AnnotationTooltip>
-                );
-              })}
-            </Flex>
-          </Flex>
+        {rootSpan ? (
+          <TraceHeaderRootSpanAnnotations spanId={rootSpan.id} />
         ) : null}
+        {sessionId && (
+          <span
+            css={css`
+              margin-left: auto;
+            `}
+          >
+            <LinkButton
+              size="S"
+              variant="primary"
+              to={`/projects/${projectId}/sessions/${sessionId}`}
+            >
+              View Session
+            </LinkButton>
+          </span>
+        )}
       </Flex>
     </View>
   );

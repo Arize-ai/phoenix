@@ -6,7 +6,7 @@ The velocity of AI application development is bottlenecked by quality evaluation
 
 ## Datasets
 
-Datasets are integral to evaluation. They are collections of examples that provide the `inputs` and, optionally, expected `reference` outputs for assessing your application.  Datasets allow you to collect data from production, staging, evaluations, and even manually. The examples collected are used to run experiments and evaluations to track improvements to your prompt, LLM, or other parts of your LLM application.
+Datasets are integral to evaluation. They are collections of examples that provide the `inputs` and, optionally, expected `reference` outputs for assessing your application. Datasets allow you to collect data from production, staging, evaluations, and even manually. The examples collected are used to run experiments and evaluations to track improvements to your prompt, LLM, or other parts of your LLM application.
 
 ## Experiments
 
@@ -20,11 +20,3 @@ Specifically, good evals help you:
 * Drill down into good / bad examples
 * Compare specific examples vs. prior runs
 * Avoid guesswork
-
-
-
-
-
-
-
-\

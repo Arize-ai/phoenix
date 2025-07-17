@@ -1,0 +1,126 @@
+# vpc‑two‑az.yaml  –  minimal 2‑AZ VPC with public + private subnets + NAT
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Two-AZ VPC (10.0.0.0/16) with public & private subnets
+
+Parameters:
+  AZ1: {Type: AWS::EC2::AvailabilityZone::Name}
+  AZ2: {Type: AWS::EC2::AvailabilityZone::Name}
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags: [{Key: Name, Value: phoenix-vpc}]
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties: {VpcId: !Ref VPC}
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  # ---------- Public subnets ----------
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Ref AZ1
+      CidrBlock: 10.0.0.0/24
+      MapPublicIpOnLaunch: true
+      Tags: [{Key: Name, Value: public-az1}]
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Ref AZ2
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+      Tags: [{Key: Name, Value: public-az2}]
+
+  AssocPub1:                       # attach route table
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  AssocPub2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+
+  # ---------- NAT for private subnets ----------
+  NatEIP:
+    Type: AWS::EC2::EIP
+    Properties: {Domain: vpc}
+
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEIP.AllocationId
+      SubnetId: !Ref PublicSubnet1
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties: {VpcId: !Ref VPC}
+
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  # ---------- Private subnets ----------
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Ref AZ1
+      CidrBlock: 10.0.10.0/24
+      Tags: [{Key: Name, Value: private-az1}]
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Ref AZ2
+      CidrBlock: 10.0.11.0/24
+      Tags: [{Key: Name, Value: private-az2}]
+
+  AssocPriv1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet1
+      RouteTableId: !Ref PrivateRouteTable
+
+  AssocPriv2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet2
+      RouteTableId: !Ref PrivateRouteTable
+
+Outputs:
+  VpcId:               {Value: !Ref VPC,               Export: {Name: Phoenix-VpcId}}
+  PublicSubnetIds:     {Value: !Join [',', [!Ref PublicSubnet1,  !Ref PublicSubnet2]],
+                        Export: {Name: Phoenix-PublicSubnets}}
+  PrivateSubnetIds:    {Value: !Join [',', [!Ref PrivateSubnet1, !Ref PrivateSubnet2]],
+                        Export: {Name: Phoenix-PrivateSubnets}}
+

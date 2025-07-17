@@ -1,18 +1,26 @@
 # Setup Tracing
 
-Phoenix uses OTLP (OpenTelemetry Language Protocol) to receive traces from your application. First you will have to setup you application to send traces to phoenix.
+[setup-using-phoenix-otel.md](setup-using-phoenix-otel.md "mention")
 
+* Learn how to use the `phoenix.otel` library
 
+[custom-spans.md](custom-spans.md "mention")
 
-<table data-card-size="large" data-view="cards"><thead><tr><th></th><th></th><th></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td></td><td><a data-mention href="setup-tracing-python/">setup-tracing-python</a></td><td></td><td><a href="../../../.gitbook/assets/python.png">python.png</a></td></tr><tr><td></td><td><a data-mention href="setup-tracing-ts.md">setup-tracing-ts.md</a></td><td></td><td><a href="../../../.gitbook/assets/javascript.png">javascript.png</a></td></tr></tbody></table>
+* Learn how you can use basic OpenTelemetry to instrument your application.
 
-## Next Steps
+[instrument-python.md](instrument-python.md "mention")
 
-Phoenix supports many integrations in the form of auto-Instrumentors as well as manually creating spans by instrumenting your code:
+* Learn how to use Phoenix's decorators to easily instrument specific methods or code blocks in your application.
 
-[instrumentation](../instrumentation/ "mention")
+[javascript.md](javascript.md "mention")
 
-[manual-instrumentation](../manual-instrumentation/ "mention")
+* Setup tracing for your TypeScript application.
 
-####
+[setup-projects.md](setup-projects.md "mention")
+
+* Learn about Projects in Phoenix, and how to use them.
+
+[setup-sessions.md](setup-sessions.md "mention")
+
+* Understand Sessions and how they can be used to group user conversations.
 

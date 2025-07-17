@@ -1,7 +1,8 @@
-import React, {
+import {
   startTransition,
   useDeferredValue,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { useParams } from "react-router";
@@ -11,27 +12,26 @@ import {
   CompletionResult,
 } from "@codemirror/autocomplete";
 import { python } from "@codemirror/lang-python";
-import { nord } from "@uiw/codemirror-theme-nord";
+import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
 import { fetchQuery, graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
-import {
-  AddonBefore,
-  Button,
-  Field,
-  Flex,
-  Form,
-  HelpTooltip,
-  Icon,
-  Icons,
-  PopoverTrigger,
-  Text,
-  TooltipTrigger,
-  TriggerWrap,
-  View,
-} from "@arizeai/components";
+import { AddonBefore, Field } from "@arizeai/components";
 
+import {
+  Button,
+  DialogTrigger,
+  Flex,
+  Icon,
+  IconButton,
+  Icons,
+  Popover,
+  Text,
+  Tooltip,
+  TooltipTrigger,
+  View,
+} from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
 import environment from "@phoenix/RelayEnvironment";
 
@@ -44,7 +44,7 @@ const codeMirrorCSS = css`
     padding: var(--ac-global-dimension-static-size-100) 0;
   }
   .cm-editor {
-    background-color: transparent;
+    background-color: transparent !important;
   }
   .cm-focused {
     outline: none;
@@ -215,7 +215,7 @@ async function isConditionValid(condition: string, projectId: string) {
       graphql`
         query SpanFilterConditionFieldValidationQuery(
           $condition: String!
-          $id: GlobalID!
+          $id: ID!
         ) {
           project: node(id: $id) {
             ... on Project {
@@ -268,9 +268,11 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
     useSpanFilterCondition();
   const deferredFilterCondition = useDeferredValue(filterCondition);
   const { theme } = useTheme();
-  const codeMirrorTheme = theme === "dark" ? nord : undefined;
+  const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
 
   const { projectId } = useParams();
+
+  const filterConditionFieldRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     isConditionValid(deferredFilterCondition, projectId as string).then(
@@ -295,6 +297,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
       data-is-invalid={hasError}
       className="span-filter-condition-field"
       css={fieldCSS}
+      ref={filterConditionFieldRef}
     >
       <Flex direction="row">
         <AddonBefore>
@@ -333,37 +336,34 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
         >
           <Icon svg={<Icons.CloseCircleOutline />} />
         </button>
-        <PopoverTrigger placement="bottom right">
-          <TriggerWrap>
-            <button
-              css={css`
-                color: var(--ac-global-text-color-700);
-                background-color: var(--ac-global-color-grey-400);
-                padding-left: var(--ac-global-dimension-static-size-100);
-                padding-right: var(--ac-global-dimension-static-size-100);
-                height: 100%;
-              `}
-              className="button--reset"
-            >
-              <Icon svg={<Icons.PlusCircleOutline />} />
-            </button>
-          </TriggerWrap>
-          <FilterConditionBuilder
-            onAddFilterConditionSnippet={appendFilterCondition}
-          />
-        </PopoverTrigger>
+        <DialogTrigger>
+          <IconButton
+            css={css`
+              color: var(--ac-global-text-color-700);
+              background-color: var(--ac-global-color-grey-300);
+              padding-left: var(--ac-global-dimension-static-size-100);
+              padding-right: var(--ac-global-dimension-static-size-100);
+              height: 100%;
+            `}
+            className="button--reset"
+          >
+            <Icon svg={<Icons.PlusCircleOutline />} />
+          </IconButton>
+          <Popover placement="bottom right">
+            <FilterConditionBuilder
+              onAddFilterConditionSnippet={appendFilterCondition}
+            />
+          </Popover>
+        </DialogTrigger>
       </Flex>
-      <TooltipTrigger isOpen={hasError && isFocused} placement="bottom">
-        <TriggerWrap>
-          <div />
-        </TriggerWrap>
-        <HelpTooltip>
+      <TooltipTrigger isOpen={hasError && isFocused}>
+        <Tooltip placement="bottom" triggerRef={filterConditionFieldRef}>
           {errorMessage != "" ? (
             <Text color="danger">{errorMessage}</Text>
           ) : (
             <Text color="success">Valid Expression</Text>
           )}
-        </HelpTooltip>
+        </Tooltip>
       </TooltipTrigger>
     </div>
   );
@@ -380,15 +380,11 @@ function FilterConditionBuilder(props: {
   return (
     <View
       width="500px"
-      paddingTop="size-200"
-      paddingStart="size-200"
-      paddingEnd="size-200"
+      padding="size-200"
       borderRadius="medium"
-      borderWidth="thin"
-      borderColor="light"
       backgroundColor="light"
     >
-      <Form>
+      <Flex direction="column" gap="size-100">
         <FilterConditionSnippet
           key="kind"
           label="filter by kind"
@@ -431,7 +427,7 @@ function FilterConditionBuilder(props: {
           initialSnippet="'agent' in input.value"
           onAddFilterConditionSnippet={onAddFilterConditionSnippet}
         />
-      </Form>
+      </Flex>
     </View>
   );
 }
@@ -447,7 +443,7 @@ function FilterConditionSnippet(props: {
   const { initialSnippet, onAddFilterConditionSnippet } = props;
   const [snippet, setSnippet] = useState<string>(initialSnippet);
   const { theme } = useTheme();
-  const codeMirrorTheme = theme === "light" ? undefined : nord;
+  const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
   return (
     <Field label={props.label}>
       <Flex direction="row" width="100%" gap="size-100">
@@ -477,10 +473,10 @@ function FilterConditionSnippet(props: {
           />
         </div>
         <Button
-          title="Add to filter condition"
+          aria-label="Add to filter condition"
           variant="default"
-          onClick={() => onAddFilterConditionSnippet(snippet)}
-          icon={<Icon svg={<Icons.PlusCircleOutline />} />}
+          onPress={() => onAddFilterConditionSnippet(snippet)}
+          leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
         />
       </Flex>
     </Field>

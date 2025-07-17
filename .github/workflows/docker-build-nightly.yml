@@ -1,5 +1,6 @@
 name: Publish nightly Docker image
-
+permissions:
+  contents: read
 on:
   push:
     branches:

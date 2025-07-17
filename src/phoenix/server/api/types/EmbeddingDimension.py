@@ -1,7 +1,8 @@
 from collections import defaultdict
+from collections.abc import Iterable, Iterator
 from datetime import timedelta
 from itertools import chain, repeat
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple, Union, cast
+from typing import Any, Optional, Union, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -14,6 +15,7 @@ from strawberry.types import Info
 from typing_extensions import Annotated
 
 import phoenix.core.model_schema as ms
+from phoenix.core import model_schema
 from phoenix.core.model_schema import (
     ACTUAL_LABEL,
     ACTUAL_SCORE,
@@ -92,14 +94,14 @@ class EmbeddingDimension(Node):
         if model[REFERENCE].empty:
             return None
         dataset = model[PRIMARY]
-        time_range, granularity = ensure_timeseries_parameters(
+        resolved_time_range, granularity = ensure_timeseries_parameters(
             dataset,
             time_range,
         )
         data = get_drift_timeseries_data(
             self.dimension,
             metric,
-            time_range,
+            resolved_time_range,
             granularity,
             pd.DataFrame(
                 {self.dimension.name: self.dimension[REFERENCE]},
@@ -126,14 +128,14 @@ class EmbeddingDimension(Node):
             return None
         model = info.context.model
         dataset = model[PRIMARY]
-        time_range, granularity = ensure_timeseries_parameters(
+        resolved_time_range, granularity = ensure_timeseries_parameters(
             dataset,
             time_range,
         )
         data = get_drift_timeseries_data(
             self.dimension,
             metric,
-            time_range,
+            resolved_time_range,
             granularity,
             pd.DataFrame(
                 {self.dimension.name: self.dimension(corpus[PRIMARY])},
@@ -166,7 +168,7 @@ class EmbeddingDimension(Node):
         if not isinstance(inferences_role, InferencesRole):
             inferences_role = InferencesRole.primary
         dataset = info.context.model[inferences_role.value]
-        time_range, granularity = ensure_timeseries_parameters(
+        resolved_time_range, granularity = ensure_timeseries_parameters(
             dataset,
             time_range,
             granularity,
@@ -175,7 +177,7 @@ class EmbeddingDimension(Node):
             data=get_data_quality_timeseries_data(
                 self.dimension,
                 metric,
-                time_range,
+                resolved_time_range,
                 granularity,
                 inferences_role,
             )
@@ -202,7 +204,7 @@ class EmbeddingDimension(Node):
         if model[REFERENCE].empty:
             return DriftTimeSeries(data=[])
         dataset = model[PRIMARY]
-        time_range, granularity = ensure_timeseries_parameters(
+        resolved_time_range, granularity = ensure_timeseries_parameters(
             dataset,
             time_range,
             granularity,
@@ -211,7 +213,7 @@ class EmbeddingDimension(Node):
             data=get_drift_timeseries_data(
                 self.dimension,
                 metric,
-                time_range,
+                resolved_time_range,
                 granularity,
                 pd.DataFrame(
                     {self.dimension.name: self.dimension[REFERENCE]},
@@ -241,7 +243,7 @@ class EmbeddingDimension(Node):
             return DriftTimeSeries(data=[])
         model = info.context.model
         dataset = model[PRIMARY]
-        time_range, granularity = ensure_timeseries_parameters(
+        resolved_time_range, granularity = ensure_timeseries_parameters(
             dataset,
             time_range,
             granularity,
@@ -250,7 +252,7 @@ class EmbeddingDimension(Node):
             data=get_drift_timeseries_data(
                 self.dimension,
                 metric,
-                time_range,
+                resolved_time_range,
                 granularity,
                 pd.DataFrame(
                     {self.dimension.name: self.dimension(corpus[PRIMARY])},
@@ -313,16 +315,20 @@ class EmbeddingDimension(Node):
         ] = DEFAULT_CLUSTER_SELECTION_EPSILON,
     ) -> UMAPPoints:
         model = info.context.model
-        data: Dict[ID, npt.NDArray[np.float64]] = {}
-        retrievals: List[Tuple[ID, Any, Any]] = []
+        data: dict[ID, npt.NDArray[np.float64]] = {}
+        retrievals: list[tuple[ID, Any, Any]] = []
         for inferences in model[Inferences]:
             inferences_id = inferences.role
             row_id_start, row_id_stop = 0, len(inferences)
             if inferences_id is PRIMARY:
+                resolved_time_range = model_schema.TimeRange(
+                    start=time_range.start or inferences.time_range.start,
+                    stop=time_range.end or inferences.time_range.stop,
+                )
                 row_id_start, row_id_stop = row_interval_from_sorted_time_index(
                     time_index=cast(pd.DatetimeIndex, inferences.index),
-                    time_start=time_range.start,
-                    time_stop=time_range.end,
+                    time_start=resolved_time_range.start,
+                    time_stop=resolved_time_range.stop,
                 )
             vector_column = self.dimension[inferences_id]
             samples_collected = 0
@@ -353,7 +359,7 @@ class EmbeddingDimension(Node):
                         )
                     )
 
-        context_retrievals: List[Retrieval] = []
+        context_retrievals: list[Retrieval] = []
         if isinstance(
             self.dimension,
             ms.RetrievalEmbeddingDimension,
@@ -414,7 +420,7 @@ class EmbeddingDimension(Node):
             ),
         ).generate(data, n_components=n_components)
 
-        points: Dict[Union[InferencesRole, AncillaryInferencesRole], List[UMAPPoint]] = defaultdict(
+        points: dict[Union[InferencesRole, AncillaryInferencesRole], list[UMAPPoint]] = defaultdict(
             list
         )
         for event_id, vector in vectors.items():
@@ -422,17 +428,17 @@ class EmbeddingDimension(Node):
             if isinstance(inferences_role, InferencesRole):
                 dataset = model[inferences_role.value]
                 embedding_metadata = EmbeddingMetadata(
-                    prediction_id=dataset[PREDICTION_ID][row_id],
-                    link_to_data=dataset[self.dimension.link_to_data][row_id],
-                    raw_data=dataset[self.dimension.raw_data][row_id],
+                    prediction_id=dataset[PREDICTION_ID].iloc[row_id],
+                    link_to_data=dataset[self.dimension.link_to_data].iloc[row_id],
+                    raw_data=dataset[self.dimension.raw_data].iloc[row_id],
                 )
             elif (corpus := info.context.corpus) is not None:
                 dataset = corpus[PRIMARY]
                 dimension = cast(ms.EmbeddingDimension, corpus[PROMPT])
                 embedding_metadata = EmbeddingMetadata(
-                    prediction_id=dataset[PREDICTION_ID][row_id],
-                    link_to_data=dataset[dimension.link_to_data][row_id],
-                    raw_data=dataset[dimension.raw_data][row_id],
+                    prediction_id=dataset[PREDICTION_ID].iloc[row_id],
+                    link_to_data=dataset[dimension.link_to_data].iloc[row_id],
+                    raw_data=dataset[dimension.raw_data].iloc[row_id],
                 )
             else:
                 continue
@@ -445,10 +451,10 @@ class EmbeddingDimension(Node):
                     event_id=event_id,
                     coordinates=to_gql_coordinates(vector),
                     event_metadata=EventMetadata(
-                        prediction_label=dataset[PREDICTION_LABEL][row_id],
-                        prediction_score=dataset[PREDICTION_SCORE][row_id],
-                        actual_label=dataset[ACTUAL_LABEL][row_id],
-                        actual_score=dataset[ACTUAL_SCORE][row_id],
+                        prediction_label=dataset[PREDICTION_LABEL].iloc[row_id],
+                        prediction_score=dataset[PREDICTION_SCORE].iloc[row_id],
+                        actual_label=dataset[ACTUAL_LABEL].iloc[row_id],
+                        actual_score=dataset[ACTUAL_SCORE].iloc[row_id],
                     ),
                     embedding_metadata=embedding_metadata,
                 )
@@ -476,7 +482,7 @@ def _row_indices(
         return
     shuffled_indices = np.arange(start, stop)
     np.random.shuffle(shuffled_indices)
-    yield from shuffled_indices
+    yield from shuffled_indices  # type: ignore[misc,unused-ignore]
 
 
 def to_gql_embedding_dimension(

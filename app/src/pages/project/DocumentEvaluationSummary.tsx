@@ -1,19 +1,10 @@
-import React, { startTransition, Suspense, useEffect } from "react";
+import { startTransition, Suspense, useEffect } from "react";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { useParams } from "react-router";
 
-import {
-  Flex,
-  HelpTooltip,
-  Text,
-  TooltipTrigger,
-  TriggerWrap,
-  View,
-} from "@arizeai/components";
-
-import { useLastNTimeRange } from "@phoenix/components/datetime";
+import { Flex, Text } from "@phoenix/components";
+import { useTimeRange } from "@phoenix/components/datetime";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
-import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import { DocumentEvaluationSummaryQuery } from "./__generated__/DocumentEvaluationSummaryQuery.graphql";
 import { DocumentEvaluationSummaryValueFragment$key } from "./__generated__/DocumentEvaluationSummaryValueFragment.graphql";
@@ -26,12 +17,12 @@ export function DocumentEvaluationSummary({
   evaluationName,
 }: DocumentEvaluationSummaryProps) {
   const { projectId } = useParams();
-  const { timeRange } = useLastNTimeRange();
+  const { timeRange } = useTimeRange();
   const data = useLazyLoadQuery<DocumentEvaluationSummaryQuery>(
     graphql`
       query DocumentEvaluationSummaryQuery(
         $evaluationName: String!
-        $id: GlobalID!
+        $id: ID!
         $timeRange: TimeRange!
       ) {
         project: node(id: $id) {
@@ -44,17 +35,17 @@ export function DocumentEvaluationSummary({
       id: projectId as string,
       evaluationName,
       timeRange: {
-        start: timeRange.start.toISOString(),
-        end: timeRange.end.toISOString(),
+        start: timeRange?.start?.toISOString(),
+        end: timeRange?.end?.toISOString(),
       },
     }
   );
   return (
     <Flex direction="column" flex="none">
-      <Text elementType="h3" textSize="medium" color="text-700">
+      <Text elementType="h3" size="S" color="text-700">
         {evaluationName}
       </Text>
-      <Suspense fallback={<Text textSize="xlarge">--</Text>}>
+      <Suspense fallback={<Text size="L">--</Text>}>
         <EvaluationSummaryValue
           evaluationName={evaluationName}
           project={data?.project}
@@ -105,68 +96,22 @@ function EvaluationSummaryValue(props: {
   const averageNdcg = data?.documentEvaluationSummary?.averageNdcg;
   const averagePrecision = data?.documentEvaluationSummary?.averagePrecision;
   const hitRate = data?.documentEvaluationSummary?.hitRate;
-  const meanReciprocalRank =
-    data?.documentEvaluationSummary?.meanReciprocalRank;
 
   return (
-    <TooltipTrigger delay={0} placement="bottom">
-      <TriggerWrap>
-        <Flex direction="row" alignItems="center" gap="size-50" height="28px">
-          <>
-            <RetrievalEvaluationLabel
-              key="ndcg"
-              metric="ndcg"
-              score={averageNdcg}
-            />
-            <RetrievalEvaluationLabel
-              key="precision"
-              metric="precision"
-              score={averagePrecision}
-            />
-            <RetrievalEvaluationLabel
-              key="hit"
-              metric="hit rate"
-              score={hitRate}
-            />
-          </>
-        </Flex>
-      </TriggerWrap>
-      <HelpTooltip>
-        <View width="size-2400">
-          <Flex direction="column">
-            <Flex justifyContent="space-between">
-              <Text>average ndcg</Text>
-              <Text>
-                {typeof averageNdcg === "number"
-                  ? formatFloat(averageNdcg)
-                  : "--"}
-              </Text>
-            </Flex>
-            <Flex justifyContent="space-between">
-              <Text>average precision</Text>
-              <Text>
-                {typeof averagePrecision === "number"
-                  ? formatFloat(averagePrecision)
-                  : "--"}
-              </Text>
-            </Flex>
-            <Flex justifyContent="space-between">
-              <Text>mean reciprocal rank</Text>
-              <Text>
-                {typeof meanReciprocalRank === "number"
-                  ? formatFloat(meanReciprocalRank)
-                  : "--"}
-              </Text>
-            </Flex>
-            <Flex justifyContent="space-between">
-              <Text>hit rate</Text>
-              <Text>
-                {typeof hitRate === "number" ? formatFloat(hitRate) : "--"}
-              </Text>
-            </Flex>
-          </Flex>
-        </View>
-      </HelpTooltip>
-    </TooltipTrigger>
+    <Flex direction="row" alignItems="center" gap="size-50" height="28px">
+      <>
+        <RetrievalEvaluationLabel
+          key="ndcg"
+          metric="ndcg"
+          score={averageNdcg}
+        />
+        <RetrievalEvaluationLabel
+          key="precision"
+          metric="precision"
+          score={averagePrecision}
+        />
+        <RetrievalEvaluationLabel key="hit" metric="hit rate" score={hitRate} />
+      </>
+    </Flex>
   );
 }

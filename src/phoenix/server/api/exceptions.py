@@ -27,6 +27,19 @@ class Unauthorized(CustomGraphQLError):
     """
 
 
+class InsufficientStorage(CustomGraphQLError):
+    """
+    An error raised when the database has insufficient storage to complete a request.
+    """
+
+
+class Conflict(CustomGraphQLError):
+    """
+    An error raised when a mutation cannot be completed due to a conflict with
+    the current state of one or more resources.
+    """
+
+
 def get_mask_errors_extension() -> MaskErrors:
     return MaskErrors(
         should_mask_error=_should_mask_error,

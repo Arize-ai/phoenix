@@ -1,21 +1,23 @@
-import React, { Suspense, useMemo } from "react";
+import { Suspense, useCallback, useMemo } from "react";
 import { Outlet } from "react-router";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons } from "@arizeai/components";
-
-import { Loading } from "@phoenix/components";
+import { Flex, Icon, Icons, Loading } from "@phoenix/components";
 import {
   Brand,
   DocsLink,
   GitHubLink,
+  ManagementLink,
   NavBreadcrumb,
+  NavButton,
   NavLink,
   SideNavbar,
   ThemeToggle,
   TopNavbar,
 } from "@phoenix/components/nav";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
+import { prependBasename } from "@phoenix/utils/routingUtils";
 
 const layoutCSS = css`
   display: flex;
@@ -74,21 +76,25 @@ export function Layout() {
 }
 
 function SideNav() {
+  const isDashboardsEnabled = useFeatureFlag("dashboards");
   const hasInferences = useMemo(() => {
     return window.Config.hasInferences;
   }, []);
   const { authenticationEnabled } = useFunctionality();
+  const onLogout = useCallback(() => {
+    window.location.replace(prependBasename("/auth/logout"));
+  }, []);
   return (
     <SideNavbar>
       <Brand />
       <Flex direction="column" justifyContent="space-between" flex="1 1 auto">
         <ul css={sideLinksCSS}>
           {hasInferences && (
-            <li>
+            <li key="model">
               <NavLink
                 to="/model"
                 text="Model"
-                icon={<Icon svg={<Icons.CubeOutline />} />}
+                leadingVisual={<Icon svg={<Icons.CubeOutline />} />}
               />
             </li>
           )}
@@ -96,49 +102,91 @@ function SideNav() {
             <NavLink
               to="/projects"
               text="Projects"
-              icon={<Icon svg={<Icons.GridOutline />} />}
+              leadingVisual={<Icon svg={<Icons.GridOutline />} />}
             />
           </li>
-          <li>
+          {isDashboardsEnabled && (
+            <li key="dashboards">
+              <NavLink
+                to="/dashboards"
+                text="Dashboards"
+                leadingVisual={<Icon svg={<Icons.BarChartOutline />} />}
+              />
+            </li>
+          )}
+          <li key="datasets">
             <NavLink
               to="/datasets"
               text="Datasets"
-              icon={<Icon svg={<Icons.DatabaseOutline />} />}
+              leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
             />
           </li>
-          <li>
+          <li key="playground">
+            <NavLink
+              to="/playground"
+              text="Playground"
+              leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+            />
+          </li>
+          <li key="prompts">
+            <NavLink
+              to="/prompts"
+              text="Prompts"
+              leadingVisual={<Icon svg={<Icons.MessageSquareOutline />} />}
+            />
+          </li>
+          <li key="apis">
             <NavLink
               to="/apis"
               text="APIs"
-              icon={<Icon svg={<Icons.Code />} />}
+              leadingVisual={<Icon svg={<Icons.Code />} />}
             />
           </li>
         </ul>
         <ul css={bottomLinksCSS}>
-          <li>
-            <NavLink
-              to="/settings"
-              text="Settings"
-              icon={<Icon svg={<Icons.SettingsOutline />} />}
-            />
-          </li>
-          <li>
-            <DocsLink />
-          </li>
-          <li>
+          <li key="github">
             <GitHubLink />
           </li>
-          <li>
+          <li key="settings">
+            <NavLink
+              to="/settings/general"
+              text="Settings"
+              leadingVisual={<Icon svg={<Icons.SettingsOutline />} />}
+            />
+          </li>
+          <li key="docs">
+            <DocsLink />
+          </li>
+          <li key="support">
+            <NavLink
+              to="/support"
+              text="Support"
+              leadingVisual={<Icon svg={<Icons.LifeBuoy />} />}
+            />
+          </li>
+          <li key="theme-toggle">
             <ThemeToggle />
           </li>
           {authenticationEnabled && (
-            <li>
-              <NavLink
-                to="/profile"
-                text="Profile"
-                icon={<Icon svg={<Icons.PersonOutline />} />}
-              />
-            </li>
+            <>
+              <li key="profile">
+                <NavLink
+                  to="/profile"
+                  text="Profile"
+                  leadingVisual={<Icon svg={<Icons.PersonOutline />} />}
+                />
+              </li>
+              <Suspense>
+                <ManagementLink />
+              </Suspense>
+              <li key="logout">
+                <NavButton
+                  text="Log Out"
+                  leadingVisual={<Icon svg={<Icons.LogOut />} />}
+                  onClick={onLogout}
+                />
+              </li>
+            </>
           )}
         </ul>
       </Flex>

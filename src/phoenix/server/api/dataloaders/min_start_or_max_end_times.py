@@ -1,12 +1,6 @@
 from collections import defaultdict
 from datetime import datetime
-from typing import (
-    DefaultDict,
-    List,
-    Literal,
-    Optional,
-    Tuple,
-)
+from typing import Literal, Optional
 
 from cachetools import LFUCache
 from sqlalchemy import func, select
@@ -23,7 +17,7 @@ ProjectRowId: TypeAlias = int
 Segment: TypeAlias = ProjectRowId
 Param: TypeAlias = Kind
 
-Key: TypeAlias = Tuple[ProjectRowId, Kind]
+Key: TypeAlias = tuple[ProjectRowId, Kind]
 Result: TypeAlias = Optional[datetime]
 ResultPosition: TypeAlias = int
 DEFAULT_VALUE: Result = None
@@ -41,7 +35,7 @@ class MinStartOrMaxEndTimeCache(
             sub_cache_factory=lambda: LFUCache(maxsize=2),
         )
 
-    def _cache_key(self, key: Key) -> Tuple[_Section, _SubKey]:
+    def _cache_key(self, key: Key) -> tuple[_Section, _SubKey]:
         return key
 
 
@@ -57,11 +51,11 @@ class MinStartOrMaxEndTimeDataLoader(DataLoader[Key, Result]):
         )
         self._db = db
 
-    async def _load_fn(self, keys: List[Key]) -> List[Result]:
-        results: List[Result] = [DEFAULT_VALUE] * len(keys)
-        arguments: DefaultDict[
+    async def _load_fn(self, keys: list[Key]) -> list[Result]:
+        results: list[Result] = [DEFAULT_VALUE] * len(keys)
+        arguments: defaultdict[
             Segment,
-            DefaultDict[Param, List[ResultPosition]],
+            defaultdict[Param, list[ResultPosition]],
         ] = defaultdict(lambda: defaultdict(list))
         for position, key in enumerate(keys):
             segment, param = key

@@ -1,16 +1,7 @@
-import React, { ReactNode, useCallback, useMemo, useState } from "react";
+import { memo, ReactNode, useCallback, useMemo, useState } from "react";
 import { useContextBridge } from "@react-three/drei";
-import { css } from "@emotion/react";
-import { ThemeContext as EmotionThemeContext } from "@emotion/react";
+import { css, ThemeContext as EmotionThemeContext } from "@emotion/react";
 
-import {
-  ActionTooltip,
-  Button,
-  Heading,
-  Icon,
-  InfoOutline,
-  TooltipTrigger,
-} from "@arizeai/components";
 import {
   Axes,
   getThreeDimensionalBounds,
@@ -21,6 +12,14 @@ import {
   ThreeDimensionalControls,
 } from "@arizeai/point-cloud";
 
+import {
+  Button,
+  Heading,
+  Icon,
+  Icons,
+  RichTooltip,
+  TooltipTrigger,
+} from "@phoenix/components";
 import { UNKNOWN_COLOR } from "@phoenix/constants/pointCloudConstants";
 import {
   InferencesContext,
@@ -73,9 +72,11 @@ const PointCloudInfo = function PointCloudInfo() {
     <section
       css={css`
         width: 300px;
-        padding: var(--px-spacing-med);
       `}
     >
+      <Heading level={2} weight="heavy" style={{ marginBottom: 8 }}>
+        Point Cloud Summary
+      </Heading>
       <dl css={descriptionListCSS}>
         <div>
           <dt>Timestamp</dt>
@@ -147,7 +148,7 @@ const descriptionListCSS = css`
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    gap: var(--px-spacing-sm);
+    gap: var(--ac-global-dimension-static-size-50);
   }
 `;
 
@@ -162,13 +163,13 @@ function CanvasTools() {
     <div
       css={css`
         position: absolute;
-        left: var(--px-spacing-med);
-        top: var(--px-spacing-med);
+        left: var(--ac-global-dimension-static-size-100);
+        top: var(--ac-global-dimension-static-size-100);
         z-index: 1;
         display: flex;
         flex-direction: row;
         align-items: center;
-        gap: var(--px-spacing-med);
+        gap: var(--ac-global-dimension-static-size-100);
       `}
     >
       <CanvasModeRadioGroup mode={canvasMode} onChange={setCanvasMode} />
@@ -183,16 +184,15 @@ function CanvasTools() {
  */
 function CanvasInfo() {
   return (
-    <TooltipTrigger placement="bottom left" delay={0}>
+    <TooltipTrigger delay={0}>
       <Button
-        variant="default"
-        size="compact"
-        icon={<Icon svg={<InfoOutline />} />}
+        size="S"
+        leadingVisual={<Icon svg={<Icons.InfoOutline />} />}
         aria-label="Information bout the point-cloud display"
       />
-      <ActionTooltip title={"Point Cloud Summary"}>
+      <RichTooltip placement="bottom left">
         <PointCloudInfo />
-      </ActionTooltip>
+      </RichTooltip>
     </TooltipTrigger>
   );
 }
@@ -231,7 +231,7 @@ export function PointCloud() {
   );
 }
 
-const Projection = React.memo(function Projection() {
+const Projection = memo(function Projection() {
   const points = usePointCloudContext((state) => state.points);
   const canvasMode = usePointCloudContext((state) => state.canvasMode);
   const setSelectedEventIds = usePointCloudContext(

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f10fbd896f47cd64471075f4f1f24f48>>
+ * @generated SignedSource<<cb7eb84798872f704be0e5731b13ff8a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type DatasetsTable_datasets$data = {
   readonly datasets: {
@@ -43,6 +43,11 @@ return {
       "defaultValue": null,
       "kind": "LocalArgument",
       "name": "after"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "filter"
     },
     {
       "defaultValue": 100,
@@ -86,6 +91,11 @@ return {
     {
       "alias": "datasets",
       "args": [
+        {
+          "kind": "Variable",
+          "name": "filter",
+          "variableName": "filter"
+        },
         {
           "kind": "Variable",
           "name": "sort",
@@ -216,6 +226,6 @@ return {
 };
 })();
 
-(node as any).hash = "fa378bc7ec26f5e877e6cf90e5ee553d";
+(node as any).hash = "7e2060873b57927f5b7eac64411dbc94";
 
 export default node;

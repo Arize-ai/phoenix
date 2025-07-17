@@ -1,15 +1,16 @@
-import React from "react";
 import { timeFormat } from "d3-time-format";
 import { css } from "@emotion/react";
 
+import { FieldColorDesignation } from "@arizeai/components";
+
 import {
-  FieldColorDesignation,
+  Input,
+  Label,
   TextField,
   Tooltip,
+  TooltipArrow,
   TooltipTrigger,
-  TriggerWrap,
-} from "@arizeai/components";
-
+} from "@phoenix/components";
 import { useInferences } from "@phoenix/contexts";
 
 const timeFormatter = timeFormat("%x %X");
@@ -31,24 +32,26 @@ export function ReferenceInferencesTimeRange({
     <div
       css={css`
         .ac-textfield {
-          min-width: 371px;
+          min-width: 331px;
         }
       `}
     >
       <FieldColorDesignation color={"designationPurple"}>
         <TooltipTrigger>
-          <TriggerWrap>
-            <TextField
-              label="reference inferences"
-              isReadOnly
-              aria-label={"reference inferences time range"}
-              value={`${timeFormatter(timeRange.start)} - ${timeFormatter(
-                timeRange.end
-              )}`}
-              addonBefore={nameAbbr}
-            />
-          </TriggerWrap>
-          <Tooltip>The static time range of the reference inferences</Tooltip>
+          <TextField
+            isReadOnly
+            aria-label={"reference inferences time range"}
+            value={`${timeFormatter(timeRange.start)} - ${timeFormatter(
+              timeRange.end
+            )}`}
+          >
+            <Label>{`${nameAbbr} inferences`}</Label>
+            <Input />
+          </TextField>
+          <Tooltip>
+            <TooltipArrow />
+            The static time range of the reference inferences
+          </Tooltip>
         </TooltipTrigger>
       </FieldColorDesignation>
     </div>

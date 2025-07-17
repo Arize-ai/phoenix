@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from openinference.semconv.trace import SpanAttributes
 
@@ -22,7 +22,7 @@ INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
 OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
 
 
-def json_to_attributes(obj: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+def json_to_attributes(obj: Optional[dict[str, Any]]) -> dict[str, Any]:
     if obj is None:
         return {}
     if not isinstance(obj, dict):
@@ -34,7 +34,7 @@ def json_to_attributes(obj: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     return obj
 
 
-def json_to_span(data: Dict[str, Any]) -> Any:
+def json_to_span(data: dict[str, Any]) -> Any:
     """
     A hook for json.loads to convert a dict to a Span object.
     """

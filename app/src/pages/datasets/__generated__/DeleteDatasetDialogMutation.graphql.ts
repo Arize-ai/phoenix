@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<75c393b1d6d1d353271b06c3e1a7edf1>>
+ * @generated SignedSource<<6de4dbc0eec53e1d0dab5cdeadd90ed2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Mutation } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type DeleteDatasetDialogMutation$variables = {
   datasetId: string;
 };
@@ -80,16 +80,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "3d32b97acd630dd7dbc9c85a632a1d49",
+    "cacheID": "dd7db4b6f6eac9ceaecd096c341e427c",
     "id": null,
     "metadata": {},
     "name": "DeleteDatasetDialogMutation",
     "operationKind": "mutation",
-    "text": "mutation DeleteDatasetDialogMutation(\n  $datasetId: GlobalID!\n) {\n  deleteDataset(input: {datasetId: $datasetId}) {\n    __typename\n  }\n}\n"
+    "text": "mutation DeleteDatasetDialogMutation(\n  $datasetId: ID!\n) {\n  deleteDataset(input: {datasetId: $datasetId}) {\n    __typename\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7066cca7015a7e344b77862b0bdab21c";
+(node as any).hash = "bd97316dd472eec18504f66e16088abc";
 
 export default node;

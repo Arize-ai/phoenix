@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<eb1441a6fa51d5f393026b7cd14db970>>
+ * @generated SignedSource<<cc6cbeee8c9f639b56ea8f44d182fda5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,11 +8,11 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type TimeRange = {
-  end: string;
-  start: string;
+  end?: string | null;
+  start?: string | null;
 };
 export type DocumentEvaluationSummaryValueQuery$variables = {
   evaluationName: string;
@@ -121,10 +121,6 @@ return {
             "storageKey": null
           },
           {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
-          {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
@@ -183,12 +179,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "60d7798d88e1408e6b6b0bebdc1716f5",
+    "cacheID": "129953ba27b24f48a92cca26e4b7c447",
     "id": null,
     "metadata": {},
     "name": "DocumentEvaluationSummaryValueQuery",
     "operationKind": "query",
-    "text": "query DocumentEvaluationSummaryValueQuery(\n  $evaluationName: String!\n  $timeRange: TimeRange!\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...DocumentEvaluationSummaryValueFragment_1dJL9N\n    __isNode: __typename\n    id\n  }\n}\n\nfragment DocumentEvaluationSummaryValueFragment_1dJL9N on Project {\n  documentEvaluationSummary(evaluationName: $evaluationName, timeRange: $timeRange) {\n    averageNdcg\n    averagePrecision\n    meanReciprocalRank\n    hitRate\n  }\n  id\n}\n"
+    "text": "query DocumentEvaluationSummaryValueQuery(\n  $evaluationName: String!\n  $timeRange: TimeRange!\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...DocumentEvaluationSummaryValueFragment_1dJL9N\n    id\n  }\n}\n\nfragment DocumentEvaluationSummaryValueFragment_1dJL9N on Project {\n  documentEvaluationSummary(evaluationName: $evaluationName, timeRange: $timeRange) {\n    averageNdcg\n    averagePrecision\n    meanReciprocalRank\n    hitRate\n  }\n  id\n}\n"
   }
 };
 })();

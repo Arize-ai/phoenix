@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 import strawberry
 from strawberry import UNSET
@@ -30,6 +30,6 @@ class PatchDatasetExamplesInput:
     Input type to the patchDatasetExamples mutation.
     """
 
-    patches: List[DatasetExamplePatch]
+    patches: list[DatasetExamplePatch]
     version_description: Optional[str] = UNSET
     version_metadata: Optional[JSON] = UNSET

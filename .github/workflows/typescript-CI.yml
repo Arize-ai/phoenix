@@ -1,8 +1,10 @@
 name: Typescript CI
+permissions:
+  contents: read
 
 on:
   push:
-    branches: [main, auth]
+    branches: [main, feat/bedrock, feat/cost]
   pull_request:
     paths:
       - "app/**"
@@ -23,7 +25,13 @@ jobs:
       - name: Install PNPM
         uses: pnpm/action-setup@v3
         with:
-          version: 9.8.0
+          version: 10.2.0
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          cache-dependency-path: ./app/pnpm-lock.yaml
+          node-version: lts/*
+          cache: "pnpm"
       - name: Install dependencies
         working-directory: ./app
         run: pnpm install --frozen-lockfile

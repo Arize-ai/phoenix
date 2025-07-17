@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3a5aeea28d9a5b831c4b4c47a1840ffe>>
+ * @generated SignedSource<<c221be1b506c052eff9b4ad45cdf9290>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type DatasetHistoryDialogQuery$variables = {
   datasetId: string;
@@ -110,10 +110,6 @@ return {
         "plural": false,
         "selections": [
           (v3/*: any*/),
-          {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
           (v2/*: any*/),
           {
             "kind": "InlineFragment",
@@ -218,16 +214,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "df94b4e72c0187fd0fd1c8416af19354",
+    "cacheID": "32daf6127be134a61ec8a066b23d2f28",
     "id": null,
     "metadata": {},
     "name": "DatasetHistoryDialogQuery",
     "operationKind": "query",
-    "text": "query DatasetHistoryDialogQuery(\n  $datasetId: GlobalID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      id\n      ...DatasetHistoryTable_versions\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment DatasetHistoryTable_versions on Dataset {\n  versions(first: 100) {\n    edges {\n      node {\n        id\n        description\n        createdAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query DatasetHistoryDialogQuery(\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      id\n      ...DatasetHistoryTable_versions\n    }\n    id\n  }\n}\n\nfragment DatasetHistoryTable_versions on Dataset {\n  versions(first: 100) {\n    edges {\n      node {\n        id\n        description\n        createdAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7215c18bda690418c5ecbcb3131a288e";
+(node as any).hash = "46e1fd587edb477782e444fba17799ef";
 
 export default node;

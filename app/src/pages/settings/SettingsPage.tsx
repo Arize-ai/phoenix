@@ -1,22 +1,18 @@
-import React from "react";
+import { useCallback } from "react";
+import { Key } from "react-aria-components";
+import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import { Card, Flex, TextField, View } from "@arizeai/components";
-
-import { CopyToClipboardButton } from "@phoenix/components";
-import { BASE_URL, VERSION } from "@phoenix/config";
-import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
-
-import { APIKeysCard } from "./APIKeysCard";
-import { UsersCard } from "./UsersCard";
+import { LazyTabPanel, Tab, TabList, Tabs } from "@phoenix/components";
 
 const settingsPageCSS = css`
   overflow-y: auto;
+  height: 100%;
 `;
 
 const settingsPageInnerCSS = css`
-  padding: var(--ac-global-dimension-size-400);
-  max-width: 1000px;
+  padding: var(--ac-global-dimension-size-100);
+  max-width: 1300px;
   min-width: 500px;
   box-sizing: border-box;
   width: 100%;
@@ -24,62 +20,49 @@ const settingsPageInnerCSS = css`
   margin-right: auto;
 `;
 
-const formCSS = css`
-  .ac-field {
-    // Hacky solution to make the text fields fill the remaining space
-    width: calc(100% - var(--ac-global-dimension-size-600));
-  }
-`;
-
 export function SettingsPage() {
-  const { authenticationEnabled } = useFunctionality();
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const tab = pathname.split("/settings")[1].replace("/", "");
+  const onChangeTab = useCallback(
+    (tab: Key) => {
+      if (typeof tab === "string") {
+        navigate(`/settings/${tab}`, { replace: true });
+      }
+    },
+    [navigate]
+  );
+  if (!tab) {
+    return <Navigate to="/settings/general" replace />;
+  }
   return (
     <main css={settingsPageCSS}>
       <div css={settingsPageInnerCSS}>
-        <Flex direction="column" gap="size-200" width="100%">
-          <Card title="Platform Settings" variant="compact">
-            <form css={formCSS}>
-              <Flex direction="row" gap="size-100" alignItems="end">
-                <TextField
-                  label="Hostname"
-                  value={BASE_URL}
-                  isReadOnly
-                  description="Connect to Phoenix over HTTP"
-                />
-                <CopyToClipboardButtonWithPadding text={BASE_URL} />
-              </Flex>
-              <Flex direction="row" gap="size-100" alignItems="end">
-                <TextField
-                  label="Platform Version"
-                  isReadOnly
-                  value={VERSION}
-                  description="The version of the Phoenix server"
-                />
-                <CopyToClipboardButtonWithPadding text={VERSION} />
-              </Flex>
-              <Flex direction="row" gap="size-100" alignItems="end">
-                <TextField
-                  label="Python Version"
-                  isReadOnly
-                  value={`pip install 'arize-phoenix==${VERSION}'`}
-                  description="The version of the Python client library to use to connect to this Phoenix"
-                />
-                <CopyToClipboardButtonWithPadding text={VERSION} />
-              </Flex>
-            </form>
-          </Card>
-          {authenticationEnabled && <APIKeysCard />}
-          {authenticationEnabled && <UsersCard />}
-        </Flex>
+        <Tabs selectedKey={tab} onSelectionChange={onChangeTab}>
+          <TabList>
+            <Tab id="general">General</Tab>
+            <Tab id="providers">AI Providers</Tab>
+            <Tab id="models">Models</Tab>
+            <Tab id="annotations">Annotations</Tab>
+            <Tab id="data">Data Retention</Tab>
+          </TabList>
+          <LazyTabPanel id="general" padded>
+            <Outlet />
+          </LazyTabPanel>
+          <LazyTabPanel id="providers" padded>
+            <Outlet />
+          </LazyTabPanel>
+          <LazyTabPanel id="models" padded>
+            <Outlet />
+          </LazyTabPanel>
+          <LazyTabPanel id="annotations" padded>
+            <Outlet />
+          </LazyTabPanel>
+          <LazyTabPanel id="data" padded>
+            <Outlet />
+          </LazyTabPanel>
+        </Tabs>
       </div>
     </main>
-  );
-}
-
-function CopyToClipboardButtonWithPadding(props: { text: string }) {
-  return (
-    <View paddingBottom="19px">
-      <CopyToClipboardButton text={props.text} size="normal" />
-    </View>
   );
 }

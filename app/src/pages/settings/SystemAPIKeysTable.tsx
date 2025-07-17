@@ -1,4 +1,4 @@
-import React, { startTransition, useCallback, useMemo } from "react";
+import { startTransition, useCallback, useMemo } from "react";
 import { graphql, useMutation, useRefetchableFragment } from "react-relay";
 import {
   ColumnDef,
@@ -7,17 +7,17 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
-import { Flex, Icon, Icons } from "@arizeai/components";
-
+import { Flex, Icon, Icons } from "@phoenix/components";
+import { DeleteAPIKeyButton } from "@phoenix/components/auth";
 import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
-import { useNotifySuccess } from "@phoenix/contexts";
+import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { SystemAPIKeysTableFragment$key } from "./__generated__/SystemAPIKeysTableFragment.graphql";
 import { SystemAPIKeysTableQuery } from "./__generated__/SystemAPIKeysTableQuery.graphql";
-import { DeleteAPIKeyButton } from "./DeleteAPIKeyButton";
 
 export function SystemAPIKeysTable({
   query,
@@ -38,11 +38,15 @@ export function SystemAPIKeysTable({
           createdAt
           expiresAt
         }
+        viewer {
+          ...APIKeysTableFragment
+        }
       }
     `,
     query
   );
 
+  const notifyError = useNotifyError();
   const notifySuccess = useNotifySuccess();
   const [commit] = useMutation(graphql`
     mutation SystemAPIKeysTableDeleteAPIKeyMutation(
@@ -50,7 +54,7 @@ export function SystemAPIKeysTable({
     ) {
       deleteSystemApiKey(input: $input) {
         __typename
-        id
+        apiKeyId
       }
     }
   `);
@@ -76,9 +80,16 @@ export function SystemAPIKeysTable({
             );
           });
         },
+        onError: (error) => {
+          const formattedError = getErrorMessagesFromRelayMutationError(error);
+          notifyError({
+            title: "Error deleting system key",
+            message: formattedError?.[0] ?? error.message,
+          });
+        },
       });
     },
-    [commit, notifySuccess]
+    [commit, notifyError, notifySuccess, refetch]
   );
 
   const tableData = useMemo(() => {
@@ -128,7 +139,7 @@ export function SystemAPIKeysTable({
       },
     ];
     return cols;
-  }, [refetch, handleDelete]);
+  }, [handleDelete]);
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
@@ -146,9 +157,7 @@ export function SystemAPIKeysTable({
                 {header.isPlaceholder ? null : (
                   <div
                     {...{
-                      className: header.column.getCanSort()
-                        ? "cursor-pointer"
-                        : "",
+                      className: header.column.getCanSort() ? "sort" : "",
                       onClick: header.column.getToggleSortingHandler(),
                       style: {
                         left: header.getStart(),

@@ -1,23 +1,14 @@
 import asyncio
 import logging
 from asyncio import Queue, as_completed
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterable
 from dataclasses import dataclass, field
 from functools import singledispatchmethod
 from itertools import islice
 from time import perf_counter
-from typing import (
-    Any,
-    AsyncIterator,
-    Awaitable,
-    Callable,
-    Iterable,
-    List,
-    Optional,
-    Set,
-    Tuple,
-    cast,
-)
+from typing import Any, Optional, cast
 
+from openinference.semconv.trace import SpanAttributes
 from typing_extensions import TypeAlias
 
 import phoenix.trace.v1 as pb
@@ -27,11 +18,19 @@ from phoenix.db.insertion.evaluation import (
     InsertEvaluationError,
     insert_evaluation,
 )
-from phoenix.db.insertion.helpers import DataManipulation, DataManipulationEvent
+from phoenix.db.insertion.helpers import (
+    DataManipulation,
+    DataManipulationEvent,
+    should_calculate_span_cost,
+)
 from phoenix.db.insertion.span import SpanInsertionEvent, insert_span
 from phoenix.db.insertion.span_annotation import SpanAnnotationQueueInserter
 from phoenix.db.insertion.trace_annotation import TraceAnnotationQueueInserter
 from phoenix.db.insertion.types import Insertables, Precursors
+from phoenix.server.daemons.span_cost_calculator import (
+    SpanCostCalculator,
+    SpanCostCalculatorQueueItem,
+)
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.types import CanPutItem, DbSessionFactory
 from phoenix.trace.schemas import Span
@@ -43,7 +42,7 @@ ProjectRowId: TypeAlias = int
 
 @dataclass(frozen=True)
 class TransactionResult:
-    updated_project_rowids: Set[ProjectRowId] = field(default_factory=set)
+    updated_project_rowids: set[ProjectRowId] = field(default_factory=set)
 
 
 class BulkInserter:
@@ -52,7 +51,8 @@ class BulkInserter:
         db: DbSessionFactory,
         *,
         event_queue: CanPutItem[DmlEvent],
-        initial_batch_of_spans: Optional[Iterable[Tuple[Span, str]]] = None,
+        span_cost_calculator: SpanCostCalculator,
+        initial_batch_of_spans: Optional[Iterable[tuple[Span, str]]] = None,
         initial_batch_of_evaluations: Optional[Iterable[pb.Evaluation]] = None,
         sleep: float = 0.1,
         max_ops_per_transaction: int = 1000,
@@ -76,10 +76,10 @@ class BulkInserter:
         self._max_ops_per_transaction = max_ops_per_transaction
         self._operations: Optional[Queue[DataManipulation]] = None
         self._max_queue_size = max_queue_size
-        self._spans: List[Tuple[Span, str]] = (
+        self._spans: list[tuple[Span, str]] = (
             [] if initial_batch_of_spans is None else list(initial_batch_of_spans)
         )
-        self._evaluations: List[pb.Evaluation] = (
+        self._evaluations: list[pb.Evaluation] = (
             [] if initial_batch_of_evaluations is None else list(initial_batch_of_evaluations)
         )
         self._task: Optional[asyncio.Task[None]] = None
@@ -88,10 +88,11 @@ class BulkInserter:
         self._retry_delay_sec = retry_delay_sec
         self._retry_allowance = retry_allowance
         self._queue_inserters = _QueueInserters(db, self._retry_delay_sec, self._retry_allowance)
+        self._span_cost_calculator = span_cost_calculator
 
     async def __aenter__(
         self,
-    ) -> Tuple[
+    ) -> tuple[
         Callable[[Any], Awaitable[None]],
         Callable[[Span, str], Awaitable[None]],
         Callable[[pb.Evaluation], Awaitable[None]],
@@ -183,8 +184,9 @@ class BulkInserter:
                 self._event_queue.put(event)
             await asyncio.sleep(self._sleep)
 
-    async def _insert_spans(self, spans: List[Tuple[Span, str]]) -> None:
+    async def _insert_spans(self, spans: list[tuple[Span, str]]) -> None:
         project_ids = set()
+        span_cost_calculator_queue: list[SpanCostCalculatorQueueItem] = []
         for i in range(0, len(spans), self._max_ops_per_transaction):
             try:
                 start = perf_counter()
@@ -208,6 +210,16 @@ class BulkInserter:
                             )
                         if result is not None:
                             project_ids.add(result.project_rowid)
+                            if should_calculate_span_cost(span.attributes):
+                                span_cost_calculator_queue.append(
+                                    SpanCostCalculatorQueueItem(
+                                        span_rowid=result.span_rowid,
+                                        trace_rowid=result.trace_rowid,
+                                        attributes=span.attributes,
+                                        span_start_time=span.start_time,
+                                    )
+                                )
+
                 if self._enable_prometheus:
                     from phoenix.server.prometheus import BULK_LOADER_INSERTION_TIME
 
@@ -219,8 +231,10 @@ class BulkInserter:
                     BULK_LOADER_EXCEPTIONS.inc()
                 logger.exception("Failed to insert spans")
         self._event_queue.put(SpanInsertEvent(tuple(project_ids)))
+        for item in span_cost_calculator_queue:
+            self._span_cost_calculator.put_nowait(item)
 
-    async def _insert_evaluations(self, evaluations: List[pb.Evaluation]) -> None:
+    async def _insert_evaluations(self, evaluations: list[pb.Evaluation]) -> None:
         for i in range(0, len(evaluations), self._max_ops_per_transaction):
             try:
                 start = perf_counter()
@@ -273,7 +287,7 @@ class _QueueInserters:
         if self.empty:
             return
         for coro in as_completed([q.insert() for q in self._queues if not q.empty]):
-            if events := cast(Optional[List[DmlEvent]], await coro):
+            if events := cast(Optional[list[DmlEvent]], await coro):
                 for event in events:
                     yield event
 
@@ -302,3 +316,18 @@ class _QueueInserters:
     @_enqueue.register(Insertables.DocumentAnnotation)
     async def _(self, item: Precursors.DocumentAnnotation) -> None:
         await self._document_annotations.enqueue(item)
+
+
+LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
+LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
+LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
+LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO
+LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING = (
+    SpanAttributes.LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING
+)
+LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
+LLM_TOKEN_COUNT_PROMPT_DETAILS_AUDIO = SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_AUDIO
+LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ = SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ
+LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE = (
+    SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE
+)

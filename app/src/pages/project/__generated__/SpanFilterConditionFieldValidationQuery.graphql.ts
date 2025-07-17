@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a96fe48a834c3d6e8623572517edca56>>
+ * @generated SignedSource<<1b04bd5d9e2ce3f1a984a502bfcc72d0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type SpanFilterConditionFieldValidationQuery$variables = {
   condition: string;
   id: string;
@@ -130,10 +130,6 @@ return {
           },
           (v2/*: any*/),
           {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
-          {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
@@ -146,16 +142,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "29583e7ec666cef832dc7effb9e75678",
+    "cacheID": "38e5e2288d5746b32b21632854cc7c82",
     "id": null,
     "metadata": {},
     "name": "SpanFilterConditionFieldValidationQuery",
     "operationKind": "query",
-    "text": "query SpanFilterConditionFieldValidationQuery(\n  $condition: String!\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      validateSpanFilterCondition(condition: $condition) {\n        isValid\n        errorMessage\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query SpanFilterConditionFieldValidationQuery(\n  $condition: String!\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      validateSpanFilterCondition(condition: $condition) {\n        isValid\n        errorMessage\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "22836f192038b0c40201d3b25aad65b4";
+(node as any).hash = "4020987ee29c63747be68dc3cada3de0";
 
 export default node;

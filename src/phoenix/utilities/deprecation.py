@@ -1,8 +1,9 @@
 import functools
 import warnings
-from typing import Any, Callable, Type, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
-GenericClass = TypeVar("GenericClass", bound=Type[Any])
+GenericClass = TypeVar("GenericClass", bound=type[Any])
 CallableType = TypeVar("CallableType", bound=Callable[..., Any])
 
 

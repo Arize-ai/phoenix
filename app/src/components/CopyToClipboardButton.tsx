@@ -1,5 +1,6 @@
-import React, { useCallback, useState } from "react";
+import { RefObject, useCallback, useState } from "react";
 import copy from "copy-to-clipboard";
+import { css } from "@emotion/react";
 
 import {
   Button,
@@ -8,47 +9,59 @@ import {
   Icons,
   Tooltip,
   TooltipTrigger,
-} from "@arizeai/components";
+} from "@phoenix/components";
 
 const SHOW_COPIED_TIMEOUT_MS = 2000;
+
+export type CopyToClipboardButtonProps = Omit<
+  ButtonProps,
+  "icon" | "onPress" | "size"
+> & {
+  /**
+   * The size of the button
+   * @default S
+   */
+  size?: ButtonProps["size"];
+  /**
+   * The text to copy to the clipboard
+   */
+  text: string | RefObject<string>;
+};
+
+const copyToClipboardButtonCSS = css`
+  flex: none;
+  box-sizing: content-box;
+`;
 
 /**
  * An Icon button that copies the given text to the clipboard when clicked.
  */
-export function CopyToClipboardButton({
-  text,
-  size = "compact",
-  disabled = false,
-}: {
-  text: string;
-
-  size?: ButtonProps["size"];
-  disabled?: boolean;
-}) {
+export function CopyToClipboardButton(props: CopyToClipboardButtonProps) {
+  const { text, size = "S", ...otherProps } = props;
   const [isCopied, setIsCopied] = useState(false);
 
-  const onClick = useCallback(() => {
-    copy(text);
+  const onPress = useCallback(() => {
+    const textToCopy = typeof text === "string" ? text : text.current || "";
+    copy(textToCopy);
     setIsCopied(true);
     setTimeout(() => {
       setIsCopied(false);
     }, SHOW_COPIED_TIMEOUT_MS);
   }, [text]);
   return (
-    <div className="copy-to-clipboard-button">
-      <TooltipTrigger delay={0} offset={5}>
+    <div className="copy-to-clipboard-button" css={copyToClipboardButtonCSS}>
+      <TooltipTrigger delay={0}>
         <Button
-          variant="default"
-          disabled={disabled}
-          icon={
+          size={size}
+          leadingVisual={
             <Icon
               svg={isCopied ? <Icons.Checkmark /> : <Icons.ClipboardCopy />}
             />
           }
-          size={size}
-          onClick={onClick}
+          onPress={onPress}
+          {...otherProps}
         />
-        <Tooltip>Copy</Tooltip>
+        <Tooltip offset={5}>Copy</Tooltip>
       </TooltipTrigger>
     </div>
   );

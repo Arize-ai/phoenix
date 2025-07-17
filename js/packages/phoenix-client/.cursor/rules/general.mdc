@@ -1,0 +1,39 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# General Client Design Guidelines
+
+## Dependancies
+
+The client should be as light-weight as possible as it is meant to be integrated into applications directly with no impact on the runtime. 
+## Syntax
+
+All methods that interact with the server shoud be namespaced via `prompts`, `experiments`, `projects` and so on.
+
+All arguments to the methods MUST use object params so as to make the signature as self evident as possible.
+
+Do not do:
+
+```typescript
+getPrompt("prompt_version_id");
+```
+
+Prefer:
+
+```typescript
+getPrompt({ promptIdentifier="prompt_version_id" });
+```
+
+functions should be prefixed with an action:
+
+- `get` - gets the entity. Corrolates to HTTP `GET` a specific entity. E.x. `/projects/1`
+- `create` - makes a new entity. Corrolates to HTTP `POST`
+- `list` - get a paginated list of an entity. E.g. `GET` a list `/projects`
+- `add` - attach an entity to another. E.x. `addAnnotation` would be used to attach an annotation to a `span` or `trace`
+- `delete` - permanently delete an entity
+
+In addition things can be sent to the platform in bulk.
+
+- `log` - associates a list of entities to something. E.x. `logAnnotations` will send a list of annotations to a particular target such as a `span` or a `project`

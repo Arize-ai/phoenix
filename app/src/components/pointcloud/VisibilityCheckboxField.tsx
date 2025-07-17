@@ -1,4 +1,4 @@
-import React, { ChangeEvent } from "react";
+import { ChangeEvent } from "react";
 import { css } from "@emotion/react";
 
 import { Shape, ShapeIcon } from "./ShapeIcon";
@@ -6,7 +6,7 @@ import { Shape, ShapeIcon } from "./ShapeIcon";
 const fieldCSS = css`
   display: flex;
   flex-direction: row;
-  gap: var(--px-flex-gap-sm);
+  gap: var(--ac-global-dimension-size-50);
   align-items: center;
 `;
 

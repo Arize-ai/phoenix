@@ -1,11 +1,10 @@
-import React, { ReactNode, useState } from "react";
+import { ReactNode, useState } from "react";
 import { css } from "@emotion/react";
 
 import {
   classNames,
   Field,
   FieldProps,
-  theme,
   ValidationState,
 } from "@arizeai/components";
 
@@ -19,14 +18,14 @@ const codeEditorFormWrapperCSS = css`
   &.is-invalid {
     border: 1px solid var(--ac-global-color-danger);
   }
-  border-radius: ${theme.borderRadius.medium}px;
+  border-radius: var(--ac-global-rounding-small);
   border: 1px solid var(--ac-global-input-field-border-color);
   width: 100%;
-  .cm-gutters,
   .cm-content,
   .cm-editor {
     border-radius: var(--ac-global-rounding-small);
   }
+  box-sizing: border-box;
   .cm-focused {
     outline: none;
   }

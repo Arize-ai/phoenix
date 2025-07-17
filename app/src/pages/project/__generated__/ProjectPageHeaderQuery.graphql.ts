@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6b001dbe5b9d15be3f6150ab7da10a21>>
+ * @generated SignedSource<<222dc85512d6af5767663e8f921eb0be>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,11 +8,11 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type TimeRange = {
-  end: string;
-  start: string;
+  end?: string | null;
+  start?: string | null;
 };
 export type ProjectPageHeaderQuery$variables = {
   id: string;
@@ -53,6 +53,15 @@ v3 = {
 },
 v4 = [
   (v3/*: any*/)
+],
+v5 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "cost",
+    "storageKey": null
+  }
 ];
 return {
   "fragment": {
@@ -109,10 +118,6 @@ return {
             "storageKey": null
           },
           {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
-          {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
@@ -132,8 +137,42 @@ return {
               {
                 "alias": null,
                 "args": (v4/*: any*/),
-                "kind": "ScalarField",
-                "name": "tokenCountTotal",
+                "concreteType": "SpanCostSummary",
+                "kind": "LinkedField",
+                "name": "costSummary",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "CostBreakdown",
+                    "kind": "LinkedField",
+                    "name": "total",
+                    "plural": false,
+                    "selections": (v5/*: any*/),
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "CostBreakdown",
+                    "kind": "LinkedField",
+                    "name": "prompt",
+                    "plural": false,
+                    "selections": (v5/*: any*/),
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "CostBreakdown",
+                    "kind": "LinkedField",
+                    "name": "completion",
+                    "plural": false,
+                    "selections": (v5/*: any*/),
+                    "storageKey": null
+                  }
+                ],
                 "storageKey": null
               },
               {
@@ -188,16 +227,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "264a748e3bb636d71fb6b75523a612fe",
+    "cacheID": "49e1a282fb57987bad425bccba3a60db",
     "id": null,
     "metadata": {},
     "name": "ProjectPageHeaderQuery",
     "operationKind": "query",
-    "text": "query ProjectPageHeaderQuery(\n  $timeRange: TimeRange\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectPageHeader_stats\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ProjectPageHeader_stats on Project {\n  traceCount(timeRange: $timeRange)\n  tokenCountTotal(timeRange: $timeRange)\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n  spanAnnotationNames\n  documentEvaluationNames\n  id\n}\n"
+    "text": "query ProjectPageHeaderQuery(\n  $timeRange: TimeRange\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectPageHeader_stats\n    id\n  }\n}\n\nfragment ProjectPageHeader_stats on Project {\n  traceCount(timeRange: $timeRange)\n  costSummary(timeRange: $timeRange) {\n    total {\n      cost\n    }\n    prompt {\n      cost\n    }\n    completion {\n      cost\n    }\n  }\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n  spanAnnotationNames\n  documentEvaluationNames\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "dcce9d160db90e2b5c51eef9971101a4";
+(node as any).hash = "a82020736a81365c539d7d9a31318fa1";
 
 export default node;

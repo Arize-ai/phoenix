@@ -13,7 +13,6 @@ from typing import (
     Iterator,
     Optional,
     Sequence,
-    Tuple,
     Union,
     cast,
 )
@@ -24,18 +23,22 @@ from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
 import phoenix.trace.v1 as pb
 from phoenix.config import get_env_collector_endpoint, get_env_host, get_env_port
 from phoenix.session.client import Client
-from phoenix.trace.dsl.helpers import get_qa_with_reference, get_retrieved_documents
+from phoenix.trace.dsl.helpers import (
+    get_called_tools,
+    get_qa_with_reference,
+    get_retrieved_documents,
+)
 from phoenix.trace.exporter import HttpExporter
 from phoenix.trace.span_evaluations import Evaluations
 
 __all__ = [
     "get_retrieved_documents",
     "get_qa_with_reference",
+    "get_called_tools",
     "add_evaluations",
 ]
 
 logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 
 def encode_evaluations(evaluations: Evaluations) -> Iterator[pb.Evaluation]:
@@ -45,7 +48,7 @@ def encode_evaluations(evaluations: Evaluations) -> Iterator[pb.Evaluation]:
     for index, row in dataframe.iterrows():
         subject_id = _extract_subject_id_from_index(
             index_names,
-            cast(Union[str, Tuple[Any]], index),
+            cast(Union[str, tuple[Any]], index),
         )
         if (result := _extract_result(row)) is None:
             continue

@@ -1,4 +1,3 @@
-import React from "react";
 import { css } from "@emotion/react";
 
 import { useTheme } from "@phoenix/contexts";
@@ -36,7 +35,7 @@ const ToolSVG = () => (
   </svg>
 );
 
-const ToolFilledSVG = () => (
+export const ToolFilledSVG = () => (
   <svg
     width="20"
     height="20"
@@ -555,7 +554,7 @@ export function SpanKindIcon({
   let icon = isFilled ? <UnknownFilledSVG /> : <UnknownSVG />;
   let color = isDark
     ? "--ac-global-color-grey-600"
-    : "--ac-global-color-grey-500";
+    : "--ac-global-color-grey-200";
   switch (spanKind) {
     case "llm":
       color = isDark
@@ -583,8 +582,8 @@ export function SpanKindIcon({
       break;
     case "agent":
       color = isDark
-        ? "--ac-global-text-color-900"
-        : "--ac-global-text-color-500";
+        ? "--ac-global-color-grey-600"
+        : "--ac-global-color-grey-300";
       icon = isFilled ? <AgentFilledSVG /> : <AgentSVG />;
       break;
     case "tool":

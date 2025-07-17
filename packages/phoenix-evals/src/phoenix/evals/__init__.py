@@ -1,3 +1,5 @@
+from importlib.metadata import version
+
 from .classify import llm_classify, run_evals
 from .default_templates import (
     CODE_FUNCTIONALITY_PROMPT_RAILS_MAP,
@@ -53,6 +55,8 @@ from .templates import (
     PromptTemplate,
 )
 from .utils import NOT_PARSABLE, download_benchmark_dataset
+
+__version__ = version("arize-phoenix-evals")
 
 __all__ = [
     "compute_precisions_at_k",

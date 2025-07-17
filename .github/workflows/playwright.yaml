@@ -1,0 +1,83 @@
+name: Playwright Tests
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main, feat/annotations]
+    paths:
+      - "src/**"
+      - "app/**"
+  pull_request:
+    branches: [main, feat/annotations]
+    paths:
+      - "src/**"
+      - "app/**"
+jobs:
+  e2e-test:
+    timeout-minutes: 60
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: ./app
+    env:
+      # We're skipping WebKit because of recurring issues with caching,
+      # despite always installing it on cache-hit.
+      CI_PLAYWRIGHT_SKIP_WEBKIT: true
+    strategy:
+      fail-fast: true
+      matrix:
+        py: [3.13]
+        # large runners have more disk space, which we need for our in-runner phoenix db
+        os: [oss-4-core-runner, macos-latest-large]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PNPM
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.2.0
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          cache-dependency-path: ./app/pnpm-lock.yaml
+          node-version: lts/*
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Get installed Playwright version
+        id: playwright-version
+        run: echo "PLAYWRIGHT_VERSION=$(pnpm list --json | jq -r '.[0].devDependencies["@playwright/test"].version')" >> $GITHUB_ENV
+      - name: Cache Playwright binaries
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}-${{ hashFiles('app/playwright.config.ts') }}
+      - name: Install Playwright Browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps
+      - name: Install system dependencies for WebKit
+        # WebKit dependencies can't be cached and must always be installed.
+        if: ${{ env.CI_PLAYWRIGHT_SKIP_WEBKIT != 'true' && steps.playwright-cache.outputs.cache-hit == 'true' }}
+        run: pnpm exec playwright install-deps webkit
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: 0.7.12
+          enable-cache: true
+          cache-dependency-glob: |
+            "**/requirements/**/*.txt"
+            "**/pyproject.toml"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install dependencies
+        run: uv sync --extra container
+      - name: Run Playwright tests
+        run: pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-py${{ matrix.py }}-${{ matrix.os }}
+          path: app/playwright-report/
+          retention-days: 30

@@ -8,7 +8,10 @@ from typing_extensions import Annotated
 from phoenix.core.model_schema import Column
 from phoenix.metrics import Metric
 from phoenix.metrics.mixins import UnaryOperator
-from phoenix.server.api.types.DataQualityMetric import DataQualityMetric
+from phoenix.server.api.types.DataQualityMetric import (
+    DATA_QUALITY_METRIC_FACTORIES,
+    DataQualityMetric,
+)
 
 
 @strawberry.input
@@ -26,7 +29,7 @@ class DataQualityMetricInput:
     metric_instance: strawberry.Private[Metric] = field(init=False)
 
     def __post_init__(self) -> None:
-        metric_instance = self.metric.value()
+        metric_instance = DATA_QUALITY_METRIC_FACTORIES[self.metric]()
         if isinstance(metric_instance, UnaryOperator):
             if not isinstance(self.column_name, str):
                 raise ValueError(f"column name must not be null for {self.metric.name}")

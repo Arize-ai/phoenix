@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<69138674d0e192eab0760f01ea7549a8>>
+ * @generated SignedSource<<4e4f67ae9ec7a3ad580f28ad465f28c8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type ModelRootQuery$variables = Record<PropertyKey, never>;
 export type ModelRootQuery$data = {
   readonly model: {
@@ -62,7 +62,7 @@ v1 = [
   {
     "alias": null,
     "args": null,
-    "concreteType": "Model",
+    "concreteType": "InferenceModel",
     "kind": "LinkedField",
     "name": "model",
     "plural": false,

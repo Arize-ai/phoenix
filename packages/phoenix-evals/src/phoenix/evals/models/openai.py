@@ -1,3 +1,4 @@
+import base64
 import logging
 import warnings
 from dataclasses import dataclass, field, fields
@@ -13,10 +14,13 @@ from typing import (
     get_args,
     get_origin,
 )
+from urllib.parse import urlparse
 
-from phoenix.evals.exceptions import PhoenixContextLimitExceeded
+from phoenix.evals.exceptions import PhoenixContextLimitExceeded, PhoenixUnsupportedAudioFormat
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
+from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
+from phoenix.evals.utils import get_audio_format_from_base64
 
 MINIMUM_OPENAI_VERSION = "1.0.0"
 MODEL_TOKEN_LIMIT_MAPPING = {
@@ -34,6 +38,7 @@ MODEL_TOKEN_LIMIT_MAPPING = {
     "gpt-4-vision-preview": 128000,
 }
 LEGACY_COMPLETION_API_MODELS = ("gpt-3.5-turbo-instruct",)
+SUPPORTED_AUDIO_FORMATS = {"mp3", "wav"}
 logger = logging.getLogger(__name__)
 
 
@@ -44,6 +49,13 @@ class AzureOptions:
     azure_deployment: Optional[str]
     azure_ad_token: Optional[str]
     azure_ad_token_provider: Optional[Callable[[], str]]
+
+
+def _model_supports_temperature(model: str) -> bool:
+    """OpenAI reasoning models do not support temperature."""
+    if model.startswith("o1") or model.startswith("o3"):
+        return False
+    return True
 
 
 @dataclass
@@ -84,6 +96,10 @@ class OpenAIModel(BaseModel):
             not explicitly specified. Defaults to an empty dictionary.
         request_timeout (Optional[Union[float, Tuple[float, float]]], optional): Timeout for
             requests to OpenAI completion API. Default is 600 seconds. Defaults to None.
+        initial_rate_limit (int, optional): The initial internal rate limit in allowed requests
+            per second for making LLM calls. This limit adjusts dynamically based on rate
+            limit errors. Defaults to 10.
+        timeout (int, optional): Pheonix timeout for API requests in seconds. Defaults to 120.
         api_version (str, optional): The version of the Azure API to use. Defaults to None.
             https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#rest-api-versioning
         azure_endpoint (str, optional): The endpoint to use for azure openai. Available in the
@@ -95,9 +111,6 @@ class OpenAIModel(BaseModel):
             token to use for azure openai. Defaults to None.
         default_headers (Mapping[str, str], optional): Default headers required by AzureOpenAI.
             Defaults to None.
-        initial_rate_limit (int, optional): The initial internal rate limit in allowed requests
-            per second for making LLM calls. This limit adjusts dynamically based on rate
-            limit errors. Defaults to 10.
 
     Examples:
         After setting the OPENAI_API_KEY environment variable:
@@ -124,13 +137,15 @@ class OpenAIModel(BaseModel):
     base_url: Optional[str] = field(repr=False, default=None)
     model: str = "gpt-4"
     temperature: float = 0.0
-    max_tokens: Optional[int] = 256
+    max_tokens: Optional[int] = None
     top_p: float = 1
     frequency_penalty: float = 0
     presence_penalty: float = 0
     n: int = 1
     model_kwargs: Dict[str, Any] = field(default_factory=dict)
     request_timeout: Optional[Union[float, Tuple[float, float]]] = None
+    initial_rate_limit: int = 10
+    timeout: int = 120
 
     # Azure options
     api_version: Optional[str] = field(default=None)
@@ -139,7 +154,6 @@ class OpenAIModel(BaseModel):
     azure_ad_token: Optional[str] = field(default=None)
     azure_ad_token_provider: Optional[Callable[[], str]] = field(default=None)
     default_headers: Optional[Mapping[str, str]] = field(default=None)
-    initial_rate_limit: int = 10
 
     # Deprecated fields
     model_name: Optional[str] = field(default=None)
@@ -267,19 +281,65 @@ class OpenAIModel(BaseModel):
             enforcement_window_minutes=1,
         )
 
-    @staticmethod
     def _build_messages(
-        prompt: str, system_instruction: Optional[str] = None
-    ) -> List[Dict[str, str]]:
-        messages = [{"role": "user", "content": prompt}]
+        self, prompt: MultimodalPrompt, system_instruction: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        system_role = self._system_role()
+        messages: List[Dict[str, Any]] = []
+        for part in prompt.parts:
+            if part.content_type == PromptPartContentType.TEXT:
+                messages.append({"role": system_role, "content": part.content})
+            elif part.content_type == PromptPartContentType.AUDIO:
+                format = str(get_audio_format_from_base64(part.content))
+                if format not in SUPPORTED_AUDIO_FORMATS:
+                    raise PhoenixUnsupportedAudioFormat(f"Unsupported audio format: {format}")
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "input_audio",
+                                "input_audio": {
+                                    "data": part.content,
+                                    "format": str(get_audio_format_from_base64(part.content)),
+                                },
+                            }
+                        ],
+                    }
+                )
+            elif part.content_type == PromptPartContentType.IMAGE:
+                if _is_base64(part.content):
+                    content_url = f"data:image/jpeg;base64,{part.content}"
+                elif _is_url(part.content):
+                    content_url = part.content
+                else:
+                    raise ValueError("Only base64 encoded images or image URLs are supported")
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image_url",
+                                "image_url": {"url": content_url},
+                            }
+                        ],
+                    }
+                )
+            else:
+                raise ValueError(
+                    f"Unsupported content type for {OpenAIModel.__name__}: {part.content_type}"
+                )
         if system_instruction:
-            messages.insert(0, {"role": "system", "content": str(system_instruction)})
+            messages.insert(0, {"role": system_role, "content": str(system_instruction)})
         return messages
 
     def verbose_generation_info(self) -> str:
         return f"OpenAI invocation parameters: {self.public_invocation_params}"
 
-    async def _async_generate(self, prompt: str, **kwargs: Any) -> str:
+    async def _async_generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
         invoke_params = self.invocation_params
         messages = self._build_messages(prompt, kwargs.get("instruction"))
         if functions := kwargs.get("functions"):
@@ -298,9 +358,12 @@ class OpenAIModel(BaseModel):
             return str(function_call.get("arguments") or "")
         return str(message["content"])
 
-    def _generate(self, prompt: str, **kwargs: Any) -> str:
+    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
         invoke_params = self.invocation_params
-        messages = self._build_messages(prompt, kwargs.get("instruction"))
+        messages = self._build_messages(prompt=prompt, system_instruction=kwargs.get("instruction"))
         if functions := kwargs.get("functions"):
             invoke_params["functions"] = functions
         if function_call := kwargs.get("function_call"):
@@ -363,6 +426,20 @@ class OpenAIModel(BaseModel):
 
         return _completion(**kwargs)
 
+    def _system_role(self) -> str:
+        # OpenAI uses different semantics for "system" roles for different models
+        if "gpt" in self.model:
+            return "system"
+        if "o1-mini" in self.model:
+            return "user"  # o1-mini does not support either "system" or "developer" roles
+        if "o1-preview" in self.model:
+            return "user"  # o1-preview does not support "system" or "developer" roles
+        if "o1" in self.model:
+            return "developer"
+        if "o3" in self.model:
+            return "developer"
+        return "system"
+
     @property
     def public_invocation_params(self) -> Dict[str, Any]:
         return {
@@ -380,15 +457,23 @@ class OpenAIModel(BaseModel):
     @property
     def _default_params(self) -> Dict[str, Any]:
         """Get the default parameters for calling OpenAI API."""
-        return {
-            "temperature": self.temperature,
-            "max_tokens": self.max_tokens,
+        # token param str depends on provider and model
+        token_param_str = _get_token_param_str(self._is_azure, self.model)
+        params = {
             "frequency_penalty": self.frequency_penalty,
             "presence_penalty": self.presence_penalty,
             "top_p": self.top_p,
             "n": self.n,
             "timeout": self.request_timeout,
+            token_param_str: self.max_tokens,
         }
+        if _model_supports_temperature(self.model):
+            params.update(
+                {
+                    "temperature": self.temperature,
+                }
+            )
+        return params
 
     @property
     def supports_function_calling(self) -> bool:
@@ -402,4 +487,32 @@ class OpenAIModel(BaseModel):
             return False
         if self._model_uses_legacy_completion_api:
             return False
+        if self.model.startswith("o1"):
+            return False
         return True
+
+
+def _is_url(url: str) -> bool:
+    parsed_url = urlparse(url)
+    return bool(parsed_url.scheme and parsed_url.netloc)
+
+
+def _is_base64(s: str) -> bool:
+    try:
+        base64.b64decode(s, validate=True)
+        return True
+    except Exception:
+        return False
+
+
+def _get_token_param_str(is_azure: bool, model: str) -> str:
+    """
+    Get the token parameter string for the given model.
+    OpenAI o1 and o3 models made a switch to use
+    max_completion_tokens and now all the models support it.
+    However, Azure OpenAI models currently do not support
+    max_completion_tokens unless it's an o1 or o3 model.
+    """
+    if is_azure and not model.startswith("o1") and not model.startswith("o3"):
+        return "max_tokens"
+    return "max_completion_tokens"

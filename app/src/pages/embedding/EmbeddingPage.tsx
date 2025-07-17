@@ -1,4 +1,5 @@
-import React, {
+import {
+  memo,
   ReactNode,
   Suspense,
   useCallback,
@@ -18,17 +19,20 @@ import { subDays } from "date-fns";
 import useDeepCompareEffect from "use-deep-compare-effect";
 import { css } from "@emotion/react";
 
+import { Switch } from "@arizeai/components";
+import { ThreeDimensionalPoint } from "@arizeai/point-cloud";
+
 import {
   Counter,
   Flex,
-  Switch,
-  TabPane,
+  Loading,
+  LoadingMask,
+  Tab,
+  TabList,
+  TabPanel,
   Tabs,
   View,
-} from "@arizeai/components";
-import { ThreeDimensionalPoint } from "@arizeai/point-cloud";
-
-import { Loading, LoadingMask } from "@phoenix/components";
+} from "@phoenix/components";
 import {
   PrimaryInferencesTimeRange,
   ReferenceInferencesTimeRange,
@@ -48,9 +52,9 @@ import {
 import {
   PointCloudProvider,
   useGlobalNotification,
+  useInferences,
   usePointCloudContext,
 } from "@phoenix/contexts";
-import { useInferences } from "@phoenix/contexts";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import {
   TimeSliceContextProvider,
@@ -74,7 +78,6 @@ import {
   EmbeddingPageUMAPQuery$data,
 } from "./__generated__/EmbeddingPageUMAPQuery.graphql";
 import { ClusterSortPicker } from "./ClusterSortPicker";
-import { EmbeddingActionMenu } from "./EmbeddingActionMenu";
 import { MetricSelector } from "./MetricSelector";
 import { MetricTimeSeries } from "./MetricTimeSeries";
 import { PointSelectionPanelContent } from "./PointSelectionPanelContent";
@@ -85,7 +88,7 @@ type UMAPPointsEntry = NonNullable<
 
 const EmbeddingPageUMAPQuery = graphql`
   query EmbeddingPageUMAPQuery(
-    $id: GlobalID!
+    $id: ID!
     $timeRange: TimeRange!
     $minDist: Float!
     $nNeighbors: Int!
@@ -339,23 +342,15 @@ function EmbeddingMain() {
       <PointCloudNotifications />
       <Toolbar
         extra={
-          <Flex
-            direction="row"
-            justifyContent="center"
-            alignItems="center"
-            gap="size-100"
+          <Switch
+            onChange={(isSelected) => {
+              setShowChart(isSelected);
+            }}
+            isSelected={showChart}
+            labelPlacement="start"
           >
-            <Switch
-              onChange={(isSelected) => {
-                setShowChart(isSelected);
-              }}
-              defaultSelected={true}
-              labelPlacement="start"
-            >
-              Show Timeseries
-            </Switch>
-            <EmbeddingActionMenu />
-          </Flex>
+            Show Timeseries
+          </Switch>
         }
       >
         <PrimaryInferencesTimeRange />
@@ -542,12 +537,16 @@ function PointCloudDisplay({
               `}
             >
               <Tabs>
-                <TabPane name="Display">
+                <TabList>
+                  <Tab id="display">Display</Tab>
+                  <Tab id="hyperparameters">Hyperparameters</Tab>
+                </TabList>
+                <TabPanel id="display">
                   <PointCloudDisplaySettings />
-                </TabPane>
-                <TabPane name="Hyperparameters">
+                </TabPanel>
+                <TabPanel id="hyperparameters">
                   <PointCloudParameterSettings />
-                </TabPane>
+                </TabPanel>
               </Tabs>
             </Panel>
           </PanelGroup>
@@ -628,11 +627,7 @@ function PointSelectionPanelContentWrap(props: { children: ReactNode }) {
   );
 }
 
-/**
- * The tab index for which the HDBSCAN configuration is displayed
- */
-const CLUSTERING_CONFIG_TAB_INDEX = 1;
-const ClustersPanelContents = React.memo(function ClustersPanelContents() {
+const ClustersPanelContents = memo(function ClustersPanelContents() {
   const { referenceInferences } = useInferences();
   const clusters = usePointCloudContext((state) => state.clusters);
   const selectedClusterId = usePointCloudContext(
@@ -656,8 +651,8 @@ const ClustersPanelContents = React.memo(function ClustersPanelContents() {
   // 3. The metric is drift
   const hideReference = referenceInferences == null || metric.type === "drift";
   const onTabChange = useCallback(
-    (index: number) => {
-      if (index === CLUSTERING_CONFIG_TAB_INDEX) {
+    (key: string) => {
+      if (key === "configuration") {
         setClusterColorMode(ClusterColorMode.highlight);
       } else {
         setClusterColorMode(ClusterColorMode.default);
@@ -667,8 +662,14 @@ const ClustersPanelContents = React.memo(function ClustersPanelContents() {
   );
 
   return (
-    <Tabs onChange={onTabChange}>
-      <TabPane name="Clusters" extra={<Counter>{clusters.length}</Counter>}>
+    <Tabs onSelectionChange={(key) => onTabChange(key as string)}>
+      <TabList>
+        <Tab id="clusters">
+          Clusters <Counter>{clusters.length}</Counter>
+        </Tab>
+        <Tab id="configuration">Configuration</Tab>
+      </TabList>
+      <TabPanel id="clusters">
         <Flex direction="column" height="100%">
           <View
             borderBottomColor="dark"
@@ -683,12 +684,12 @@ const ClustersPanelContents = React.memo(function ClustersPanelContents() {
           </View>
           <View flex="1 1 auto" overflow="auto">
             <ul
-              css={(theme) => css`
+              css={css`
                 flex: 1 1 auto;
                 display: flex;
                 flex-direction: column;
-                gap: ${theme.spacing.margin8}px;
-                margin: ${theme.spacing.margin8}px;
+                gap: var(--ac-global-dimension-size-100);
+                margin: var(--ac-global-dimension-size-100);
               `}
             >
               {clusters.map((cluster) => {
@@ -726,12 +727,12 @@ const ClustersPanelContents = React.memo(function ClustersPanelContents() {
             </ul>
           </View>
         </Flex>
-      </TabPane>
-      <TabPane name="Configuration">
+      </TabPanel>
+      <TabPanel id="configuration">
         <View overflow="auto" height="100%">
           <ClusteringSettings />
         </View>
-      </TabPane>
+      </TabPanel>
     </Tabs>
   );
 });

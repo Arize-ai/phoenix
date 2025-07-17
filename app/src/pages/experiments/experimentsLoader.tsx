@@ -1,5 +1,5 @@
 import { fetchQuery, graphql } from "react-relay";
-import { LoaderFunctionArgs } from "react-router-dom";
+import { LoaderFunctionArgs } from "react-router";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
@@ -13,11 +13,18 @@ export async function experimentsLoader(args: LoaderFunctionArgs) {
   return await fetchQuery<experimentsLoaderQuery>(
     RelayEnvironment,
     graphql`
-      query experimentsLoaderQuery($id: GlobalID!) {
+      query experimentsLoaderQuery($id: ID!) {
         dataset: node(id: $id) {
           id
           ... on Dataset {
             ...ExperimentsTableFragment
+            firstExperiment: experiments(first: 1) {
+              edges {
+                node {
+                  id
+                }
+              }
+            }
           }
         }
       }

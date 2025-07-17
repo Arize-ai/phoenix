@@ -1,0 +1,59 @@
+name: Typescript Packages Publish
+permissions:
+  contents: write
+  pull-requests: write
+on:
+  push:
+    branches:
+      - main
+env:
+  CI: true
+  PNPM_CACHE_FOLDER: .pnpm-store
+jobs:
+  version:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout code repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: setup node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: lts/*
+          registry-url: https://registry.npmjs.org/
+          scope: "@arizeai"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.2.0
+      - name: setup pnpm config
+        run: pnpm config set store-dir $PNPM_CACHE_FOLDER
+      - name: Install Dependencies
+        working-directory: ./js
+        run: pnpm install --frozen-lockfile
+      - name: Creating .npmrc
+        run: |
+          cat << EOF > "$HOME/.npmrc"
+            //registry.npmjs.org/:_authToken=$NPM_TOKEN
+          EOF
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: create and publish versions
+        uses: changesets/action@06245a4e0a36c064a573d4150030f5ec548e4fcc
+        with:
+          version: pnpm ci:version
+          commit: "chore(js): update versions"
+          title: "chore(js): update versions"
+          publish: pnpm ci:publish
+          cwd: "./js"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # - name: Release docs
+      # Run pnpm run docs in js/packages/phoenix-client
+      # Deploy the static files in js/packages/phoenix-client/docs to github pages

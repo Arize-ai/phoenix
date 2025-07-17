@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 from phoenix.inferences.inferences import Inferences
 from phoenix.inferences.schema import EmbeddingColumnNames, EmbeddingFeatures
@@ -8,8 +8,8 @@ from .embedding_dimension import EmbeddingDimension
 
 def _get_embedding_dimensions(
     primary_inferences: Inferences, reference_inferences: Optional[Inferences]
-) -> List[EmbeddingDimension]:
-    embedding_dimensions: List[EmbeddingDimension] = []
+) -> list[EmbeddingDimension]:
+    embedding_dimensions: list[EmbeddingDimension] = []
     embedding_features: EmbeddingFeatures = {}
 
     primary_embedding_features: Optional[EmbeddingFeatures] = (

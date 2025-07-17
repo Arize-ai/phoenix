@@ -1,19 +1,13 @@
-import React, { ReactNode, useCallback, useState } from "react";
+import { ReactNode, useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 import { css } from "@emotion/react";
 
-import {
-  Button,
-  DialogContainer,
-  Flex,
-  Icon,
-  Icons,
-  Text,
-  View,
-} from "@arizeai/components";
+import { DialogContainer } from "@arizeai/components";
 
+import { Button, Flex, Icon, Icons, Text, View } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 interface SelectedExample {
   id: string;
@@ -64,9 +58,10 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
         refreshLatestVersion();
       },
       onError: (error) => {
+        const formattedError = getErrorMessagesFromRelayMutationError(error);
         notifyError({
           title: "An error occurred",
-          message: `Failed to delete examples: ${error.message}`,
+          message: `Failed to delete examples: ${formattedError?.[0] ?? error.message}`,
         });
       },
     });
@@ -104,16 +99,25 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
         >
           <Text>{`${selectedExamples.length} example${isPlural ? "s" : ""} selected`}</Text>
           <Flex direction="row" gap="size-100">
-            <Button variant="default" size="compact" onClick={onClearSelection}>
+            <Button variant="default" size="S" onPress={onClearSelection}>
               Cancel
             </Button>
             <Button
               variant="danger"
-              size="compact"
-              icon={<Icon svg={<Icons.TrashOutline />} />}
-              loading={isDeletingExamples}
-              disabled={isDeletingExamples}
-              onClick={onDeleteExamples}
+              size="S"
+              leadingVisual={
+                <Icon
+                  svg={
+                    isDeletingExamples ? (
+                      <Icons.LoadingOutline />
+                    ) : (
+                      <Icons.TrashOutline />
+                    )
+                  }
+                />
+              }
+              isDisabled={isDeletingExamples}
+              onPress={onDeleteExamples}
             >
               {isDeletingExamples
                 ? "Deleting..."

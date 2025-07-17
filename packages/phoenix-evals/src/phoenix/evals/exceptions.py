@@ -8,3 +8,7 @@ class PhoenixContextLimitExceeded(PhoenixException):
 
 class PhoenixTemplateMappingError(PhoenixException):
     pass
+
+
+class PhoenixUnsupportedAudioFormat(PhoenixException):
+    pass

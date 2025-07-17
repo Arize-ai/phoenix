@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6e3f1aba10d52107d771d56713cb6ccc>>
+ * @generated SignedSource<<34e084d83b2f0fdd376b9f8cde9b3523>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { Fragment, ReaderFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type DimensionPercentEmptyStats_dimension$data = {
   readonly id: string;

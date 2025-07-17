@@ -5,23 +5,14 @@ import shutil
 import warnings
 from abc import ABC, abstractmethod
 from collections import UserList
+from collections.abc import Iterable, Mapping
 from datetime import datetime
 from enum import Enum
 from importlib.util import find_spec
 from itertools import chain
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Iterable,
-    List,
-    Mapping,
-    NamedTuple,
-    Optional,
-    Set,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, NamedTuple, Optional, Union
 from urllib.parse import urljoin
 
 import pandas as pd
@@ -31,7 +22,7 @@ from phoenix.config import (
     ENV_PHOENIX_COLLECTOR_ENDPOINT,
     ENV_PHOENIX_HOST,
     ENV_PHOENIX_PORT,
-    ensure_working_dir,
+    ensure_working_dir_if_needed,
     get_env_database_connection_str,
     get_env_host,
     get_env_port,
@@ -39,6 +30,7 @@ from phoenix.config import (
     get_working_dir,
 )
 from phoenix.core.model_schema_adapter import create_model_from_inferences
+from phoenix.db import get_printable_db_url
 from phoenix.inferences.inferences import EMPTY_INFERENCES, Inferences
 from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import (
@@ -63,7 +55,6 @@ except:  # noqa
     pass
 
 logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 # type workaround
 # https://github.com/python/mypy/issues/5264#issuecomment-399407428
@@ -89,8 +80,8 @@ class NotebookEnvironment(Enum):
 
 class ExportedData(_BaseList):
     def __init__(self) -> None:
-        self.paths: Set[Path] = set()
-        self.names: List[str] = []
+        self.paths: set[Path] = set()
+        self.names: list[str] = []
         super().__init__()
 
     def __repr__(self) -> str:
@@ -113,7 +104,7 @@ class Session(TraceDataExtractor, ABC):
     notebook_env: NotebookEnvironment
     """The notebook environment that the session is running in."""
 
-    def __dir__(self) -> List[str]:
+    def __dir__(self) -> list[str]:
         return ["exports", "view", "url"]
 
     def __init__(
@@ -158,7 +149,7 @@ class Session(TraceDataExtractor, ABC):
         # Deprecated fields
         stop_time: Optional[datetime] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
+    ) -> Optional[Union[pd.DataFrame, list[pd.DataFrame]]]:
         """
         Queries the spans in the project based on the provided parameters.
 
@@ -204,7 +195,7 @@ class Session(TraceDataExtractor, ABC):
     def get_evaluations(
         self,
         project_name: Optional[str] = None,
-    ) -> List[Evaluations]:
+    ) -> list[Evaluations]:
         """
         Get the evaluations for a project.
 
@@ -217,7 +208,7 @@ class Session(TraceDataExtractor, ABC):
 
         Returns
         -------
-            evaluations : List[Evaluations]
+            evaluations : list[Evaluations]
                 A list of evaluations for the specified project.
 
         """
@@ -472,7 +463,7 @@ def launch_app(
         Defaults to 6006.
     run_in_thread: bool, optional, default=True
         Whether the server should run in a Thread or Process.
-    default_umap_parameters: Dict[str, Union[int, float]], optional, default=None
+    default_umap_parameters: dict[str, Union[int, float]], optional, default=None
         User specified default UMAP parameters
         eg: {"n_neighbors": 10, "n_samples": 5, "min_dist": 0.5}
     notebook_environment: str, optional, default=None
@@ -482,7 +473,6 @@ def launch_app(
     use_temp_dir: bool, optional, default=True
         Whether to use a temporary directory to store the data. If set to False, the data will be
         stored in the directory specified by PHOENIX_WORKING_DIR environment variable via SQLite.
-
 
     Returns
     -------
@@ -500,7 +490,7 @@ def launch_app(
 
     # First we must ensure that the working directory is setup
     # NB: this is because the working directory can be deleted by the user
-    ensure_working_dir()
+    ensure_working_dir_if_needed()
 
     # Stopgap solution to allow the app to run without a primary dataset
     if primary is None:
@@ -562,6 +552,16 @@ def launch_app(
         database_url = f"sqlite:///{_session_working_dir.name}/phoenix.db"
     else:
         database_url = get_env_database_connection_str()
+        # Raise error for PostgreSQL usage with launch_app
+        if database_url.startswith("postgresql"):
+            raise ValueError(
+                "PostgreSQL backend detected in your environment configuration. "
+                "This could be from PHOENIX_SQL_DATABASE_URL or PHOENIX_POSTGRES_* variables. "
+                "launch_app() is designed to work with SQLite for notebook environments. "
+                "To use PostgreSQL, please use 'phoenix serve' from the command line instead. "
+                "Make sure you have the PostgreSQL extras installed: "
+                "pip install 'arize-phoenix[pg]'"
+            )
 
     if run_in_thread:
         _session = ThreadSession(
@@ -600,8 +600,8 @@ def launch_app(
 
     print(f"🌍 To view the Phoenix app in your browser, visit {_session.url}")
     if not use_temp_dir:
-        print(f"💽 Your data is being persisted to {database_url}")
-    print("📖 For more information on how to use Phoenix, check out https://docs.arize.com/phoenix")
+        print(f"💽 Your data is being persisted to {get_printable_db_url(database_url)}")
+    print("📖 For more information on how to use Phoenix, check out https://arize.com/docs/phoenix")
     return _session
 
 
@@ -639,7 +639,7 @@ def close_app(delete_data: bool = False) -> None:
 def _get_url(host: str, port: int, notebook_env: NotebookEnvironment) -> str:
     """Determines the IFrame URL based on whether this is in a Colab or in a local notebook"""
     if notebook_env == NotebookEnvironment.COLAB:
-        from google.colab.output import eval_js  # type: ignore
+        from google.colab.output import eval_js
 
         return str(eval_js(f"google.colab.kernel.proxyPort({port}, {{'cache': true}})"))
     if notebook_env == NotebookEnvironment.SAGEMAKER:
@@ -657,7 +657,7 @@ def _get_url(host: str, port: int, notebook_env: NotebookEnvironment) -> str:
 def _is_colab() -> bool:
     """Determines whether this is in a Colab"""
     try:
-        import google.colab  # type: ignore # noqa: F401
+        import google.colab  # noqa: F401
     except ImportError:
         return False
     try:

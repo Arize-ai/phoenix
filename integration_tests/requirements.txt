@@ -1,7 +1,0 @@
-faker
-httpx
-openinference-semantic-conventions
-opentelemetry-sdk
-portpicker
-psutil
-types-psutil

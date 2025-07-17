@@ -1,38 +1,50 @@
-import React, { ReactNode, useState } from "react";
+import {
+  Button,
+  ButtonProps,
+  DialogTrigger,
+  Icon,
+  Icons,
+  Modal,
+  ModalOverlay,
+} from "@phoenix/components";
+import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
 
-import { Button, DialogContainer, Icon, Icons } from "@arizeai/components";
-
-import { EditSpanAnnotationsDialog } from "./EditSpanAnnotationsDialog";
-
-export function EditSpanAnnotationsButton(props: {
+export function EditSpanAnnotationsButton({
+  spanNodeId,
+  projectId,
+  size = "M",
+  buttonText = "Annotate",
+}: {
   spanNodeId: string;
   projectId: string;
+  /**
+   * The size of the button
+   * @default M
+   */
+  size?: ButtonProps["size"];
+  /**
+   * The text of the button
+   * @default "Annotate"
+   */
+  buttonText: string | null;
 }) {
-  const { spanNodeId, projectId } = props;
-  const [dialog, setDialog] = useState<ReactNode>(null);
   return (
-    <>
+    <DialogTrigger>
       <Button
-        variant="default"
-        icon={<Icon svg={<Icons.EditOutline />} />}
-        onClick={() =>
-          setDialog(
-            <EditSpanAnnotationsDialog
-              spanNodeId={spanNodeId}
-              projectId={projectId}
-            />
-          )
-        }
+        size={size}
+        aria-label="Edit Span Annotations"
+        leadingVisual={<Icon svg={<Icons.EditOutline />} />}
       >
-        Annotate
+        {buttonText}
       </Button>
-      <DialogContainer
-        type="slideOver"
-        isDismissable
-        onDismiss={() => setDialog(null)}
-      >
-        {dialog}
-      </DialogContainer>
-    </>
+      <ModalOverlay>
+        <Modal variant="slideover" size="L">
+          <EditSpanAnnotationsDialog
+            spanNodeId={spanNodeId}
+            projectId={projectId}
+          />
+        </Modal>
+      </ModalOverlay>
+    </DialogTrigger>
   );
 }

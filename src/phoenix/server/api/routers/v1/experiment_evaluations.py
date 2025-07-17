@@ -1,6 +1,7 @@
 from datetime import datetime
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Literal, Optional
 
+from dateutil.parser import isoparse
 from fastapi import APIRouter, HTTPException
 from pydantic import Field
 from starlette.requests import Request
@@ -13,10 +14,10 @@ from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.dml_event import ExperimentRunAnnotationInsertEvent
 
-from .pydantic_compat import V1RoutesBaseModel
+from .models import V1RoutesBaseModel
 from .utils import ResponseBody, add_errors_to_responses
 
-router = APIRouter(tags=["experiments"], include_in_schema=False)
+router = APIRouter(tags=["experiments"], include_in_schema=True)
 
 
 class ExperimentEvaluationResult(V1RoutesBaseModel):
@@ -39,7 +40,7 @@ class UpsertExperimentEvaluationRequestBody(V1RoutesBaseModel):
     error: Optional[str] = Field(
         None, description="Optional error message if the evaluation encountered an error"
     )
-    metadata: Optional[Dict[str, Any]] = Field(
+    metadata: Optional[dict[str, Any]] = Field(
         default=None, description="Metadata for the evaluation"
     )
     trace_id: Optional[str] = Field(default=None, description="Optional trace ID for tracking")
@@ -95,8 +96,8 @@ async def upsert_experiment_evaluation(
             explanation=explanation,
             error=error,
             metadata_=metadata,  # `metadata_` must match database
-            start_time=datetime.fromisoformat(start_time),
-            end_time=datetime.fromisoformat(end_time),
+            start_time=isoparse(start_time),
+            end_time=isoparse(end_time),
             trace_id=payload.get("trace_id"),
         )
         dialect = SupportedSQLDialect(session.bind.dialect.name)

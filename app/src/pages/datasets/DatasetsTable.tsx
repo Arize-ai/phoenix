@@ -1,5 +1,6 @@
-import React, {
+import {
   startTransition,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -16,14 +17,13 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Icon, Icons } from "@arizeai/components";
-
-import { Link } from "@phoenix/components";
+import { Icon, Icons, Link } from "@phoenix/components";
 import { CompactJSONCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
-import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { DatasetsTable_datasets$key } from "./__generated__/DatasetsTable_datasets.graphql";
 import {
@@ -31,11 +31,12 @@ import {
   DatasetsTableDatasetsQuery,
 } from "./__generated__/DatasetsTableDatasetsQuery.graphql";
 import { DatasetActionMenu } from "./DatasetActionMenu";
-
+import { DatasetsEmpty } from "./DatasetsEmpty";
 const PAGE_SIZE = 100;
 
 type DatasetsTableProps = {
   query: DatasetsTable_datasets$key;
+  filter: string;
 };
 
 function toGqlSort(sort: SortingState[number]): DatasetSort {
@@ -50,6 +51,7 @@ function toGqlSort(sort: SortingState[number]): DatasetSort {
 }
 
 export function DatasetsTable(props: DatasetsTableProps) {
+  const { filter } = props;
   const [sorting, setSorting] = useState<SortingState>([]);
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -71,8 +73,9 @@ export function DatasetsTable(props: DatasetsTableProps) {
             type: "DatasetSort"
             defaultValue: { col: createdAt, dir: desc }
           }
+          filter: { type: "DatasetFilter", defaultValue: null }
         ) {
-          datasets(first: $first, after: $after, sort: $sort)
+          datasets(first: $first, after: $after, sort: $sort, filter: $filter)
             @connection(key: "DatasetsTable_datasets") {
             edges {
               node {
@@ -94,7 +97,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
     () => data.datasets.edges.map((edge) => edge.node),
     [data]
   );
-  const fetchMoreOnBottomReached = React.useCallback(
+  const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
         const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
@@ -104,11 +107,15 @@ export function DatasetsTable(props: DatasetsTableProps) {
           !isLoadingNext &&
           hasNext
         ) {
-          loadNext(PAGE_SIZE);
+          loadNext(PAGE_SIZE, {
+            UNSTABLE_extraVariables: {
+              filter: filter ? { col: "name", value: filter } : null,
+            },
+          });
         }
       }
     },
-    [hasNext, isLoadingNext, loadNext]
+    [hasNext, isLoadingNext, loadNext, filter]
   );
   const table = useReactTable({
     columns: [
@@ -172,12 +179,19 @@ export function DatasetsTable(props: DatasetsTableProps) {
                   title: "Dataset updated",
                   message: `${row.original.name} has been successfully updated.`,
                 });
-                refetch({}, { fetchPolicy: "store-and-network" });
+                refetch(
+                  {
+                    filter: filter ? { col: "name", value: filter } : null,
+                  },
+                  { fetchPolicy: "store-and-network" }
+                );
               }}
               onDatasetEditError={(error) => {
+                const formattedError =
+                  getErrorMessagesFromRelayMutationError(error);
                 notifyError({
                   title: "Dataset update failed",
-                  message: error.message,
+                  message: formattedError?.[0] ?? error.message,
                 });
               }}
               onDatasetDelete={() => {
@@ -185,12 +199,19 @@ export function DatasetsTable(props: DatasetsTableProps) {
                   title: "Dataset deleted",
                   message: `${row.original.name} has been successfully deleted.`,
                 });
-                refetch({}, { fetchPolicy: "store-and-network" });
+                refetch(
+                  {
+                    filter: filter ? { col: "name", value: filter } : null,
+                  },
+                  { fetchPolicy: "store-and-network" }
+                );
               }}
               onDatasetDeleteError={(error) => {
+                const formattedError =
+                  getErrorMessagesFromRelayMutationError(error);
                 notifyError({
                   title: "Dataset deletion failed",
-                  message: error.message,
+                  message: formattedError?.[0] ?? error.message,
                 });
               }}
             />
@@ -218,11 +239,12 @@ export function DatasetsTable(props: DatasetsTableProps) {
           sort: sort ? toGqlSort(sort) : { col: "createdAt", dir: "desc" },
           after: null,
           first: PAGE_SIZE,
+          filter: filter ? { col: "name", value: filter } : null,
         },
         { fetchPolicy: "store-and-network" }
       );
     });
-  }, [sorting, refetch]);
+  }, [sorting, refetch, filter]);
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
   return (
@@ -243,9 +265,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
                   {header.isPlaceholder ? null : (
                     <div
                       {...{
-                        className: header.column.getCanSort()
-                          ? "cursor-pointer"
-                          : "",
+                        className: header.column.getCanSort() ? "sort" : "",
                         onClick: header.column.getToggleSortingHandler(),
                         style: {
                           textAlign: header.column.columnDef.meta?.textAlign,
@@ -276,7 +296,9 @@ export function DatasetsTable(props: DatasetsTableProps) {
           ))}
         </thead>
         {isEmpty ? (
-          <TableEmpty />
+          <TableEmptyWrap>
+            <DatasetsEmpty />
+          </TableEmptyWrap>
         ) : (
           <tbody>
             {rows.map((row) => {

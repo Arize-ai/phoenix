@@ -1,7 +1,8 @@
 import json
+from collections.abc import Iterable, Iterator
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Iterable, Iterator, List, Optional, Tuple, Union, cast
+from typing import Any, Optional, Union, cast
 from uuid import UUID, uuid4
 from warnings import warn
 
@@ -17,7 +18,7 @@ from pyarrow import Schema, Table, parquet
 
 from phoenix.config import GENERATED_INFERENCES_NAME_PREFIX, INFERENCES_DIR, TRACE_DATASETS_DIR
 from phoenix.datetime_utils import normalize_timestamps
-from phoenix.trace.attributes import unflatten
+from phoenix.trace.attributes import flatten, unflatten
 from phoenix.trace.errors import InvalidParquetMetadataError
 from phoenix.trace.schemas import ATTRIBUTE_PREFIX, CONTEXT_PREFIX, Span
 from phoenix.trace.span_evaluations import Evaluations, SpanEvaluations
@@ -116,7 +117,7 @@ class TraceDataset:
     A human readable name for the dataset.
     """
     dataframe: pd.DataFrame
-    evaluations: List[Evaluations] = []
+    evaluations: list[Evaluations] = []
     _id: UUID
     _data_file_name: str = "data.parquet"
 
@@ -152,11 +153,11 @@ class TraceDataset:
         self.evaluations = list(evaluations)
 
     @classmethod
-    def from_spans(cls, spans: List[Span]) -> "TraceDataset":
+    def from_spans(cls, spans: list[Span]) -> "TraceDataset":
         """Creates a TraceDataset from a list of spans.
 
         Args:
-            spans (List[Span]): A list of spans.
+            spans (list[Span]): A list of spans.
 
         Returns:
             TraceDataset: A TraceDataset containing the spans.
@@ -173,12 +174,15 @@ class TraceDataset:
             is_attribute = row.index.str.startswith(ATTRIBUTE_PREFIX)
             attribute_keys = row.index[is_attribute]
             attributes = unflatten(
-                row.loc[is_attribute]
-                .rename(
-                    {key: key[len(ATTRIBUTE_PREFIX) :] for key in attribute_keys},
+                flatten(
+                    row.loc[is_attribute]
+                    .rename(
+                        {key: key[len(ATTRIBUTE_PREFIX) :] for key in attribute_keys},
+                    )
+                    .dropna()
+                    .to_dict(),
+                    recurse_on_sequence=True,
                 )
-                .dropna()
-                .items()
             )
             is_context = row.index.str.startswith(CONTEXT_PREFIX)
             context_keys = row.index[is_context]
@@ -192,6 +196,17 @@ class TraceDataset:
             end_time: Optional[datetime] = cast(datetime, row.get("end_time"))
             if end_time is pd.NaT:
                 end_time = None
+            events = cast(Any, row.get("events"))
+            if isinstance(events, np.ndarray):
+                events = events.tolist()
+            elif isinstance(events, str):
+                events = json.loads(events)
+                assert isinstance(events, list)
+            elif isinstance(events, Iterable):
+                events = list(events)
+            elif pd.isna(events):
+                events = []
+            assert isinstance(events, list)
             yield json_to_span(
                 {
                     "name": row["name"],
@@ -203,7 +218,7 @@ class TraceDataset:
                     "status_code": row["status_code"],
                     "status_message": row.get("status_message") or "",
                     "attributes": attributes,
-                    "events": row.get("events") or [],
+                    "events": events,
                     "conversation": row.get("conversation"),
                 }
             )
@@ -346,7 +361,7 @@ class TraceDataset:
         return pd.concat([df, evals_df], axis=1)
 
 
-def _parse_schema_metadata(schema: Schema) -> Tuple[UUID, str, List[UUID]]:
+def _parse_schema_metadata(schema: Schema) -> tuple[UUID, str, list[UUID]]:
     """
     Returns parsed metadata from a parquet schema or raises an exception if the
     metadata is invalid.

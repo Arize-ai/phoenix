@@ -1,22 +1,33 @@
-import React, { startTransition, Suspense, useState } from "react";
-import { useLoaderData, useSearchParams } from "react-router-dom";
+import { startTransition, Suspense, useState } from "react";
+import {
+  useLoaderData,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router";
+import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
-import { Alert, Flex, Heading, Switch, View } from "@arizeai/components";
+import { Switch } from "@arizeai/components";
 
-import { Loading } from "@phoenix/components";
+import { Alert, Flex, Loading, View } from "@phoenix/components";
+import { experimentCompareLoader } from "@phoenix/pages/experiment/experimentCompareLoader";
 
-import { experimentCompareLoaderQuery$data } from "./__generated__/experimentCompareLoaderQuery.graphql";
 import { ExperimentCompareTable } from "./ExperimentCompareTable";
 import { ExperimentMultiSelector } from "./ExperimentMultiSelector";
+import { ExperimentRunFilterConditionProvider } from "./ExperimentRunFilterConditionContext";
 
 export function ExperimentComparePage() {
-  const data = useLoaderData() as experimentCompareLoaderQuery$data;
+  const loaderData = useLoaderData<typeof experimentCompareLoader>();
+  invariant(loaderData, "loaderData is required");
   // The text of most IO is too long so default to showing truncated text
   const [displayFullText, setDisplayFullText] = useState(false);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const experimentIds = searchParams.getAll("experimentId");
-  const experimentIdsSelected = experimentIds.length > 0;
+  const { datasetId } = useParams();
+  invariant(datasetId != null, "datasetId is required");
+  const [searchParams] = useSearchParams();
+  const [baselineExperimentId = undefined, ...compareExperimentIds] =
+    searchParams.getAll("experimentId");
+  const navigate = useNavigate();
   return (
     <main
       css={css`
@@ -32,47 +43,54 @@ export function ExperimentComparePage() {
         borderBottomWidth="thin"
         flex="none"
       >
-        <Flex direction="column" gap="size-100">
-          <Heading level={1}>Compare Experiments</Heading>
-          <Flex direction="row" justifyContent="space-between" alignItems="end">
-            <ExperimentMultiSelector
-              dataset={data.dataset}
-              selectedExperimentIds={experimentIds}
-              label="experiments"
-              onChange={(newExperimentIds) => {
-                startTransition(() => {
-                  searchParams.delete("experimentId");
-                  newExperimentIds.forEach((id) => {
-                    searchParams.append("experimentId", id);
-                  });
-                  setSearchParams(searchParams);
-                });
-              }}
-            />
-            <Switch
-              onChange={(isSelected) => {
-                setDisplayFullText(isSelected);
-              }}
-              defaultSelected={false}
-              labelPlacement="start"
-            >
-              Full Text
-            </Switch>
-          </Flex>
+        <Flex direction="row" justifyContent="space-between" alignItems="end">
+          <ExperimentMultiSelector
+            dataRef={loaderData}
+            selectedBaselineExperimentId={baselineExperimentId}
+            selectedCompareExperimentIds={compareExperimentIds}
+            onChange={(newBaselineExperimentId, newCompareExperimentIds) => {
+              startTransition(() => {
+                if (newBaselineExperimentId == null) {
+                  navigate(`/datasets/${datasetId}/compare`);
+                } else {
+                  const queryParams = `?${[
+                    newBaselineExperimentId,
+                    ...newCompareExperimentIds,
+                  ]
+                    .map((id) => `experimentId=${id}`)
+                    .join("&")}`;
+                  navigate(`/datasets/${datasetId}/compare${queryParams}`);
+                }
+              });
+            }}
+          />
+          <Switch
+            onChange={(isSelected) => {
+              setDisplayFullText(isSelected);
+            }}
+            defaultSelected={false}
+            labelPlacement="start"
+          >
+            Full Text
+          </Switch>
         </Flex>
       </View>
-      {experimentIdsSelected ? (
-        <Suspense fallback={<Loading />}>
-          <ExperimentCompareTable
-            datasetId={data.dataset.id}
-            experimentIds={experimentIds}
-            displayFullText={displayFullText}
-          />
-        </Suspense>
+      {baselineExperimentId != null ? (
+        <ExperimentRunFilterConditionProvider>
+          <Suspense fallback={<Loading />}>
+            <ExperimentCompareTable
+              query={loaderData}
+              datasetId={datasetId}
+              baselineExperimentId={baselineExperimentId}
+              compareExperimentIds={compareExperimentIds}
+              displayFullText={displayFullText}
+            />
+          </Suspense>
+        </ExperimentRunFilterConditionProvider>
       ) : (
         <View padding="size-200">
-          <Alert variant="info" title="No Experiment Selected">
-            Please select one or more experiments.
+          <Alert variant="info" title="No Baseline Experiment Selected">
+            Please select a baseline experiment.
           </Alert>
         </View>
       )}

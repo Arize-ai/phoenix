@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0ebe4222000395c94923ac518a7f022b>>
+ * @generated SignedSource<<64d4b8e726882c555dd01f6a5bb5073d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 export type DimensionDataType = "categorical" | "numeric";
 export type DimensionType = "actual" | "feature" | "prediction" | "tag";
 import { FragmentRefs } from "relay-runtime";
@@ -112,7 +112,7 @@ return {
     {
       "alias": null,
       "args": null,
-      "concreteType": "Model",
+      "concreteType": "InferenceModel",
       "kind": "LinkedField",
       "name": "model",
       "plural": false,

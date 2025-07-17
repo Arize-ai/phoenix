@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7928e987c313af9e393b263cf3c17e93>>
+ * @generated SignedSource<<f36a42947770296e21a4591de68628f7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type DatasetsPageQuery$variables = Record<PropertyKey, never>;
 export type DatasetsPageQuery$data = {
@@ -182,7 +182,8 @@ return {
         "alias": null,
         "args": (v0/*: any*/),
         "filters": [
-          "sort"
+          "sort",
+          "filter"
         ],
         "handle": "connection",
         "key": "DatasetsTable_datasets",

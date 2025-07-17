@@ -1,14 +1,13 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { css } from "@emotion/react";
 
 import {
   Flex,
-  HelpTooltip,
   Text,
+  Tooltip,
   TooltipTrigger,
   TriggerWrap,
-} from "@arizeai/components";
-
+} from "@phoenix/components";
 import { baseAnnotationLabelCSS } from "@phoenix/components/annotation";
 import { ColorSwatch } from "@phoenix/components/ColorSwatch";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
@@ -44,37 +43,37 @@ export function RetrievalEvaluationLabel(props: RetrievalEvaluationLabelProps) {
     return (typeof score == "number" && formatFloat(score)) || "--";
   }, [score, metric]);
   return (
-    <TooltipTrigger delay={500} offset={3}>
+    <TooltipTrigger delay={500}>
       <TriggerWrap>
         <div css={baseAnnotationLabelCSS}>
           <Flex direction="row" gap="size-100" alignItems={"center"}>
             <ColorSwatch color={"var(--ac-global-color-seafoam-1000)"} />
             {name ? (
               <div css={textCSS}>
-                <Text weight="heavy" textSize="small" color="inherit">
+                <Text weight="heavy" size="XS" color="inherit">
                   {name}
                 </Text>
               </div>
             ) : null}
             <div css={textCSS}>
-              <Text textSize="small" color="inherit">
+              <Text size="XS" color="inherit">
                 {label}
               </Text>
             </div>
             <div css={textCSS}>
-              <Text textSize="small">{labelValue}</Text>
+              <Text size="XS">{labelValue}</Text>
             </div>
           </Flex>
         </div>
       </TriggerWrap>
-      <HelpTooltip>
+      <Tooltip offset={3} placement="bottom">
         <Flex direction="row" gap="size-100">
           <Text weight="heavy" color="inherit">
             {name} {label}
           </Text>
           <Text color="inherit">{labelValue}</Text>
         </Flex>
-      </HelpTooltip>
+      </Tooltip>
     </TooltipTrigger>
   );
 }

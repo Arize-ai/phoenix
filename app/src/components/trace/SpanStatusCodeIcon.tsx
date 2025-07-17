@@ -1,7 +1,4 @@
-import React from "react";
-
-import { Icon, Icons } from "@arizeai/components";
-
+import { Icon, Icons } from "@phoenix/components";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { SpanStatusCodeType } from "./types";
@@ -9,6 +6,7 @@ import { useSpanStatusCodeColor } from "./useSpanStatusCodeColor";
 
 export function SpanStatusCodeIcon<TCode extends SpanStatusCodeType>({
   statusCode,
+  ...restProps
 }: {
   statusCode: TCode;
 }) {
@@ -27,5 +25,7 @@ export function SpanStatusCodeIcon<TCode extends SpanStatusCodeType>({
     default:
       assertUnreachable(statusCode);
   }
-  return <Icon svg={iconSVG} color={color} aria-label={statusCode} />;
+  return (
+    <Icon svg={iconSVG} color={color} aria-label={statusCode} {...restProps} />
+  );
 }

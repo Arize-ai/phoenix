@@ -1,12 +1,14 @@
+from collections.abc import Iterable
 from dataclasses import replace
 from datetime import datetime, timedelta
 from functools import total_ordering
-from typing import Iterable, List, Optional, Tuple, Union, cast
+from typing import Optional, Union, cast
 
 import pandas as pd
 import strawberry
 from strawberry import UNSET
 
+from phoenix.core import model_schema
 from phoenix.core.model_schema import CONTINUOUS, PRIMARY, REFERENCE, Column, Dimension, Inferences
 from phoenix.metrics import Metric, binning
 from phoenix.metrics.mixins import UnaryOperator
@@ -14,7 +16,10 @@ from phoenix.metrics.timeseries import timeseries
 from phoenix.server.api.input_types.Granularity import Granularity, to_timestamps
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.interceptor import GqlValueMediator
-from phoenix.server.api.types.DataQualityMetric import DataQualityMetric
+from phoenix.server.api.types.DataQualityMetric import (
+    DATA_QUALITY_METRIC_FACTORIES,
+    DataQualityMetric,
+)
 from phoenix.server.api.types.InferencesRole import InferencesRole
 from phoenix.server.api.types.ScalarDriftMetricEnum import ScalarDriftMetric
 from phoenix.server.api.types.VectorDriftMetricEnum import VectorDriftMetric
@@ -39,7 +44,7 @@ def to_gql_datapoints(
     df: pd.DataFrame,
     metric: Metric,
     timestamps: Iterable[datetime],
-) -> List[TimeSeriesDataPoint]:
+) -> list[TimeSeriesDataPoint]:
     data = []
     for timestamp in timestamps:
         try:
@@ -59,19 +64,19 @@ def to_gql_datapoints(
 class TimeSeries:
     """A collection of data points over time"""
 
-    data: List[TimeSeriesDataPoint]
+    data: list[TimeSeriesDataPoint]
 
 
 def get_timeseries_data(
     df: pd.DataFrame,
     metric: Metric,
-    time_range: TimeRange,
+    time_range: model_schema.TimeRange,
     granularity: Granularity,
-) -> List[TimeSeriesDataPoint]:
+) -> list[TimeSeriesDataPoint]:
     return df.pipe(
         timeseries(
             start_time=time_range.start,
-            end_time=time_range.end,
+            end_time=time_range.stop,
             evaluation_window=timedelta(
                 minutes=granularity.evaluation_window_minutes,
             ),
@@ -95,11 +100,11 @@ class DataQualityTimeSeries(TimeSeries):
 def get_data_quality_timeseries_data(
     dimension: Dimension,
     metric: DataQualityMetric,
-    time_range: TimeRange,
+    time_range: model_schema.TimeRange,
     granularity: Granularity,
     inferences_role: InferencesRole,
-) -> List[TimeSeriesDataPoint]:
-    metric_instance = metric.value()
+) -> list[TimeSeriesDataPoint]:
+    metric_instance = DATA_QUALITY_METRIC_FACTORIES[metric]()
     if isinstance(metric_instance, UnaryOperator):
         metric_instance = replace(
             metric_instance,
@@ -125,10 +130,10 @@ class DriftTimeSeries(TimeSeries):
 def get_drift_timeseries_data(
     dimension: Dimension,
     metric: Union[ScalarDriftMetric, VectorDriftMetric],
-    time_range: TimeRange,
+    time_range: model_schema.TimeRange,
     granularity: Granularity,
     reference_data: pd.DataFrame,
-) -> List[TimeSeriesDataPoint]:
+) -> list[TimeSeriesDataPoint]:
     metric_instance = metric.value()
     metric_instance = replace(
         metric_instance,
@@ -161,14 +166,15 @@ class PerformanceTimeSeries(TimeSeries):
 
 def ensure_timeseries_parameters(
     inferences: Inferences,
-    time_range: Optional[TimeRange] = UNSET,
+    time_range_input: Optional[TimeRange] = UNSET,
     granularity: Optional[Granularity] = UNSET,
-) -> Tuple[TimeRange, Granularity]:
-    if not isinstance(time_range, TimeRange):
-        start, stop = inferences.time_range
-        time_range = TimeRange(start=start, end=stop)
+) -> tuple[model_schema.TimeRange, Granularity]:
+    time_range = model_schema.TimeRange(
+        start=(time_range_input and time_range_input.start) or inferences.time_range.start,
+        stop=(time_range_input and time_range_input.end) or inferences.time_range.stop,
+    )
     if not isinstance(granularity, Granularity):
-        total_minutes = int((time_range.end - time_range.start).total_seconds()) // 60
+        total_minutes = int((time_range.stop - time_range.start).total_seconds()) // 60
         granularity = Granularity(
             evaluation_window_minutes=total_minutes,
             sampling_interval_minutes=total_minutes,

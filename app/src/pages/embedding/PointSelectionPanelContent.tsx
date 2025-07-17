@@ -1,19 +1,30 @@
-import React, { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
 import {
   Button,
   CloseOutline,
-  CompactSearchField,
   Dialog,
-  DialogContainer,
+  DialogTrigger,
   Icon,
-  TabPane,
+  Input,
+  Modal,
+  ModalOverlay,
+  SearchField,
+  Tab,
+  TabList,
+  TabPanel,
   Tabs,
   Text,
-} from "@arizeai/components";
-
+} from "@phoenix/components";
+import {
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+} from "@phoenix/components/dialog";
 import { Toolbar } from "@phoenix/components/filter";
 import { SelectionDisplayRadioGroup } from "@phoenix/components/pointcloud";
 import { SelectionGridSizeRadioGroup } from "@phoenix/components/pointcloud/SelectionGridSizeRadioGroup";
@@ -88,7 +99,7 @@ export function PointSelectionPanelContent() {
     (state) => state.selectionDisplay
   );
 
-  const [selectedDetailPointId, setSelectedDetailPointId] = React.useState<
+  const [selectedDetailPointId, setSelectedDetailPointId] = useState<
     string | null
   >(null);
 
@@ -299,31 +310,38 @@ export function PointSelectionPanelContent() {
   const numSelectedEvents = allSelectedEvents.length;
   const numMatchingEvents = filteredEvents.length;
 
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      setSelectedDetailPointId(null);
+    }
+  };
+
   return (
     <section css={pointSelectionPanelCSS}>
       <div
         role="toolbar"
         css={css`
           position: absolute;
-          top: var(--px-spacing-med);
-          right: var(--px-spacing-lg);
+          top: var(--ac-global-dimension-static-size-100);
+          right: var(--ac-global-dimension-static-size-200);
           display: flex;
           flex-direction: row-reverse;
-          gap: var(--px-spacing-med);
+          gap: var(--ac-global-dimension-static-size-100);
         `}
       >
         <Button
-          variant="default"
-          size="compact"
-          icon={<Icon svg={<CloseOutline />} />}
+          size="S"
+          leadingVisual={<Icon svg={<CloseOutline />} />}
           aria-label="Clear selection"
-          onClick={onClose}
+          onPress={onClose}
         />
         <ExportSelectionButton />
       </div>
-      {/* @ts-expect-error more tabs to come */}
       <Tabs>
-        <TabPane name="Selection">
+        <TabList>
+          <Tab id="selection">Selection</Tab>
+        </TabList>
+        <TabPanel id="selection">
           <SelectionToolbar
             numSelectedEvents={numSelectedEvents}
             numMatchingEvents={numMatchingEvents}
@@ -347,19 +365,28 @@ export function PointSelectionPanelContent() {
               onItemSelected={setSelectedDetailPointId}
             />
           )}
-        </TabPane>
+        </TabPanel>
       </Tabs>
-      <DialogContainer
-        type="slideOver"
-        isDismissable
-        onDismiss={() => setSelectedDetailPointId(null)}
+      <DialogTrigger
+        isOpen={eventDetails !== null}
+        onOpenChange={handleOpenChange}
       >
-        {eventDetails && (
-          <Dialog title="Embedding Details" size="L">
-            <EventDetails event={eventDetails} />
-          </Dialog>
-        )}
-      </DialogContainer>
+        <ModalOverlay>
+          <Modal variant="slideover" size="L">
+            <Dialog>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Embedding Details</DialogTitle>
+                  <DialogTitleExtra>
+                    <DialogCloseButton />
+                  </DialogTitleExtra>
+                </DialogHeader>
+                {eventDetails && <EventDetails event={eventDetails} />}
+              </DialogContent>
+            </Dialog>
+          </Modal>
+        </ModalOverlay>
+      </DialogTrigger>
     </section>
   );
 }
@@ -407,15 +434,17 @@ function SelectionToolbar({
           css={css`
             display: flex;
             flex-direction: row;
-            gap: var(--px-spacing-med);
+            gap: var(--ac-global-dimension-static-size-100);
           `}
         >
-          <CompactSearchField
-            placeholder="Search by text or ID"
+          <SearchField
+            size="S"
             onChange={(searchText) => {
               setSelectionSearchText(searchText);
             }}
-          />
+          >
+            <Input placeholder="Search by text or ID" />
+          </SearchField>
           {selectionDisplay === SelectionDisplay.gallery && (
             <SelectionGridSizeRadioGroup
               size={selectionGridSize}

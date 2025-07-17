@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 import { format } from "d3-format";
 import {
@@ -11,8 +11,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-
-import { theme } from "@arizeai/components";
 
 import {
   ChartTooltip,
@@ -147,7 +145,7 @@ export function DimensionSegmentsBarChart(props: {
           style={{ fill: "var(--ac-global-text-color-700)" }}
         />
         <YAxis
-          stroke={theme.colors.gray200}
+          stroke="var(--ac-global-color-grey-500)"
           label={{
             value: "% Volume",
             angle: -90,
@@ -161,7 +159,7 @@ export function DimensionSegmentsBarChart(props: {
         />
         <CartesianGrid
           strokeDasharray="4 4"
-          stroke={theme.colors.gray200}
+          stroke="var(--ac-global-color-grey-500)"
           strokeOpacity={0.5}
         />
         <Tooltip

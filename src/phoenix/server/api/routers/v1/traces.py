@@ -1,19 +1,20 @@
 import gzip
 import zlib
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
 from google.protobuf.message import DecodeError
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
+    ExportTraceServiceResponse,
 )
 from pydantic import Field
-from sqlalchemy import select
+from sqlalchemy import insert, select
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
+from starlette.responses import Response
 from starlette.status import (
-    HTTP_204_NO_CONTENT,
     HTTP_404_NOT_FOUND,
     HTTP_415_UNSUPPORTED_MEDIA_TYPE,
     HTTP_422_UNPROCESSABLE_ENTITY,
@@ -21,14 +22,15 @@ from starlette.status import (
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
+from phoenix.db.insertion.helpers import as_kv
 from phoenix.db.insertion.types import Precursors
+from phoenix.server.authorization import is_not_locked
+from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import TraceAnnotationInsertEvent
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.utilities.project import get_project_name
 
-from .pydantic_compat import V1RoutesBaseModel
+from .models import V1RoutesBaseModel
 from .utils import RequestBody, ResponseBody, add_errors_to_responses
 
 router = APIRouter(tags=["traces"])
@@ -36,9 +38,9 @@ router = APIRouter(tags=["traces"])
 
 @router.post(
     "/traces",
+    dependencies=[Depends(is_not_locked)],
     operation_id="addTraces",
     summary="Send traces",
-    status_code=HTTP_204_NO_CONTENT,
     responses=add_errors_to_responses(
         [
             {
@@ -65,7 +67,7 @@ async def post_traces(
     background_tasks: BackgroundTasks,
     content_type: Optional[str] = Header(default=None),
     content_encoding: Optional[str] = Header(default=None),
-) -> None:
+) -> Response:
     if content_type != "application/x-protobuf":
         raise HTTPException(
             detail=f"Unsupported content type: {content_type}",
@@ -90,7 +92,15 @@ async def post_traces(
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
     background_tasks.add_task(_add_spans, req, request.state)
-    return None
+
+    # "The server MUST use the same Content-Type in the response as it received in the request"
+    response_message = ExportTraceServiceResponse()
+    response_bytes = response_message.SerializeToString()
+    return Response(
+        content=response_bytes,
+        media_type="application/x-protobuf",
+        status_code=200,
+    )
 
 
 class TraceAnnotationResult(V1RoutesBaseModel):
@@ -110,11 +120,18 @@ class TraceAnnotation(V1RoutesBaseModel):
     result: Optional[TraceAnnotationResult] = Field(
         default=None, description="The result of the annotation"
     )
-    metadata: Optional[Dict[str, Any]] = Field(
+    metadata: Optional[dict[str, Any]] = Field(
         default=None, description="Metadata for the annotation"
     )
+    identifier: str = Field(
+        default="",
+        description=(
+            "The identifier of the annotation. "
+            "If provided, the annotation will be updated if it already exists."
+        ),
+    )
 
-    def as_precursor(self) -> Precursors.TraceAnnotation:
+    def as_precursor(self, *, user_id: Optional[int] = None) -> Precursors.TraceAnnotation:
         return Precursors.TraceAnnotation(
             self.trace_id,
             models.TraceAnnotation(
@@ -124,26 +141,30 @@ class TraceAnnotation(V1RoutesBaseModel):
                 label=self.result.label if self.result else None,
                 explanation=self.result.explanation if self.result else None,
                 metadata_=self.metadata or {},
+                identifier=self.identifier,
+                source="APP",
+                user_id=user_id,
             ),
         )
 
 
-class AnnotateTracesRequestBody(RequestBody[List[TraceAnnotation]]):
-    data: List[TraceAnnotation] = Field(description="The trace annotations to be upserted")
+class AnnotateTracesRequestBody(RequestBody[list[TraceAnnotation]]):
+    data: list[TraceAnnotation] = Field(description="The trace annotations to be upserted")
 
 
 class InsertedTraceAnnotation(V1RoutesBaseModel):
     id: str = Field(description="The ID of the inserted trace annotation")
 
 
-class AnnotateTracesResponseBody(ResponseBody[List[InsertedTraceAnnotation]]):
+class AnnotateTracesResponseBody(ResponseBody[list[InsertedTraceAnnotation]]):
     pass
 
 
 @router.post(
     "/trace_annotations",
+    dependencies=[Depends(is_not_locked)],
     operation_id="annotateTraces",
-    summary="Create or update trace annotations",
+    summary="Create trace annotations",
     responses=add_errors_to_responses(
         [{"status_code": HTTP_404_NOT_FOUND, "description": "Trace not found"}]
     ),
@@ -156,7 +177,12 @@ async def annotate_traces(
 ) -> AnnotateTracesResponseBody:
     if not request_body.data:
         return AnnotateTracesResponseBody(data=[])
-    precursors = [d.as_precursor() for d in request_body.data]
+
+    user_id: Optional[int] = None
+    if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
+        user_id = int(request.user.identity)
+
+    precursors = [d.as_precursor(user_id=user_id) for d in request_body.data]
     if not sync:
         await request.state.enqueue(*precursors)
         return AnnotateTracesResponseBody(data=[])
@@ -177,16 +203,10 @@ async def annotate_traces(
                 status_code=HTTP_404_NOT_FOUND,
             )
         inserted_ids = []
-        dialect = SupportedSQLDialect(session.bind.dialect.name)
         for p in precursors:
             values = dict(as_kv(p.as_insertable(existing_traces[p.trace_id]).row))
             trace_annotation_id = await session.scalar(
-                insert_on_conflict(
-                    values,
-                    dialect=dialect,
-                    table=models.TraceAnnotation,
-                    unique_by=("name", "trace_rowid"),
-                ).returning(models.TraceAnnotation.id)
+                insert(models.TraceAnnotation).values(**values).returning(models.TraceAnnotation.id)
             )
             inserted_ids.append(trace_annotation_id)
     request.state.event_queue.put(TraceAnnotationInsertEvent(tuple(inserted_ids)))

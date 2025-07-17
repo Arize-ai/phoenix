@@ -8,10 +8,6 @@ The following shows the results of the toxicity Eval on a toxic dataset test to 
 
 ## Toxicity Eval Template
 
-{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_toxicity_classifications.ipynb" %}
-Try it out!
-{% endembed %}
-
 ```
 You are examining written text content. Here is the text:
     [BEGIN DATA]
@@ -33,28 +29,10 @@ words, sentiments or meaning that could be considered toxic.
 ```
 
 {% hint style="info" %}
-We are continually iterating our templates, view the most up-to-date template on GitHub. Last updated on 10/12/2023
+We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/phoenix/evals/default_templates.py#L194).
 {% endhint %}
 
-## Benchmark Results
-
-#### GPT-4 Results
-
-<figure><img src="../../../.gitbook/assets/Screenshot 2023-09-16 at 5.41.55 PM (1).png" alt=""><figcaption></figcaption></figure>
-
-#### GPT-3.5 Results
-
-<figure><img src="../../../.gitbook/assets/Screenshot 2023-09-16 at 5.42.56 PM.png" alt=""><figcaption></figcaption></figure>
-
-#### Claude V2 Results
-
-<figure><img src="../../../.gitbook/assets/calude_v2_toxic (1).png" alt=""><figcaption></figcaption></figure>
-
-#### GPT-4 Turbo
-
-<figure><img src="../../../.gitbook/assets/gpt-4-turbo-toxicity.png" alt=""><figcaption></figcaption></figure>
-
-## How To Run the Eval
+## How To Run the Toxicity Eval
 
 ```python
 from phoenix.evals import (
@@ -83,7 +61,18 @@ toxic_classifications = llm_classify(
 )
 ```
 
+## Benchmark Results
+
+This benchmark was obtained using notebook below. It was run using the [WikiToxic dataset ](https://huggingface.co/datasets/OxAISH-AL-LLM/wiki_toxic)as a ground truth dataset. Each example in the dataset was evaluating using the `TOXICITY_PROMPT_TEMPLATE` above, then the resulting labels were compared against the ground truth label in the benchmark dataset to generate the confusion matrices below.
+
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_toxicity_classifications.ipynb" %}
+Try it out!
+{% endembed %}
+
+#### GPT-4 Results
+
+<figure><img src="../../../.gitbook/assets/Screenshot 2023-09-16 at 5.41.55 PM (1).png" alt=""><figcaption></figcaption></figure>
+
 Note: Palm is not useful for Toxicity detection as it always returns "" string for toxic inputs
 
-<table><thead><tr><th width="148">Toxicity Eval</th><th>GPT-4o</th><th>GPT-4</th><th width="129">GPT-4 Turbo</th><th>Gemini Pro</th><th>GPT-3.5 Turbo</th><th>Palm</th><th>Claude V2</th><th>Llama 7b (soon)</th><th data-hidden>GPT-4</th><th data-hidden>GPT-3.5</th><th data-hidden>GPT-3.5-Instruct</th><th data-hidden>Palm 2 (Text Bison)</th><th data-hidden>GPT-4</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">0.86</mark></td><td><mark style="color:green;">0.91</mark></td><td><mark style="color:green;">0.89</mark></td><td><mark style="color:green;">0.81</mark></td><td><mark style="color:green;">0.93</mark></td><td>Does not support</td><td><mark style="color:red;">0.86</mark></td><td></td><td><mark style="color:green;">0.91</mark></td><td><mark style="color:green;">0.93</mark></td><td><mark style="color:green;">0.95</mark></td><td><mark style="color:red;">No response for toxic input</mark></td><td><mark style="color:green;">0.91</mark></td></tr><tr><td>Recall</td><td><mark style="color:green;">1.0</mark></td><td><mark style="color:green;">0.91</mark></td><td><mark style="color:green;">0.77</mark></td><td><mark style="color:green;">0.84</mark></td><td><mark style="color:green;">0.83</mark></td><td>Does not support</td><td><mark style="color:red;">0.40</mark></td><td></td><td><mark style="color:green;">0.91</mark></td><td><mark style="color:green;">0.83</mark></td><td><mark style="color:green;">0.79</mark></td><td><mark style="color:red;">No response for toxic input</mark></td><td><mark style="color:green;">0.91</mark></td></tr><tr><td>F1</td><td><mark style="color:green;">0.92</mark></td><td><mark style="color:green;">0.91</mark></td><td><mark style="color:green;">0.83</mark></td><td><mark style="color:green;">0.83</mark></td><td><mark style="color:green;">0.87</mark></td><td>Does not support</td><td><mark style="color:red;">0.54</mark></td><td></td><td><mark style="color:green;">0.91</mark></td><td><mark style="color:green;">0.87</mark></td><td><mark style="color:green;">0.87</mark></td><td><mark style="color:red;">No response for toxic input</mark></td><td><mark style="color:green;">0.91</mark></td></tr></tbody></table>
-
+<table><thead><tr><th width="148">Toxicity Eval</th><th>GPT-4o</th><th>GPT-4</th><th data-hidden>GPT-4</th><th data-hidden>GPT-3.5</th><th data-hidden>GPT-3.5-Instruct</th><th data-hidden>Palm 2 (Text Bison)</th><th data-hidden>GPT-4</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">0.86</mark></td><td><mark style="color:green;">0.91</mark></td><td><mark style="color:green;">0.91</mark></td><td><mark style="color:green;">0.93</mark></td><td><mark style="color:green;">0.95</mark></td><td><mark style="color:red;">No response for toxic input</mark></td><td><mark style="color:green;">0.91</mark></td></tr><tr><td>Recall</td><td><mark style="color:green;">1.0</mark></td><td><mark style="color:green;">0.91</mark></td><td><mark style="color:green;">0.91</mark></td><td><mark style="color:green;">0.83</mark></td><td><mark style="color:green;">0.79</mark></td><td><mark style="color:red;">No response for toxic input</mark></td><td><mark style="color:green;">0.91</mark></td></tr><tr><td>F1</td><td><mark style="color:green;">0.92</mark></td><td><mark style="color:green;">0.91</mark></td><td><mark style="color:green;">0.91</mark></td><td><mark style="color:green;">0.87</mark></td><td><mark style="color:green;">0.87</mark></td><td><mark style="color:red;">No response for toxic input</mark></td><td><mark style="color:green;">0.91</mark></td></tr></tbody></table>

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f2aa8c6dde6582a5fcdd8b78c28a7bed>>
+ * @generated SignedSource<<a6abc09b29d39c54ac66206276ebffb6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ExamplesTableFragment$data = {
   readonly examples: {
@@ -222,6 +222,6 @@ return {
 };
 })();
 
-(node as any).hash = "e04e697cdb44ab2dd115f4562211f6a4";
+(node as any).hash = "a042efee74921059872b4d6812ae20be";
 
 export default node;

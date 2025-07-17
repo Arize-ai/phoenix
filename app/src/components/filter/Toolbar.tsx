@@ -1,4 +1,4 @@
-import React, { ReactNode } from "react";
+import { ReactNode } from "react";
 import { css } from "@emotion/react";
 
 type ToolbarProps = {
@@ -16,19 +16,20 @@ export function Toolbar(props: ToolbarProps) {
     <div
       role="toolbar"
       css={css`
-        padding: var(--px-spacing-sm) var(--px-spacing-lg);
+        padding: var(--ac-global-dimension-static-size-50)
+          var(--ac-global-dimension-static-size-200);
         display: flex;
         flex-direction: row;
         justify-content: space-between;
         align-items: center;
-        gap: var(--px-spacing-med);
+        gap: var(--ac-global-dimension-static-size-100);
         border-bottom: 1px solid var(--ac-global-border-color-dark);
         flex: none;
         min-height: 29px;
         .toolbar__main {
           display: flex;
           flex-direction: row;
-          gap: var(--px-spacing-med);
+          gap: var(--ac-global-dimension-static-size-100);
         }
       `}
     >

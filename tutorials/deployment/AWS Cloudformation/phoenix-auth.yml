@@ -1,0 +1,206 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Bootstrap Phoenix (auth enabled) on Fargate behind an ALB. Phase 1 - no agent; goal is to log in and create a System API key.
+
+###############################################################################
+# 1. Parameters – only what we need
+###############################################################################
+Parameters:
+  PhoenixImageUri:
+    Type: String
+    Description: Phoenix image (e.g. 123456789012.dkr.ecr.us-west-2.amazonaws.com/phoenix:latest)
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+
+  PublicSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Two or more public subnets for the ALB
+
+  PrivateSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Two or more private subnets for the tasks
+
+###############################################################################
+# 2. Resources
+###############################################################################
+Resources:
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Networking (security groups)
+  # ────────────────────────────────────────────────────────────────────────────
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VpcId
+      GroupDescription: Allow HTTP from anywhere to ALB
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0      # tighten later if you wish
+
+  TaskSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VpcId
+      GroupDescription: Allow ALB tasks on port 6006
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 6006
+          ToPort: 6006
+          SourceSecurityGroupId: !Ref ALBSecurityGroup
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Auth signing key (PHOENIX_SECRET)
+  # ────────────────────────────────────────────────────────────────────────────
+  PhoenixJwtSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: phoenix-jwt-secret
+      Description: Signing key for Phoenix auth (in "secret" JSON field)
+      GenerateSecretString:
+        SecretStringTemplate: "{}"
+        GenerateStringKey: secret
+        PasswordLength: 32
+        ExcludePunctuation: false
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # IAM roles
+  # ────────────────────────────────────────────────────────────────────────────
+  TaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ecs-tasks.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: ReadJwtSecret
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref PhoenixJwtSecret
+
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ecs-tasks.amazonaws.com }
+            Action: sts:AssumeRole
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Logging
+  # ────────────────────────────────────────────────────────────────────────────
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 7
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # ECS cluster, task definition, service
+  # ────────────────────────────────────────────────────────────────────────────
+  Cluster:
+    Type: AWS::ECS::Cluster
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      RequiresCompatibilities: [FARGATE]
+      Cpu: 1024
+      Memory: 4096
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+      TaskRoleArn:       !GetAtt TaskRole.Arn
+      RuntimePlatform:
+        CpuArchitecture: ARM64
+        OperatingSystemFamily: LINUX
+      ContainerDefinitions:
+        - Name: phoenix
+          Image: !Ref PhoenixImageUri
+          PortMappings:
+            - ContainerPort: 6006
+            - ContainerPort: 4317
+          Environment:
+            - Name: PHOENIX_ENABLE_AUTH
+              Value: "true"
+          Secrets:
+            - Name: PHOENIX_SECRET
+              ValueFrom: !Sub "${PhoenixJwtSecret}:secret::"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group:         !Ref LogGroup
+              awslogs-region:        !Ref AWS::Region
+              awslogs-stream-prefix: phoenix
+          MemoryReservation: 2048
+          Memory:            3584
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Load balancer
+  # ────────────────────────────────────────────────────────────────────────────
+  ALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Scheme: internet-facing
+      Subnets: !Ref PublicSubnetIds
+      SecurityGroups: [ !Ref ALBSecurityGroup ]
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      VpcId: !Ref VpcId
+      Port: 6006
+      Protocol: HTTP
+      TargetType: ip
+      HealthCheckPath: /
+      Matcher: { HttpCode: 200 }
+
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ALB
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+
+  Service:
+    Type: AWS::ECS::Service
+    DependsOn: Listener
+    Properties:
+      Cluster: !Ref Cluster
+      DesiredCount: 1
+      LaunchType: FARGATE
+      TaskDefinition: !Ref TaskDefinition
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          Subnets: !Ref PrivateSubnetIds
+          SecurityGroups: [ !Ref TaskSecurityGroup ]
+      LoadBalancers:
+        - TargetGroupArn: !Ref TargetGroup
+          ContainerName: phoenix
+          ContainerPort: 6006
+      HealthCheckGracePeriodSeconds: 300
+
+###############################################################################
+# 3. Outputs
+###############################################################################
+Outputs:
+  PhoenixURL:
+    Description: "Open this URL → log in as admin@localhost / admin"
+    Value: !Sub "http://${ALB.DNSName}"
+

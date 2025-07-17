@@ -1,19 +1,9 @@
 import json
 from binascii import hexlify, unhexlify
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from datetime import datetime, timezone
 from types import MappingProxyType
-from typing import (
-    Any,
-    Dict,
-    Iterable,
-    Iterator,
-    Mapping,
-    Optional,
-    Sequence,
-    SupportsFloat,
-    Tuple,
-    cast,
-)
+from typing import Any, Optional, SupportsFloat, cast
 
 import numpy as np
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
@@ -48,6 +38,7 @@ from phoenix.trace.schemas import (
     SpanStatusCode,
     TraceID,
 )
+from phoenix.utilities.json import jsonify
 
 DOCUMENT_METADATA = DocumentAttributes.DOCUMENT_METADATA
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
@@ -58,6 +49,21 @@ OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
 TOOL_PARAMETERS = SpanAttributes.TOOL_PARAMETERS
 LLM_PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
+LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
+LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
+LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
+
+
+def coerce_otlp_span_attributes(
+    decoded_attributes: Iterable[tuple[str, Any]],
+) -> Iterator[tuple[str, Any]]:
+    for key, value in decoded_attributes:
+        if key in (LLM_TOKEN_COUNT_PROMPT, LLM_TOKEN_COUNT_COMPLETION, LLM_TOKEN_COUNT_TOTAL):
+            try:
+                value = int(value)
+            except BaseException:
+                pass
+        yield key, value
 
 
 def decode_otlp_span(otlp_span: otlp.Span) -> Span:
@@ -68,7 +74,9 @@ def decode_otlp_span(otlp_span: otlp.Span) -> Span:
     start_time = _decode_unix_nano(otlp_span.start_time_unix_nano)
     end_time = _decode_unix_nano(otlp_span.end_time_unix_nano)
 
-    attributes = unflatten(load_json_strings(_decode_key_values(otlp_span.attributes)))
+    attributes = unflatten(
+        load_json_strings(coerce_otlp_span_attributes(_decode_key_values(otlp_span.attributes)))
+    )
     span_kind = SpanKind(get_attribute_value(attributes, OPENINFERENCE_SPAN_KIND))
 
     status_code, status_message = _decode_status(otlp_span.status)
@@ -132,7 +140,7 @@ def _decode_unix_nano(time_unix_nano: int) -> datetime:
 
 def _decode_key_values(
     key_values: Iterable[KeyValue],
-) -> Iterator[Tuple[str, Any]]:
+) -> Iterator[tuple[str, Any]]:
     return ((kv.key, _decode_value(kv.value)) for kv in key_values)
 
 
@@ -168,7 +176,7 @@ _STATUS_DECODING = MappingProxyType(
 )
 
 
-def _decode_status(otlp_status: otlp.Status) -> Tuple[SpanStatusCode, StatusMessage]:
+def _decode_status(otlp_status: otlp.Status) -> tuple[SpanStatusCode, StatusMessage]:
     status_code = _STATUS_DECODING.get(otlp_status.code, SpanStatusCode.UNSET)
     return status_code, otlp_status.message
 
@@ -185,7 +193,7 @@ def encode_span_to_otlp(span: Span) -> otlp.Span:
     start_time_unix_nano: int = int(span.start_time.timestamp() * _BILLION)
     end_time_unix_nano: int = int(span.end_time.timestamp() * _BILLION) if span.end_time else 0
 
-    attributes: Dict[str, Any] = dict(span.attributes)
+    attributes: dict[str, Any] = dict(span.attributes)
 
     for key, value in span.attributes.items():
         if value is None:
@@ -194,7 +202,7 @@ def encode_span_to_otlp(span: Span) -> otlp.Span:
         elif isinstance(value, Mapping):
             attributes.pop(key, None)
             if key.endswith(JSON_STRING_ATTRIBUTES):
-                attributes[key] = json.dumps(value)
+                attributes[key] = json.dumps(jsonify(value))
             else:
                 attributes.update(
                     flatten(

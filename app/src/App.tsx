@@ -1,9 +1,9 @@
-import React, { Suspense } from "react";
+import { Suspense } from "react";
 import { RelayEnvironmentProvider } from "react-relay";
-import { ThemeProvider as EmotionThemeProvider } from "@emotion/react";
 
-import { Provider, theme } from "@arizeai/components";
+import { Provider } from "@arizeai/components";
 
+import { CredentialsProvider } from "./contexts/CredentialsContext";
 import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext";
 import { FunctionalityProvider } from "./contexts/FunctionalityContext";
 import { PreferencesProvider } from "./contexts/PreferencesContext";
@@ -13,6 +13,8 @@ import RelayEnvironment from "./RelayEnvironment";
 import { AppRoutes } from "./Routes";
 
 import "normalize.css";
+import "react-grid-layout/css/styles.css";
+import "react-resizable/css/styles.css";
 
 export function App() {
   return (
@@ -27,21 +29,21 @@ export function App() {
 export function AppContent() {
   const { theme: componentsTheme } = useTheme();
   return (
-    <Provider theme={componentsTheme}>
-      <EmotionThemeProvider theme={theme}>
-        <RelayEnvironmentProvider environment={RelayEnvironment}>
-          <GlobalStyles />
-          <FeatureFlagsProvider>
-            <PreferencesProvider>
+    <Provider theme={componentsTheme} mountGlobalStyles={false}>
+      <RelayEnvironmentProvider environment={RelayEnvironment}>
+        <GlobalStyles />
+        <FeatureFlagsProvider>
+          <PreferencesProvider>
+            <CredentialsProvider>
               <Suspense>
                 <NotificationProvider>
                   <AppRoutes />
                 </NotificationProvider>
               </Suspense>
-            </PreferencesProvider>
-          </FeatureFlagsProvider>
-        </RelayEnvironmentProvider>
-      </EmotionThemeProvider>
+            </CredentialsProvider>
+          </PreferencesProvider>
+        </FeatureFlagsProvider>
+      </RelayEnvironmentProvider>
     </Provider>
   );
 }

@@ -1,16 +1,16 @@
 import asyncio
 from collections import defaultdict
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 import strawberry
 from strawberry import ID, UNSET
 from strawberry.types import Info
 
 import phoenix.core.model_schema as ms
+from phoenix.server.api.auth import IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
-from phoenix.server.api.mutations.auth import IsAuthenticated
 from phoenix.server.api.types.Event import parse_event_ids_by_inferences_role, unpack_event_id
 from phoenix.server.api.types.ExportedFile import ExportedFile
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
@@ -19,7 +19,7 @@ from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, Inf
 @strawberry.type
 class ExportEventsMutationMixin:
     @strawberry.mutation(
-        permission_classes=[IsAuthenticated],
+        permission_classes=[IsNotReadOnly],
         description=(
             "Given a list of event ids, export the corresponding data subset in Parquet format."
             " File name is optional, but if specified, should be without file extension. By default"
@@ -29,7 +29,7 @@ class ExportEventsMutationMixin:
     async def export_events(
         self,
         info: Info[Context, None],
-        event_ids: List[ID],
+        event_ids: list[ID],
         file_name: Optional[str] = UNSET,
     ) -> ExportedFile:
         if not isinstance(file_name, str):
@@ -51,7 +51,7 @@ class ExportEventsMutationMixin:
         return ExportedFile(file_name=file_name)
 
     @strawberry.mutation(
-        permission_classes=[IsAuthenticated],
+        permission_classes=[IsNotReadOnly],
         description=(
             "Given a list of clusters, export the corresponding data subset in Parquet format."
             " File name is optional, but if specified, should be without file extension. By default"
@@ -61,7 +61,7 @@ class ExportEventsMutationMixin:
     async def export_clusters(
         self,
         info: Info[Context, None],
-        clusters: List[ClusterInput],
+        clusters: list[ClusterInput],
         file_name: Optional[str] = UNSET,
     ) -> ExportedFile:
         if not isinstance(file_name, str):
@@ -81,10 +81,10 @@ class ExportEventsMutationMixin:
 
 
 def _unpack_clusters(
-    clusters: List[ClusterInput],
-) -> Tuple[Dict[ms.InferencesRole, List[int]], Dict[ms.InferencesRole, Dict[int, str]]]:
-    row_numbers: Dict[ms.InferencesRole, List[int]] = defaultdict(list)
-    cluster_ids: Dict[ms.InferencesRole, Dict[int, str]] = defaultdict(dict)
+    clusters: list[ClusterInput],
+) -> tuple[dict[ms.InferencesRole, list[int]], dict[ms.InferencesRole, dict[int, str]]]:
+    row_numbers: dict[ms.InferencesRole, list[int]] = defaultdict(list)
+    cluster_ids: dict[ms.InferencesRole, dict[int, str]] = defaultdict(dict)
     for i, cluster in enumerate(clusters):
         for row_number, inferences_role in map(unpack_event_id, cluster.event_ids):
             if isinstance(inferences_role, AncillaryInferencesRole):

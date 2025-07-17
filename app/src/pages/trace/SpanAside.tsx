@@ -1,148 +1,215 @@
-import React, { PropsWithChildren, useMemo } from "react";
-import { graphql, useRefetchableFragment } from "react-relay";
-import { css } from "@emotion/react";
+import { Suspense, useRef } from "react";
+import { FocusScope } from "react-aria";
+import { useHotkeys } from "react-hotkeys-hook";
+import { graphql, useFragment } from "react-relay";
+import { ImperativePanelHandle, PanelGroup } from "react-resizable-panels";
 
-import { Flex, Text, View } from "@arizeai/components";
-
-import { AnnotationLabel } from "@phoenix/components/annotation";
-import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
-import { TokenCount } from "@phoenix/components/trace/TokenCount";
-import { useSpanStatusCodeColor } from "@phoenix/components/trace/useSpanStatusCodeColor";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
+import { Flex, KeyboardToken, View } from "@phoenix/components";
+import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
+import { FocusHotkey } from "@phoenix/components/FocusHotkey";
+import { TitledPanel } from "@phoenix/components/react-resizable-panels";
+import {
+  EDIT_ANNOTATION_HOTKEY,
+  SpanAnnotationsEditor,
+} from "@phoenix/components/trace/SpanAnnotationsEditor";
+import { SpanAsideAnnotationList_span$key } from "@phoenix/pages/trace/__generated__/SpanAsideAnnotationList_span.graphql";
 
 import { SpanAside_span$key } from "./__generated__/SpanAside_span.graphql";
-import { SpanAsideSpanQuery } from "./__generated__/SpanAsideSpanQuery.graphql";
+import {
+  NOTE_HOTKEY,
+  SpanNotesEditor,
+  SpanNotesEditorSkeleton,
+} from "./SpanNotesEditor";
 
-const annotationListCSS = css`
-  display: flex;
-  padding-top: var(--ac-global-dimension-size-50);
-  flex-direction: column;
-  gap: var(--ac-global-dimension-size-100);
-  align-items: flex-start;
-`;
+const SPAN_ANNOTATION_LIST_HOTKEY = "s";
+
+type SpanAsideProps = {
+  span: SpanAside_span$key;
+};
 
 /**
  * A component that shows the details of a span that is supplementary to the main span details
  */
-export function SpanAside(props: { span: SpanAside_span$key }) {
-  const [data] = useRefetchableFragment<SpanAsideSpanQuery, SpanAside_span$key>(
+export function SpanAside(props: SpanAsideProps) {
+  const data = useFragment<SpanAside_span$key>(
     graphql`
-      fragment SpanAside_span on Span
-      @refetchable(queryName: "SpanAsideSpanQuery") {
+      fragment SpanAside_span on Span {
         id
+        project {
+          id
+          ...AnnotationConfigListProjectAnnotationConfigFragment
+          annotationConfigs {
+            configs: edges {
+              config: node {
+                ... on Node {
+                  id
+                }
+                ... on AnnotationConfigBase {
+                  name
+                  description
+                  annotationType
+                }
+                ... on CategoricalAnnotationConfig {
+                  values {
+                    label
+                    score
+                  }
+                }
+                ... on ContinuousAnnotationConfig {
+                  lowerBound
+                  upperBound
+                  optimizationDirection
+                }
+                ... on FreeformAnnotationConfig {
+                  name
+                }
+              }
+            }
+          }
+        }
         code: statusCode
         startTime
         endTime
         tokenCountTotal
-        tokenCountPrompt
-        tokenCountCompletion
-        spanAnnotations {
-          id
-          name
-          label
-          annotatorKind
-          score
-        }
+        ...TraceHeaderRootSpanAnnotationsFragment
+        ...SpanAsideAnnotationList_span
+        ...AnnotationSummaryGroup
       }
     `,
     props.span
   );
-  const {
-    startTime,
-    endTime,
-    code,
-    tokenCountCompletion,
-    tokenCountPrompt,
-    tokenCountTotal,
-  } = data;
-  const startDate = useMemo(() => new Date(startTime), [startTime]);
-  const endDate = useMemo(
-    () => (endTime ? new Date(endTime) : null),
-    [endTime]
-  );
-  const latencyMs = useMemo(() => {
-    if (!endDate) return null;
-    return endDate.getTime() - startDate.getTime();
-  }, [endDate, startDate]);
-  const statusColor = useSpanStatusCodeColor(code);
-  const annotations = data.spanAnnotations;
-  const hasAnnotations = annotations.length > 0;
+
+  const editAnnotationsPanelRef = useRef<ImperativePanelHandle>(null);
+  const notesPanelRef = useRef<ImperativePanelHandle>(null);
+  useHotkeys(EDIT_ANNOTATION_HOTKEY, () => {
+    // open the span annotations editor if it is closed
+    if (
+      editAnnotationsPanelRef.current &&
+      editAnnotationsPanelRef.current.isCollapsed()
+    ) {
+      editAnnotationsPanelRef.current.expand(50);
+    }
+  });
+  useHotkeys(NOTE_HOTKEY, () => {
+    // open the span notes editor if it is closed
+    if (notesPanelRef.current && notesPanelRef.current.isCollapsed()) {
+      notesPanelRef.current.expand(50);
+    }
+  });
+
   return (
-    <View
-      padding="size-200"
-      borderColor="dark"
-      backgroundColor="dark"
-      borderLeftWidth="thin"
-      width="230px"
-      flex="none"
-      minHeight="100%"
-    >
-      <Flex direction="column" gap="size-200">
-        <LabeledValue label="Status">
-          <Flex direction="row" gap="size-50" alignItems="center">
-            <SpanStatusCodeIcon statusCode={code} />
-            <Text textSize="xlarge" color={statusColor}>
-              {code}
-            </Text>
+    <PanelGroup direction="vertical" autoSaveId="span-aside-layout">
+      <Suspense>
+        <SpanAsideAnnotationList span={data} />
+      </Suspense>
+      <TitledPanel
+        ref={editAnnotationsPanelRef}
+        resizable
+        title={
+          <Flex direction={"row"} gap="size-100" alignItems={"center"}>
+            <span>Edit Annotations</span>
+            <KeyboardToken>{EDIT_ANNOTATION_HOTKEY}</KeyboardToken>
           </Flex>
-        </LabeledValue>
-        <LabeledValue label="Start Time">
-          <Text textSize="xlarge">{fullTimeFormatter(startDate)}</Text>
-        </LabeledValue>
-        {endDate && (
-          <LabeledValue label="End Time">
-            <Text textSize="xlarge">{fullTimeFormatter(endDate)}</Text>
-          </LabeledValue>
-        )}
-        <LabeledValue label="Latency">
-          <Text textSize="xlarge">
-            {typeof latencyMs === "number" ? (
-              <LatencyText latencyMs={latencyMs} textSize="xlarge" />
-            ) : (
-              "--"
-            )}
-          </Text>
-        </LabeledValue>
-        {tokenCountTotal ? (
-          <LabeledValue label="Total Tokens" key="tokens">
-            <TokenCount
-              tokenCountTotal={tokenCountTotal}
-              tokenCountPrompt={tokenCountPrompt ?? 0}
-              tokenCountCompletion={tokenCountCompletion ?? 0}
-              textSize="xlarge"
-            />
-          </LabeledValue>
-        ) : null}
-        {hasAnnotations && (
-          <LabeledValue label="Feedback">
-            <ul css={annotationListCSS}>
-              {annotations.map((annotation) => (
-                <li key={annotation.id}>
-                  <AnnotationLabel
-                    annotation={annotation}
-                    annotationDisplayPreference="label"
-                  />
-                </li>
-              ))}
-            </ul>
-          </LabeledValue>
-        )}
-      </Flex>
-    </View>
+        }
+        panelProps={{ order: 2, minSize: 10 }}
+      >
+        <View height="100%" maxHeight="100%">
+          <SpanAnnotationsEditor
+            // remount the editor when the span id changes
+            // some components are uncontrolled and will not update by themselves when the span id changes
+            key={data.id}
+            projectId={data.project.id}
+            spanNodeId={data.id}
+          />
+        </View>
+      </TitledPanel>
+      <TitledPanel
+        ref={notesPanelRef}
+        resizable
+        title={
+          <Flex direction={"row"} gap="size-100" alignItems={"center"}>
+            <span>Notes</span>
+            <KeyboardToken>{NOTE_HOTKEY}</KeyboardToken>
+          </Flex>
+        }
+        panelProps={{ order: 3, minSize: 10 }}
+      >
+        <View height="100%" maxHeight="100%" padding="size-100">
+          <Suspense fallback={<SpanNotesEditorSkeleton />}>
+            <SpanNotesEditor spanNodeId={data.id} />
+          </Suspense>
+        </View>
+      </TitledPanel>
+    </PanelGroup>
   );
 }
 
-function LabeledValue({
-  label,
-  children,
-}: PropsWithChildren<{ label: string }>) {
+function SpanAsideAnnotationList(props: {
+  span: SpanAsideAnnotationList_span$key;
+}) {
+  const data = useFragment<SpanAsideAnnotationList_span$key>(
+    graphql`
+      fragment SpanAsideAnnotationList_span on Span {
+        project {
+          id
+          annotationConfigs {
+            configs: edges {
+              config: node {
+                ... on Node {
+                  id
+                }
+                ... on AnnotationConfigBase {
+                  name
+                }
+              }
+            }
+          }
+        }
+        spanAnnotations {
+          id
+        }
+        ...AnnotationSummaryGroup
+      }
+    `,
+    props.span
+  );
+  const annotationListPanelRef = useRef<ImperativePanelHandle>(null);
+  useHotkeys(SPAN_ANNOTATION_LIST_HOTKEY, () => {
+    if (
+      annotationListPanelRef.current &&
+      annotationListPanelRef.current.isCollapsed()
+    ) {
+      annotationListPanelRef.current.expand(50);
+    }
+  });
+  const hasAnnotations = data.spanAnnotations.length > 0;
   return (
-    <Flex direction="column">
-      <Text elementType="h3" textSize="medium" color="text-700">
-        {label}
-      </Text>
-      {children}
-    </Flex>
+    <TitledPanel
+      ref={annotationListPanelRef}
+      title={
+        <Flex direction={"row"} gap="size-100" alignItems={"center"}>
+          <span>Annotation Summary</span>
+          <KeyboardToken>{SPAN_ANNOTATION_LIST_HOTKEY}</KeyboardToken>
+        </Flex>
+      }
+      disabled={!hasAnnotations}
+      panelProps={{
+        order: 1,
+        defaultSize: hasAnnotations ? 20 : 0,
+        minSize: hasAnnotations ? 20 : 0,
+      }}
+    >
+      <FocusScope>
+        <FocusHotkey hotkey={SPAN_ANNOTATION_LIST_HOTKEY} />
+        <View
+          paddingY="size-200"
+          paddingX="size-200"
+          overflow="auto"
+          maxHeight="100%"
+        >
+          <AnnotationSummaryGroupTokens span={data} />
+        </View>
+      </FocusScope>
+    </TitledPanel>
   );
 }

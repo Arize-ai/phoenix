@@ -16,7 +16,7 @@
 # To get support or provide feedback, contact the team in the #phoenix-support
 # channel in the Arize AI Slack community or file an issue on GitHub:
 #
-# - https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q
+# - https://arize-ai.slack.com/join/shared_invite/zt-2w57bhem8-hq24MB6u7yE_ZF_ilOYSBw#/shared-invite/email
 # - https://github.com/Arize-ai/phoenix/issues
 
 ARG BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot
@@ -24,12 +24,14 @@ ARG BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot
 # ARG BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot-arm64
 
 # This Dockerfile is a multi-stage build. The first stage builds the frontend.
-FROM node:20-slim AS frontend-builder
+FROM node:22-slim AS frontend-builder
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
 WORKDIR /phoenix/app/
 COPY ./app /phoenix/app
+RUN npm i -g corepack
+RUN corepack enable
+RUN corepack use pnpm
 RUN pnpm install
 RUN pnpm run build
 

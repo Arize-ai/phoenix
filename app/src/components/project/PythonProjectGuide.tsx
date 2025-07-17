@@ -1,39 +1,49 @@
-import React from "react";
+import { TabbedCard } from "@arizeai/components";
 
 import {
+  ExternalLink,
   Heading,
-  TabbedCard,
-  TabPane,
+  Tab,
+  TabList,
+  TabPanel,
   Tabs,
   Text,
   View,
-} from "@arizeai/components";
-
-import { ExternalLink } from "@phoenix/components";
+} from "@phoenix/components";
 import { CodeWrap } from "@phoenix/components/code/CodeWrap";
 import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";
 import { BASE_URL } from "@phoenix/config";
 
+import { IsAdmin } from "../auth";
+
+import { HOSTED_PHOENIX_URL, IS_HOSTED_DEPLOYMENT } from "./hosting";
 import { PythonIntegrations } from "./Integrations";
 
 const PHOENIX_OTEL_DOC_LINK =
-  "https://docs.arize.com/phoenix/tracing/how-to-tracing/setup-tracing";
+  "https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing";
 
 const OTEL_DOC_LINK =
-  "https://docs.arize.com/phoenix/tracing/how-to-tracing/setup-tracing/setup-tracing-python/using-otel-python-directly";
+  "https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-tracing-python/using-otel-python-directly";
 const PHOENIX_ENVIRONMENT_VARIABLES_LINK =
-  "https://docs.arize.com/phoenix/setup/configuration";
+  "https://arize.com/docs/phoenix/setup/configuration";
 
 const INSTALL_PHOENIX_OTEL_PYTHON = `pip install arize-phoenix-otel`;
 const INSTALL_OPENAI_INSTRUMENTATION_PYTHON = `pip install openinference-instrumentation-openai openai`;
 
-const HOSTED_PHOENIX_URL = "https://app.phoenix.arize.com";
-const LLAMATRACE_URL = "https://llamatrace.com";
-
-const HOSTED_BASE_URLS = [HOSTED_PHOENIX_URL, LLAMATRACE_URL];
-
-// Environment variables
-const HOSTED_PHOENIX_ENVIRONMENT_VARIABLES_PYTHON = `PHOENIX_CLIENT_HEADERS='api_key=<your-api-key>'\nPHOENIX_COLLECTOR_ENDPOINT='${HOSTED_PHOENIX_URL}'`;
+function getEnvironmentVariablesPython({
+  isAuthEnabled,
+  isHosted,
+}: {
+  isAuthEnabled: boolean;
+  isHosted: boolean;
+}): string {
+  if (isHosted) {
+    return `PHOENIX_CLIENT_HEADERS='api_key=<your-api-key>'\nPHOENIX_COLLECTOR_ENDPOINT='${HOSTED_PHOENIX_URL}'`;
+  } else if (isAuthEnabled) {
+    return `PHOENIX_API_KEY='<your-api-key>'`;
+  }
+  return `PHOENIX_COLLECTOR_ENDPOINT='${BASE_URL}'`;
+}
 
 const INSTRUMENT_OPENAI_PYTHON = `from openinference.instrumentation.openai import OpenAIInstrumentor
 
@@ -65,7 +75,8 @@ const getOtelInitCodePython = ({
   return `from phoenix.otel import register\n
 tracer_provider = register(
   project_name="${projectName}",
-  endpoint="${(isHosted ? HOSTED_PHOENIX_URL : BASE_URL) + "/v1/traces"}"
+  endpoint="${(isHosted ? HOSTED_PHOENIX_URL : BASE_URL) + "/v1/traces"}",
+  auto_instrument=True
 )`;
 };
 
@@ -76,7 +87,12 @@ type PythonProjectGuideProps = {
   projectName?: string;
 };
 export function PythonProjectGuide(props: PythonProjectGuideProps) {
-  const isHosted = HOSTED_BASE_URLS.includes(BASE_URL);
+  const isHosted = IS_HOSTED_DEPLOYMENT;
+  const isAuthEnabled = window.Config.authenticationEnabled;
+  const environmentVariablesPython = getEnvironmentVariablesPython({
+    isAuthEnabled,
+    isHosted,
+  });
 
   const projectName = props.projectName || "your-next-llm-project";
   return (
@@ -104,19 +120,31 @@ export function PythonProjectGuide(props: PythonProjectGuideProps) {
       <View paddingBottom="size-100">
         <Text>
           <b>arize-phoenix-otel</b> automatically picks up your configuration
-          from environment variables (e.x. <b>PHOENIX_CLIENT_HEADERS</b> for
-          authentication). See{" "}
+          from{" "}
           <ExternalLink href={PHOENIX_ENVIRONMENT_VARIABLES_LINK}>
             environment variables
           </ExternalLink>
         </Text>
       </View>
-      {isHosted ? (
-        <CodeWrap>
-          <PythonBlockWithCopy
-            value={HOSTED_PHOENIX_ENVIRONMENT_VARIABLES_PYTHON}
-          />
-        </CodeWrap>
+      <CodeWrap>
+        <PythonBlockWithCopy value={environmentVariablesPython} />
+      </CodeWrap>
+      {isAuthEnabled ? (
+        <View paddingBottom="size-100" paddingTop="size-100">
+          <IsAdmin
+            fallback={
+              <Text>
+                Personal API keys can be created and managed on your{" "}
+                <ExternalLink href="/profile">Profile</ExternalLink>
+              </Text>
+            }
+          >
+            <Text>
+              System API keys can be created and managed in{" "}
+              <ExternalLink href="/settings/general">Settings</ExternalLink>
+            </Text>
+          </IsAdmin>
+        </View>
       ) : null}
       <View paddingTop="size-200" paddingBottom="size-100">
         <Heading level={2} weight="heavy">
@@ -160,7 +188,11 @@ export function PythonProjectGuide(props: PythonProjectGuideProps) {
       </View>
       <TabbedCard variant="compact">
         <Tabs>
-          <TabPane name="Instrumentation">
+          <TabList>
+            <Tab id="instrumentation">Instrumentation</Tab>
+            <Tab id="openai-example">OpenAI Example</Tab>
+          </TabList>
+          <TabPanel id="instrumentation">
             <View padding="size-200">
               <Text>
                 Trace your application using{" "}
@@ -174,13 +206,13 @@ export function PythonProjectGuide(props: PythonProjectGuideProps) {
               </View>
               <Text>
                 For more integrations, checkout our{" "}
-                <ExternalLink href="https://docs.arize.com/phoenix/tracing/integrations-tracing">
+                <ExternalLink href="https://arize.com/docs/phoenix/tracing/integrations-tracing">
                   comprehensive guide
                 </ExternalLink>
               </Text>
             </View>
-          </TabPane>
-          <TabPane name="OpenAI Example">
+          </TabPanel>
+          <TabPanel id="openai-example">
             <View padding="size-200">
               <p>
                 Install{" "}
@@ -212,7 +244,7 @@ export function PythonProjectGuide(props: PythonProjectGuideProps) {
                 </CodeWrap>
               </View>
             </View>
-          </TabPane>
+          </TabPanel>
         </Tabs>
       </TabbedCard>
     </div>

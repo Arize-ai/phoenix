@@ -1,14 +1,13 @@
 import atexit
 import codecs
-import logging
 import os
 import sys
-from argparse import ArgumentParser
-from importlib.metadata import version
+from argparse import SUPPRESS, ArgumentParser
 from pathlib import Path
+from ssl import CERT_REQUIRED
 from threading import Thread
 from time import sleep, time
-from typing import List, Optional
+from typing import Optional
 from urllib.parse import urljoin
 
 from jinja2 import BaseLoader, Environment
@@ -17,21 +16,43 @@ from uvicorn import Config, Server
 import phoenix.trace.v1 as pb
 from phoenix.config import (
     EXPORT_DIR,
-    get_auth_settings,
+    TLSConfigVerifyClient,
+    get_env_access_token_expiry,
+    get_env_allowed_origins,
+    get_env_auth_settings,
     get_env_database_connection_str,
     get_env_database_schema,
+    get_env_db_logging_level,
+    get_env_disable_migrations,
     get_env_enable_prometheus,
+    get_env_fullstory_org,
     get_env_grpc_port,
     get_env_host,
     get_env_host_root_path,
+    get_env_log_migrations,
+    get_env_logging_level,
+    get_env_logging_mode,
+    get_env_management_url,
+    get_env_oauth2_settings,
+    get_env_password_reset_token_expiry,
     get_env_port,
+    get_env_refresh_token_expiry,
+    get_env_smtp_hostname,
+    get_env_smtp_mail_from,
+    get_env_smtp_password,
+    get_env_smtp_port,
+    get_env_smtp_username,
+    get_env_smtp_validate_certs,
+    get_env_tls_config,
+    get_env_tls_enabled_for_grpc,
+    get_env_tls_enabled_for_http,
     get_pids_path,
-    get_working_dir,
 )
 from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.db import get_printable_db_url
 from phoenix.inferences.fixtures import FIXTURES, get_inferences
 from phoenix.inferences.inferences import EMPTY_INFERENCES, Inferences
+from phoenix.logging import setup_logging
 from phoenix.pointcloud.umap_parameters import (
     DEFAULT_MIN_DIST,
     DEFAULT_N_NEIGHBORS,
@@ -45,6 +66,8 @@ from phoenix.server.app import (
     create_engine_and_run_migrations,
     instrument_engine_if_enabled,
 )
+from phoenix.server.email.sender import SimpleEmailSender
+from phoenix.server.email.types import EmailSender
 from phoenix.server.types import DbSessionFactory
 from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
@@ -58,9 +81,7 @@ from phoenix.trace.fixtures import (
 )
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
-
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
+from phoenix.version import __version__ as phoenix_version
 
 _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 
@@ -71,36 +92,50 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 ██║     ██║  ██║╚██████╔╝███████╗██║ ╚████║██║██╔╝ ██╗
 ╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝ v{{ version }}
 
-|
-|  🌎 Join our Community 🌎
-|  https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q
-|
-|  ⭐️ Leave us a Star ⭐️
+|  ⭐️⭐️⭐️ Support Open Source ⭐️⭐️⭐️
+|  ⭐️⭐️⭐️ Star on GitHub! ⭐️⭐️⭐️
 |  https://github.com/Arize-ai/phoenix
 |
+|  🌎 Join our Community 🌎
+|  https://arize-ai.slack.com/join/shared_invite/zt-2w57bhem8-hq24MB6u7yE_ZF_ilOYSBw#/shared-invite/email
+|
 |  📚 Documentation 📚
-|  https://docs.arize.com/phoenix
+|  https://arize.com/docs/phoenix
 |
 |  🚀 Phoenix Server 🚀
 |  Phoenix UI: {{ ui_path }}
+|
+|  Authentication: {{ auth_enabled }}
+{%- if basic_auth_disabled %}
+|  Basic Auth: Disabled
+{%- endif %}
+{%- if auth_enabled_for_http or auth_enabled_for_grpc %}
+{%- if tls_enabled_for_http %}
+|  TLS: Enabled for HTTP
+{%- endif %}
+{%- if tls_enabled_for_grpc %}
+|  TLS: Enabled for gRPC
+{%- endif %}
+{%- if tls_verify_client %}
+|  TLS Client Verification: Enabled
+{%- endif %}
+{%- endif %}
+{%- if allowed_origins %}
+|  Allowed Origins: {{ allowed_origins }}
+{%- endif %}
 |  Log traces:
 |    - gRPC: {{ grpc_path }}
 |    - HTTP: {{ http_path }}
 |  Storage: {{ storage }}
-{% if schema -%}
+{%- if schema %}
 |    - Schema: {{ schema }}
-{% endif -%}
+{%- endif %}
 """)
-
-_EXPERIMENTAL_WARNING = """
-🚨 WARNING: Phoenix is running in experimental mode. 🚨
-|  Authentication enabled: {auth_enabled}
-"""
 
 
 def _write_pid_file_when_ready(
     server: Server,
-    wait_up_to_seconds: float = 5,
+    wait_up_to_seconds: float = 60,
 ) -> None:
     """Write PID file after server is started (or when time is up)."""
     time_limit = time() + wait_up_to_seconds
@@ -121,36 +156,42 @@ def _get_pid_file() -> Path:
 
 DEFAULT_UMAP_PARAMS_STR = f"{DEFAULT_MIN_DIST},{DEFAULT_N_NEIGHBORS},{DEFAULT_N_SAMPLES}"
 
-if __name__ == "__main__":
+
+def main() -> None:
+    initialize_settings()
+    setup_logging()
+
     primary_inferences_name: str
     reference_inferences_name: Optional[str]
     trace_dataset_name: Optional[str] = None
-    simulate_streaming: Optional[bool] = None
 
     primary_inferences: Inferences = EMPTY_INFERENCES
     reference_inferences: Optional[Inferences] = None
     corpus_inferences: Optional[Inferences] = None
 
-    # Initialize the settings for the Server
-    Settings.log_migrations = True
-
-    # automatically remove the pid file when the process is being gracefully terminated
     atexit.register(_remove_pid_file)
 
-    parser = ArgumentParser()
-    parser.add_argument("--database-url", required=False)
-    parser.add_argument("--export_path")
-    parser.add_argument("--host", type=str, required=False)
-    parser.add_argument("--port", type=int, required=False)
-    parser.add_argument("--read-only", action="store_true", required=False)  # Default is False
-    parser.add_argument("--no-internet", action="store_true")
-    parser.add_argument("--umap_params", type=str, required=False, default=DEFAULT_UMAP_PARAMS_STR)
-    parser.add_argument("--debug", action="store_true")
-    # Whether the app is running in a development environment
-    parser.add_argument("--dev", action="store_true")
-    parser.add_argument("--no-ui", action="store_true")
-
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    parser = ArgumentParser(usage="phoenix serve", add_help=False)
+    parser.add_argument(
+        "-h",
+        "--help",
+        action="help",
+        help=SUPPRESS,
+    )
+    parser.add_argument("--database-url", required=False, help=SUPPRESS)
+    parser.add_argument("--export_path", help=SUPPRESS)
+    parser.add_argument("--host", type=str, required=False, help=SUPPRESS)
+    parser.add_argument("--port", type=int, required=False, help=SUPPRESS)
+    parser.add_argument("--read-only", action="store_true", required=False, help=SUPPRESS)
+    parser.add_argument("--no-internet", action="store_true", help=SUPPRESS)
+    parser.add_argument(
+        "--umap_params", type=str, required=False, default=DEFAULT_UMAP_PARAMS_STR, help=SUPPRESS
+    )
+    parser.add_argument("--debug", action="store_true", help=SUPPRESS)
+    parser.add_argument("--dev", action="store_true", help=SUPPRESS)
+    parser.add_argument("--no-ui", action="store_true", help=SUPPRESS)
+    parser.add_argument("--enable-websockets", type=str, help=SUPPRESS)
+    subparsers = parser.add_subparsers(dest="command", required=True, help=SUPPRESS)
 
     serve_parser = subparsers.add_parser("serve")
     serve_parser.add_argument(
@@ -182,7 +223,7 @@ if __name__ == "__main__":
     )
     serve_parser.add_argument(
         "--force-fixture-ingestion",
-        action="store_true",  # default is False
+        action="store_true",
         required=False,
         help=(
             "Whether or not to check the database age before adding the fixtures. "
@@ -192,7 +233,7 @@ if __name__ == "__main__":
     )
     serve_parser.add_argument(
         "--scaffold-datasets",
-        action="store_true",  # default is False
+        action="store_true",
         required=False,
         help=(
             "Whether or not to add any datasets defined in "
@@ -209,15 +250,13 @@ if __name__ == "__main__":
 
     fixture_parser = subparsers.add_parser("fixture")
     fixture_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
-    fixture_parser.add_argument("--primary-only", action="store_true")  # Default is False
+    fixture_parser.add_argument("--primary-only", action="store_true")
 
     trace_fixture_parser = subparsers.add_parser("trace-fixture")
     trace_fixture_parser.add_argument(
         "fixture", type=str, choices=[fixture.name for fixture in TRACES_FIXTURES]
     )
-    trace_fixture_parser.add_argument(
-        "--simulate-streaming", action="store_true"
-    )  # Default is False
+    trace_fixture_parser.add_argument("--simulate-streaming", action="store_true")
 
     demo_parser = subparsers.add_parser("demo")
     demo_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
@@ -230,7 +269,7 @@ if __name__ == "__main__":
     db_connection_str = (
         args.database_url if args.database_url else get_env_database_connection_str()
     )
-    export_path = Path(args.export_path) if args.export_path else EXPORT_DIR
+    export_path = Path(args.export_path) if args.export_path else Path(EXPORT_DIR)
 
     force_fixture_ingestion = False
     scaffold_datasets = False
@@ -260,7 +299,6 @@ if __name__ == "__main__":
             reference_inferences = None
     elif args.command == "trace-fixture":
         trace_dataset_name = args.fixture
-        simulate_streaming = args.simulate_streaming
     elif args.command == "demo":
         fixture_name = args.fixture
         primary_inferences, reference_inferences, corpus_inferences = get_inferences(
@@ -268,9 +306,7 @@ if __name__ == "__main__":
             args.no_internet,
         )
         trace_dataset_name = args.trace_fixture
-        simulate_streaming = args.simulate_streaming
     elif args.command == "serve":
-        # We use sets to avoid duplicates
         if args.with_fixture:
             primary_inferences, reference_inferences, corpus_inferences = get_inferences(
                 str(args.with_fixture),
@@ -290,14 +326,7 @@ if __name__ == "__main__":
         force_fixture_ingestion = args.force_fixture_ingestion
         scaffold_datasets = args.scaffold_datasets
     host: Optional[str] = args.host or get_env_host()
-    display_host = host or "localhost"
-    # If the host is "::", the convention is to bind to all interfaces. However, uvicorn
-    # does not support this directly unless the host is set to None.
-    if host and ":" in host:
-        # format IPv6 hosts in brackets
-        display_host = f"[{host}]"
     if host == "::":
-        # TODO(dustin): why is this necessary? it's not type compliant
         host = None
 
     port = args.port or get_env_port()
@@ -309,10 +338,10 @@ if __name__ == "__main__":
         reference_inferences,
     )
 
-    authentication_enabled, secret = get_auth_settings()
+    auth_settings = get_env_auth_settings()
 
-    fixture_spans: List[Span] = []
-    fixture_evals: List[pb.Evaluation] = []
+    fixture_spans: list[Span] = []
+    fixture_evals: list[pb.Evaluation] = []
     if trace_dataset_name is not None:
         fixture_spans, fixture_evals = reset_fixture_span_ids_and_timestamps(
             (
@@ -336,31 +365,49 @@ if __name__ == "__main__":
         n_samples=int(umap_params_list[2]),
     )
 
-    logger.info(f"Server umap params: {umap_params}")
     if enable_prometheus := get_env_enable_prometheus():
         from phoenix.server.prometheus import start_prometheus
 
         start_prometheus()
 
-    working_dir = get_working_dir().resolve()
     engine = create_engine_and_run_migrations(db_connection_str)
     instrumentation_cleanups = instrument_engine_if_enabled(engine)
     factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
     corpus_model = (
         None if corpus_inferences is None else create_model_from_inferences(corpus_inferences)
     )
+
+    allowed_origins = get_env_allowed_origins()
+    management_url = get_env_management_url()
+
+    # Get TLS configuration
+    tls_enabled_for_http = get_env_tls_enabled_for_http()
+    tls_enabled_for_grpc = get_env_tls_enabled_for_grpc()
+    tls_config = get_env_tls_config()
+    tls_verify_client = tls_config is not None and isinstance(tls_config, TLSConfigVerifyClient)
+
     # Print information about the server
-    root_path = urljoin(f"http://{host}:{port}", host_root_path)
+    http_scheme = "https" if tls_enabled_for_http else "http"
+    grpc_scheme = "https" if tls_enabled_for_grpc else "http"
+    # Use localhost for display when host is the loopback address to make URLs clickable
+    display_host = "localhost" if host in ("0.0.0.0", "::") else host
+    root_path = urljoin(f"{http_scheme}://{host}:{port}", host_root_path)
+    display_root_path = urljoin(f"{http_scheme}://{display_host}:{port}", host_root_path)
     msg = _WELCOME_MESSAGE.render(
-        version=version("arize-phoenix"),
-        ui_path=root_path,
-        grpc_path=f"http://{host}:{get_env_grpc_port()}",
-        http_path=urljoin(root_path, "v1/traces"),
+        version=phoenix_version,
+        ui_path=display_root_path,
+        grpc_path=f"{grpc_scheme}://{display_host}:{get_env_grpc_port()}",
+        http_path=urljoin(display_root_path, "v1/traces"),
         storage=get_printable_db_url(db_connection_str),
         schema=get_env_database_schema(),
+        auth_enabled=auth_settings.enable_auth,
+        disable_basic_auth=auth_settings.disable_basic_auth,
+        tls_enabled_for_http=tls_enabled_for_http,
+        tls_enabled_for_grpc=tls_enabled_for_grpc,
+        tls_verify_client=tls_verify_client,
+        allowed_origins=allowed_origins,
     )
-    if authentication_enabled:
-        msg += _EXPERIMENTAL_WARNING.format(auth_enabled=True)
+
     if sys.platform.startswith("win"):
         msg = codecs.encode(msg, "ascii", errors="ignore").decode("ascii").strip()
     scaffolder_config = ScaffolderConfig(
@@ -370,11 +417,27 @@ if __name__ == "__main__":
         scaffold_datasets=scaffold_datasets,
         phoenix_url=root_path,
     )
+    email_sender: Optional[EmailSender] = None
+    if mail_sever := get_env_smtp_hostname():
+        assert (mail_username := get_env_smtp_username()), "SMTP username is required"
+        assert (mail_password := get_env_smtp_password()), "SMTP password is required"
+        assert (sender_email := get_env_smtp_mail_from()), "SMTP mail_from is required"
+        email_sender = SimpleEmailSender(
+            smtp_server=mail_sever,
+            smtp_port=get_env_smtp_port(),
+            username=mail_username,
+            password=mail_password,
+            sender_email=sender_email,
+            connection_method="STARTTLS",
+            validate_certs=get_env_smtp_validate_certs(),
+        )
+
     app = create_app(
         db=factory,
         export_path=export_path,
         model=model,
-        authentication_enabled=authentication_enabled,
+        authentication_enabled=auth_settings.enable_auth,
+        basic_auth_disabled=auth_settings.disable_basic_auth,
         umap_params=umap_params,
         corpus=corpus_model,
         debug=args.debug,
@@ -386,11 +449,56 @@ if __name__ == "__main__":
         initial_evaluations=fixture_evals,
         startup_callbacks=[lambda: print(msg)],
         shutdown_callbacks=instrumentation_cleanups,
-        secret=secret,
+        secret=auth_settings.phoenix_secret,
+        password_reset_token_expiry=get_env_password_reset_token_expiry(),
+        access_token_expiry=get_env_access_token_expiry(),
+        refresh_token_expiry=get_env_refresh_token_expiry(),
         scaffolder_config=scaffolder_config,
+        email_sender=email_sender,
+        oauth2_client_configs=get_env_oauth2_settings(),
+        allowed_origins=allowed_origins,
+        management_url=management_url,
     )
-    server = Server(config=Config(app, host=host, port=port, root_path=host_root_path))  # type: ignore
+
+    # Configure server with TLS if enabled
+    server_config = Config(
+        app=app,
+        host=host,  # type: ignore[arg-type]
+        port=port,
+        root_path=host_root_path,
+        log_level=Settings.logging_level,
+    )
+
+    if tls_enabled_for_http:
+        assert tls_config
+        # Configure SSL context with certificate and key
+        server_config.ssl_keyfile = str(tls_config.key_file)
+        server_config.ssl_keyfile_password = tls_config.key_file_password
+        server_config.ssl_certfile = str(tls_config.cert_file)
+
+        # If CA file is provided and client verification is enabled
+        if isinstance(tls_config, TLSConfigVerifyClient):
+            server_config.ssl_ca_certs = str(tls_config.ca_file)
+            server_config.ssl_cert_reqs = CERT_REQUIRED
+
+    server = Server(config=server_config)
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
 
-    # Start the server
-    server.run()
+    try:
+        server.run()
+    except KeyboardInterrupt:
+        pass  # don't bother the user with a stack trace on Ctrl-C
+
+
+def initialize_settings() -> None:
+    """Initialize the settings from environment variables."""
+    Settings.logging_mode = get_env_logging_mode()
+    Settings.logging_level = get_env_logging_level()
+    Settings.db_logging_level = get_env_db_logging_level()
+    Settings.log_migrations = get_env_log_migrations()
+    Settings.disable_migrations = get_env_disable_migrations()
+    Settings.fullstory_org = get_env_fullstory_org()
+
+
+if __name__ == "__main__":
+    main()

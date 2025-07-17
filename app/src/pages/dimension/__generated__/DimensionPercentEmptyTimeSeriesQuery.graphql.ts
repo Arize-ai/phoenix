@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<da6f4964336e29fdef41a8f8b2355b31>>
+ * @generated SignedSource<<1d683f52169d732940957f769107c0dc>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,10 +8,10 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type TimeRange = {
-  end: string;
-  start: string;
+  end?: string | null;
+  start?: string | null;
 };
 export type Granularity = {
   evaluationWindowMinutes: number;
@@ -188,16 +188,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9be05c72f19755036f4829777a96f97d",
+    "cacheID": "85842391b76ccca79e3b6f506fb1d78d",
     "id": null,
     "metadata": {},
     "name": "DimensionPercentEmptyTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query DimensionPercentEmptyTimeSeriesQuery(\n  $dimensionId: GlobalID!\n  $timeRange: TimeRange!\n  $granularity: Granularity!\n) {\n  embedding: node(id: $dimensionId) {\n    __typename\n    id\n    ... on Dimension {\n      percentEmptyTimeSeries: dataQualityTimeSeries(metric: percentEmpty, timeRange: $timeRange, granularity: $granularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query DimensionPercentEmptyTimeSeriesQuery(\n  $dimensionId: ID!\n  $timeRange: TimeRange!\n  $granularity: Granularity!\n) {\n  embedding: node(id: $dimensionId) {\n    __typename\n    id\n    ... on Dimension {\n      percentEmptyTimeSeries: dataQualityTimeSeries(metric: percentEmpty, timeRange: $timeRange, granularity: $granularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1e843d6c8dbe05b389b24188c6bdb394";
+(node as any).hash = "c04e7d788249ceb6f9f7a9ff50a28efd";
 
 export default node;

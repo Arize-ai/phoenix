@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "moduleResolution": "node10",
+    "module": "ES2022",
+    "lib": ["ES2023"]
+  },
+  "tsc-alias": {
+    "verbose": false,
+    "resolveFullPaths": true
+  }
+}

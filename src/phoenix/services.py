@@ -3,16 +3,16 @@ import os
 import signal
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from time import sleep, time
-from typing import Callable, List, Optional
+from typing import Optional
 
 import psutil
 
 from phoenix.config import SERVER_DIR, get_pids_path, get_running_pid
 
 logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 
 class Service:
@@ -32,7 +32,7 @@ class Service:
         )
 
     @property
-    def command(self) -> List[str]:
+    def command(self) -> list[str]:
         raise NotImplementedError(f"{type(self)} must define `command`")
 
     def start(self) -> psutil.Popen:
@@ -132,7 +132,7 @@ class AppService(Service):
         super().__init__()
 
     @property
-    def command(self) -> List[str]:
+    def command(self) -> list[str]:
         command = [
             sys.executable,
             "main.py",

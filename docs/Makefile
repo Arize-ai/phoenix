@@ -4,7 +4,12 @@ ROOT_DIR := $(shell git rev-parse --show-toplevel)
 # List of notebook files and their destination paths
 NOTEBOOKS := \
 	tutorials/quickstarts/evals_quickstart.ipynb:docs/quickstart/evals.md \
-	tutorials/quickstarts/tracing_quickstart_openai.ipynb:docs/tracing/llm-traces-1.md
+	tutorials/quickstarts/tracing_quickstart_openai.ipynb:docs/tracing/llm-traces-1.md \
+	tutorials/quickstarts/evaluating_traces_quickstart.ipynb:docs/evaluation/how-to-evals/evaluating-phoenix-traces.md \
+	tutorials/prompts/prompt-optimization.ipynb:docs/prompt-engineering/use-cases-prompts/prompt-optimization.md \
+	tutorials/prompts/few_shot_prompting.ipynb:docs/prompt-engineering/use-cases-prompts/few-shot-prompting.md \
+	tutorials/prompts/react_prompting.ipynb:docs/prompt-engineering/use-cases-prompts/react-prompting.md \
+	tutorials/prompts/chain_of_thought_prompting.ipynb:docs/prompt-engineering/use-cases-prompts/chain-of-thought-prompting.md
 
 # Default target
 all: convert_notebooks

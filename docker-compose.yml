@@ -11,7 +11,7 @@ services:
     environment:
       - PHOENIX_SQL_DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres
   db:
-    image: postgres
+    image: postgres:16
     restart: always
     environment:
       - POSTGRES_USER=postgres

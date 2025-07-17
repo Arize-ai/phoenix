@@ -8,6 +8,11 @@ import pytest
 from phoenix.evals import LiteLLMModel
 
 
+def test_instantiation_by_positional_args_is_not_allowed():
+    with pytest.raises(AssertionError, match="positional arguments"):
+        LiteLLMModel("ollama/monstral")
+
+
 @pytest.mark.skipif(
     sys.version_info < (3, 9),
     reason="https://github.com/BerriAI/litellm/issues/2005",

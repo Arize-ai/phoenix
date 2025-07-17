@@ -1,0 +1,4 @@
+{
+  "extends": "../../../src/phoenix/client/helpers/sdk/pyrightconfig.json",
+  "reportPrivateUsage": false
+}

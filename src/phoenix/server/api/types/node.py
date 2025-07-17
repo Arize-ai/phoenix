@@ -1,9 +1,7 @@
-from typing import Tuple
-
 from strawberry.relay import GlobalID
 
 
-def from_global_id(global_id: GlobalID) -> Tuple[str, int]:
+def from_global_id(global_id: GlobalID) -> tuple[str, int]:
     """
     Decode the given global id into a type and id.
 

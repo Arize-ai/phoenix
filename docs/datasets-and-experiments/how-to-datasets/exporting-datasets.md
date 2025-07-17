@@ -1,5 +1,9 @@
 # Exporting Datasets
 
+## Exporting to CSV
+
+Want to just use the contents of your dataset in another context? Simply click on the export to CSV button on the dataset page and you are good to go!
+
 ## Exporting for Fine-Tuning
 
 Fine-tuning lets you get more out of the models available by providing:
@@ -11,7 +15,7 @@ Fine-tuning lets you get more out of the models available by providing:
 
 Fine-tuning improves on few-shot learning by training on many more examples than can fit in the prompt, letting you achieve better results on a wide number of tasks. **Once a model has been fine-tuned, you won't need to provide as many examples in the prompt.** This saves costs and enables lower-latency requests.\
 \
-Phoenix natively exports OpenAI Fine-Tuning JSONL as long as the dataset contains compatible inputs  and outputs.
+Phoenix natively exports OpenAI Fine-Tuning JSONL as long as the dataset contains compatible inputs and outputs.
 
 ## Exporting OpenAI Evals
 
