@@ -404,25 +404,43 @@ const CustomBar = (props: RectangleProps) => {
   const barHeight = height - gapHeight;
   const barY = y + gapHeight;
 
-  // Handle radius for the top segment
-  const radiusAttr =
-    radius && typeof radius !== "number" && Array.isArray(radius)
-      ? {
-          rx: radius[0],
-          ry: radius[1],
-        }
-      : {};
+  // Check if we should round the top corners
+  const shouldRoundTop =
+    radius &&
+    ((typeof radius === "number" && radius > 0) ||
+      (Array.isArray(radius) && radius.length > 0 && radius[0] > 0));
 
+  // Get the radius value (default to 2 if radius is specified)
+  const r = shouldRoundTop
+    ? typeof radius === "number"
+      ? radius
+      : radius[0] || 2
+    : 0;
+
+  if (shouldRoundTop && r > 0) {
+    // Draw a path with only top corners rounded
+    const path = `
+      M ${x + r} ${barY}
+      L ${x + width - r} ${barY}
+      Q ${x + width} ${barY} ${x + width} ${barY + r}
+      L ${x + width} ${barY + barHeight}
+      L ${x} ${barY + barHeight}
+      L ${x} ${barY + r}
+      Q ${x} ${barY} ${x + r} ${barY}
+      Z
+    `;
+
+    return (
+      <g>
+        <path d={path} fill={fill} />
+      </g>
+    );
+  }
+
+  // Fallback to regular rectangle for non-rounded bars
   return (
     <g>
-      <rect
-        x={x}
-        y={barY}
-        width={width}
-        height={barHeight}
-        fill={fill}
-        {...radiusAttr}
-      />
+      <rect x={x} y={barY} width={width} height={barHeight} fill={fill} />
     </g>
   );
 };
