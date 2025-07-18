@@ -30,7 +30,6 @@ class TestTraceTransferMutationMixin:
         trace2_id = trace_transfer_fixture["trace2_id"]
 
         async with db() as session:
-            # Verify initial state
             traces = (
                 await session.scalars(
                     select(models.Trace).where(models.Trace.id.in_([trace1_id, trace2_id]))
@@ -39,7 +38,6 @@ class TestTraceTransferMutationMixin:
             assert len(traces) == 2
             assert all(trace.project_rowid == source_project_id for trace in traces)
 
-            # Verify trace annotations exist
             trace_annotations = (
                 await session.scalars(
                     select(models.TraceAnnotation).where(
@@ -49,7 +47,6 @@ class TestTraceTransferMutationMixin:
             ).all()
             assert len(trace_annotations) == 2
 
-            # Verify span costs exist
             span_costs = (
                 await session.scalars(
                     select(models.SpanCost).where(
@@ -59,7 +56,6 @@ class TestTraceTransferMutationMixin:
             ).all()
             assert len(span_costs) == 2
 
-        # Transfer traces to destination project
         result = await gql_client.execute(
             self.TRANSFER_TRACES_MUTATION,
             variables={
@@ -73,7 +69,6 @@ class TestTraceTransferMutationMixin:
         assert not result.errors
 
         async with db() as session:
-            # Verify traces were transferred
             traces = (
                 await session.scalars(
                     select(models.Trace).where(models.Trace.id.in_([trace1_id, trace2_id]))
@@ -82,7 +77,6 @@ class TestTraceTransferMutationMixin:
             assert len(traces) == 2
             assert all(trace.project_rowid == dest_project_id for trace in traces)
 
-            # Verify trace annotations were transferred
             trace_annotations = (
                 await session.scalars(
                     select(models.TraceAnnotation).where(
@@ -92,7 +86,6 @@ class TestTraceTransferMutationMixin:
             ).all()
             assert len(trace_annotations) == 2
 
-            # Verify span costs were transferred
             span_costs = (
                 await session.scalars(
                     select(models.SpanCost).where(
@@ -113,18 +106,16 @@ class TestTraceTransferMutationMixin:
         trace1_id = trace_transfer_fixture["trace1_id"]
 
         async with db() as session:
-            # Verify trace exists initially
             trace = await session.get(models.Trace, trace1_id)
             assert trace is not None
             assert trace.project_rowid == source_project_id
 
-        # Attempt to transfer with non-existent trace ID
         result = await gql_client.execute(
             self.TRANSFER_TRACES_MUTATION,
             variables={
                 "traceIds": [
                     str(GlobalID("Trace", str(trace1_id))),
-                    str(GlobalID("Trace", "99999")),  # non-existent trace id
+                    str(GlobalID("Trace", "99999")),
                 ],
                 "projectId": str(GlobalID("Project", str(dest_project_id))),
             },
@@ -132,7 +123,6 @@ class TestTraceTransferMutationMixin:
         assert result.errors
 
         async with db() as session:
-            # Verify trace was not transferred
             trace = await session.get(models.Trace, trace1_id)
             assert trace is not None
             assert trace.project_rowid == source_project_id
@@ -147,7 +137,6 @@ class TestTraceTransferMutationMixin:
         trace2_id = trace_transfer_fixture["trace2_id"]
 
         async with db() as session:
-            # Verify traces exist initially
             traces = (
                 await session.scalars(
                     select(models.Trace).where(models.Trace.id.in_([trace1_id, trace2_id]))
@@ -155,7 +144,6 @@ class TestTraceTransferMutationMixin:
             ).all()
             assert len(traces) == 2
 
-        # Attempt to transfer to non-existent project
         result = await gql_client.execute(
             self.TRANSFER_TRACES_MUTATION,
             variables={
@@ -163,20 +151,18 @@ class TestTraceTransferMutationMixin:
                     str(GlobalID("Trace", str(trace1_id))),
                     str(GlobalID("Trace", str(trace2_id))),
                 ],
-                "projectId": str(GlobalID("Project", "99999")),  # non-existent project id
+                "projectId": str(GlobalID("Project", "99999")),
             },
         )
         assert result.errors
 
         async with db() as session:
-            # Verify traces were not transferred
             traces = (
                 await session.scalars(
                     select(models.Trace).where(models.Trace.id.in_([trace1_id, trace2_id]))
                 )
             ).all()
             assert len(traces) == 2
-            # Should still be in original project
             source_project_id = trace_transfer_fixture["source_project_id"]
             assert all(trace.project_rowid == source_project_id for trace in traces)
 
@@ -193,7 +179,6 @@ class TestTraceTransferMutationMixin:
         other_trace_id = trace_transfer_fixture["other_trace_id"]
 
         async with db() as session:
-            # Verify traces exist in different projects
             trace1 = await session.get(models.Trace, trace1_id)
             other_trace = await session.get(models.Trace, other_trace_id)
             assert trace1 is not None
@@ -201,7 +186,6 @@ class TestTraceTransferMutationMixin:
             assert trace1.project_rowid == source_project_id
             assert other_trace.project_rowid == other_project_id
 
-        # Attempt to transfer traces from multiple projects
         result = await gql_client.execute(
             self.TRANSFER_TRACES_MUTATION,
             variables={
@@ -215,7 +199,6 @@ class TestTraceTransferMutationMixin:
         assert result.errors
 
         async with db() as session:
-            # Verify traces were not transferred
             trace1 = await session.get(models.Trace, trace1_id)
             other_trace = await session.get(models.Trace, other_trace_id)
             assert trace1 is not None
@@ -231,7 +214,6 @@ class TestTraceTransferMutationMixin:
     ) -> None:
         dest_project_id = trace_transfer_fixture["dest_project_id"]
 
-        # Attempt to transfer empty list of traces
         result = await gql_client.execute(
             self.TRANSFER_TRACES_MUTATION,
             variables={
@@ -244,32 +226,22 @@ class TestTraceTransferMutationMixin:
 
 @pytest.fixture
 async def trace_transfer_fixture(db: DbSessionFactory) -> dict[str, int]:
-    """
-    Creates test data for trace transfer tests:
-    - source_project: contains 2 traces with annotations and span costs
-    - dest_project: empty project to transfer traces to
-    - other_project: contains 1 trace (for testing multi-project scenarios)
-    """
     async with db() as session:
-        # Create source project
         source_project_id = await session.scalar(
             insert(models.Project).values(name="source-project").returning(models.Project.id)
         )
         assert source_project_id is not None
 
-        # Create destination project
         dest_project_id = await session.scalar(
             insert(models.Project).values(name="dest-project").returning(models.Project.id)
         )
         assert dest_project_id is not None
 
-        # Create other project
         other_project_id = await session.scalar(
             insert(models.Project).values(name="other-project").returning(models.Project.id)
         )
         assert other_project_id is not None
 
-        # Create session for source project
         session_id = await session.scalar(
             insert(models.ProjectSession)
             .values(
@@ -282,7 +254,6 @@ async def trace_transfer_fixture(db: DbSessionFactory) -> dict[str, int]:
         )
         assert session_id is not None
 
-        # Create first trace in source project
         trace1_id = await session.scalar(
             insert(models.Trace)
             .values(
@@ -296,7 +267,6 @@ async def trace_transfer_fixture(db: DbSessionFactory) -> dict[str, int]:
         )
         assert trace1_id is not None
 
-        # Create span for first trace
         span1_id = await session.scalar(
             insert(models.Span)
             .values(
@@ -322,7 +292,6 @@ async def trace_transfer_fixture(db: DbSessionFactory) -> dict[str, int]:
         )
         assert span1_id is not None
 
-        # Create span cost for first trace
         span_cost1_id = await session.scalar(
             insert(models.SpanCost)
             .values(
@@ -340,7 +309,6 @@ async def trace_transfer_fixture(db: DbSessionFactory) -> dict[str, int]:
         )
         assert span_cost1_id is not None
 
-        # Create trace annotation for first trace
         trace_annotation1_id = await session.scalar(
             insert(models.TraceAnnotation)
             .values(
@@ -358,7 +326,6 @@ async def trace_transfer_fixture(db: DbSessionFactory) -> dict[str, int]:
         )
         assert trace_annotation1_id is not None
 
-        # Create second trace in source project
         trace2_id = await session.scalar(
             insert(models.Trace)
             .values(
@@ -372,7 +339,6 @@ async def trace_transfer_fixture(db: DbSessionFactory) -> dict[str, int]:
         )
         assert trace2_id is not None
 
-        # Create span for second trace
         span2_id = await session.scalar(
             insert(models.Span)
             .values(
@@ -398,7 +364,6 @@ async def trace_transfer_fixture(db: DbSessionFactory) -> dict[str, int]:
         )
         assert span2_id is not None
 
-        # Create span cost for second trace
         span_cost2_id = await session.scalar(
             insert(models.SpanCost)
             .values(
@@ -416,7 +381,6 @@ async def trace_transfer_fixture(db: DbSessionFactory) -> dict[str, int]:
         )
         assert span_cost2_id is not None
 
-        # Create trace annotation for second trace
         trace_annotation2_id = await session.scalar(
             insert(models.TraceAnnotation)
             .values(
@@ -434,7 +398,6 @@ async def trace_transfer_fixture(db: DbSessionFactory) -> dict[str, int]:
         )
         assert trace_annotation2_id is not None
 
-        # Create trace in other project
         other_trace_id = await session.scalar(
             insert(models.Trace)
             .values(

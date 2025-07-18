@@ -95,12 +95,10 @@ class TraceMutationMixin:
             raise BadRequest(str(error))
         
         async with info.context.db() as session:
-            # Verify destination project exists
             dest_project = await session.get(models.Project, dest_project_rowid)
             if dest_project is None:
                 raise BadRequest("Destination project does not exist")
             
-            # Get traces and verify they exist
             traces = (
                 await session.scalars(
                     select(models.Trace).where(models.Trace.id.in_(trace_rowids))
@@ -109,29 +107,14 @@ class TraceMutationMixin:
             if len(traces) < len(trace_rowids):
                 raise BadRequest("Invalid trace IDs provided")
             
-            # Verify all traces are from the same project
             source_project_ids = set(trace.project_rowid for trace in traces)
             if len(source_project_ids) > 1:
                 raise BadRequest("Cannot transfer traces from multiple projects")
             
-            source_project_id = next(iter(source_project_ids))
-            
-            # Update traces to point to the destination project
             await session.execute(
                 update(models.Trace)
                 .where(models.Trace.id.in_(trace_rowids))
                 .values(project_rowid=dest_project_rowid)
             )
-            
-            # Update trace annotations to point to the destination project
-            # (Trace annotations are linked to traces via trace_rowid, so they automatically move)
-            
-            # Update span costs to point to the destination project
-            # (Span costs are linked to traces via trace_rowid, so they automatically move)
-            
-            # Note: Spans are linked to traces via trace_rowid, so they automatically move
-            # Note: Span annotations are linked to spans via span_rowid, so they automatically move
-            # Note: Document annotations are linked to spans via span_rowid, so they automatically move
-            # Note: Span cost details are linked to span costs via span_cost_id, so they automatically move
             
         return Query()
