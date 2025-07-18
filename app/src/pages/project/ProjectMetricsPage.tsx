@@ -110,7 +110,7 @@ export function ProjectMetricsPage() {
           <TraceCountTimeSeries projectId={projectId} />
         </MetricPanel>
         <MetricPanel title="Trace count (errors only)">
-          <TraceErrorsTimeSeries />
+          <TraceErrorsTimeSeries projectId={projectId} />
         </MetricPanel>
       </Flex>
       <Flex direction="row" gap="size-100">
