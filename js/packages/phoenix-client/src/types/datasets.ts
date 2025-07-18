@@ -1,10 +1,20 @@
 import { Node } from "./core";
 
 /**
- * A dataset can be identified by its datasetId
- * TODO: add support for datasetVersionId via discriminated union
+ * A dataset can be identified by its datasetId, datasetName, or datasetVersionId
  */
-export type DatasetSelector = { datasetId: string } | { datasetName: string };
+export type DatasetSelector = 
+  | { datasetId: string }
+  | { datasetName: string }
+  | { datasetVersionId: string };
+
+/**
+ * Parameters for selecting a specific version of a dataset
+ */
+export interface DatasetVersionSelector {
+  dataset: DatasetSelector;
+  versionId?: string;
+}
 
 /**
  * Overview information about a dataset
@@ -13,6 +23,15 @@ export interface DatasetInfo extends Node {
   name: string;
   description?: string | null;
   metadata?: Record<string, unknown>;
+}
+
+/**
+ * Information about a dataset version
+ */
+export interface DatasetVersionInfo extends Node {
+  description?: string | null;
+  metadata?: Record<string, unknown>;
+  createdAt: Date;
 }
 
 /**
@@ -46,3 +65,10 @@ export interface ExampleWithId extends Example, Node {
  * A dataset is a collection of examples for an AI task
  */
 export interface Dataset extends DatasetInfo, DatasetExamples, Node {}
+
+/**
+ * A dataset with its version information
+ */
+export interface DatasetWithVersion extends Dataset {
+  versionInfo: DatasetVersionInfo;
+}

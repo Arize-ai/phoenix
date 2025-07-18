@@ -6,18 +6,30 @@ import { getDatasetInfoByName } from "./getDatasetInfoByName";
 
 export type GetDatasetExamplesParams = ClientFn & {
   dataset: DatasetSelector;
+  versionId?: string;
 };
 
 /**
- * Get the latest examples from a dataset
+ * Get examples from a dataset
+ * @param dataset - Dataset selector (ID, name, or version ID)
+ * @param versionId - Optional specific version ID (ignored if dataset selector is datasetVersionId)
  */
 export async function getDatasetExamples({
   client: _client,
   dataset,
+  versionId,
 }: GetDatasetExamplesParams): Promise<DatasetExamples> {
   const client = _client || createClient();
+  
   let datasetId: string;
-  if ("datasetName" in dataset) {
+  const targetVersionId: string | undefined = versionId;
+
+  if ("datasetVersionId" in dataset) {
+    // If selecting by version ID, we need to get the dataset ID first
+    // For now, we'll use the version ID as both dataset ID and version ID
+    // This will need to be updated when we have a way to resolve version ID to dataset ID
+    throw new Error("Selecting by datasetVersionId is not yet implemented. Please use datasetId or datasetName with optional versionId parameter.");
+  } else if ("datasetName" in dataset) {
     const datasetInfo = await getDatasetInfoByName({
       client,
       datasetName: dataset.datasetName,
@@ -26,13 +38,18 @@ export async function getDatasetExamples({
   } else {
     datasetId = dataset.datasetId;
   }
+
   const response = await client.GET("/v1/datasets/{id}/examples", {
     params: {
       path: {
         id: datasetId,
       },
+      query: targetVersionId ? {
+        version_id: targetVersionId,
+      } : undefined,
     },
   });
+  
   invariant(response.data?.data, "Failed to get dataset examples");
   const examplesData = response.data.data;
   return {
