@@ -1,6 +1,3 @@
-<<<<<<< Updated upstream
-import { LabelProps, TooltipProps, XAxisProps } from "recharts";
-=======
 import {
   CartesianGridProps,
   LabelProps,
@@ -8,7 +5,6 @@ import {
   XAxisProps,
   YAxisProps,
 } from "recharts";
->>>>>>> Stashed changes
 
 /**
  * Re-usable default props for the XAxis component.
