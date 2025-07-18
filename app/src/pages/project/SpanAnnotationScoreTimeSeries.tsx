@@ -1,9 +1,9 @@
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
-  Bar,
-  BarChart,
   CartesianGrid,
   Legend,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   TooltipContentProps,
@@ -15,35 +15,28 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
+  useChartColors,
+  useTimeTickFormatter,
+} from "@phoenix/components/chart";
+import {
   defaultCartesianGridProps,
   defaultXAxisProps,
   defaultYAxisProps,
-  useSemanticChartColors,
-  useTimeTickFormatter,
-} from "@phoenix/components/chart";
+} from "@phoenix/components/chart/defaults";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
-import type { TraceErrorsTimeSeriesQuery } from "./__generated__/TraceErrorsTimeSeriesQuery.graphql";
-
-const numberFormatter = new Intl.NumberFormat([], {
-  maximumFractionDigits: 2,
-});
+import type { SpanAnnotationScoreTimeSeriesQuery } from "./__generated__/SpanAnnotationScoreTimeSeriesQuery.graphql";
 
 function TooltipContent({
   active,
   payload,
   label,
 }: TooltipContentProps<number, string>) {
-  const SemanticChartColors = useSemanticChartColors();
+  const chartColors = useChartColors();
   if (active && payload && payload.length) {
-    const errorValue = payload[0]?.value ?? null;
-    const errorString =
-      typeof errorValue === "number"
-        ? numberFormatter.format(errorValue)
-        : "--";
     return (
       <ChartTooltip>
         {label && (
@@ -51,12 +44,27 @@ function TooltipContent({
             new Date(label)
           )}`}</Text>
         )}
-        <ChartTooltipItem
-          color={SemanticChartColors.danger}
-          shape="circle"
-          name="error"
-          value={errorString}
-        />
+        {payload.map(
+          (
+            entry: {
+              value?: number;
+              color?: string;
+              dataKey?: string | number;
+            },
+            index: number
+          ) => {
+            if (!entry.value) return null;
+            return (
+              <ChartTooltipItem
+                key={index}
+                color={entry.color || chartColors.default}
+                shape="line"
+                name={String(entry.dataKey || "unknown")}
+                value={entry.value.toFixed(2)}
+              />
+            );
+          }
+        )}
       </ChartTooltip>
     );
   }
@@ -64,28 +72,36 @@ function TooltipContent({
   return null;
 }
 
-export function TraceErrorsTimeSeries({ projectId }: { projectId: string }) {
+export function SpanAnnotationScoreTimeSeries({
+  projectId,
+}: {
+  projectId: string;
+}) {
   const { timeRange } = useTimeRange();
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
 
-  const data = useLazyLoadQuery<TraceErrorsTimeSeriesQuery>(
+  const data = useLazyLoadQuery<SpanAnnotationScoreTimeSeriesQuery>(
     graphql`
-      query TraceErrorsTimeSeriesQuery(
+      query SpanAnnotationScoreTimeSeriesQuery(
         $projectId: ID!
         $timeRange: TimeRange!
         $timeBinConfig: TimeBinConfig!
       ) {
         project: node(id: $projectId) {
           ... on Project {
-            traceCountByStatusTimeSeries(
+            spanAnnotationScoreTimeSeries(
               timeRange: $timeRange
               timeBinConfig: $timeBinConfig
             ) {
               data {
                 timestamp
-                errorCount
+                scoresWithLabels {
+                  label
+                  score
+                }
               }
+              names
             }
           }
         }
@@ -104,12 +120,22 @@ export function TraceErrorsTimeSeries({ projectId }: { projectId: string }) {
     }
   );
 
-  const chartData = (data.project.traceCountByStatusTimeSeries?.data ?? []).map(
-    (datum) => ({
+  const timeSeriesData = data.project.spanAnnotationScoreTimeSeries?.data ?? [];
+  const annotationNames =
+    data.project.spanAnnotationScoreTimeSeries?.names ?? [];
+
+  // Transform the data to have one property per annotation label
+  const chartData = timeSeriesData.map((datum) => {
+    const transformed: Record<string, string | number> = {
       timestamp: datum.timestamp,
-      error: datum.errorCount,
-    })
-  );
+    };
+
+    datum.scoresWithLabels.forEach((scoreWithLabel) => {
+      transformed[scoreWithLabel.label] = scoreWithLabel.score;
+    });
+
+    return transformed;
+  });
 
   const timeTickFormatter = useTimeTickFormatter({
     samplingIntervalMinutes: (() => {
@@ -124,24 +150,31 @@ export function TraceErrorsTimeSeries({ projectId }: { projectId: string }) {
     })(),
   });
 
-  const SemanticChartColors = useSemanticChartColors();
+  const colors = useChartColors();
+  const colorMap = [
+    colors.blue400,
+    colors.orange400,
+    colors.red400,
+    colors.purple400,
+    colors.gray600,
+    colors.gray700,
+  ];
+
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <BarChart
+      <LineChart
         data={chartData}
         margin={{ top: 0, right: 18, left: 0, bottom: 0 }}
-        barSize={10}
       >
         <XAxis
-          {...defaultXAxisProps}
           dataKey="timestamp"
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
+          {...defaultXAxisProps}
         />
         <YAxis
-          {...defaultYAxisProps}
           width={50}
           label={{
-            value: "Count",
+            value: "Score",
             angle: -90,
             dx: -10,
             style: {
@@ -149,22 +182,30 @@ export function TraceErrorsTimeSeries({ projectId }: { projectId: string }) {
               fill: "var(--chart-axis-label-color)",
             },
           }}
-        />
-        <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
-        <Tooltip
-          content={TooltipContent}
-          // TODO formalize this
-          cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
-        />
-        <Bar
-          dataKey="error"
-          stackId="a"
-          fill={SemanticChartColors.danger}
-          radius={[2, 2, 0, 0]}
+          {...defaultYAxisProps}
         />
 
-        <Legend align="left" iconType="circle" iconSize={8} />
-      </BarChart>
+        <CartesianGrid vertical={false} {...defaultCartesianGridProps} />
+        <Tooltip
+          content={TooltipContent}
+          cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+        />
+
+        {annotationNames.map((name, index) => (
+          <Line
+            key={name}
+            type="monotone"
+            dataKey={name}
+            stroke={colorMap[index % colorMap.length]}
+            strokeWidth={2}
+            dot={false}
+            activeDot={{ r: 4 }}
+            name={name}
+          />
+        ))}
+
+        <Legend align="left" iconType="line" iconSize={8} />
+      </LineChart>
     </ResponsiveContainer>
   );
 }
