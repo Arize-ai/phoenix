@@ -11,31 +11,27 @@ interface BreadcrumbProps extends AriaBreadcrumbProps {}
 const breadcrumbCSS = css`
   display: flex;
   align-items: center;
-  /* 
-  &:not(:last-child)::after {
-    content: "›";
-    margin-left: var(--ac-global-dimension-size-75);
-    margin-right: var(--ac-global-dimension-size-25);
-    color: var(--ac-global-text-color-700);
-    font-weight: normal;
-    font-size: 1.2em;
-  } */
+
+  .ac-icon-wrap {
+    padding: 0 var(--ac-global-dimension-size-50);
+  }
 
   a {
     color: var(--ac-global-text-color-700);
     text-decoration: none;
-    outline: none;
-    border-radius: var(--ac-global-rounding-small);
-    padding: var(--ac-global-dimension-size-25)
-      var(--ac-global-dimension-size-50);
-    margin: calc(-1 * var(--ac-global-dimension-size-25))
-      calc(-1 * var(--ac-global-dimension-size-50));
+    &:hover {
+      text-decoration: underline;
+    }
   }
 
-  &[data-current] {
+  &[data-current],
+  &[data-current] a {
     color: var(--ac-global-text-color-900);
     font-weight: 600;
     cursor: default;
+    &:hover {
+      text-decoration: none;
+    }
   }
 `;
 

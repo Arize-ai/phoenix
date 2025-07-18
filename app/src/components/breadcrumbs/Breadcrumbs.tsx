@@ -18,6 +18,8 @@ export interface BreadcrumbProps {
 const breadcrumbsCSS = css`
   display: flex;
   align-items: center;
+  margin: 0;
+  padding: 0;
   font-size: var(--ac-global-dimension-font-size-100);
   color: var(--ac-global-text-color-900);
 `;

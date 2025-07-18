@@ -1,4 +1,4 @@
-import { useMatches, useNavigate } from "react-router";
+import { Link, useMatches } from "react-router";
 
 import { Breadcrumb, Breadcrumbs } from "@phoenix/components";
 
@@ -20,7 +20,6 @@ function isRouteMatchWithCrumb(match: Match): match is RouteMatchWithCrumb {
 }
 
 export function NavBreadcrumb() {
-  const navigate = useNavigate();
   const matches = useMatches();
   // Get rid of any matches that don't have handle and crumb
   const matchesWithCrumb = matches.filter(isRouteMatchWithCrumb);
@@ -28,15 +27,9 @@ export function NavBreadcrumb() {
   return (
     <Breadcrumbs>
       {matchesWithCrumb.map((match, index) => {
-        const isLast = index === matchesWithCrumb.length - 1;
         return (
-          <Breadcrumb
-            key={index}
-            href={isLast ? undefined : match.pathname}
-            onPress={isLast ? undefined : () => navigate(match.pathname)}
-            isCurrent={isLast}
-          >
-            {match.handle.crumb(match.data)}
+          <Breadcrumb key={index}>
+            <Link to={match.pathname}>{match.handle.crumb(match.data)}</Link>
           </Breadcrumb>
         );
       })}
