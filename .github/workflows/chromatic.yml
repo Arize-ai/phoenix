@@ -6,7 +6,6 @@ on:
       - "app/src/**"
       - "app/stories/**"
       - "app/package.json"
-      - "app/pnpm-lock.yaml"
       - "app/.storybook/**"
       - "app/vite.config.mts"
       - "app/tsconfig.json"
