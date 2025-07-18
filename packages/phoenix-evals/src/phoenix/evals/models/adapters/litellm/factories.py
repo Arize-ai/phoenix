@@ -21,6 +21,11 @@ def _create_together_client(model: str, **kwargs: Any) -> LiteLLMClient:
     return LiteLLMClient(provider="together_ai", model=model, **kwargs)
 
 
+def _create_openai_client(model: str, **kwargs: Any) -> LiteLLMClient:
+    """Factory function to create OpenAI LiteLLM clients."""
+    return LiteLLMClient(provider="openai", model=model, **kwargs)
+
+
 def _create_litellm_client(model: str, **kwargs: Any) -> LiteLLMClient:
     """Factory function to create generic LiteLLM clients."""
     # For generic litellm provider, assume model is already in provider/model format

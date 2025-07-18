@@ -79,15 +79,8 @@ class UniversalLLMWrapper:
                 "  UniversalLLMWrapper(provider='openai', model='gpt-4')"
             )
 
-        # Separate BaseModel kwargs from client factory kwargs
-        base_model_kwargs = {}
-        client_factory_kwargs = {}
-
-        for key, value in kwargs.items():
-            if key in base_model_params:
-                base_model_kwargs[key] = value
-            else:
-                client_factory_kwargs[key] = value
+        # All kwargs go to client factory
+        client_factory_kwargs = kwargs
 
         # Handle provider-based initialization
         if provider is not None:
@@ -120,9 +113,6 @@ class UniversalLLMWrapper:
         # Store original client for access
         self._client = client
 
-        # Initialize BaseModel fields
-        super().__init__(**base_model_kwargs)
-
     @property
     def _model_name(self) -> str:
         """Return the model name from the adapter."""
@@ -152,21 +142,19 @@ class UniversalLLMWrapper:
         self,
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
-        instruction: Optional[str] = None,
         **kwargs: Any,
     ) -> StructuredOutput:
         """Generate structured output using the adapter."""
-        return self._adapter.generate_object(prompt, schema, instruction, **kwargs)
+        return self._adapter.generate_object(prompt, schema, **kwargs)
 
     async def agenerate_object(
         self,
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
-        instruction: Optional[str] = None,
         **kwargs: Any,
     ) -> StructuredOutput:
         """Async structured output using the adapter."""
-        return await self._adapter.agenerate_object(prompt, schema, instruction, **kwargs)
+        return await self._adapter.agenerate_object(prompt, schema, **kwargs)
 
     @property
     def adapter(self) -> BaseLLMAdapter:

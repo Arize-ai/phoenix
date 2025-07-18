@@ -88,6 +88,13 @@ class ProviderRegistry:
                 dependencies=dependencies or [],
             )
 
+            # Check dependencies at registration time
+            try:
+                self._check_dependencies(registration)
+            except ImportError as e:
+                logger.debug(f"Skipping provider '{provider}' registration: {e}")
+                return  # Don't register if dependencies are missing
+
             if provider not in self._providers:
                 self._providers[provider] = []
 
@@ -106,9 +113,7 @@ class ProviderRegistry:
             # Use the first available registration (could be enhanced with selection logic)
             registration = provider_registrations[0]
 
-            # Check dependencies
-            self._check_dependencies(registration)
-
+            # Dependencies were already checked at registration time, so we can proceed directly
             # Create client using factory
             try:
                 return registration.client_factory(model=model, **kwargs)

@@ -46,7 +46,6 @@ class BaseLLMAdapter(ABC):
         self,
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
-        instruction: Optional[str] = None,
         **kwargs: Any,
     ) -> StructuredOutput:
         """
@@ -62,7 +61,6 @@ class BaseLLMAdapter(ABC):
         self,
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
-        instruction: Optional[str] = None,
         **kwargs: Any,
     ) -> StructuredOutput:
         """Async version of generate_object."""

@@ -124,7 +124,6 @@ class LangChainModelAdapter(BaseLLMAdapter):
         self,
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
-        instruction: Optional[str] = None,
         **kwargs: Any,
     ) -> StructuredOutput:
         """
@@ -135,9 +134,12 @@ class LangChainModelAdapter(BaseLLMAdapter):
         # Check if the model supports structured output natively
         if hasattr(self.client, "with_structured_output"):
             try:
+                # Normalize schema for LangChain requirements
+                normalized_schema = self._normalize_schema_for_langchain(schema)
+
                 # Try native structured output - use standardized instruction
-                structured_prompt = self._build_structured_instruction(prompt, schema, instruction)
-                structured_model = self.client.with_structured_output(schema)
+                structured_prompt = self._build_structured_instruction(prompt, schema)
+                structured_model = self.client.with_structured_output(normalized_schema)
 
                 response = structured_model.invoke(structured_prompt, **kwargs)
 
@@ -158,7 +160,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
                 logger.warning(f"Structured output failed: {e}, falling back to tool calling")
 
         # Final fallback: try to parse JSON from text response with standardized instruction
-        structured_prompt = self._build_structured_instruction(prompt, schema, instruction)
+        structured_prompt = self._build_structured_instruction(prompt, schema)
         text = self.generate_text(structured_prompt, None, **kwargs)
         import json
 
@@ -173,7 +175,6 @@ class LangChainModelAdapter(BaseLLMAdapter):
         self,
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
-        instruction: Optional[str] = None,
         **kwargs: Any,
     ) -> StructuredOutput:
         """
@@ -184,9 +185,12 @@ class LangChainModelAdapter(BaseLLMAdapter):
         # Check if the model supports structured output natively
         if hasattr(self.client, "with_structured_output"):
             try:
+                # Normalize schema for LangChain requirements
+                normalized_schema = self._normalize_schema_for_langchain(schema)
+
                 # Try native structured output - use standardized instruction
-                structured_prompt = self._build_structured_instruction(prompt, schema, instruction)
-                structured_model = self.client.with_structured_output(schema)
+                structured_prompt = self._build_structured_instruction(prompt, schema)
+                structured_model = self.client.with_structured_output(normalized_schema)
 
                 if hasattr(structured_model, "ainvoke"):
                     response = await structured_model.ainvoke(structured_prompt, **kwargs)
@@ -210,7 +214,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
                 logger.warning(f"Async structured output failed: {e}, falling back to tool calling")
 
         # Final fallback: try to parse JSON from text response with standardized instruction
-        structured_prompt = self._build_structured_instruction(prompt, schema, instruction)
+        structured_prompt = self._build_structured_instruction(prompt, schema)
         text = await self.agenerate_text(structured_prompt, None, **kwargs)
         import json
 
@@ -235,7 +239,6 @@ class LangChainModelAdapter(BaseLLMAdapter):
         self,
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
-        instruction: Optional[str] = None,
     ) -> str:
         """
         Build a standardized instruction for structured output generation.
@@ -247,6 +250,9 @@ class LangChainModelAdapter(BaseLLMAdapter):
             prompt_text = prompt.to_text_only_prompt()
         else:
             prompt_text = prompt
+
+        # Validate schema before processing
+        self._validate_schema(schema)
 
         # Build the structured output instruction
         structured_instruction = (
@@ -267,11 +273,50 @@ class LangChainModelAdapter(BaseLLMAdapter):
                     f"\n\nThe response must conform to the provided schema structure."
                 )
 
-        # Combine with user instruction if provided
-        if instruction:
-            combined_instruction = f"{instruction}\n\n{structured_instruction}"
-        else:
-            combined_instruction = structured_instruction
-
         # Combine instruction with prompt
-        return f"{combined_instruction}\n\n{prompt_text}"
+        return f"{structured_instruction}\n\n{prompt_text}"
+
+    def _normalize_schema_for_langchain(self, schema: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Normalize schema for LangChain's with_structured_output requirements.
+
+        LangChain requires JSON schemas to have 'title' and 'description' at the top level.
+        This method automatically adds them if missing.
+        """
+        normalized = schema.copy()
+
+        # Add title if missing
+        if "title" not in normalized:
+            normalized["title"] = "GeneratedResponse"
+
+        # Add description if missing
+        if "description" not in normalized:
+            normalized["description"] = "Structured response from the model"
+
+        return normalized
+
+    def _validate_schema(self, schema: Dict[str, Any]) -> None:
+        """
+        Validate that the schema is well-formed.
+
+        Checks for common issues like required fields not matching properties.
+        """
+        if not isinstance(schema, dict):
+            raise ValueError(f"Schema must be a dictionary, got {type(schema)}")
+
+        # Check if schema has properties and required fields
+        properties = schema.get("properties", {})
+        required = schema.get("required", [])
+
+        if properties and required:
+            # Check that all required fields exist in properties
+            property_names = set(properties.keys())
+            required_names = set(required)
+
+            missing_properties = required_names - property_names
+            if missing_properties:
+                raise ValueError(
+                    f"Schema validation error: Required fields {list(missing_properties)} "
+                    f"are not defined in properties. "
+                    f"Properties: {list(property_names)}, Required: {list(required_names)}"
+                )

@@ -15,6 +15,7 @@ from .factories import (
     _create_cohere_client,
     _create_groq_client,
     _create_litellm_client,
+    _create_openai_client,
     _create_together_client,
 )
 
@@ -39,6 +40,11 @@ logger = logging.getLogger(__name__)
 @register_provider(
     provider="together",
     client_factory=_create_together_client,
+    dependencies=["litellm"]
+)
+@register_provider(
+    provider="openai",
+    client_factory=_create_openai_client,
     dependencies=["litellm"]
 )
 @register_provider(
@@ -136,7 +142,6 @@ class LiteLLMAdapter(BaseLLMAdapter):
         self,
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
-        instruction: Optional[str] = None,
         **kwargs: Any,
     ) -> StructuredOutput:
         """
@@ -145,7 +150,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
         Since LiteLLM doesn't have native structured output, we use JSON parsing.
         """
         # Build structured instruction
-        structured_prompt = self._build_structured_instruction(prompt, schema, instruction)
+        structured_prompt = self._build_structured_instruction(prompt, schema)
 
         # Generate text response
         text = self.generate_text(structured_prompt, None, **kwargs)
@@ -163,7 +168,6 @@ class LiteLLMAdapter(BaseLLMAdapter):
         self,
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
-        instruction: Optional[str] = None,
         **kwargs: Any,
     ) -> StructuredOutput:
         """
@@ -172,7 +176,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
         Since LiteLLM doesn't have native structured output, we use JSON parsing.
         """
         # Build structured instruction
-        structured_prompt = self._build_structured_instruction(prompt, schema, instruction)
+        structured_prompt = self._build_structured_instruction(prompt, schema)
 
         # Generate text response
         text = await self.agenerate_text(structured_prompt, None, **kwargs)
@@ -195,7 +199,6 @@ class LiteLLMAdapter(BaseLLMAdapter):
         self,
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
-        instruction: Optional[str] = None,
     ) -> str:
         """
         Build a standardized instruction for structured output generation.
@@ -204,6 +207,9 @@ class LiteLLMAdapter(BaseLLMAdapter):
             prompt_text = prompt.to_text_only_prompt()
         else:
             prompt_text = prompt
+
+        # Validate schema before processing
+        self._validate_schema(schema)
 
         # Build the structured output instruction
         structured_instruction = (
@@ -222,11 +228,31 @@ class LiteLLMAdapter(BaseLLMAdapter):
                     "\n\nThe response must conform to the provided schema structure."
                 )
 
-        # Combine with user instruction if provided
-        if instruction:
-            combined_instruction = f"{instruction}\n\n{structured_instruction}"
-        else:
-            combined_instruction = structured_instruction
-
         # Combine instruction with prompt
-        return f"{combined_instruction}\n\n{prompt_text}"
+        return f"{structured_instruction}\n\n{prompt_text}"
+
+    def _validate_schema(self, schema: Dict[str, Any]) -> None:
+        """
+        Validate that the schema is well-formed.
+
+        Checks for common issues like required fields not matching properties.
+        """
+        if not isinstance(schema, dict):
+            raise ValueError(f"Schema must be a dictionary, got {type(schema)}")
+
+        # Check if schema has properties and required fields
+        properties = schema.get("properties", {})
+        required = schema.get("required", [])
+
+        if properties and required:
+            # Check that all required fields exist in properties
+            property_names = set(properties.keys())
+            required_names = set(required)
+
+            missing_properties = required_names - property_names
+            if missing_properties:
+                raise ValueError(
+                    f"Schema validation error: Required fields {list(missing_properties)} "
+                    f"are not defined in properties. "
+                    f"Properties: {list(property_names)}, Required: {list(required_names)}"
+                )
