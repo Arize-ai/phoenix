@@ -1,4 +1,10 @@
-import { LabelProps, TooltipProps, XAxisProps } from "recharts";
+import {
+  CartesianGridProps,
+  LabelProps,
+  TooltipProps,
+  XAxisProps,
+  YAxisProps,
+} from "recharts";
 
 /**
  * Re-usable default props for the XAxis component.
@@ -31,4 +37,19 @@ export const defaultBarChartTooltipProps: TooltipProps<any, any> = {
   cursor: {
     fill: "var(--ac-global-color-grey-300)",
   },
+};
+
+export const defaultCartesianGridProps: CartesianGridProps = {
+  strokeDasharray: "4 4",
+  stroke: "var(--chart-cartesian-grid-stroke-color)",
+};
+
+export const defaultXAxisProps: XAxisProps = {
+  stroke: "var(--chart-axis-stroke-color)",
+  style: { fill: "var(--chart-axis-text-color)" },
+};
+
+export const defaultYAxisProps: YAxisProps = {
+  stroke: "var(--chart-axis-stroke-color)",
+  style: { fill: "var(--chart-axis-text-color)" },
 };
