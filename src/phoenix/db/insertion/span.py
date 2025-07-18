@@ -28,15 +28,6 @@ async def insert_span(
     project_name: str,
 ) -> Optional[SpanInsertionEvent]:
     dialect = SupportedSQLDialect(session.bind.dialect.name)
-    if (
-        project_rowid := await session.scalar(
-            select(models.Project.id).filter_by(name=project_name)
-        )
-    ) is None:
-        project_rowid = await session.scalar(
-            insert(models.Project).values(name=project_name).returning(models.Project.id)
-        )
-    assert project_rowid is not None
 
     trace_id = span.context.trace_id
     trace: models.Trace = await session.scalar(
@@ -56,6 +47,15 @@ async def insert_span(
         # Trace record needs to be persisted for the first time.
         trace.start_time = span.start_time
         trace.end_time = span.end_time
+        if (
+            project_rowid := await session.scalar(
+                select(models.Project.id).filter_by(name=project_name)
+            )
+        ) is None:
+            project_rowid = await session.scalar(
+                insert(models.Project).values(name=project_name).returning(models.Project.id)
+            )
+            assert project_rowid is not None
         trace.project_rowid = project_rowid
         session.add(trace)
 
