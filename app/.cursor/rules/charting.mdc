@@ -1,0 +1,7 @@
+---
+description: How to style charts using recharts
+globs:
+alwaysApply: false
+---
+
+All charts should use recharts as the underlying charting mechanism. Whenever possible apply defaults from the src/components/chart/defaults.tsx for a consistent style. All colors related to charting should be made semantic in the src/GlobalStyles.tsx directory

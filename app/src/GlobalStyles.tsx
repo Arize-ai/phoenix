@@ -1229,7 +1229,7 @@ const ReactGridLayoutCSS = css`
 `;
 
 const chartCSS = css`
-  :root {
+  .ac-theme {
     --chart-cartesian-grid-stroke-color: var(--ac-global-color-grey-300);
     --chart-axis-stroke-color: var(--ac-global-color-grey-300);
     --chart-axis-text-color: var(--ac-global-text-color-700);
