@@ -2,6 +2,7 @@ import { forwardRef } from "react";
 import { css } from "@emotion/react";
 
 import { Flex, Heading, Text, View } from "@phoenix/components";
+import { TraceErrorsTimeSeries } from "@phoenix/pages/project/TraceErrorsTimeSeries";
 
 import { TraceCountTimeSeries } from "./TraceCountTimeSeries";
 
@@ -99,8 +100,8 @@ export function ProjectMetricsPage() {
         >
           <TraceCountTimeSeries />
         </MetricPanel>
-        <MetricPanel title="Feedback scores" subtitle="Daily averages">
-          {"Feedback scores chart goes here"}
+        <MetricPanel title="Trace count (errors only)">
+          <TraceErrorsTimeSeries />
         </MetricPanel>
       </Flex>
       <Flex direction="row" gap="size-100">
@@ -115,6 +116,9 @@ export function ProjectMetricsPage() {
       <Flex direction="row" gap="size-100">
         <MetricPanel title="Estimated cost" subtitle="Total daily cost in USD">
           {"Estimated cost chart goes here"}
+        </MetricPanel>
+        <MetricPanel title="Feedback scores" subtitle="Daily averages">
+          {"Feedback scores chart goes here"}
         </MetricPanel>
       </Flex>
     </main>
