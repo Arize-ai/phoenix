@@ -5,6 +5,19 @@ on:
     paths:
       - "app/src/**"
       - "app/stories/**"
+      - "app/package.json"
+      - "app/pnpm-lock.yaml"
+      - "app/.storybook/**"
+      - "app/vite.config.*"
+      - "app/webpack.config.*"
+      - "app/tsconfig.*"
+      - "app/tailwind.config.*"
+      - "app/postcss.config.*"
+      - "app/.eslintrc.*"
+      - "app/.prettierrc.*"
+      - "app/jest.config.*"
+      - "app/cypress.config.*"
+      - "app/playwright.config.*"
 
 permissions:
   contents: read
