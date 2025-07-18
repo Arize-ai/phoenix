@@ -1,5 +1,14 @@
 # Changelog
 
+## [11.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.8.0...arize-phoenix-v11.9.0) (2025-07-18)
+
+
+### Features
+
+* add trace errors chart + generic bar chart component ([#8650](https://github.com/Arize-ai/phoenix/issues/8650)) ([0c913f2](https://github.com/Arize-ai/phoenix/commit/0c913f273c760f9aab6cc06bc0e5651f1c5d5c42))
+* **charing:** axis colors ([#8656](https://github.com/Arize-ai/phoenix/issues/8656)) ([25b7826](https://github.com/Arize-ai/phoenix/commit/25b7826f1a8f12609d7271bdbe97e2169e7ded3e))
+* **traces:** Implement trace project transfer API ([#8645](https://github.com/Arize-ai/phoenix/issues/8645)) ([5ec669f](https://github.com/Arize-ai/phoenix/commit/5ec669f379f985b0f552b641183cb038fb3d1efc))
+
 ## [11.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.7.0...arize-phoenix-v11.8.0) (2025-07-17)
 
 
