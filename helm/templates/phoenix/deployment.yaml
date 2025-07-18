@@ -75,8 +75,9 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ .Release.Name }}-configmap
-          {{- if .Values.auth.secret }}
+          {{- if or .Values.auth.secret (and .Values.auth.oauth2.enabled .Values.auth.oauth2.providers) }}
           env:
+          {{- if .Values.auth.secret }}
           {{- range $authSecrets := .Values.auth.secret }}
             - name: {{ $authSecrets.key }}
               valueFrom:
@@ -94,6 +95,7 @@ spec:
                 secretKeyRef:
                   name: {{ $.Values.auth.name }}
                   key: PHOENIX_OAUTH2_{{ $provider_upper }}_CLIENT_SECRET
+          {{- end }}
           {{- end }}
           {{- end }}
           {{- end }}
