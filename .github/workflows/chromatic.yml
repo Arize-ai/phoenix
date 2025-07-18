@@ -10,13 +10,9 @@ on:
       - "app/.storybook/**"
       - "app/vite.config.mts"
       - "app/tsconfig.json"
-      - "app/.eslintrc.js"
       - "app/.prettierrc.json"
       - "app/playwright.config.ts"
       - "app/chromatic.config.json"
-      - "app/relay.config.js"
-      - "app/vitest.setup.ts"
-      - "app/global-setup.ts"
 
 permissions:
   contents: read
