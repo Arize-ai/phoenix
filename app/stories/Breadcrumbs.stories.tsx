@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { Breadcrumbs, Item } from "@phoenix/components";
+import { Breadcrumbs } from "@phoenix/components";
 
 const meta: Meta<typeof Breadcrumbs> = {
   title: "Breadcrumbs",
@@ -17,10 +17,10 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   render: () => (
     <Breadcrumbs onAction={() => {/* Handle breadcrumb click */}}>
-      <Item>Home</Item>
-      <Item>Dashboard</Item>
-      <Item>Projects</Item>
-      <Item>Current Project</Item>
+      <span>Home</span>
+      <span>Dashboard</span>
+      <span>Projects</span>
+      <span>Current Project</span>
     </Breadcrumbs>
   ),
 };
@@ -28,9 +28,9 @@ export const Default: Story = {
 export const WithoutAction: Story = {
   render: () => (
     <Breadcrumbs>
-      <Item>Home</Item>
-      <Item>Dashboard</Item>
-      <Item>Current Page</Item>
+      <span>Home</span>
+      <span>Dashboard</span>
+      <span>Current Page</span>
     </Breadcrumbs>
   ),
 };
@@ -38,7 +38,7 @@ export const WithoutAction: Story = {
 export const SingleItem: Story = {
   render: () => (
     <Breadcrumbs>
-      <Item>Home</Item>
+      <span>Home</span>
     </Breadcrumbs>
   ),
 };
@@ -46,13 +46,12 @@ export const SingleItem: Story = {
 export const LongPath: Story = {
   render: () => (
     <Breadcrumbs onAction={() => {/* Handle breadcrumb click */}}>
-      <Item>Root</Item>
-      <Item>Organization</Item>
-      <Item>Department</Item>
-      <Item>Team</Item>
-      <Item>Project</Item>
-      <Item>Sub Project</Item>
-      <Item>Current Location</Item>
+      <span>Root</span>
+      <span>Organization</span>
+      <span>Team</span>
+      <span>Project</span>
+      <span>SubProject</span>
+      <span>Current Item</span>
     </Breadcrumbs>
   ),
 }; 

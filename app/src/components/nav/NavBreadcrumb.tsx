@@ -1,6 +1,6 @@
 import { useMatches, useNavigate } from "react-router";
 
-import { Breadcrumbs, Item } from "@phoenix/components";
+import { Breadcrumbs } from "@phoenix/components";
 
 export type CrumbFn = (data: unknown) => string;
 type Matches = ReturnType<typeof useMatches>;
@@ -33,7 +33,7 @@ export function NavBreadcrumb() {
       }}
     >
       {matchesWithCrumb.map((match, index) => (
-        <Item key={index}>{match.handle.crumb(match.data)}</Item>
+        <span key={index}>{match.handle.crumb(match.data)}</span>
       ))}
     </Breadcrumbs>
   );
