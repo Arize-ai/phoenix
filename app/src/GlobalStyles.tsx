@@ -1229,6 +1229,12 @@ const ReactGridLayoutCSS = css`
 `;
 
 const chartCSS = css`
+  :root {
+    --chart-cartesian-grid-stroke-color: var(--ac-global-color-grey-300);
+    --chart-axis-stroke-color: var(--ac-global-color-grey-300);
+    --chart-axis-text-color: var(--ac-global-text-color-700);
+    --chart-axis-label-color: var(--ac-global-text-color-700);
+  }
   .ac-theme--dark {
     --chart-tooltip-cursor-fill-color: rgba(255, 255, 255, 0.2);
   }

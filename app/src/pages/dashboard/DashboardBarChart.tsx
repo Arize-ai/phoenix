@@ -14,6 +14,9 @@ import {
   ChartTooltip,
   ChartTooltipItem,
   defaultBarChartTooltipProps,
+  defaultCartesianGridProps,
+  defaultXAxisProps,
+  defaultYAxisProps,
   useChartColors,
 } from "@phoenix/components/chart";
 import { useBinTimeTickFormatter } from "@phoenix/components/chart/useBinTimeTickFormatter";
@@ -81,31 +84,26 @@ export function DashboardBarChart({ data, scale }: DashboardBarChartProps) {
         </defs>
 
         <XAxis
+          {...defaultXAxisProps}
           dataKey="timestamp"
           tickFormatter={(timestamp) => timeTickFormatter(new Date(timestamp))}
-          style={{ fill: "var(--ac-global-text-color-700)" }}
           textAnchor="middle"
         />
 
         <YAxis
-          stroke="var(--ac-global-color-grey-500)"
+          {...defaultYAxisProps}
           label={{
             value: "Trace Count",
             angle: -90,
             position: "insideLeft",
             style: {
               textAnchor: "middle",
-              fill: "var(--ac-global-text-color-900)",
+              fill: "var(--chart-axis-label-color)",
             },
           }}
-          style={{ fill: "var(--ac-global-text-color-700)" }}
         />
 
-        <CartesianGrid
-          strokeDasharray="4 4"
-          stroke="var(--ac-global-color-grey-500)"
-          strokeOpacity={0.5}
-        />
+        <CartesianGrid {...defaultCartesianGridProps} />
 
         <Tooltip {...defaultBarChartTooltipProps} content={TooltipContent} />
 

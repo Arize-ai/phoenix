@@ -14,6 +14,9 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
+  defaultCartesianGridProps,
+  defaultXAxisProps,
+  defaultYAxisProps,
   useChartColors,
   useSemanticChartColors,
   useTimeTickFormatter,
@@ -146,13 +149,12 @@ export function TraceCountTimeSeries() {
         barSize={10}
       >
         <XAxis
+          {...defaultXAxisProps}
           dataKey="timestamp"
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
-          style={{ fill: "var(--ac-global-text-color-700)" }}
-          stroke="var(--ac-global-color-grey-400)"
         />
         <YAxis
-          stroke="var(--ac-global-color-grey-500)"
+          {...defaultYAxisProps}
           width={50}
           label={{
             value: "Count",
@@ -160,18 +162,11 @@ export function TraceCountTimeSeries() {
             dx: -10,
             style: {
               textAnchor: "middle",
-              fill: "var(--ac-global-text-color-900)",
+              fill: "var(--chart-axis-label-color)",
             },
           }}
-          style={{ fill: "var(--ac-global-text-color-700)" }}
         />
-
-        <CartesianGrid
-          strokeDasharray="4 4"
-          stroke="var(--ac-global-color-grey-500)"
-          strokeOpacity={0.5}
-          vertical={false}
-        />
+        <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
         <Tooltip
           content={TooltipContent}
           // TODO formalize this
