@@ -68,22 +68,22 @@ describe("getDataset", () => {
   });
 
   it("should support getting dataset by version ID", async () => {
-    const getDatasetExamplesSpy = vi.spyOn(getDatasetExamplesModule, "getDatasetExamples").mockResolvedValue(
-      mockDatasetExamplesV2
-    );
+    const getDatasetExamplesSpy = vi
+      .spyOn(getDatasetExamplesModule, "getDatasetExamples")
+      .mockResolvedValue(mockDatasetExamplesV2);
     vi.spyOn(getDatasetInfoModule, "getDatasetInfo").mockResolvedValue(
       mockDatasetInfo
     );
 
-    const dataset = await getDataset({ 
+    const dataset = await getDataset({
       dataset: { datasetId: "dataset-123" },
-      versionId: "v2"
+      versionId: "v2",
     });
-    
+
     expect(getDatasetExamplesSpy).toHaveBeenCalledWith({
       client: expect.any(Object),
       dataset: { datasetId: "dataset-123" },
-      versionId: "v2"
+      versionId: "v2",
     });
     expect(dataset.versionId).toBe("v2");
     expect(dataset.examples.length).toBe(1);
@@ -98,10 +98,10 @@ describe("getDataset", () => {
       mockDatasetExamples
     );
 
-    const dataset = await getDataset({ 
-      dataset: { datasetId: "dataset-123" }
+    const dataset = await getDataset({
+      dataset: { datasetId: "dataset-123" },
     });
-    
+
     expect(dataset.versionId).toBe("v1");
     expect(dataset.examples.length).toBe(2);
   });
