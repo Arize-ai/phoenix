@@ -22,8 +22,8 @@ export interface BreadcrumbProps {
 const breadcrumbsCSS = css`
   display: flex;
   align-items: center;
-  gap: var(--ac-global-dimension-size-50);
-  font-size: var(--ac-global-dimension-font-size-75);
+  gap: var(--ac-global-dimension-size-75);
+  font-size: var(--ac-global-dimension-font-size-100);
   color: var(--ac-global-text-color-900);
   list-style: none;
   margin: 0;
@@ -35,10 +35,12 @@ const breadcrumbCSS = css`
   align-items: center;
 
   &:not(:last-child)::after {
-    content: ">";
-    margin-left: var(--ac-global-dimension-size-50);
+    content: "›";
+    margin-left: var(--ac-global-dimension-size-75);
+    margin-right: var(--ac-global-dimension-size-25);
     color: var(--ac-global-text-color-700);
     font-weight: normal;
+    font-size: 1.2em;
   }
 `;
 
