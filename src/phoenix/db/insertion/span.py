@@ -44,10 +44,12 @@ async def insert_span(
     ) or models.Trace(trace_id=trace_id)
 
     if trace.id is not None:
+        # We use the existing project_rowid on the trace because we allow users to transfer traces
+        # between projects, so the project_name parameter is ignored for existing traces.
+        project_rowid = trace.project_rowid
         # Trace record may need to be updated.
         if trace.end_time < span.end_time:
             trace.end_time = span.end_time
-            trace.project_rowid = project_rowid
         if span.start_time < trace.start_time:
             trace.start_time = span.start_time
     else:
