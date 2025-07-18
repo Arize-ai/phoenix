@@ -396,6 +396,11 @@ class OpenAIModel(BaseModel):
                 else:
                     res = await self._async_client.chat.completions.create(**kwargs)
                 return res.model_dump()
+            except self._openai._exceptions.APIConnectionError as e:
+                # Treat transient network/connectivity issues as rate-limit equivalents to trigger back-off
+                raise self._openai.RateLimitError(
+                    f"APIConnectionError treated as rate limit: {e}"
+                ) from e
             except self._openai._exceptions.BadRequestError as e:
                 exception_message = e.args[0]
                 if exception_message and "maximum context length" in exception_message:
@@ -418,6 +423,11 @@ class OpenAIModel(BaseModel):
                     # We must dump the model to get the dict
                     return self._client.completions.create(**kwargs).model_dump()
                 return self._client.chat.completions.create(**kwargs).model_dump()
+            except self._openai._exceptions.APIConnectionError as e:
+                # Treat transient network/connectivity issues as rate-limit equivalents to trigger back-off
+                raise self._openai.RateLimitError(
+                    f"APIConnectionError treated as rate limit: {e}"
+                ) from e
             except self._openai._exceptions.BadRequestError as e:
                 exception_message = e.args[0]
                 if exception_message and "maximum context length" in exception_message:

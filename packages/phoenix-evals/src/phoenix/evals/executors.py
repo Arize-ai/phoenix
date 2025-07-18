@@ -26,6 +26,71 @@ from phoenix.evals.exceptions import PhoenixException
 
 logger = logging.getLogger(__name__)
 
+# ─────────────────────────────────────────────────────────────────────────────
+# ASCII timeline helper utilities
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _ascii_timeline(
+    details_list: List["ExecutionDetails"], *, width: int = 60, max_tasks: int = 20
+) -> str:
+    """Return an ASCII visualization of task lifecycles.
+
+    Args:
+        details_list: List of ExecutionDetails with populated ``events``.
+        width: Width of the timeline in characters.
+        max_tasks: Maximum number of task rows to render (to keep log output short).
+    """
+
+    # Gather all timestamps. If none yet, bail early.
+    all_timestamps = [ts for d in details_list for _, ts in d.events]
+    if not all_timestamps:
+        return ""
+
+    t0, t1 = min(all_timestamps), max(all_timestamps)
+    span = max(t1 - t0, 1e-6)
+    scale = (width - 1) / span
+
+    # Priority so later significant symbols overwrite filler chars.
+    _priority = {
+        "P": 1,  # produced
+        "Q": 2,  # dequeued
+        "S": 3,  # started/executing
+        "*": 0,  # filler during execution
+        "T": 4,  # timeout
+        "R": 3,  # re-queued
+        "E": 4,  # error
+        "C": 5,  # completed
+    }
+
+    lines: List[str] = []
+    for task_id, details in enumerate(details_list[:max_tasks]):
+        events = sorted(details.events, key=lambda e: e[1])
+        if not events:
+            continue
+
+        canvas = [" "] * width
+
+        for idx, (tag, ts) in enumerate(events):
+            col = int((ts - t0) * scale)
+            col = max(0, min(width - 1, col))
+
+            # Draw the event itself
+            if _priority.get(tag, 0) >= _priority.get(canvas[col], 0):
+                canvas[col] = tag
+
+            # Fill execution span with '*'
+            if tag == "S" and idx + 1 < len(events):
+                next_ts = events[idx + 1][1]
+                end_col = int((next_ts - t0) * scale)
+                for c in range(col + 1, min(end_col, width - 1)):
+                    if canvas[c] == " ":
+                        canvas[c] = "*"
+
+        lines.append(f"T-{task_id:<3} │ {''.join(canvas)}")
+
+    return "\n".join(lines)
+
 
 class Unset:
     pass
@@ -44,10 +109,15 @@ class ExecutionStatus(Enum):
 class ExecutionDetails:
     def __init__(self) -> None:
         self.exceptions: List[Exception] = []
+        # Store full traceback strings corresponding to each exception for detailed debugging
+        self.tracebacks: List[str] = []
         self.status = ExecutionStatus.DID_NOT_RUN
         self.execution_seconds: float = 0
         self.timeout_count: int = 0
         self.exception_count: int = 0
+
+        # Timeline of lifecycle events for ASCII visualization
+        self.events: List[Tuple[str, float]] = []
 
     def fail(self) -> None:
         self.status = ExecutionStatus.FAILED
@@ -59,7 +129,10 @@ class ExecutionDetails:
             self.status = ExecutionStatus.COMPLETED
 
     def log_exception(self, exc: Exception) -> None:
+        import traceback
         self.exceptions.append(exc)
+        # Capture and store the full traceback so we can display it later
+        self.tracebacks.append("".join(traceback.format_exception(exc.__class__, exc, exc.__traceback__)))
         if isinstance(exc, TimeoutError):
             self.timeout_count += 1
         else:
@@ -72,10 +145,15 @@ class ExecutionDetails:
         return {
             "status": self.status.value,
             "exceptions": [repr(e) for e in self.exceptions],
+            "tracebacks": self.tracebacks,
             "timeout_count": self.timeout_count,
             "exception_count": self.exception_count,
             "execution_seconds": round(self.execution_seconds, 3),
         }
+
+    def log_event(self, tag: str) -> None:
+        """Append a timestamped lifecycle *tag* (e.g., "P", "Q", "S", etc.)."""
+        self.events.append((tag, time.time()))
 
 
 class Executor(Protocol):
@@ -146,6 +224,7 @@ class AsyncExecutor(Executor):
         max_fill: int,
         done_producing: asyncio.Event,
         termination_signal: asyncio.Event,
+        execution_details: List[ExecutionDetails],
     ) -> None:
         try:
             for index, input in enumerate(inputs):
@@ -155,6 +234,7 @@ class AsyncExecutor(Executor):
                     # keep room in the queue for requeues
                     await asyncio.sleep(1)
                 await queue.put((self.base_priority, (index, input)))
+                execution_details[index].log_event("P")  # Produced / enqueued
         finally:
             done_producing.set()
 
@@ -184,8 +264,12 @@ class AsyncExecutor(Executor):
 
             index, payload = item
 
+            # Dequeued
+            execution_details[index].log_event("Q")
+
             try:
                 task_start_time = time.time()
+                execution_details[index].log_event("S")  # Started executing
                 generate_task = asyncio.create_task(self.generate(payload))
                 termination_event_watcher = asyncio.create_task(termination_event.wait())
                 done, pending = await asyncio.wait(
@@ -198,6 +282,7 @@ class AsyncExecutor(Executor):
                     outputs[index] = generate_task.result()
                     execution_details[index].complete()
                     execution_details[index].log_runtime(task_start_time)
+                    execution_details[index].log_event("C")  # Completed
                     runtime = time.time() - task_start_time
                     tqdm.write(f"✅ Task {index}: Completed in {runtime:.2f}s")
                     progress_bar.update()
@@ -229,6 +314,7 @@ class AsyncExecutor(Executor):
                     # Log the timeout as an exception for tracking
                     execution_details[index].log_exception(TimeoutError(f"Task timeout after {self.task_timeout}s"))
                     execution_details[index].log_runtime(task_start_time)
+                    execution_details[index].log_event("T")  # Timeout
                     
                     # Check if we should keep retrying
                     if retry_count >= self.max_retries:
@@ -237,21 +323,28 @@ class AsyncExecutor(Executor):
                         progress_bar.update()
                         continue
                     
-                    # Optional backoff before requeuing
+                    # Dynamic quadratic backoff: base backoff_seconds (default 20s) plus 5*(retry_count)^2
                     if self.backoff_seconds > 0:
-                        await asyncio.sleep(self.backoff_seconds)
+                        dynamic_backoff = self.backoff_seconds + 5 * (retry_count ** 2)
+                        tqdm.write(
+                            f"⏳ Backing off for {dynamic_backoff}s before retrying task {index} (attempt {retry_count + 1})"
+                        )
+                        await asyncio.sleep(dynamic_backoff)
                     
-                    # task timeouts are requeued with decreased priority (increased retry count)
+                    # task timeouts are requeued with decreased priority (increased retry_count)
+                    execution_details[index].log_event("R")  # Re-queued
                     await queue.put((priority - 1, item))
             except Exception as exc:
                 execution_details[index].log_exception(exc)
                 execution_details[index].log_runtime(task_start_time)
+                execution_details[index].log_event("E")  # Generic error
                 is_phoenix_exception = isinstance(exc, PhoenixException)
                 if (retry_count := abs(priority)) < self.max_retries and not is_phoenix_exception:
                     tqdm.write(
                         f"Exception in worker on attempt {retry_count + 1}: raised {repr(exc)}"
                     )
                     tqdm.write("Requeuing...")
+                    execution_details[index].log_event("R")  # Re-queued
                     await queue.put((priority - 1, item))
                 else:
                     execution_details[index].fail()
@@ -300,7 +393,7 @@ class AsyncExecutor(Executor):
         done_producing = asyncio.Event()
 
         producer = asyncio.create_task(
-            self.producer(inputs, queue, max_fill, done_producing, termination_event)
+            self.producer(inputs, queue, max_fill, done_producing, termination_event, execution_details)
         )
         consumers = [
             asyncio.create_task(
@@ -343,6 +436,10 @@ class AsyncExecutor(Executor):
                     tqdm.write(f"🔄 Cleanup status: {succeeded} success, {failed} failed, {len(pending)} pending, queue: {queue.qsize()}")
                     if pending:
                         tqdm.write(f"   📋 Pending tasks: {pending[:10]}{'...' if len(pending) > 10 else ''}")
+                    # ASCII timeline snapshot (limited to first 10 tasks to avoid log spam)
+                    timeline_snapshot = _ascii_timeline(execution_details, width=60, max_tasks=10)
+                    if timeline_snapshot:
+                        tqdm.write("\n" + timeline_snapshot + "\n")
         
         status_task = asyncio.create_task(periodic_status())
         
@@ -404,6 +501,17 @@ class AsyncExecutor(Executor):
         if total_failures > 0:
             failed_tasks = [i for i, details in enumerate(execution_details) if details.status == ExecutionStatus.FAILED]
             tqdm.write(f"❌ Failed tasks: {failed_tasks[:10]}{'...' if len(failed_tasks) > 10 else ''}")
+
+            # Print detailed traceback for each failed task (first 5 to avoid overwhelming logs)
+            for task_id in failed_tasks[:5]:
+                tb_list = execution_details[task_id].tracebacks
+                if tb_list:
+                    tqdm.write(f"\n🔍 Traceback for failed task {task_id} (most recent attempt):\n{tb_list[-1]}")
+
+        # Final ASCII timeline
+        final_timeline = _ascii_timeline(execution_details, width=80, max_tasks=20)
+        if final_timeline:
+            tqdm.write("\n" + final_timeline + "\n")
         
         return outputs, execution_details
 
