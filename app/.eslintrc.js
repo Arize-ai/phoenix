@@ -204,8 +204,6 @@ module.exports = {
         module: "@arizeai/components",
         use: "import { Breadcrumb } from '@phoenix/components'",
       },
-      {
-        name: "BreadcrumbLink",
     ],
     "no-duplicate-imports": "error",
   },
