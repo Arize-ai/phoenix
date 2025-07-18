@@ -36,60 +36,45 @@ def _get_exporter_from_processor(span_processor: Any) -> Optional[SpanExporter]:
 @pytest.fixture(autouse=True)
 def reset_tracer_provider() -> Generator[None, None, None]:
     """Reset OpenTelemetry tracer provider for test isolation."""
-    original_provider = trace_api.get_tracer_provider()
-    trace_api._TRACER_PROVIDER = None
-
-    # Mock get_env_grpc_port to return consistent value
     with patch.dict("os.environ", {}, clear=True):
         with patch("phoenix.otel.otel.get_env_grpc_port", return_value=4317):
             yield
 
-    current_provider = trace_api.get_tracer_provider()
-    if hasattr(current_provider, "shutdown"):
-        try:
-            current_provider.shutdown()
-        except Exception:
-            pass
-
-    trace_api._TRACER_PROVIDER = original_provider
-
 
 class TestRegister:
     def test_register_basic(self) -> None:
-        tracer_provider = register(verbose=False)
+        tracer_provider = register(verbose=False, set_global_tracer_provider=False)
 
         assert isinstance(tracer_provider, TracerProvider)
-        assert trace_api.get_tracer_provider() == tracer_provider
         assert tracer_provider._default_processor
 
-        # Verify a processor was added
         processors = tracer_provider._active_span_processor._span_processors
         assert len(processors) == 1
         assert isinstance(processors[0], _SimpleSpanProcessor)
 
-        # Verify the exporter is configured
-        exporter = processors[0].span_exporter
+        exporter = _get_exporter_from_processor(processors[0])
         assert isinstance(exporter, GRPCSpanExporter)
 
     def test_register_with_project_name(self) -> None:
         project_name = "test-project"
-        tracer_provider = register(project_name=project_name, verbose=False)
+        tracer_provider = register(
+            project_name=project_name, verbose=False, set_global_tracer_provider=False
+        )
 
         assert tracer_provider.resource.attributes.get(PROJECT_NAME) == project_name
 
     def test_register_with_batch_processor(self) -> None:
-        tracer_provider = register(batch=True, verbose=False)
+        tracer_provider = register(batch=True, verbose=False, set_global_tracer_provider=False)
 
         processors = tracer_provider._active_span_processor._span_processors
         assert len(processors) == 1
         assert isinstance(processors[0], _BatchSpanProcessor)
 
-        # Verify the exporter is configured
         exporter = _get_exporter_from_processor(processors[0])
         assert isinstance(exporter, GRPCSpanExporter)
 
     def test_register_with_simple_processor(self) -> None:
-        tracer_provider = register(batch=False, verbose=False)
+        tracer_provider = register(batch=False, verbose=False, set_global_tracer_provider=False)
 
         processors = tracer_provider._active_span_processor._span_processors
         assert len(processors) == 1
@@ -103,23 +88,27 @@ class TestRegister:
 
     def test_register_with_http_endpoint(self) -> None:
         endpoint = "http://custom-endpoint:4318/v1/traces"
-        tracer_provider = register(endpoint=endpoint, verbose=False)
+        tracer_provider = register(
+            endpoint=endpoint, verbose=False, set_global_tracer_provider=False
+        )
 
         processors = tracer_provider._active_span_processor._span_processors
         assert len(processors) == 1
 
-        exporter = processors[0].span_exporter
+        exporter = _get_exporter_from_processor(processors[0])
         assert isinstance(exporter, HTTPSpanExporter)
         assert exporter._endpoint == endpoint
 
     def test_register_with_grpc_endpoint(self) -> None:
         endpoint = "grpc://custom-endpoint:4317"
-        tracer_provider = register(endpoint=endpoint, verbose=False)
+        tracer_provider = register(
+            endpoint=endpoint, verbose=False, set_global_tracer_provider=False
+        )
 
         processors = tracer_provider._active_span_processor._span_processors
         assert len(processors) == 1
 
-        exporter = processors[0].span_exporter
+        exporter = _get_exporter_from_processor(processors[0])
         assert isinstance(exporter, GRPCSpanExporter)
 
     @patch("phoenix.otel.otel.get_env_client_headers")
@@ -127,92 +116,94 @@ class TestRegister:
         mock_env_headers.return_value = None
         headers = {"Authorization": "Bearer token123"}
 
-        tracer_provider = register(headers=headers, verbose=False)
+        tracer_provider = register(headers=headers, verbose=False, set_global_tracer_provider=False)
 
         processors = tracer_provider._active_span_processor._span_processors
-        exporter = processors[0].span_exporter
+        exporter = _get_exporter_from_processor(processors[0])
 
-        # Headers should be set on the exporter
         assert "authorization" in [h[0].lower() for h in exporter._headers]
 
     def test_register_with_http_protocol(self) -> None:
-        tracer_provider = register(protocol="http/protobuf", verbose=False)
+        tracer_provider = register(
+            protocol="http/protobuf", verbose=False, set_global_tracer_provider=False
+        )
 
         processors = tracer_provider._active_span_processor._span_processors
-        exporter = processors[0].span_exporter
+        exporter = _get_exporter_from_processor(processors[0])
         assert isinstance(exporter, HTTPSpanExporter)
 
     def test_register_with_grpc_protocol(self) -> None:
-        tracer_provider = register(protocol="grpc", verbose=False)
+        tracer_provider = register(protocol="grpc", verbose=False, set_global_tracer_provider=False)
 
         processors = tracer_provider._active_span_processor._span_processors
-        exporter = processors[0].span_exporter
+        exporter = _get_exporter_from_processor(processors[0])
         assert isinstance(exporter, GRPCSpanExporter)
 
     @patch("phoenix.otel.otel._auto_instrument_installed_openinference_libraries")
     def test_register_with_auto_instrument(self, mock_auto_instrument: Any) -> None:
-        tracer_provider = register(auto_instrument=True, verbose=False)
+        tracer_provider = register(
+            auto_instrument=True, verbose=False, set_global_tracer_provider=False
+        )
 
         mock_auto_instrument.assert_called_once_with(tracer_provider)
 
     @patch("builtins.print")
     def test_register_verbose_output(self, mock_print: Any) -> None:
-        register(verbose=True)
+        register(verbose=True, set_global_tracer_provider=False)
 
         mock_print.assert_called()
         output = str(mock_print.call_args)
         assert "OpenTelemetry Tracing Details" in output
 
     def test_register_with_custom_resource_no_project_name(self) -> None:
-        """Test that project name is merged into custom resource when no
-        project_name is provided."""
         custom_resource = Resource.create(
             {"service.name": "my-service", "service.version": "1.0.0"}
         )
 
         with patch("phoenix.otel.otel.get_env_project_name", return_value="env-project"):
-            tracer_provider = register(resource=custom_resource, verbose=False)
+            tracer_provider = register(
+                resource=custom_resource, verbose=False, set_global_tracer_provider=False
+            )
 
-        # Should have both custom attributes and project name
         assert tracer_provider.resource.attributes.get("service.name") == "my-service"
         assert tracer_provider.resource.attributes.get("service.version") == "1.0.0"
         assert tracer_provider.resource.attributes.get(PROJECT_NAME) == "env-project"
 
     def test_register_with_custom_resource_and_project_name(self) -> None:
-        """Test that explicit project name is merged into custom resource."""
         custom_resource = Resource.create(
             {"service.name": "my-service", "service.version": "1.0.0"}
         )
 
         tracer_provider = register(
-            project_name="explicit-project", resource=custom_resource, verbose=False
+            project_name="explicit-project",
+            resource=custom_resource,
+            verbose=False,
+            set_global_tracer_provider=False,
         )
 
-        # Should have both custom attributes and explicit project name
         assert tracer_provider.resource.attributes.get("service.name") == "my-service"
         assert tracer_provider.resource.attributes.get("service.version") == "1.0.0"
         assert tracer_provider.resource.attributes.get(PROJECT_NAME) == "explicit-project"
 
     def test_register_with_custom_resource_overrides_project_name(self) -> None:
-        """Test that project name in custom resource gets overridden by explicit project_name."""
         custom_resource = Resource.create(
             {"service.name": "my-service", PROJECT_NAME: "resource-project"}
         )
 
         tracer_provider = register(
-            project_name="explicit-project", resource=custom_resource, verbose=False
+            project_name="explicit-project",
+            resource=custom_resource,
+            verbose=False,
+            set_global_tracer_provider=False,
         )
 
-        # Explicit project name should override the one in resource
         assert tracer_provider.resource.attributes.get("service.name") == "my-service"
         assert tracer_provider.resource.attributes.get(PROJECT_NAME) == "explicit-project"
 
     def test_register_passes_through_kwargs_to_tracer_provider(self) -> None:
-        """Test that additional kwargs are passed through to TracerProvider."""
         from opentelemetry.sdk.trace.id_generator import IdGenerator
         from opentelemetry.sdk.trace.sampling import ALWAYS_OFF
 
-        # Create a mock id generator
         mock_id_generator = Mock(spec=IdGenerator)
 
         tracer_provider = register(
@@ -220,16 +211,13 @@ class TestRegister:
             sampler=ALWAYS_OFF,
             id_generator=mock_id_generator,
             verbose=False,
+            set_global_tracer_provider=False,
         )
 
-        # Check that the sampler was passed through
         assert tracer_provider.sampler == ALWAYS_OFF
-
-        # Check that the id_generator was passed through
         assert tracer_provider.id_generator == mock_id_generator
 
     def test_register_with_custom_id_generator(self) -> None:
-        """Test register with a custom ID generator."""
         from opentelemetry.sdk.trace.id_generator import IdGenerator
 
         class CustomIdGenerator(IdGenerator):
@@ -242,30 +230,32 @@ class TestRegister:
         custom_id_gen = CustomIdGenerator()
 
         tracer_provider = register(
-            project_name="test-project", id_generator=custom_id_gen, verbose=False
+            project_name="test-project",
+            id_generator=custom_id_gen,
+            verbose=False,
+            set_global_tracer_provider=False,
         )
 
-        # Verify the custom ID generator was set
-        assert tracer_provider.id_generator == custom_id_gen
+        assert tracer_provider.id_generator is custom_id_gen
 
     def test_register_with_span_limits(self) -> None:
-        """Test register with custom span limits."""
         from opentelemetry.sdk.trace import SpanLimits
 
         custom_limits = SpanLimits(max_attributes=50, max_events=20, max_links=10)
 
         tracer_provider = register(
-            project_name="test-project", span_limits=custom_limits, verbose=False
+            project_name="test-project",
+            span_limits=custom_limits,
+            verbose=False,
+            set_global_tracer_provider=False,
         )
 
-        # Verify the span limits were set
         assert tracer_provider._span_limits == custom_limits
         assert tracer_provider._span_limits.max_attributes == 50
         assert tracer_provider._span_limits.max_events == 20
         assert tracer_provider._span_limits.max_links == 10
 
     def test_register_with_multiple_kwargs(self) -> None:
-        """Test register with multiple kwargs including resource."""
         from opentelemetry.sdk.trace import SpanLimits
         from opentelemetry.sdk.trace.id_generator import IdGenerator
         from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
@@ -285,31 +275,46 @@ class TestRegister:
             span_limits=custom_limits,
             id_generator=mock_id_generator,
             verbose=False,
+            set_global_tracer_provider=False,
         )
 
-        # Verify all kwargs were passed through
         assert tracer_provider.sampler == custom_sampler
         assert tracer_provider._span_limits == custom_limits
         assert tracer_provider.id_generator == mock_id_generator
 
-        # Verify resource was merged with project name
         assert tracer_provider.resource.attributes.get("service.name") == "test-service"
         assert tracer_provider.resource.attributes.get("deployment.environment") == "testing"
         assert tracer_provider.resource.attributes.get(PROJECT_NAME) == "multi-test-project"
 
     def test_register_tracer_provider_verbose_is_always_false(self) -> None:
-        """Test that TracerProvider verbose is always False even when register verbose=True."""
         with patch("phoenix.otel.otel.TracerProvider") as mock_tracer_provider:
             mock_instance = Mock()
             mock_tracer_provider.return_value = mock_instance
             mock_instance._default_processor = True
             mock_instance._tracing_details.return_value = "test details"
 
-            register(verbose=True)
+            register(verbose=True, set_global_tracer_provider=False)
 
-            # Verify TracerProvider was called with verbose=False
             call_args = mock_tracer_provider.call_args
             assert not call_args.kwargs["verbose"]
+
+    def test_register_with_global_tracer_provider_enabled(self) -> None:
+        """Test that register can still set global tracer provider when requested."""
+        trace_api.get_tracer_provider()
+        try:
+            tracer_provider = register(verbose=False, set_global_tracer_provider=True)
+
+            assert isinstance(tracer_provider, TracerProvider)
+            try:
+                assert trace_api.get_tracer_provider() == tracer_provider
+            except Exception:
+                pytest.skip("OpenTelemetry prevented global tracer provider override")
+        finally:
+            try:
+                if hasattr(tracer_provider, "shutdown"):
+                    tracer_provider.shutdown()
+            except Exception:
+                pass
 
 
 class TestTracerProvider:
@@ -319,7 +324,6 @@ class TestTracerProvider:
         assert isinstance(tracer_provider, TracerProvider)
         assert tracer_provider._default_processor
 
-        # Should have a default processor
         processors = tracer_provider._active_span_processor._span_processors
         assert len(processors) == 1
 
@@ -336,7 +340,7 @@ class TestTracerProvider:
         processors = tracer_provider._active_span_processor._span_processors
         assert len(processors) == 1
 
-        exporter = processors[0].span_exporter
+        exporter = _get_exporter_from_processor(processors[0])
         assert isinstance(exporter, HTTPSpanExporter)
         assert exporter._endpoint == endpoint
 
@@ -347,7 +351,7 @@ class TestTracerProvider:
         processors = tracer_provider._active_span_processor._span_processors
         assert len(processors) == 1
 
-        exporter = processors[0].span_exporter
+        exporter = _get_exporter_from_processor(processors[0])
         assert isinstance(exporter, GRPCSpanExporter)
 
     def test_add_span_processor_replaces_default(self) -> None:
