@@ -1,7 +1,7 @@
 from datetime import datetime
 
 import pytest
-from sqlalchemy import func, insert, select
+from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models

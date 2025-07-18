@@ -93,28 +93,26 @@ class TraceMutationMixin:
             )
         except ValueError as error:
             raise BadRequest(str(error))
-        
+
         async with info.context.db() as session:
             dest_project = await session.get(models.Project, dest_project_rowid)
             if dest_project is None:
                 raise BadRequest("Destination project does not exist")
-            
+
             traces = (
-                await session.scalars(
-                    select(models.Trace).where(models.Trace.id.in_(trace_rowids))
-                )
+                await session.scalars(select(models.Trace).where(models.Trace.id.in_(trace_rowids)))
             ).all()
             if len(traces) < len(trace_rowids):
                 raise BadRequest("Invalid trace IDs provided")
-            
+
             source_project_ids = set(trace.project_rowid for trace in traces)
             if len(source_project_ids) > 1:
                 raise BadRequest("Cannot transfer traces from multiple projects")
-            
+
             await session.execute(
                 update(models.Trace)
                 .where(models.Trace.id.in_(trace_rowids))
                 .values(project_rowid=dest_project_rowid)
             )
-            
+
         return Query()
