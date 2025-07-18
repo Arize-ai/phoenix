@@ -1,0 +1,232 @@
+"""
+LiteLLM adapter implementation for the Universal LLM Wrapper.
+"""
+
+import json
+import logging
+from typing import Any, Dict, Optional, Union
+
+from phoenix.evals.templates import MultimodalPrompt
+from ...core.base import BaseLLMAdapter
+from ...core.registries import register_adapter, register_provider
+from ...core.types import StructuredOutput
+from .client import LiteLLMClient
+from .factories import (
+    _create_cohere_client,
+    _create_groq_client,
+    _create_litellm_client,
+    _create_together_client,
+)
+
+logger = logging.getLogger(__name__)
+
+
+@register_adapter(
+    identifier=lambda client: isinstance(client, LiteLLMClient),
+    priority=5,  # Lower priority than specific adapters, acts as fallback
+    name="litellm",
+)
+@register_provider(
+    provider="cohere",
+    client_factory=_create_cohere_client,
+    dependencies=["litellm"]
+)
+@register_provider(
+    provider="groq",
+    client_factory=_create_groq_client,
+    dependencies=["litellm"]
+)
+@register_provider(
+    provider="together",
+    client_factory=_create_together_client,
+    dependencies=["litellm"]
+)
+@register_provider(
+    provider="litellm",
+    client_factory=_create_litellm_client,
+    dependencies=["litellm"]
+)
+class LiteLLMAdapter(BaseLLMAdapter):
+    """Adapter for LiteLLM function-based interface."""
+
+    def __init__(self, client: LiteLLMClient):
+        """Initialize adapter with validation."""
+        super().__init__(client)
+        self._validate_client()
+        self._init_litellm()
+
+    def _validate_client(self) -> None:
+        """Validate that the client is a LiteLLMClient."""
+        if not isinstance(self.client, LiteLLMClient):
+            raise ValueError(
+                f"LiteLLMAdapter requires a LiteLLMClient instance, got {type(self.client)}"
+            )
+
+    def _init_litellm(self) -> None:
+        """Initialize LiteLLM library."""
+        try:
+            import litellm
+            self._litellm = litellm
+        except ImportError:
+            raise ImportError(
+                "LiteLLM package not installed. Run: pip install litellm"
+            )
+
+    def generate_text(
+        self, prompt: Union[str, MultimodalPrompt], instruction: Optional[str] = None, **kwargs: Any
+    ) -> str:
+        """Generate text using LiteLLM."""
+        # Convert multimodal prompt to text
+        if isinstance(prompt, MultimodalPrompt):
+            prompt_text = prompt.to_text_only_prompt()
+        else:
+            prompt_text = prompt
+
+        # Build messages for LiteLLM
+        messages = []
+        if instruction:
+            messages.append({"role": "system", "content": instruction})
+        messages.append({"role": "user", "content": prompt_text})
+
+        # Merge client config with call-specific kwargs
+        call_kwargs = {**self.client.config, **kwargs}
+
+        try:
+            response = self._litellm.completion(
+                model=self.client.model_string,
+                messages=messages,
+                **call_kwargs
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            logger.error(f"LiteLLM completion failed: {e}")
+            raise
+
+    async def agenerate_text(
+        self, prompt: Union[str, MultimodalPrompt], instruction: Optional[str] = None, **kwargs: Any
+    ) -> str:
+        """Async text generation using LiteLLM."""
+        # Convert multimodal prompt to text
+        if isinstance(prompt, MultimodalPrompt):
+            prompt_text = prompt.to_text_only_prompt()
+        else:
+            prompt_text = prompt
+
+        # Build messages for LiteLLM
+        messages = []
+        if instruction:
+            messages.append({"role": "system", "content": instruction})
+        messages.append({"role": "user", "content": prompt_text})
+
+        # Merge client config with call-specific kwargs
+        call_kwargs = {**self.client.config, **kwargs}
+
+        try:
+            response = await self._litellm.acompletion(
+                model=self.client.model_string,
+                messages=messages,
+                **call_kwargs
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            logger.error(f"LiteLLM async completion failed: {e}")
+            raise
+
+    def generate_object(
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        schema: Dict[str, Any],
+        instruction: Optional[str] = None,
+        **kwargs: Any,
+    ) -> StructuredOutput:
+        """
+        Generate structured output using LiteLLM.
+
+        Since LiteLLM doesn't have native structured output, we use JSON parsing.
+        """
+        # Build structured instruction
+        structured_prompt = self._build_structured_instruction(prompt, schema, instruction)
+
+        # Generate text response
+        text = self.generate_text(structured_prompt, None, **kwargs)
+
+        # Parse JSON from response
+        try:
+            data = json.loads(text)
+            return StructuredOutput(data=data, schema=schema)
+        except (json.JSONDecodeError, TypeError) as e:
+            logger.warning(f"Failed to parse JSON from LiteLLM response: {e}")
+            logger.warning(f"Raw response: {text}")
+            return StructuredOutput(data={}, schema=schema)
+
+    async def agenerate_object(
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        schema: Dict[str, Any],
+        instruction: Optional[str] = None,
+        **kwargs: Any,
+    ) -> StructuredOutput:
+        """
+        Async generate structured output using LiteLLM.
+
+        Since LiteLLM doesn't have native structured output, we use JSON parsing.
+        """
+        # Build structured instruction
+        structured_prompt = self._build_structured_instruction(prompt, schema, instruction)
+
+        # Generate text response
+        text = await self.agenerate_text(structured_prompt, None, **kwargs)
+
+        # Parse JSON from response
+        try:
+            data = json.loads(text)
+            return StructuredOutput(data=data, schema=schema)
+        except (json.JSONDecodeError, TypeError) as e:
+            logger.warning(f"Failed to parse JSON from LiteLLM async response: {e}")
+            logger.warning(f"Raw response: {text}")
+            return StructuredOutput(data={}, schema=schema)
+
+    @property
+    def model_name(self) -> str:
+        """Return the LiteLLM model name."""
+        return self.client.model_string
+
+    def _build_structured_instruction(
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        schema: Dict[str, Any],
+        instruction: Optional[str] = None,
+    ) -> str:
+        """
+        Build a standardized instruction for structured output generation.
+        """
+        if isinstance(prompt, MultimodalPrompt):
+            prompt_text = prompt.to_text_only_prompt()
+        else:
+            prompt_text = prompt
+
+        # Build the structured output instruction
+        structured_instruction = (
+            "You must respond with valid JSON that conforms to the provided schema. "
+            "Do not include any additional text, explanations, or formatting outside of the JSON response."
+        )
+
+        # Add schema information if available
+        if schema:
+            try:
+                schema_str = json.dumps(schema, indent=2)
+                structured_instruction += f"\n\nRequired JSON Schema:\n{schema_str}"
+            except (TypeError, ValueError):
+                # If schema can't be serialized, provide a general instruction
+                structured_instruction += (
+                    "\n\nThe response must conform to the provided schema structure."
+                )
+
+        # Combine with user instruction if provided
+        if instruction:
+            combined_instruction = f"{instruction}\n\n{structured_instruction}"
+        else:
+            combined_instruction = structured_instruction
+
+        # Combine instruction with prompt
+        return f"{combined_instruction}\n\n{prompt_text}"

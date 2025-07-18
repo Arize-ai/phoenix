@@ -10,19 +10,19 @@ to the appropriate adapter based on client characteristics.
 
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from phoenix.evals.models.base import BaseModel
 from phoenix.evals.templates import MultimodalPrompt
+
+# Import adapters to ensure they are registered
+from .adapters.langchain import LangChainModelAdapter  # noqa: F401
+from .adapters.litellm import LiteLLMAdapter  # noqa: F401
 
 # Import core components
 from .core.base import BaseLLMAdapter
 from .core.registries import _adapter_registry, _provider_registry
 from .core.types import StructuredOutput
 
-# Import adapters to ensure they are registered
-from .adapters.langchain import LangChainModelAdapter  # noqa: F401
 
-
-class UniversalLLMWrapper(BaseModel):
+class UniversalLLMWrapper:
     """
     Universal wrapper that provides a simplified interface for LLM access.
 
@@ -82,9 +82,6 @@ class UniversalLLMWrapper(BaseModel):
         # Separate BaseModel kwargs from client factory kwargs
         base_model_kwargs = {}
         client_factory_kwargs = {}
-
-        # Known BaseModel parameters
-        base_model_params = {"default_concurrency", "_verbose", "_rate_limiter"}
 
         for key, value in kwargs.items():
             if key in base_model_params:

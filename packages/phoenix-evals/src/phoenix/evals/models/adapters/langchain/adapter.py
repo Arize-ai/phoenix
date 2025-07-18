@@ -33,12 +33,12 @@ logger = logging.getLogger(__name__)
 @register_provider(
     provider="openai",
     client_factory=_create_openai_langchain_client,
-    dependencies=["langchain", "langchain-openai"]
+    dependencies=["langchain", "langchain_openai"]
 )
 @register_provider(
     provider="anthropic",
     client_factory=_create_anthropic_langchain_client,
-    dependencies=["langchain", "langchain-anthropic"]
+    dependencies=["langchain", "langchain_anthropic"]
 )
 @register_provider(
     provider="langchain",
