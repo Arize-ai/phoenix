@@ -109,7 +109,10 @@ export function ProjectMetricsPage() {
         >
           <TraceCountTimeSeries projectId={projectId} />
         </MetricPanel>
-        <MetricPanel title="Trace count (errors only)">
+        <MetricPanel
+          title="Traces with errors"
+          subtitle="Overall volume of traces with errors"
+        >
           <TraceErrorsTimeSeries projectId={projectId} />
         </MetricPanel>
       </Flex>
@@ -117,15 +120,18 @@ export function ProjectMetricsPage() {
         <MetricPanel title="Latency" subtitle="Latency percentiles">
           <TraceLatencyPercentilesTimeSeries projectId={projectId} />
         </MetricPanel>
-        <MetricPanel title="Token usage" subtitle="Daily totals">
+        <MetricPanel
+          title="Token usage"
+          subtitle="Token usage by prompt and completion"
+        >
           <TraceTokenCountTimeSeries projectId={projectId} />
         </MetricPanel>
       </Flex>
       <Flex direction="row" gap="size-100">
-        <MetricPanel title="Estimated cost" subtitle="Total daily cost in USD">
+        <MetricPanel title="Cost" subtitle="Estimated cost in USD">
           <TraceTokenCostTimeSeries projectId={projectId} />
         </MetricPanel>
-        <MetricPanel title="Feedback scores" subtitle="Average scores">
+        <MetricPanel title="Feedback scores" subtitle="Average feedback scores">
           <SpanAnnotationScoreTimeSeries projectId={projectId} />
         </MetricPanel>
       </Flex>
