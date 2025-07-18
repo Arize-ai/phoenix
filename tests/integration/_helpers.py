@@ -487,7 +487,6 @@ def _http_span_exporter(
     exporter = OTLPSpanExporter(
         endpoint=endpoint,
         headers=headers,
-        timeout=1,
         certificate_file=app.certificate_file,
         client_key_file=app.client_key_file,
         client_certificate_file=app.client_certificate_file,
@@ -506,7 +505,6 @@ def _grpc_span_exporter(
     return OTLPSpanExporter(
         endpoint=endpoint,
         headers=headers,
-        timeout=1,
         credentials=_load_credentials(
             certificate_file=app.certificate_file,
             client_key_file=app.client_key_file,
