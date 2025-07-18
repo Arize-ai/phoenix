@@ -286,6 +286,7 @@ class RanExperiment(TypedDict):
 
     experiment_id: ExperimentId
     dataset_id: DatasetId
+    dataset_version_id: Optional[DatasetVersionId]
     task_runs: list[ExperimentRun]
     evaluation_runs: list[ExperimentEvaluationRun]
     experiment_metadata: Mapping[str, Any]

@@ -116,9 +116,20 @@ Phoenix is built on top of OpenTelemetry and is vendor, language, and framework 
 | [BeeAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/beeai)                 | `@arizeai/openinference-instrumentation-beeai`     | [![NPM Version](https://img.shields.io/npm/v/@arizeai/openinference-vercel)](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-beeai)                            |
 | [Mastra](https://arize.com/docs/phoenix/integrations/mastra)                               | `@arizeai/openinference-mastra`                    | [![NPM Version](https://img.shields.io/npm/v/@arizeai/openinference-mastra.svg)](https://www.npmjs.com/package/@arizeai/openinference-mastra)                                       |
 
+### Java Integrations
+
+| Integration                                                                                                                       | Package                                     | Version Badge                                                                                                                                                                                                 |
+| --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [LangChain4j](https://github.com/Arize-ai/openinference/tree/main/java/instrumentation/openinference-instrumentation-langchain4j) | `openinference-instrumentation-langchain4j` | [![Maven Central](https://img.shields.io/maven-central/v/com.arize/openinference-instrumentation-langchain4j.svg)](https://central.sonatype.com/artifact/com.arize/openinference-instrumentation-langchain4j) |
+
 ### Platforms
 
-Phoenix has native integrations with [LangFlow](https://arize.com/docs/phoenix/tracing/integrations-tracing/langflow), LiteLLM Proxy, and [BeeAI](https://docs.beeai.dev/observability/agents-traceability).
+| Platform                                                                                                 | Description                                                    | Docs                                                                                                          |
+| -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [Dify](https://docs.dify.ai/en/guides/monitoring/integrate-external-ops-tools/integrate-phoenix)         | Open-source LLM app development platform                       | [Integration Guide](https://docs.dify.ai/en/guides/monitoring/integrate-external-ops-tools/integrate-phoenix) |
+| [LangFlow](https://arize.com/docs/phoenix/tracing/integrations-tracing/langflow)                         | Visual framework for building multi-agent and RAG applications | [Integration Guide](https://arize.com/docs/phoenix/tracing/integrations-tracing/langflow)                     |
+| [BeeAI](https://docs.beeai.dev/observability/agents-traceability)                                        | AI agent framework with built-in observability                 | [Integration Guide](https://docs.beeai.dev/observability/agents-traceability)                                 |
+| [LiteLLM Proxy](https://docs.litellm.ai/docs/observability/phoenix_integration#using-with-litellm-proxy) | Proxy server for LLMs                                          | [Integration Guide](https://docs.litellm.ai/docs/observability/phoenix_integration#using-with-litellm-proxy)  |
 
 ## Community
 

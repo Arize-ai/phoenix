@@ -5,7 +5,7 @@ import {
   Legend,
   ResponsiveContainer,
   Tooltip,
-  TooltipProps,
+  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";
@@ -15,6 +15,7 @@ import {
   ChartTooltip,
   ChartTooltipItem,
   useChartColors,
+  useSemanticChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
@@ -86,7 +87,8 @@ function TooltipContent({
   active,
   payload,
   label,
-}: TooltipProps<number, string>) {
+}: TooltipContentProps<number, string>) {
+  const SemanticChartColors = useSemanticChartColors();
   const chartColors = useChartColors();
   if (active && payload && payload.length) {
     const okValue = payload[0]?.value ?? null;
@@ -99,11 +101,13 @@ function TooltipContent({
         : "--";
     return (
       <ChartTooltip>
-        <Text weight="heavy" size="S">{`${fullTimeFormatter(
-          new Date(label)
-        )}`}</Text>
+        {label && (
+          <Text weight="heavy" size="S">{`${fullTimeFormatter(
+            new Date(label)
+          )}`}</Text>
+        )}
         <ChartTooltipItem
-          color={chartColors.red500}
+          color={SemanticChartColors.danger}
           shape="circle"
           name="error"
           value={errorString}
@@ -133,6 +137,7 @@ export function TraceCountTimeSeries() {
   });
 
   const colors = useChartColors();
+  const SemanticChartColors = useSemanticChartColors();
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart
@@ -168,11 +173,11 @@ export function TraceCountTimeSeries() {
           vertical={false}
         />
         <Tooltip
-          content={<TooltipContent />}
+          content={TooltipContent}
           // TODO formalize this
           cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
         />
-        <Bar dataKey="error" stackId="a" fill={colors.red300} />
+        <Bar dataKey="error" stackId="a" fill={SemanticChartColors.danger} />
         <Bar
           dataKey="ok"
           stackId="a"

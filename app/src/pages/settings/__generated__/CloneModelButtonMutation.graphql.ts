@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<48df834ef0b5476919d973c0106a7ca9>>
+ * @generated SignedSource<<75113b71c1e0e8c0ca584aff506e3f8d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -214,13 +214,6 @@ return {
                         "kind": "ScalarField",
                         "name": "costPerMillionTokens",
                         "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "costPerToken",
-                        "storageKey": null
                       }
                     ],
                     "storageKey": null
@@ -237,12 +230,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c4f5dfd5217a0e899dca2d0933f3d00f",
+    "cacheID": "e601f7ce5bfd742b3284225ce0762586",
     "id": null,
     "metadata": {},
     "name": "CloneModelButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation CloneModelButtonMutation(\n  $input: CreateModelMutationInput!\n) {\n  createModel(input: $input) {\n    query {\n      ...ModelsTable_generativeModels\n    }\n  }\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels {\n    id\n    name\n    provider\n    namePattern\n    providerKey\n    startTime\n    createdAt\n    updatedAt\n    lastUsedAt\n    kind\n    tokenPrices {\n      tokenType\n      kind\n      costPerMillionTokens\n      costPerToken\n    }\n  }\n}\n"
+    "text": "mutation CloneModelButtonMutation(\n  $input: CreateModelMutationInput!\n) {\n  createModel(input: $input) {\n    query {\n      ...ModelsTable_generativeModels\n    }\n  }\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels {\n    id\n    name\n    provider\n    namePattern\n    providerKey\n    startTime\n    createdAt\n    updatedAt\n    lastUsedAt\n    kind\n    tokenPrices {\n      tokenType\n      kind\n      costPerMillionTokens\n    }\n  }\n}\n"
   }
 };
 })();

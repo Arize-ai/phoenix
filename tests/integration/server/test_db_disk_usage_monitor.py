@@ -83,6 +83,11 @@ def _env_database_usage() -> dict[str, str]:
 
 
 @pytest.fixture(scope="module")
+def _support_email() -> str:
+    return f"{token_hex(8)}@{token_hex(8)}.com"
+
+
+@pytest.fixture(scope="module")
 def _env(
     _env_database: dict[str, str],
     _env_ports: dict[str, str],
@@ -90,6 +95,7 @@ def _env(
     _env_smtp: dict[str, str],
     _env_admin: dict[str, str],
     _env_database_usage: dict[str, str],
+    _support_email: str,
 ) -> dict[str, str]:
     """Combine all environment variable configurations for testing."""
     return {
@@ -99,6 +105,7 @@ def _env(
         **_env_smtp,
         **_env_admin,
         **_env_database_usage,
+        "PHOENIX_SUPPORT_EMAIL": _support_email,
     }
 
 
@@ -117,6 +124,7 @@ class TestDbDiskUsageMonitor:
         _smtpd: AuthController,
         _admin_email: str,
         _admin_secret: _AdminSecret,
+        _support_email: str,
     ) -> None:
         """
         Comprehensive test of the database disk usage monitor functionality.
@@ -162,6 +170,9 @@ class TestDbDiskUsageMonitor:
                 assert (soup := _extract_html(message))
                 assert soup.title
                 assert soup.title.string == "Database Usage Notification"
+                assert (
+                    _support_email in soup.get_text()
+                ), f"Support email {_support_email} should appear in email content"
                 received_email = True
             except AssertionError:
                 if retries_left:
@@ -263,12 +274,12 @@ class TestDbDiskUsageMonitor:
         # GraphQL mutations that create new data (API keys, datasets, etc.)
         # should be blocked because they involve database insertions.
         # The system should return "locked" errors for these operations.
-        with pytest.raises(Exception, match="locked"):
+        with pytest.raises(Exception, match="storage"):
             _create_api_key(_app, access_token)
 
         for field in ['createDataset(input:{name:"' + token_hex(8) + '"}){dataset{id}}']:
             query = "mutation{" + field + "}"
-            with pytest.raises(Exception, match="locked"):
+            with pytest.raises(Exception, match="storage"):
                 _gql(_app, access_token, query=query)
 
         # ========================================================================

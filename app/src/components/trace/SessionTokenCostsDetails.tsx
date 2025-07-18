@@ -17,7 +17,6 @@ export function SessionTokenCostsDetails(props: { sessionNodeId: string }) {
               value {
                 cost
                 tokens
-                costPerToken
               }
             }
           }

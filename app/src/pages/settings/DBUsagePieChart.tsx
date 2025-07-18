@@ -7,7 +7,7 @@ import {
   PieChart,
   ResponsiveContainer,
   Tooltip,
-  TooltipProps,
+  TooltipContentProps,
 } from "recharts";
 
 import { ChartTooltip, ChartTooltipItem } from "@phoenix/components/chart";
@@ -17,7 +17,10 @@ import { storageSizeFormatter } from "@phoenix/utils/storageSizeFormatUtils";
 import { DBUsagePieChart_data$key } from "./__generated__/DBUsagePieChart_data.graphql";
 
 const REMAINING_TEXT = "remaining";
-function TooltipContent({ active, payload }: TooltipProps<number, string>) {
+function TooltipContent({
+  active,
+  payload,
+}: TooltipContentProps<number, string>) {
   if (active && payload && payload.length) {
     return (
       <ChartTooltip>
@@ -96,7 +99,7 @@ export function DBUsagePieChart({
             />
           ))}
         </Pie>
-        <Tooltip content={<TooltipContent />} />
+        <Tooltip content={TooltipContent} />
         <text
           x="50%"
           y="50%"
