@@ -1,38 +1,42 @@
 from __future__ import annotations
 
 import operator
-from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Optional
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, Optional, cast
 
 import strawberry
-from aioitertools.itertools import islice
+from aioitertools.itertools import groupby, islice
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import desc, distinct, func, or_, select
+from sqlalchemy import and_, desc, distinct, exists, func, or_, select
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.sql.expression import tuple_
 from strawberry import ID, UNSET, Private, lazy
-from strawberry.relay import Connection, Node, NodeID
+from strawberry.relay import Connection, Edge, Node, NodeID, PageInfo
 from strawberry.types import Info
 from typing_extensions import assert_never
 
-from phoenix.datetime_utils import right_open_time_range
+from phoenix.datetime_utils import get_timestamp_range, normalize_datetime, right_open_time_range
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.helpers import SupportedSQLDialect, date_trunc
 from phoenix.server.api.context import Context
+from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.ProjectSessionSort import (
     ProjectSessionColumn,
     ProjectSessionSort,
 )
-from phoenix.server.api.input_types.SpanSort import SpanSort, SpanSortConfig
+from phoenix.server.api.input_types.SpanSort import SpanColumn, SpanSort, SpanSortConfig
+from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBinScale
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
+from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     Cursor,
     CursorSortColumn,
+    CursorSortColumnDataType,
     CursorString,
     connection_from_cursors_and_nodes,
     connection_from_list,
@@ -40,9 +44,11 @@ from phoenix.server.api.types.pagination import (
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span
+from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.TimeSeries import TimeSeries, TimeSeriesDataPoint
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
+from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 
 DEFAULT_PAGE_SIZE = 30
@@ -176,6 +182,30 @@ class Project(Node):
         )
 
     @strawberry.field
+    async def cost_summary(
+        self,
+        info: Info[Context, None],
+        time_range: Optional[TimeRange] = UNSET,
+        filter_condition: Optional[str] = UNSET,
+    ) -> SpanCostSummary:
+        loader = info.context.data_loaders.span_cost_summary_by_project
+        summary = await loader.load((self.project_rowid, time_range, filter_condition))
+        return SpanCostSummary(
+            prompt=CostBreakdown(
+                tokens=summary.prompt.tokens,
+                cost=summary.prompt.cost,
+            ),
+            completion=CostBreakdown(
+                tokens=summary.completion.tokens,
+                cost=summary.completion.cost,
+            ),
+            total=CostBreakdown(
+                tokens=summary.total.tokens,
+                cost=summary.total.cost,
+            ),
+        )
+
+    @strawberry.field
     async def latency_ms_quantile(
         self,
         info: Info[Context, None],
@@ -236,8 +266,19 @@ class Project(Node):
         filter_condition: Optional[str] = UNSET,
         orphan_span_as_root_span: Optional[bool] = True,
     ) -> Connection[Span]:
+        if root_spans_only and not filter_condition and sort and sort.col is SpanColumn.startTime:
+            return await _paginate_span_by_trace_start_time(
+                db=info.context.db,
+                project_rowid=self.project_rowid,
+                time_range=time_range,
+                first=first,
+                after=after,
+                sort=sort,
+                orphan_span_as_root_span=orphan_span_as_root_span,
+            )
         stmt = (
             select(models.Span.id)
+            .select_from(models.Span)
             .join(models.Trace)
             .where(models.Trace.project_rowid == self.project_rowid)
         )
@@ -408,6 +449,21 @@ class Project(Node):
                     ).subquery()
                 else:
                     assert_never(sort.col)
+                key = sort_subq.c.key
+                stmt = stmt.join(sort_subq, table.id == sort_subq.c.id)
+            elif sort.col is ProjectSessionColumn.costTotal:
+                sort_subq = (
+                    select(
+                        models.Trace.project_session_rowid.label("id"),
+                        func.sum(models.SpanCost.total_cost).label("key"),
+                    )
+                    .join_from(
+                        models.Trace,
+                        models.SpanCost,
+                        models.Trace.id == models.SpanCost.trace_rowid,
+                    )
+                    .group_by(models.Trace.project_session_rowid)
+                ).subquery()
                 key = sort_subq.c.key
                 stmt = stmt.join(sort_subq, table.id == sort_subq.c.id)
             else:
@@ -613,18 +669,9 @@ class Project(Node):
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        async with info.context.db() as session:
-            annotation_configs = await session.stream_scalars(
-                select(models.AnnotationConfig)
-                .join(
-                    models.ProjectAnnotationConfig,
-                    models.AnnotationConfig.id
-                    == models.ProjectAnnotationConfig.annotation_config_id,
-                )
-                .where(models.ProjectAnnotationConfig.project_id == self.project_rowid)
-                .order_by(models.AnnotationConfig.name)
-            )
-            data = [to_gql_annotation_config(config) async for config in annotation_configs]
+        loader = info.context.data_loaders.annotation_configs_by_project
+        configs = await loader.load(self.project_rowid)
+        data = [to_gql_annotation_config(config) for config in configs]
         return connection_from_list(data=data, args=args)
 
     @strawberry.field
@@ -665,88 +712,144 @@ class Project(Node):
             )
         return updated_at
 
-    @strawberry.field(
-        description="Hourly span count for the project.",
-    )  # type: ignore
+    @strawberry.field
     async def span_count_time_series(
         self,
         info: Info[Context, None],
-        time_range: Optional[TimeRange] = UNSET,
+        time_range: TimeRange,
+        time_bin_config: Optional[TimeBinConfig] = UNSET,
     ) -> SpanCountTimeSeries:
-        """Returns a time series of span counts grouped by hour for the project.
+        if time_range.start is None:
+            raise BadRequest("Start time is required")
 
-        This field provides hourly aggregated span counts, which can be useful for
-        visualizing span activity over time. The data points represent the number
-        of spans that started in each hour.
-
-        Args:
-            info: The GraphQL info object containing context information.
-            time_range: Optional time range to filter the spans. If provided, only
-                spans that started within this range will be counted.
-
-        Returns:
-            A SpanCountTimeSeries object containing data points with timestamps
-            (rounded to the nearest hour) and corresponding span counts.
-
-        Notes:
-            - The timestamps are rounded down to the nearest hour.
-            - If a time range is provided, the start time is rounded down to the
-              nearest hour, and the end time is rounded up to the nearest hour.
-            - The SQL query is optimized for both PostgreSQL and SQLite databases.
-        """
-        # Determine the appropriate SQL function to truncate timestamps to hours
-        # based on the database dialect
-        if info.context.db.dialect is SupportedSQLDialect.POSTGRESQL:
-            # PostgreSQL uses date_trunc for timestamp truncation
-            hour = func.date_trunc("hour", models.Span.start_time)
-        elif info.context.db.dialect is SupportedSQLDialect.SQLITE:
-            # SQLite uses strftime for timestamp formatting
-            hour = func.strftime("%Y-%m-%dT%H:00:00.000+00:00", models.Span.start_time)
-        else:
-            assert_never(info.context.db.dialect)
-
-        # Build the base query to count spans grouped by hour
+        dialect = info.context.db.dialect
+        utc_offset_minutes = 0
+        field: Literal["minute", "hour", "day", "week", "month", "year"] = "hour"
+        if time_bin_config:
+            utc_offset_minutes = time_bin_config.utc_offset_minutes
+            if time_bin_config.scale is TimeBinScale.MINUTE:
+                field = "minute"
+            elif time_bin_config.scale is TimeBinScale.HOUR:
+                field = "hour"
+            elif time_bin_config.scale is TimeBinScale.DAY:
+                field = "day"
+            elif time_bin_config.scale is TimeBinScale.WEEK:
+                field = "week"
+            elif time_bin_config.scale is TimeBinScale.MONTH:
+                field = "month"
+            elif time_bin_config.scale is TimeBinScale.YEAR:
+                field = "year"
+        bucket = date_trunc(dialect, field, models.Span.start_time, utc_offset_minutes)
         stmt = (
-            select(hour, func.count())
-            .join(models.Trace)
+            select(bucket, func.count(models.Span.id))
+            .join_from(models.Span, models.Trace)
             .where(models.Trace.project_rowid == self.project_rowid)
-            .group_by(hour)
-            .order_by(hour)
+            .group_by(bucket)
+            .order_by(bucket)
         )
+        if time_range.start:
+            stmt = stmt.where(time_range.start <= models.Span.start_time)
+        if time_range.end:
+            stmt = stmt.where(models.Span.start_time < time_range.end)
 
-        # Apply time range filtering if provided
-        if time_range:
-            if t := time_range.start:
-                # Round down to nearest hour for the start time
-                start = t.replace(minute=0, second=0, microsecond=0)
-                stmt = stmt.where(start <= models.Span.start_time)
-            if t := time_range.end:
-                # Round up to nearest hour for the end time
-                # If the time is already at the start of an hour, use it as is
-                if t.minute == 0 and t.second == 0 and t.microsecond == 0:
-                    end = t
-                else:
-                    # Otherwise, round up to the next hour
-                    end = t.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
-                stmt = stmt.where(models.Span.start_time < end)
-
-        # Execute the query and convert the results to a time series
+        data = {}
         async with info.context.db() as session:
-            data = await session.stream(stmt)
-            return SpanCountTimeSeries(
-                data=[
-                    TimeSeriesDataPoint(
-                        timestamp=_as_datetime(t),
-                        value=v,
-                    )
-                    async for t, v in data
-                ]
-            )
+            async for t, v in await session.stream(stmt):
+                timestamp = _as_datetime(t)
+                data[timestamp] = TimeSeriesDataPoint(timestamp=timestamp, value=v)
+
+        data_timestamps: list[datetime] = [data_point.timestamp for data_point in data.values()]
+        min_time = min([*data_timestamps, time_range.start])
+        max_time = max(
+            [
+                *data_timestamps,
+                *([time_range.end] if time_range.end else []),
+            ],
+            default=datetime.now(timezone.utc),
+        )
+        for timestamp in get_timestamp_range(
+            start_time=min_time,
+            end_time=max_time,
+            stride=field,
+            utc_offset_minutes=utc_offset_minutes,
+        ):
+            if timestamp not in data:
+                data[timestamp] = TimeSeriesDataPoint(timestamp=timestamp)
+        return SpanCountTimeSeries(data=sorted(data.values(), key=lambda x: x.timestamp))
+
+    @strawberry.field
+    async def trace_count_time_series(
+        self,
+        info: Info[Context, None],
+        time_range: TimeRange,
+        time_bin_config: Optional[TimeBinConfig] = UNSET,
+    ) -> TraceCountTimeSeries:
+        if time_range.start is None:
+            raise BadRequest("Start time is required")
+
+        dialect = info.context.db.dialect
+        utc_offset_minutes = 0
+        field: Literal["minute", "hour", "day", "week", "month", "year"] = "hour"
+        if time_bin_config:
+            utc_offset_minutes = time_bin_config.utc_offset_minutes
+            if time_bin_config.scale is TimeBinScale.MINUTE:
+                field = "minute"
+            elif time_bin_config.scale is TimeBinScale.HOUR:
+                field = "hour"
+            elif time_bin_config.scale is TimeBinScale.DAY:
+                field = "day"
+            elif time_bin_config.scale is TimeBinScale.WEEK:
+                field = "week"
+            elif time_bin_config.scale is TimeBinScale.MONTH:
+                field = "month"
+            elif time_bin_config.scale is TimeBinScale.YEAR:
+                field = "year"
+        bucket = date_trunc(dialect, field, models.Trace.start_time, utc_offset_minutes)
+        stmt = (
+            select(bucket, func.count(models.Trace.id))
+            .where(models.Trace.project_rowid == self.project_rowid)
+            .group_by(bucket)
+            .order_by(bucket)
+        )
+        if time_range:
+            if time_range.start:
+                stmt = stmt.where(time_range.start <= models.Trace.start_time)
+            if time_range.end:
+                stmt = stmt.where(models.Trace.start_time < time_range.end)
+        data = {}
+        async with info.context.db() as session:
+            async for t, v in await session.stream(stmt):
+                timestamp = _as_datetime(t)
+                data[timestamp] = TimeSeriesDataPoint(timestamp=timestamp, value=v)
+
+        data_timestamps: list[datetime] = [data_point.timestamp for data_point in data.values()]
+        min_time = min([*data_timestamps, time_range.start])
+        max_time = max(
+            [
+                *data_timestamps,
+                *([time_range.end] if time_range.end else []),
+            ],
+            default=datetime.now(timezone.utc),
+        )
+        for timestamp in get_timestamp_range(
+            start_time=min_time,
+            end_time=max_time,
+            stride=field,
+            utc_offset_minutes=utc_offset_minutes,
+        ):
+            if timestamp not in data:
+                data[timestamp] = TimeSeriesDataPoint(timestamp=timestamp)
+        return TraceCountTimeSeries(data=sorted(data.values(), key=lambda x: x.timestamp))
 
 
 @strawberry.type
 class SpanCountTimeSeries(TimeSeries):
     """A time series of span count"""
+
+
+@strawberry.type
+class TraceCountTimeSeries(TimeSeries):
+    """A time series of trace count"""
 
 
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")
@@ -757,5 +860,203 @@ def _as_datetime(value: Any) -> datetime:
     if isinstance(value, datetime):
         return value
     if isinstance(value, str):
-        return datetime.fromisoformat(value)
+        return cast(datetime, normalize_datetime(datetime.fromisoformat(value), timezone.utc))
     raise ValueError(f"Cannot convert {value} to datetime")
+
+
+async def _paginate_span_by_trace_start_time(
+    db: DbSessionFactory,
+    project_rowid: int,
+    time_range: Optional[TimeRange] = None,
+    first: Optional[int] = DEFAULT_PAGE_SIZE,
+    after: Optional[CursorString] = None,
+    sort: SpanSort = SpanSort(col=SpanColumn.startTime, dir=SortDir.desc),
+    orphan_span_as_root_span: Optional[bool] = True,
+    retries: int = 3,
+) -> Connection[Span]:
+    """Return one representative root span per trace, ordered by trace start time.
+
+    **Note**: Despite the function name, cursors are based on trace rowids, not span rowids.
+    This is because we paginate by traces (one span per trace), not individual spans.
+
+    **Important**: The edges list can be empty while has_next_page=True. This happens
+    when traces exist but have no matching root spans. Pagination continues because there
+    may be more traces ahead with spans.
+
+    Args:
+        db: Database session factory.
+        project_rowid: Project ID to query spans from.
+        time_range: Optional time range filter on trace start times.
+        first: Maximum number of edges to return (default: DEFAULT_PAGE_SIZE).
+        after: Cursor for pagination (points to trace position, not span).
+        sort: Sort by trace start time (asc/desc only).
+        orphan_span_as_root_span: Whether to include orphan spans as root spans.
+            True: spans with parent_id=NULL OR pointing to non-existent spans.
+            False: only spans with parent_id=NULL.
+        retries: Maximum number of retry attempts when insufficient edges are found.
+            When traces exist but lack root spans, the function retries pagination
+            to find traces with spans. Set to 0 to disable retries.
+
+    Returns:
+        Connection[Span] with:
+        - edges: At most one Edge per trace (may be empty list).
+        - page_info: Pagination info based on trace positions.
+
+    Key Points:
+        - Traces without root spans produce NO edges
+        - Spans ordered by trace start time, not span start time
+        - Cursors track trace positions for efficient large-scale pagination
+    """
+    # Build base trace query ordered by start time
+    traces = select(
+        models.Trace.id,
+        models.Trace.start_time,
+    ).where(models.Trace.project_rowid == project_rowid)
+    if sort.dir is SortDir.desc:
+        traces = traces.order_by(
+            models.Trace.start_time.desc(),
+            models.Trace.id.desc(),
+        )
+    else:
+        traces = traces.order_by(
+            models.Trace.start_time.asc(),
+            models.Trace.id.asc(),
+        )
+
+    # Apply time range filters
+    if time_range:
+        if time_range.start:
+            traces = traces.where(time_range.start <= models.Trace.start_time)
+        if time_range.end:
+            traces = traces.where(models.Trace.start_time < time_range.end)
+
+    # Apply cursor pagination
+    if after:
+        cursor = Cursor.from_string(after)
+        assert cursor.sort_column
+        compare = operator.lt if sort.dir is SortDir.desc else operator.gt
+        traces = traces.where(
+            compare(
+                tuple_(models.Trace.start_time, models.Trace.id),
+                (cursor.sort_column.value, cursor.rowid),
+            )
+        )
+
+    # Limit for pagination
+    if first:
+        traces = traces.limit(
+            first + 1  # over-fetch by one to determine whether there's a next page
+        )
+    traces_cte = traces.cte()
+
+    # Define join condition for root spans
+    if orphan_span_as_root_span:
+        # Include both NULL parent_id and orphaned spans
+        parent_spans = select(models.Span.span_id).alias("parent_spans")
+        onclause = and_(
+            models.Span.trace_rowid == traces_cte.c.id,
+            or_(
+                models.Span.parent_id.is_(None),
+                ~exists().where(models.Span.parent_id == parent_spans.c.span_id),
+            ),
+        )
+    else:
+        # Only spans with no parent (parent_id is NULL, excludes orphaned spans)
+        onclause = and_(
+            models.Span.trace_rowid == traces_cte.c.id,
+            models.Span.parent_id.is_(None),
+        )
+
+    # Join traces with root spans (left join allows traces without spans)
+    stmt = select(
+        traces_cte.c.id,
+        traces_cte.c.start_time,
+        models.Span.id,
+    ).join_from(
+        traces_cte,
+        models.Span,
+        onclause=onclause,
+        isouter=True,
+    )
+
+    # Order by trace time, then pick earliest span per trace
+    if sort.dir is SortDir.desc:
+        stmt = stmt.order_by(
+            traces_cte.c.start_time.desc(),
+            traces_cte.c.id.desc(),
+            models.Span.start_time.asc(),  # earliest span
+            models.Span.id.desc(),
+        )
+    else:
+        stmt = stmt.order_by(
+            traces_cte.c.start_time.asc(),
+            traces_cte.c.id.asc(),
+            models.Span.start_time.asc(),  # earliest span
+            models.Span.id.desc(),
+        )
+
+    # Use DISTINCT for PostgreSQL, manual grouping for SQLite
+    if db.dialect is SupportedSQLDialect.POSTGRESQL:
+        stmt = stmt.distinct(traces_cte.c.start_time, traces_cte.c.id)
+    elif db.dialect is SupportedSQLDialect.SQLITE:
+        # too complicated for SQLite, so we rely on groupby() below
+        pass
+    else:
+        assert_never(db.dialect)
+
+    # Process results and build edges
+    edges: list[Edge[Span]] = []
+    start_cursor: Optional[str] = None
+    end_cursor: Optional[str] = None
+    async with db() as session:
+        records = groupby(await session.stream(stmt), key=lambda record: record[:2])
+        async for (trace_rowid, trace_start_time), group in islice(records, first):
+            cursor = Cursor(
+                rowid=trace_rowid,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.DATETIME,
+                    value=trace_start_time,
+                ),
+            )
+            if start_cursor is None:
+                start_cursor = str(cursor)
+            end_cursor = str(cursor)
+            first_record = group[0]
+            # Only create edge if trace has a root span
+            if (span_rowid := first_record[2]) is not None:
+                edges.append(Edge(node=Span(span_rowid=span_rowid), cursor=str(cursor)))
+        has_next_page = True
+        try:
+            await records.__anext__()
+        except StopAsyncIteration:
+            has_next_page = False
+
+    # Retry if we need more edges and more traces exist
+    if first and len(edges) < first and has_next_page:
+        while retries and (num_needed := first - len(edges)) and has_next_page:
+            retries -= 1
+            batch_size = max(first, 1000)
+            more = await _paginate_span_by_trace_start_time(
+                db=db,
+                project_rowid=project_rowid,
+                time_range=time_range,
+                first=batch_size,
+                after=end_cursor,
+                sort=sort,
+                orphan_span_as_root_span=orphan_span_as_root_span,
+                retries=0,
+            )
+            edges.extend(more.edges[:num_needed])
+            start_cursor = start_cursor or more.page_info.start_cursor
+            end_cursor = more.page_info.end_cursor if len(edges) < first else edges[-1].cursor
+            has_next_page = len(more.edges) > num_needed or more.page_info.has_next_page
+
+    return Connection(
+        edges=edges,
+        page_info=PageInfo(
+            start_cursor=start_cursor,
+            end_cursor=end_cursor,
+            has_previous_page=False,
+            has_next_page=has_next_page,
+        ),
+    )

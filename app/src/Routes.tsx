@@ -12,6 +12,8 @@ import { SettingsAnnotationsPage } from "@phoenix/pages/settings/SettingsAnnotat
 import { settingsAnnotationsPageLoader } from "@phoenix/pages/settings/settingsAnnotationsPageLoader";
 import { SettingsDataPage } from "@phoenix/pages/settings/SettingsDataPage";
 import { SettingsGeneralPage } from "@phoenix/pages/settings/SettingsGeneralPage";
+import { settingsModelsLoader } from "@phoenix/pages/settings/settingsModelsLoader";
+import { SettingsModelsPage } from "@phoenix/pages/settings/SettingsModelsPage";
 
 import {
   DashboardPage,
@@ -41,6 +43,9 @@ import { PromptVersionDetailsPage } from "./pages/prompt/PromptVersionDetailsPag
 import { promptVersionLoader } from "./pages/prompt/promptVersionLoader";
 import { promptVersionsLoader } from "./pages/prompt/promptVersionsLoader";
 import { PromptVersionsPage } from "./pages/prompt/PromptVersionsPage";
+import { sessionRedirectLoader } from "./pages/redirects/sessionRedirectLoader";
+import { spanRedirectLoader } from "./pages/redirects/spanRedirectLoader";
+import { traceRedirectLoader } from "./pages/redirects/traceRedirectLoader";
 import { settingsDataPageLoader } from "./pages/settings/settingsDataPageLoader";
 import { sessionLoader } from "./pages/trace/sessionLoader";
 import { SessionPage } from "./pages/trace/SessionPage";
@@ -67,12 +72,13 @@ import {
   homeLoader,
   LoggedOutPage,
   LoginPage,
-  ModelPage,
+  ModelInferencesPage,
   ModelRoot,
   PlaygroundPage,
   ProfilePage,
   ProjectIndexPage,
   projectLoader,
+  ProjectMetricsPage,
   ProjectPage,
   ProjectSessionsPage,
   ProjectsPage,
@@ -93,6 +99,7 @@ import {
   SupportPage,
   TracePage,
 } from "./pages";
+
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path="/" errorElement={<ErrorElement />}>
@@ -129,8 +136,8 @@ const router = createBrowserRouter(
             handle={{ crumb: () => "model" }}
             element={<ModelRoot />}
           >
-            <Route index element={<ModelPage />} />
-            <Route element={<ModelPage />}>
+            <Route index element={<ModelInferencesPage />} />
+            <Route element={<ModelInferencesPage />}>
               <Route path="dimensions">
                 <Route
                   path=":dimensionId"
@@ -185,6 +192,7 @@ const router = createBrowserRouter(
                   />
                 </Route>
                 <Route path="config" element={<ProjectConfigPage />} />
+                <Route path="metrics" element={<ProjectMetricsPage />} />
               </Route>
             </Route>
           </Route>
@@ -246,11 +254,9 @@ const router = createBrowserRouter(
               </Route>
               <Route
                 path="compare"
-                handle={{
-                  crumb: () => "compare",
-                }}
-                loader={experimentCompareLoader}
                 element={<ExperimentComparePage />}
+                loader={experimentCompareLoader}
+                handle={{ crumb: () => "compare" }}
               />
             </Route>
           </Route>
@@ -364,6 +370,14 @@ const router = createBrowserRouter(
               }}
             />
             <Route
+              path="models"
+              loader={settingsModelsLoader}
+              element={<SettingsModelsPage />}
+              handle={{
+                crumb: () => "models",
+              }}
+            />
+            <Route
               path="annotations"
               loader={settingsAnnotationsPageLoader}
               element={<SettingsAnnotationsPage />}
@@ -371,6 +385,7 @@ const router = createBrowserRouter(
                 crumb: () => "annotations",
               }}
             />
+
             <Route
               path="data"
               element={<SettingsDataPage />}
@@ -380,6 +395,21 @@ const router = createBrowserRouter(
               loader={settingsDataPageLoader}
             />
           </Route>
+          <Route
+            path="/redirects/spans/:span_otel_id"
+            loader={spanRedirectLoader}
+            errorElement={<ErrorElement />}
+          />
+          <Route
+            path="/redirects/traces/:trace_otel_id"
+            loader={traceRedirectLoader}
+            errorElement={<ErrorElement />}
+          />
+          <Route
+            path="/redirects/sessions/:session_otel_id"
+            loader={sessionRedirectLoader}
+            errorElement={<ErrorElement />}
+          />
         </Route>
       </Route>
     </Route>

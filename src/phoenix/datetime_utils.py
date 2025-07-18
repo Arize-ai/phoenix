@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone, tzinfo
-from typing import Any, Optional, cast
+from typing import Any, Iterator, Literal, Optional, cast
 
 import pandas as pd
 import pytz
@@ -10,6 +10,7 @@ from pandas.core.dtypes.common import (
     is_numeric_dtype,
     is_object_dtype,
 )
+from typing_extensions import assert_never
 
 _LOCAL_TIMEZONE = datetime.now(timezone.utc).astimezone().tzinfo
 
@@ -28,7 +29,7 @@ def normalize_datetime(
     """
     if not isinstance(dt, datetime):
         return None
-    if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+    if not is_timezone_aware(dt):
         dt = dt.replace(tzinfo=tz if tz else _LOCAL_TIMEZONE)
     return dt.astimezone(timezone.utc)
 
@@ -106,3 +107,120 @@ def right_open_time_range(
         floor_to_minute(min_time) if min_time else None,
         floor_to_minute(max_time + timedelta(minutes=1)) if max_time else None,
     )
+
+
+def is_timezone_aware(dt: datetime) -> bool:
+    """
+    Returns True if the datetime is timezone-aware, False otherwise.
+    """
+    return dt.tzinfo is not None and dt.tzinfo.utcoffset(dt) is not None
+
+
+def get_timestamp_range(
+    start_time: datetime,
+    end_time: datetime,
+    stride: Literal["minute", "hour", "day", "week", "month", "year"] = "minute",
+    utc_offset_minutes: int = 0,
+) -> Iterator[datetime]:
+    """
+    Generate a sequence of datetime objects at regular intervals between start and end times.
+
+    This function creates time intervals by rounding down the start time to the nearest
+    stride boundary in the specified timezone, then yielding timestamps at regular
+    intervals until reaching the end time. All returned timestamps are in UTC.
+
+    Args:
+        start_time: The starting datetime (inclusive after rounding down to stride boundary).
+                   Must be timezone-aware.
+        end_time: The ending datetime (exclusive). Must be timezone-aware.
+        stride: The interval between generated timestamps. Options:
+               - "minute": Generate timestamps every minute
+               - "hour": Generate timestamps every hour
+               - "day": Generate timestamps every day at midnight
+               - "week": Generate timestamps every week at Monday midnight
+               - "month": Generate timestamps on the 1st of each month at midnight
+               - "year": Generate timestamps on January 1st of each year at midnight
+        utc_offset_minutes: Timezone offset in minutes from UTC. Used to determine
+                           the correct stride boundaries in local time. Positive values
+                           are east of UTC, negative values are west of UTC.
+
+    Returns:
+        Iterator of datetime objects in UTC timezone, spaced at the specified stride
+        interval. The first timestamp is rounded down to the nearest stride boundary
+        in the local timezone (considering utc_offset_minutes).
+
+    Examples:
+        >>> from datetime import datetime, timezone
+        >>> start = datetime(2024, 1, 1, 12, 30, 45, tzinfo=timezone.utc)
+        >>> end = datetime(2024, 1, 1, 12, 33, 0, tzinfo=timezone.utc)
+        >>> list(get_timestamp_range(start, end, "minute"))
+        [datetime(2024, 1, 1, 12, 30, tzinfo=timezone.utc),
+         datetime(2024, 1, 1, 12, 31, tzinfo=timezone.utc),
+         datetime(2024, 1, 1, 12, 32, tzinfo=timezone.utc)]
+
+        >>> # Week stride rounds down to Monday
+        >>> start = datetime(2024, 1, 10, 12, 0, tzinfo=timezone.utc)  # Wednesday
+        >>> end = datetime(2024, 1, 22, 0, 0, tzinfo=timezone.utc)
+        >>> list(get_timestamp_range(start, end, "week"))
+        [datetime(2024, 1, 8, 0, 0, tzinfo=timezone.utc),   # Monday
+         datetime(2024, 1, 15, 0, 0, tzinfo=timezone.utc)]  # Next Monday
+
+    Note:
+        - If end_time <= start_time (after rounding), returns an empty iterator
+        - Week intervals always start on Monday (weekday 0)
+        - Month intervals handle variable month lengths correctly including leap years
+        - The function works in local timezone for stride calculations but returns UTC
+    """
+    if not is_timezone_aware(start_time) or not is_timezone_aware(end_time):
+        raise ValueError("start_time and end_time must be timezone-aware")
+
+    # Apply UTC offset to work in local timezone
+    offset_delta = timedelta(minutes=utc_offset_minutes)
+    local_start_time = start_time + offset_delta
+
+    # round down start_time to the nearest stride in local timezone
+    if stride == "minute":
+        t = local_start_time.replace(second=0, microsecond=0)
+    elif stride == "hour":
+        t = local_start_time.replace(minute=0, second=0, microsecond=0)
+    elif stride == "day":
+        t = local_start_time.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif stride == "week":
+        # Round down to the beginning of the week (Monday)
+        days_since_monday = local_start_time.weekday()
+        t = local_start_time.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(
+            days=days_since_monday
+        )
+    elif stride == "month":
+        t = local_start_time.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    elif stride == "year":
+        t = local_start_time.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    else:
+        assert_never(stride)
+
+    # Convert back to UTC for comparisons and yielding
+    local_end_time = end_time + offset_delta
+
+    while t < local_end_time:
+        # Yield timestamp converted back to UTC
+        yield t - offset_delta
+        if stride == "minute":
+            t += timedelta(minutes=1)
+        elif stride == "hour":
+            t += timedelta(hours=1)
+        elif stride == "day":
+            t += timedelta(days=1)
+        elif stride == "week":
+            t += timedelta(weeks=1)
+        elif stride == "month":
+            next_month = t.month % 12 + 1
+            next_year = t.year + (t.month // 12)
+            t = t.replace(
+                year=next_year, month=next_month, day=1, hour=0, minute=0, second=0, microsecond=0
+            )
+        elif stride == "year":
+            t = t.replace(
+                year=t.year + 1, month=1, day=1, hour=0, minute=0, second=0, microsecond=0
+            )
+        else:
+            assert_never(stride)

@@ -20,7 +20,7 @@ Agno Traces in Phoenix
 
 ## Launch Phoenix
 
-{% include "https://app.gitbook.com/s/ShR775Rt7OzHRfy5j2Ks/~/reusable/CCCoZ0UCOoHlXBRiLrko/" %}
+{% include "../../../../phoenix-integrations/.gitbook/includes/sign-up-for-phoenix-sign-up....md" %}
 
 ## Install
 

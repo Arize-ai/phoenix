@@ -1,12 +1,12 @@
 import { css } from "@emotion/react";
 
-import { Tooltip, TooltipTrigger } from "@arizeai/components";
-
 import {
   Icon,
   Icons,
   ToggleButton,
   ToggleButtonGroup,
+  Tooltip,
+  TooltipTrigger,
 } from "@phoenix/components";
 import { CanvasMode } from "@phoenix/store";
 
@@ -46,21 +46,25 @@ export function CanvasModeRadioGroup(props: CanvasModeRadioGroupProps) {
         }
       }}
     >
-      <TooltipTrigger placement="top" delay={0} offset={10}>
+      <TooltipTrigger delay={0}>
         <ToggleButton aria-label="Move" id={CanvasMode.move}>
           <div css={radioItemCSS}>
             <Icon svg={<Icons.MoveFilled />} /> Move
           </div>
         </ToggleButton>
-        <Tooltip>Move around the canvas using orbital controls</Tooltip>
+        <Tooltip placement="top" offset={10}>
+          Move around the canvas using orbital controls
+        </Tooltip>
       </TooltipTrigger>
-      <TooltipTrigger placement="top" delay={0} offset={10}>
+      <TooltipTrigger delay={0}>
         <ToggleButton aria-label="Select" id={CanvasMode.select}>
           <div css={radioItemCSS}>
             <Icon svg={<Icons.LassoOutline />} /> Select
           </div>
         </ToggleButton>
-        <Tooltip>Select points using the lasso tool</Tooltip>
+        <Tooltip placement="top" offset={10}>
+          Select points using the lasso tool
+        </Tooltip>
       </TooltipTrigger>
     </ToggleButtonGroup>
   );

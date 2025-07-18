@@ -9,8 +9,11 @@ from strawberry.relay import Connection, GlobalID, Node, NodeID
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.MimeType import MimeType
 from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
+from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
+from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.SpanIOValue import SpanIOValue
 from phoenix.server.api.types.TokenUsage import TokenUsage
 
@@ -105,7 +108,6 @@ class ProjectSession(Node):
             select(models.Trace)
             .filter_by(project_session_rowid=self.id_attr)
             .order_by(models.Trace.start_time)
-            .limit(first)
         )
         async with info.context.db() as session:
             traces = await session.stream_scalars(stmt)
@@ -121,6 +123,47 @@ class ProjectSession(Node):
         return await info.context.data_loaders.session_trace_latency_ms_quantile.load(
             (self.id_attr, probability)
         )
+
+    @strawberry.field
+    async def cost_summary(
+        self,
+        info: Info[Context, None],
+    ) -> SpanCostSummary:
+        loader = info.context.data_loaders.span_cost_summary_by_project_session
+        summary = await loader.load(self.id_attr)
+        return SpanCostSummary(
+            prompt=CostBreakdown(
+                tokens=summary.prompt.tokens,
+                cost=summary.prompt.cost,
+            ),
+            completion=CostBreakdown(
+                tokens=summary.completion.tokens,
+                cost=summary.completion.cost,
+            ),
+            total=CostBreakdown(
+                tokens=summary.total.tokens,
+                cost=summary.total.cost,
+            ),
+        )
+
+    @strawberry.field
+    async def cost_detail_summary_entries(
+        self,
+        info: Info[Context, None],
+    ) -> list[SpanCostDetailSummaryEntry]:
+        loader = info.context.data_loaders.span_cost_detail_summary_entries_by_project_session
+        summary = await loader.load(self.id_attr)
+        return [
+            SpanCostDetailSummaryEntry(
+                token_type=entry.token_type,
+                is_prompt=entry.is_prompt,
+                value=CostBreakdown(
+                    tokens=entry.value.tokens,
+                    cost=entry.value.cost,
+                ),
+            )
+            for entry in summary
+        ]
 
 
 def to_gql_project_session(project_session: models.ProjectSession) -> ProjectSession:

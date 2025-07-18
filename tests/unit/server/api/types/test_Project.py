@@ -1,23 +1,30 @@
 # ruff: noqa: E501
 import base64
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from secrets import token_hex
-from typing import Any, Dict, List, Optional
+from typing import Any, Literal
 
 import httpx
+import pandas as pd
 import pytest
+from faker import Faker
 from sqlalchemy import insert
 from strawberry.relay import GlobalID
+from typing_extensions import assert_never
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
+from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBinScale
+from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.pagination import Cursor, CursorSortColumn, CursorSortColumnDataType
 from phoenix.server.api.types.Project import Project
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
 from ...._helpers import _add_project, _add_project_session, _add_span, _add_trace, _gid, _node
+
+fake = Faker()
 
 PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
 
@@ -1587,160 +1594,63 @@ class TestProject:
             cursor = res["edges"][0]["cursor"]
 
     @pytest.fixture
-    async def _span_count_time_series_data(
+    async def _time_series_data(
         self,
         db: DbSessionFactory,
     ) -> _Data:
-        """Creates a minimal dataset for testing span_count_time_series.
+        """Creates a dataset for testing span_count_time_series using random timestamps.
 
-        Creates spans across different hours to test:
-        1. Basic time series grouping
-        2. Time range filtering
-        3. Edge cases with spans at hour boundaries
-        4. Discontinuities in timestamps
+        Creates spans with random timestamps distributed across different time periods
+        to test time series grouping and filtering functionality. The spans are created
+        within the last day to ensure they fall within reasonable time buckets.
+
+        Returns:
+            _Data object containing:
+            - projects: List of test projects
+            - traces: List of test traces
+            - spans: List of test spans with random timestamps
         """
-        projects, traces = [], []
-        spans: List[models.Span] = []
+        projects: list[models.Project] = []
+        traces: list[models.Trace] = []
+        spans: list[models.Span] = []
+
         async with db() as session:
             # Create a test project
             projects.append(models.Project(name=token_hex(8)))
             session.add(projects[-1])
             await session.flush()
 
-            # Create spans across different hours
-            base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+            # Create multiple traces with spans at different times
+            for _ in range(10):
+                # Generate random trace start time within the test time range (2024-01-01)
+                trace_start = fake.date_time_between(
+                    start_date=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end_date=datetime.fromisoformat("2024-01-01T23:59:59+00:00"),
+                    tzinfo=timezone.utc,
+                )
+                trace_start = trace_start.replace(microsecond=0)
+                trace_end = trace_start + timedelta(seconds=30)
 
-            # Create spans in first hour (2 spans)
-            trace = models.Trace(
-                trace_id=token_hex(16),
-                project_rowid=projects[-1].id,
-                start_time=base_time,
-                end_time=base_time + timedelta(minutes=30),
-            )
-            session.add(trace)
-            await session.flush()
+                # Create trace
+                trace = models.Trace(
+                    trace_id=token_hex(16),
+                    project_rowid=projects[-1].id,
+                    start_time=trace_start,
+                    end_time=trace_end,
+                )
+                session.add(trace)
+                await session.flush()
+                traces.append(trace)
 
-            spans.extend(
-                [
-                    models.Span(
-                        trace_rowid=trace.id,
-                        span_id=token_hex(8),
-                        parent_id=None,
-                        name="span1",
-                        span_kind="CHAIN",
-                        start_time=base_time + timedelta(minutes=15),
-                        end_time=base_time + timedelta(minutes=30),
-                        attributes={},
-                        events=[],
-                        status_code="OK",
-                        status_message="",
-                        cumulative_error_count=0,
-                        cumulative_llm_token_count_prompt=0,
-                        cumulative_llm_token_count_completion=0,
-                    ),
-                    models.Span(
-                        trace_rowid=trace.id,
-                        span_id=token_hex(8),
-                        parent_id=None,
-                        name="span2",
-                        span_kind="CHAIN",
-                        start_time=base_time + timedelta(minutes=45),
-                        end_time=base_time + timedelta(minutes=60),
-                        attributes={},
-                        events=[],
-                        status_code="OK",
-                        status_message="",
-                        cumulative_error_count=0,
-                        cumulative_llm_token_count_prompt=0,
-                        cumulative_llm_token_count_completion=0,
-                    ),
-                ]
-            )
-            traces.append(trace)
-
-            # Create spans in second hour (3 spans)
-            trace = models.Trace(
-                trace_id=token_hex(16),
-                project_rowid=projects[-1].id,
-                start_time=base_time + timedelta(hours=1),
-                end_time=base_time + timedelta(hours=1, minutes=30),
-            )
-            session.add(trace)
-            await session.flush()
-
-            spans.extend(
-                [
-                    models.Span(
-                        trace_rowid=trace.id,
-                        span_id=token_hex(8),
-                        parent_id=None,
-                        name="span3",
-                        span_kind="CHAIN",
-                        start_time=base_time + timedelta(hours=1, minutes=15),
-                        end_time=base_time + timedelta(hours=1, minutes=30),
-                        attributes={},
-                        events=[],
-                        status_code="OK",
-                        status_message="",
-                        cumulative_error_count=0,
-                        cumulative_llm_token_count_prompt=0,
-                        cumulative_llm_token_count_completion=0,
-                    ),
-                    models.Span(
-                        trace_rowid=trace.id,
-                        span_id=token_hex(8),
-                        parent_id=None,
-                        name="span4",
-                        span_kind="CHAIN",
-                        start_time=base_time + timedelta(hours=1, minutes=30),
-                        end_time=base_time + timedelta(hours=1, minutes=45),
-                        attributes={},
-                        events=[],
-                        status_code="OK",
-                        status_message="",
-                        cumulative_error_count=0,
-                        cumulative_llm_token_count_prompt=0,
-                        cumulative_llm_token_count_completion=0,
-                    ),
-                    models.Span(
-                        trace_rowid=trace.id,
-                        span_id=token_hex(8),
-                        parent_id=None,
-                        name="span5",
-                        span_kind="CHAIN",
-                        start_time=base_time + timedelta(hours=1, minutes=45),
-                        end_time=base_time + timedelta(hours=2),
-                        attributes={},
-                        events=[],
-                        status_code="OK",
-                        status_message="",
-                        cumulative_error_count=0,
-                        cumulative_llm_token_count_prompt=0,
-                        cumulative_llm_token_count_completion=0,
-                    ),
-                ]
-            )
-            traces.append(trace)
-
-            # Create a span exactly at hour boundary (2:00:00)
-            trace = models.Trace(
-                trace_id=token_hex(16),
-                project_rowid=projects[-1].id,
-                start_time=base_time + timedelta(hours=2),
-                end_time=base_time + timedelta(hours=2, minutes=30),
-            )
-            session.add(trace)
-            await session.flush()
-
-            spans.append(
-                models.Span(
+                # Create span for this trace
+                span = models.Span(
                     trace_rowid=trace.id,
                     span_id=token_hex(8),
                     parent_id=None,
-                    name="span6",
-                    span_kind="CHAIN",
-                    start_time=base_time + timedelta(hours=2),  # Exactly at 2:00:00
-                    end_time=base_time + timedelta(hours=2, minutes=30),
+                    name=token_hex(8),
+                    span_kind="LLM",
+                    start_time=trace_start,
+                    end_time=trace_end,
                     attributes={},
                     events=[],
                     status_code="OK",
@@ -1749,41 +1659,8 @@ class TestProject:
                     cumulative_llm_token_count_prompt=0,
                     cumulative_llm_token_count_completion=0,
                 )
-            )
-            traces.append(trace)
-
-            # Create a span in hour 4 (skipping hour 3 to create a discontinuity)
-            trace = models.Trace(
-                trace_id=token_hex(16),
-                project_rowid=projects[-1].id,
-                start_time=base_time + timedelta(hours=4),
-                end_time=base_time + timedelta(hours=4, minutes=30),
-            )
-            session.add(trace)
-            await session.flush()
-
-            spans.append(
-                models.Span(
-                    trace_rowid=trace.id,
-                    span_id=token_hex(8),
-                    parent_id=None,
-                    name="span7",
-                    span_kind="CHAIN",
-                    start_time=base_time + timedelta(hours=4, minutes=15),
-                    end_time=base_time + timedelta(hours=4, minutes=30),
-                    attributes={},
-                    events=[],
-                    status_code="OK",
-                    status_message="",
-                    cumulative_error_count=0,
-                    cumulative_llm_token_count_prompt=0,
-                    cumulative_llm_token_count_completion=0,
-                )
-            )
-            traces.append(trace)
-
+                spans.append(span)
             session.add_all(spans)
-            await session.flush()
 
         return _Data(
             spans=spans,
@@ -1791,141 +1668,434 @@ class TestProject:
             projects=projects,
         )
 
-    @pytest.mark.parametrize(
-        "time_range,expected_counts,description",
-        [
-            pytest.param(
-                None,
-                {
-                    datetime.fromisoformat("2024-01-01T00:00:00+00:00"): 2,
-                    datetime.fromisoformat("2024-01-01T01:00:00+00:00"): 3,
-                    datetime.fromisoformat("2024-01-01T02:00:00+00:00"): 1,
-                    datetime.fromisoformat("2024-01-01T04:00:00+00:00"): 1,
-                },
-                "no time range",
-                id="no_time_range",
-            ),
-            pytest.param(
-                {
-                    "start": datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
-                    "end": datetime.fromisoformat("2024-01-01T02:00:00+00:00"),
-                },
-                {
-                    datetime.fromisoformat("2024-01-01T01:00:00+00:00"): 3,
-                },
-                "middle hour only",
-                id="middle_hour_only",
-            ),
-            pytest.param(
-                {
-                    "start": datetime.fromisoformat("2024-01-01T01:45:00+00:00"),
-                    "end": datetime.fromisoformat("2024-01-01T02:15:00+00:00"),
-                },
-                {
-                    datetime.fromisoformat("2024-01-01T01:00:00+00:00"): 3,  # All spans in hour 1
-                    datetime.fromisoformat("2024-01-01T02:00:00+00:00"): 1,  # Span at 2:00:00
-                },
-                "span at hour boundary",
-                id="span_at_hour_boundary",
-            ),
-            pytest.param(
-                {
-                    "start": datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
-                    "end": datetime.fromisoformat("2024-01-01T01:30:00+00:00"),
-                },
-                {
-                    datetime.fromisoformat("2024-01-01T01:00:00+00:00"): 3,  # All spans in hour 1
-                },
-                "start at hour boundary",
-                id="start_at_hour_boundary",
-            ),
-            pytest.param(
-                {
-                    "start": datetime.fromisoformat("2024-01-01T01:30:00+00:00"),
-                    "end": datetime.fromisoformat("2024-01-01T02:00:00+00:00"),
-                },
-                {
-                    datetime.fromisoformat("2024-01-01T01:00:00+00:00"): 3,  # All spans in hour 1
-                },
-                "end at hour boundary",
-                id="end_at_hour_boundary",
-            ),
-            pytest.param(
-                {
-                    "start": datetime.fromisoformat("2024-01-01T03:00:00+00:00"),
-                    "end": datetime.fromisoformat("2024-01-01T04:00:00+00:00"),
-                },
-                {},
-                "no spans in range",
-                id="no_spans_in_range",
-            ),
-            pytest.param(
-                {
-                    "start": datetime.fromisoformat("2024-01-01T02:00:00+00:00"),
-                    "end": datetime.fromisoformat("2024-01-01T05:00:00+00:00"),
-                },
-                {
-                    datetime.fromisoformat("2024-01-01T02:00:00+00:00"): 1,
-                    datetime.fromisoformat("2024-01-01T04:00:00+00:00"): 1,
-                },
-                "time range with discontinuity",
-                id="time_range_with_discontinuity",
-            ),
-        ],
-    )
-    async def test_span_count_time_series(
-        self,
-        _span_count_time_series_data: _Data,
-        httpx_client: httpx.AsyncClient,
-        time_range: Optional[Dict[str, datetime]],
-        expected_counts: Dict[datetime, int],
-        description: str,
-    ) -> None:
-        """Test the span_count_time_series field.
-
-        This test verifies that:
-        1. The field returns the correct time series data grouped by hour
-        2. The time range filtering works correctly
-        3. Edge cases with spans at hour boundaries are handled correctly
-        4. Empty result sets are handled correctly
-        5. Time range edge cases are handled correctly
-
-        Args:
-            time_range: The time range to filter spans by, or None for no filtering
-            expected_counts: The expected counts for each hour in the time range
-            description: A description of the test case
-        """
-        project = _span_count_time_series_data.projects[0]
-
-        # Construct the GraphQL query based on whether a time range is provided
-        if time_range is None:
-            field = "spanCountTimeSeries{data{timestamp value}}"
+    @staticmethod
+    def _count_rows(
+        df: pd.DataFrame,
+        field: Literal["minute", "hour", "day", "week", "month", "year"],
+        utc_offset_minutes: int,
+    ) -> pd.DataFrame:
+        offset_tz = timezone(timedelta(minutes=utc_offset_minutes))
+        t = df.loc[:, "timestamp"].dt.tz_convert(offset_tz)
+        if field == "minute":
+            t = t.dt.floor("T")
+        elif field == "hour":
+            t = t.dt.floor("H")
+        elif field == "day":
+            t = t.dt.floor("D")
+        elif field == "week":
+            t = t.dt.to_period("W").dt.start_time.dt.tz_localize(offset_tz)
+        elif field == "month":
+            t = t.dt.to_period("M").dt.start_time.dt.tz_localize(offset_tz)
+        elif field == "year":
+            t = t.dt.to_period("Y").dt.start_time.dt.tz_localize(offset_tz)
         else:
-            # Format the datetime in a way that Strawberry accepts
-            start_str = time_range["start"].strftime("%Y-%m-%dT%H:%M:%S.000000+00:00")
-            end_str = time_range["end"].strftime("%Y-%m-%dT%H:%M:%S.000000+00:00")
-            field = f'spanCountTimeSeries(timeRange:{{start:"{start_str}",end:"{end_str}"}}){{data{{timestamp value}}}}'
+            assert_never(field)
+        t = t.dt.tz_convert(timezone.utc)
+        return df.groupby(t).size().reset_index(name="count")
 
-        res = await self._node(field, project, httpx_client)
+    async def test_time_series(
+        self,
+        _time_series_data: _Data,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Test the span_count_time_series field using pandas validation.
 
-        # Verify the structure of the response
-        assert "data" in res
-        assert isinstance(res["data"], list)
+        This comprehensive test verifies that the SQL-based time series calculation matches
+        pandas-based calculations using the same logic. It covers:
 
-        if not expected_counts:
-            assert len(res["data"]) == 0, f"Expected empty data for {description}"
-            return
+        **Time Granularities:**
+        - Minute-level aggregation
+        - Hourly aggregation (default)
+        - Daily aggregation
+        - Weekly aggregation
+        - Monthly aggregation
+        - Yearly aggregation
 
-        # Verify the data points
-        for data_point in res["data"]:
-            timestamp = datetime.fromisoformat(data_point["timestamp"])
-            value = data_point["value"]
-            assert (
-                timestamp in expected_counts
-            ), f"Unexpected timestamp: {timestamp} for {description}"
-            assert (
-                value == expected_counts[timestamp]
-            ), f"Expected count {expected_counts[timestamp]} for hour {timestamp}, got {value} for {description}"
+        **UTC Offset Scenarios:**
+        - No offset (UTC+0)
+        - Positive offsets (UTC+1, UTC+5.5, UTC+8, UTC+9, UTC+13, UTC+14)
+        - Negative offsets (UTC-5, UTC-8, UTC-12)
+        - Fractional hour offsets (UTC+1.5)
+
+        **Time Range Edge Cases:**
+        - Empty result sets (no data in range)
+        - Very narrow time ranges (1 second, 1 minute)
+        - Limited data points
+        - Boundary conditions (start == end)
+        - Partial range specifications (start-only, end-only)
+        - No time range specified (all data)
+
+        **Boundary Conditions:**
+        - Cross-day boundaries with offsets
+        - Month boundaries (including leap year)
+        - Year-end boundaries
+        - Leap year date boundaries
+
+        **Real-world Timezone Examples:**
+        - PST (UTC-8)
+        - EST (UTC-5)
+        - IST (UTC+5.5)
+        - JST (UTC+9)
+        - Line Islands (UTC+14)
+        - Baker Island (UTC-12)
+
+        Each test case validates both span and trace count time series.
+        """
+        project = _time_series_data.projects[0]
+
+        test_cases = [
+            # === BASIC HOURLY TESTS ===
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
+                ),
+                None,
+                "default_hourly_no_offset",
+            ),
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T03:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
+                "hourly_no_offset",
+            ),
+            # === MINUTE GRANULARITY TESTS ===
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T01:30:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=0),
+                "minute_no_offset",
+            ),
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T02:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=60),
+                "minute_with_positive_offset",
+            ),
+            # === DAILY GRANULARITY TESTS ===
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.DAY, utc_offset_minutes=0),
+                "daily_no_offset",
+            ),
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.DAY, utc_offset_minutes=-480),  # PST offset
+                "daily_with_negative_offset",
+            ),
+            # === WEEKLY GRANULARITY TESTS ===
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-08T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.WEEK, utc_offset_minutes=0),
+                "weekly_no_offset",
+            ),
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-08T00:00:00+00:00"),
+                ),
+                TimeBinConfig(
+                    scale=TimeBinScale.WEEK, utc_offset_minutes=330
+                ),  # India Standard Time
+                "weekly_with_positive_offset",
+            ),
+            # === MONTHLY GRANULARITY TESTS ===
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-02-01T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.MONTH, utc_offset_minutes=0),
+                "monthly_no_offset",
+            ),
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-03-01T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.MONTH, utc_offset_minutes=-300),  # EST offset
+                "monthly_with_negative_offset",
+            ),
+            # === YEARLY GRANULARITY TESTS ===
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2025-01-01T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.YEAR, utc_offset_minutes=0),
+                "yearly_no_offset",
+            ),
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2023-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2025-01-01T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.YEAR, utc_offset_minutes=540),  # JST offset
+                "yearly_with_positive_offset",
+            ),
+            # === EDGE CASES ===
+            # Empty result set (time range with no data)
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2023-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2023-01-01T01:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
+                "empty_result_set",
+            ),
+            # Very narrow time range
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T12:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T12:00:01+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=0),
+                "narrow_time_range",
+            ),
+            # Limited data points
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T00:30:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=0),
+                "limited_data_points",
+            ),
+            # Boundary condition: Start equals end
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T12:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T12:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
+                "zero_duration_range",
+            ),
+            # === PARTIAL TIME RANGE TESTS ===
+            # Only start time specified
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T12:00:00+00:00"),
+                    end=None,
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
+                "only_start_time",
+            ),
+            # === LARGE UTC OFFSET TESTS ===
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=780),  # +13 hours
+                "large_positive_offset",
+            ),
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=-720),  # -12 hours
+                "large_negative_offset",
+            ),
+            # === BOUNDARY CONDITION TESTS ===
+            # Cross-day boundary with offset
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T22:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T02:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=480),  # +8 hours
+                "cross_day_boundary",
+            ),
+            # Test with fractional hour offset
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T06:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=90),  # +1.5 hours
+                "fractional_hour_offset",
+            ),
+            # Test with leap year boundaries
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-02-28T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-03-01T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.DAY, utc_offset_minutes=0),
+                "leap_year_boundary",
+            ),
+            # Test with month boundary at different scales
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-31T22:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-02-01T02:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
+                "month_boundary_hourly",
+            ),
+            # Test with daylight saving time-like offset changes
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T06:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=-480),  # PST
+                "dst_like_offset",
+            ),
+            # Test with extreme small time range at minute level
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T12:30:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T12:31:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=0),
+                "single_minute_range",
+            ),
+            # Test with year-end boundary
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-12-31T22:00:00+00:00"),
+                    end=datetime.fromisoformat("2025-01-01T02:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
+                "year_end_boundary",
+            ),
+            # Test with maximum reasonable offset (UTC+14)
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
+                ),
+                TimeBinConfig(
+                    scale=TimeBinScale.HOUR, utc_offset_minutes=840
+                ),  # +14 hours (Line Islands)
+                "maximum_positive_offset",
+            ),
+            # Test with minimum reasonable offset (UTC-12)
+            (
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
+                ),
+                TimeBinConfig(
+                    scale=TimeBinScale.HOUR, utc_offset_minutes=-720
+                ),  # -12 hours (Baker Island)
+                "minimum_negative_offset",
+            ),
+        ]
+
+        for time_range, time_bin_config, test_desc in test_cases:
+            # Calculate expected results using pandas (same logic as SQL)
+            records = _time_series_data.spans
+            data_df = pd.DataFrame([{"timestamp": s.start_time} for s in records]).sort_values(
+                "timestamp"
+            )
+
+            # Apply time range filtering if specified
+            if time_range and time_range.start:
+                data_df = data_df[data_df["timestamp"] >= time_range.start]
+            if time_range and time_range.end:
+                data_df = data_df[data_df["timestamp"] < time_range.end]
+
+            if data_df.empty:
+                expected_summary = pd.DataFrame(columns=["timestamp", "count"])
+            else:
+                expected_summary = self._count_rows(
+                    data_df,
+                    field=time_bin_config.scale.value if time_bin_config else "hour",
+                    utc_offset_minutes=time_bin_config.utc_offset_minutes if time_bin_config else 0,
+                )
+
+            # Execute GraphQL query
+            project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+            variables: dict[str, Any] = {"id": project_gid}
+
+            query = """
+                query($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {{
+                    node(id: $id) {{
+                        ... on Project {{
+                            {obj}CountTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {{
+                                data {{
+                                    timestamp
+                                    value
+                                }}
+                            }}
+                        }}
+                    }}
+                }}
+            """
+
+            if time_range:
+                time_range_vars = {}
+                if time_range.start:
+                    time_range_vars["start"] = time_range.start.isoformat()
+                if time_range.end:
+                    time_range_vars["end"] = time_range.end.isoformat()
+                if time_range_vars:
+                    variables["timeRange"] = time_range_vars
+            if time_bin_config:
+                variables["timeBinConfig"] = {
+                    "scale": time_bin_config.scale.value.upper(),
+                    "utcOffsetMinutes": time_bin_config.utc_offset_minutes,
+                }
+
+            # Execute GraphQL query
+            for obj in ["span", "trace"]:
+                response = await gql_client.execute(
+                    query=query.format(obj=obj), variables=variables
+                )
+                assert not response.errors
+                assert (data := response.data) is not None
+                res = data["node"][f"{obj}CountTimeSeries"]
+
+                # Verify the structure of the response
+                assert "data" in res
+                assert isinstance(res["data"], list)
+
+                # Convert response to DataFrame for comparison
+                if not res["data"]:
+                    actual_summary = pd.DataFrame(columns=["timestamp", "count"])
+                else:
+                    actual_data = []
+                    for data_point in res["data"]:
+                        timestamp = datetime.fromisoformat(data_point["timestamp"])
+                        if (value := data_point["value"]) is not None:
+                            actual_data.append({"timestamp": timestamp, "count": value})
+                    actual_summary = pd.DataFrame(
+                        actual_data,
+                        columns=["timestamp", "count"],
+                    ).sort_values("timestamp")
+
+                # Handle empty results
+                if expected_summary.empty:
+                    assert actual_summary.empty, f"Expected empty summary for {obj} in {test_desc}"
+                    continue
+
+                actual_summary["timestamp"] = pd.to_datetime(actual_summary["timestamp"])
+
+                # Verify SQL results match pandas calculation
+                try:
+                    pd.testing.assert_frame_equal(
+                        actual_summary, expected_summary, check_dtype=False
+                    )
+                except AssertionError as e:
+                    raise AssertionError(f"Test failed for {obj} in {test_desc}") from e
 
     @pytest.mark.parametrize(
         "expectation,condition",
@@ -2173,3 +2343,606 @@ async def test_project_filter_and_sort(
     projects = data["projects"]
     project_names = [edge["node"]["name"] for edge in projects["edges"]]
     assert project_names == expected_names
+
+
+async def test_paginate_spans_by_trace_start_time(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    """Test the _paginate_span_by_trace_start_time optimization function.
+
+    This function is triggered when:
+    - rootSpansOnly: true
+    - No filter_condition
+    - sort.col is SpanColumn.startTime
+
+    Key behaviors tested:
+    - Returns one representative span per trace (not all spans)
+    - Orders by trace start time (not span start time)
+    - Uses cursors based on trace rowids + start times (unusual!)
+    - Handles orphan spans based on orphan_span_as_root_span parameter
+    - Supports time range filtering on trace start times
+    - May return empty edges while has_next_page=True when traces have no matching spans
+    - **RETRY LOGIC**: When insufficient edges are found (len(edges) < first) but has_next_page=True,
+      the function automatically retries pagination with larger batch sizes (max(first, 1000))
+      up to 10 times (retries=10) to collect enough spans. This handles cases where many traces
+      exist but lack matching root spans.
+
+    Implementation Details:
+    - Uses CTEs (Common Table Expressions) for efficient trace-based pagination
+    - PostgreSQL: Uses DISTINCT ON for deduplication
+    - SQLite: Uses Python groupby() for deduplication (too complex for SQLite DISTINCT)
+    - SQL ordering: trace start_time -> trace id -> span start_time (ASC for earliest) -> span id (DESC)
+    - Cursors contain trace rowid + trace start_time, NOT span data
+    - Over-fetches by 1 trace to determine has_next_page efficiently
+
+    Test Data Setup:
+    ================
+    Creates 5 traces with start times at hours 1, 2, 3, 4, 5:
+
+    Trace Index | Hour | Real Root Span | Orphan Span  | Additional Spans | Expected Name
+    ------------|------|----------------|--------------|------------------|---------------
+    0 (even)    |  1   |      ✓         |      ✗       | +2nd root span   | root-span-1
+    1 (odd)     |  2   |      ✗         |      ✓       | +2nd orphan span | orphan-span-2
+    2 (even)    |  3   |      ✓         |      ✗       | +2nd root span   | root-span-3
+    3 (odd)     |  4   |      ✗         |      ✓       | +2nd orphan span | orphan-span-4
+    4 (even)    |  5   |      ✓         |      ✗       | +2nd root span   | root-span-5
+
+    Key Testing Points:
+    - ALL traces have multiple candidate spans to test "earliest span per trace" selection
+    - Trace 1: 2 root spans → Returns earliest (root-span-1, not second-root-span-1)
+    - Trace 2: 2 orphan spans → Returns earliest (orphan-span-2, not second-orphan-span-2)
+    - Trace 3: 2 root spans → Returns earliest (root-span-3, not second-root-span-3)
+    - Trace 4: 2 orphan spans → Returns earliest (orphan-span-4, not second-orphan-span-4)
+    - Trace 5: 2 root spans → Returns earliest (root-span-5, not second-root-span-5)
+    - Comprehensive test of SQL ordering: ORDER BY span.start_time ASC, span.id DESC
+
+    With orphan_span_as_root_span=false: Only returns real root spans 1, 3, 5 (3 total)
+    With orphan_span_as_root_span=true:  Returns all spans 1, 2, 3, 4, 5 (5 total)
+    """
+    # ========================================
+    # SETUP: Create test data
+    # ========================================
+    async with db() as session:
+        project = models.Project(name=token_hex(8))
+        session.add(project)
+        await session.flush()
+
+        # Create 5 traces with start times at hours 1, 2, 3, 4, 5
+        base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+        traces = []
+        spans = []
+
+        for i in range(5):
+            # Trace start times: 01:00, 02:00, 03:00, 04:00, 05:00
+            trace = models.Trace(
+                trace_id=token_hex(16),
+                project_rowid=project.id,
+                start_time=base_time + timedelta(hours=i + 1),
+                end_time=base_time + timedelta(hours=i + 2),
+            )
+            session.add(trace)
+            await session.flush()
+            traces.append(trace)
+
+            if i % 2 == 0:
+                # EVEN indices (0, 2, 4) → traces at hours 1, 3, 5 → CREATE REAL ROOT SPANS
+                # These spans have parent_id=None (true root spans)
+                root_span = models.Span(
+                    trace_rowid=trace.id,
+                    span_id=token_hex(8),
+                    parent_id=None,  # ← This makes it a real root span
+                    name=f"root-span-{i+1}",
+                    span_kind="CHAIN",
+                    start_time=trace.start_time + timedelta(minutes=10),
+                    end_time=trace.start_time + timedelta(minutes=20),
+                    attributes={},
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+                session.add(root_span)
+                spans.append(root_span)
+
+                # Also create a child span to verify only root span is returned per trace
+                child_span = models.Span(
+                    trace_rowid=trace.id,
+                    span_id=token_hex(8),
+                    parent_id=root_span.span_id,  # ← Child of the root span
+                    name=f"child-span-{i+1}",
+                    span_kind="CHAIN",
+                    start_time=trace.start_time + timedelta(minutes=15),
+                    end_time=trace.start_time + timedelta(minutes=25),
+                    attributes={},
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+                session.add(child_span)
+
+                # Add a SECOND root span with later start time to test "earliest span" selection
+                # This span should NOT be returned (only the earliest root span per trace)
+                second_root_span = models.Span(
+                    trace_rowid=trace.id,
+                    span_id=token_hex(8),
+                    parent_id=None,  # ← Also a root span
+                    name=f"second-root-span-{i+1}",
+                    span_kind="CHAIN",
+                    start_time=trace.start_time + timedelta(minutes=30),  # ← Later start time
+                    end_time=trace.start_time + timedelta(minutes=40),
+                    attributes={},
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+                session.add(second_root_span)
+            else:
+                # ODD indices (1, 3) → traces at hours 2, 4 → CREATE ORPHAN SPANS
+                # These spans have parent_id pointing to non-existent spans (orphans)
+                orphan_span = models.Span(
+                    trace_rowid=trace.id,
+                    span_id=token_hex(8),
+                    parent_id=token_hex(8),  # ← Points to non-existent span (orphan)
+                    name=f"orphan-span-{i+1}",
+                    span_kind="CHAIN",
+                    start_time=trace.start_time + timedelta(minutes=10),
+                    end_time=trace.start_time + timedelta(minutes=20),
+                    attributes={},
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+                session.add(orphan_span)
+                spans.append(orphan_span)
+
+                # Add a SECOND orphan span with later start time to test "earliest span" selection
+                # This span should NOT be returned (only the earliest orphan span per trace)
+                second_orphan_span = models.Span(
+                    trace_rowid=trace.id,
+                    span_id=token_hex(8),
+                    parent_id=token_hex(8),  # ← Also an orphan span (different parent_id)
+                    name=f"second-orphan-span-{i+1}",
+                    span_kind="CHAIN",
+                    start_time=trace.start_time + timedelta(minutes=30),  # ← Later start time
+                    end_time=trace.start_time + timedelta(minutes=40),
+                    attributes={},
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+                session.add(second_orphan_span)
+
+        project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+
+    # ========================================
+    # TEST 1: Basic pagination with orphan_span_as_root_span=false
+    # Expected: Only real root spans (1, 3, 5) returned, NOT orphan spans (2, 4)
+    # ========================================
+    query = """
+        query ($projectId: ID!, $first: Int, $after: String) {
+            node(id: $projectId) {
+                ... on Project {
+                    spans(
+                        rootSpansOnly: true,
+                        orphanSpanAsRootSpan: false,  # ← Exclude orphan spans
+                        sort: {col: startTime, dir: desc},
+                        first: $first,
+                        after: $after
+                    ) {
+                        edges {
+                            node {
+                                id
+                                name
+                            }
+                            cursor
+                        }
+                        pageInfo {
+                            hasNextPage
+                            hasPreviousPage
+                            startCursor
+                            endCursor
+                        }
+                    }
+                }
+            }
+        }
+    """
+
+    # Page 1: Request first 2 spans in descending order (by trace start time)
+    # Expected: Only root-span-5 (trace 5 is latest, and only that trace has a real root span)
+    # Note: trace 4 has an orphan span, but it's excluded by orphanSpanAsRootSpan=false
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project_gid,
+            "first": 2,
+        },
+    )
+
+    assert not response.errors
+    assert (data := response.data) is not None
+
+    page = data["node"]["spans"]
+    edges = page["edges"]
+    page_info = page["pageInfo"]
+
+    assert len(edges) == 2
+    assert edges[0]["node"]["name"] == "root-span-5"
+    assert edges[1]["node"]["name"] == "root-span-3"
+    assert page_info["hasNextPage"] is True  # More traces to check
+    assert page_info["hasPreviousPage"] is False
+
+    # Verify cursor contains trace rowid (5) and trace start time (05:00:00)
+    # This demonstrates the unusual "trace-based cursors" behavior
+    assert (
+        base64.b64decode(page_info["startCursor"].encode())
+        == b"5:DATETIME:2024-01-01T05:00:00+00:00"
+    )
+    assert (
+        base64.b64decode(page_info["endCursor"].encode()) == b"3:DATETIME:2024-01-01T03:00:00+00:00"
+    )
+
+    # Page 2: Continue pagination after trace 5
+    # Expected: root-span-3 (trace 3 is next latest with real root span)
+    # Note: trace 4 is skipped because it only has orphan span (excluded)
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project_gid,
+            "first": 3,
+            "after": base64.b64encode(b"5:DATETIME:2024-01-01T05:00:00+00:00").decode(),
+        },
+    )
+
+    assert not response.errors
+    assert (data := response.data) is not None
+
+    page = data["node"]["spans"]
+    edges = page["edges"]
+    page_info = page["pageInfo"]
+
+    assert len(edges) == 2
+    assert edges[0]["node"]["name"] == "root-span-3"
+    assert edges[1]["node"]["name"] == "root-span-1"
+    assert page_info["hasNextPage"] is False
+    assert page_info["hasPreviousPage"] is False
+    assert (
+        base64.b64decode(page_info["startCursor"].encode())
+        == b"4:DATETIME:2024-01-01T04:00:00+00:00"  # Trace 3 yielded the span
+    )
+    assert (
+        base64.b64decode(page_info["endCursor"].encode()) == b"1:DATETIME:2024-01-01T01:00:00+00:00"
+    )
+
+    # Page 3: Continue pagination after trace 3
+    # Expected: root-span-1 (trace 1 is oldest with real root span)
+    # Note: trace 2 is skipped because it only has orphan span (excluded)
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project_gid,
+            "first": 4,
+            "after": base64.b64encode(b"3:DATETIME:2024-01-01T03:00:00+00:00").decode(),
+        },
+    )
+
+    assert not response.errors
+    assert (data := response.data) is not None
+
+    page = data["node"]["spans"]
+    edges = page["edges"]
+    page_info = page["pageInfo"]
+
+    # Should return root-span-1 (oldest real root span)
+    assert len(edges) == 1
+    assert edges[0]["node"]["name"] == "root-span-1"
+    assert page_info["hasNextPage"] is False  # No more traces
+    assert page_info["hasPreviousPage"] is False
+    assert (
+        base64.b64decode(page_info["startCursor"].encode())
+        == b"2:DATETIME:2024-01-01T02:00:00+00:00"
+    )
+    assert (
+        base64.b64decode(page_info["endCursor"].encode()) == b"1:DATETIME:2024-01-01T01:00:00+00:00"
+    )
+
+    # ========================================
+    # TEST 2: Ascending order (orphan_span_as_root_span=false)
+    # Expected: Same spans but in reverse order: root-span-1, root-span-3, root-span-5
+    # ========================================
+    response = await gql_client.execute(
+        query=query.replace("dir: desc", "dir: asc"),
+        variables={
+            "projectId": project_gid,
+            "first": 2,
+        },
+    )
+
+    assert not response.errors
+    assert (data := response.data) is not None
+
+    asc_page = data["node"]["spans"]
+    edges = asc_page["edges"]
+    page_info = asc_page["pageInfo"]
+
+    # Should return first span in ascending order (oldest trace with real root span)
+    assert len(edges) == 2
+    assert edges[0]["node"]["name"] == "root-span-1"
+    assert edges[1]["node"]["name"] == "root-span-3"
+    assert page_info["hasNextPage"] is True
+
+    # ========================================
+    # TEST 3: Bulk query (orphan_span_as_root_span=false)
+    # Expected: All 3 real root spans at once
+    # ========================================
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project_gid,
+            "first": 10,
+        },
+    )
+
+    assert not response.errors
+    assert (data := response.data) is not None
+
+    all_spans = data["node"]["spans"]
+    edges = all_spans["edges"]
+    page_info = all_spans["pageInfo"]
+    span_names = [edge["node"]["name"] for edge in edges]
+
+    # Should return all 3 real root spans (excluding orphan spans 2, 4)
+    # IMPORTANT: Returns earliest root span per trace (ALL traces have multiple candidates):
+    # - Trace 1: root-span-1 (NOT second-root-span-1 which has later start time)
+    # - Trace 3: root-span-3 (NOT second-root-span-3 which has later start time)
+    # - Trace 5: root-span-5 (NOT second-root-span-5 which has later start time)
+    assert len(edges) == 3
+    assert span_names == [
+        "root-span-5",
+        "root-span-3",
+        "root-span-1",
+    ]
+    assert page_info["hasNextPage"] is False
+
+    # ========================================
+    # TEST 4: Time range filtering (orphan_span_as_root_span=false)
+    # Filter: hours 2-4 (includes traces 2, 3, 4)
+    # Expected: Only root-span-3 (trace 3 has real root span, traces 2&4 have orphans)
+    # ========================================
+    time_range_query = """
+        query ($projectId: ID!, $first: Int, $timeRange: TimeRange) {
+            node(id: $projectId) {
+                ... on Project {
+                    spans(
+                        rootSpansOnly: true,
+                        orphanSpanAsRootSpan: false,  # ← Exclude orphan spans
+                        sort: {col: startTime, dir: desc},
+                        first: $first,
+                        timeRange: $timeRange
+                    ) {
+                        edges {
+                            node {
+                                id
+                                name
+                            }
+                        }
+                        pageInfo {
+                            hasNextPage
+                        }
+                    }
+                }
+            }
+        }
+    """
+
+    response = await gql_client.execute(
+        query=time_range_query,
+        variables={
+            "projectId": project_gid,
+            "first": 10,
+            "timeRange": {
+                "start": (base_time + timedelta(hours=2)).isoformat(),  # 02:00:00
+                "end": (base_time + timedelta(hours=4)).isoformat(),  # 04:00:00
+            },
+        },
+    )
+
+    assert not response.errors
+    assert (data := response.data) is not None
+
+    filtered_spans = data["node"]["spans"]
+    edges = filtered_spans["edges"]
+
+    # Time range includes traces 2, 3, 4:
+    # - Trace 2 (hour 2): has orphan span → excluded by orphanSpanAsRootSpan=false
+    # - Trace 3 (hour 3): has real root span → included
+    # - Trace 4 (hour 4): has orphan span → excluded by orphanSpanAsRootSpan=false
+    assert len(edges) == 1
+    assert edges[0]["node"]["name"] == "root-span-3"
+
+    # ========================================
+    # TEST 5: Include orphan spans (orphanSpanAsRootSpan=true)
+    # Expected: All 5 spans returned (3 real roots + 2 orphans)
+    # ========================================
+    orphan_query = """
+        query ($projectId: ID!, $first: Int, $after: String) {
+            node(id: $projectId) {
+                ... on Project {
+                    spans(
+                        rootSpansOnly: true,
+                        orphanSpanAsRootSpan: true,
+                        sort: {col: startTime, dir: desc},
+                        first: $first,
+                        after: $after
+                    ) {
+                        edges {
+                            node {
+                                id
+                                name
+                            }
+                            cursor
+                        }
+                        pageInfo {
+                            hasNextPage
+                            hasPreviousPage
+                            startCursor
+                            endCursor
+                        }
+                    }
+                }
+            }
+        }
+    """
+
+    # Test 5a: Basic pagination with orphans included
+    # Expected: Now returns 2 spans per page instead of 1 (includes orphan spans)
+    response = await gql_client.execute(
+        query=orphan_query,
+        variables={
+            "projectId": project_gid,
+            "first": 2,
+        },
+    )
+
+    assert not response.errors
+    assert (data := response.data) is not None
+
+    page = data["node"]["spans"]
+    edges = page["edges"]
+    page_info = page["pageInfo"]
+
+    # Should return 2 spans: both real root and orphan spans
+    assert len(edges) == 2
+    assert edges[0]["node"]["name"] == "root-span-5"  # Real root span from trace 5 (latest)
+    assert edges[1]["node"]["name"] == "orphan-span-4"  # Orphan span from trace 4 (2nd latest)
+    assert page_info["hasNextPage"] is True
+
+    # Test 5b: Bulk query with orphans included
+    # Expected: All 5 spans (3 real + 2 orphan) vs 3 spans when orphans excluded
+    response = await gql_client.execute(
+        query=orphan_query,
+        variables={
+            "projectId": project_gid,
+            "first": 10,
+        },
+    )
+
+    assert not response.errors
+    assert (data := response.data) is not None
+
+    all_spans = data["node"]["spans"]
+    edges = all_spans["edges"]
+    page_info = all_spans["pageInfo"]
+    span_names = [edge["node"]["name"] for edge in edges]
+
+    # Should return ALL 5 spans (3 real root spans + 2 orphan spans) in descending order
+    # IMPORTANT: Returns earliest span per trace (ALL traces have multiple candidates):
+    # - Trace 1: root-span-1 (NOT second-root-span-1)
+    # - Trace 2: orphan-span-2 (NOT second-orphan-span-2)
+    # - Trace 3: root-span-3 (NOT second-root-span-3)
+    # - Trace 4: orphan-span-4 (NOT second-orphan-span-4)
+    # - Trace 5: root-span-5 (NOT second-root-span-5)
+    assert len(edges) == 5
+    assert span_names == [
+        "root-span-5",
+        "orphan-span-4",
+        "root-span-3",
+        "orphan-span-2",
+        "root-span-1",
+    ]
+    assert page_info["hasNextPage"] is False
+
+    # Test 5c: Ascending order with orphans included
+    # Expected: Same 5 spans but in reverse order
+    response = await gql_client.execute(
+        query=orphan_query.replace("dir: desc", "dir: asc"),
+        variables={"projectId": project_gid, "first": 3},
+    )
+
+    assert not response.errors
+    assert (data := response.data) is not None
+
+    asc_page = data["node"]["spans"]
+    edges = asc_page["edges"]
+    span_names = [edge["node"]["name"] for edge in edges]
+
+    # Should return first 3 spans in ascending order (includes orphan span 2)
+    assert len(edges) == 3
+    assert span_names == [
+        "root-span-1",
+        "orphan-span-2",
+        "root-span-3",
+    ]
+
+    # Test 5d: Time range filtering with orphans included
+    orphan_time_range_query = """
+        query ($projectId: ID!, $first: Int, $timeRange: TimeRange) {
+            node(id: $projectId) {
+                ... on Project {
+                    spans(
+                        rootSpansOnly: true,
+                        orphanSpanAsRootSpan: true,
+                        sort: {col: startTime, dir: desc},
+                        first: $first,
+                        timeRange: $timeRange
+                    ) {
+                        edges {
+                            node {
+                                id
+                                name
+                            }
+                        }
+                        pageInfo {
+                            hasNextPage
+                        }
+                    }
+                }
+            }
+        }
+    """
+
+    # Expected: Now returns 2 spans (includes orphan span 2) vs 1 span when orphans excluded
+    response = await gql_client.execute(
+        query=orphan_time_range_query,
+        variables={
+            "projectId": project_gid,
+            "first": 10,
+            "timeRange": {
+                "start": (base_time + timedelta(hours=2)).isoformat(),  # 02:00:00
+                "end": (base_time + timedelta(hours=4)).isoformat(),  # 04:00:00
+            },
+        },
+    )
+
+    assert not response.errors
+    assert (data := response.data) is not None
+
+    filtered_spans = data["node"]["spans"]
+    edges = filtered_spans["edges"]
+    span_names = [edge["node"]["name"] for edge in edges]
+
+    # Time range includes traces 2, 3, 4 - with orphans included:
+    # - Trace 2 (hour 2): has orphan span → NOW INCLUDED
+    # - Trace 3 (hour 3): has real root span → included
+    # - Trace 4 (hour 4): has orphan span → NOW INCLUDED
+    # But trace 4 is excluded by time range end=04:00:00 (exclusive), so only traces 2 & 3
+    assert len(edges) == 2
+    assert span_names == [
+        "root-span-3",
+        "orphan-span-2",
+    ]  # Descending order: trace 3, then trace 2

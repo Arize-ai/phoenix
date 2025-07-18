@@ -34,6 +34,7 @@
     <a target="_blank" href="https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp">
         <img src="https://badge.mcpx.dev?status=on" title="MCP Enabled"/>
     </a>
+    <a href="https://cursor.com/install-mcp?name=phoenix&config=eyJjb21tYW5kIjoibnB4IC15IEBhcml6ZWFpL3Bob2VuaXgtbWNwQGxhdGVzdCAtLWJhc2VVcmwgaHR0cDovL2xvY2FsaG9zdDo2MDA2IC0tYXBpS2V5IHlvdXItYXBpLWtleSJ9"><img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Add Arize Phoenix MCP server to Cursor" height=20 /></a>
 </p>
 
 Phoenix is an open-source AI observability platform designed for experimentation, evaluation, and troubleshooting. It provides:
@@ -71,6 +72,7 @@ The `arize-phoenix` package includes the entire Phoenix platfom. However if you 
 | [arize-phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/packages/phoenix-client)       | Python [![PyPI Version](https://img.shields.io/pypi/v/arize-phoenix-client)](https://pypi.org/project/arize-phoenix-client/)                 | Lightweight client for interacting with the Phoenix server via its OpenAPI REST interface         |
 | [arize-phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/packages/phoenix-evals)         | Python [![PyPI Version](https://img.shields.io/pypi/v/arize-phoenix-evals)](https://pypi.org/project/arize-phoenix-evals/)                   | Tooling to evaluate LLM applications including RAG relevance, answer relevance, and more          |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | JavaScript [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) | Client for the Arize Phoenix API                                                                  |
+| [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals)   | TypeScript [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals)   | TypeScript evaluation library for LLM applications (alpha release)                                |
 | [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | JavaScript [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp)       | MCP server implementation for Arize Phoenix providing unified interface to Phoenix's capabilities |
 
 ## Tracing Integrations
@@ -114,9 +116,20 @@ Phoenix is built on top of OpenTelemetry and is vendor, language, and framework 
 | [BeeAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/beeai)                 | `@arizeai/openinference-instrumentation-beeai`     | [![NPM Version](https://img.shields.io/npm/v/@arizeai/openinference-vercel)](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-beeai)                            |
 | [Mastra](https://arize.com/docs/phoenix/integrations/mastra)                               | `@arizeai/openinference-mastra`                    | [![NPM Version](https://img.shields.io/npm/v/@arizeai/openinference-mastra.svg)](https://www.npmjs.com/package/@arizeai/openinference-mastra)                                       |
 
+### Java Integrations
+
+| Integration                                                                                                                       | Package                                     | Version Badge                                                                                                                                                                                                 |
+| --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [LangChain4j](https://github.com/Arize-ai/openinference/tree/main/java/instrumentation/openinference-instrumentation-langchain4j) | `openinference-instrumentation-langchain4j` | [![Maven Central](https://img.shields.io/maven-central/v/com.arize/openinference-instrumentation-langchain4j.svg)](https://central.sonatype.com/artifact/com.arize/openinference-instrumentation-langchain4j) |
+
 ### Platforms
 
-Phoenix has native integrations with [LangFlow](https://arize.com/docs/phoenix/tracing/integrations-tracing/langflow), LiteLLM Proxy, and [BeeAI](https://docs.beeai.dev/observability/agents-traceability).
+| Platform                                                                                                 | Description                                                    | Docs                                                                                                          |
+| -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [Dify](https://docs.dify.ai/en/guides/monitoring/integrate-external-ops-tools/integrate-phoenix)         | Open-source LLM app development platform                       | [Integration Guide](https://docs.dify.ai/en/guides/monitoring/integrate-external-ops-tools/integrate-phoenix) |
+| [LangFlow](https://arize.com/docs/phoenix/tracing/integrations-tracing/langflow)                         | Visual framework for building multi-agent and RAG applications | [Integration Guide](https://arize.com/docs/phoenix/tracing/integrations-tracing/langflow)                     |
+| [BeeAI](https://docs.beeai.dev/observability/agents-traceability)                                        | AI agent framework with built-in observability                 | [Integration Guide](https://docs.beeai.dev/observability/agents-traceability)                                 |
+| [LiteLLM Proxy](https://docs.litellm.ai/docs/observability/phoenix_integration#using-with-litellm-proxy) | Proxy server for LLMs                                          | [Integration Guide](https://docs.litellm.ai/docs/observability/phoenix_integration#using-with-litellm-proxy)  |
 
 ## Community
 

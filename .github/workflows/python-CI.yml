@@ -403,10 +403,10 @@ jobs:
         run: sudo apt-get -yqq install postgresql
       - name: Run tests with PostgreSQL (Linux)
         if: runner.os == 'Linux'
-        run: uvx --with tox-uv tox run -e unit_tests -- -ra -x --run-postgres
+        run: uvx --with tox-uv tox run -e unit_tests -- -ra -x -n auto --reruns 5 --run-postgres
       - name: Run tests without PostgreSQL (non-Linux)
         if: runner.os != 'Linux'
-        run: uvx --with tox-uv tox run -e unit_tests -- -ra -x
+        run: uvx --with tox-uv tox run -e unit_tests -- -ra -x -n auto --reruns 5
 
   type-check-integration-tests:
     name: Type Check Integration Tests

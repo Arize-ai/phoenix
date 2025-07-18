@@ -7,15 +7,19 @@ import {
 } from "react";
 import { css } from "@emotion/react";
 
-import {
-  classNames,
-  Tooltip,
-  TooltipTrigger,
-  TriggerWrap,
-} from "@arizeai/components";
+import { classNames } from "@arizeai/components";
 
-import { Button, Flex, Heading, Icon, Icons } from "@phoenix/components";
-import { TokenCount } from "@phoenix/components/trace/TokenCount";
+import {
+  Button,
+  Flex,
+  Heading,
+  Icon,
+  Icons,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+} from "@phoenix/components";
+import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
 import { LatencyText } from "./LatencyText";
@@ -136,60 +140,58 @@ function TraceTreeToolbar() {
       >
         <Heading level={3}>Trace</Heading>
         <Flex direction="row" gap="size-100" className="trace-tree-controls">
-          <TooltipTrigger offset={5}>
-            <TriggerWrap>
-              <Button
-                variant="default"
-                size="S"
-                aria-label={isCollapsed ? "Expand all" : "Collapse all"}
-                onPress={() => {
-                  setIsCollapsed(!isCollapsed);
-                }}
-                leadingVisual={
-                  <Icon
-                    svg={
-                      isCollapsed ? (
-                        <Icons.RowCollapseOutline />
-                      ) : (
-                        <Icons.RowExpandOutline />
-                      )
-                    }
-                  />
-                }
-              />
-            </TriggerWrap>
-            <Tooltip>
+          <TooltipTrigger>
+            <Button
+              variant="default"
+              size="S"
+              aria-label={isCollapsed ? "Expand all" : "Collapse all"}
+              onPress={() => {
+                setIsCollapsed(!isCollapsed);
+              }}
+              leadingVisual={
+                <Icon
+                  svg={
+                    isCollapsed ? (
+                      <Icons.RowCollapseOutline />
+                    ) : (
+                      <Icons.RowExpandOutline />
+                    )
+                  }
+                />
+              }
+            />
+            <Tooltip offset={-5}>
+              <TooltipArrow />
               {isCollapsed
                 ? "Expand all nested spans"
                 : "Collapse all nested spans"}
             </Tooltip>
           </TooltipTrigger>
-          <TooltipTrigger offset={5}>
-            <TriggerWrap>
-              <Button
-                size="S"
-                aria-label={
-                  showMetricsInTraceTree
-                    ? "Hide metrics in trace tree"
-                    : "Show metrics in trace tree"
-                }
-                onPress={() => {
-                  setShowMetricsInTraceTree(!showMetricsInTraceTree);
-                }}
-                leadingVisual={
-                  <Icon
-                    svg={
-                      showMetricsInTraceTree ? (
-                        <Icons.TimerOutline />
-                      ) : (
-                        <Icons.TimerOffOutline />
-                      )
-                    }
-                  />
-                }
-              />
-            </TriggerWrap>
-            <Tooltip>
+          <TooltipTrigger>
+            <Button
+              size="S"
+              aria-label={
+                showMetricsInTraceTree
+                  ? "Hide metrics in trace tree"
+                  : "Show metrics in trace tree"
+              }
+              onPress={() => {
+                setShowMetricsInTraceTree(!showMetricsInTraceTree);
+              }}
+              leadingVisual={
+                <Icon
+                  svg={
+                    showMetricsInTraceTree ? (
+                      <Icons.TimerOutline />
+                    ) : (
+                      <Icons.TimerOffOutline />
+                    )
+                  }
+                />
+              }
+            />
+            <Tooltip offset={-5}>
+              <TooltipArrow />
               {showMetricsInTraceTree
                 ? "Hide metrics in trace tree"
                 : "Show metrics in trace tree"}
@@ -293,7 +295,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
             {typeof tokenCountTotal === "number" &&
             tokenCountTotal > 0 &&
             showMetricsInTraceTree ? (
-              <TokenCount
+              <SpanTokenCount
                 tokenCountTotal={tokenCountTotal}
                 nodeId={node.span.id}
               />

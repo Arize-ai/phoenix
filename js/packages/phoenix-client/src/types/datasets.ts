@@ -2,9 +2,9 @@ import { Node } from "./core";
 
 /**
  * A dataset can be identified by its datasetId
- * TODO: add support for datasetName and datasetVersionId via discriminated union
+ * TODO: add support for datasetVersionId via discriminated union
  */
-export type DatasetSelector = { datasetId: string };
+export type DatasetSelector = { datasetId: string } | { datasetName: string };
 
 /**
  * Overview information about a dataset

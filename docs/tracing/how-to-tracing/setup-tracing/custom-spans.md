@@ -69,6 +69,17 @@ This snippet contains a few OTel concepts:
 * Your **tracer** provides a handle for you to create spans and add attributes in your application code.
 * The **collector** (e.g., Phoenix) receives the spans exported by your application.
 
+{% hint style="danger" %}
+**If you're using Phoenix Cloud or a local Phoenix with auth enabled:**
+
+Modify your span exporter to include your API key:
+
+```
+headers = {"Authorization": f"Bearer {os.environ['PHOENIX_API_KEY']}"}
+exporter = OTLPSpanExporter(endpoint=collector_endpoint, headers=headers)
+```
+{% endhint %}
+
 ## Creating spans
 
 To create a span, you'll typically want it to be started as the current span.

@@ -1,43 +1,39 @@
 from __future__ import annotations
 
-import os
 import re
 from typing import Literal, Optional, TypedDict
 
 import pytest
 from alembic import command
 from alembic.config import Config
-from phoenix.config import ENV_PHOENIX_SQL_DATABASE_SCHEMA, get_env_database_schema
 from sqlalchemy import Connection, Engine, Row, text
 from typing_extensions import TypeAlias, assert_never
 
 _DBBackend: TypeAlias = Literal["sqlite", "postgresql"]
 
 
-def _up(engine: Engine, alembic_config: Config, revision: str) -> None:
+def _up(engine: Engine, alembic_config: Config, revision: str, schema: str) -> None:
     with engine.connect() as conn:
         alembic_config.attributes["connection"] = conn
         command.upgrade(alembic_config, revision)
     engine.dispose()
-    actual = _version_num(engine)
+    actual = _version_num(engine, schema)
     assert actual == (revision,)
 
 
-def _down(engine: Engine, alembic_config: Config, revision: str) -> None:
+def _down(engine: Engine, alembic_config: Config, revision: str, schema: str) -> None:
     with engine.connect() as conn:
         alembic_config.attributes["connection"] = conn
         command.downgrade(alembic_config, revision)
     engine.dispose()
-    assert _version_num(engine) == (None if revision == "base" else (revision,))
+    assert _version_num(engine, schema) == (None if revision == "base" else (revision,))
 
 
-def _version_num(engine: Engine) -> Optional[Row[tuple[str]]]:
-    schema_prefix = ""
-    if engine.url.get_backend_name().startswith("postgresql"):
-        assert (schema := os.environ[ENV_PHOENIX_SQL_DATABASE_SCHEMA])
-        schema_prefix = f"{schema}."
+def _version_num(engine: Engine, schema: str) -> Optional[Row[tuple[str]]]:
     table, column = "alembic_version", "version_num"
-    stmt = text(f"SELECT {column} FROM {schema_prefix}{table}")
+    if schema:
+        table = f"{schema}.{table}"
+    stmt = text(f"SELECT {column} FROM {table}")
     with engine.connect() as conn:
         return conn.execute(stmt).first()
 
@@ -66,6 +62,7 @@ def _get_table_schema_info(
     conn: Connection,
     table_name: str,
     db_backend: Literal["sqlite", "postgresql"],
+    schema: str,
 ) -> Optional[_TableSchemaInfo]:
     """Get schema information for a database table.
 
@@ -96,7 +93,6 @@ def _get_table_schema_info(
         AssertionError: If table definition parsing fails
     """  # noqa: E501
     if db_backend == "postgresql":
-        assert (schema := get_env_database_schema())
         # Check if table exists
         table_exists = conn.execute(
             text(
@@ -241,7 +237,7 @@ def _get_table_schema_info(
     )
 
 
-def _verify_clean_state(engine: Engine) -> None:
+def _verify_clean_state(engine: Engine, schema: str) -> None:
     """Verify that the database is in a clean state before running migrations.
 
     This function checks that the alembic_version table does not exist, indicating
@@ -256,4 +252,4 @@ def _verify_clean_state(engine: Engine) -> None:
             alembic_version table exists)
     """
     with pytest.raises(BaseException, match="alembic_version"):
-        _version_num(engine)
+        _version_num(engine, schema)

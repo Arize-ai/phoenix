@@ -14,6 +14,7 @@ metadata:
 {{- end }}
 {{- if or .Values.server.labels .Values.service.labels }}
   labels:
+    app: {{ .Release.Name }}
 {{- if .Values.server.labels }}
 {{ toYaml .Values.server.labels | indent 4 }}
 {{- end }}
@@ -29,6 +30,6 @@ spec:
     - name: {{ template "phoenix.appPortName" . }}
       port: {{ template "phoenix.appPort" . }}
     - name: {{ template "phoenix.metricsPortName" . }}
-      port: {{ template "phoenix.metricsPort" . }} 
+      port: {{ template "phoenix.metricsPort" . }}
   selector:
     app: {{ .Release.Name }}

@@ -115,6 +115,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | securityContext.pod | object | `{"enabled":true,"fsGroup":65532,"fsGroupChangePolicy":"OnRootMismatch","runAsGroup":65532,"runAsNonRoot":true,"runAsUser":65532,"seccompProfile":{"type":"RuntimeDefault"},"seLinuxOptions":{},"supplementalGroups":[],"sysctls":[],"windowsOptions":{}}` | Pod-level security context settings. When enabled=true, the entire object (excluding 'enabled') is rendered directly as the pod securityContext |
 | serviceAccount.annotations | object | `{}` | Annotations to add to the ServiceAccount |
 | serviceAccount.create | bool | `false` | Create a ServiceAccount for Phoenix |
+| serviceAccount.imagePullSecrets | list | `[]` | List of image pull secrets for the ServiceAccount (if using private container registries) |
 | serviceAccount.name | string | `""` | Name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name. If not set and create is false, uses default ServiceAccount |
 | server.annotations | object | `{}` | Annotations to add to the Phoenix service |
 | server.enablePrometheus | bool | `false` | Enable Prometheus metrics endpoint on port 9090 |

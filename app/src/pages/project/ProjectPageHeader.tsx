@@ -1,19 +1,22 @@
 import { ReactNode, startTransition, useEffect } from "react";
+import { Focusable } from "react-aria";
 import { graphql, useRefetchableFragment } from "react-relay";
 import { css } from "@emotion/react";
-
-import { HelpTooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
 import {
   ErrorBoundary,
   Flex,
+  RichTooltip,
   Text,
   TextErrorBoundaryFallback,
+  TooltipArrow,
+  TooltipTrigger,
   View,
 } from "@phoenix/components";
+import { RichTokenBreakdown } from "@phoenix/components/RichTokenCostBreakdown";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
-import { formatInt, intFormatter } from "@phoenix/utils/numberFormatUtils";
+import { costFormatter, intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { ProjectPageHeader_stats$key } from "./__generated__/ProjectPageHeader_stats.graphql";
 import { ProjectPageHeaderQuery } from "./__generated__/ProjectPageHeaderQuery.graphql";
@@ -37,9 +40,17 @@ export function ProjectPageHeader(props: {
       fragment ProjectPageHeader_stats on Project
       @refetchable(queryName: "ProjectPageHeaderQuery") {
         traceCount(timeRange: $timeRange)
-        tokenCountTotal(timeRange: $timeRange)
-        tokenCountPrompt(timeRange: $timeRange)
-        tokenCountCompletion(timeRange: $timeRange)
+        costSummary(timeRange: $timeRange) {
+          total {
+            cost
+          }
+          prompt {
+            cost
+          }
+          completion {
+            cost
+          }
+        }
         latencyMsP50: latencyMsQuantile(
           probability: 0.50
           timeRange: $timeRange
@@ -64,9 +75,6 @@ export function ProjectPageHeader(props: {
 
   const latencyMsP50 = data?.latencyMsP50;
   const latencyMsP99 = data?.latencyMsP99;
-  const tokenCountTotal = data?.tokenCountTotal;
-  const tokenCountPrompt = data?.tokenCountPrompt;
-  const tokenCountCompletion = data?.tokenCountCompletion;
   const spanAnnotationNames = data?.spanAnnotationNames?.filter(
     (name) => name !== "note"
   );
@@ -129,42 +137,36 @@ export function ProjectPageHeader(props: {
             </Flex>
             <Flex direction="column" flex="none">
               <Text elementType="h3" size="S" color="text-700">
-                Total Tokens
+                Total Cost
               </Text>
-              <TooltipTrigger delay={0} placement="bottom">
-                <TriggerWrap>
-                  <Text size="L">{intFormatter(tokenCountTotal)}</Text>
-                </TriggerWrap>
-                <HelpTooltip>
-                  <View width="size-2400">
-                    <Flex direction="column">
-                      <Flex justifyContent="space-between">
-                        <Text>Prompt Tokens</Text>
-                        <Text>
-                          {typeof tokenCountPrompt === "number"
-                            ? formatInt(tokenCountPrompt)
-                            : "--"}
-                        </Text>
-                      </Flex>
-                      <Flex justifyContent="space-between">
-                        <Text>Completion Tokens</Text>
-                        <Text>
-                          {typeof tokenCountCompletion === "number"
-                            ? formatInt(tokenCountCompletion)
-                            : "--"}
-                        </Text>
-                      </Flex>
-                      <Flex justifyContent="space-between">
-                        <Text>Total Tokens</Text>
-                        <Text>
-                          {typeof tokenCountTotal === "number"
-                            ? formatInt(tokenCountTotal)
-                            : "--"}
-                        </Text>
-                      </Flex>
-                    </Flex>
+              <TooltipTrigger delay={0}>
+                <Focusable>
+                  <Text size="L">
+                    {costFormatter(data?.costSummary?.total?.cost ?? 0)}
+                  </Text>
+                </Focusable>
+                <RichTooltip placement="bottom">
+                  <TooltipArrow />
+                  <View width="size-3600">
+                    <RichTokenBreakdown
+                      valueLabel="cost"
+                      totalValue={data?.costSummary?.total?.cost ?? 0}
+                      formatter={costFormatter}
+                      segments={[
+                        {
+                          name: "Prompt",
+                          value: data?.costSummary?.prompt?.cost ?? 0,
+                          color: "rgba(254, 119, 99, 1)",
+                        },
+                        {
+                          name: "Completion",
+                          value: data?.costSummary?.completion?.cost ?? 0,
+                          color: "rgba(98, 104, 239, 1)",
+                        },
+                      ]}
+                    />
                   </View>
-                </HelpTooltip>
+                </RichTooltip>
               </TooltipTrigger>
             </Flex>
             <Flex direction="column" flex="none">

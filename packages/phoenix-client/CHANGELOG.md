@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.13.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.13.0...arize-phoenix-client-v1.13.1) (2025-07-16)
+
+
+### Bug Fixes
+
+* Do not access API for experiment evaluations in dry_run mode ([#8606](https://github.com/Arize-ai/phoenix/issues/8606)) ([b8c77fb](https://github.com/Arize-ai/phoenix/commit/b8c77fb2d2d397e13f55aec86b978be2bd9dbfa6))
+
+## [1.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.12.0...arize-phoenix-client-v1.13.0) (2025-07-16)
+
+
+### Features
+
+* Add experiments module to phoenix-client ([#8375](https://github.com/Arize-ai/phoenix/issues/8375)) ([3df0326](https://github.com/Arize-ai/phoenix/commit/3df032627e8ce52a96e8d6dcd626f7641d0cb011))
+* Add serialization/deserialization methods to client Datasets ([#8453](https://github.com/Arize-ai/phoenix/issues/8453)) ([1dcb304](https://github.com/Arize-ai/phoenix/commit/1dcb304f1415edfa12a07ff152a1ebe82a3de8c0))
+* Experiment enhancements ([#8591](https://github.com/Arize-ai/phoenix/issues/8591)) ([2ba7953](https://github.com/Arize-ai/phoenix/commit/2ba79535c07069939ac33d660172c50a434bda54))
+
+## [1.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.11.0...arize-phoenix-client-v1.12.0) (2025-07-03)
+
+
+### Features
+
+* bedrock playground client ([#7918](https://github.com/Arize-ai/phoenix/issues/7918)) ([15d7e7a](https://github.com/Arize-ai/phoenix/commit/15d7e7aaa36913e3bb76777653fb29c8f6297340))
+
 ## [1.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.10.0...arize-phoenix-client-v1.11.0) (2025-06-19)
 
 

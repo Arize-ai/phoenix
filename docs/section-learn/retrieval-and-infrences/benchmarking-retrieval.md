@@ -16,13 +16,17 @@ The core use case for RAG (Retrieval Augmented Generation) is the connecting of 
 
 As teams are setting up their retrieval systems understanding performance and configuring the parameters around RAG (type of retrieval, chunk size, and K) is currently a guessing game for most teams.
 
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/RAG_llm_architecture.png" %}
+
 The above picture shows the a typical retrieval architecture designed for RAG, where there is a vector DB, LLM and an optional Framework.
 
 This section will go through a script that iterates through all possible parameterizations of setting up a retrieval system and use Evals to understand the trade offs.
 
-This overview will run through the scripts in phoenix for performance analysis of RAG setup:
+This overview will run through the scripts in Phoenix for performance analysis of RAG setup:
 
-{% @github-files/github-code-block %}
+{% embed url="https://raw.githubusercontent.com/Arize-ai/phoenix/main/scripts/rag/llama_index_w_evals_and_qa.py" %}
+
+{% embed url="https://raw.githubusercontent.com/Arize-ai/phoenix/main/scripts/rag/plotresults.py" %}
 
 The scripts above power the included notebook.
 
@@ -36,7 +40,7 @@ The eval template is used to evaluate the relevance of each chunk of data. The E
 
 The Retrieval Eval is used to analyze the performance of each chunk within the ordered list retrieved.
 
-The Evals generated on each chunk can then be used to generate more traditional search and retreival metrics for the retrieval system. We highly recommend that teams at least look at traditional search and retrieval metrics such as:\\
+The Evals generated on each chunk can then be used to generate more traditional search and retreival metrics for the retrieval system. We highly recommend that teams at least look at traditional search and retrieval metrics such as:
 
 * MRR
 * Precision @ K
@@ -58,20 +62,13 @@ The above Q\&A Eval shows how the Query, Chunk and Answer are used to generate a
 
 ### Results
 
-The results from the runs will be available in the directory:
+The results from the runs will be available in the directory.
 
-experiment\_data/
+Underneath `experiment_data` there are two sets of metrics:
 
-Underneath experiment\_data there are two sets of metrics:
+* The first set of results removes the cases where there are 0 retrieved relevant documents. There are cases where some clients test sets have a large number of questions where the documents can not answer. This can skew the metrics a lot.
+* The second set of results is unfiltered and shows the raw metrics for every retrieval.
 
-The first set of results removes the cases where there are 0 retrieved relevant documents. There are cases where some clients test sets have a large number of questions where the documents can not answer. This can skew the metrics a lot.
-
-experiment\_data/results\_zero\_removed
-
-The second set of results is unfiltered and shows the raw metrics for every retrieval.
-
-experiment\_data/results\_zero\_not\_removed
+{% embed url="https://storage.googleapis.com/arize-assets/phoenix/assets/images/percentage_incorrect_plot.png" %}
 
 The above picture shows the results of benchmark sweeps across your retrieval system setup. The lower the percent the better the results. This is the Q\&A Eval.
-
-The above graphs show MRR results across a sweep of different chunk sizes.

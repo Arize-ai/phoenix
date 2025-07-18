@@ -4,14 +4,12 @@ beautifulsoup4
 faker
 httpx
 openinference-semantic-conventions
-opentelemetry-sdk
+opentelemetry-sdk>=1.35.0
 pandas-stubs
 portpicker
 psutil
 psycopg[binary,pool]
 pyjwt
-pytest-randomly
-pytest-rerunfailures
 pytest-smtpd
 types-beautifulsoup4
 types-psutil

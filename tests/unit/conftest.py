@@ -1,12 +1,11 @@
 import asyncio
 import contextlib
-import os
-import tempfile
 from asyncio import AbstractEventLoop
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from functools import partial
 from importlib.metadata import version
 from random import getrandbits
+from secrets import token_hex
 from typing import Any, Literal
 
 import httpx
@@ -14,6 +13,7 @@ import pytest
 from _pytest.config import Config
 from _pytest.fixtures import SubRequest
 from _pytest.terminal import TerminalReporter
+from _pytest.tmpdir import TempPathFactory
 from asgi_lifespan import LifespanManager
 from faker import Faker
 from httpx import AsyncByteStream, Request, Response
@@ -22,7 +22,7 @@ from pytest import FixtureRequest
 from pytest_postgresql import factories
 from sqlalchemy import URL, make_url
 from sqlalchemy.dialects import postgresql, sqlite
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine
 from starlette.types import ASGIApp
 
 import phoenix.trace.v1 as pb
@@ -146,15 +146,24 @@ def sqlalchemy_dialect(dialect: str) -> Any:
 
 
 @pytest.fixture(scope="function")
-async def sqlite_engine() -> AsyncIterator[AsyncEngine]:
-    with tempfile.TemporaryDirectory() as temp_dir:
-        db_file = os.path.join(temp_dir, "test.db")
-        engine = aio_sqlite_engine(make_url(f"sqlite+aiosqlite:///{db_file}"), migrate=False)
-        async with engine.begin() as conn:
-            await conn.run_sync(models.Base.metadata.drop_all)
-            await conn.run_sync(models.Base.metadata.create_all)
-        yield engine
-        await engine.dispose()
+async def sqlite_engine(
+    request: SubRequest,
+    tmp_path_factory: TempPathFactory,
+) -> AsyncIterator[AsyncEngine]:
+    config = request.config
+    url = URL.create("sqlite+aiosqlite")
+    if config.getoption("--sqlite-on-disk"):
+        db_file = tmp_path_factory.mktemp("sqlite") / f"_{token_hex(8)}.db"
+        print(f"SQLite file: {db_file}")
+        url = url.set(database=str(db_file))
+    else:
+        url = url.set(database=":memory:")
+    engine = aio_sqlite_engine(url, migrate=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(models.Base.metadata.drop_all)
+        await conn.run_sync(models.Base.metadata.create_all)
+    yield engine
+    await engine.dispose()
 
 
 @pytest.fixture(scope="function")
@@ -163,21 +172,12 @@ def db(
     dialect: str,
 ) -> DbSessionFactory:
     if dialect == "sqlite":
-        return db_session_factory(request.getfixturevalue("sqlite_engine"))
+        engine = request.getfixturevalue("sqlite_engine")
     elif dialect == "postgresql":
-        return db_session_factory(request.getfixturevalue("postgresql_engine"))
-    raise ValueError(f"Unknown db fixture: {dialect}")
-
-
-def db_session_factory(engine: AsyncEngine) -> DbSessionFactory:
-    db = _db(engine, bypass_lock=True)
-
-    @contextlib.asynccontextmanager
-    async def factory() -> AsyncIterator[AsyncSession]:
-        async with db() as session:
-            yield session
-
-    return DbSessionFactory(db=factory, dialect=engine.dialect.name)
+        engine = request.getfixturevalue("postgresql_engine")
+    else:
+        raise ValueError(f"Unknown db fixture: {dialect}")
+    return DbSessionFactory(db=_db(engine), dialect=dialect)
 
 
 @pytest.fixture

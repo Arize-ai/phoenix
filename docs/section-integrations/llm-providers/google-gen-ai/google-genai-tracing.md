@@ -2,7 +2,7 @@
 description: Instrument LLM calls made using the Google Gen AI Python SDK
 ---
 
-# Google GenAI Tracing
+# Google Gen AI Tracing
 
 ### Launch Phoenix <a href="#launch-phoenix" id="launch-phoenix"></a>
 
@@ -16,7 +16,7 @@ pip install openinference-instrumentation-google-genai google-genai
 
 ### Setup <a href="#setup" id="setup"></a>
 
-Set the `GEMINI_API_KEY` environment variable. To use the GenAI SDK with Vertex AI instead of the Developer API, refer to Google's [guide](https://cloud.google.com/vertex-ai/generative-ai/docs/sdks/overview) on setting the required environment variables.
+Set the `GEMINI_API_KEY` environment variable. To use the Gen AI SDK with Vertex AI instead of the Developer API, refer to Google's [guide](https://cloud.google.com/vertex-ai/generative-ai/docs/sdks/overview) on setting the required environment variables.
 
 ```python
 export GEMINI_API_KEY=[your_key_here]
@@ -36,7 +36,7 @@ tracer_provider = register(
 
 ### Observe <a href="#observe" id="observe"></a>
 
-Now that you have tracing setup, all GenAI SDK requests will be streamed to Phoenix for observability and evaluation.
+Now that you have tracing setup, all Gen AI SDK requests will be streamed to Phoenix for observability and evaluation.
 
 ```python
 import os

@@ -5,6 +5,10 @@ from typing import Any
 import httpx
 import pytest
 from faker import Faker
+from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
+    ExportTraceServiceRequest,
+    ExportTraceServiceResponse,
+)
 from sqlalchemy import insert, select
 
 from phoenix.db import models
@@ -102,3 +106,22 @@ async def test_rest_trace_annotation(
     assert orm_annotation.identifier == "identifier-name"
     assert orm_annotation.source == "APP"
     assert orm_annotation.user_id is None
+
+
+async def test_traces_endpoint_otlp_compliance(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """Test that /traces endpoint returns protobuf response when protobuf request is sent"""
+    request = ExportTraceServiceRequest()
+    request_data = request.SerializeToString()
+
+    response = await httpx_client.post(
+        "v1/traces",
+        content=request_data,
+        headers={"Content-Type": "application/x-protobuf"},
+    )
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/x-protobuf"
+
+    response_message = ExportTraceServiceResponse()
+    response_message.ParseFromString(response.content)

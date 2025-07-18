@@ -6,7 +6,7 @@ arize-phoenix>=4.29.0
 langchain==0.2.17
 langchain_openai==0.1.25
 langgraph==0.2.39
-llama_index==0.12.28
+llama_index==0.12.41
 llama_index.llms.openai==0.2.15
 autogen~=0.2
 crewai==0.70.1

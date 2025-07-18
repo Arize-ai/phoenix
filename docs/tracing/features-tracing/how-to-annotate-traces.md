@@ -8,10 +8,6 @@ In order to improve your LLM application iteratively, it's vital to collect feed
 
 Phoenix gives you the ability to annotate traces with feedback from the UI, your application, or wherever you would like to perform evaluation. Phoenix's annotation model is simple yet powerful - given an entity such as a span that is collected, you can assign a `label` and/or a `score` to that entity.&#x20;
 
-Navigate to the Feedback tab in this demo trace to see how LLM-based evaluations appear in Phoenix:
-
-{% embed url="https://phoenix-demo.arize.com/projects/UHJvamVjdDoy/spans/3eb00713de9347f9e6b056b1b13cb318?selectedSpanNodeId=U3BhbjozNjQzOA==" %}
-
 ## Next Steps
 
 * Learn more about the concepts: [Annotations Concepts](https://app.gitbook.com/s/fqGNxHHFrgwnCxgUBNsJ/tracing/annotations-concepts "mention")

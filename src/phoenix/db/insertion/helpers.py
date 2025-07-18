@@ -3,6 +3,7 @@ from collections.abc import Awaitable, Callable, Iterable, Iterator, Mapping, Se
 from enum import Enum, auto
 from typing import Any, Optional
 
+from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from sqlalchemy import Insert
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
@@ -13,6 +14,7 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.models import Base
+from phoenix.trace.attributes import get_attribute_value
 
 
 class DataManipulationEvent(ABC):
@@ -97,3 +99,16 @@ def as_kv(obj: models.Base) -> Iterator[tuple[str, Any]]:
             # postgresql disallows None for primary key
             continue
         yield k, v
+
+
+def should_calculate_span_cost(
+    attributes: Optional[Mapping[str, Any]],
+) -> bool:
+    return bool(
+        (span_kind := get_attribute_value(attributes, SpanAttributes.OPENINFERENCE_SPAN_KIND))
+        and isinstance(span_kind, str)
+        and span_kind == OpenInferenceSpanKindValues.LLM.value
+        and (llm_name := get_attribute_value(attributes, SpanAttributes.LLM_MODEL_NAME))
+        and isinstance(llm_name, str)
+        and llm_name.strip()
+    )

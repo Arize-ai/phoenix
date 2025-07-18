@@ -3,11 +3,6 @@ import { useContextBridge } from "@react-three/drei";
 import { css, ThemeContext as EmotionThemeContext } from "@emotion/react";
 
 import {
-  ActionTooltip,
-  TooltipTrigger,
-  TriggerWrap,
-} from "@arizeai/components";
-import {
   Axes,
   getThreeDimensionalBounds,
   LassoSelect,
@@ -17,7 +12,14 @@ import {
   ThreeDimensionalControls,
 } from "@arizeai/point-cloud";
 
-import { Button, Heading, Icon, Icons } from "@phoenix/components";
+import {
+  Button,
+  Heading,
+  Icon,
+  Icons,
+  RichTooltip,
+  TooltipTrigger,
+} from "@phoenix/components";
 import { UNKNOWN_COLOR } from "@phoenix/constants/pointCloudConstants";
 import {
   InferencesContext,
@@ -70,9 +72,11 @@ const PointCloudInfo = function PointCloudInfo() {
     <section
       css={css`
         width: 300px;
-        padding: var(--ac-global-dimension-static-size-100);
       `}
     >
+      <Heading level={2} weight="heavy" style={{ marginBottom: 8 }}>
+        Point Cloud Summary
+      </Heading>
       <dl css={descriptionListCSS}>
         <div>
           <dt>Timestamp</dt>
@@ -180,17 +184,15 @@ function CanvasTools() {
  */
 function CanvasInfo() {
   return (
-    <TooltipTrigger placement="bottom left" delay={0}>
-      <TriggerWrap>
-        <Button
-          size="S"
-          leadingVisual={<Icon svg={<Icons.InfoOutline />} />}
-          aria-label="Information bout the point-cloud display"
-        />
-      </TriggerWrap>
-      <ActionTooltip title={"Point Cloud Summary"}>
+    <TooltipTrigger delay={0}>
+      <Button
+        size="S"
+        leadingVisual={<Icon svg={<Icons.InfoOutline />} />}
+        aria-label="Information bout the point-cloud display"
+      />
+      <RichTooltip placement="bottom left">
         <PointCloudInfo />
-      </ActionTooltip>
+      </RichTooltip>
     </TooltipTrigger>
   );
 }

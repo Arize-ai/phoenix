@@ -1,9 +1,13 @@
 import { useMemo } from "react";
 import { css } from "@emotion/react";
 
-import { HelpTooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
-
-import { Flex, Text } from "@phoenix/components";
+import {
+  Flex,
+  Text,
+  Tooltip,
+  TooltipTrigger,
+  TriggerWrap,
+} from "@phoenix/components";
 import { baseAnnotationLabelCSS } from "@phoenix/components/annotation";
 import { ColorSwatch } from "@phoenix/components/ColorSwatch";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
@@ -39,7 +43,7 @@ export function RetrievalEvaluationLabel(props: RetrievalEvaluationLabelProps) {
     return (typeof score == "number" && formatFloat(score)) || "--";
   }, [score, metric]);
   return (
-    <TooltipTrigger delay={500} offset={3}>
+    <TooltipTrigger delay={500}>
       <TriggerWrap>
         <div css={baseAnnotationLabelCSS}>
           <Flex direction="row" gap="size-100" alignItems={"center"}>
@@ -62,14 +66,14 @@ export function RetrievalEvaluationLabel(props: RetrievalEvaluationLabelProps) {
           </Flex>
         </div>
       </TriggerWrap>
-      <HelpTooltip>
+      <Tooltip offset={3} placement="bottom">
         <Flex direction="row" gap="size-100">
           <Text weight="heavy" color="inherit">
             {name} {label}
           </Text>
           <Text color="inherit">{labelValue}</Text>
         </Flex>
-      </HelpTooltip>
+      </Tooltip>
     </TooltipTrigger>
   );
 }

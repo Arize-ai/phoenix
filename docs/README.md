@@ -8,24 +8,11 @@ Phoenix is an open-source observability tool designed for experimentation, evalu
 \
 Phoenix is built by [Arize AI](https://www.arize.com), the company behind the industry-leading AI observability platform, and a set of core contributors.
 
-Phoenix works with OpenTelemetry and [OpenInference](https://github.com/Arize-ai/openinference) instrumentation. See [integrations-tracing](tracing/integrations-tracing/ "mention") for details.
+Phoenix works with OpenTelemetry and [OpenInference](https://github.com/Arize-ai/openinference) instrumentation. See [Integrations](https://arize.com/docs/phoenix/integrations) for details.
 
 ## Features
 
 {% tabs %}
-{% tab title="Prompt Engineering" %}
-{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/prompt_playground.mp4" %}
-Phoenix Prompt Playground
-{% endembed %}
-
-Phoenix offers tools to [streamline your prompt engineering](prompt-engineering/overview-prompts.md) workflow.
-
-* [Prompt Management](prompt-engineering/overview-prompts/prompt-management.md) - Create, store, modify, and deploy prompts for interacting with LLMs
-* [Prompt Playground](prompt-engineering/overview-prompts/prompt-playground.md) - Play with prompts, models, invocation parameters and track your progress via tracing and experiments
-* [Span Replay](./#span-replay) - Replay the invocation of an LLM. Whether it's an LLM step in an LLM workflow or a router query, you can step into the LLM invocation and see if any modifications to the invocation would have yielded a better outcome.
-* [Prompts in Code](prompt-engineering/overview-prompts/prompts-in-code.md) - Phoenix offers client SDKs to keep your prompts in sync across different applications and environments.
-{% endtab %}
-
 {% tab title="Tracing" %}
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/tracing.mp4" %}
 Tracing in Phoenix
@@ -33,7 +20,7 @@ Tracing in Phoenix
 
 [Tracing](tracing/llm-traces.md) is a helpful tool for understanding how your LLM application works. Phoenix's open-source library offers comprehensive tracing capabilities that are not tied to any specific LLM vendor or framework.&#x20;
 
-Phoenix accepts traces over the OpenTelemetry protocol (OTLP) and supports first-class instrumentation for a variety of frameworks ([LlamaIndex](tracing/integrations-tracing/llamaindex.md), [LangChain](tracing/integrations-tracing/langchain.md),[ DSPy](tracing/integrations-tracing/dspy.md)), SDKs ([OpenAI](tracing/integrations-tracing/openai.md), [Bedrock](tracing/integrations-tracing/bedrock.md), [Mistral](tracing/integrations-tracing/mistralai.md), [Vertex](tracing/integrations-tracing/vertexai.md)), and Languages. ([Python](tracing/integrations-tracing/#python), [Javascript](tracing/how-to-tracing/setup-tracing/javascript.md), etc.)
+Phoenix accepts traces over the OpenTelemetry protocol (OTLP) and supports first-class instrumentation for a variety of frameworks ([LlamaIndex](broken-reference), [LangChain](broken-reference),[ DSPy](broken-reference)), SDKs ([OpenAI](broken-reference), [Bedrock](broken-reference), [Mistral](broken-reference), [Vertex](broken-reference)), and Languages. ([Python](broken-reference), [Javascript](tracing/how-to-tracing/setup-tracing/javascript.md), etc.)
 {% endtab %}
 
 {% tab title="Evaluation" %}
@@ -46,6 +33,19 @@ Phoenix is built to help you [evaluate your application](evaluation/llm-evals/) 
 * A standalone library to [run LLM-based evaluations](evaluation/how-to-evals/running-pre-tested-evals/) on your own datasets. This can be used either with the Phoenix library, or independently over your own data.
 * [Direct integration of LLM-based and code-based evaluators](tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces.md) into the Phoenix dashboard. Phoenix is built to be agnostic, and so these evals can be generated using Phoenix's library, or an external library like [Ragas](https://docs.ragas.io/), [Deepeval](https://github.com/confident-ai/deepeval), or [Cleanlab](https://cleanlab.ai/).
 * [Human annotation capabilities](tracing/features-tracing/how-to-annotate-traces.md) to attach human ground truth labels to your data in Phoenix.
+{% endtab %}
+
+{% tab title="Prompt Engineering" %}
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/prompt_playground.mp4" %}
+Phoenix Prompt Playground
+{% endembed %}
+
+Phoenix offers tools to [streamline your prompt engineering](prompt-engineering/overview-prompts.md) workflow.
+
+* [Prompt Management](prompt-engineering/overview-prompts/prompt-management.md) - Create, store, modify, and deploy prompts for interacting with LLMs
+* [Prompt Playground](prompt-engineering/overview-prompts/prompt-playground.md) - Play with prompts, models, invocation parameters and track your progress via tracing and experiments
+* [Span Replay](./#span-replay) - Replay the invocation of an LLM. Whether it's an LLM step in an LLM workflow or a router query, you can step into the LLM invocation and see if any modifications to the invocation would have yielded a better outcome.
+* [Prompts in Code](prompt-engineering/overview-prompts/prompts-in-code.md) - Phoenix offers client SDKs to keep your prompts in sync across different applications and environments.
 {% endtab %}
 
 {% tab title="Datasets & Experiments" %}
@@ -75,7 +75,7 @@ Running Phoenix for the first time? Select a quickstart below.
 
 Check out a comprehensive list of example notebooks for LLM Traces, Evals, RAG Analysis, and more.
 
-### [Add Integrations](tracing/integrations-tracing/)
+### [Add Integrations](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/C8re8QzKV5m48pbcFkBp/)
 
 Add instrumentation for popular packages and libraries such as OpenAI, LangGraph, Vercel AI SDK and more.
 

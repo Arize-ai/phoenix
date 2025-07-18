@@ -4,7 +4,7 @@ from __future__ import annotations
 from asyncio import sleep
 from platform import system
 from secrets import token_bytes, token_hex
-from typing import Any, Literal, NamedTuple, Optional, cast
+from typing import Any, Literal, NamedTuple, Optional, Sequence, cast
 
 import pandas as pd
 import phoenix as px
@@ -16,13 +16,14 @@ from opentelemetry.trace import format_span_id, format_trace_id
 from phoenix.client.__generated__ import v1
 from phoenix.trace import DocumentEvaluations, SpanEvaluations, TraceEvaluations
 from strawberry.relay import GlobalID
-from typing_extensions import TypeAlias, assert_never
+from typing_extensions import assert_never
 
 from .._helpers import (
     _ADMIN,
     _MEMBER,
-    _AdminSecret,
+    _AppInfo,
     _await_or_return,
+    _ExistingSpan,
     _get,
     _GetUser,
     _gql,
@@ -31,10 +32,6 @@ from .._helpers import (
     _SecurityArtifact,
     _start_span,
 )
-
-# Type aliases for better readability
-SpanId: TypeAlias = str
-SpanGlobalId: TypeAlias = str
 
 
 @pytest.mark.skipif(
@@ -93,9 +90,9 @@ class TestClientForSpanAnnotations:
         is_async: bool,
         role_or_user: _RoleOrUser,
         api_key_kind: Literal["User", "System"],
-        _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
+        _existing_spans: Sequence[_ExistingSpan],
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
         """Tests creating and updating single annotations.
 
@@ -110,11 +107,12 @@ class TestClientForSpanAnnotations:
         # Setup
         # ============================================================================
         # Extract OTEL span ID and graphql Global ID from the fixture
-        (span_id1, span_gid1), _ = _span_ids
+        assert _existing_spans, "At least one existing span is required for this test"
+        (span_gid1, span_id1, *_), *_ = _existing_spans
 
         # Set up test environment with logged-in user
-        u = _get_user(role_or_user).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key(api_key_kind))
+        u = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(u.create_api_key(_app, api_key_kind))
 
         # Import appropriate client based on test parameter
         from phoenix.client import AsyncClient
@@ -140,7 +138,7 @@ class TestClientForSpanAnnotations:
             metadata = {token_hex(16): token_hex(16)}
             # Create the span annotation
             result = await _await_or_return(
-                Client().annotations.add_span_annotation(
+                Client(base_url=_app.base_url, api_key=api_key).annotations.add_span_annotation(
                     annotation_name=annotation_name,
                     span_id=span_id1,
                     annotator_kind="LLM",  # Test non-default annotator_kind
@@ -158,10 +156,11 @@ class TestClientForSpanAnnotations:
             # Verify the annotation was created correctly by querying the GraphQL API
             def get_annotation() -> Optional[dict[str, Any]]:
                 res, _ = _gql(
+                    _app,
                     u,
                     query=self.query,
                     operation_name="GetSpanAnnotations",
-                    variables={"id": span_gid1},
+                    variables={"id": str(span_gid1)},
                 )
                 annotations = {
                     (anno["label"], anno["score"], anno["explanation"]): anno
@@ -209,9 +208,9 @@ class TestClientForSpanAnnotations:
         sync: bool,
         is_async: bool,
         role_or_user: _RoleOrUser,
-        _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
+        _existing_spans: Sequence[_ExistingSpan],
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
         """Tests handling multiple annotations at once.
 
@@ -227,11 +226,12 @@ class TestClientForSpanAnnotations:
         # Setup
         # ============================================================================
         # Extract OTEL span ID and graphql Global ID from the fixture
-        (span_id1, span_gid1), (span_id2, span_gid2) = _span_ids
+        assert len(_existing_spans) >= 2, "At least two existing spans are required for this test"
+        (span_gid1, span_id1, *_), (span_gid2, span_id2, *_), *_ = _existing_spans
 
         # Set up test environment with logged-in user
-        u = _get_user(role_or_user).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
+        u = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(u.create_api_key(_app))
 
         # Import appropriate client based on test parameter
         from phoenix.client import AsyncClient
@@ -282,7 +282,7 @@ class TestClientForSpanAnnotations:
 
             # Log the batch annotations
             result = await _await_or_return(
-                Client().annotations.log_span_annotations(
+                Client(base_url=_app.base_url, api_key=api_key).annotations.log_span_annotations(
                     span_annotations=span_annotations,
                     sync=sync,
                 ),
@@ -300,10 +300,11 @@ class TestClientForSpanAnnotations:
 
                 def get_batch_annotation() -> Optional[dict[str, Any]]:
                     res, _ = _gql(
+                        _app,
                         u,
                         query=self.query,
                         operation_name="GetSpanAnnotations",
-                        variables={"id": span_gids[j]},
+                        variables={"id": str(span_gids[j])},
                     )
                     annotations = {
                         (anno["label"], anno["score"], anno["explanation"]): anno
@@ -348,9 +349,9 @@ class TestClientForSpanAnnotations:
         sync: bool,
         is_async: bool,
         role_or_user: _RoleOrUser,
-        _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
+        _existing_spans: Sequence[_ExistingSpan],
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
         """Tests using DataFrames for annotations.
 
@@ -370,11 +371,12 @@ class TestClientForSpanAnnotations:
         # Setup
         # ============================================================================
         # Extract OTEL span ID and graphql Global ID from the fixture
-        (span_id1, span_gid1), (span_id2, span_gid2) = _span_ids
+        assert len(_existing_spans) >= 2, "At least two existing spans are required for this test"
+        (span_gid1, span_id1, *_), (span_gid2, span_id2, *_), *_ = _existing_spans
 
         # Set up test environment with logged-in user
-        u = _get_user(role_or_user).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
+        u = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(u.create_api_key(_app))
 
         # Import appropriate client based on test parameter
         from phoenix.client import AsyncClient
@@ -411,7 +413,9 @@ class TestClientForSpanAnnotations:
 
         # Log annotations from DataFrame
         result = await _await_or_return(
-            Client().annotations.log_span_annotations_dataframe(
+            Client(
+                base_url=_app.base_url, api_key=api_key
+            ).annotations.log_span_annotations_dataframe(
                 dataframe=df1,
                 sync=sync,
             ),
@@ -425,10 +429,11 @@ class TestClientForSpanAnnotations:
 
             def get_df_annotation() -> Optional[dict[str, Any]]:
                 res, _ = _gql(
+                    _app,
                     u,
                     query=self.query,
                     operation_name="GetSpanAnnotations",
-                    variables={"id": span_gid},
+                    variables={"id": str(span_gid)},
                 )
                 annotations = {
                     (anno["label"], anno["score"], anno["explanation"]): anno
@@ -482,7 +487,9 @@ class TestClientForSpanAnnotations:
 
         # Log annotations from DataFrame
         result = await _await_or_return(
-            Client().annotations.log_span_annotations_dataframe(
+            Client(
+                base_url=_app.base_url, api_key=api_key
+            ).annotations.log_span_annotations_dataframe(
                 dataframe=df2,
                 sync=sync,
             ),
@@ -496,10 +503,11 @@ class TestClientForSpanAnnotations:
 
             def get_df2_annotation() -> Optional[dict[str, Any]]:
                 res, _ = _gql(
+                    _app,
                     u,
                     query=self.query,
                     operation_name="GetSpanAnnotations",
-                    variables={"id": span_gid},
+                    variables={"id": str(span_gid)},
                 )
                 annotations = {
                     (anno["label"], anno["score"], anno["explanation"]): anno
@@ -554,7 +562,9 @@ class TestClientForSpanAnnotations:
 
         # Log annotations from DataFrame with global annotator_kind
         result = await _await_or_return(
-            Client().annotations.log_span_annotations_dataframe(
+            Client(
+                base_url=_app.base_url, api_key=api_key
+            ).annotations.log_span_annotations_dataframe(
                 dataframe=df3,
                 annotator_kind=global_annotator_kind,
                 sync=sync,
@@ -569,10 +579,11 @@ class TestClientForSpanAnnotations:
 
             def get_df3_annotation() -> Optional[dict[str, Any]]:
                 res, _ = _gql(
+                    _app,
                     u,
                     query=self.query,
                     operation_name="GetSpanAnnotations",
-                    variables={"id": span_gid},
+                    variables={"id": str(span_gid)},
                 )
                 annotations = {
                     (anno["label"], anno["score"], anno["explanation"]): anno
@@ -606,9 +617,9 @@ class TestClientForSpanAnnotations:
         sync: bool,
         is_async: bool,
         role_or_user: _RoleOrUser,
-        _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
+        _existing_spans: Sequence[_ExistingSpan],
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
         """Tests handling annotations with zero scores.
 
@@ -622,11 +633,12 @@ class TestClientForSpanAnnotations:
         # Setup
         # ============================================================================
         # Extract OTEL span ID and graphql Global ID from the fixture
-        (span_id1, span_gid1), _ = _span_ids
+        assert _existing_spans, "At least one existing span is required for this test"
+        (span_gid1, span_id1, *_), *_ = _existing_spans
 
         # Set up test environment with logged-in user
-        u = _get_user(role_or_user).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
+        u = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(u.create_api_key(_app))
 
         # Import appropriate client based on test parameter
         from phoenix.client import AsyncClient
@@ -642,7 +654,7 @@ class TestClientForSpanAnnotations:
 
         # Create annotation with score of 0
         result = await _await_or_return(
-            Client().annotations.add_span_annotation(
+            Client(base_url=_app.base_url, api_key=api_key).annotations.add_span_annotation(
                 annotation_name=zero_score_annotation_name,
                 span_id=span_id1,
                 annotator_kind="LLM",
@@ -657,10 +669,11 @@ class TestClientForSpanAnnotations:
         # Verify the annotation was created correctly by querying the GraphQL API
         def get_zero_score_annotation() -> Optional[dict[str, Any]]:
             res, _ = _gql(
+                _app,
                 u,
                 query=self.query,
                 operation_name="GetSpanAnnotations",
-                variables={"id": span_gid1},
+                variables={"id": str(span_gid1)},
             )
             annotations = {anno["name"]: anno for anno in res["data"]["node"]["spanAnnotations"]}
             return annotations.get(zero_score_annotation_name)
@@ -686,9 +699,9 @@ class TestClientForSpanAnnotations:
         sync: bool,
         is_async: bool,
         role_or_user: _RoleOrUser,
-        _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
+        _existing_spans: Sequence[_ExistingSpan],
         _get_user: _GetUser,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
         """Tests handling zero scores in DataFrames.
 
@@ -702,11 +715,12 @@ class TestClientForSpanAnnotations:
         # Setup
         # ============================================================================
         # Extract OTEL span ID and graphql Global ID from the fixture
-        (span_id1, span_gid1), _ = _span_ids
+        assert _existing_spans, "At least one existing span is required for this test"
+        (span_gid1, span_id1, *_), *_ = _existing_spans
 
         # Set up test environment with logged-in user
-        u = _get_user(role_or_user).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
+        u = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(u.create_api_key(_app))
 
         # Import appropriate client based on test parameter
         from phoenix.client import AsyncClient
@@ -733,7 +747,9 @@ class TestClientForSpanAnnotations:
 
         # Log annotations from DataFrame
         result = await _await_or_return(
-            Client().annotations.log_span_annotations_dataframe(
+            Client(
+                base_url=_app.base_url, api_key=api_key
+            ).annotations.log_span_annotations_dataframe(
                 dataframe=df,
                 sync=sync,
             ),
@@ -745,10 +761,11 @@ class TestClientForSpanAnnotations:
         # Verify the annotation was created correctly by querying the GraphQL API
         def get_zero_score_df_annotation() -> Optional[dict[str, Any]]:
             res, _ = _gql(
+                _app,
                 u,
                 query=self.query,
                 operation_name="GetSpanAnnotations",
-                variables={"id": span_gid1},
+                variables={"id": str(span_gid1)},
             )
             annotations = {anno["name"]: anno for anno in res["data"]["node"]["spanAnnotations"]}
             return annotations.get(zero_score_annotation_name)
@@ -838,7 +855,7 @@ class TestSendingAnnotationsBeforeSpan:
         }
 
         query GetSpanTraceGlobalID($traceId: ID!) {
-            projects {
+            projects(first: 1000) {
                 edges {
                     node {
                         trace(traceId: $traceId) {
@@ -874,6 +891,7 @@ class TestSendingAnnotationsBeforeSpan:
 
     def _get_span_trace_gid(
         self,
+        app: _AppInfo,
         auth: _SecurityArtifact,
         *,
         span_id: str,
@@ -881,6 +899,7 @@ class TestSendingAnnotationsBeforeSpan:
     ) -> Optional[_SpanTraceGlobalID]:
         """Gets global ID for span_id and trace_id."""
         res, _ = _gql(
+            app,
             auth,
             query=self.query,
             variables={"traceId": trace_id},
@@ -899,8 +918,7 @@ class TestSendingAnnotationsBeforeSpan:
     async def test_annotations_and_evaluations(
         self,
         _span: ReadableSpan,
-        _admin_secret: _AdminSecret,
-        monkeypatch: pytest.MonkeyPatch,
+        _app: _AppInfo,
     ) -> None:
         """Tests sending annotations and evaluations before spans exist.
 
@@ -917,13 +935,16 @@ class TestSendingAnnotationsBeforeSpan:
         assert (span_context := _span.get_span_context())  # type: ignore[no-untyped-call]
         span_id = format_span_id(span_context.span_id)
         trace_id = format_trace_id(span_context.trace_id)
-        assert self._get_span_trace_gid(_admin_secret, span_id=span_id, trace_id=trace_id) is None
+        assert (
+            self._get_span_trace_gid(_app, _app.admin_secret, span_id=span_id, trace_id=trace_id)
+            is None
+        )
 
         # Set up the client
-        monkeypatch.setenv("PHOENIX_API_KEY", _admin_secret)
+        api_key = str(_app.admin_secret)
         from phoenix.client import Client
 
-        client = Client()
+        client = Client(base_url=_app.base_url, api_key=api_key)
 
         # Make test data
         span_annotation_name = token_hex(16)
@@ -984,7 +1005,7 @@ class TestSendingAnnotationsBeforeSpan:
                 metadata=span_anno_metadatas[-1],
             )
 
-            px.Client().log_evaluations(
+            px.Client(endpoint=_app.base_url, api_key=api_key).log_evaluations(
                 SpanEvaluations(
                     eval_name=span_eval_name,
                     dataframe=pd.DataFrame(
@@ -1023,13 +1044,15 @@ class TestSendingAnnotationsBeforeSpan:
             await sleep(0.01)
 
         # Send the span and wait
-        headers = {"authorization": f"Bearer {_admin_secret}"}
-        assert _grpc_span_exporter(headers=headers).export([_span]) is SpanExportResult.SUCCESS
+        headers = {"authorization": f"Bearer {_app.admin_secret}"}
+        assert (
+            _grpc_span_exporter(_app, headers=headers).export([_span]) is SpanExportResult.SUCCESS
+        )
 
         # Get the global IDs
         span_gid, trace_gid = await _get(
             query_fn=lambda: self._get_span_trace_gid(
-                _admin_secret, span_id=span_id, trace_id=trace_id
+                _app, _app.admin_secret, span_id=span_id, trace_id=trace_id
             ),
             error_msg="Span and trace IDs should be present",
         )
@@ -1041,9 +1064,10 @@ class TestSendingAnnotationsBeforeSpan:
 
         def get_span_anno(key: tuple[str, int, str]) -> Optional[dict[str, Any]]:
             res, _ = _gql(
-                _admin_secret,
+                _app,
+                _app.admin_secret,
                 query=self.query,
-                variables={"id": span_gid},
+                variables={"id": str(span_gid)},
                 operation_name="GetSpanAnnotations",
             )
             annos = {
@@ -1089,9 +1113,10 @@ class TestSendingAnnotationsBeforeSpan:
 
         def get_trace_anno(key: tuple[str, int, str]) -> Optional[dict[str, Any]]:
             res, _ = _gql(
-                _admin_secret,
+                _app,
+                _app.admin_secret,
                 query=self.query,
-                variables={"id": trace_gid},
+                variables={"id": str(trace_gid)},
                 operation_name="GetTraceAnnotations",
             )
             annos = {
@@ -1119,9 +1144,10 @@ class TestSendingAnnotationsBeforeSpan:
 
         def get_doc_eval(key: tuple[str, int, str]) -> Optional[dict[str, Any]]:
             res, _ = _gql(
-                _admin_secret,
+                _app,
+                _app.admin_secret,
                 query=self.query,
-                variables={"id": span_gid},
+                variables={"id": str(span_gid)},
                 operation_name="GetDocumentEvaluations",
             )
             annos = {
@@ -1168,7 +1194,7 @@ class TestSendingAnnotationsBeforeSpan:
             metadata=new_span_anno_metadata,
         )
 
-        px.Client().log_evaluations(
+        px.Client(endpoint=_app.base_url, api_key=api_key).log_evaluations(
             SpanEvaluations(
                 eval_name=span_eval_name,
                 dataframe=pd.DataFrame(

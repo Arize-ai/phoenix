@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-mcp",
-  "version": "2.1.10",
+  "version": "2.2.6",
   "description": "A MCP server for Arize Phoenix",
   "bin": {
     "@arizeai/phoenix-mcp": "./build/index.js"
@@ -23,7 +23,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@arizeai/phoenix-client": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.12.0",
+    "@modelcontextprotocol/sdk": "^1.13.3",
     "glob": "^11.0.1",
     "minimist": "^1.2.8",
     "zod": "^3.24.2"

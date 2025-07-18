@@ -32,13 +32,13 @@ import {
 } from "relay-runtime";
 import { css } from "@emotion/react";
 
-import { DialogContainer, Tooltip, TooltipTrigger } from "@arizeai/components";
+import { DialogContainer } from "@arizeai/components";
 
 import {
-  Button,
   DialogTrigger,
   Flex,
   Icon,
+  IconButton,
   Icons,
   Loading,
   Modal,
@@ -48,10 +48,17 @@ import {
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { JSONText } from "@phoenix/components/code/JSONText";
+import { CellTop } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import {
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+} from "@phoenix/components/tooltip";
+import { SpanTokenCosts } from "@phoenix/components/trace";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { TokenCount } from "@phoenix/components/trace/TokenCount";
+import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useNotifyError } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
@@ -79,7 +86,6 @@ import PlaygroundDatasetExamplesTableSubscription, {
 import {
   ExampleRunData,
   InstanceResponses,
-  Span,
   usePlaygroundDatasetExamplesTableContext,
 } from "./PlaygroundDatasetExamplesTableContext";
 import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
@@ -153,7 +159,7 @@ const cellWithControlsWrapCSS = css`
   position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   height: 100%;
   min-height: 75px;
   .controls {
@@ -174,7 +180,7 @@ const cellWithControlsWrapCSS = css`
 
 const cellControlsCSS = css`
   position: absolute;
-  top: -4px;
+  top: calc(-1 * var(--ac-global-dimension-static-size-200));
   right: var(--ac-global-dimension-static-size-100);
   display: flex;
   flex-direction: row;
@@ -200,11 +206,11 @@ export function CellWithControlsWrap(
 function LargeTextWrap({ children }: { children: ReactNode }) {
   return (
     <div
+      data-testid="large-text-wrap"
       css={css`
         max-height: 300px;
         overflow-y: auto;
-        padding: var(--ac-global-dimension-static-size-100)
-          var(--ac-global-dimension-static-size-200);
+        padding: var(--ac-global-dimension-static-size-200);
       `}
     >
       {children}
@@ -273,11 +279,15 @@ function ExampleOutputContent({
         <>
           {hasExperimentRun && (
             <DialogTrigger>
-              <Button
-                size="S"
-                aria-label="View experiment run details"
-                leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
-              />
+              <TooltipTrigger>
+                <IconButton size="S" aria-label="View experiment run details">
+                  <Icon svg={<Icons.ExpandOutline />} />
+                </IconButton>
+                <Tooltip>
+                  <TooltipArrow />
+                  view experiment run
+                </Tooltip>
+              </TooltipTrigger>
               <ModalOverlay>
                 <Modal variant="slideover" size="L">
                   <PlaygroundExperimentRunDetailsDialog
@@ -290,11 +300,15 @@ function ExampleOutputContent({
           {hasSpan && (
             <>
               <DialogTrigger>
-                <Button
-                  size="S"
-                  aria-label="View run trace"
-                  leadingVisual={<Icon svg={<Icons.Trace />} />}
-                />
+                <TooltipTrigger>
+                  <IconButton size="S" aria-label="View run trace">
+                    <Icon svg={<Icons.Trace />} />
+                  </IconButton>
+                  <Tooltip>
+                    <TooltipArrow />
+                    view run trace
+                  </Tooltip>
+                </TooltipTrigger>
                 <ModalOverlay>
                   <Modal size="fullscreen" variant="slideover">
                     <PlaygroundRunTraceDetailsDialog
@@ -313,13 +327,39 @@ function ExampleOutputContent({
   }, [experimentRunId, hasExperimentRun, hasSpan, span]);
 
   return (
-    <CellWithControlsWrap controls={spanControls}>
+    <Flex direction="column" height="100%">
+      <CellTop extra={spanControls}>
+        {span ? (
+          <Flex
+            direction="row"
+            gap="size-100"
+            alignItems="center"
+            height="100%"
+          >
+            <LatencyText latencyMs={span.latencyMs || 0} size="S" />
+            <SpanTokenCount
+              tokenCountTotal={span.tokenCountTotal || 0}
+              nodeId={span.id}
+            />
+            <SpanTokenCosts
+              totalCost={span.costSummary?.total?.cost || 0}
+              spanNodeId={span.id}
+            />
+          </Flex>
+        ) : (
+          <Text color="text-500" fontStyle="italic">
+            generating...
+          </Text>
+        )}
+      </CellTop>
       <View padding="size-200">
-        <Flex direction={"column"} gap="size-200">
+        <Flex direction={"column"} gap="size-100" key="content-wrap">
           {errorMessage != null ? (
-            <PlaygroundErrorWrap>{errorMessage}</PlaygroundErrorWrap>
+            <PlaygroundErrorWrap key="error-message">
+              {errorMessage}
+            </PlaygroundErrorWrap>
           ) : null}
-          <Text>{content}</Text>
+          {content != null ? <Text key="content">{content}</Text> : null}
           {toolCalls != null
             ? Object.values(toolCalls).map((toolCall) =>
                 toolCall == null ? null : (
@@ -327,10 +367,9 @@ function ExampleOutputContent({
                 )
               )
             : null}
-          {hasSpan ? <SpanMetadata span={span} /> : null}
         </Flex>
       </View>
-    </CellWithControlsWrap>
+    </Flex>
   );
 }
 
@@ -362,18 +401,6 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   );
 });
 
-function SpanMetadata({ span }: { span: Span }) {
-  return (
-    <Flex direction="row" gap="size-100" alignItems="center">
-      <TokenCount
-        tokenCountTotal={span.tokenCountTotal || 0}
-        nodeId={span.id}
-      />
-      <LatencyText latencyMs={span.latencyMs || 0} />
-    </Flex>
-  );
-}
-
 // un-memoized normal table body component - see memoized version below
 function TableBody<T>({ table }: { table: Table<T> }) {
   return (
@@ -386,7 +413,10 @@ function TableBody<T>({ table }: { table: Table<T> }) {
                 key={cell.id}
                 style={{
                   padding: 0,
+                  verticalAlign: "top",
                   width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
+                  maxWidth: `calc(var(--col-${cell.column.id}-size) * 1px)`,
+                  minWidth: 0,
                   // allow long text with no symbols or spaces to wrap
                   // otherwise, it will prevent the cell from shrinking
                   // an alternative solution would be to set a max-width and allow
@@ -795,24 +825,36 @@ export function PlaygroundDatasetExamplesTable({
       accessorKey: "input",
       cell: ({ row }) => {
         return (
-          <CellWithControlsWrap
-            controls={
-              <TooltipTrigger>
-                <Button
-                  size="S"
-                  aria-label="View example details"
-                  leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
-                  onPress={() => {
-                    setSearchParams((prev) => {
-                      prev.set("exampleId", row.original.id);
-                      return prev;
-                    });
-                  }}
-                />
-                <Tooltip>View Example</Tooltip>
-              </TooltipTrigger>
-            }
-          >
+          <>
+            <CellTop
+              extra={
+                <TooltipTrigger>
+                  <IconButton
+                    size="S"
+                    aria-label="View example details"
+                    onPress={() => {
+                      setSearchParams((prev) => {
+                        prev.set("exampleId", row.original.id);
+                        return prev;
+                      });
+                    }}
+                  >
+                    <Icon svg={<Icons.ExpandOutline />} />
+                  </IconButton>
+                  <Tooltip>
+                    <TooltipArrow />
+                    view example
+                  </Tooltip>
+                </TooltipTrigger>
+              }
+            >
+              <Text
+                color="text-500"
+                css={css`
+                  white-space: nowrap;
+                `}
+              >{`Example ${row.original.id}`}</Text>
+            </CellTop>
             <LargeTextWrap>
               <JSONText
                 json={row.original.input}
@@ -821,7 +863,7 @@ export function PlaygroundDatasetExamplesTable({
                 collapseSingleKey={false}
               />
             </LargeTextWrap>
-          </CellWithControlsWrap>
+          </>
         );
       },
       size: 200,
@@ -829,7 +871,16 @@ export function PlaygroundDatasetExamplesTable({
     {
       header: "reference output",
       accessorKey: "output",
-      cell: (props) => JSONCell({ ...props, collapseSingleKey: true }),
+      cell: (props) => {
+        return (
+          <>
+            <CellTop>
+              <Text color="text-500">{`reference output`}</Text>
+            </CellTop>
+            <JSONCell {...props} collapseSingleKey={true} />
+          </>
+        );
+      },
       size: 200,
     },
     ...playgroundInstanceOutputColumns,
@@ -988,6 +1039,11 @@ graphql`
         span {
           id
           tokenCountTotal
+          costSummary {
+            total {
+              cost
+            }
+          }
           latencyMs
           project {
             id
@@ -1029,6 +1085,11 @@ graphql`
             span {
               id
               tokenCountTotal
+              costSummary {
+                total {
+                  cost
+                }
+              }
               latencyMs
               project {
                 id

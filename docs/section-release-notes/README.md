@@ -1,25 +1,118 @@
 ---
 description: The latest from the Phoenix team.
-layout:
-  title:
-    visible: true
-  description:
-    visible: true
-  tableOfContents:
-    visible: true
-  outline:
-    visible: false
-  pagination:
-    visible: true
 ---
 
 # Release Notes
 
 {% embed url="https://github.com/Arize-ai/phoenix/releases" %}
 
-## [05.30.2025: xAI and Deepseek Support in Playground](05.30.2025-xai-and-deepseek-support-in-playground.md) 🛝
+## [07.03.2025: Cost Summaries in Trace Headers](07.2025/07.03.2025-cost-summaries-in-trace-headers.md) 💸
 
-**Available in Phoenix 10.5+**
+**Available in Phoenix 11.4+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/cost-summary-trace.png" %}
+
+Added cost summaries to trace headers, showing total and segmented (prompt & completion) costs at a glance while debugging.
+
+***
+
+## [07.02.2025: Cursor MCP Button](07.2025/07.02.2025-cursor-mcp-button.md) ⚡️
+
+**Available in Phoenix 11.3+**
+
+{% embed url="https://www.loom.com/share/c7cb4f9aeefd43a5a827d584b873297e?sid=1e607e54-0f26-4c07-8e3c-34cde925eb81" %}
+
+Phoenix README now has a “Add to Cursor” button for seamless IDE integration with Cursor. `@arizeai/phoenix-mcp@2.2.0` also includes a new tool called `phoenix-support`, letting agents like Cursor auto-instrument your apps using Phoenix and OpenInference best practices.
+
+***
+
+## [06.25.2025: Cost Tracking](06.2025/06.25.2025-cost-tracking.md) 💰
+
+**Available in Phoenix 11.0+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/observe_cost_tracking.mp4" %}
+
+Phoenix now automatically tracks token-based LLM costs using model pricing and token counts, rolling them up to trace and project levels for clear, actionable cost insights.
+
+***
+
+## [06.25.2025: New Phoenix Cloud](06.2025/06.25.2025-new-phoenix-cloud.md) ☁️
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/observe_phoenix_cloud_launch.mp4" %}
+
+Phoenix now supports multiple customizable spaces with individual user access and collaboration, enabling teams to work together seamlessly.
+
+***
+
+## [06.25.2025: Amazon Bedrock Support in Playground 🛝](06.2025/06.25.2025-amazon-bedrock-support-in-playground.md)
+
+**Available in Phoenix 10.15+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/observe_bedrock_playground.mp4" %}
+
+Phoenix’s Playground now supports Amazon Bedrock, letting you run, compare, and track Bedrock models alongside others—all in one place.
+
+***
+
+## [06.13.2025: Session Filtering 🪄](06.2025/06.13.2025-session-filtering.md)
+
+**Available in Phoenix 10.12+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/session-filtering.gif" %}
+
+Now you can filter sessions by their unique `session_id` across the API and UI, making it easier to pinpoint and inspect specific sessions.
+
+***
+
+## [06.13.2025: Enhanced Span Creation and Logging](06.2025/06.13.2025-enhanced-span-creation-and-logging.md) 🪐
+
+**Available in Phoenix 10.12+**
+
+Now you can create spans directly via a new POST API and client methods, with helpers to safely regenerate IDs and prevent conflicts on insertion.
+
+***
+
+## [06.12.2025: Dataset Filtering 🔍](06.2025/06.12.2025-dataset-filtering.md)
+
+**Available in Phoenix 10.11+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/dataset-filtering.gif" %}
+
+Dataset name filtering with live search support across the API and UI.
+
+***
+
+## [06.06.2025: Experiment Progress Graph](06.2025/06.06.2025-experiment-progress-graph.md) 📊
+
+**Available in Phoenix 10.9+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/experiment_graphs.mp4" %}
+
+Phoenix now has experiment graphs to track how your evaluation scores and latency evolve over time.&#x20;
+
+***
+
+## [06.04.2025: Ollama Support in Playground 🛝](06.2025/06.04.2025-ollama-support-in-playground.md)
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/ollama-playground.gif" %}
+
+**Ollama** is now supported in the Playground, letting you experiment with its models and customize parameters for tailored prompting.
+
+***
+
+## [06.03.2025: Deploy Phoenix via Helm](06.2025/06.03.2025-deploy-via-helm.md) ☸️
+
+**Available in Phoenix 10.6+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-helm.jpeg" %}
+
+Added Helm chart support for Phoenix, making Kubernetes deployment fast, consistent, and easy to upgrade.
+
+***
+
+## [05.30.2025: xAI and Deepseek Support in Playground](05.2025/05.30.2025-xai-and-deepseek-support-in-playground.md) 🛝
+
+**Available in Phoenix 10.7+**
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/deepseek.mp4" %}
 
@@ -27,7 +120,7 @@ Deepseek and xAI models are now available in Prompt Playground!
 
 ***
 
-## [05.20.2025: Datasets and Experiment Evaluations in the JS Client](05.20.2025-datasets-and-experiment-evaluations-in-the-js-client.md) 🧪
+## [05.20.2025: Datasets and Experiment Evaluations in the JS Client](05.2025/05.20.2025-datasets-and-experiment-evaluations-in-the-js-client.md) 🧪
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/TS-experiments.png" %}
 
@@ -82,7 +175,7 @@ We’ve added a Python auto-instrumentation library for the Google GenAI SDK. Th
 
 ***
 
-## [04.30.2025: Span Querying & Data Extraction for PX Client 📊](04.30.2025-span-querying-and-data-extraction-for-phoenix-client.md)
+## [04.30.2025: Span Querying & Data Extraction for PX Client 📊](04.2025/04.30.2025-span-querying-and-data-extraction-for-phoenix-client.md)
 
 **Available in Phoenix 8.30+**
 
@@ -92,7 +185,7 @@ The Phoenix client now includes the `SpanQuery` DSL for more advanced span query
 
 ***
 
-## [04.28.2025: TLS Support for Phoenix Server 🔐](04.28.2025-tls-support-for-phoenix-server.md)
+## [04.28.2025: TLS Support for Phoenix Server 🔐](04.2025/04.28.2025-tls-support-for-phoenix-server.md)
 
 **Available in Phoenix 8.29+**
 
@@ -100,7 +193,7 @@ Phoenix now supports Transport Layer Security (TLS) for both HTTP and gRPC conne
 
 ***
 
-## [04.28.2025: **Improved Shutdown Handling** 🛑](04.28.2025-improved-shutdown-handling.md)
+## [04.28.2025: **Improved Shutdown Handling** 🛑](04.2025/04.28.2025-improved-shutdown-handling.md)
 
 **Available in Phoenix 8.28+**
 
@@ -108,7 +201,7 @@ When stopping the Phoenix server via `Ctrl+C`, the shutdown process now exits cl
 
 ***
 
-## [04.25.2025: Scroll Selected Span Into View 🖱️](04.25.2025-scroll-selected-span-into-view.md)
+## [04.25.2025: Scroll Selected Span Into View 🖱️](04.2025/04.25.2025-scroll-selected-span-into-view.md)
 
 **Available in Phoenix 8.27+**
 
@@ -118,7 +211,7 @@ Improved trace navigation by automatically scrolling the selected span into view
 
 ***
 
-## [04.18.2025: Tracing for MCP Client-Server Applications](04.18.2025-tracing-for-mcp-client-server-applications.md) 🔌
+## [04.18.2025: Tracing for MCP Client-Server Applications](04.2025/04.18.2025-tracing-for-mcp-client-server-applications.md) 🔌
 
 **Available in Phoenix 8.26+**
 
@@ -130,7 +223,7 @@ Big thanks to Adrian Cole and Anuraag Agrawal for their contributions to this fe
 
 ***
 
-## [04.16.2025: API Key Generation via API 🔐](04.16.2025-api-key-generation-via-api.md)
+## [04.16.2025: API Key Generation via API 🔐](04.2025/04.16.2025-api-key-generation-via-api.md)
 
 **Available in Phoenix 8.26+**
 
@@ -138,7 +231,7 @@ Phoenix now supports programmatic API key creation through a new endpoint, makin
 
 ***
 
-## [04.15.2025: Display Tool Call and Result IDs in Span Details 🫆](04.15.2025-display-tool-call-and-result-ids-in-span-details.md)
+## [04.15.2025: Display Tool Call and Result IDs in Span Details 🫆](04.2025/04.15.2025-display-tool-call-and-result-ids-in-span-details.md)
 
 **Available in Phoenix 8.25+**
 
@@ -148,7 +241,7 @@ Tool call and result IDs are now shown in the span details view. Each ID is plac
 
 ***
 
-## [04.09.2025: Project Management API Enhancements ✨](04.09.2025-project-management-api-enhancements.md)
+## [04.09.2025: Project Management API Enhancements ✨](04.2025/04.09.2025-project-management-api-enhancements.md)
 
 **Available in Phoenix 8.24+**
 
@@ -156,7 +249,7 @@ This update enhances the Project Management API with more flexible project ident
 
 ***
 
-## [04.09.2025: New REST API for Projects with RBAC 📽️](04.09.2025-new-rest-api-for-projects-with-rbac.md)
+## [04.09.2025: New REST API for Projects with RBAC 📽️](04.2025/04.09.2025-new-rest-api-for-projects-with-rbac.md)
 
 **Available in Phoenix 8.23+**
 
@@ -166,7 +259,7 @@ This release introduces a REST API for managing projects, complete with full CRU
 
 ***
 
-## [04.03.2025: Phoenix Client Prompt Tagging 🏷️](04.03.2025-phoenix-client-prompt-tagging.md)
+## [04.03.2025: Phoenix Client Prompt Tagging 🏷️](04.2025/04.03.2025-phoenix-client-prompt-tagging.md)
 
 **Available in Phoenix 8.22+**
 
@@ -176,7 +269,7 @@ We’ve added support for Prompt Tagging in the Phoenix client. This new feature
 
 ***
 
-## [04.02.2025 Improved Span Annotation Editor ✍️](04.02.2025-improved-span-annotation-editor.md)
+## [04.02.2025 Improved Span Annotation Editor ✍️](04.2025/04.02.2025-improved-span-annotation-editor.md)
 
 **Available in Phoenix 8.21+**
 
@@ -186,7 +279,7 @@ The new span aside moves the Span Annotation editor into a dedicated panel, prov
 
 ***
 
-## [04.01.2025: Support for MCP Span Tool Info in OpenAI Agents SDK 🔨](04.01.2025-support-for-mcp-span-tool-info-in-openai-agents-sdk.md)
+## [04.01.2025: Support for MCP Span Tool Info in OpenAI Agents SDK 🔨](04.2025/04.01.2025-support-for-mcp-span-tool-info-in-openai-agents-sdk.md)
 
 **Available in Phoenix 8.20+**
 
@@ -194,7 +287,7 @@ Newly added to the OpenAI Agent SDK is support for MCP Span Info, allowing for t
 
 ***
 
-## [03.27.2025 Span View Improvements 👀](03.27.2025-span-view-improvements.md)
+## [03.27.2025 Span View Improvements 👀](03.2025/03.27.2025-span-view-improvements.md)
 
 **Available in Phoenix 8.20+**
 
@@ -204,7 +297,7 @@ You can now toggle the option to treat orphan spans as root when viewing your sp
 
 ***
 
-## [03.24.2025: Tracing Configuration Tab 🖌️](03.24.2025-tracing-configuration-tab.md)
+## [03.24.2025: Tracing Configuration Tab 🖌️](03.2025/03.24.2025-tracing-configuration-tab.md)
 
 **Available in Phoenix 8.19+**
 
@@ -214,7 +307,7 @@ Within each project, there is now a **Config** tab to enhance customization. The
 
 ***
 
-## [03.21.2025: Environmental Variable Based Admin User Configuration 🗝️](03.21.2025-environment-variable-based-admin-user-configuration.md)
+## [03.21.2025: Environmental Variable Based Admin User Configuration 🗝️](03.2025/03.21.2025-environment-variable-based-admin-user-configuration.md)
 
 **Available in Phoenix 8.17+**
 
@@ -232,17 +325,17 @@ You can now delete experiments directly from the action menu, making it quicker 
 
 ***
 
-## [03.19.2025: Access to New Integrations in Projects 🔌](03.19.2025-access-to-new-integrations-in-projects.md)
+## [03.19.2025: Access to New Integrations in Projects 🔌](03.2025/03.19.2025-access-to-new-integrations-in-projects.md)
 
 **Available in Phoenix 8.15+**
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/new_integrations.gif" %}
 
-In the New Project tab, we've added quick setup to instrument your application for **BeeAI**, **SmolAgents**, and the **OpenAI Agents SDK**. Easily configure these integrations with streamlined instructions. Check out all Phoenix[ tracing integrations](https://app.gitbook.com/s/ShR775Rt7OzHRfy5j2Ks/tracing/integrations-tracing) here.
+In the New Project tab, we've added quick setup to instrument your application for **BeeAI**, **SmolAgents**, and the **OpenAI Agents SDK**. Easily configure these integrations with streamlined instructions. Check out all Phoenix[ tracing integrations](broken-reference) here.
 
 ***
 
-## [03.18.2025: Resize Span, Trace, and Session Tables 🔀](03.18.2025-resize-span-trace-and-session-tables.md)
+## [03.18.2025: Resize Span, Trace, and Session Tables 🔀](03.2025/03.18.2025-resize-span-trace-and-session-tables.md)
 
 **Available in Phoenix 8.14+**
 
@@ -252,13 +345,13 @@ We've added the ability to resize Span, Trace, and Session tables. Resizing pref
 
 ***
 
-## [03.14.2025: OpenAI Agents Instrumentation 📡](03.14.2025-openai-agents-instrumentation.md)
+## [03.14.2025: OpenAI Agents Instrumentation 📡](03.2025/03.14.2025-openai-agents-instrumentation.md)
 
 **Available in Phoenix 8.13+**
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/openai_sdk_rn.gif" %}
 
-We've introduced the **OpenAI Agents SDK** for Python which provides enhanced visibility into agent behavior and performance. For more details on a quick setup, check out our [docs](https://app.gitbook.com/s/ShR775Rt7OzHRfy5j2Ks/tracing/integrations-tracing/openai-agents-sdk).
+We've introduced the **OpenAI Agents SDK** for Python which provides enhanced visibility into agent behavior and performance. For more details on a quick setup, check out our [docs](broken-reference).
 
 ```bash
 pip install openinference-instrumentation-openai-agents openai-agents
@@ -266,7 +359,7 @@ pip install openinference-instrumentation-openai-agents openai-agents
 
 ***
 
-## [03.07.2025: Model Config Enhancements for Prompts](03.07.2025-model-config-enhancements-for-prompts.md) 💡
+## [03.07.2025: Model Config Enhancements for Prompts](03.2025/03.07.2025-model-config-enhancements-for-prompts.md) 💡
 
 **Available in Phoenix 8.11+**
 
@@ -276,7 +369,7 @@ You can now save and load configurations directly from prompts or default model 
 
 ***
 
-## [03.07.2025: New Prompt Playground, Evals, and Integration Support 🦾](03.07.2025-new-prompt-playground-evals-and-integration-support.md)
+## [03.07.2025: New Prompt Playground, Evals, and Integration Support 🦾](03.2025/03.07.2025-new-prompt-playground-evals-and-integration-support.md)
 
 **Available in Phoenix 8.9+**
 
@@ -286,7 +379,7 @@ Prompt Playground now supports new GPT and Anthropic models new models with enha
 
 ***
 
-## [03.06.2025: Project Improvements 📽️](03.06.2025-project-improvements.md)
+## [03.06.2025: Project Improvements 📽️](03.2025/03.06.2025-project-improvements.md)
 
 **Available in Phoenix 8.8+**
 
@@ -298,7 +391,7 @@ Check out [projects](https://app.gitbook.com/s/ShR775Rt7OzHRfy5j2Ks/tracing/feat
 
 ***
 
-## [02.19.2025: Prompts 📃](02.19.2025-prompts.md)
+## [02.19.2025: Prompts 📃](02.2025/02.19.2025-prompts.md)
 
 **Available in Phoenix 8.0+**
 
@@ -316,7 +409,7 @@ Check out the docs and this [walkthrough](https://youtu.be/qbeohWaRlsM?feature=s
 
 ***
 
-## [02.18.2025: One-Line Instrumentation⚡️](02.18.2025-one-line-instrumentation.md)
+## [02.18.2025: One-Line Instrumentation⚡️](02.2025/02.18.2025-one-line-instrumentation.md)
 
 **Available in Phoenix 8.0+**
 
@@ -332,7 +425,7 @@ register(auto_instrument=True)
 
 ***
 
-## [01.18.2025: Automatic & Manual Span Tracing ⚙️](01.18.2025-automatic-and-manual-span-tracing.md)
+## [01.18.2025: Automatic & Manual Span Tracing ⚙️](01.2025/01.18.2025-automatic-and-manual-span-tracing.md)
 
 **Available in Phoenix 7.9+**
 
@@ -346,7 +439,7 @@ Check out the [docs](https://arize.com/docs/phoenix/tracing/how-to-tracing/instr
 
 ***
 
-## [12.09.2024: **Sessions** 💬](12.09.2024-sessions.md)
+## [12.09.2024: **Sessions** 💬](2024/12.09.2024-sessions.md)
 
 **Available in Phoenix 7.0+**
 
@@ -358,7 +451,7 @@ Sessions make it easier to visual multi-turn exchanges with your chatbot or agen
 
 ***
 
-## [11.18.2024: Prompt Playground 🛝](11.18.2024-prompt-playground.md)
+## [11.18.2024: Prompt Playground 🛝](2024/11.18.2024-prompt-playground.md)
 
 **Available in Phoenix 6.0+**
 
@@ -372,7 +465,7 @@ Prompt Playground is now available in the Phoenix platform! This new release all
 
 ***
 
-## [09.26.2024: Authentication & RBAC 🔐](09.26.2024-authentication-and-rbac.md)
+## [09.26.2024: Authentication & RBAC 🔐](2024/09.26.2024-authentication-and-rbac.md)
 
 **Available in Phoenix 5.0+**
 
@@ -384,7 +477,7 @@ The auth feature set includes secure access, RBAC, API keys, and OAuth2 Support.
 
 ***
 
-## [07.18.2024: Guardrails AI Integrations💂](07.18.2024-guardrails-ai-integrations.md)
+## [07.18.2024: Guardrails AI Integrations💂](2024/07.18.2024-guardrails-ai-integrations.md)
 
 **Available in Phoenix 4.11.0+**
 
@@ -396,7 +489,7 @@ Check out the [Cookbook ](https://colab.research.google.com/drive/1NDn5jzsW5k0Ur
 
 ***
 
-## [07.11.2024: Hosted Phoenix and LlamaTrace 💻](07.11.2024-hosted-phoenix-and-llamatrace.md)
+## [07.11.2024: Hosted Phoenix and LlamaTrace 💻](2024/07.11.2024-hosted-phoenix-and-llamatrace.md)
 
 **Phoenix is now available for deployment as a fully hosted service.**
 
@@ -410,7 +503,7 @@ Hosted Phoenix is 100% free-to-use, [check it out today](https://app.phoenix.ari
 
 ***
 
-## [07.03.2024: Datasets & Experiments 🧪](07.03.2024-datasets-and-experiments.md)
+## [07.03.2024: Datasets & Experiments 🧪](2024/07.03.2024-datasets-and-experiments.md)
 
 **Available in Phoenix 4.6+**
 
@@ -424,7 +517,7 @@ For more details on using datasets see our [documentation](https://arize.com/doc
 
 ***
 
-## [07.02.2024: Function Call Evaluations ⚒️](07.02.2024-function-call-evaluations.md)
+## [07.02.2024: Function Call Evaluations ⚒️](2024/07.02.2024-function-call-evaluations.md)
 
 **Available in Phoenix 4.6+**
 

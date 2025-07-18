@@ -19,11 +19,12 @@ from . import _down, _up, _version_num
 def test_data_migration_for_project_sessions(
     _engine: Engine,
     _alembic_config: Config,
+    _schema: str,
 ) -> None:
     with pytest.raises(BaseException, match="alembic_version"):
-        _version_num(_engine)
+        _version_num(_engine, _schema)
 
-    _up(_engine, _alembic_config, "cd164e83824f")
+    _up(_engine, _alembic_config, "cd164e83824f", _schema)
 
     metadata = MetaData()
     metadata.reflect(bind=_engine)
@@ -119,11 +120,11 @@ def test_data_migration_for_project_sessions(
         conn.commit()
 
     for _ in range(2):
-        _down(_engine, _alembic_config, "cd164e83824f")
+        _down(_engine, _alembic_config, "cd164e83824f", _schema)
         metadata = MetaData()
         metadata.reflect(bind=_engine)
         assert metadata.tables.get("project_sessions") is None
-        _up(_engine, _alembic_config, "4ded9e43755f")
+        _up(_engine, _alembic_config, "4ded9e43755f", _schema)
         populate_project_sessions(_engine)
 
         with _engine.connect() as conn:
@@ -148,11 +149,11 @@ def test_data_migration_for_project_sessions(
                     "end_time": row["end_time"],
                     "session_id": str(
                         (
-                            json.loads(row["attributes"])  # type: ignore
+                            json.loads(row["attributes"])  # type: ignore[unused-ignore]
                             if _engine.dialect.name == "sqlite"
                             else row["attributes"]
                         )["session"]["id"]
-                    ),
+                    ),  # type: ignore[dict-item, unused-ignore]
                 },
             ),
             axis=1,
@@ -185,7 +186,7 @@ def test_data_migration_for_project_sessions(
         ).all()
         assert (
             df_project_sessions_joined_spans.groupby("session_id")
-            .apply(lambda s: s.end_time.min() == s.end_time_trace.max())  # type: ignore
+            .apply(lambda s: s.end_time.min() == s.end_time_trace.max())  # type: ignore[attr-defined, unused-ignore]
             .all()
         )
 

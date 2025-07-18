@@ -52,3 +52,5 @@ export * from "./alert";
 export * from "./select";
 export * from "./media";
 export * from "./dialog";
+export * from "./tooltip";
+export * from "./progressCircle";

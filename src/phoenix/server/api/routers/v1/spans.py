@@ -8,7 +8,7 @@ from secrets import token_urlsafe
 from typing import Annotated, Any, Literal, Optional, Union
 
 import pandas as pd
-from fastapi import APIRouter, Header, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from starlette.requests import Request
@@ -28,6 +28,7 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.db.insertion.types import Precursors
 from phoenix.server.api.routers.utils import df_to_bytes
+from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanAnnotationInsertEvent
 from phoenix.trace.attributes import flatten
@@ -601,7 +602,7 @@ async def span_search_otlpv1(
             models.Trace.trace_id,
         )
         .join(models.Trace, onclause=models.Trace.id == models.Span.trace_rowid)
-        .join(models.Project, onclause=models.Project.id == project_id)
+        .where(models.Trace.project_rowid == project_id)
         .order_by(*order_by)
     )
 
@@ -736,7 +737,7 @@ async def span_search(
             models.Trace.trace_id,
         )
         .join(models.Trace, onclause=models.Trace.id == models.Span.trace_rowid)
-        .join(models.Project, onclause=models.Project.id == project_id)
+        .where(models.Trace.project_rowid == project_id)
         .order_by(*order_by)
     )
 
@@ -907,6 +908,7 @@ class AnnotateSpansResponseBody(ResponseBody[list[InsertedSpanAnnotation]]):
 
 @router.post(
     "/span_annotations",
+    dependencies=[Depends(is_not_locked)],
     operation_id="annotateSpans",
     summary="Create span annotations",
     responses=add_errors_to_responses(
@@ -990,6 +992,7 @@ class CreateSpansResponseBody(V1RoutesBaseModel):
 
 @router.post(
     "/projects/{project_identifier}/spans",
+    dependencies=[Depends(is_not_locked)],
     operation_id="createSpans",
     summary="Create spans",
     description=(

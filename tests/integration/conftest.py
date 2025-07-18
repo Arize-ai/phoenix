@@ -2,40 +2,37 @@ from __future__ import annotations
 
 import os
 from collections.abc import Generator, Iterator
-from contextlib import ExitStack
 from itertools import count, starmap
 from secrets import token_hex
+from types import ModuleType
 from typing import Optional, cast
-from unittest import mock
 
 import pytest
 from _pytest.fixtures import SubRequest
-from _pytest.tmpdir import TempPathFactory
 from faker import Faker
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from phoenix.config import (
-    ENV_PHOENIX_GRPC_PORT,
-    ENV_PHOENIX_PORT,
-    ENV_PHOENIX_SQL_DATABASE_SCHEMA,
-    ENV_PHOENIX_SQL_DATABASE_URL,
-    ENV_PHOENIX_WORKING_DIR,
-)
+from phoenix.client.__generated__ import v1
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from portpicker import pick_unused_port  # type: ignore[import-untyped]
+from smtpdfix import AuthController, Config, SMTPDFix
+from smtpdfix.certs import _generate_certs
 from sqlalchemy import URL, make_url
 from typing_extensions import assert_never
 
 from ._helpers import (
+    _ADMIN,
     _DB_BACKEND,
-    _DEFAULT_ADMIN,
     _HTTPX_OP_IDX,
     _MEMBER,
     _TEST_NAME,
+    _AppInfo,
     _Email,
     _GetUser,
+    _GqlId,
     _grpc_span_exporter,
     _http_span_exporter,
+    _httpx_client,
     _Password,
     _Profile,
     _random_schema,
@@ -93,46 +90,6 @@ def _fake() -> Faker:
     return Faker()
 
 
-@pytest.fixture(autouse=True, scope="package")
-def _env(
-    _sql_database_url: URL,
-    _ports: Iterator[int],
-    tmp_path_factory: TempPathFactory,
-) -> Iterator[None]:
-    tmp = tmp_path_factory.getbasetemp()
-    values = (
-        (ENV_PHOENIX_PORT, str(next(_ports))),
-        (ENV_PHOENIX_GRPC_PORT, str(next(_ports))),
-        (ENV_PHOENIX_WORKING_DIR, str(tmp)),
-    )
-    with mock.patch.dict(os.environ, values):
-        yield
-
-
-@pytest.fixture(autouse=True, scope="package")
-def _env_phoenix_sql_database_url(
-    _sql_database_url: URL,
-    _fake: Faker,
-) -> Iterator[None]:
-    values = [(ENV_PHOENIX_SQL_DATABASE_URL, _sql_database_url.render_as_string())]
-    with mock.patch.dict(os.environ, values):
-        yield
-
-
-@pytest.fixture(autouse=True, scope="package")
-def _env_postgresql_schema(
-    _sql_database_url: URL,
-) -> Iterator[None]:
-    if not _sql_database_url.get_backend_name().startswith("postgresql"):
-        yield
-        return
-    with ExitStack() as stack:
-        schema = stack.enter_context(_random_schema(_sql_database_url))
-        values = [(ENV_PHOENIX_SQL_DATABASE_SCHEMA, schema)]
-        stack.enter_context(mock.patch.dict(os.environ, values))
-        yield
-
-
 @pytest.fixture
 def _emails() -> Iterator[_Email]:
     return (f"{token_hex(16)}@{token_hex(16)}.com" for _ in count())
@@ -161,12 +118,23 @@ def _profiles(
 def _users(
     _profiles: Iterator[_Profile],
 ) -> _UserGenerator:
-    def _() -> Generator[Optional[_User], tuple[UserRoleInput, Optional[_Profile]], None]:
-        role, profile = yield None
-        admin = _DEFAULT_ADMIN.log_in()
+    def _() -> Generator[Optional[_User], tuple[_AppInfo, UserRoleInput, Optional[_Profile]], None]:
+        app, role, profile = yield None
         while True:
-            user = admin.create_user(role, profile=profile or next(_profiles))
-            role, profile = yield user
+            profile = profile or next(_profiles)
+            url = "v1/users"
+            user = v1.LocalUserData(
+                auth_method="LOCAL",
+                email=profile.email,
+                username=profile.username,
+                password=profile.password,
+                role="ADMIN" if role is _ADMIN else "MEMBER",
+            )
+            json_ = v1.CreateUserRequestBody(user=user, send_welcome_email=False)
+            resp = _httpx_client(app, app.admin_secret).post(url=url, json=json_)
+            resp.raise_for_status()
+            gid = _GqlId(cast(v1.CreateUserResponseBody, resp.json())["data"]["id"])
+            app, role, profile = yield _User(gid, role, profile)
 
     g = _()
     next(g)
@@ -178,12 +146,13 @@ def _new_user(
     _users: _UserGenerator,
 ) -> _UserFactory:
     def _(
+        app: _AppInfo,
         role: UserRoleInput = _MEMBER,
         /,
         *,
         profile: Optional[_Profile] = None,
     ) -> _User:
-        return _users.send((role, profile))
+        return _users.send((app, role, profile))
 
     return _
 
@@ -193,6 +162,7 @@ def _get_user(
     _new_user: _UserFactory,
 ) -> _GetUser:
     def _(
+        app: _AppInfo,
         role_or_user: _RoleOrUser = _MEMBER,
         /,
         *,
@@ -204,7 +174,7 @@ def _get_user(
             return user
         elif isinstance(role_or_user, UserRoleInput):
             role = role_or_user
-            return _new_user(role, profile=profile)
+            return _new_user(app, role, profile=profile)
         else:
             assert_never(role_or_user)
 
@@ -226,3 +196,101 @@ def _test_name(request: SubRequest) -> Iterator[str]:
     token = _TEST_NAME.set(name)
     yield name
     _TEST_NAME.reset(token)
+
+
+@pytest.fixture(scope="package")
+def _env_ports(
+    _ports: Iterator[int],
+) -> dict[str, str]:
+    """Configure port environment variables for testing."""
+    return {
+        "PHOENIX_PORT": str(next(_ports)),
+        "PHOENIX_GRPC_PORT": str(next(_ports)),
+    }
+
+
+@pytest.fixture(scope="package")
+def _env_database(
+    _sql_database_url: URL,
+) -> Iterator[dict[str, str]]:
+    """Configure database environment variables for testing."""
+    env = {"PHOENIX_SQL_DATABASE_URL": _sql_database_url.render_as_string()}
+    if not _sql_database_url.get_backend_name().startswith("postgresql"):
+        yield env
+    else:
+        with _random_schema(_sql_database_url) as schema:
+            yield {**env, "PHOENIX_SQL_DATABASE_SCHEMA": schema}
+
+
+@pytest.fixture(scope="package")
+def _env_auth() -> dict[str, str]:
+    """Configure authentication and security environment variables for testing."""
+    return {
+        "PHOENIX_ENABLE_AUTH": "true",
+        "PHOENIX_SECRET": token_hex(16),
+        "PHOENIX_ADMIN_SECRET": token_hex(16),
+        "PHOENIX_DISABLE_RATE_LIMIT": "true",
+        "PHOENIX_CSRF_TRUSTED_ORIGINS": ",http://localhost,",
+    }
+
+
+@pytest.fixture(scope="package")
+def _env_smtp(
+    _smtpd: AuthController,
+) -> dict[str, str]:
+    """Configure SMTP environment variables for testing."""
+    return {
+        "PHOENIX_SMTP_HOSTNAME": _smtpd.config.host or "127.0.0.1",
+        "PHOENIX_SMTP_PORT": str(_smtpd.config.port),
+        "PHOENIX_SMTP_USERNAME": _smtpd.config.login_username,
+        "PHOENIX_SMTP_PASSWORD": _smtpd.config.login_password,
+        "PHOENIX_SMTP_VALIDATE_CERTS": "false",
+    }
+
+
+@pytest.fixture(scope="package")
+def _smtpd_config(
+    _ports: Iterator[int],
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Config:
+    """Configure SMTP server for testing."""
+    hostname = "127.0.0.1"
+    port = next(_ports)
+    path = tmp_path_factory.mktemp(f"certs_for_server_{token_hex(8)}")
+    certs = _generate_certs(path, separate_key=True)
+    config = Config()
+    config.ssl_cert_files = (certs.cert.resolve(), certs.key[0].resolve())
+    config.host = hostname
+    config.port = port
+    config.login_username = token_hex(8)
+    config.login_password = token_hex(16)
+    config.use_starttls = True
+    return config
+
+
+@pytest.fixture(scope="package")
+def _smtpd(
+    _smtpd_config: Config,
+) -> Iterator[AuthController]:
+    """SMTP server fixture for testing email functionality."""
+    with SMTPDFix(
+        hostname=_smtpd_config.host or "127.0.0.1",
+        port=_smtpd_config.port,
+        config=_smtpd_config,
+    ) as controller:
+        yield controller
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _patch_opentelemetry_exporters_to_reduce_retries() -> None:
+    from opentelemetry.exporter.otlp.proto.grpc import exporter
+    from opentelemetry.exporter.otlp.proto.http import trace_exporter
+
+    assert isinstance(exporter, ModuleType)
+    assert isinstance(trace_exporter, ModuleType)
+
+    name = "_MAX_RETRYS"
+    assert isinstance(getattr(exporter, name), int)
+    assert isinstance(getattr(trace_exporter, name), int)
+    setattr(exporter, name, 2)
+    setattr(trace_exporter, name, 2)

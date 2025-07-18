@@ -7,7 +7,7 @@ Phoenix supports displaying images that are included in LLM traces.
 ## To view images in Phoenix
 
 1. [Connect to a Phoenix instance](../../../quickstart.md)
-2. [Instrument your application](../../integrations-tracing/)
+2. [Instrument your application](broken-reference)
 3. Include either a base64 UTF-8 encoded image or an image url in the call made to your LLM
 
 ## Example

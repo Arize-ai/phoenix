@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d86a777f0102e6de79aba282959267c2>>
+ * @generated SignedSource<<c0f815052c6d02046dee4250604c7f4f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -41,8 +41,15 @@ export type ExperimentCompareTable_comparisons$data = {
                 };
               }>;
             };
+            readonly costSummary: {
+              readonly total: {
+                readonly cost: number | null;
+                readonly tokens: number | null;
+              };
+            };
             readonly endTime: string;
             readonly error: string | null;
+            readonly id: string;
             readonly output: any | null;
             readonly startTime: string;
             readonly trace: {
@@ -132,12 +139,17 @@ return {
     {
       "defaultValue": null,
       "kind": "LocalArgument",
-      "name": "datasetId"
+      "name": "baselineExperimentId"
     },
     {
       "defaultValue": null,
       "kind": "LocalArgument",
-      "name": "experimentIds"
+      "name": "compareExperimentIds"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "datasetId"
     },
     {
       "defaultValue": null,
@@ -180,8 +192,13 @@ return {
       "args": [
         {
           "kind": "Variable",
-          "name": "experimentIds",
-          "variableName": "experimentIds"
+          "name": "baselineExperimentId",
+          "variableName": "baselineExperimentId"
+        },
+        {
+          "kind": "Variable",
+          "name": "compareExperimentIds",
+          "variableName": "compareExperimentIds"
         },
         {
           "kind": "Variable",
@@ -270,6 +287,7 @@ return {
                       "name": "runs",
                       "plural": true,
                       "selections": [
+                        (v1/*: any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -299,6 +317,42 @@ return {
                           "storageKey": null
                         },
                         (v2/*: any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "SpanCostSummary",
+                          "kind": "LinkedField",
+                          "name": "costSummary",
+                          "plural": false,
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "CostBreakdown",
+                              "kind": "LinkedField",
+                              "name": "total",
+                              "plural": false,
+                              "selections": [
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "tokens",
+                                  "storageKey": null
+                                },
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "cost",
+                                  "storageKey": null
+                                }
+                              ],
+                              "storageKey": null
+                            }
+                          ],
+                          "storageKey": null
+                        },
                         {
                           "alias": null,
                           "args": null,
@@ -520,6 +574,6 @@ return {
 };
 })();
 
-(node as any).hash = "197d8138f2229974e8f32af49e5e4261";
+(node as any).hash = "a4625896f8c59c20b5b08c9a498658aa";
 
 export default node;

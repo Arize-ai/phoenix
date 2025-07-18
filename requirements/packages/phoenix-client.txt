@@ -5,3 +5,4 @@ pandas-stubs
 google-generativeai>=0.8.4
 openai>=1.62.0
 anthropic>=0.49.0
+nest-asyncio

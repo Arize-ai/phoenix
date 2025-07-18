@@ -17,32 +17,33 @@ from . import _down, _up, _version_num
 def test_up_and_down_migrations(
     _engine: Engine,
     _alembic_config: Config,
+    _schema: str,
 ) -> None:
     with pytest.raises(BaseException, match="alembic_version"):
-        _version_num(_engine)
+        _version_num(_engine, _schema)
 
     for _ in range(2):
-        _up(_engine, _alembic_config, "cf03bd6bae1d")
-        _down(_engine, _alembic_config, "base")
-    _up(_engine, _alembic_config, "cf03bd6bae1d")
+        _up(_engine, _alembic_config, "cf03bd6bae1d", _schema)
+        _down(_engine, _alembic_config, "base", _schema)
+    _up(_engine, _alembic_config, "cf03bd6bae1d", _schema)
 
     for _ in range(2):
-        _up(_engine, _alembic_config, "10460e46d750")
-        _down(_engine, _alembic_config, "cf03bd6bae1d")
-    _up(_engine, _alembic_config, "10460e46d750")
+        _up(_engine, _alembic_config, "10460e46d750", _schema)
+        _down(_engine, _alembic_config, "cf03bd6bae1d", _schema)
+    _up(_engine, _alembic_config, "10460e46d750", _schema)
 
     for _ in range(2):
-        _up(_engine, _alembic_config, "3be8647b87d8")
-        _down(_engine, _alembic_config, "10460e46d750")
-    _up(_engine, _alembic_config, "3be8647b87d8")
+        _up(_engine, _alembic_config, "3be8647b87d8", _schema)
+        _down(_engine, _alembic_config, "10460e46d750", _schema)
+    _up(_engine, _alembic_config, "3be8647b87d8", _schema)
 
     for _ in range(2):
-        _up(_engine, _alembic_config, "cd164e83824f")
-        _down(_engine, _alembic_config, "3be8647b87d8")
-    _up(_engine, _alembic_config, "cd164e83824f")
+        _up(_engine, _alembic_config, "cd164e83824f", _schema)
+        _down(_engine, _alembic_config, "3be8647b87d8", _schema)
+    _up(_engine, _alembic_config, "cd164e83824f", _schema)
 
     for _ in range(2):
-        _up(_engine, _alembic_config, "4ded9e43755f")
+        _up(_engine, _alembic_config, "4ded9e43755f", _schema)
 
         metadata = MetaData()
         metadata.reflect(bind=_engine)
@@ -211,7 +212,7 @@ def test_up_and_down_migrations(
         assert not constraints
         del constraints
 
-        _down(_engine, _alembic_config, "cd164e83824f")
+        _down(_engine, _alembic_config, "cd164e83824f", _schema)
 
         metadata = MetaData()
         metadata.reflect(bind=_engine)
@@ -287,29 +288,34 @@ def test_up_and_down_migrations(
 
         assert not constraints
         del constraints
-    _up(_engine, _alembic_config, "4ded9e43755f")
+    _up(_engine, _alembic_config, "4ded9e43755f", _schema)
 
     for _ in range(2):
-        _up(_engine, _alembic_config, "bc8fea3c2bc8")
-        _down(_engine, _alembic_config, "4ded9e43755f")
-    _up(_engine, _alembic_config, "bc8fea3c2bc8")
+        _up(_engine, _alembic_config, "bc8fea3c2bc8", _schema)
+        _down(_engine, _alembic_config, "4ded9e43755f", _schema)
+    _up(_engine, _alembic_config, "bc8fea3c2bc8", _schema)
 
     for _ in range(2):
-        _up(_engine, _alembic_config, "2f9d1a65945f")
-        _down(_engine, _alembic_config, "bc8fea3c2bc8")
-    _up(_engine, _alembic_config, "2f9d1a65945f")
+        _up(_engine, _alembic_config, "2f9d1a65945f", _schema)
+        _down(_engine, _alembic_config, "bc8fea3c2bc8", _schema)
+    _up(_engine, _alembic_config, "2f9d1a65945f", _schema)
 
     for _ in range(2):
-        _up(_engine, _alembic_config, "bb8139330879")
-        _down(_engine, _alembic_config, "2f9d1a65945f")
-    _up(_engine, _alembic_config, "bb8139330879")
+        _up(_engine, _alembic_config, "bb8139330879", _schema)
+        _down(_engine, _alembic_config, "2f9d1a65945f", _schema)
+    _up(_engine, _alembic_config, "bb8139330879", _schema)
 
     for _ in range(2):
-        _up(_engine, _alembic_config, "8a3764fe7f1a")
-        _down(_engine, _alembic_config, "bb8139330879")
-    _up(_engine, _alembic_config, "8a3764fe7f1a")
+        _up(_engine, _alembic_config, "8a3764fe7f1a", _schema)
+        _down(_engine, _alembic_config, "bb8139330879", _schema)
+    _up(_engine, _alembic_config, "8a3764fe7f1a", _schema)
 
     for _ in range(2):
-        _up(_engine, _alembic_config, "6a88424799fe")
-        _down(_engine, _alembic_config, "8a3764fe7f1a")
-    _up(_engine, _alembic_config, "6a88424799fe")
+        _up(_engine, _alembic_config, "6a88424799fe", _schema)
+        _down(_engine, _alembic_config, "8a3764fe7f1a", _schema)
+    _up(_engine, _alembic_config, "6a88424799fe", _schema)
+
+    for _ in range(2):
+        _up(_engine, _alembic_config, "a20694b15f82", _schema)
+        _down(_engine, _alembic_config, "6a88424799fe", _schema)
+    _up(_engine, _alembic_config, "a20694b15f82", _schema)

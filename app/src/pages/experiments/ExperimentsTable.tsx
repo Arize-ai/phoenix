@@ -10,16 +10,23 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
+import { ProgressBar } from "@arizeai/components";
+
 import {
-  HelpTooltip,
-  ProgressBar,
+  Flex,
+  Heading,
+  Link,
+  RichTooltip,
+  Text,
   TooltipTrigger,
   TriggerWrap,
-} from "@arizeai/components";
-
-import { Flex, Heading, Link, Text, View } from "@phoenix/components";
+  View,
+} from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
-import { SequenceNumberToken } from "@phoenix/components/experiment";
+import {
+  ExperimentTokenCount,
+  SequenceNumberToken,
+} from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
 import {
   CompactJSONCell,
@@ -34,6 +41,7 @@ import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
 import {
+  costFormatter,
   floatFormatter,
   formatPercent,
 } from "@phoenix/utils/numberFormatUtils";
@@ -149,6 +157,20 @@ export function ExperimentsTable({
                 averageRunLatencyMs
                 project {
                   id
+                }
+                costSummary {
+                  total {
+                    tokens
+                    cost
+                  }
+                  prompt {
+                    tokens
+                    cost
+                  }
+                  completion {
+                    tokens
+                    cost
+                  }
                 }
                 annotationSummaries {
                   annotationName
@@ -306,6 +328,38 @@ export function ExperimentsTable({
           return "--";
         }
         return <LatencyText latencyMs={value} />;
+      },
+    },
+    {
+      header: "total cost",
+      accessorKey: "costSummary.total.cost",
+      meta: {
+        textAlign: "right",
+      },
+      cell: ({ getValue }) => {
+        const value = getValue();
+        if (value === null || typeof value !== "number") {
+          return "--";
+        }
+        return <Text>{`${costFormatter(value)}`}</Text>;
+      },
+    },
+    {
+      header: "total tokens",
+      accessorKey: "costSummary.total.tokens",
+      meta: {
+        textAlign: "right",
+      },
+      cell: ({ getValue, row }) => {
+        const value = getValue() as number | null;
+        const experimentId = row.original.id;
+        return (
+          <ExperimentTokenCount
+            tokenCountTotal={value}
+            experimentId={experimentId}
+            size="S"
+          />
+        );
       },
     },
     {
@@ -539,7 +593,7 @@ function AnnotationAggregationCell({
           />
         </div>
       </TriggerWrap>
-      <HelpTooltip>
+      <RichTooltip>
         <View width="size-2400">
           <Heading level={3} weight="heavy">
             {annotationName}
@@ -571,7 +625,7 @@ function AnnotationAggregationCell({
             </Flex>
           </Flex>
         </View>
-      </HelpTooltip>
+      </RichTooltip>
     </TooltipTrigger>
   );
 }

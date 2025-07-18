@@ -1,8 +1,13 @@
-import { CSSProperties, ReactNode } from "react";
+import { ReactNode } from "react";
 
-import { HelpTooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
-
-import { Flex, Text, View } from "@phoenix/components";
+import {
+  Flex,
+  RichTooltip,
+  Text,
+  TooltipTrigger,
+  TriggerWrap,
+  View,
+} from "@phoenix/components";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
@@ -16,7 +21,6 @@ export function AnnotationTooltip({
   children,
   extra,
   layout = "vertical",
-  width,
   leadingExtra,
 }: {
   leadingExtra?: ReactNode;
@@ -24,12 +28,11 @@ export function AnnotationTooltip({
   children: ReactNode;
   layout?: "horizontal" | "vertical";
   extra?: ReactNode;
-  width?: CSSProperties["width"];
 }) {
   return (
-    <TooltipTrigger delay={500} offset={3}>
+    <TooltipTrigger delay={500}>
       <TriggerWrap>{children}</TriggerWrap>
-      <HelpTooltip UNSAFE_style={{ minWidth: width }}>
+      <RichTooltip offset={3}>
         <Flex
           direction={layout === "horizontal" ? "row" : "column"}
           alignItems="start"
@@ -107,7 +110,7 @@ export function AnnotationTooltip({
           </Flex>
           {extra}
         </Flex>
-      </HelpTooltip>
+      </RichTooltip>
     </TooltipTrigger>
   );
 }
