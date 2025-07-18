@@ -10,7 +10,7 @@ import {
   Line,
   ResponsiveContainer,
   Tooltip,
-  TooltipProps,
+  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";
@@ -72,15 +72,17 @@ function TooltipContent({
   active,
   payload,
   label,
-}: TooltipProps<number | Array<number | string>, string>) {
+}: TooltipContentProps<number | Array<number | string>, string>) {
   const { outerColor, innerColor, lineColor } = useColors();
   if (active && payload && payload.length) {
     const data: ChartDataItem = payload[0].payload;
     return (
       <ChartTooltip>
-        <Text weight="heavy" size="S">{`${fullTimeFormatter(
-          new Date(label)
-        )}`}</Text>
+        {label && (
+          <Text weight="heavy" size="S">{`${fullTimeFormatter(
+            new Date(label)
+          )}`}</Text>
+        )}
         <ChartTooltipItem
           color={outerColor}
           name="p99"
@@ -281,7 +283,7 @@ export function DimensionQuantilesTimeSeries({
           stroke="var(--ac-global-color-grey-500)"
           strokeOpacity={0.5}
         />
-        <Tooltip content={<TooltipContent />} />
+        <Tooltip content={TooltipContent} />
         <Legend
           onClick={selectChartItem}
           onMouseOver={handleLegendMouseOver}

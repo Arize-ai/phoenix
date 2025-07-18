@@ -5,7 +5,7 @@ import {
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
-  TooltipProps,
+  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";
@@ -41,7 +41,7 @@ function TooltipContent({
   active,
   payload,
   label,
-}: TooltipProps<number, string>) {
+}: TooltipContentProps<number, string>) {
   const { barColor } = useColors();
   if (active && payload && payload.length) {
     const count = payload[0]?.value ?? null;
@@ -49,9 +49,11 @@ function TooltipContent({
       typeof count === "number" ? numberFormatter.format(count) : "--";
     return (
       <ChartTooltip>
-        <Text weight="heavy" size="S">{`${fullTimeFormatter(
-          new Date(label)
-        )}`}</Text>
+        {label && (
+          <Text weight="heavy" size="S">{`${fullTimeFormatter(
+            new Date(label)
+          )}`}</Text>
+        )}
         <ChartTooltipItem
           color={barColor}
           shape="square"
@@ -154,10 +156,7 @@ export function DimensionCountTimeSeries({
           stroke="var(--ac-global-color-grey-500)"
           strokeOpacity={0.5}
         />
-        <Tooltip
-          {...defaultBarChartTooltipProps}
-          content={<TooltipContent />}
-        />
+        <Tooltip {...defaultBarChartTooltipProps} content={TooltipContent} />
         <Bar dataKey="value" fill="url(#countBarColor)" spacing={5} />
       </BarChart>
     </ResponsiveContainer>

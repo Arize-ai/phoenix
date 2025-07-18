@@ -4,7 +4,7 @@ import {
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
-  TooltipProps,
+  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";
@@ -34,7 +34,7 @@ export function DashboardBarChart({ data, scale }: DashboardBarChartProps) {
     active,
     payload,
     label,
-  }: TooltipProps<number, string>) => {
+  }: TooltipContentProps<number, string>) => {
     if (!active || !payload || !payload.length) return null;
 
     const data = payload[0];
@@ -42,9 +42,11 @@ export function DashboardBarChart({ data, scale }: DashboardBarChartProps) {
 
     return (
       <ChartTooltip>
-        <Text weight="heavy" size="S">{`${fullTimeFormatter(
-          new Date(label)
-        )}`}</Text>
+        {label && (
+          <Text weight="heavy" size="S">{`${fullTimeFormatter(
+            new Date(label)
+          )}`}</Text>
+        )}
         <ChartTooltipItem
           color={barColor}
           name="Traces"
@@ -105,10 +107,7 @@ export function DashboardBarChart({ data, scale }: DashboardBarChartProps) {
           strokeOpacity={0.5}
         />
 
-        <Tooltip
-          {...defaultBarChartTooltipProps}
-          content={<TooltipContent />}
-        />
+        <Tooltip {...defaultBarChartTooltipProps} content={TooltipContent} />
 
         <Bar dataKey="value" fill={`url(#${barGradientId})`} />
       </BarChart>
