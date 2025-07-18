@@ -194,6 +194,18 @@ module.exports = {
         module: "@arizeai/components",
         use: "import { ProgressBar } from '@phoenix/components'",
       },
+      {
+        name: "Breadcrumbs",
+        module: "@arizeai/components",
+        use: "import { Breadcrumbs } from '@phoenix/components'",
+      },
+      {
+        name: "BreadcrumbItem",
+        module: "@arizeai/components",
+        use: "import { Breadcrumb } from '@phoenix/components'",
+      },
+      {
+        name: "BreadcrumbLink",
     ],
     "no-duplicate-imports": "error",
   },
