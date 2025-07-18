@@ -73,7 +73,10 @@ const breadcrumbsCSS = css`
 `;
 
 function BreadcrumbItem({ children, isCurrent, onPress }: BreadcrumbItemProps) {
-  const ref = React.useRef<HTMLLIElement>(null);
+  const buttonRef = React.useRef<HTMLButtonElement>(null);
+  const spanRef = React.useRef<HTMLSpanElement>(null);
+  const ref = onPress ? buttonRef : spanRef;
+  
   const { itemProps } = useBreadcrumbItem(
     {
       children,
@@ -85,13 +88,15 @@ function BreadcrumbItem({ children, isCurrent, onPress }: BreadcrumbItemProps) {
   );
 
   return (
-    <li {...itemProps} ref={ref}>
+    <li>
       {onPress ? (
-        <button type="button" onClick={onPress}>
+        <button {...itemProps} ref={buttonRef} type="button">
           {children}
         </button>
       ) : (
-        <span aria-current="page">{children}</span>
+        <span {...itemProps} ref={spanRef}>
+          {children}
+        </span>
       )}
     </li>
   );
