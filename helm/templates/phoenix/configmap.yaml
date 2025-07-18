@@ -16,7 +16,7 @@ data:
   PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES: {{ .Values.auth.refreshTokenExpiryMinutes | quote }}
   
   # OAuth2/OIDC Identity Provider Configuration
-  {{- if .Values.auth.oauth2.enabled }}
+  {{- if and .Values.auth.oauth2.enabled .Values.auth.oauth2.providers }}
   {{- range $provider_name, $provider_config := .Values.auth.oauth2.providers }}
   {{- $provider_upper := $provider_name | upper }}
   PHOENIX_OAUTH2_{{ $provider_upper }}_CLIENT_ID: {{ $provider_config.client_id | quote }}
