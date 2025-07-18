@@ -7,10 +7,6 @@ on:
       - "app/stories/**"
       - "app/package.json"
       - "app/.storybook/**"
-      - "app/vite.config.mts"
-      - "app/tsconfig.json"
-      - "app/.prettierrc.json"
-      - "app/playwright.config.ts"
       - "app/chromatic.config.json"
 
 permissions:
