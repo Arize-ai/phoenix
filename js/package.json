@@ -14,7 +14,9 @@
     "lint": "eslint . --ext .ts",
     "build": "pnpm run -r build",
     "ci:version": "pnpm changeset version",
-    "ci:publish": "pnpm run -r build && pnpm publish -r --access public --provenance"
+    "ci:publish": "pnpm run -r build && pnpm publish -r --access public --provenance",
+    "docs": "typedoc",
+    "docs:preview": "pnpx http-server ./docs -p 8080 -o"
   },
   "keywords": [
     "telemetry",
@@ -54,5 +56,8 @@
       "vite@>=5.0.0 <=5.4.18": ">=5.4.19",
       "vite@>=5.0.0 <5.4.17": ">=5.4.17"
     }
+  },
+  "dependencies": {
+    "typedoc": "^0.27.9"
   }
 }

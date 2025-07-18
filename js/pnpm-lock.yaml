@@ -16,6 +16,10 @@ overrides:
 importers:
 
   .:
+    dependencies:
+      typedoc:
+        specifier: ^0.27.9
+        version: 0.27.9(typescript@5.8.3)
     devDependencies:
       '@changesets/cli':
         specifier: ^2.28.1
@@ -188,9 +192,6 @@ importers:
       tsx:
         specifier: ^4.19.3
         version: 4.19.4
-      typedoc:
-        specifier: ^0.27.9
-        version: 0.27.9(typescript@5.8.3)
       vitest:
         specifier: ^2.1.9
         version: 2.1.9(@types/node@20.17.50)(tsx@4.19.4)(yaml@2.8.0)
@@ -3784,22 +3785,6 @@ snapshots:
       chai: 5.2.0
       tinyrainbow: 1.2.0
 
-  '@vitest/mocker@2.1.9(vite@6.3.5(@types/node@18.19.103)(tsx@4.19.4)(yaml@2.8.0))':
-    dependencies:
-      '@vitest/spy': 2.1.9
-      estree-walker: 3.0.3
-      magic-string: 0.30.17
-    optionalDependencies:
-      vite: 6.3.5(@types/node@18.19.103)(tsx@4.19.4)(yaml@2.8.0)
-
-  '@vitest/mocker@2.1.9(vite@6.3.5(@types/node@20.17.50)(tsx@4.19.4)(yaml@2.8.0))':
-    dependencies:
-      '@vitest/spy': 2.1.9
-      estree-walker: 3.0.3
-      magic-string: 0.30.17
-    optionalDependencies:
-      vite: 6.3.5(@types/node@20.17.50)(tsx@4.19.4)(yaml@2.8.0)
-
   '@vitest/mocker@2.1.9(vite@6.3.5(@types/node@24.0.10)(tsx@4.19.4)(yaml@2.8.0))':
     dependencies:
       '@vitest/spy': 2.1.9
@@ -5557,7 +5542,7 @@ snapshots:
   vitest@2.1.9(@types/node@18.19.103)(tsx@4.19.4)(yaml@2.8.0):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(vite@6.3.5(@types/node@18.19.103)(tsx@4.19.4)(yaml@2.8.0))
+      '@vitest/mocker': 2.1.9(vite@6.3.5(@types/node@24.0.10)(tsx@4.19.4)(yaml@2.8.0))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9
@@ -5595,7 +5580,7 @@ snapshots:
   vitest@2.1.9(@types/node@20.17.50)(tsx@4.19.4)(yaml@2.8.0):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(vite@6.3.5(@types/node@20.17.50)(tsx@4.19.4)(yaml@2.8.0))
+      '@vitest/mocker': 2.1.9(vite@6.3.5(@types/node@24.0.10)(tsx@4.19.4)(yaml@2.8.0))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9
