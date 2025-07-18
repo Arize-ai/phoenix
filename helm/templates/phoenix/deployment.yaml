@@ -85,6 +85,18 @@ spec:
                   key: {{ $authSecrets.key }}
           {{- end }}
           {{- end }}
+          {{- if and .Values.auth.oauth2.enabled .Values.auth.oauth2.providers }}
+          {{- range $provider_name, $provider_config := .Values.auth.oauth2.providers }}
+          {{- if $provider_config.client_secret }}
+          {{- $provider_upper := $provider_name | upper }}
+            - name: PHOENIX_OAUTH2_{{ $provider_upper }}_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.auth.name }}
+                  key: PHOENIX_OAUTH2_{{ $provider_upper }}_CLIENT_SECRET
+          {{- end }}
+          {{- end }}
+          {{- end }}
           {{- if and .Values.securityContext.container.enabled .Values.securityContext.container.readOnlyRootFilesystem }}
           volumeMounts:
             - name: tmp-volume

@@ -15,6 +15,24 @@ data:
   PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES: {{ .Values.auth.passwordResetTokenExpiryMinutes | quote }}
   PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES: {{ .Values.auth.refreshTokenExpiryMinutes | quote }}
   
+  # OAuth2/OIDC Identity Provider Configuration
+  {{- if .Values.auth.oauth2.enabled }}
+  {{- range $provider_name, $provider_config := .Values.auth.oauth2.providers }}
+  {{- $provider_upper := $provider_name | upper }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_CLIENT_ID: {{ $provider_config.client_id | quote }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_OIDC_CONFIG_URL: {{ $provider_config.oidc_config_url | quote }}
+  {{- if $provider_config.display_name }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_DISPLAY_NAME: {{ $provider_config.display_name | quote }}
+  {{- end }}
+  {{- if hasKey $provider_config "allow_sign_up" }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_ALLOW_SIGN_UP: {{ $provider_config.allow_sign_up | quote }}
+  {{- end }}
+  {{- if hasKey $provider_config "auto_login" }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_AUTO_LOGIN: {{ $provider_config.auto_login | quote }}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+  
   # Server configuration
   PHOENIX_HOST: {{ .Values.server.host | quote }}
   PHOENIX_PORT: {{ .Values.server.port | quote }}
