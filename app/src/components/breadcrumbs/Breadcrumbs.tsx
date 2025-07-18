@@ -1,135 +1,67 @@
-import React, { ReactNode } from "react";
+import React, { createContext, forwardRef, ReactNode, useContext } from "react";
 import { useBreadcrumbItem, useBreadcrumbs } from "react-aria";
-import { css } from "@emotion/react";
+
+// Context to share breadcrumb state
+interface BreadcrumbsContextValue {
+  onAction?: (index: string | number) => void;
+}
+
+const BreadcrumbsContext = createContext<BreadcrumbsContextValue>({});
 
 export interface BreadcrumbsProps {
   children: ReactNode;
   onAction?: (index: string | number) => void;
-  className?: string;
 }
 
-interface BreadcrumbItemProps {
+export interface BreadcrumbProps {
   children: ReactNode;
-  isCurrent?: boolean;
+  href?: string;
   onPress?: () => void;
+  isDisabled?: boolean;
+  isCurrent?: boolean;
 }
 
-const breadcrumbsCSS = css`
-  display: flex;
-  align-items: center;
-  gap: var(--ac-global-dimension-static-size-100);
-  font-size: var(--ac-global-dimension-font-size-75);
-  color: var(--ac-global-text-color-700);
+export const Breadcrumbs = forwardRef<HTMLElement, BreadcrumbsProps>(
+  function Breadcrumbs({ children, onAction, ...props }, ref) {
+    const { navProps } = useBreadcrumbs(props);
 
-  ol {
-    display: flex;
-    align-items: center;
-    gap: var(--ac-global-dimension-static-size-100);
-    list-style: none;
-    margin: 0;
-    padding: 0;
+    return (
+      <BreadcrumbsContext.Provider value={{ onAction }}>
+        <nav {...navProps} ref={ref}>
+          <ol>{children}</ol>
+        </nav>
+      </BreadcrumbsContext.Provider>
+    );
   }
+);
 
-  li {
-    display: flex;
-    align-items: center;
-    gap: var(--ac-global-dimension-static-size-100);
-  }
-
-  li:not(:last-child)::after {
-    content: "/";
-    color: var(--ac-global-text-color-500);
-    font-weight: normal;
-  }
-
-  button,
-  span {
-    background: none;
-    border: none;
-    padding: 0;
-    color: var(--ac-global-text-color-700);
-    cursor: pointer;
-    text-decoration: none;
-    font-size: inherit;
-    font-family: inherit;
-
-    &:hover:not([aria-current]) {
-      color: var(--ac-global-text-color-900);
-      text-decoration: underline;
-    }
-
-    &:focus {
-      outline: 2px solid var(--ac-global-color-primary);
-      outline-offset: 2px;
-      border-radius: 2px;
-    }
-  }
-
-  [aria-current="page"] {
-    color: var(--ac-global-text-color-900);
-    font-weight: 500;
-    cursor: default;
-  }
-`;
-
-function BreadcrumbItem({ children, isCurrent, onPress }: BreadcrumbItemProps) {
-  const buttonRef = React.useRef<HTMLButtonElement>(null);
-  const spanRef = React.useRef<HTMLSpanElement>(null);
-  const ref = onPress ? buttonRef : spanRef;
-  
-  const { itemProps } = useBreadcrumbItem(
-    {
-      children,
-      isCurrent,
-      onPress,
-      elementType: onPress ? "button" : "span",
-    },
+export const Breadcrumb = forwardRef<HTMLLIElement, BreadcrumbProps>(
+  function Breadcrumb(
+    { children, href, onPress, isDisabled, isCurrent, ...props },
     ref
-  );
+  ) {
+    const { onAction } = useContext(BreadcrumbsContext);
+    const { itemProps } = useBreadcrumbItem(
+      {
+        children,
+        onPress: onPress || (() => href && onAction?.(href)),
+        isDisabled,
+        isCurrent,
+        ...props,
+      },
+      ref as React.RefObject<HTMLElement>
+    );
 
-  return (
-    <li>
-      {onPress ? (
-        <button {...itemProps} ref={buttonRef} type="button">
-          {children}
-        </button>
-      ) : (
-        <span {...itemProps} ref={spanRef}>
-          {children}
-        </span>
-      )}
-    </li>
-  );
-}
-
-export function Breadcrumbs({
-  children,
-  onAction,
-  className,
-}: BreadcrumbsProps) {
-  const childrenArray = React.Children.toArray(children);
-  const { navProps } = useBreadcrumbs({});
-
-  return (
-    <nav {...navProps} css={breadcrumbsCSS} className={className}>
-      <ol>
-        {childrenArray.map((child, index) => {
-          const isLast = index === childrenArray.length - 1;
-          const childContent = React.isValidElement(child)
-            ? child.props.children
-            : child;
-
-          return (
-            <BreadcrumbItem
-              key={index}
-              isCurrent={isLast}
-              onPress={!isLast ? () => onAction?.(index) : undefined}
-            >
-              {childContent}
-            </BreadcrumbItem>
-          );
-        })}
-      </ol>
-    </nav>
-  );
-}
+    return (
+      <li ref={ref}>
+        {href && !isCurrent ? (
+          <a href={href} {...itemProps}>
+            {children}
+          </a>
+        ) : (
+          <span {...itemProps}>{children}</span>
+        )}
+      </li>
+    );
+  }
+);
