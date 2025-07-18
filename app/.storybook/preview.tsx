@@ -103,7 +103,9 @@ const preview: Preview = {
           }}
         >
           {contents.map((content, index) => (
-            <li key={index}>{content}</li>
+            <li key={index} style={{ flex: 1 }}>
+              {content}
+            </li>
           ))}
         </ul>
       );

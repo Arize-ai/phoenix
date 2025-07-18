@@ -371,9 +371,11 @@ input ContinuousAnnotationConfigInput {
 }
 
 type CostBreakdown {
+  """
+  Total number of tokens, including tokens for which no cost was computed.
+  """
   tokens: Float
   cost: Float
-  costPerToken: Float
 }
 
 input CreateAnnotationConfigInput {
@@ -1541,6 +1543,7 @@ type Mutation {
   patchTraceAnnotations(input: [PatchAnnotationInput!]!): TraceAnnotationMutationPayload!
   deleteTraceAnnotations(input: DeleteAnnotationsInput!): TraceAnnotationMutationPayload!
   deleteTraces(traceIds: [ID!]!): Query!
+  transferTracesToProject(traceIds: [ID!]!, projectId: ID!): Query!
   createUser(input: CreateUserInput!): UserMutationPayload!
   patchUser(input: PatchUserInput!): UserMutationPayload!
   patchViewer(input: PatchViewerInput!): UserMutationPayload!

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ec9fc099084bb5bc89858a3e8cb92886>>
+ * @generated SignedSource<<309c70937677f822225f3df8b26b5ae0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -143,13 +143,6 @@ return {
                 "kind": "ScalarField",
                 "name": "costPerMillionTokens",
                 "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "costPerToken",
-                "storageKey": null
               }
             ],
             "storageKey": null
@@ -160,12 +153,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "789d7bd2923968a69db4e192ffa39b5b",
+    "cacheID": "409afdb72c43f43969c59630c0c41170",
     "id": null,
     "metadata": {},
     "name": "SettingsModelsPageQuery",
     "operationKind": "query",
-    "text": "query SettingsModelsPageQuery {\n  ...ModelsTable_generativeModels\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels {\n    id\n    name\n    provider\n    namePattern\n    providerKey\n    startTime\n    createdAt\n    updatedAt\n    lastUsedAt\n    kind\n    tokenPrices {\n      tokenType\n      kind\n      costPerMillionTokens\n      costPerToken\n    }\n  }\n}\n"
+    "text": "query SettingsModelsPageQuery {\n  ...ModelsTable_generativeModels\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels {\n    id\n    name\n    provider\n    namePattern\n    providerKey\n    startTime\n    createdAt\n    updatedAt\n    lastUsedAt\n    kind\n    tokenPrices {\n      tokenType\n      kind\n      costPerMillionTokens\n    }\n  }\n}\n"
   }
 };
 })();

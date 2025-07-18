@@ -1,5 +1,5 @@
 from itertools import chain
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable, Mapping, Optional
 
 from typing_extensions import TypeAlias
 
@@ -60,7 +60,7 @@ class SpanCostDetailsCalculator:
             for p in prices
             if p.is_prompt
         }
-        if "input" not in self._prompt:
+        if self._prompt and "input" not in self._prompt:
             raise ValueError("Token prices for prompt must include an 'input' token type")
 
         # Create calculators for completion token types (is_prompt=False)
@@ -69,7 +69,7 @@ class SpanCostDetailsCalculator:
             for p in prices
             if not p.is_prompt
         }
-        if "output" not in self._completion:
+        if self._completion and "output" not in self._completion:
             raise ValueError("Token prices for completion must include an 'output' token type")
 
     def calculate_details(
@@ -112,6 +112,9 @@ class SpanCostDetailsCalculator:
         """
         prompt_details: dict[_TokenType, models.SpanCostDetail] = {}
         completion_details: dict[_TokenType, models.SpanCostDetail] = {}
+        calculator: Optional[TokenCostCalculator]
+        cost: Optional[float]
+        cost_per_token: Optional[float]
 
         # Phase 1: Process detailed token counts from span attributes
         for is_prompt, prefix, calculators, results in (
@@ -128,18 +131,19 @@ class SpanCostDetailsCalculator:
                     tokens = max(0, int(token_count))
 
                     # Calculate cost using specific calculator or fallback to default
+                    calculator = None
+                    calculator_key = "input" if is_prompt else "output"
                     if token_type in calculators:
                         # Use specific calculator for this token type
                         calculator = calculators[token_type]
-                    else:
-                        # Fallback to default calculator: "input" for prompts,
-                        # "output" for completions
-                        key = "input" if is_prompt else "output"
-                        calculator = calculators[key]
-                    cost = calculator.calculate_cost(attributes, tokens)
+                    elif calculator_key in calculators:
+                        calculator = calculators[calculator_key]
 
-                    # Calculate cost per token (avoid division by zero)
-                    cost_per_token = cost / tokens if tokens else None
+                    cost = None
+                    cost_per_token = None
+                    if calculator:
+                        cost = calculator.calculate_cost(attributes, tokens)
+                        cost_per_token = cost / tokens if tokens else None
 
                     detail = models.SpanCostDetail(
                         token_type=token_type,
@@ -171,11 +175,13 @@ class SpanCostDetailsCalculator:
             if tokens <= 0:
                 continue
 
-            # Calculate cost using guaranteed default calculator (input/output are required)
-            cost = calculators[token_type].calculate_cost(attributes, tokens)
-
-            # Calculate cost per token (avoid division by zero)
-            cost_per_token = cost / tokens if cost and tokens else None
+            # Calculate cost using calculator if available
+            cost = None
+            cost_per_token = None
+            if token_type in calculators:
+                calculator = calculators[token_type]
+                cost = calculator.calculate_cost(attributes, tokens)
+                cost_per_token = cost / tokens if tokens else None
 
             detail = models.SpanCostDetail(
                 token_type=token_type,

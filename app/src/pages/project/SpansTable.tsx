@@ -748,7 +748,11 @@ export function SpansTable(props: SpansTableProps) {
               </tr>
             ))}
           </thead>
-          {isEmpty ? (
+          {isEmpty && !hasNext ? (
+            // The trace-based pagination optimization (https://github.com/Arize-ai/phoenix/pull/8539)
+            // can result in isEmpty=true and hasNext=true when traces exist but lack matching root
+            // spans. This is an undesirable edge case. The optimization is a stopgap solution that
+            // will be replaced to eliminate this condition.
             <ProjectTableEmpty projectName={data.name} />
           ) : columnSizingInfo.isResizingColumn ? (
             <MemoizedTableBody

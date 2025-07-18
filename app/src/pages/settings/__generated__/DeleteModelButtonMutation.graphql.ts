@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6077b099b313f11ae44b1f0a23f928dd>>
+ * @generated SignedSource<<cf964619b5f7baa635def32432147576>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -204,13 +204,6 @@ return {
                         "kind": "ScalarField",
                         "name": "costPerMillionTokens",
                         "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "costPerToken",
-                        "storageKey": null
                       }
                     ],
                     "storageKey": null
@@ -227,12 +220,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a1de6e911b9cf52a1773fa3f5dd4cb57",
+    "cacheID": "43c73ccb5b91c9b4b5b7c221e5ed26ea",
     "id": null,
     "metadata": {},
     "name": "DeleteModelButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation DeleteModelButtonMutation(\n  $input: DeleteModelMutationInput!\n) {\n  deleteModel(input: $input) {\n    query {\n      ...ModelsTable_generativeModels\n    }\n  }\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels {\n    id\n    name\n    provider\n    namePattern\n    providerKey\n    startTime\n    createdAt\n    updatedAt\n    lastUsedAt\n    kind\n    tokenPrices {\n      tokenType\n      kind\n      costPerMillionTokens\n      costPerToken\n    }\n  }\n}\n"
+    "text": "mutation DeleteModelButtonMutation(\n  $input: DeleteModelMutationInput!\n) {\n  deleteModel(input: $input) {\n    query {\n      ...ModelsTable_generativeModels\n    }\n  }\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels {\n    id\n    name\n    provider\n    namePattern\n    providerKey\n    startTime\n    createdAt\n    updatedAt\n    lastUsedAt\n    kind\n    tokenPrices {\n      tokenType\n      kind\n      costPerMillionTokens\n    }\n  }\n}\n"
   }
 };
 })();

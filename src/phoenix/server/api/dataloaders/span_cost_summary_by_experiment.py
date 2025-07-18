@@ -1,7 +1,6 @@
 from collections import defaultdict
 
 from sqlalchemy import func, select
-from sqlalchemy.sql.functions import coalesce
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
@@ -23,12 +22,12 @@ class SpanCostSummaryByExperimentDataLoader(DataLoader[Key, Result]):
         stmt = (
             select(
                 models.ExperimentRun.experiment_id,
-                coalesce(func.sum(models.SpanCost.prompt_cost), 0).label("prompt_cost"),
-                coalesce(func.sum(models.SpanCost.completion_cost), 0).label("completion_cost"),
-                coalesce(func.sum(models.SpanCost.total_cost), 0).label("total_cost"),
-                coalesce(func.sum(models.SpanCost.prompt_tokens), 0).label("prompt_tokens"),
-                coalesce(func.sum(models.SpanCost.completion_tokens), 0).label("completion_tokens"),
-                coalesce(func.sum(models.SpanCost.total_tokens), 0).label("total_tokens"),
+                func.sum(models.SpanCost.prompt_cost).label("prompt_cost"),
+                func.sum(models.SpanCost.completion_cost).label("completion_cost"),
+                func.sum(models.SpanCost.total_cost).label("total_cost"),
+                func.sum(models.SpanCost.prompt_tokens).label("prompt_tokens"),
+                func.sum(models.SpanCost.completion_tokens).label("completion_tokens"),
+                func.sum(models.SpanCost.total_tokens).label("total_tokens"),
             )
             .select_from(models.ExperimentRun)
             .join(models.Trace, models.ExperimentRun.trace_id == models.Trace.trace_id)
