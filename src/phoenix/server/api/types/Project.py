@@ -1060,3 +1060,13 @@ async def _paginate_span_by_trace_start_time(
             has_next_page=has_next_page,
         ),
     )
+
+
+def to_gql_project(project: models.Project) -> Project:
+    """
+    Converts an ORM project to a GraphQL project.
+    """
+    return Project(
+        project_rowid=project.id,
+        db_project=project,
+    )
