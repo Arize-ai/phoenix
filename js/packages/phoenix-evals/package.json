@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-evals",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "A library for running evaluations for AI use cases",
   "main": "dist/src/index.js",
   "module": "dist/esm/index.js",
