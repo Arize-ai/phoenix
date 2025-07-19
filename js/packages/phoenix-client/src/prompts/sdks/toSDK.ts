@@ -48,7 +48,10 @@ const getTargetSDK = <T extends SupportedSDK>(sdk: T) => {
 /**
  * Parameters specific to the toSDK function
  */
-export type ToSDKParams<T extends SupportedSDK, V extends Variables = Variables> = {
+export type ToSDKParams<
+  T extends SupportedSDK,
+  V extends Variables = Variables,
+> = {
   /**
    * String representing the SDK to convert to
    */
