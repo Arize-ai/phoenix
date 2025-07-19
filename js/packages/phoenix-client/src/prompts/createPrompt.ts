@@ -82,17 +82,17 @@ interface PromptVersionInputBase {
   templateFormat?: PromptVersionData["template_format"];
 }
 
-interface OpenAIPromptVersionInput extends PromptVersionInputBase {
+export interface OpenAIPromptVersionInput extends PromptVersionInputBase {
   modelProvider: "OPENAI";
   invocationParameters?: OpenAIInvocationParameters;
 }
 
-interface AzureOpenAIPromptVersionInput extends PromptVersionInputBase {
+export interface AzureOpenAIPromptVersionInput extends PromptVersionInputBase {
   modelProvider: "AZURE_OPENAI";
   invocationParameters?: AzureOpenAIInvocationParameters;
 }
 
-interface AnthropicPromptVersionInput extends PromptVersionInputBase {
+export interface AnthropicPromptVersionInput extends PromptVersionInputBase {
   modelProvider: "ANTHROPIC";
   /**
    * The invocation parameters for the prompt version.
@@ -101,32 +101,32 @@ interface AnthropicPromptVersionInput extends PromptVersionInputBase {
   invocationParameters: AnthropicInvocationParameters;
 }
 
-interface GooglePromptVersionInput extends PromptVersionInputBase {
+export interface GooglePromptVersionInput extends PromptVersionInputBase {
   modelProvider: "GOOGLE";
   invocationParameters?: GoogleInvocationParameters;
 }
 
-interface DeepSeekPromptVersionInput extends PromptVersionInputBase {
+export interface DeepSeekPromptVersionInput extends PromptVersionInputBase {
   modelProvider: "DEEPSEEK";
   invocationParameters?: DeepSeekInvocationParameters;
 }
 
-interface XAIPromptVersionInput extends PromptVersionInputBase {
+export interface XAIPromptVersionInput extends PromptVersionInputBase {
   modelProvider: "XAI";
   invocationParameters?: XAIInvocationParameters;
 }
 
-interface OllamaPromptVersionInput extends PromptVersionInputBase {
+export interface OllamaPromptVersionInput extends PromptVersionInputBase {
   modelProvider: "OLLAMA";
   invocationParameters?: OllamaInvocationParameters;
 }
 
-interface AwsPromptVersionInput extends PromptVersionInputBase {
+export interface AwsPromptVersionInput extends PromptVersionInputBase {
   modelProvider: "AWS";
   invocationParameters?: AwsInvocationParameters;
 }
 
-type PromptVersionInput =
+export type PromptVersionInput =
   | OpenAIPromptVersionInput
   | AzureOpenAIPromptVersionInput
   | AnthropicPromptVersionInput
