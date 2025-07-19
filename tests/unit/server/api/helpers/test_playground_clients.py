@@ -15,12 +15,12 @@ def test_get_azure_token_param_name():
     assert _get_azure_token_param_name("o1") == "max_completion_tokens"
     assert _get_azure_token_param_name("o1-mini") == "max_completion_tokens"
     assert _get_azure_token_param_name("o1-pro") == "max_completion_tokens"
-    
+
     # o3 models should use max_completion_tokens
     assert _get_azure_token_param_name("o3") == "max_completion_tokens"
     assert _get_azure_token_param_name("o3-mini") == "max_completion_tokens"
     assert _get_azure_token_param_name("o3-pro") == "max_completion_tokens"
-    
+
     # Other models should use max_tokens
     assert _get_azure_token_param_name("gpt-4") == "max_tokens"
     assert _get_azure_token_param_name("gpt-4o") == "max_tokens"
@@ -38,32 +38,32 @@ async def test_azure_openai_o3_model_parameter_transformation():
         endpoint="https://test.openai.azure.com",
         api_version="2024-02-15-preview",
     )
-    
+
     # Create the client
     client = AzureOpenAIStreamingClient(model=mock_model)
     client.client = mock_client
-    
+
     # Mock the parent method to capture the parameters
     original_method = client.__class__.__bases__[0].chat_completion_create
     captured_params = {}
-    
+
     async def mock_parent_method(messages, tools, **kwargs):
         captured_params.update(kwargs)
         return []
-    
+
     client.__class__.__bases__[0].chat_completion_create = mock_parent_method
-    
+
     # Test with max_tokens parameter
     messages = [(ChatCompletionMessageRole.USER, "Hello", None, None)]
     tools = []
-    
+
     await client.chat_completion_create(
         messages=messages,
         tools=tools,
         max_tokens=100,
         temperature=0.7,
     )
-    
+
     # Verify that max_tokens was transformed to max_completion_tokens
     assert "max_completion_tokens" in captured_params
     assert captured_params["max_completion_tokens"] == 100
@@ -82,32 +82,32 @@ async def test_azure_openai_regular_model_parameter_transformation():
         endpoint="https://test.openai.azure.com",
         api_version="2024-02-15-preview",
     )
-    
+
     # Create the client
     client = AzureOpenAIStreamingClient(model=mock_model)
     client.client = mock_client
-    
+
     # Mock the parent method to capture the parameters
     original_method = client.__class__.__bases__[0].chat_completion_create
     captured_params = {}
-    
+
     async def mock_parent_method(messages, tools, **kwargs):
         captured_params.update(kwargs)
         return []
-    
+
     client.__class__.__bases__[0].chat_completion_create = mock_parent_method
-    
+
     # Test with max_tokens parameter
     messages = [(ChatCompletionMessageRole.USER, "Hello", None, None)]
     tools = []
-    
+
     await client.chat_completion_create(
         messages=messages,
         tools=tools,
         max_tokens=100,
         temperature=0.7,
     )
-    
+
     # Verify that max_tokens was not transformed
     assert "max_tokens" in captured_params
     assert captured_params["max_tokens"] == 100
@@ -118,11 +118,11 @@ async def test_azure_openai_regular_model_parameter_transformation():
 def test_azure_openai_supported_parameters():
     """Test that Azure OpenAI client supports the correct parameters."""
     params = AzureOpenAIStreamingClient.supported_invocation_parameters()
-    
+
     # Check that max_tokens is included (it will be transformed later)
     param_names = [param.invocation_name for param in params]
     assert "max_tokens" in param_names
-    
+
     # Check that other parameters are also included
     assert "temperature" in param_names
     assert "top_p" in param_names

@@ -1462,7 +1462,7 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
             correct_param_name = _get_azure_token_param_name(self.model_name)
             if correct_param_name != "max_tokens":
                 transformed_parameters[correct_param_name] = transformed_parameters.pop("max_tokens")
-        
+
         # Call the parent method with transformed parameters
         async for chunk in super().chat_completion_create(messages, tools, **transformed_parameters):
             yield chunk
