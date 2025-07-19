@@ -4,8 +4,13 @@ import z from "zod";
  * The zod schema for JSON literal primitives
  * @see {@link https://zod.dev/?id=json-type|Zod Documentation}
  */
-const literalSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
-type Literal = z.infer<typeof literalSchema>;
+export const literalSchema = z.union([
+  z.string(),
+  z.number(),
+  z.boolean(),
+  z.null(),
+]);
+export type Literal = z.infer<typeof literalSchema>;
 export type JSONLiteral =
   | Literal
   | { [key: string]: JSONLiteral }

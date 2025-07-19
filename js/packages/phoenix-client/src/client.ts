@@ -9,9 +9,9 @@ import {
   makeDefaultClientOptions,
 } from "./config";
 
-type pathsV1 = oapiPathsV1;
-type componentsV1 = oapiComponentsV1;
-type operationsV1 = oapiOperationsV1;
+export type pathsV1 = oapiPathsV1;
+export type componentsV1 = oapiComponentsV1;
+export type operationsV1 = oapiOperationsV1;
 
 /**
  * Generated openapi types for the Phoenix client, by API version.

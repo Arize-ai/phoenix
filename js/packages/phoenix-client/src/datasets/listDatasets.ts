@@ -5,7 +5,7 @@ import invariant from "tiny-invariant";
 
 export type ListDatasetsParams = ClientFn;
 
-type FullDatasetInfo = DatasetInfo & {
+export type FullDatasetInfo = DatasetInfo & {
   startDate: Date;
   endDate: Date;
 };

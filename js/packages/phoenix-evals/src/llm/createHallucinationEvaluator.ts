@@ -5,7 +5,7 @@ import {
   HALLUCINATION_CHOICES,
 } from "../default_templates/HALLUCINATION_TEMPLATE";
 
-interface HallucinationEvaluatorArgs
+export interface HallucinationEvaluatorArgs
   extends Omit<CreateClassifierArgs, "promptTemplate" | "choices"> {
   choices?: CreateClassifierArgs["choices"];
   promptTemplate?: CreateClassifierArgs["promptTemplate"];
