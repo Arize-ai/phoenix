@@ -1,6 +1,7 @@
 import strawberry
-from sqlalchemy import delete, select
+from sqlalchemy import delete, insert, select
 from sqlalchemy.orm import load_only
+from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
@@ -9,13 +10,56 @@ from phoenix.db import models
 from phoenix.server.api.auth import IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.ClearProjectInput import ClearProjectInput
+from phoenix.server.api.input_types.CreateProjectInput import CreateProjectInput
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.dml_event import ProjectDeleteEvent, SpanDeleteEvent
+from phoenix.server.api.types.Project import Project, to_gql_project
+from phoenix.server.dml_event import ProjectDeleteEvent, ProjectInsertEvent, SpanDeleteEvent
+
+
+@strawberry.type
+class ProjectMutationPayload:
+    project: Project
+    query: Query
 
 
 @strawberry.type
 class ProjectMutationMixin:
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    async def create_project(
+        self,
+        info: Info[Context, None],
+        input: CreateProjectInput,
+    ) -> ProjectMutationPayload:
+        name = input.name
+        description = input.description if input.description is not UNSET else None
+        gradient_start_color = (
+            input.gradient_start_color if input.gradient_start_color is not UNSET else None
+        )
+        gradient_end_color = (
+            input.gradient_end_color if input.gradient_end_color is not UNSET else None
+        )
+
+        # Build the values dict, only including non-None values to use database defaults
+        values = {"name": name}
+        if description is not None:
+            values["description"] = description
+        if gradient_start_color is not None:
+            values["gradient_start_color"] = gradient_start_color
+        if gradient_end_color is not None:
+            values["gradient_end_color"] = gradient_end_color
+
+        async with info.context.db() as session:
+            project = await session.scalar(
+                insert(models.Project)
+                .values(**values)
+                .returning(models.Project)
+            )
+            assert project is not None
+        
+        info.context.event_queue.put(ProjectInsertEvent((project.id,)))
+        return ProjectMutationPayload(project=to_gql_project(project), query=Query())
+
     @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
     async def delete_project(self, info: Info[Context, None], id: GlobalID) -> Query:
         project_id = from_global_id_with_expected_type(global_id=id, expected_type_name="Project")
