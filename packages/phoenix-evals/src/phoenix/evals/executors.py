@@ -21,6 +21,7 @@ from typing import (
 )
 
 from tqdm.auto import tqdm
+import random
 
 from phoenix.evals.exceptions import PhoenixException
 
@@ -40,6 +41,11 @@ def _ascii_timeline(
         details_list: List of ExecutionDetails with populated ``events``.
         width: Width of the timeline in characters.
         max_tasks: Maximum number of task rows to render (to keep log output short).
+    
+    Legend:
+        P = Produced/queued, Q = Dequeued, S = Started executing
+        * = Executing, T = First timeout, B = Retry timeout (backoff)  
+        W = Waiting/backoff period, R = Re-queued, E = Error, F = Fast completion S&C, C = Completed
     """
 
     # Gather all timestamps. If none yet, bail early.
@@ -57,9 +63,12 @@ def _ascii_timeline(
         "Q": 2,  # dequeued
         "S": 3,  # started/executing
         "*": 0,  # filler during execution
-        "T": 4,  # timeout
+        "W": 1,  # waiting/backoff filler
+        "T": 4,  # timeout (first attempt)
+        "B": 4,  # timeout on retry (backoff)
         "R": 3,  # re-queued
         "E": 4,  # error
+        "F": 5,  # fast completion S&C (S+C in same position)
         "C": 5,  # completed
     }
 
@@ -75,8 +84,11 @@ def _ascii_timeline(
             col = int((ts - t0) * scale)
             col = max(0, min(width - 1, col))
 
+            # Special case: if we're placing C and there's already S at this position, show as 'F' (Fast)
+            if tag == "C" and canvas[col] == "S":
+                canvas[col] = "F"
             # Draw the event itself
-            if _priority.get(tag, 0) >= _priority.get(canvas[col], 0):
+            elif _priority.get(tag, 0) >= _priority.get(canvas[col], 0):
                 canvas[col] = tag
 
             # Fill execution span with '*'
@@ -86,10 +98,88 @@ def _ascii_timeline(
                 for c in range(col + 1, min(end_col, width - 1)):
                     if canvas[c] == " ":
                         canvas[c] = "*"
+            
+            # Fill backoff/wait span with 'W'
+            if tag == "W" and idx + 1 < len(events):
+                next_ts = events[idx + 1][1]
+                end_col = int((next_ts - t0) * scale)
+                for c in range(col + 1, min(end_col, width - 1)):
+                    if canvas[c] == " ":
+                        canvas[c] = "W"
 
         lines.append(f"T-{task_id:<3} │ {''.join(canvas)}")
 
     return "\n".join(lines)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Aggregate traffic bar (requests per time-slice)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _ascii_tickbar(
+    details_list: List["ExecutionDetails"],
+    *,
+    width: int = 60,
+    focus_tags: Tuple[str, ...] = ("S",),
+) -> str:
+    """Render a single row summarizing *request starts* density aligned with timeline above.
+
+    Each column is a time slice that matches the timeline scale above. Character intensity 
+    encodes how many events of *focus_tags* happened in that slice. This helps spot bursts / back-offs.
+
+    Char scale (approx counts → glyph):
+        0  → " "
+        1  → "."
+        2-4  → ":"
+        5-9  → "|"
+        10-19 → "*"
+        20-49 → "#"
+        ≥50  → "@"
+    """
+
+    # Flatten timestamps for selected tags
+    timestamps: List[float] = []
+    for d in details_list:
+        timestamps.extend(ts for tag, ts in d.events if tag in focus_tags)
+
+    if not timestamps:
+        return ""
+
+    # Use the same time scale as the timeline above for alignment
+    all_timestamps = [ts for d in details_list for _, ts in d.events]
+    if not all_timestamps:
+        return ""
+    
+    t0, t1 = min(all_timestamps), max(all_timestamps)
+    span = max(t1 - t0, 1e-6)
+    
+    # Use same scale as timeline: (width - 1) / span
+    n_bins = width - 1
+    bin_size = span / n_bins
+
+    counts = [0] * n_bins
+    for ts in timestamps:
+        idx = int((ts - t0) * n_bins / span)
+        idx = min(n_bins - 1, max(0, idx))
+        counts[idx] += 1
+
+    def glyph(c: int) -> str:
+        if c == 0:
+            return " "
+        if c < 2:
+            return "."
+        if c < 5:
+            return ":"
+        if c < 10:
+            return "|"
+        if c < 20:
+            return "*"
+        if c < 50:
+            return "#"
+        return "@"  # 50+
+
+    bar = "".join(glyph(c) for c in counts)
+    return f"Ticks │ {bar}"
 
 
 class Unset:
@@ -111,6 +201,10 @@ class ExecutionDetails:
         self.exceptions: List[Exception] = []
         # Store full traceback strings corresponding to each exception for detailed debugging
         self.tracebacks: List[str] = []
+
+        # Chronological log of attempts with rich metadata
+        # Each item: {"attempt": int, "start": float, "end": float|None, "latency": float|None, "status": str, "snippet": str|None}
+        self.attempt_history: List[dict] = []
         self.status = ExecutionStatus.DID_NOT_RUN
         self.execution_seconds: float = 0
         self.timeout_count: int = 0
@@ -149,6 +243,7 @@ class ExecutionDetails:
             "timeout_count": self.timeout_count,
             "exception_count": self.exception_count,
             "execution_seconds": round(self.execution_seconds, 3),
+            "attempt_history": self.attempt_history,
         }
 
     def log_event(self, tag: str) -> None:
@@ -204,7 +299,8 @@ class AsyncExecutor(Executor):
         fallback_return_value: Union[Unset, Any] = _unset,
         termination_signal: signal.Signals = signal.SIGINT,
         task_timeout: int = 20,
-        backoff_seconds: float = 0.0,
+        backoff_base: float = 1.0,
+        max_backoff: float = 60.0,
     ):
         self.generate = generation_fn
         self.fallback_return_value = fallback_return_value
@@ -215,7 +311,8 @@ class AsyncExecutor(Executor):
         self.base_priority = 0
         self.termination_signal = termination_signal
         self.task_timeout = task_timeout
-        self.backoff_seconds = backoff_seconds
+        self.backoff_base = backoff_base
+        self.max_backoff = max_backoff
 
     async def producer(
         self,
@@ -263,6 +360,7 @@ class AsyncExecutor(Executor):
                 continue
 
             index, payload = item
+            attempt_no = abs(priority)
 
             # Dequeued
             execution_details[index].log_event("Q")
@@ -279,13 +377,40 @@ class AsyncExecutor(Executor):
                 )
 
                 if generate_task in done:
-                    outputs[index] = generate_task.result()
+                    result_obj = generate_task.result()
+                    outputs[index] = result_obj
+
+                    # Try to extract OpenAI request id if available
+                    rid: Optional[str] = None
+                    try:
+                        if hasattr(result_obj, "headers") and result_obj.headers is not None:
+                            rid = result_obj.headers.get("x-request-id")
+                        elif isinstance(result_obj, dict):
+                            # common patterns: {'request_id': "..."} or {'id': "..."}
+                            rid = result_obj.get("request_id") or result_obj.get("id")
+                    except Exception:
+                        pass
+                    if rid:
+                        rid = str(rid)[:8]
+
                     execution_details[index].complete()
                     execution_details[index].log_runtime(task_start_time)
                     execution_details[index].log_event("C")  # Completed
                     runtime = time.time() - task_start_time
-                    tqdm.write(f"✅ Task {index}: Completed in {runtime:.2f}s")
+                    tqdm.write(
+                        f"✅ Task {index}-a{attempt_no}: Completed in {runtime:.2f}s"
+                        + (f" rid={rid}" if rid else "")
+                    )
                     progress_bar.update()
+                    execution_details[index].attempt_history.append({
+                        "attempt": attempt_no,
+                        "start": task_start_time,
+                        "end": time.time(),
+                        "latency": runtime,
+                        "status": "COMPLETED",
+                        "snippet": (str(outputs[index])[:40] if isinstance(outputs[index], str) else None),
+                        "rid": rid,
+                    })
                 elif termination_event.is_set():
                     # discard the pending task and remaining items in the queue
                     if not generate_task.done():
@@ -314,30 +439,55 @@ class AsyncExecutor(Executor):
                     # Log the timeout as an exception for tracking
                     execution_details[index].log_exception(TimeoutError(f"Task timeout after {self.task_timeout}s"))
                     execution_details[index].log_runtime(task_start_time)
-                    execution_details[index].log_event("T")  # Timeout
+                    # Use different symbols for first timeout vs retries
+                    if retry_count == 0:
+                        execution_details[index].log_event("T")  # First timeout
+                    else:
+                        execution_details[index].log_event("B")  # Backoff timeout (retry)
+
+                    execution_details[index].attempt_history.append({
+                        "attempt": attempt_no,
+                        "start": task_start_time,
+                        "end": task_start_time + self.task_timeout,
+                        "latency": self.task_timeout,
+                        "status": "TIMEOUT",
+                        "snippet": None,
+                        "rid": None,
+                    })
                     
                     # Check if we should keep retrying
                     if retry_count >= self.max_retries:
                         execution_details[index].fail()
-                        tqdm.write(f"❌ Task {index}: Max retries ({self.max_retries}) reached, FAILING permanently")
+                        tqdm.write(f"❌ Task {index}-a{attempt_no}: Max retries ({self.max_retries}) reached, FAILING permanently")
                         progress_bar.update()
                         continue
                     
-                    # Dynamic quadratic backoff: base backoff_seconds (default 20s) plus 5*(retry_count)^2
-                    if self.backoff_seconds > 0:
-                        dynamic_backoff = self.backoff_seconds + 5 * (retry_count ** 2)
-                        tqdm.write(
-                            f"⏳ Backing off for {dynamic_backoff}s before retrying task {index} (attempt {retry_count + 1})"
-                        )
-                        await asyncio.sleep(dynamic_backoff)
+                    # Exponential backoff with jitter
+                    delay = min(self.max_backoff, self.backoff_base * (2 ** retry_count))
+                    jittered_delay = delay * random.uniform(0.5, 1.5)
+                    tqdm.write(
+                        f"⏳ Backing off for {jittered_delay:.2f}s before retrying task {index} (attempt {retry_count + 1})"
+                    )
+                    execution_details[index].log_event("W")  # Start backoff wait
+                    await asyncio.sleep(jittered_delay)
                     
                     # task timeouts are requeued with decreased priority (increased retry_count)
-                    execution_details[index].log_event("R")  # Re-queued
+                    execution_details[index].log_event("R")  # Re-queued after backoff
                     await queue.put((priority - 1, item))
             except Exception as exc:
                 execution_details[index].log_exception(exc)
                 execution_details[index].log_runtime(task_start_time)
                 execution_details[index].log_event("E")  # Generic error
+
+                execution_details[index].attempt_history.append({
+                    "attempt": attempt_no,
+                    "start": task_start_time,
+                    "end": time.time(),
+                    "latency": time.time() - task_start_time,
+                    "status": "ERROR",
+                    "snippet": None,
+                    "rid": None,
+                })
                 is_phoenix_exception = isinstance(exc, PhoenixException)
                 if (retry_count := abs(priority)) < self.max_retries and not is_phoenix_exception:
                     tqdm.write(
@@ -349,6 +499,7 @@ class AsyncExecutor(Executor):
                 else:
                     execution_details[index].fail()
                     tqdm.write(f"Retries exhausted after {retry_count + 1} attempts: {exc}")
+                    # attempt history already recorded above for ERROR status
                     if self.exit_on_error:
                         termination_event.set()
                     else:
@@ -436,10 +587,14 @@ class AsyncExecutor(Executor):
                     tqdm.write(f"🔄 Cleanup status: {succeeded} success, {failed} failed, {len(pending)} pending, queue: {queue.qsize()}")
                     if pending:
                         tqdm.write(f"   📋 Pending tasks: {pending[:10]}{'...' if len(pending) > 10 else ''}")
-                    # ASCII timeline snapshot (limited to first 10 tasks to avoid log spam)
-                    timeline_snapshot = _ascii_timeline(execution_details, width=60, max_tasks=10)
+                    # ASCII timeline snapshot (limited to first 20 tasks to avoid log spam)
+                    timeline_snapshot = _ascii_timeline(execution_details, width=60, max_tasks=20)
                     if timeline_snapshot:
                         tqdm.write("\n" + timeline_snapshot + "\n")
+
+                    tick_snapshot = _ascii_tickbar(execution_details, width=60, focus_tags=("S",))
+                    if tick_snapshot:
+                        tqdm.write(tick_snapshot + "\n")
         
         status_task = asyncio.create_task(periodic_status())
         
@@ -488,9 +643,10 @@ class AsyncExecutor(Executor):
         signal.signal(self.termination_signal, original_handler)  # reset the SIGTERM handler
         
         # Print summary
-        total_timeouts = sum(details.timeout_count for details in execution_details)
-        total_failures = sum(1 for details in execution_details if details.status == ExecutionStatus.FAILED)
-        total_retries = sum(details.exception_count for details in execution_details)
+        total_timeouts = sum(d.timeout_count for d in execution_details)
+        total_failures = sum(1 for d in execution_details if d.status == ExecutionStatus.FAILED)
+        # Count every retry (timeout or other exception) except the *final* successful attempt.
+        total_retries = sum(d.timeout_count + d.exception_count for d in execution_details)
         completed_tasks = sum(1 for details in execution_details if details.status != ExecutionStatus.DID_NOT_RUN)
         pending_tasks = [i for i, details in enumerate(execution_details) if details.status == ExecutionStatus.DID_NOT_RUN]
         
@@ -502,16 +658,47 @@ class AsyncExecutor(Executor):
             failed_tasks = [i for i, details in enumerate(execution_details) if details.status == ExecutionStatus.FAILED]
             tqdm.write(f"❌ Failed tasks: {failed_tasks[:10]}{'...' if len(failed_tasks) > 10 else ''}")
 
+            # Print attempt table for first few failed tasks
+            for task_id in failed_tasks[:3]:
+                det = execution_details[task_id]
+                tqdm.write(f"\n📜 Attempt history for task {task_id}:")
+                for record in det.attempt_history:
+                    lat = f"{record['latency']:.2f}s" if record['latency'] is not None else "-"
+                    tqdm.write(
+                        f"  a{record['attempt']}: {record['status']:<8} start={record['start']-det.attempt_history[0]['start']:+.2f}s lat={lat}"
+                        + (f" snippet=\"{record['snippet']}\"" if record['snippet'] else "")
+                    )
+
             # Print detailed traceback for each failed task (first 5 to avoid overwhelming logs)
             for task_id in failed_tasks[:5]:
                 tb_list = execution_details[task_id].tracebacks
                 if tb_list:
                     tqdm.write(f"\n🔍 Traceback for failed task {task_id} (most recent attempt):\n{tb_list[-1]}")
 
+        # Print attempt history for tasks that succeeded but had timeouts
+        successful_retried = [i for i, d in enumerate(execution_details) if d.status != ExecutionStatus.FAILED and d.timeout_count > 0]
+        if successful_retried:
+            tqdm.write(f"\n⏱️  Tasks that timed out but eventually succeeded ({len(successful_retried)}): {successful_retried[:10]}{'...' if len(successful_retried) > 10 else ''}")
+            for task_id in successful_retried[:3]:
+                det = execution_details[task_id]
+                tqdm.write(f"\n📜 Attempt history for task {task_id} (succeeded):")
+                for record in det.attempt_history:
+                    lat = f"{record['latency']:.2f}s" if record['latency'] is not None else "-"
+                    rid_info = f" rid={record['rid']}" if record.get('rid') else ""
+                    tqdm.write(
+                        f"  a{record['attempt']}: {record['status']:<8} start={record['start']-det.attempt_history[0]['start']:+.2f}s lat={lat}{rid_info}"
+                        + (f" snippet=\"{record['snippet']}\"" if record['snippet'] else "")
+                    )
         # Final ASCII timeline
-        final_timeline = _ascii_timeline(execution_details, width=80, max_tasks=20)
+        final_timeline = _ascii_timeline(execution_details, width=80, max_tasks=50)
         if final_timeline:
+            tqdm.write("\n📊 Timeline Legend: P=Queued, Q=Dequeued, S=Started, *=Executing, T=Timeout, B=Backoff-timeout, W=Waiting, R=Re-queued, E=Error, F=Fast completion S&C, C=Completed")
+            tqdm.write("   Note: Fast tasks (<1s) show as 'F' when S&C events occur at same timeline position due to compression")
             tqdm.write("\n" + final_timeline + "\n")
+
+        final_tickbar = _ascii_tickbar(execution_details, width=80, focus_tags=("S",))
+        if final_tickbar:
+            tqdm.write(final_tickbar + "\n")
         
         return outputs, execution_details
 
@@ -609,6 +796,7 @@ class SyncExecutor(Executor):
                 except Exception as exc:
                     execution_details[index].fail()
                     tqdm.write(f"Retries exhausted after {attempt + 1} attempts: {exc}")
+                    # attempt history already recorded above for ERROR status
                     if self.exit_on_error:
                         return outputs, execution_details
                     else:
@@ -628,7 +816,8 @@ def get_executor_on_sync_context(
     exit_on_error: bool = True,
     fallback_return_value: Union[Unset, Any] = _unset,
     task_timeout: int = 20,
-    backoff_seconds: float = 0.0,
+    backoff_base: float = 1.0,
+    max_backoff: float = 60.0,
 ) -> Executor:
     if threading.current_thread() is not threading.main_thread():
         # run evals synchronously if not in the main thread
@@ -665,7 +854,8 @@ def get_executor_on_sync_context(
                 exit_on_error=exit_on_error,
                 fallback_return_value=fallback_return_value,
                 task_timeout=task_timeout,
-                backoff_seconds=backoff_seconds,
+                backoff_base=backoff_base,
+                max_backoff=max_backoff,
             )
         else:
             logger.warning(
@@ -689,7 +879,8 @@ def get_executor_on_sync_context(
             exit_on_error=exit_on_error,
             fallback_return_value=fallback_return_value,
             task_timeout=task_timeout,
-            backoff_seconds=backoff_seconds,
+            backoff_base=backoff_base,
+            max_backoff=max_backoff,
         )
 
 
