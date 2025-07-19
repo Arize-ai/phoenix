@@ -1324,6 +1324,17 @@ class OpenAIReasoningStreamingClient(OpenAIStreamingClient):
                 yield LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO, completion_details.audio_tokens
 
 
+def _get_azure_token_param_name(model_name: str) -> str:
+    """
+    Get the correct token parameter name for Azure OpenAI models.
+    OpenAI o1 and o3 models use max_completion_tokens, while other models use max_tokens.
+    However, Azure OpenAI models currently do not support max_completion_tokens unless it's an o1 or o3 model.
+    """
+    if model_name.startswith("o1") or model_name.startswith("o3"):
+        return "max_completion_tokens"
+    return "max_tokens"
+
+
 @register_llm_client(
     provider_key=GenerativeProviderKey.AZURE_OPENAI,
     model_names=[
@@ -1374,6 +1385,87 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
         super().__init__(client=client, model=model, credentials=credentials)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.AZURE.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
+
+    @classmethod
+    def supported_invocation_parameters(cls) -> list[InvocationParameter]:
+        # For Azure OpenAI, we need to handle o1 and o3 models differently
+        # They use max_completion_tokens instead of max_tokens
+        return [
+            BoundedFloatInvocationParameter(
+                invocation_name="temperature",
+                canonical_name=CanonicalParameterName.TEMPERATURE,
+                label="Temperature",
+                default_value=1.0,
+                min_value=0.0,
+                max_value=2.0,
+            ),
+            IntInvocationParameter(
+                invocation_name="max_tokens",
+                canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
+                label="Max Tokens",
+            ),
+            BoundedFloatInvocationParameter(
+                invocation_name="frequency_penalty",
+                label="Frequency Penalty",
+                default_value=0.0,
+                min_value=-2.0,
+                max_value=2.0,
+            ),
+            BoundedFloatInvocationParameter(
+                invocation_name="presence_penalty",
+                label="Presence Penalty",
+                default_value=0.0,
+                min_value=-2.0,
+                max_value=2.0,
+            ),
+            StringListInvocationParameter(
+                invocation_name="stop",
+                canonical_name=CanonicalParameterName.STOP_SEQUENCES,
+                label="Stop Sequences",
+            ),
+            BoundedFloatInvocationParameter(
+                invocation_name="top_p",
+                canonical_name=CanonicalParameterName.TOP_P,
+                label="Top P",
+                default_value=1.0,
+                min_value=0.0,
+                max_value=1.0,
+            ),
+            IntInvocationParameter(
+                invocation_name="seed",
+                canonical_name=CanonicalParameterName.RANDOM_SEED,
+                label="Seed",
+            ),
+            JSONInvocationParameter(
+                invocation_name="tool_choice",
+                label="Tool Choice",
+                canonical_name=CanonicalParameterName.TOOL_CHOICE,
+            ),
+            JSONInvocationParameter(
+                invocation_name="response_format",
+                label="Response Format",
+                canonical_name=CanonicalParameterName.RESPONSE_FORMAT,
+            ),
+        ]
+
+    async def chat_completion_create(
+        self,
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+        ],
+        tools: list[JSONScalarType],
+        **invocation_parameters: Any,
+    ) -> AsyncIterator[ChatCompletionChunk]:
+        # Transform max_tokens to the correct parameter name for Azure OpenAI
+        transformed_parameters = invocation_parameters.copy()
+        if "max_tokens" in transformed_parameters:
+            correct_param_name = _get_azure_token_param_name(self.model_name)
+            if correct_param_name != "max_tokens":
+                transformed_parameters[correct_param_name] = transformed_parameters.pop("max_tokens")
+        
+        # Call the parent method with transformed parameters
+        async for chunk in super().chat_completion_create(messages, tools, **transformed_parameters):
+            yield chunk
 
 
 @register_llm_client(
