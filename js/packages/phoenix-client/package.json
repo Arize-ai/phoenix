@@ -49,7 +49,16 @@
     "type:check": "tsc --noEmit",
     "test": "vitest --typecheck"
   },
-  "keywords": [],
+  "keywords": [
+    "phoenix",
+    "arize",
+    "llm",
+    "tracing",
+    "evaluation",
+    "prompts",
+    "datasets",
+    "experiments"
+  ],
   "author": "oss@arize.com",
   "license": "ELv2",
   "devDependencies": {
