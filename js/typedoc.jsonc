@@ -1,6 +1,6 @@
 {
   "entryPoints": ["packages/*"],
-  "name": "Arize Phoenix TypeScript SDKs",
+  "name": "Arize Phoenix TypeScript",
   "entryPointStrategy": "packages",
   "exclude": ["packages/phoenix-cli", "packages/phoenix-mcp"],
   "includeVersion": false
