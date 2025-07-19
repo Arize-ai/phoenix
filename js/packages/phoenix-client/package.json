@@ -50,7 +50,7 @@
     "test": "vitest --typecheck"
   },
   "keywords": [],
-  "author": "",
+  "author": "oss@arize.com",
   "license": "ELv2",
   "devDependencies": {
     "@ai-sdk/openai": "^1.1.15",

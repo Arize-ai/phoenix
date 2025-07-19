@@ -1,5 +1,5 @@
 import { Template } from "../types/templating";
-import Mustache from "mustache";
+import * as Mustache from "mustache";
 
 /**
  * A function that applies a set of variables to a template (e.g. a prompt)
