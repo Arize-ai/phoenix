@@ -57,7 +57,7 @@ ds = px.Client().upload_dataset(
 
 ## Synthetic Data
 
-One of the quicket way of getting started is to produce synthetic queries using an LLM.&#x20;
+One of the quickest ways of getting started is to produce synthetic queries using an LLM.&#x20;
 
 {% tabs %}
 {% tab title="Python" %}

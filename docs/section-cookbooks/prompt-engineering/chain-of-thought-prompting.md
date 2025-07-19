@@ -230,7 +230,7 @@ By clicking into the experiment in Phoenix, you can take a look at the steps the
 
 Even with Chain of Thought prompting, a single response may not always be reliable. **Self-Consistency CoT** enhances accuracy by generating multiple reasoning paths and selecting the most common answer. Instead of relying on one response, we sample multiple outputs and aggregate them, reducing errors caused by randomness or flawed reasoning steps.
 
-This method improves robustness, especially for complex problems where initial reasoning steps might vary. In this section, we'll compare Self-Consistency CoT to our previous promppts to see how using on multiple responses impacts overall performance.
+This method improves robustness, especially for complex problems where initial reasoning steps might vary. In this section, we'll compare Self-Consistency CoT to our previous prompts to see how using multiple responses impacts overall performance.
 
 Let's repeat the same process as above with a new prompt and evaluate the outcome.
 
@@ -292,7 +292,7 @@ initial_experiment = run_experiment(
 )
 ```
 
-We've observed a significant improvement in performance! Since the prompt instructs the model to compute the answer multiple times independently, you may notice that the experiment takes slightly longer to run. You can click into the experiement explore to view the independent computations the model performed for each problem.
+We've observed a significant improvement in performance! Since the prompt instructs the model to compute the answer multiple times independently, you may notice that the experiment takes slightly longer to run. You can click into the experiment explore to view the independent computations the model performed for each problem.
 
 ![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_6.png)
 
@@ -314,7 +314,7 @@ few_shot_examples = ds.to_pandas().sample(5)
 few_shot_examples
 ```
 
-We now will construct our final prompt, run the experiement, and view the results. Under the **Prompts tab** in Phoenix, you can track the version history of your prompt and see what random examples were chosen.
+We now will construct our final prompt, run the experiment, and view the results. Under the **Prompts tab** in Phoenix, you can track the version history of your prompt and see what random examples were chosen.
 
 ```python
 few_shot_COT_template = """

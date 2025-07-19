@@ -142,17 +142,17 @@ Wraps a dataframe that is a flattened representation of spans and traces. Note t
 
 ### **Parameters**
 
-* **dataframe** (pandas.dataframe): a dataframe each row of which is a flattened representation of a span. See [LLM Traces](../tracing/llm-traces.md) for more on traces and spans.
+* **dataframe** (pandas.DataFrame): a dataframe each row of which is a flattened representation of a span. See [LLM Traces](../tracing/llm-traces.md) for more on traces and spans.
 * **name** (str): The name used to identify the dataset in the application. If not provided, a random name will be generated.
 
 ### Attributes
 
-* **dataframe** (pandas.dataframe): a dataframe each row of which is a flattened representation of a span. See [LLM Traces](../tracing/llm-traces.md) for more on traces and spans.
+* **dataframe** (pandas.DataFrame): a dataframe each row of which is a flattened representation of a span. See [LLM Traces](../tracing/llm-traces.md) for more on traces and spans.
 * **name** (Optional\[str]): The name used to identify the dataset in the application.
 
 ### Usage
 
-The code snippet below shows how to read data from a `trace.jsonl` file into a `TraceDataset`, and then pass the dataset to Phoenix through `launch_app` . Each line of the `trace.jsol` file is a JSON string representing a span.
+The code snippet below shows how to read data from a `trace.jsonl` file into a `TraceDataset`, and then pass the dataset to Phoenix through `launch_app`. Each line of the `trace.jsonl` file is a JSON string representing a span.
 
 ```
 from phoenix.trace.utils import json_lines_to_df

@@ -44,7 +44,7 @@ AutoGen makes it easy to build these chains by coordinating multiple agents. Eac
 The agent conducts a multi-step market analysis workflow, starting with identifying general trends and culminating in an evaluation of company strengths.
 
 **How to evaluate**: Ensure outputs are moved into inputs for the next step and logically build across steps\
-&#xNAN;_(e.g., do identified trends inform the company evaluation?)_
+_(e.g., do identified trends inform the company evaluation?)_
 
 * Confirm that each prompt step produces relevant and distinct outputs that contribute to the final analysis
 * Track total latency and token counts to see which steps cause inefficiencies&#x20;
@@ -66,7 +66,7 @@ AutoGen simplifies implementing this pattern by enabling a dedicated 'Router Age
 We will build an intelligent customer service system, designed to efficiently handle diverse user queries directing them to a specialized `AssistantAgent` .
 
 **How to evaluate**: Ensure the Router Agent consistently classifies incoming queries into the correct category \
-&#xNAN;_(e.g., billing, technical support, product info)_
+_(e.g., billing, technical support, product info)_
 
 * Confirm that each query is routed to the appropriate specialized `AssistantAgent` without ambiguity or misdirection
 * Test with edge cases and overlapping intents to assess the router’s ability to disambiguate accurately
@@ -88,7 +88,7 @@ AutoGen's `GroupChat` architecture is good for implementing this pattern because
 We'll use a `Code_Generator` agent to write Python code from requirements, and a `Code_Reviewer` agent to assess it for correctness, style, and documentation. This iterative `GroupChat` process improves code quality through a generation and review loop.
 
 **How to evaluate:** Ensure the evaluator provides specific, actionable feedback aligned with criteria \
-&#xNAN;_(e.g., correctness, style, documentation)_
+_(e.g., correctness, style, documentation)_
 
 * Confirm that the generator incorporates feedback into meaningful revisions with each iteration
 * Track the number of iterations required to reach an acceptable or final version to assess efficiency
@@ -110,7 +110,7 @@ Agent orchestrator workflows simplifies this routing pattern through a central o
 We will build a dynamic travel planning assistant. A `GroupChatManager` coordinates specialized agents to adapt to the user's evolving travel needs.\
 \
 **How to evaluate:** Ensure the orchestrator activates only relevant agents based on the current context or user need.\
-&#xNAN;_(e.g., flights, hotels, local activities)_
+_(e.g., flights, hotels, local activities)_
 
 * Confirm that agents contribute meaningfully and only when their domain expertise is required
 * Track the conversation flow to verify smooth handoffs and minimal overlap or redundancy among agents
@@ -132,7 +132,7 @@ AutoGen doesn't have a built-in parallel execution manager, but its core agent c
 We'll generate different components of a product description for a smartwatch (features, value proposition, target customer, tagline) by calling a marketing agent. At the end, results are synthesized together.
 
 **How to evaluate:** Ensure each parallel agent call produces a distinct and relevant component \
-&#xNAN;_(e.g., features, value proposition, target customer, tagline)_
+_(e.g., features, value proposition, target customer, tagline)_
 
 * Confirm that all outputs are successfully collected and synthesized into a cohesive final product description
 * Track per-task runtime and total execution time to measure parallel speedup vs. sequential execution

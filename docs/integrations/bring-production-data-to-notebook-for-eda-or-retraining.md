@@ -1,24 +1,24 @@
 ---
 description: >-
   Easily share data when you discover interesting insights so your data science
-  team can perform further investigation or kickoff retraining workflows.
+  team can perform further investigation or kick off retraining workflows.
 ---
 
 # Export Data from Arize to Phoenix
 
-Oftentimes, the team that notices an issue in their model, for example a prompt/response LLM model, may not be the same team that continues the investigations or kicks off retraining workflows.&#x20;
+Oftentimes, the team that notices an issue in their model, for example a prompt/response LLM model, may not be the same team that continues the investigations or kicks off retraining workflows.
 
-To help connect teams and workflows, Phoenix enables continued analysis of production data from [Arize](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/-MAlgpMyBRcl2qFZRQ67/) in a notebook environment for fine tuning workflows.&#x20;
+To help connect teams and workflows, Phoenix enables continued analysis of production data from [Arize](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/-MAlgpMyBRcl2qFZRQ67/) in a notebook environment for fine-tuning workflows.
 
 For example, a user may have noticed in [Arize](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/-MAlgpMyBRcl2qFZRQ67/) that this prompt template is not performing well.
 
 <figure><img src="../.gitbook/assets/image (1) (2).png" alt=""><figcaption><p>Arize UI, investigating prompt template: "You are an agent created to accurately translate sentences into the desired language."</p></figcaption></figure>
 
-With a few lines of Python code, users can export this data into Phoenix for further analysis. This allows team members, such as data scientists, who may not have access to production data today, an easy way to access relevant product data for further analysis in an environment they are familiar with.&#x20;
+With a few lines of Python code, users can export this data into Phoenix for further analysis. This allows team members, such as data scientists, who may not have access to production data today, an easy way to access relevant product data for further analysis in an environment they are familiar with.
 
-They can then easily augment and fine tune the data and verify improved performance, before deploying back to production.&#x20;
+They can then easily augment and fine-tune the data and verify improved performance, before deploying back to production.
 
-There are two ways export data out of [Arize](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/-MAlgpMyBRcl2qFZRQ67/) for further investigation:
+There are two ways to export data out of [Arize](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/-MAlgpMyBRcl2qFZRQ67/) for further investigation:
 
 1. The easiest way is to click the export button on the Embeddings and Inferences pages. This will produce a code snippet that you can copy into a Python environment and install Phoenix. This code snippet will include the date range you have selected in the [Arize](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/-MAlgpMyBRcl2qFZRQ67/) platform, in addition to the inferences you have selected.
 

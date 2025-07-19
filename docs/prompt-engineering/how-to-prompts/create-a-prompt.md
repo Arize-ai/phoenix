@@ -42,7 +42,7 @@ To view the details of a prompt, click on the prompt name. You will be taken to 
 
 ### Making edits to a prompt
 
-Once you've crated a prompt, you probably need to make tweaks over time. The best way to make tweaks to a prompt is using the playground.  Depending on how destructive a change you are making you might want to just create a new [prompt version](https://app.gitbook.com/s/fqGNxHHFrgwnCxgUBNsJ/prompt-engineering/prompts-concepts#prompt-version) or [clone](create-a-prompt.md#cloning-a-prompt) the prompt.
+Once you've created a prompt, you probably need to make tweaks over time. The best way to make tweaks to a prompt is using the playground.  Depending on how destructive a change you are making you might want to just create a new [prompt version](https://app.gitbook.com/s/fqGNxHHFrgwnCxgUBNsJ/prompt-engineering/prompts-concepts#prompt-version) or [clone](create-a-prompt.md#cloning-a-prompt) the prompt.
 
 #### Editing a prompt in the playground
 
