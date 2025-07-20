@@ -108,7 +108,7 @@
 * [Overview: Retrieval](retrieval/overview-retrieval.md)
 * [Quickstart: Retrieval](retrieval/quickstart-retrieval.md)
 
-## inferences
+## Inferences
 
 * [Quickstart: Inferences](inferences/phoenix-inferences.md)
 * [How-to: Inferences](inferences/how-to-inferences/README.md)

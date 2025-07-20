@@ -24,7 +24,7 @@ Phoenix's tracing and span analysis capabilities are invaluable during the proto
 
 ![](https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/experiments.gif)
 
-Leverage experiments to measure prompt and model performance. Typically during this early stage, you'll focus on gather a robust set of test cases and evaluation metrics to test initial iterations of your application. Experiments at this stage may resemble unit tests, as they're geared towards ensure your application performs correctly.
+Leverage experiments to measure prompt and model performance. Typically during this early stage, you'll focus on gathering a robust set of test cases and evaluation metrics to test initial iterations of your application. Experiments at this stage may resemble unit tests, as they're geared towards ensuring your application performs correctly.
 
 * [run-experiments.md](datasets-and-experiments/how-to-experiments/run-experiments.md "mention")
 {% endtab %}
@@ -44,7 +44,7 @@ Either as a part of experiments or a standalone feature, evaluations help you un
 
 ![](https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/playground_3.gif)
 
-Prompt engineering is critical to how a model behaves. While there are other methods such as fine-tuning to change behavior, prompt engineering is the simplest way to get started and often times has the best ROI.
+Prompt engineering is critical to how a model behaves. While there are other methods such as fine-tuning to change behavior, prompt engineering is the simplest way to get started and often has the best ROI.
 
 * [overview-prompts.md](prompt-engineering/overview-prompts.md "mention")
 

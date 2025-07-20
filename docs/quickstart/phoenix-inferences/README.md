@@ -28,7 +28,7 @@ import phoenix as px
 
 ### Step 2: Prepare model data
 
-Phoenix visualizes data taken from pandas dataframe, where each row of the dataframe compasses all the information about each inference (including feature values, prediction, metadata, etc.)
+Phoenix visualizes data taken from pandas dataframe, where each row of the dataframe comprises all the information about each inference (including feature values, prediction, metadata, etc.)
 
 For this Quickstart, we will show an example of visualizing the inferences from a computer vision model. See example notebooks for all model types [here](../../notebooks.md).
 

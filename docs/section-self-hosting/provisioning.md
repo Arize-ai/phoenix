@@ -2,7 +2,7 @@
 description: How to provision Phoenix at deploy time
 ---
 
-Phoenix can be configured to immediately recieve data via 
+Phoenix can be configured to immediately receive data via 
 
 ## Admin Access
 

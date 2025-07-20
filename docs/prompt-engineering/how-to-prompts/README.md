@@ -20,7 +20,7 @@ Prompt management is currently available on a feature branch only and will be re
 
 * [create-a-prompt.md](create-a-prompt.md "mention") - how to create, update, and track prompt changes
 * [test-a-prompt.md](test-a-prompt.md "mention") - how to test changes to a prompt in the playground and in the notebook
-* [tag-a-prompt.md](tag-a-prompt.md "mention") - how to mark certain prompt versions as ready for&#x20;
+* [tag-a-prompt.md](tag-a-prompt.md "mention") - how to mark certain prompt versions as ready for production
 * [using-a-prompt.md](using-a-prompt.md "mention") - how to integrate prompts into your code and experiments
 
 ## Playground

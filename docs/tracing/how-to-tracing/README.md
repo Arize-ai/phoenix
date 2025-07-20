@@ -50,7 +50,7 @@ Create and customize spans for your use-case
 
 ## [Querying Spans](importing-and-exporting-traces/extract-data-from-spans.md)
 
-How to query spans for to construct DataFrames to use for evaluation
+How to query spans to construct DataFrames to use for evaluation
 
 * [How to run a query](importing-and-exporting-traces/extract-data-from-spans.md#how-to-run-a-query)
 * [How to specify a project](importing-and-exporting-traces/extract-data-from-spans.md#how-to-specify-a-project)

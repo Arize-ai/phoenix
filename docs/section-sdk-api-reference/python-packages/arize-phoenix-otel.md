@@ -64,7 +64,7 @@ tracer_provider = register()
 **Specifying the `endpoint` directly**
 
 When passing in the `endpoint` argument, **you must specify the fully qualified endpoint**. For\
-example, in order to export spans via HTTP to localhost, use Pheonix's HTTP collector endpoint:`http://localhost:6006/v1/traces`. The default gRPC endpoint is different: `http://localhost:4317`.\
+example, in order to export spans via HTTP to localhost, use Phoenix's HTTP collector endpoint:`http://localhost:6006/v1/traces`. The default gRPC endpoint is different: `http://localhost:4317`.\
 If the `PHOENIX_GRPC_PORT` environment variable is set, it will override the default gRPC port.
 
 ```python

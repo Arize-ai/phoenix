@@ -23,11 +23,11 @@
 * [Overview](python/overview.md)
 * [Reference](https://arize-phoenix.readthedocs.io/en/latest/)
 
-## Python pacakges
+## Python packages
 
-* [arize-phoenix-evals](python-pacakges/arize-phoenix-evals.md)
-* [arize-phoenix-client](python-pacakges/arize-phoenix-client.md)
-* [arize-phoenix-otel](python-pacakges/arize-phoenix-otel.md)
+* [arize-phoenix-evals](python-packages/arize-phoenix-evals.md)
+* [arize-phoenix-client](python-packages/arize-phoenix-client.md)
+* [arize-phoenix-otel](python-packages/arize-phoenix-otel.md)
 
 ## TypeScript
 

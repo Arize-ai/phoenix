@@ -12,13 +12,13 @@ description: >-
 For a conceptual overview of inferences, including an explanation of when to use a single inference vs. primary and reference inferences, see [Phoenix Basics](../inferences/inferences.md#inferences).
 {% endhint %}
 
-To define inferences, you must load your data into a pandas dataframe and [create a matching schema](define-your-schema/). If you have a dataframe `prim_df` and a matching `prim_schema`, you can define inferences named "primary" with
+To define inferences, you must load your data into a pandas dataframe and [create a matching schema](define-your-schema/). If you have a dataframe `prim_df` and a matching `prim_schema`, you can define inference sets named "primary" with
 
 ```python
 prim_ds = px.Inferences(prim_df, prim_schema, "primary")
 ```
 
-If you additionally have a dataframe `ref_df` and a matching `ref_schema`, you can define a inference set named "reference" with
+If you additionally have a dataframe `ref_df` and a matching `ref_schema`, you can define an inference set named "reference" with
 
 ```
 ref_ds = px.Inferences(ref_df, ref_schema, "reference")

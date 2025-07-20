@@ -138,7 +138,7 @@ tracer_provider = register(project_name="few-shot-examples")
 OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
 
-Finally, we run our experiement. We can view the results of the experiement in Phoenix.
+Finally, we run our experiment. We can view the results of the experiment in Phoenix.
 
 ```python
 import nest_asyncio
@@ -165,7 +165,7 @@ In the following sections, we refine the prompt to enhance the model's performan
 
 One-shot prompting provides the model with a single example to guide its response. By including a labeled example in the prompt, we give the model a clearer understanding of the task, helping it generate more accurate predictions compared to zero-shot prompting.
 
-In this section, we will apply one shot prompting to our sentiment analysis dataset by providing one labeled review as a reference. We’ll then evaluate how this small amount of guidance impacts the model’s ability to classify sentiments correctly.
+In this section, we will apply one-shot prompting to our sentiment analysis dataset by providing one labeled review as a reference. We’ll then evaluate how this small amount of guidance impacts the model’s ability to classify sentiments correctly.
 
 ```python
 ds = load_dataset("syeddula/fridgeReviews")["test"]
@@ -201,7 +201,7 @@ Under the prompts tab in Phoenix, we can see that our prompt has an updated vers
 
 ![](https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/s-few-shot-3.png)
 
-Similar to the previous step, we will define the task and run the evaluator. This time, we will be using our updated prompt for One Shot Prompting and see how the evaluation changes.
+Similar to the previous step, we will define the task and run the evaluator. This time, we will be using our updated prompt for One-Shot Prompting and see how the evaluation changes.
 
 ```python
 def one_shot_prompt_template(input):

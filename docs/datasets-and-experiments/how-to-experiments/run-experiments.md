@@ -151,7 +151,7 @@ def task(x):
 
 More complex tasks can use additional information. These values can be accessed by defining a task function with specific parameter names which are bound to special values associated with the dataset example:
 
-<table><thead><tr><th width="203">Parameter name</th><th width="226">Description</th><th>Example</th></tr></thead><tbody><tr><td><code>input</code></td><td>example input</td><td><code>def task(input): ...</code></td></tr><tr><td><code>expected</code></td><td>example output</td><td><code>def task(expected): ...</code></td></tr><tr><td><code>reference</code></td><td>alias for <code>expected</code></td><td><code>def task(reference): ...</code></td></tr><tr><td><code>metadata</code></td><td>example metadata</td><td><code>def task(metadata): ..</code>.</td></tr><tr><td><code>example</code></td><td><code>Example</code> object</td><td><code>def task(example): ...</code></td></tr></tbody></table>
+<table><thead><tr><th width="203">Parameter name</th><th width="226">Description</th><th>Example</th></tr></thead><tbody><tr><td><code>input</code></td><td>example input</td><td><code>def task(input): ...</code></td></tr><tr><td><code>expected</code></td><td>example output</td><td><code>def task(expected): ...</code></td></tr><tr><td><code>reference</code></td><td>alias for <code>expected</code></td><td><code>def task(reference): ...</code></td></tr><tr><td><code>metadata</code></td><td>example metadata</td><td><code>def task(metadata): ...</code></td></tr><tr><td><code>example</code></td><td><code>Example</code> object</td><td><code>def task(example): ...</code></td></tr></tbody></table>
 
 A `task` can be defined as a sync or async function that takes any number of the above argument names in any order!
 

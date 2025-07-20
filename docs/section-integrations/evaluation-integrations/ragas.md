@@ -23,8 +23,8 @@ Here we've setup a basic agent that can solve math problems. We have a function 
 def solve_equation(equation: str) -> str:
     """Use python to evaluate the math equation, instead of thinking about it yourself.
 
-    Args:"
-       equation: string which to pass into eval() in python
+    Args:
+       equation: string to pass into eval() in python
     """
     return str(eval(equation))
 </code></pre>
