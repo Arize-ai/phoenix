@@ -136,7 +136,6 @@ const defaultCardProps: Partial<CardProps> = {
 };
 
 const tableWrapCSS = css`
-  position: relative;
   flex: 1 1 auto;
   overflow: auto;
   // Make sure the table fills up the remaining space
@@ -156,7 +155,7 @@ const annotationTooltipExtraCSS = css`
   gap: var(--ac-global-dimension-size-50);
 `;
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 50;
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const [dialog, setDialog] = useState<ReactNode>(null);
   const {
@@ -707,7 +706,7 @@ function TableBody<T>({
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => 350, // an estimate of the max row height
+    estimateSize: () => 350,
     overscan: 5,
   });
   const virtualRows = virtualizer.getVirtualItems();
