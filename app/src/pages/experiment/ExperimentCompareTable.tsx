@@ -711,6 +711,11 @@ function TableBody<T>({
     overscan: 5,
   });
   const virtualRows = virtualizer.getVirtualItems();
+  const totalHeight = virtualizer.getTotalSize();
+  const spacerRowHeight = useMemo(() => {
+    return totalHeight - virtualRows.reduce((acc, item) => acc + item.size, 0);
+  }, [totalHeight, virtualRows]);
+
   return (
     <tbody>
       {virtualRows.map((virtualRow, index) => {
@@ -742,6 +747,17 @@ function TableBody<T>({
           </tr>
         );
       })}
+      {/* Add a spacer row to ensure the sticky header does not scroll out of view and to make scrolling smoother */}
+      <tr>
+        <td
+          style={{
+            height: `${spacerRowHeight}px`,
+            padding: 0,
+            backgroundColor: "blue",
+          }}
+          colSpan={table.getAllColumns().length}
+        />
+      </tr>
     </tbody>
   );
 }
