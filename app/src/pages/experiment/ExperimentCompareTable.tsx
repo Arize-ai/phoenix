@@ -753,7 +753,6 @@ function TableBody<T>({
           style={{
             height: `${spacerRowHeight}px`,
             padding: 0,
-            backgroundColor: "blue",
           }}
           colSpan={table.getAllColumns().length}
         />
