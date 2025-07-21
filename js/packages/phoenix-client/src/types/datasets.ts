@@ -6,7 +6,6 @@ import { Node } from "./core";
 export type DatasetSelector =
   | { datasetId: string }
   | { datasetName: string }
-  | { datasetVersionId: string };
 
 /**
  * Parameters for selecting a specific version of a dataset
