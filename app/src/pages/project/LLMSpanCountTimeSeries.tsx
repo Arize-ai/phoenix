@@ -38,7 +38,6 @@ function TooltipContent({
   const SemanticChartColors = useSemanticChartColors();
   const chartColors = useChartColors();
   if (active && payload && payload.length) {
-    // For stacked bar charts, payload[0] is the first bar (error), payload[1] is the second bar (unset), payload[2] is the third bar (ok)
     const errorValue = payload[0]?.value ?? null;
     const unsetValue = payload[1]?.value ?? null;
     const okValue = payload[2]?.value ?? null;
