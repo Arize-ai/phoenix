@@ -424,6 +424,13 @@ type CreateModelMutationPayload {
   query: Query!
 }
 
+input CreateProjectInput {
+  name: String!
+  description: String
+  gradientStartColor: String
+  gradientEndColor: String
+}
+
 input CreateProjectTraceRetentionPolicyInput {
   name: String!
   cronExpression: CronExpression!
@@ -1518,6 +1525,7 @@ type Mutation {
   createModel(input: CreateModelMutationInput!): CreateModelMutationPayload!
   updateModel(input: UpdateModelMutationInput!): UpdateModelMutationPayload!
   deleteModel(input: DeleteModelMutationInput!): DeleteModelMutationPayload!
+  createProject(input: CreateProjectInput!): ProjectMutationPayload!
   deleteProject(id: ID!): Query!
   clearProject(input: ClearProjectInput!): Query!
   createProjectTraceRetentionPolicy(input: CreateProjectTraceRetentionPolicyInput!): ProjectTraceRetentionPolicyMutationPayload!
@@ -1750,6 +1758,11 @@ input ProjectFilter {
 
 enum ProjectFilterColumn {
   name
+}
+
+type ProjectMutationPayload {
+  project: Project!
+  query: Query!
 }
 
 type ProjectSession implements Node {

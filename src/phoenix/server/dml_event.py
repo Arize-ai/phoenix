@@ -34,6 +34,10 @@ class ProjectDeleteEvent(ProjectDmlEvent): ...
 
 
 @dataclass(frozen=True)
+class ProjectInsertEvent(ProjectDmlEvent): ...
+
+
+@dataclass(frozen=True)
 class SpanDmlEvent(ProjectDmlEvent): ...
 
 
