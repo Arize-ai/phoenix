@@ -1140,7 +1140,26 @@ class OpenAIStreamingClient(OpenAIBaseStreamingClient):
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
 
 
-class OpenAIReasoningClientMixin:
+_OPENAI_REASONING_MODELS = [
+    "o1",
+    "o1-pro",
+    "o1-2024-12-17",
+    "o1-pro-2025-03-19",
+    "o1-mini",
+    "o1-mini-2024-09-12",
+    "o1-preview",
+    "o1-preview-2024-09-12",
+    "o3",
+    "o3-pro",
+    "o3-2025-04-16",
+    "o3-mini",
+    "o3-mini-2025-01-31",
+    "o4-mini",
+    "o4-mini-2025-04-16",
+]
+
+
+class OpenAIReasoningReasoningModelsSupportedInvocationParametersMixin:
     """Mixin class for OpenAI-style reasoning model clients (o1, o3 series)."""
 
     @classmethod
@@ -1174,31 +1193,12 @@ class OpenAIReasoningClientMixin:
         ]
 
 
-_OPENAI_REASONING_MODELS = [
-    "o1",
-    "o1-pro",
-    "o1-2024-12-17",
-    "o1-pro-2025-03-19",
-    "o1-mini",
-    "o1-mini-2024-09-12",
-    "o1-preview",
-    "o1-preview-2024-09-12",
-    "o3",
-    "o3-pro",
-    "o3-2025-04-16",
-    "o3-mini",
-    "o3-mini-2025-01-31",
-    "o4-mini",
-    "o4-mini-2025-04-16",
-]
-
-
 @register_llm_client(
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=_OPENAI_REASONING_MODELS,
 )
 class OpenAIReasoningStreamingClient(
-    OpenAIReasoningClientMixin,
+    OpenAIReasoningReasoningModelsSupportedInvocationParametersMixin,
     OpenAIStreamingClient,
 ):
     pass
@@ -1261,7 +1261,7 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
     model_names=_OPENAI_REASONING_MODELS,
 )
 class AzureOpenAIReasoningStreamingClient(
-    OpenAIReasoningClientMixin,
+    OpenAIReasoningReasoningModelsSupportedInvocationParametersMixin,
     AzureOpenAIStreamingClient,
 ):
     pass
