@@ -4,11 +4,11 @@ import { listCSS } from "./styles";
 import { ListProps } from "./types";
 
 function List(
-  { listSize = "M", children, ...otherProps }: ListProps,
+  { size = "M", children, ...otherProps }: ListProps,
   ref: Ref<HTMLUListElement>
 ) {
   return (
-    <ul ref={ref} css={listCSS} data-list-size={listSize} {...otherProps}>
+    <ul ref={ref} css={listCSS} data-list-size={size} {...otherProps}>
       {children}
     </ul>
   );

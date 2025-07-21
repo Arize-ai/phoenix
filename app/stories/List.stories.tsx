@@ -10,7 +10,7 @@ const meta: Meta<typeof List> = {
   },
   tags: ["autodocs"],
   argTypes: {
-    listSize: {
+    size: {
       control: { type: "select" },
       options: ["S", "M"],
       description: "The size of the list items",
@@ -26,14 +26,14 @@ type Story = StoryObj<typeof meta>;
  */
 export const Default: Story = {
   render: (args) => (
-    <List {...args}>
+    <List {...args} style={{ color: "var(--ac-global-text-color-900)" }}>
       <ListItem>First item</ListItem>
       <ListItem>Second item</ListItem>
       <ListItem>Third item</ListItem>
     </List>
   ),
   args: {
-    listSize: "M",
+    size: "M",
   },
 };
 
@@ -42,13 +42,13 @@ export const Default: Story = {
  */
 export const Small: Story = {
   render: (args) => (
-    <List {...args}>
+    <List {...args} style={{ color: "var(--ac-global-text-color-900)" }}>
       <ListItem>First item</ListItem>
       <ListItem>Second item</ListItem>
       <ListItem>Third item</ListItem>
     </List>
   ),
   args: {
-    listSize: "S",
+    size: "S",
   },
 };

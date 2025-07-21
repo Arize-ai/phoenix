@@ -50,7 +50,7 @@ export function PromptLLM({ promptVersion }: PromptLLMProps) {
     <Disclosure id="llm">
       <DisclosureTrigger>LLM</DisclosureTrigger>
       <DisclosurePanel>
-        <List listSize="S">
+        <List size="S">
           <ModelProviderItem keyName="Model">{data.model}</ModelProviderItem>
           <ModelProviderItem keyName="Provider">
             {ModelProviders[data.provider as ModelProvider] ?? data.provider}

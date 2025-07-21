@@ -2,10 +2,10 @@ import { HTMLProps } from "react";
 
 import { ComponentSize } from "@phoenix/components/types";
 
-export interface ListProps extends HTMLProps<HTMLUListElement> {
+export interface ListProps extends Omit<HTMLProps<HTMLUListElement>, "size"> {
   /**
    * The size of the list
    * @default 'M'
    */
-  listSize?: Exclude<ComponentSize, "L">;
+  size?: Exclude<ComponentSize, "L">;
 }
