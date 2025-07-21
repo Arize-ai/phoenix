@@ -104,8 +104,16 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT, _DmlEventT]):
                     to_postpone.extend(to_retry)
         if to_postpone:
             loop = asyncio.get_running_loop()
-            loop.call_later(self._retry_delay_sec, self._queue.extend, to_postpone)
+            # Note: We use a method instead of self._queue.extend to avoid capturing
+            # the queue reference at scheduling time. Since insert() reassigns self._queue
+            # to a new list, captured references would point to orphaned lists, causing
+            # a race condition where postponed items are lost.
+            loop.call_later(self._retry_delay_sec, self._add_postponed_to_queue, to_postpone)
         return events
+
+    def _add_postponed_to_queue(self, items: list[Postponed[_PrecursorT]]) -> None:
+        """Add postponed items back to the queue for retry."""
+        self._queue.extend(items)
 
     def _insert_on_conflict(self, *records: Mapping[str, Any]) -> Insert:
         return insert_on_conflict(
