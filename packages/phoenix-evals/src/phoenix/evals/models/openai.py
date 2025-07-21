@@ -360,7 +360,7 @@ class OpenAIModel(BaseModel):
             try:
                 for tool_call in tool_calls:
                     if tool_call.get("type") == "function":
-                        return str((tool_calls[0].get("function") or {}).get("arguments", ""))
+                        return str((tool_call.get("function") or {}).get("arguments", ""))
             except Exception as e:
                 logger.error(f"Error getting tool call arguments: {e}")
         return str(message["content"])
@@ -389,7 +389,7 @@ class OpenAIModel(BaseModel):
             try:
                 for tool_call in tool_calls:
                     if tool_call.get("type") == "function":
-                        return str((tool_calls[0].get("function") or {}).get("arguments", ""))
+                        return str((tool_call.get("function") or {}).get("arguments", ""))
             except Exception as e:
                 logger.error(f"Error getting tool call arguments: {e}")
         return str(message["content"])
