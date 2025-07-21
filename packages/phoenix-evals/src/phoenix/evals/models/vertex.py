@@ -169,7 +169,7 @@ class GeminiModel(BaseModel):
 
     def _generate_with_meta(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> Tuple[str, Optional[dict]]:
+    ) -> Tuple[str, Optional[Dict[str, int]]]:
         # instruction is an invalid input to Gemini models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
         kwargs.pop("instruction", None)
@@ -237,7 +237,7 @@ class GeminiModel(BaseModel):
 
     async def _async_generate_with_meta(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> Tuple[str, Optional[dict]]:
+    ) -> Tuple[str, Optional[Dict[str, int]]]:
         kwargs.pop("instruction", None)
 
         if isinstance(prompt, str):

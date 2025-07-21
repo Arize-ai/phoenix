@@ -123,7 +123,7 @@ class BedrockModel(BaseModel):
 
     def _generate_with_meta(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> Tuple[str, Optional[dict]]:
+    ) -> Tuple[str, Optional[Dict[str, int]]]:
         # the legacy "instruction" parameter from llm_classify is intended to indicate a
         # system instruction, but not all models supported by Bedrock support system instructions
         _ = kwargs.pop("instruction", None)
@@ -159,7 +159,7 @@ class BedrockModel(BaseModel):
 
     async def _async_generate_with_meta(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> Tuple[str, Optional[dict]]:
+    ) -> Tuple[str, Optional[Dict[str, int]]]:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
 

@@ -121,7 +121,7 @@ class MistralAIModel(BaseModel):
 
     def _generate_with_meta(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> Tuple[str, Optional[dict]]:
+    ) -> Tuple[str, Optional[Dict[str, int]]]:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
 
@@ -177,7 +177,7 @@ class MistralAIModel(BaseModel):
 
     async def _async_generate_with_meta(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Any
-    ) -> Tuple[str, Optional[dict]]:
+    ) -> Tuple[str, Optional[Dict[str, int]]]:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
 

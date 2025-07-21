@@ -132,7 +132,7 @@ class AnthropicModel(BaseModel):
 
     def _generate_with_meta(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> Tuple[str, Optional[dict]]:
+    ) -> Tuple[str, Optional[Dict[str, int]]]:
         # instruction is an invalid input to Anthropic models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
         if isinstance(prompt, str):
@@ -194,7 +194,7 @@ class AnthropicModel(BaseModel):
 
     async def _async_generate_with_meta(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
-    ) -> Tuple[str, Optional[dict]]:
+    ) -> Tuple[str, Optional[Dict[str, int]]]:
         # instruction is an invalid input to Anthropic models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
         if isinstance(prompt, str):
