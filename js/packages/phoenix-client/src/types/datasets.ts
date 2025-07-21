@@ -3,9 +3,7 @@ import { Node } from "./core";
 /**
  * A dataset can be identified by its datasetId, datasetName, or datasetVersionId
  */
-export type DatasetSelector =
-  | { datasetId: string }
-  | { datasetName: string }
+export type DatasetSelector = { datasetId: string } | { datasetName: string };
 
 /**
  * Parameters for selecting a specific version of a dataset
