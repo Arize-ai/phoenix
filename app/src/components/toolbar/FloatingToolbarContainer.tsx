@@ -1,5 +1,16 @@
 import { PropsWithChildren } from "react";
-import { css } from "@emotion/react";
+import { css, keyframes } from "@emotion/react";
+
+const riseIn = keyframes`
+  from {
+    transform: translate(-50%, var(--ac-global-dimension-size-600));
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+`;
 
 const containerCSS = css`
   position: absolute;
@@ -11,6 +22,7 @@ const containerCSS = css`
   border-radius: var(--ac-global-rounding-medium);
   padding: var(--ac-global-dimension-size-200);
   background-color: var(--ac-global-color-grey-75);
+  animation: ${riseIn} 0.3s ease-out;
 `;
 
 /**
