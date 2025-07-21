@@ -22,7 +22,6 @@ export async function getDatasetExamples({
   const client = _client || createClient();
 
   let datasetId: string;
-  const targetVersionId: string | undefined = versionId;
 
   if ("datasetName" in dataset) {
     const datasetInfo = await getDatasetInfoByName({
@@ -39,9 +38,9 @@ export async function getDatasetExamples({
       path: {
         id: datasetId,
       },
-      query: targetVersionId
+      query: versionId
         ? {
-            version_id: targetVersionId,
+            version_id: versionId,
           }
         : undefined,
     },
