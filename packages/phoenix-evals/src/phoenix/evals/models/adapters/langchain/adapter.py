@@ -10,9 +10,8 @@ from ...core.base import BaseLLMAdapter
 from ...core.registries import register_adapter, register_provider
 from ...core.types import StructuredOutput
 from .factories import (
-    _create_anthropic_langchain_client,
-    _create_langchain_client,
-    _create_openai_langchain_client,
+    create_anthropic_langchain_client,
+    create_openai_langchain_client,
 )
 
 logger = logging.getLogger(__name__)
@@ -32,19 +31,14 @@ logger = logging.getLogger(__name__)
 )
 @register_provider(
     provider="openai",
-    client_factory=_create_openai_langchain_client,
+    client_factory=create_openai_langchain_client,
     dependencies=["langchain", "langchain_openai"]
 )
-@register_provider(
-    provider="anthropic",
-    client_factory=_create_anthropic_langchain_client,
-    dependencies=["langchain", "langchain_anthropic"]
-)
-@register_provider(
-    provider="langchain",
-    client_factory=_create_langchain_client,
-    dependencies=["langchain"]
-)
+# @register_provider(
+#     provider="anthropic",
+#     client_factory=_create_anthropic_langchain_client,
+#     dependencies=["langchain", "langchain_anthropic"]
+# )
 class LangChainModelAdapter(BaseLLMAdapter):
     """Adapter for LangChain model objects."""
 

@@ -85,27 +85,43 @@ class UniversalLLMWrapper:
         # Handle provider-based initialization
         if provider is not None:
             try:
-                client = _provider_registry.create_client(provider, model, **client_factory_kwargs)
+                # Get the provider registration to access both client factory and target adapter
+                provider_registrations = _provider_registry.get_provider_registrations(provider)
+                if not provider_registrations:
+                    available_providers = _provider_registry.list_providers()
+                    raise ValueError(
+                        f"Unknown provider '{provider}'. Available providers: {available_providers}"
+                    )
+
+                # Use the first registration (could be enhanced with selection logic)
+                registration = provider_registrations[0]
+
+                # Create client using the factory
+                client = registration.client_factory(model=model, **client_factory_kwargs)
+
+                # Use the adapter class directly from the registration
+                adapter_class = registration.adapter_class
+
             except Exception as e:
                 available_providers = _provider_registry.list_providers()
                 raise ValueError(
                     f"Failed to create client for provider '{provider}': {e}\n"
                     f"Available providers: {available_providers}"
                 ) from e
-
-        # Find appropriate adapter for the client
-        adapter_class = _adapter_registry.find_adapter(client)
-        if adapter_class is None:
-            # Provide helpful error message with available adapters
-            available_adapters = _adapter_registry.list_adapters()
-            adapter_list = ", ".join(
-                [f"{name} (priority: {priority})" for name, priority in available_adapters]
-            )
-            raise ValueError(
-                f"No suitable adapter found for client of type {type(client)}. "
-                f"Available adapters: {adapter_list}. "
-                f"Please ensure you have the correct SDK installed and the client is properly initialized."
-            )
+        else:
+            # Client-based initialization - find appropriate adapter for the client
+            adapter_class = _adapter_registry.find_adapter(client)
+            if adapter_class is None:
+                # Provide helpful error message with available adapters
+                available_adapters = _adapter_registry.list_adapters()
+                adapter_list = ", ".join(
+                    [f"{name} (priority: {priority})" for name, priority in available_adapters]
+                )
+                raise ValueError(
+                    f"No suitable adapter found for client of type {type(client)}. "
+                    f"Available adapters: {adapter_list}. "
+                    f"Please ensure you have the correct SDK installed and the client is properly initialized."
+                )
 
         # Initialize the selected adapter
         self._adapter = adapter_class(client)

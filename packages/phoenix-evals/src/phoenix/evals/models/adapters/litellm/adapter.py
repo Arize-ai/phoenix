@@ -7,50 +7,26 @@ import logging
 from typing import Any, Dict, Optional, Union
 
 from phoenix.evals.templates import MultimodalPrompt
+
 from ...core.base import BaseLLMAdapter
-from ...core.registries import register_adapter, register_provider
+from ...core.registries import register_provider
 from ...core.types import StructuredOutput
 from .client import LiteLLMClient
 from .factories import (
-    _create_cohere_client,
-    _create_groq_client,
-    _create_litellm_client,
-    _create_openai_client,
-    _create_together_client,
+    create_anthropic_client,
+    create_litellm_client,
+    create_openai_client,
 )
 
 logger = logging.getLogger(__name__)
 
 
-@register_adapter(
-    identifier=lambda client: isinstance(client, LiteLLMClient),
-    priority=5,  # Lower priority than specific adapters, acts as fallback
-    name="litellm",
-)
 @register_provider(
-    provider="cohere",
-    client_factory=_create_cohere_client,
-    dependencies=["litellm"]
+    provider="anthropic", client_factory=create_anthropic_client, dependencies=["litellm"]
 )
+@register_provider(provider="openai", client_factory=create_openai_client, dependencies=["litellm"])
 @register_provider(
-    provider="groq",
-    client_factory=_create_groq_client,
-    dependencies=["litellm"]
-)
-@register_provider(
-    provider="together",
-    client_factory=_create_together_client,
-    dependencies=["litellm"]
-)
-@register_provider(
-    provider="openai",
-    client_factory=_create_openai_client,
-    dependencies=["litellm"]
-)
-@register_provider(
-    provider="litellm",
-    client_factory=_create_litellm_client,
-    dependencies=["litellm"]
+    provider="litellm", client_factory=create_litellm_client, dependencies=["litellm"]
 )
 class LiteLLMAdapter(BaseLLMAdapter):
     """Adapter for LiteLLM function-based interface."""
@@ -72,11 +48,10 @@ class LiteLLMAdapter(BaseLLMAdapter):
         """Initialize LiteLLM library."""
         try:
             import litellm
+
             self._litellm = litellm
         except ImportError:
-            raise ImportError(
-                "LiteLLM package not installed. Run: pip install litellm"
-            )
+            raise ImportError("LiteLLM package not installed. Run: pip install litellm")
 
     def generate_text(
         self, prompt: Union[str, MultimodalPrompt], instruction: Optional[str] = None, **kwargs: Any
@@ -99,9 +74,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
         try:
             response = self._litellm.completion(
-                model=self.client.model_string,
-                messages=messages,
-                **call_kwargs
+                model=self.client.model_string, messages=messages, **call_kwargs
             )
             return response.choices[0].message.content
         except Exception as e:
@@ -129,9 +102,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
         try:
             response = await self._litellm.acompletion(
-                model=self.client.model_string,
-                messages=messages,
-                **call_kwargs
+                model=self.client.model_string, messages=messages, **call_kwargs
             )
             return response.choices[0].message.content
         except Exception as e:
