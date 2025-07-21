@@ -6,7 +6,6 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Union
 
 from phoenix.evals.templates import MultimodalPrompt
-from .types import StructuredOutput
 
 
 class BaseLLMAdapter(ABC):
@@ -47,12 +46,15 @@ class BaseLLMAdapter(ABC):
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
         **kwargs: Any,
-    ) -> StructuredOutput:
+    ) -> Dict[str, Any]:
         """
         Generate structured output conforming to the provided schema.
 
         The adapter handles all implementation details internally (native structured output,
         tool calling, text parsing, etc.).
+
+        Returns:
+            A dictionary containing the structured data that conforms to the provided schema.
         """
         pass
 
@@ -62,8 +64,13 @@ class BaseLLMAdapter(ABC):
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
         **kwargs: Any,
-    ) -> StructuredOutput:
-        """Async version of generate_object."""
+    ) -> Dict[str, Any]:
+        """
+        Async version of generate_object.
+
+        Returns:
+            A dictionary containing the structured data that conforms to the provided schema.
+        """
         pass
 
     @property

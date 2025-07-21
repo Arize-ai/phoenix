@@ -6,9 +6,9 @@ import logging
 from typing import Any, Dict, Optional, Union
 
 from phoenix.evals.templates import MultimodalPrompt
+
 from ...core.base import BaseLLMAdapter
 from ...core.registries import register_adapter, register_provider
-from ...core.types import StructuredOutput
 from .factories import (
     create_anthropic_langchain_client,
     create_openai_langchain_client,
@@ -119,11 +119,14 @@ class LangChainModelAdapter(BaseLLMAdapter):
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
         **kwargs: Any,
-    ) -> StructuredOutput:
+    ) -> Dict[str, Any]:
         """
         Generate structured output using LangChain model.
 
         Falls back to tool calling if structured output is not natively supported.
+
+        Returns:
+            A dictionary containing the structured data that conforms to the provided schema.
         """
         # Check if the model supports structured output natively
         if hasattr(self.client, "with_structured_output"):
@@ -139,7 +142,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
 
                 # Handle different response formats
                 if isinstance(response, dict):
-                    return StructuredOutput(data=response, schema=schema)
+                    return response
                 else:
                     # Try to convert to dict
                     import json
@@ -148,7 +151,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
                         data = response.__dict__
                     else:
                         data = json.loads(str(response))
-                    return StructuredOutput(data=data, schema=schema)
+                    return data
 
             except Exception as e:
                 logger.warning(f"Structured output failed: {e}, falling back to tool calling")
@@ -160,21 +163,24 @@ class LangChainModelAdapter(BaseLLMAdapter):
 
         try:
             data = json.loads(text)
-            return StructuredOutput(data=data, schema=schema)
+            return data
         except (json.JSONDecodeError, TypeError):
             logger.warning("Failed to parse JSON from text response, returning empty object")
-            return StructuredOutput(data={}, schema=schema)
+            return {}
 
     async def agenerate_object(
         self,
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
         **kwargs: Any,
-    ) -> StructuredOutput:
+    ) -> Dict[str, Any]:
         """
         Async generate structured output using LangChain model.
 
         Falls back to tool calling if structured output is not natively supported.
+
+        Returns:
+            A dictionary containing the structured data that conforms to the provided schema.
         """
         # Check if the model supports structured output natively
         if hasattr(self.client, "with_structured_output"):
@@ -193,7 +199,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
 
                 # Handle different response formats
                 if isinstance(response, dict):
-                    return StructuredOutput(data=response, schema=schema)
+                    return response
                 else:
                     # Try to convert to dict
                     import json
@@ -202,7 +208,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
                         data = response.__dict__
                     else:
                         data = json.loads(str(response))
-                    return StructuredOutput(data=data, schema=schema)
+                    return data
 
             except Exception as e:
                 logger.warning(f"Async structured output failed: {e}, falling back to tool calling")
@@ -214,10 +220,10 @@ class LangChainModelAdapter(BaseLLMAdapter):
 
         try:
             data = json.loads(text)
-            return StructuredOutput(data=data, schema=schema)
+            return data
         except (json.JSONDecodeError, TypeError):
             logger.warning("Failed to parse JSON from async text response, returning empty object")
-            return StructuredOutput(data={}, schema=schema)
+            return {}
 
     @property
     def model_name(self) -> str:

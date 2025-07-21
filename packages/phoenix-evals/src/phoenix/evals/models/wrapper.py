@@ -19,7 +19,6 @@ from .adapters.litellm import LiteLLMAdapter  # noqa: F401
 # Import core components
 from .core.base import BaseLLMAdapter
 from .core.registries import _adapter_registry, _provider_registry
-from .core.types import StructuredOutput
 
 
 class UniversalLLMWrapper:
@@ -159,8 +158,13 @@ class UniversalLLMWrapper:
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
         **kwargs: Any,
-    ) -> StructuredOutput:
-        """Generate structured output using the adapter."""
+    ) -> Dict[str, Any]:
+        """
+        Generate structured output using the adapter.
+
+        Returns:
+            A dictionary containing the structured data that conforms to the provided schema.
+        """
         return self._adapter.generate_object(prompt, schema, **kwargs)
 
     async def agenerate_object(
@@ -168,8 +172,13 @@ class UniversalLLMWrapper:
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
         **kwargs: Any,
-    ) -> StructuredOutput:
-        """Async structured output using the adapter."""
+    ) -> Dict[str, Any]:
+        """
+        Async structured output using the adapter.
+
+        Returns:
+            A dictionary containing the structured data that conforms to the provided schema.
+        """
         return await self._adapter.agenerate_object(prompt, schema, **kwargs)
 
     @property

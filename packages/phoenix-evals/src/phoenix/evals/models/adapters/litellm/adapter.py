@@ -10,7 +10,6 @@ from phoenix.evals.templates import MultimodalPrompt
 
 from ...core.base import BaseLLMAdapter
 from ...core.registries import register_provider
-from ...core.types import StructuredOutput
 from .client import LiteLLMClient
 from .factories import (
     create_anthropic_client,
@@ -114,11 +113,14 @@ class LiteLLMAdapter(BaseLLMAdapter):
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
         **kwargs: Any,
-    ) -> StructuredOutput:
+    ) -> Dict[str, Any]:
         """
         Generate structured output using LiteLLM.
 
         Since LiteLLM doesn't have native structured output, we use JSON parsing.
+
+        Returns:
+            A dictionary containing the structured data that conforms to the provided schema.
         """
         # Build structured instruction
         structured_prompt = self._build_structured_instruction(prompt, schema)
@@ -129,22 +131,25 @@ class LiteLLMAdapter(BaseLLMAdapter):
         # Parse JSON from response
         try:
             data = json.loads(text)
-            return StructuredOutput(data=data, schema=schema)
+            return data
         except (json.JSONDecodeError, TypeError) as e:
             logger.warning(f"Failed to parse JSON from LiteLLM response: {e}")
             logger.warning(f"Raw response: {text}")
-            return StructuredOutput(data={}, schema=schema)
+            return {}
 
     async def agenerate_object(
         self,
         prompt: Union[str, MultimodalPrompt],
         schema: Dict[str, Any],
         **kwargs: Any,
-    ) -> StructuredOutput:
+    ) -> Dict[str, Any]:
         """
         Async generate structured output using LiteLLM.
 
         Since LiteLLM doesn't have native structured output, we use JSON parsing.
+
+        Returns:
+            A dictionary containing the structured data that conforms to the provided schema.
         """
         # Build structured instruction
         structured_prompt = self._build_structured_instruction(prompt, schema)
@@ -155,11 +160,11 @@ class LiteLLMAdapter(BaseLLMAdapter):
         # Parse JSON from response
         try:
             data = json.loads(text)
-            return StructuredOutput(data=data, schema=schema)
+            return data
         except (json.JSONDecodeError, TypeError) as e:
             logger.warning(f"Failed to parse JSON from LiteLLM async response: {e}")
             logger.warning(f"Raw response: {text}")
-            return StructuredOutput(data={}, schema=schema)
+            return {}
 
     @property
     def model_name(self) -> str:
