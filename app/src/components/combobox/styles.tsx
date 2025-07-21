@@ -4,11 +4,13 @@ import { fieldPopoverCSS } from "../field/styles";
 
 export const comboBoxCSS = css`
   &[data-size="M"] {
+    --combobox-input-height: 30px;
     --combobox-vertical-padding: 6px;
     --combobox-start-padding: var(--ac-global-dimension-static-size-100);
     --combobox-end-padding: var(--ac-global-dimension-static-size-50);
   }
   &[data-size="L"] {
+    --combobox-input-height: 38px;
     --combobox-vertical-padding: 10px;
     --combobox-start-padding: var(--ac-global-dimension-static-size-200);
     --combobox-end-padding: var(--ac-global-dimension-static-size-100);
@@ -29,6 +31,8 @@ export const comboBoxCSS = css`
     position: relative;
 
     .react-aria-Input {
+      height: var(--combobox-input-height);
+      box-sizing: border-box;
       padding: var(--combobox-vertical-padding) var(--combobox-end-padding)
         var(--combobox-vertical-padding) var(--combobox-start-padding);
       &:hover:not([disabled]) {
