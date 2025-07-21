@@ -1,14 +1,14 @@
-import { forwardRef, PropsWithChildren, Ref } from "react";
+import { forwardRef, Ref } from "react";
 
 import { listCSS } from "./styles";
 import { ListProps } from "./types";
 
 function List(
-  { listSize = "M", children }: PropsWithChildren<ListProps>,
+  { listSize = "M", children, ...otherProps }: ListProps,
   ref: Ref<HTMLUListElement>
 ) {
   return (
-    <ul ref={ref} css={listCSS} data-list-size={listSize}>
+    <ul ref={ref} css={listCSS} data-list-size={listSize} {...otherProps}>
       {children}
     </ul>
   );

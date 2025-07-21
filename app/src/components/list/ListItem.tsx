@@ -1,7 +1,7 @@
-import { forwardRef, PropsWithChildren } from "react";
+import { forwardRef, HTMLProps } from "react";
 
-function ListItem({ children }: PropsWithChildren) {
-  return <li>{children}</li>;
+function ListItem({ children, ...props }: HTMLProps<HTMLLIElement>) {
+  return <li {...props}>{children}</li>;
 }
 
 const _ListItem = forwardRef(ListItem);
