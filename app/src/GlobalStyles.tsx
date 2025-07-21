@@ -1080,7 +1080,7 @@ const appGlobalStylesCSS = css`
   body,
   input,
   button {
-    font-family: "Geist";
+    font-family: "Geist", sans-serif;
     font-optical-sizing: auto;
     font-weight: 400;
     font-style: normal;
