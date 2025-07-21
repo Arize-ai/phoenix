@@ -25,9 +25,11 @@ const PAGE_SIZE = 100;
 
 type PromptsTableProps = {
   query: PromptsTable_prompts$key;
+  filter?: string;
 };
 
 export function PromptsTable(props: PromptsTableProps) {
+  const { filter = "" } = props;
   const navigate = useNavigate();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -59,16 +61,25 @@ export function PromptsTable(props: PromptsTableProps) {
       props.query
     );
 
-  const tableData = useMemo(
-    () =>
-      data.prompts.edges.map((edge) => {
-        return {
-          lastUpdatedAt: edge.prompt.version.createdAt,
-          ...edge.prompt,
-        };
-      }),
-    [data]
-  );
+  const tableData = useMemo(() => {
+    const allPrompts = data.prompts.edges.map((edge) => {
+      return {
+        lastUpdatedAt: edge.prompt.version.createdAt,
+        ...edge.prompt,
+      };
+    });
+
+    if (!filter.trim()) {
+      return allPrompts;
+    }
+
+    const filterLower = filter.toLowerCase();
+    return allPrompts.filter(
+      (prompt) =>
+        prompt.name.toLowerCase().includes(filterLower) ||
+        prompt.description?.toLowerCase().includes(filterLower)
+    );
+  }, [data, filter]);
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
