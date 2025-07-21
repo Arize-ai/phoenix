@@ -1194,7 +1194,7 @@ class OpenAIReasoningClientMixin:
         "o4-mini-2025-04-16",
     ],
 )
-class OpenAIOpenAIReasoningStreamingClient(
+class OpenAIReasoningStreamingClient(
     OpenAIReasoningClientMixin,
     OpenAIStreamingClient,
 ):
