@@ -1764,7 +1764,7 @@ def test_llm_classify_token_usage_columns(
     if expect_total_nan:
         assert np.isnan(out.loc[0, "prompt_tokens"])
         assert np.isnan(out.loc[0, "completion_tokens"])
-        assert out.loc[0, "total_tokens"] == 0
+        assert np.isnan(out.loc[0, "total_tokens"])
     else:
         assert out.loc[0, "prompt_tokens"] == prompt_toks
         assert out.loc[0, "completion_tokens"] == comp_toks
