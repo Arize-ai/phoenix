@@ -164,7 +164,7 @@ class BedrockModel(BaseModel):
             prompt = MultimodalPrompt.from_string(prompt)
 
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, partial(self._generate, prompt, **kwargs))
+        return await loop.run_in_executor(None, partial(self._generate_with_meta, prompt, **kwargs))
 
     def _rate_limited_completion(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""

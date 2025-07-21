@@ -371,7 +371,7 @@ def llm_classify(
                     "prompt_tokens": prompt_token_counts,
                     "completion_tokens": completion_token_counts,
                     "total_tokens": [
-                        (p or 0) + (c or 0)
+                        None if (p is None or c is None or pd.isna(p) or pd.isna(c)) else p + c
                         for p, c in zip(prompt_token_counts, completion_token_counts)
                     ],
                 }
