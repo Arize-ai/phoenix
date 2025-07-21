@@ -1,7 +1,8 @@
 import strawberry
-from sqlalchemy import delete, insert, select
+from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.orm import load_only
-from strawberry import UNSET
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
@@ -9,6 +10,7 @@ from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from phoenix.server.api.auth import IsNotReadOnly
 from phoenix.server.api.context import Context
+from phoenix.server.api.exceptions import BadRequest, Conflict
 from phoenix.server.api.input_types.ClearProjectInput import ClearProjectInput
 from phoenix.server.api.input_types.CreateProjectInput import CreateProjectInput
 from phoenix.server.api.queries import Query
@@ -31,32 +33,22 @@ class ProjectMutationMixin:
         info: Info[Context, None],
         input: CreateProjectInput,
     ) -> ProjectMutationPayload:
-        name = input.name
-        description = input.description if input.description is not UNSET else None
-        gradient_start_color = (
-            input.gradient_start_color if input.gradient_start_color is not UNSET else None
+        if not (name := input.name.strip()):
+            raise BadRequest("Name cannot be empty")
+        description = (input.description or "").strip() or None
+        gradient_start_color = (input.gradient_start_color or "").strip() or None
+        gradient_end_color = (input.gradient_end_color or "").strip() or None
+        project = models.Project(
+            name=name,
+            description=description,
+            gradient_start_color=gradient_start_color,
+            gradient_end_color=gradient_end_color,
         )
-        gradient_end_color = (
-            input.gradient_end_color if input.gradient_end_color is not UNSET else None
-        )
-
-        # Build the values dict, only including non-None values to use database defaults
-        values = {"name": name}
-        if description is not None:
-            values["description"] = description
-        if gradient_start_color is not None:
-            values["gradient_start_color"] = gradient_start_color
-        if gradient_end_color is not None:
-            values["gradient_end_color"] = gradient_end_color
-
-        async with info.context.db() as session:
-            project = await session.scalar(
-                insert(models.Project)
-                .values(**values)
-                .returning(models.Project)
-            )
-            assert project is not None
-        
+        try:
+            async with info.context.db() as session:
+                session.add(project)
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+            raise Conflict(f"Project with name '{name}' already exists")
         info.context.event_queue.put(ProjectInsertEvent((project.id,)))
         return ProjectMutationPayload(project=to_gql_project(project), query=Query())
 

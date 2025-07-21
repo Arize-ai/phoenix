@@ -147,7 +147,7 @@ class TestProjectMutations:
 
         result = await gql_client.execute(
             mutation,
-            variable_values={
+            variables={
                 "input": {
                     "name": project_name,
                     "description": project_description,
@@ -157,19 +157,19 @@ class TestProjectMutations:
             },
         )
 
-        assert result.errors is None
-        assert result.data is not None
+        assert not result.errors
+        assert result.data
         create_project_data = result.data["createProject"]
-        
+
         project_data = create_project_data["project"]
         assert project_data["name"] == project_name
         assert project_data["gradientStartColor"] == gradient_start_color
         assert project_data["gradientEndColor"] == gradient_end_color
-        
+
         # Verify the project was actually created in the database
         project_id = project_data["id"]
         decoded_id = GlobalID.from_id(project_id)
-        
+
         async with db() as session:
             project = await session.get(models.Project, int(decoded_id.node_id))
             assert project is not None
@@ -204,29 +204,31 @@ class TestProjectMutations:
 
         result = await gql_client.execute(
             mutation,
-            variable_values={
+            variables={
                 "input": {
                     "name": project_name,
                 }
             },
         )
 
-        assert result.errors is None
-        assert result.data is not None
+        assert not result.errors
+        assert result.data
         create_project_data = result.data["createProject"]
-        
+
         project_data = create_project_data["project"]
         assert project_data["name"] == project_name
         # Should use default gradient colors from the database
         assert project_data["gradientStartColor"] == "#5bdbff"
         assert project_data["gradientEndColor"] == "#1c76fc"
-        
+
         # Verify the project was actually created in the database
         project_id = project_data["id"]
         decoded_id = GlobalID.from_id(project_id)
-        
+
         async with db() as session:
             project = await session.get(models.Project, int(decoded_id.node_id))
             assert project is not None
             assert project.name == project_name
             assert project.description is None
+            assert project.gradient_start_color == "#5bdbff"
+            assert project.gradient_end_color == "#1c76fc"

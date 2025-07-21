@@ -1760,6 +1760,11 @@ enum ProjectFilterColumn {
   name
 }
 
+type ProjectMutationPayload {
+  project: Project!
+  query: Query!
+}
+
 type ProjectSession implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -1841,11 +1846,6 @@ type ProjectTraceRetentionPolicyEdge {
 
   """The item at the end of the edge"""
   node: ProjectTraceRetentionPolicy!
-}
-
-type ProjectMutationPayload {
-  project: Project!
-  query: Query!
 }
 
 type ProjectTraceRetentionPolicyMutationPayload {
