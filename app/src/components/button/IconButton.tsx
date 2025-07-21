@@ -22,7 +22,7 @@ export interface IconButtonProps extends Omit<ButtonProps, "children"> {
    * The size of the button
    * @default 'M'
    */
-  size?: Omit<ComponentSize, "L">;
+  size?: Exclude<ComponentSize, "L">;
   /**
    * The icon to display
    */
