@@ -55,10 +55,9 @@
     <meta property="og:description" content="AI Observability & Evaluation" />
     <meta property="og:image" content="https://raw.githubusercontent.com/Arize-ai/phoenix-assets/main/images/socal/social-preview-horizontal.jpg" />
     <meta name="theme-color" content="#ffffff" />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Roboto:wght@100;300;400;500;700;900&display=swap"
-    />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap" rel="stylesheet">
     {% if not is_development -%}
       {% set _ = collect_assets('index.tsx') -%}
       {{- render_css() -}}
