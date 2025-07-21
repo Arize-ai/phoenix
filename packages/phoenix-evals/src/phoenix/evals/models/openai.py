@@ -387,7 +387,7 @@ class OpenAIModel(BaseModel):
             prompt = MultimodalPrompt.from_string(prompt)
 
         invoke_params = self.invocation_params
-        messages = self._build_messages(prompt, kwargs.get("instruction"))
+        messages = self._build_messages(prompt=prompt, system_instruction=kwargs.get("instruction"))
         if functions := kwargs.get("functions"):
             invoke_params["functions"] = functions
         if function_call := kwargs.get("function_call"):

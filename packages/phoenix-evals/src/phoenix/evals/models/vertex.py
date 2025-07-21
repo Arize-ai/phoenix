@@ -185,7 +185,7 @@ class GeminiModel(BaseModel):
             response = self._model.generate_content(
                 contents=prompt_str, generation_config=generation_config, **kwargs
             )
-            return self._parse_response_candidates(response)
+            return response
 
         response = _rate_limited_completion(
             prompt=prompt,
@@ -193,19 +193,20 @@ class GeminiModel(BaseModel):
             **kwargs,
         )
 
-        usage = response.get("usage", None)
-
+        usage = getattr(response, "usage", None)
         if usage is not None:
             input_tokens = usage.get("promptTokenCount", 0)
             output_tokens = usage.get("candidatesTokenCount", 0)
             total_tokens = usage.get("totalTokenCount", 0)
-            return str(response), {
+            parsed = self._parse_response_candidates(response)
+            return str(parsed), {
                 "prompt_tokens": input_tokens,
                 "completion_tokens": output_tokens,
                 "total_tokens": total_tokens,
             }
 
-        return str(response), None
+        parsed = self._parse_response_candidates(response)
+        return str(parsed), None
 
     async def _async_generate(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
@@ -251,7 +252,7 @@ class GeminiModel(BaseModel):
             response = await self._model.generate_content_async(
                 contents=prompt_str, generation_config=generation_config, **kwargs
             )
-            return self._parse_response_candidates(response)
+            return response
 
         response = await _rate_limited_completion(
             prompt=prompt,
@@ -259,19 +260,20 @@ class GeminiModel(BaseModel):
             **kwargs,
         )
 
-        usage = response.get("usage", None)
-
+        usage = getattr(response, "usage", None)
         if usage is not None:
             input_tokens = usage.get("promptTokenCount", 0)
             output_tokens = usage.get("candidatesTokenCount", 0)
             total_tokens = usage.get("totalTokenCount", 0)
-            return str(response), {
+            parsed = self._parse_response_candidates(response)
+            return str(parsed), {
                 "prompt_tokens": input_tokens,
                 "completion_tokens": output_tokens,
                 "total_tokens": total_tokens,
             }
 
-        return str(response), None
+        parsed = self._parse_response_candidates(response)
+        return str(parsed), None
 
     def _parse_response_candidates(self, response: Any) -> Any:
         if hasattr(response, "candidates"):
