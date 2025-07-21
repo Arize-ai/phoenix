@@ -57,7 +57,9 @@ Record: TypeAlias = Mapping[str, Any]
 Index: TypeAlias = int
 
 # snapped_response, explanation, response
-ParsedLLMResponse: TypeAlias = Tuple[Optional[str], Optional[str], str, str]
+ParsedLLMResponse: TypeAlias = Tuple[
+    Optional[str], Optional[str], str, str, Optional[int], Optional[int]
+]
 
 
 class ClassificationStatus(Enum):
@@ -162,6 +164,10 @@ def llm_classify(
 
         include_response (bool, default=False): If True, includes a column named `response`
             in the output dataframe containing the raw response from the LLM.
+
+        include_token_usage (bool, default=False): If True, appends prompt_tokens,
+            completion_tokens, and total_tokens columns containing exact counts
+            reported by the model.
 
         max_retries (int, optional): The maximum number of times to retry on exceptions.
             Defaults to 10.
@@ -286,11 +292,13 @@ def llm_classify(
                 processed_data = input_data
 
             prompt = _map_template(_normalize_to_series(processed_data))
-            response = await verbose_model._async_generate(
+            response, usage = await verbose_model._async_generate_with_meta(
                 prompt, instruction=system_instruction, **model_kwargs
             )
         inference, explanation = _process_response(response)
-        return inference, explanation, response, str(prompt)
+        prompt_tokens = usage.get("prompt_tokens") if usage else None
+        completion_tokens = usage.get("completion_tokens") if usage else None
+        return inference, explanation, response, str(prompt), prompt_tokens, completion_tokens
 
     def _run_llm_classification_sync(
         input_data: PROCESSOR_TYPE,
@@ -304,13 +312,17 @@ def llm_classify(
                 processed_data = input_data
 
             prompt = _map_template(_normalize_to_series(processed_data))
-            response = verbose_model._generate(
+            response, usage = verbose_model._generate_with_meta(
                 prompt, instruction=system_instruction, **model_kwargs
             )
-        inference, explanation = _process_response(response)
-        return inference, explanation, response, str(prompt)
 
-    fallback_return_value: ParsedLLMResponse = (None, None, "", "")
+        inference, explanation = _process_response(response)
+        prompt_tokens = usage.get("prompt_tokens") if usage else None
+        completion_tokens = usage.get("completion_tokens") if usage else None
+
+        return inference, explanation, response, str(prompt), prompt_tokens, completion_tokens
+
+    fallback_return_value: ParsedLLMResponse = (None, None, "", "", None, None)
 
     executor = get_executor_on_sync_context(
         _run_llm_classification_sync,
@@ -335,7 +347,9 @@ def llm_classify(
         raise ValueError("Invalid 'data' input type.")
 
     results, execution_details = executor.run(list_of_inputs)
-    labels, explanations, responses, prompts = zip(*results)
+    labels, explanations, responses, prompts, prompt_token_counts, completion_token_counts = zip(
+        *results
+    )
     all_exceptions = [details.exceptions for details in execution_details]
     execution_statuses = [details.status for details in execution_details]
     execution_times = [details.execution_seconds for details in execution_details]
@@ -352,6 +366,18 @@ def llm_classify(
             **({"explanation": explanations} if provide_explanation else {}),
             **({"prompt": prompts} if include_prompt else {}),
             **({"response": responses} if include_response else {}),
+            **(
+                {
+                    "prompt_tokens": prompt_token_counts,
+                    "completion_tokens": completion_token_counts,
+                    "total_tokens": [
+                        (p or 0) + (c or 0)
+                        for p, c in zip(prompt_token_counts, completion_token_counts)
+                    ],
+                }
+                if include_token_usage
+                else {}
+            ),
             **({"exceptions": [[repr(exc) for exc in excs] for excs in all_exceptions]}),
             **({"execution_status": [status.value for status in classification_statuses]}),
             **({"execution_seconds": [runtime for runtime in execution_times]}),

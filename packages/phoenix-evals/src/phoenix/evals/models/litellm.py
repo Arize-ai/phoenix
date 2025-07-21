@@ -154,7 +154,7 @@ class LiteLLMModel(BaseModel):
             request_timeout=self.request_timeout,
             **self.model_kwargs,
         )
-        return str(response.choices[0].message.content), getattr(response, "usage", None)
+        return str(response.choices[0].message.content), response.get("usage", None)
 
     def _get_messages_from_prompt(self, prompt: MultimodalPrompt) -> List[Dict[str, str]]:
         # LiteLLM requires prompts in the format of messages

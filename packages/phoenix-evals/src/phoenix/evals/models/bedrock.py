@@ -134,7 +134,7 @@ class BedrockModel(BaseModel):
         body = self._create_request_body(prompt)
         response = self._rate_limited_completion(**body)
 
-        usage = getattr(response, "usage", None)
+        usage = response.get("usage", None)
 
         if usage is not None:
             input_tokens = usage.get("inputTokens", 0)

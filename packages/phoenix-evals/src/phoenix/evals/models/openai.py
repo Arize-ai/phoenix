@@ -398,11 +398,11 @@ class OpenAIModel(BaseModel):
         )
         choice = response["choices"][0]
         if self._model_uses_legacy_completion_api:
-            return str(choice["text"])
+            return str(choice["text"]), response.get("usage", None)
         message = choice["message"]
         if function_call := message.get("function_call"):
-            return str(function_call.get("arguments") or "")
-        return str(message["content"]), getattr(response, "usage", None)
+            return str(function_call.get("arguments") or ""), response.get("usage", None)
+        return str(message["content"]), response.get("usage", None)
 
     def _generate_with_meta(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Any
@@ -422,11 +422,11 @@ class OpenAIModel(BaseModel):
         )
         choice = response["choices"][0]
         if self._model_uses_legacy_completion_api:
-            return str(choice["text"])
+            return str(choice["text"]), response.get("usage", None)
         message = choice["message"]
         if function_call := message.get("function_call"):
-            return str(function_call.get("arguments") or "")
-        return str(message["content"]), getattr(response, "usage", None)
+            return str(function_call.get("arguments") or ""), response.get("usage", None)
+        return str(message["content"]), response.get("usage", None)
 
     async def _async_rate_limited_completion(self, **kwargs: Any) -> Any:
         @self._rate_limiter.alimit

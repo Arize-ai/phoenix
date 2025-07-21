@@ -136,7 +136,7 @@ class MistralAIModel(BaseModel):
             **invocation_parameters,
         )
 
-        return str(response), getattr(response, "usage", None)
+        return str(response), response.get("usage", None)
 
     def _rate_limited_completion(self, **kwargs: Any) -> Any:
         @self._rate_limiter.limit
@@ -192,7 +192,7 @@ class MistralAIModel(BaseModel):
             **invocation_parameters,
         )
 
-        return str(response), getattr(response, "usage", None)
+        return str(response), response.get("usage", None)
 
     async def _async_rate_limited_completion(self, **kwargs: Any) -> Any:
         @self._rate_limiter.alimit

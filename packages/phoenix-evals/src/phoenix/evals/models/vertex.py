@@ -193,7 +193,7 @@ class GeminiModel(BaseModel):
             **kwargs,
         )
 
-        usage = getattr(response, "usageMetadata", None)
+        usage = response.get("usage", None)
 
         if usage is not None:
             input_tokens = usage.get("promptTokenCount", 0)
@@ -259,7 +259,7 @@ class GeminiModel(BaseModel):
             **kwargs,
         )
 
-        usage = getattr(response, "usageMetadata", None)
+        usage = response.get("usage", None)
 
         if usage is not None:
             input_tokens = usage.get("promptTokenCount", 0)

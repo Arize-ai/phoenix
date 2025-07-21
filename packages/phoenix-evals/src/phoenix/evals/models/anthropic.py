@@ -147,7 +147,7 @@ class AnthropicModel(BaseModel):
             **invocation_parameters,
         )
 
-        usage = getattr(response, "usage", None)
+        usage = response.get("usage", None)
 
         if usage is not None:
             input_tokens = usage.get("input_tokens", 0)
@@ -209,7 +209,7 @@ class AnthropicModel(BaseModel):
             **invocation_parameters,
         )
 
-        usage = getattr(response, "usage", None)
+        usage = response.get("usage", None)
 
         if usage is not None:
             input_tokens = usage.get("input_tokens", 0)
