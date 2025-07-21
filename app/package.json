@@ -73,6 +73,7 @@
     "@emotion/react": "^11.14.0",
     "@lezer/generator": "^1.7.1",
     "@playwright/test": "^1.52.0",
+    "@storybook/addon-designs": "^8.2.1",
     "@storybook/addon-essentials": "^8.4.6",
     "@storybook/addon-interactions": "^8.4.6",
     "@storybook/blocks": "^8.4.6",
