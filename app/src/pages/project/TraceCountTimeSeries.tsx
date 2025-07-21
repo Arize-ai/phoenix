@@ -1,3 +1,4 @@
+import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   Bar,
   BarChart,
@@ -21,70 +22,16 @@ import {
   useSemanticChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
+import { useTimeRange } from "@phoenix/components/datetime";
+import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
+import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
-import { calculateGranularity } from "@phoenix/utils/timeSeriesUtils";
+
+import type { TraceCountTimeSeriesQuery } from "./__generated__/TraceCountTimeSeriesQuery.graphql";
 
 const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
 });
-
-const chartData = [
-  {
-    timestamp: "2021-01-01",
-    ok: 100,
-    error: 10,
-  },
-  {
-    timestamp: "2021-01-02",
-    ok: 100,
-    error: 10,
-  },
-  {
-    timestamp: "2021-01-03",
-    ok: 100,
-    error: 10,
-  },
-  {
-    timestamp: "2021-01-04",
-    ok: 100,
-    error: 10,
-  },
-  {
-    timestamp: "2021-01-05",
-    ok: 100,
-    error: 10,
-  },
-  {
-    timestamp: "2021-01-06",
-    ok: 100,
-    error: 10,
-  },
-  {
-    timestamp: "2021-01-07",
-    ok: 100,
-    error: 10,
-  },
-  {
-    timestamp: "2021-01-08",
-    ok: 100,
-    error: 10,
-  },
-  {
-    timestamp: "2021-01-09",
-    ok: 100,
-    error: 10,
-  },
-  {
-    timestamp: "2021-01-10",
-    ok: 100,
-    error: 10,
-  },
-  {
-    timestamp: "2021-01-11",
-    ok: 100,
-    error: 10,
-  },
-];
 
 function TooltipContent({
   active,
@@ -94,8 +41,9 @@ function TooltipContent({
   const SemanticChartColors = useSemanticChartColors();
   const chartColors = useChartColors();
   if (active && payload && payload.length) {
-    const okValue = payload[0]?.value ?? null;
-    const errorValue = payload[1]?.value ?? null;
+    // For stacked bar charts, payload[0] is the first bar (error), payload[1] is the second bar (ok)
+    const errorValue = payload[0]?.value ?? null;
+    const okValue = payload[1]?.value ?? null;
     const okString =
       typeof okValue === "number" ? numberFormatter.format(okValue) : "--";
     const errorString =
@@ -128,15 +76,66 @@ function TooltipContent({
   return null;
 }
 
-export function TraceCountTimeSeries() {
-  const timeRange = {
-    start: new Date("2021-01-01"),
-    end: new Date("2021-01-11"),
-  };
+export function TraceCountTimeSeries({ projectId }: { projectId: string }) {
+  const { timeRange } = useTimeRange();
+  const scale = useTimeBinScale({ timeRange });
+  const utcOffsetMinutes = useUTCOffsetMinutes();
 
-  const granularity = calculateGranularity(timeRange);
+  const data = useLazyLoadQuery<TraceCountTimeSeriesQuery>(
+    graphql`
+      query TraceCountTimeSeriesQuery(
+        $projectId: ID!
+        $timeRange: TimeRange!
+        $timeBinConfig: TimeBinConfig!
+      ) {
+        project: node(id: $projectId) {
+          ... on Project {
+            traceCountByStatusTimeSeries(
+              timeRange: $timeRange
+              timeBinConfig: $timeBinConfig
+            ) {
+              data {
+                timestamp
+                okCount
+                errorCount
+              }
+            }
+          }
+        }
+      }
+    `,
+    {
+      projectId,
+      timeRange: {
+        start: timeRange.start?.toISOString(),
+        end: timeRange.end?.toISOString(),
+      },
+      timeBinConfig: {
+        scale,
+        utcOffsetMinutes,
+      },
+    }
+  );
+
+  const chartData = (data.project.traceCountByStatusTimeSeries?.data ?? []).map(
+    (datum) => ({
+      timestamp: datum.timestamp,
+      ok: datum.okCount,
+      error: datum.errorCount,
+    })
+  );
+
   const timeTickFormatter = useTimeTickFormatter({
-    samplingIntervalMinutes: granularity.samplingIntervalMinutes,
+    samplingIntervalMinutes: (() => {
+      switch (scale) {
+        case "MINUTE":
+          return 1;
+        case "HOUR":
+          return 60;
+        default:
+          return 60 * 24;
+      }
+    })(),
   });
 
   const colors = useChartColors();

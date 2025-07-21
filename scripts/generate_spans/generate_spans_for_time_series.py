@@ -1,13 +1,14 @@
 # /// script
 # dependencies = [
 #   "pandas",
+#   "arize-phoenix-client",
 #   "opentelemetry-sdk",
 #   "opentelemetry-exporter-otlp",
 # ]
 # ///
 from datetime import datetime, timedelta, timezone
 from io import StringIO
-from random import randint, sample
+from random import randint, random, sample
 from secrets import token_hex
 from typing import Iterator, Optional, cast
 
@@ -17,6 +18,9 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.trace import StatusCode, format_span_id
+
+from phoenix.client import Client
 
 endpoint = "http://localhost:6006/v1/traces"
 
@@ -24,6 +28,7 @@ tracer_provider = TracerProvider(resource=Resource({"openinference.project.name"
 tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
 tracer = tracer_provider.get_tracer(__name__)
 
+client = Client(base_url="http://localhost:6006")
 
 # Convert the tab-delimited string into a DataFrame
 model_provider_data = """
@@ -105,6 +110,12 @@ def llm_span(start_time: int, end_time: int) -> ReadableSpan:
         row = df.sample(1).iloc[0]
         span.set_attribute("llm.provider", str(row.provider))
         span.set_attribute("llm.model_name", str(row.model_name))
+    if random() < 0.01:
+        span.set_status(StatusCode.UNSET)
+    elif random() < 0.2:
+        span.set_status(StatusCode.ERROR)
+    else:
+        span.set_status(StatusCode.OK)
     span.end(end_time=end_time)
     return span
 
@@ -139,7 +150,7 @@ def generate_timestamps(
         UTC datetime objects in chronological order.
     """
     if not start_time:
-        start_time = datetime.now(timezone.utc) - timedelta(days=90)
+        start_time = datetime.now(timezone.utc) - timedelta(days=14)
     if not end_time:
         end_time = datetime.now(timezone.utc)
     if rates is None:
@@ -179,7 +190,30 @@ spans = []
 for t in sorted(generate_timestamps(), reverse=True):
     start_time = int(t.timestamp() * 1e9)
     end_time = start_time + randint(10_000_000, 10_000_000_000)
-    spans.append(llm_span(start_time, end_time))
+    with tracer.start_as_current_span(
+        token_hex(6),
+        start_time=start_time,
+        end_on_exit=False,
+    ) as root_span:
+        llm_span(start_time, end_time)
+        llm_span(start_time, end_time)
+    root_span.end(end_time=end_time)
+    spans.append(root_span)
+    span_id = format_span_id(root_span.get_span_context().span_id)
+    score = np.random.beta(2, 5)
+    client.annotations.add_span_annotation(
+        span_id=span_id,
+        annotation_name="helpfulness",
+        score=score,
+        label="helpful" if score > 0.5 else "not helpful",
+    )
+    score = np.random.beta(5, 2)
+    client.annotations.add_span_annotation(
+        span_id=span_id,
+        annotation_name="relevant",
+        score=score,
+        label="relevant" if score > 0.5 else "not relevant",
+    )
 
 # use pandas to summarize count group by calendar day
 local_tz = datetime.now().astimezone().tzinfo
