@@ -2,7 +2,7 @@ import logging
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Generator, Optional, Sequence
+from typing import Any, Generator, Optional, Sequence, Tuple
 
 from typing_extensions import TypeVar, Union
 
@@ -96,6 +96,14 @@ class BaseModel(ABC):
     @abstractmethod
     def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
         raise NotImplementedError
+
+    async def _async_generate_with_meta(self, *args, **kwds) -> Tuple[str, Optional[dict]]:
+        """Default shim — subclasses return (text, usage_dict)."""
+        return await self._async_generate(*args, **kwds), None
+
+    def _generate_with_meta(self, *args, **kwds) -> Tuple[str, Optional[dict]]:
+        """Sync version."""
+        return self._generate(*args, **kwds), None
 
     @staticmethod
     def _raise_import_error(

@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
@@ -167,6 +167,46 @@ class GeminiModel(BaseModel):
 
         return str(response)
 
+    def _generate_with_meta(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
+    ) -> Tuple[str, Optional[dict]]:
+        # instruction is an invalid input to Gemini models, it is passed in by
+        # BaseEvalModel.__call__ and needs to be removed
+        kwargs.pop("instruction", None)
+
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
+        @self._rate_limiter.limit
+        def _rate_limited_completion(
+            prompt: MultimodalPrompt, generation_config: Dict[str, Any], **kwargs: Any
+        ) -> Any:
+            prompt_str = self._construct_prompt(prompt)
+            response = self._model.generate_content(
+                contents=prompt_str, generation_config=generation_config, **kwargs
+            )
+            return self._parse_response_candidates(response)
+
+        response = _rate_limited_completion(
+            prompt=prompt,
+            generation_config=self.generation_config,
+            **kwargs,
+        )
+
+        usage = getattr(response, "usageMetadata", None)
+
+        if usage is not None:
+            input_tokens = usage.get("promptTokenCount", 0)
+            output_tokens = usage.get("candidatesTokenCount", 0)
+            total_tokens = usage.get("totalTokenCount", 0)
+            return str(response), {
+                "prompt_tokens": input_tokens,
+                "completion_tokens": output_tokens,
+                "total_tokens": total_tokens,
+            }
+
+        return str(response), None
+
     async def _async_generate(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
     ) -> str:
@@ -194,6 +234,44 @@ class GeminiModel(BaseModel):
         )
 
         return str(response)
+
+    async def _async_generate_with_meta(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
+    ) -> Tuple[str, Optional[dict]]:
+        kwargs.pop("instruction", None)
+
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
+        @self._rate_limiter.alimit
+        async def _rate_limited_completion(
+            prompt: MultimodalPrompt, generation_config: Dict[str, Any], **kwargs: Any
+        ) -> Any:
+            prompt_str = self._construct_prompt(prompt)
+            response = await self._model.generate_content_async(
+                contents=prompt_str, generation_config=generation_config, **kwargs
+            )
+            return self._parse_response_candidates(response)
+
+        response = await _rate_limited_completion(
+            prompt=prompt,
+            generation_config=self.generation_config,
+            **kwargs,
+        )
+
+        usage = getattr(response, "usageMetadata", None)
+
+        if usage is not None:
+            input_tokens = usage.get("promptTokenCount", 0)
+            output_tokens = usage.get("candidatesTokenCount", 0)
+            total_tokens = usage.get("totalTokenCount", 0)
+            return str(response), {
+                "prompt_tokens": input_tokens,
+                "completion_tokens": output_tokens,
+                "total_tokens": total_tokens,
+            }
+
+        return str(response), None
 
     def _parse_response_candidates(self, response: Any) -> Any:
         if hasattr(response, "candidates"):

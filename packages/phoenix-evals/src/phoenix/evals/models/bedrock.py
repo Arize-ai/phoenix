@@ -2,7 +2,7 @@ import asyncio
 import logging
 from dataclasses import dataclass, field
 from functools import partial
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from phoenix.evals.exceptions import PhoenixContextLimitExceeded
 from phoenix.evals.models.base import BaseModel
@@ -121,9 +121,45 @@ class BedrockModel(BaseModel):
 
         return self._parse_output(response) or ""
 
+    def _generate_with_meta(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
+    ) -> Tuple[str, Optional[dict]]:
+        # the legacy "instruction" parameter from llm_classify is intended to indicate a
+        # system instruction, but not all models supported by Bedrock support system instructions
+        _ = kwargs.pop("instruction", None)
+
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
+        body = self._create_request_body(prompt)
+        response = self._rate_limited_completion(**body)
+
+        usage = getattr(response, "usage", None)
+
+        if usage is not None:
+            input_tokens = usage.get("inputTokens", 0)
+            output_tokens = usage.get("outputTokens", 0)
+            total_tokens = usage.get("totalTokens", 0)
+            return self._parse_output(response), {
+                "prompt_tokens": input_tokens,
+                "completion_tokens": output_tokens,
+                "total_tokens": total_tokens,
+            }
+
+        return self._parse_output(response) or "", None
+
     async def _async_generate(
         self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
     ) -> str:
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, partial(self._generate, prompt, **kwargs))
+
+    async def _async_generate_with_meta(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
+    ) -> Tuple[str, Optional[dict]]:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
 

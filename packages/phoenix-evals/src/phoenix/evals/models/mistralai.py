@@ -1,6 +1,6 @@
 import os
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
@@ -119,6 +119,25 @@ class MistralAIModel(BaseModel):
 
         return str(response)
 
+    def _generate_with_meta(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
+    ) -> Tuple[str, Optional[dict]]:
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
+        # instruction is an invalid input to Mistral models, it is passed in by
+        # BaseEvalModel.__call__ and needs to be removed
+        kwargs.pop("instruction", None)
+        invocation_parameters = self.invocation_parameters()
+        invocation_parameters.update(kwargs)
+        response = self._rate_limited_completion(
+            model=self.model,
+            messages=self._format_prompt(prompt),
+            **invocation_parameters,
+        )
+
+        return str(response), getattr(response, "usage", None)
+
     def _rate_limited_completion(self, **kwargs: Any) -> Any:
         @self._rate_limiter.limit
         def _completion(**kwargs: Any) -> Any:
@@ -155,6 +174,25 @@ class MistralAIModel(BaseModel):
         )
 
         return str(response)
+
+    async def _async_generate_with_meta(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Any
+    ) -> Tuple[str, Optional[dict]]:
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
+        # instruction is an invalid input to Mistral models, it is passed in by
+        # BaseEvalModel.__call__ and needs to be removed
+        kwargs.pop("instruction", None)
+        invocation_parameters = self.invocation_parameters()
+        invocation_parameters.update(kwargs)
+        response = await self._async_rate_limited_completion(
+            model=self.model,
+            messages=self._format_prompt(prompt),
+            **invocation_parameters,
+        )
+
+        return str(response), getattr(response, "usage", None)
 
     async def _async_rate_limited_completion(self, **kwargs: Any) -> Any:
         @self._rate_limiter.alimit

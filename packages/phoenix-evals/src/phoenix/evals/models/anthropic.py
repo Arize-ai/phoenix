@@ -130,6 +130,35 @@ class AnthropicModel(BaseModel):
 
         return str(response)
 
+    def _generate_with_meta(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
+    ) -> Tuple[str, Optional[dict]]:
+        # instruction is an invalid input to Anthropic models, it is passed in by
+        # BaseEvalModel.__call__ and needs to be removed
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
+        kwargs.pop("instruction", None)
+        invocation_parameters = self.invocation_parameters()
+        invocation_parameters.update(kwargs)
+        response = self._rate_limited_completion(
+            model=self.model,
+            messages=self._format_prompt_for_claude(prompt),
+            **invocation_parameters,
+        )
+
+        usage = getattr(response, "usage", None)
+
+        if usage is not None:
+            input_tokens = usage.get("input_tokens", 0)
+            output_tokens = usage.get("output_tokens", 0)
+            return str(response), {
+                "prompt_tokens": input_tokens,
+                "completion_tokens": output_tokens,
+                "total_tokens": input_tokens + output_tokens,
+            }
+        return str(response), None
+
     def _rate_limited_completion(self, **kwargs: Any) -> Any:
         @self._rate_limiter.limit
         def _completion(**kwargs: Any) -> Any:
@@ -162,6 +191,35 @@ class AnthropicModel(BaseModel):
         )
 
         return str(response)
+
+    async def _async_generate_with_meta(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
+    ) -> Tuple[str, Optional[dict]]:
+        # instruction is an invalid input to Anthropic models, it is passed in by
+        # BaseEvalModel.__call__ and needs to be removed
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
+        kwargs.pop("instruction", None)
+        invocation_parameters = self.invocation_parameters()
+        invocation_parameters.update(kwargs)
+        response = await self._async_rate_limited_completion(
+            model=self.model,
+            messages=self._format_prompt_for_claude(prompt),
+            **invocation_parameters,
+        )
+
+        usage = getattr(response, "usage", None)
+
+        if usage is not None:
+            input_tokens = usage.get("input_tokens", 0)
+            output_tokens = usage.get("output_tokens", 0)
+            return str(response), {
+                "prompt_tokens": input_tokens,
+                "completion_tokens": output_tokens,
+                "total_tokens": input_tokens + output_tokens,
+            }
+        return str(response), None
 
     async def _async_rate_limited_completion(self, **kwargs: Any) -> Any:
         @self._rate_limiter.alimit

@@ -1,7 +1,7 @@
 import logging
 import warnings
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
@@ -112,6 +112,14 @@ class LiteLLMModel(BaseModel):
 
         return self._generate(prompt, **kwargs)
 
+    async def _async_generate_with_meta(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
+    ) -> Tuple[str, Optional[dict]]:
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
+        return self._generate_with_meta(prompt, **kwargs)
+
     def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]) -> str:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
@@ -128,6 +136,25 @@ class LiteLLMModel(BaseModel):
             **self.model_kwargs,
         )
         return str(response.choices[0].message.content)
+
+    def _generate_with_meta(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
+    ) -> Tuple[str, Optional[dict]]:
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
+        messages = self._get_messages_from_prompt(prompt)
+        response = self._litellm.completion(
+            model=self.model,
+            messages=messages,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+            top_p=self.top_p,
+            num_retries=self.num_retries,
+            request_timeout=self.request_timeout,
+            **self.model_kwargs,
+        )
+        return str(response.choices[0].message.content), getattr(response, "usage", None)
 
     def _get_messages_from_prompt(self, prompt: MultimodalPrompt) -> List[Dict[str, str]]:
         # LiteLLM requires prompts in the format of messages

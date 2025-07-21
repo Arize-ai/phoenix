@@ -380,6 +380,54 @@ class OpenAIModel(BaseModel):
             return str(function_call.get("arguments") or "")
         return str(message["content"])
 
+    async def _async_generate_with_meta(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Any
+    ) -> Tuple[str, Optional[dict]]:
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
+        invoke_params = self.invocation_params
+        messages = self._build_messages(prompt, kwargs.get("instruction"))
+        if functions := kwargs.get("functions"):
+            invoke_params["functions"] = functions
+        if function_call := kwargs.get("function_call"):
+            invoke_params["function_call"] = function_call
+        response = await self._async_rate_limited_completion(
+            messages=messages,
+            **invoke_params,
+        )
+        choice = response["choices"][0]
+        if self._model_uses_legacy_completion_api:
+            return str(choice["text"])
+        message = choice["message"]
+        if function_call := message.get("function_call"):
+            return str(function_call.get("arguments") or "")
+        return str(message["content"]), getattr(response, "usage", None)
+
+    def _generate_with_meta(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Any
+    ) -> Tuple[str, Optional[dict]]:
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
+        invoke_params = self.invocation_params
+        messages = self._build_messages(prompt=prompt, system_instruction=kwargs.get("instruction"))
+        if functions := kwargs.get("functions"):
+            invoke_params["functions"] = functions
+        if function_call := kwargs.get("function_call"):
+            invoke_params["function_call"] = function_call
+        response = self._rate_limited_completion(
+            messages=messages,
+            **invoke_params,
+        )
+        choice = response["choices"][0]
+        if self._model_uses_legacy_completion_api:
+            return str(choice["text"])
+        message = choice["message"]
+        if function_call := message.get("function_call"):
+            return str(function_call.get("arguments") or "")
+        return str(message["content"]), getattr(response, "usage", None)
+
     async def _async_rate_limited_completion(self, **kwargs: Any) -> Any:
         @self._rate_limiter.alimit
         async def _async_completion(**kwargs: Any) -> Any:

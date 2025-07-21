@@ -105,6 +105,7 @@ def llm_classify(
     provide_explanation: bool = False,
     include_prompt: bool = False,
     include_response: bool = False,
+    include_token_usage: bool = False,
     include_exceptions: bool = False,
     max_retries: int = 10,
     exit_on_error: bool = True,
