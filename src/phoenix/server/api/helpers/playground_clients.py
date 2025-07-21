@@ -1283,9 +1283,9 @@ class OpenAIReasoningStreamingClient(OpenAIStreamingClient):
         if role is ChatCompletionMessageRole.TOOL:
             if tool_call_id is None:
                 raise ValueError("tool_call_id is required for tool messages")
-        return ChatCompletionToolMessageParam(
-            {"content": content, "role": "tool", "tool_call_id": tool_call_id}
-        )
+            return ChatCompletionToolMessageParam(
+                {"content": content, "role": "tool", "tool_call_id": tool_call_id}
+            )
         assert_never(role)
 
     @staticmethod
@@ -1519,9 +1519,9 @@ class AzureOpenAIReasoningStreamingClient(AzureOpenAIStreamingClient):
         if role is ChatCompletionMessageRole.TOOL:
             if tool_call_id is None:
                 raise ValueError("tool_call_id is required for tool messages")
-        return ChatCompletionToolMessageParam(
-            {"content": content, "role": "tool", "tool_call_id": tool_call_id}
-        )
+            return ChatCompletionToolMessageParam(
+                {"content": content, "role": "tool", "tool_call_id": tool_call_id}
+            )
         assert_never(role)
 
     @staticmethod
