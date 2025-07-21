@@ -5,6 +5,8 @@ import { css } from "@emotion/react";
 import { Flex, Heading, Text, View } from "@phoenix/components";
 import { TraceErrorsTimeSeries } from "@phoenix/pages/project/TraceErrorsTimeSeries";
 
+import { LLMSpanCountTimeSeries } from "./LLMSpanCountTimeSeries";
+import { LLMSpanErrorsTimeSeries } from "./LLMSpanErrorsTimeSeries";
 import { SpanAnnotationScoreTimeSeries } from "./SpanAnnotationScoreTimeSeries";
 import { TraceCountTimeSeries } from "./TraceCountTimeSeries";
 import { TraceLatencyPercentilesTimeSeries } from "./TraceLatencyPercentilesTimeSeries";
@@ -133,6 +135,17 @@ export function ProjectMetricsPage() {
         </MetricPanel>
         <MetricPanel title="Feedback scores" subtitle="Average feedback scores">
           <SpanAnnotationScoreTimeSeries projectId={projectId} />
+        </MetricPanel>
+      </Flex>
+      <Flex direction="row" gap="size-100">
+        <MetricPanel title="LLM spans" subtitle="LLM span count over time">
+          <LLMSpanCountTimeSeries projectId={projectId} />
+        </MetricPanel>
+        <MetricPanel
+          title="LLM spans with errors"
+          subtitle="LLM spans with errors over time"
+        >
+          <LLMSpanErrorsTimeSeries projectId={projectId} />
         </MetricPanel>
       </Flex>
     </main>

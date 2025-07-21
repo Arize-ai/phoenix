@@ -1723,7 +1723,7 @@ type Project implements Node {
   traceRetentionPolicy: ProjectTraceRetentionPolicy!
   createdAt: DateTime!
   updatedAt: DateTime!
-  spanCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): SpanCountTimeSeries!
+  spanCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig, filterCondition: String): SpanCountTimeSeries!
   traceCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceCountTimeSeries!
   traceCountByStatusTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceCountByStatusTimeSeries!
   traceLatencyMsPercentileTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceLatencyPercentileTimeSeries!
@@ -2395,8 +2395,16 @@ type SpanCostSummary {
   total: CostBreakdown!
 }
 
-type SpanCountTimeSeries implements TimeSeries {
-  data: [TimeSeriesDataPoint!]!
+type SpanCountTimeSeries {
+  data: [SpanCountTimeSeriesDataPoint!]!
+}
+
+type SpanCountTimeSeriesDataPoint {
+  timestamp: DateTime!
+  okCount: Int!
+  errorCount: Int!
+  unsetCount: Int!
+  totalCount: Int!
 }
 
 """An edge in a connection."""

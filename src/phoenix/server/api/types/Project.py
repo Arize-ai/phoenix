@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, Optional, c
 import strawberry
 from aioitertools.itertools import groupby, islice
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import and_, desc, distinct, exists, func, or_, select
+from sqlalchemy import and_, case, desc, distinct, exists, func, or_, select
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.sql.expression import tuple_
@@ -719,6 +719,7 @@ class Project(Node):
         info: Info[Context, None],
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
+        filter_condition: Optional[str] = UNSET,
     ) -> SpanCountTimeSeries:
         if time_range.start is None:
             raise BadRequest("Start time is required")
@@ -742,7 +743,17 @@ class Project(Node):
                 field = "year"
         bucket = date_trunc(dialect, field, models.Span.start_time, utc_offset_minutes)
         stmt = (
-            select(bucket, func.count(models.Span.id))
+            select(
+                bucket,
+                func.count(models.Span.id).label("total_count"),
+                func.sum(case((models.Span.status_code == "OK", 1), else_=0)).label("ok_count"),
+                func.sum(case((models.Span.status_code == "ERROR", 1), else_=0)).label(
+                    "error_count"
+                ),
+                func.sum(case((models.Span.status_code == "UNSET", 1), else_=0)).label(
+                    "unset_count"
+                ),
+            )
             .join_from(models.Span, models.Trace)
             .where(models.Trace.project_rowid == self.project_rowid)
             .group_by(bucket)
@@ -752,12 +763,23 @@ class Project(Node):
             stmt = stmt.where(time_range.start <= models.Span.start_time)
         if time_range.end:
             stmt = stmt.where(models.Span.start_time < time_range.end)
+        if filter_condition:
+            span_filter = SpanFilter(condition=filter_condition)
+            stmt = span_filter(stmt)
 
         data = {}
         async with info.context.db() as session:
-            async for t, v in await session.stream(stmt):
+            async for t, total_count, ok_count, error_count, unset_count in await session.stream(
+                stmt
+            ):
                 timestamp = _as_datetime(t)
-                data[timestamp] = TimeSeriesDataPoint(timestamp=timestamp, value=v)
+                data[timestamp] = SpanCountTimeSeriesDataPoint(
+                    timestamp=timestamp,
+                    ok_count=ok_count,
+                    error_count=error_count,
+                    unset_count=unset_count,
+                    total_count=total_count,
+                )
 
         data_timestamps: list[datetime] = [data_point.timestamp for data_point in data.values()]
         min_time = min([*data_timestamps, time_range.start])
@@ -775,7 +797,13 @@ class Project(Node):
             utc_offset_minutes=utc_offset_minutes,
         ):
             if timestamp not in data:
-                data[timestamp] = TimeSeriesDataPoint(timestamp=timestamp)
+                data[timestamp] = SpanCountTimeSeriesDataPoint(
+                    timestamp=timestamp,
+                    ok_count=0,
+                    error_count=0,
+                    unset_count=0,
+                    total_count=0,
+                )
         return SpanCountTimeSeries(data=sorted(data.values(), key=lambda x: x.timestamp))
 
     @strawberry.field
@@ -1313,8 +1341,17 @@ class Project(Node):
 
 
 @strawberry.type
-class SpanCountTimeSeries(TimeSeries):
-    """A time series of span count"""
+class SpanCountTimeSeriesDataPoint:
+    timestamp: datetime
+    ok_count: int
+    error_count: int
+    unset_count: int
+    total_count: int
+
+
+@strawberry.type
+class SpanCountTimeSeries:
+    data: list[SpanCountTimeSeriesDataPoint]
 
 
 @strawberry.type
