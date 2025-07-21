@@ -204,6 +204,16 @@ module.exports = {
         module: "@arizeai/components",
         use: "import { Breadcrumb } from '@phoenix/components'",
       },
+      {
+        name: "List",
+        module: "@arizeai/components",
+        use: "import { List } from '@phoenix/components'",
+      },
+      {
+        name: "ListItem",
+        module: "@arizeai/components",
+        use: "import { ListItem } from '@phoenix/components'",
+      },
     ],
     "no-duplicate-imports": "error",
   },
