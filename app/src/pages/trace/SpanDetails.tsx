@@ -22,8 +22,6 @@ import {
   Content,
   ContextualHelp,
   EmptyGraphic,
-  List,
-  ListItem,
   TabbedCard,
 } from "@arizeai/components";
 import {
@@ -56,6 +54,8 @@ import {
   Keyboard,
   LazyTabPanel,
   LinkButton,
+  List,
+  ListItem,
   Loading,
   Modal,
   ModalOverlay,
