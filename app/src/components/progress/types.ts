@@ -7,7 +7,7 @@ export interface ProgressCircleProps extends ReactAriaProgressBarProps {
    * The size of the progress circle
    * @default 'M'
    */
-  size?: Omit<ComponentSize, "L">;
+  size?: Exclude<ComponentSize, "L">;
 }
 
 export interface ProgressBarProps extends ReactAriaProgressBarProps {
