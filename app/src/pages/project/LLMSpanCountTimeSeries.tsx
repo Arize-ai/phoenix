@@ -6,6 +6,7 @@ import {
   Legend,
   ResponsiveContainer,
   Tooltip,
+  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";
@@ -24,23 +25,16 @@ import {
 import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
+import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import type { LLMSpanCountTimeSeriesQuery } from "./__generated__/LLMSpanCountTimeSeriesQuery.graphql";
-
-const numberFormatter = new Intl.NumberFormat([], {
-  maximumFractionDigits: 2,
-});
 
 function TooltipContent({
   active,
   payload,
   label,
-}: {
-  active?: boolean;
-  payload?: Array<{ value?: number; dataKey?: string }>;
-  label?: string;
-}) {
+}: TooltipContentProps<number, string>) {
   const SemanticChartColors = useSemanticChartColors();
   const chartColors = useChartColors();
   if (active && payload && payload.length) {
@@ -48,16 +42,9 @@ function TooltipContent({
     const errorValue = payload[0]?.value ?? null;
     const unsetValue = payload[1]?.value ?? null;
     const okValue = payload[2]?.value ?? null;
-    const okString =
-      typeof okValue === "number" ? numberFormatter.format(okValue) : "--";
-    const unsetString =
-      typeof unsetValue === "number"
-        ? numberFormatter.format(unsetValue)
-        : "--";
-    const errorString =
-      typeof errorValue === "number"
-        ? numberFormatter.format(errorValue)
-        : "--";
+    const okString = intFormatter(okValue);
+    const unsetString = intFormatter(unsetValue);
+    const errorString = intFormatter(errorValue);
     return (
       <ChartTooltip>
         {label && (
@@ -198,7 +185,6 @@ export function LLMSpanCountTimeSeries({ projectId }: { projectId: string }) {
           fill={colors.default}
           radius={[2, 2, 0, 0]}
         />
-
         <Legend align="left" iconType="circle" iconSize={8} />
       </BarChart>
     </ResponsiveContainer>

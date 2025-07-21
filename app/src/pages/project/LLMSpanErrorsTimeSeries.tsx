@@ -6,6 +6,7 @@ import {
   Legend,
   ResponsiveContainer,
   Tooltip,
+  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";
@@ -23,30 +24,20 @@ import {
 import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
+import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import type { LLMSpanErrorsTimeSeriesQuery } from "./__generated__/LLMSpanErrorsTimeSeriesQuery.graphql";
-
-const numberFormatter = new Intl.NumberFormat([], {
-  maximumFractionDigits: 2,
-});
 
 function TooltipContent({
   active,
   payload,
   label,
-}: {
-  active?: boolean;
-  payload?: Array<{ value?: number; dataKey?: string }>;
-  label?: string;
-}) {
+}: TooltipContentProps<number, string>) {
   const SemanticChartColors = useSemanticChartColors();
   if (active && payload && payload.length) {
     const errorValue = payload[0]?.value ?? null;
-    const errorString =
-      typeof errorValue === "number"
-        ? numberFormatter.format(errorValue)
-        : "--";
+    const errorString = intFormatter(errorValue);
     return (
       <ChartTooltip>
         {label && (

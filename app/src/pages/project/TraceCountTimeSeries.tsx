@@ -25,13 +25,10 @@ import {
 import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
+import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import type { TraceCountTimeSeriesQuery } from "./__generated__/TraceCountTimeSeriesQuery.graphql";
-
-const numberFormatter = new Intl.NumberFormat([], {
-  maximumFractionDigits: 2,
-});
 
 function TooltipContent({
   active,
@@ -44,12 +41,8 @@ function TooltipContent({
     // For stacked bar charts, payload[0] is the first bar (error), payload[1] is the second bar (ok)
     const errorValue = payload[0]?.value ?? null;
     const okValue = payload[1]?.value ?? null;
-    const okString =
-      typeof okValue === "number" ? numberFormatter.format(okValue) : "--";
-    const errorString =
-      typeof errorValue === "number"
-        ? numberFormatter.format(errorValue)
-        : "--";
+    const okString = intFormatter(okValue);
+    const errorString = intFormatter(errorValue);
     return (
       <ChartTooltip>
         {label && (
