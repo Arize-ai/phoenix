@@ -786,9 +786,8 @@ class Project(Node):
         max_time = max(
             [
                 *data_timestamps,
-                *([time_range.end] if time_range.end else []),
+                *([time_range.end] if time_range.end else [datetime.now(timezone.utc)]),
             ],
-            default=datetime.now(timezone.utc),
         )
         for timestamp in get_timestamp_range(
             start_time=min_time,
@@ -856,9 +855,8 @@ class Project(Node):
         max_time = max(
             [
                 *data_timestamps,
-                *([time_range.end] if time_range.end else []),
+                *([time_range.end] if time_range.end else [datetime.now(timezone.utc)]),
             ],
-            default=datetime.now(timezone.utc),
         )
         for timestamp in get_timestamp_range(
             start_time=min_time,
@@ -945,9 +943,8 @@ class Project(Node):
         max_time = max(
             [
                 *data_timestamps,
-                *([time_range.end] if time_range.end else []),
+                *([time_range.end] if time_range.end else [datetime.now(timezone.utc)]),
             ],
-            default=datetime.now(timezone.utc),
         )
         for timestamp in get_timestamp_range(
             start_time=min_time,
@@ -1053,9 +1050,8 @@ class Project(Node):
         max_time = max(
             [
                 *data_timestamps,
-                *([time_range.end] if time_range.end else []),
+                *([time_range.end] if time_range.end else [datetime.now(timezone.utc)]),
             ],
-            default=datetime.now(timezone.utc),
         )
         for timestamp in get_timestamp_range(
             start_time=min_time,
@@ -1139,9 +1135,8 @@ class Project(Node):
         max_time = max(
             [
                 *data_timestamps,
-                *([time_range.end] if time_range.end else []),
+                *([time_range.end] if time_range.end else [datetime.now(timezone.utc)]),
             ],
-            default=datetime.now(timezone.utc),
         )
         for timestamp in get_timestamp_range(
             start_time=min_time,
@@ -1223,9 +1218,8 @@ class Project(Node):
         max_time = max(
             [
                 *data_timestamps,
-                *([time_range.end] if time_range.end else []),
+                *([time_range.end] if time_range.end else [datetime.now(timezone.utc)]),
             ],
-            default=datetime.now(timezone.utc),
         )
         for timestamp in get_timestamp_range(
             start_time=min_time,
@@ -1309,9 +1303,8 @@ class Project(Node):
         max_time = max(
             [
                 *score_timestamps,
-                *([time_range.end] if time_range.end else []),
+                *([time_range.end] if time_range.end else [datetime.now(timezone.utc)]),
             ],
-            default=datetime.now(timezone.utc),
         )
         data: dict[datetime, SpanAnnotationScoreTimeSeriesDataPoint] = {
             timestamp: SpanAnnotationScoreTimeSeriesDataPoint(
