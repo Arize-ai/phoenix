@@ -8,6 +8,8 @@ import { TraceErrorsTimeSeries } from "@phoenix/pages/project/TraceErrorsTimeSer
 import { LLMSpanCountTimeSeries } from "./LLMSpanCountTimeSeries";
 import { LLMSpanErrorsTimeSeries } from "./LLMSpanErrorsTimeSeries";
 import { SpanAnnotationScoreTimeSeries } from "./SpanAnnotationScoreTimeSeries";
+import { ToolSpanCountTimeSeries } from "./ToolSpanCountTimeSeries";
+import { ToolSpanErrorsTimeSeries } from "./ToolSpanErrorsTimeSeries";
 import { TraceCountTimeSeries } from "./TraceCountTimeSeries";
 import { TraceLatencyPercentilesTimeSeries } from "./TraceLatencyPercentilesTimeSeries";
 import { TraceTokenCostTimeSeries } from "./TraceTokenCostTimeSeries";
@@ -146,6 +148,17 @@ export function ProjectMetricsPage() {
           subtitle="LLM spans with errors over time"
         >
           <LLMSpanErrorsTimeSeries projectId={projectId} />
+        </MetricPanel>
+      </Flex>
+      <Flex direction="row" gap="size-100">
+        <MetricPanel title="Tool spans" subtitle="Tool span count over time">
+          <ToolSpanCountTimeSeries projectId={projectId} />
+        </MetricPanel>
+        <MetricPanel
+          title="Tool spans with errors"
+          subtitle="Tool spans with errors over time"
+        >
+          <ToolSpanErrorsTimeSeries projectId={projectId} />
         </MetricPanel>
       </Flex>
     </main>
