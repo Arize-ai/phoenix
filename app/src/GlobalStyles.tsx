@@ -1077,10 +1077,17 @@ const opacitiesCSS = css`
 `;
 
 const appGlobalStylesCSS = css`
+  body,
+  input,
+  button {
+    font-family: "Geist", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 400;
+    font-style: normal;
+  }
   body {
     background-color: var(--ac-global-color-grey-75);
     color: var(--ac-global-text-color-900);
-    font-family: "Roboto";
     font-size: var(--ac-global-font-size-s);
     margin: 0;
     overflow: hidden;
