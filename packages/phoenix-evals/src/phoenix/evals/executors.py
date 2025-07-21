@@ -45,7 +45,7 @@ def _ascii_timeline(
     Legend:
         P = Produced/queued, Q = Dequeued, S = Started executing
         * = Executing, T = First timeout, B = Retry timeout (backoff)  
-        W = Waiting/backoff period, R = Re-queued, E = Error, F = Fast completion S&C, C = Completed
+        W = Waiting/backoff period, R = Re-queued, E = Error, F = Fast completion S&C, C = Completed, X = Failed permanently
     """
 
     # Gather all timestamps. If none yet, bail early.
@@ -70,6 +70,7 @@ def _ascii_timeline(
         "E": 4,  # error
         "F": 5,  # fast completion S&C (S+C in same position)
         "C": 5,  # completed
+        "X": 6,  # failed permanently
     }
 
     lines: List[str] = []
@@ -299,8 +300,8 @@ class AsyncExecutor(Executor):
         fallback_return_value: Union[Unset, Any] = _unset,
         termination_signal: signal.Signals = signal.SIGINT,
         task_timeout: int = 20,
-        backoff_base: float = 1.0,
-        max_backoff: float = 60.0,
+        backoff_base: float = 5.0,
+        max_backoff: float = 120.0,
     ):
         self.generate = generation_fn
         self.fallback_return_value = fallback_return_value
@@ -458,6 +459,7 @@ class AsyncExecutor(Executor):
                     # Check if we should keep retrying
                     if retry_count >= self.max_retries:
                         execution_details[index].fail()
+                        execution_details[index].log_event("X")  # Failed permanently
                         tqdm.write(f"❌ Task {index}-a{attempt_no}: Max retries ({self.max_retries}) reached, FAILING permanently")
                         progress_bar.update()
                         continue
@@ -498,6 +500,7 @@ class AsyncExecutor(Executor):
                     await queue.put((priority - 1, item))
                 else:
                     execution_details[index].fail()
+                    execution_details[index].log_event("X")  # Failed permanently
                     tqdm.write(f"Retries exhausted after {retry_count + 1} attempts: {exc}")
                     # attempt history already recorded above for ERROR status
                     if self.exit_on_error:
@@ -692,7 +695,7 @@ class AsyncExecutor(Executor):
         # Final ASCII timeline
         final_timeline = _ascii_timeline(execution_details, width=80, max_tasks=50)
         if final_timeline:
-            tqdm.write("\n📊 Timeline Legend: P=Queued, Q=Dequeued, S=Started, *=Executing, T=Timeout, B=Backoff-timeout, W=Waiting, R=Re-queued, E=Error, F=Fast completion S&C, C=Completed")
+            tqdm.write("\n📊 Timeline Legend: P=Queued, Q=Dequeued, S=Started, *=Executing, T=Timeout, B=Backoff-timeout, W=Waiting, R=Re-queued, E=Error, F=Fast completion S&C, C=Completed, X=Failed")
             tqdm.write("   Note: Fast tasks (<1s) show as 'F' when S&C events occur at same timeline position due to compression")
             tqdm.write("\n" + final_timeline + "\n")
 
@@ -795,6 +798,7 @@ class SyncExecutor(Executor):
                                 tqdm.write("Retrying...")
                 except Exception as exc:
                     execution_details[index].fail()
+                    execution_details[index].log_event("X")  # Failed permanently
                     tqdm.write(f"Retries exhausted after {attempt + 1} attempts: {exc}")
                     # attempt history already recorded above for ERROR status
                     if self.exit_on_error:
@@ -816,8 +820,8 @@ def get_executor_on_sync_context(
     exit_on_error: bool = True,
     fallback_return_value: Union[Unset, Any] = _unset,
     task_timeout: int = 20,
-    backoff_base: float = 1.0,
-    max_backoff: float = 60.0,
+    backoff_base: float = 5.0,
+    max_backoff: float = 120.0,
 ) -> Executor:
     if threading.current_thread() is not threading.main_thread():
         # run evals synchronously if not in the main thread
