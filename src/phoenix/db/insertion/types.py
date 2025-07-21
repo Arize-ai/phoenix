@@ -94,7 +94,8 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT, _DmlEventT]):
     async def insert(self) -> Optional[list[_DmlEventT]]:
         if not self._queue:
             return None
-        self._queue, parcels = [], self._queue
+        parcels = self._queue.copy()
+        self._queue.clear()
         events: list[_DmlEventT] = []
         async with self._db() as session:
             to_insert, to_postpone, _ = await self._partition(session, *parcels)
@@ -104,10 +105,6 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT, _DmlEventT]):
                     to_postpone.extend(to_retry)
         if to_postpone:
             loop = asyncio.get_running_loop()
-            # Note: We use a method instead of self._queue.extend to avoid capturing
-            # the queue reference at scheduling time. Since insert() reassigns self._queue
-            # to a new list, captured references would point to orphaned lists, causing
-            # a race condition where postponed items are lost.
             loop.call_later(self._retry_delay_sec, self._add_postponed_to_queue, to_postpone)
         return events
 
