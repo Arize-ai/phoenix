@@ -24,14 +24,7 @@ export async function getDatasetExamples({
   let datasetId: string;
   const targetVersionId: string | undefined = versionId;
 
-  if ("datasetVersionId" in dataset) {
-    // If selecting by version ID, we need to get the dataset ID first
-    // For now, we'll use the version ID as both dataset ID and version ID
-    // This will need to be updated when we have a way to resolve version ID to dataset ID
-    throw new Error(
-      "Selecting by datasetVersionId is not yet implemented. Please use datasetId or datasetName with optional versionId parameter."
-    );
-  } else if ("datasetName" in dataset) {
+  if ("datasetName" in dataset) {
     const datasetInfo = await getDatasetInfoByName({
       client,
       datasetName: dataset.datasetName,

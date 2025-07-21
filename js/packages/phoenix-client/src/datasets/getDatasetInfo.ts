@@ -19,11 +19,7 @@ export async function getDatasetInfo({
 }: GetDatasetInfoParams): Promise<DatasetInfo> {
   const client = _client || createClient();
 
-  if ("datasetVersionId" in dataset) {
-    throw new Error(
-      "Selecting by datasetVersionId is not yet implemented. Please use datasetId or datasetName."
-    );
-  } else if ("datasetName" in dataset) {
+  if ("datasetName" in dataset) {
     return await getDatasetInfoByName({
       client,
       datasetName: dataset.datasetName,
