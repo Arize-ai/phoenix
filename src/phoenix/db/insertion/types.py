@@ -95,6 +95,8 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT, _DmlEventT]):
         if not self._queue:
             return None
         parcels = self._queue.copy()
+        # IMPORTANT: Use .clear() instead of reassignment, i.e. self._queue = [], to
+        # avoid potential race conditions when appending postponed items to the queue.
         self._queue.clear()
         events: list[_DmlEventT] = []
         async with self._db() as session:
