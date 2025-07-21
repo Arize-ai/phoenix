@@ -516,7 +516,7 @@ def _require_credential(
 
 
 @register_llm_client(
-    provider_key=GenerativeProviderKey.DEEPSEEK,
+    provider_keys=GenerativeProviderKey.DEEPSEEK,
     model_names=[
         PROVIDER_DEFAULT,
         "deepseek-chat",
@@ -552,7 +552,7 @@ class DeepSeekStreamingClient(OpenAIBaseStreamingClient):
 
 
 @register_llm_client(
-    provider_key=GenerativeProviderKey.XAI,
+    provider_keys=GenerativeProviderKey.XAI,
     model_names=[
         PROVIDER_DEFAULT,
         "grok-3",
@@ -590,7 +590,7 @@ class XAIStreamingClient(OpenAIBaseStreamingClient):
 
 
 @register_llm_client(
-    provider_key=GenerativeProviderKey.OLLAMA,
+    provider_keys=GenerativeProviderKey.OLLAMA,
     model_names=[
         PROVIDER_DEFAULT,
         "llama3.3",
@@ -627,7 +627,7 @@ class OllamaStreamingClient(OpenAIBaseStreamingClient):
 
 
 @register_llm_client(
-    provider_key=GenerativeProviderKey.AWS,
+    provider_keys=GenerativeProviderKey.AWS,
     model_names=[
         PROVIDER_DEFAULT,
         "anthropic.claude-3-5-sonnet-20240620-v1:0",
@@ -1086,7 +1086,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
 
 
 @register_llm_client(
-    provider_key=GenerativeProviderKey.OPENAI,
+    provider_keys=GenerativeProviderKey.OPENAI,
     model_names=[
         PROVIDER_DEFAULT,
         "gpt-4.1",
@@ -1141,7 +1141,7 @@ class OpenAIStreamingClient(OpenAIBaseStreamingClient):
 
 
 @register_llm_client(
-    provider_key=GenerativeProviderKey.OPENAI,
+    provider_keys=[GenerativeProviderKey.OPENAI, GenerativeProviderKey.AZURE_OPENAI],
     model_names=[
         "o1",
         "o1-pro",
@@ -1325,7 +1325,7 @@ class OpenAIReasoningStreamingClient(OpenAIStreamingClient):
 
 
 @register_llm_client(
-    provider_key=GenerativeProviderKey.AZURE_OPENAI,
+    provider_keys=GenerativeProviderKey.AZURE_OPENAI,
     model_names=[
         PROVIDER_DEFAULT,
     ],
@@ -1377,7 +1377,7 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
 
 
 @register_llm_client(
-    provider_key=GenerativeProviderKey.ANTHROPIC,
+    provider_keys=GenerativeProviderKey.ANTHROPIC,
     model_names=[
         PROVIDER_DEFAULT,
         "claude-3-5-sonnet-latest",
@@ -1590,7 +1590,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
 
 
 @register_llm_client(
-    provider_key=GenerativeProviderKey.ANTHROPIC,
+    provider_keys=GenerativeProviderKey.ANTHROPIC,
     model_names=[
         "claude-sonnet-4-0",
         "claude-sonnet-4-20250514",
@@ -1615,7 +1615,7 @@ class AnthropicReasoningStreamingClient(AnthropicStreamingClient):
 
 
 @register_llm_client(
-    provider_key=GenerativeProviderKey.GOOGLE,
+    provider_keys=GenerativeProviderKey.GOOGLE,
     model_names=[
         PROVIDER_DEFAULT,
         "gemini-2.5-pro-preview-03-25",
