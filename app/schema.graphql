@@ -1730,8 +1730,8 @@ type Project implements Node {
   traceTokenCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceTokenCountTimeSeries!
   traceTokenCostTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceTokenCostTimeSeries!
   spanAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): SpanAnnotationScoreTimeSeries!
-  topModelsByCost(timeRange: TimeRange!): TopModelsByCostPayload!
-  topModelsByTokenCount(timeRange: TimeRange!): TopModelsByTokenCountPayload!
+  topModelsByCost(timeRange: TimeRange!, limit: Int! = 5): TopModelsByCostPayload!
+  topModelsByTokenCount(timeRange: TimeRange!, limit: Int! = 5): TopModelsByTokenCountPayload!
 }
 
 enum ProjectColumn {

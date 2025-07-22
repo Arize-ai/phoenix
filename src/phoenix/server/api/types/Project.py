@@ -1329,7 +1329,10 @@ class Project(Node):
 
     @strawberry.field
     async def top_models_by_cost(
-        self, info: Info[Context, None], time_range: TimeRange
+        self,
+        info: Info[Context, None],
+        time_range: TimeRange,
+        limit: int = 5,
     ) -> TopModelsByCostPayload:
         if time_range.start is None:
             raise BadRequest("Start time is required")
@@ -1360,6 +1363,7 @@ class Project(Node):
                 .where(models.SpanCost.span_start_time < time_range.end)
                 .group_by(models.SpanCost.model_id)
                 .order_by(func.sum(models.SpanCost.total_cost).desc())
+                .limit(limit)
             )
             results = []
             cost_summaries = []
@@ -1384,7 +1388,10 @@ class Project(Node):
 
     @strawberry.field
     async def top_models_by_token_count(
-        self, info: Info[Context, None], time_range: TimeRange
+        self,
+        info: Info[Context, None],
+        time_range: TimeRange,
+        limit: int = 5,
     ) -> TopModelsByTokenCountPayload:
         if time_range.start is None:
             raise BadRequest("Start time is required")
@@ -1415,6 +1422,7 @@ class Project(Node):
                 .where(models.SpanCost.span_start_time < time_range.end)
                 .group_by(models.SpanCost.model_id)
                 .order_by(func.sum(models.SpanCost.total_tokens).desc())
+                .limit(limit)
             )
             results = []
             cost_summaries = []
