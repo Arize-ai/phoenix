@@ -1,0 +1,76 @@
+from typing import Any, Optional
+
+
+class LLMBase:
+    def __init__(
+        self,
+        *,
+        client: Optional[Any] = None,
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
+    ):
+        self.client = client
+        self.provider = provider
+        self.model = model
+
+        by_sdk = client is not None
+        by_provider = provider is not None and model is not None
+
+        if not (by_sdk or by_provider):
+            raise ValueError(
+                "Must specify either 'client' or both 'provider' and 'model'. "
+                "Examples:\n"
+                "  LLM(client=my_client)\n"
+                "  LLM(provider='openai', model='gpt-4')"
+            )
+
+        if by_provider:
+            try:
+                provider_registrations = _provider_registry.get_provider_registrations(provider)
+                if not provider_registrations:
+                    available_providers = _provider_registry.list_providers()
+                    raise ValueError(
+                        f"Unknown provider '{provider}'. Available providers: {available_providers}"
+                    )
+
+                registration = provider_registrations[0]
+                client = registration.client_factory(model=model)
+                adapter = registration.adapter_class
+
+            except Exception as e:
+                available_providers = _provider_registry.list_providers()
+                raise ValueError(
+                    f"Failed to create client for provider '{provider}': {e}\n"
+                    f"Available providers: {available_providers}"
+                ) from e
+        elif by_sdk:
+            adapter_class = _adapter_registry.find_adapter(client)
+            if adapter_class is None:
+                available_adapters = _adapter_registry.list_adapters()
+                raise ValueError(
+                    f"No suitable adapter found for client of type {type(client)}. "
+                    f"Available adapters: {available_adapters}. "
+                    f"Please ensure you have the correct SDK installed and the client is properly "
+                    "initialized."
+                )
+
+        self._client = client
+        self._adapter = adapter_class(client)
+
+
+class LLM(LLMBase):
+    def generate_text(self, prompt: str, **kwargs: Any) -> str:
+        return self._adapter.generate_text(prompt, **kwargs)
+
+    def generate_object(self, prompt: str, schema: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
+        return self._adapter.generate_object(prompt, schema, **kwargs)
+
+
+class AsyncLLM(LLMBase):
+    async def generate_text(self, prompt: str, **kwargs: Any) -> str:
+        return await self._adapter.async_generate_text(prompt, **kwargs)
+
+    async def generate_object(
+        self, prompt: str, schema: Dict[str, Any], **kwargs: Any
+    ) -> Dict[str, Any]:
+        return await self._adapter.async_generate_object(prompt, schema, **kwargs)
