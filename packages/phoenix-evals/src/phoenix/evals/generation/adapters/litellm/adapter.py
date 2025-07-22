@@ -1,7 +1,7 @@
 import base64
 import json
 import logging
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Union
 from urllib.parse import urlparse
 
 from phoenix.evals.exceptions import PhoenixUnsupportedAudioFormat
@@ -52,27 +52,14 @@ class LiteLLMAdapter(BaseLLMAdapter):
             raise ImportError("LiteLLM package not installed. Run: pip install litellm")
 
     def generate_text(
-        self, prompt: Union[str, MultimodalPrompt], instruction: Optional[str] = None, **kwargs: Any
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Any
     ) -> str:
         """Generate text using LiteLLM."""
-        # Convert multimodal prompt to text
-        if isinstance(prompt, MultimodalPrompt):
-            prompt_text = prompt.to_text_only_prompt()
-        else:
-            prompt_text = prompt
-
-        # Build messages for LiteLLM
-        messages = []
-        if instruction:
-            messages.append({"role": "system", "content": instruction})
-        messages.append({"role": "user", "content": prompt_text})
-
-        # Merge client config with call-specific kwargs
-        call_kwargs = {**self.client.config, **kwargs}
+        messages = self._build_messages(prompt)
 
         try:
             response = self._litellm.completion(  # pyright: ignore
-                model=self.client.model_string, messages=messages, **call_kwargs
+                model=self.client.model_string, messages=messages, **kwargs
             )
             content = response.choices[0].message.content  # pyright: ignore
             if content is None:
@@ -83,27 +70,14 @@ class LiteLLMAdapter(BaseLLMAdapter):
             raise
 
     async def agenerate_text(
-        self, prompt: Union[str, MultimodalPrompt], instruction: Optional[str] = None, **kwargs: Any
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Any
     ) -> str:
         """Async text generation using LiteLLM."""
-        # Convert multimodal prompt to text
-        if isinstance(prompt, MultimodalPrompt):
-            prompt_text = prompt.to_text_only_prompt()
-        else:
-            prompt_text = prompt
-
-        # Build messages for LiteLLM
-        messages = []
-        if instruction:
-            messages.append({"role": "system", "content": instruction})
-        messages.append({"role": "user", "content": prompt_text})
-
-        # Merge client config with call-specific kwargs
-        call_kwargs = {**self.client.config, **kwargs}
+        messages = self._build_messages(prompt)
 
         try:
             response = await self._litellm.acompletion(  # pyright: ignore
-                model=self.client.model_string, messages=messages, **call_kwargs
+                model=self.client.model_string, messages=messages, **kwargs
             )
             content = response.choices[0].message.content  # pyright: ignore
             if content is None:

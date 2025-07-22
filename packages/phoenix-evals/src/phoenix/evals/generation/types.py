@@ -21,14 +21,14 @@ class BaseLLMAdapter(ABC):
 
     @abstractmethod
     def generate_text(
-        self, prompt: Union[str, MultimodalPrompt], instruction: Optional[str] = None, **kwargs: Any
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Any
     ) -> str:
         """Generate text response from the model."""
         pass
 
     @abstractmethod
     async def agenerate_text(
-        self, prompt: Union[str, MultimodalPrompt], instruction: Optional[str] = None, **kwargs: Any
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Any
     ) -> str:
         """Async version of generate_text."""
         pass
