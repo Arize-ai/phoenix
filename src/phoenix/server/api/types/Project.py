@@ -1339,6 +1339,9 @@ class Project(Node):
             stmt = (
                 select(
                     models.GenerativeModel,
+                    func.sum(models.SpanCost.total_tokens).label("total_tokens"),
+                    func.sum(models.SpanCost.prompt_tokens).label("prompt_tokens"),
+                    func.sum(models.SpanCost.completion_tokens).label("completion_tokens"),
                     func.sum(models.SpanCost.total_cost).label("total_cost"),
                     func.sum(models.SpanCost.prompt_cost).label("prompt_cost"),
                     func.sum(models.SpanCost.completion_cost).label("completion_cost"),
@@ -1362,6 +1365,9 @@ class Project(Node):
             cost_summaries = []
             async for (
                 model,
+                total_tokens,
+                prompt_tokens,
+                completion_tokens,
                 total_cost,
                 prompt_cost,
                 completion_cost,
@@ -1369,9 +1375,9 @@ class Project(Node):
                 results.append(to_gql_generative_model(model))
                 cost_summaries.append(
                     SpanCostSummary(
-                        prompt=CostBreakdown(tokens=prompt_cost, cost=prompt_cost),
-                        completion=CostBreakdown(tokens=completion_cost, cost=completion_cost),
-                        total=CostBreakdown(tokens=total_cost, cost=total_cost),
+                        prompt=CostBreakdown(tokens=prompt_tokens, cost=prompt_cost),
+                        completion=CostBreakdown(tokens=completion_tokens, cost=completion_cost),
+                        total=CostBreakdown(tokens=total_tokens, cost=total_cost),
                     )
                 )
             return TopModelsByCostPayload(models=results, cost_summaries=cost_summaries)
@@ -1391,6 +1397,9 @@ class Project(Node):
                     func.sum(models.SpanCost.total_tokens).label("total_tokens"),
                     func.sum(models.SpanCost.prompt_tokens).label("prompt_tokens"),
                     func.sum(models.SpanCost.completion_tokens).label("completion_tokens"),
+                    func.sum(models.SpanCost.total_cost).label("total_cost"),
+                    func.sum(models.SpanCost.prompt_cost).label("prompt_cost"),
+                    func.sum(models.SpanCost.completion_cost).label("completion_cost"),
                 )
                 .join(
                     models.SpanCost,
@@ -1414,13 +1423,16 @@ class Project(Node):
                 total_tokens,
                 prompt_tokens,
                 completion_tokens,
+                total_cost,
+                prompt_cost,
+                completion_cost,
             ) in await session.stream(stmt):
                 results.append(to_gql_generative_model(model))
                 cost_summaries.append(
                     SpanCostSummary(
-                        prompt=CostBreakdown(tokens=prompt_tokens, cost=prompt_tokens),
-                        completion=CostBreakdown(tokens=completion_tokens, cost=completion_tokens),
-                        total=CostBreakdown(tokens=total_tokens, cost=total_tokens),
+                        prompt=CostBreakdown(tokens=prompt_tokens, cost=prompt_cost),
+                        completion=CostBreakdown(tokens=completion_tokens, cost=completion_cost),
+                        total=CostBreakdown(tokens=total_tokens, cost=total_cost),
                     )
                 )
             return TopModelsByTokenCountPayload(models=results, cost_summaries=cost_summaries)
