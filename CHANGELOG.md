@@ -1,5 +1,21 @@
 # Changelog
 
+## [11.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.9.0...arize-phoenix-v11.10.0) (2025-07-22)
+
+
+### Features
+
+* **design:** add icon button figma link ([#8704](https://github.com/Arize-ai/phoenix/issues/8704)) ([a7a2c82](https://github.com/Arize-ai/phoenix/commit/a7a2c821e5283f7c864a401d84e62e90be68b097))
+* **design:** geist font ([#8690](https://github.com/Arize-ai/phoenix/issues/8690)) ([7aaaea0](https://github.com/Arize-ai/phoenix/commit/7aaaea0a047bab9421a62cf39dfe30cbfbfa356f))
+* **design:** globally define the hights of buttons and inputs ([#8713](https://github.com/Arize-ai/phoenix/issues/8713)) ([4a81bfe](https://github.com/Arize-ai/phoenix/commit/4a81bfec84c8d17be8a2ed1e6d54023a255db30a))
+* display allocated db storage capacity if specified ([#8715](https://github.com/Arize-ai/phoenix/issues/8715)) ([94f9b22](https://github.com/Arize-ai/phoenix/commit/94f9b223d9d5607b43c47266a7b3d01fbc0aa69c))
+* **metrics:** llm and tool span counts ([#8693](https://github.com/Arize-ai/phoenix/issues/8693)) ([2f2f2a1](https://github.com/Arize-ai/phoenix/commit/2f2f2a15aec1ed6cb75b30791556b1023b9a4259))
+
+
+### Bug Fixes
+
+* **design:** scope colors to to theme boundary for split view ([#8712](https://github.com/Arize-ai/phoenix/issues/8712)) ([eab8c07](https://github.com/Arize-ai/phoenix/commit/eab8c072c0913f209294522b418ed92b8646cc52))
+
 ## [11.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.8.0...arize-phoenix-v11.9.0) (2025-07-21)
 
 
