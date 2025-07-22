@@ -14,7 +14,8 @@ export const fieldBaseCSS = css`
   .react-aria-Label {
     padding: 5px 0;
     display: inline-block;
-    font-size: var(--ac-global-dimension-static-font-size-75);
+    font-size: var(--ac-global-font-size-xs);
+    line-height: var(--ac-global-line-height-xs);
     font-weight: var(--px-font-weight-heavy);
   }
 
