@@ -24,7 +24,7 @@ By establishing this feedback loop and an evaluation pipeline, you can effective
 
 {% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/annotations/custom-annotations-tool-for-eval-driven-development.ipynb" %}
 
-&#x20;We will go through key code snippets on this page. To follow along the full tutorial, check out the notebook or video above.&#x20;
+&#x20;We will go through key code snippets on this page. To follow the full tutorial, check out the notebook or video above.&#x20;
 
 ## &#x20;Generate traces to annotate
 
