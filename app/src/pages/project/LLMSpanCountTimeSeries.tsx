@@ -28,7 +28,7 @@ import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
-import type { TraceCountTimeSeriesQuery } from "./__generated__/TraceCountTimeSeriesQuery.graphql";
+import type { LLMSpanCountTimeSeriesQuery } from "./__generated__/LLMSpanCountTimeSeriesQuery.graphql";
 
 function TooltipContent({
   active,
@@ -38,10 +38,11 @@ function TooltipContent({
   const SemanticChartColors = useSemanticChartColors();
   const chartColors = useChartColors();
   if (active && payload && payload.length) {
-    // For stacked bar charts, payload[0] is the first bar (error), payload[1] is the second bar (ok)
     const errorValue = payload[0]?.value ?? null;
-    const okValue = payload[1]?.value ?? null;
+    const unsetValue = payload[1]?.value ?? null;
+    const okValue = payload[2]?.value ?? null;
     const okString = intFormatter(okValue);
+    const unsetString = intFormatter(unsetValue);
     const errorString = intFormatter(errorValue);
     return (
       <ChartTooltip>
@@ -57,6 +58,12 @@ function TooltipContent({
           value={errorString}
         />
         <ChartTooltipItem
+          color={chartColors.gray300}
+          shape="circle"
+          name="unset"
+          value={unsetString}
+        />
+        <ChartTooltipItem
           color={chartColors.default}
           shape="circle"
           name="ok"
@@ -69,28 +76,31 @@ function TooltipContent({
   return null;
 }
 
-export function TraceCountTimeSeries({ projectId }: { projectId: string }) {
+export function LLMSpanCountTimeSeries({ projectId }: { projectId: string }) {
   const { timeRange } = useTimeRange();
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
 
-  const data = useLazyLoadQuery<TraceCountTimeSeriesQuery>(
+  const data = useLazyLoadQuery<LLMSpanCountTimeSeriesQuery>(
     graphql`
-      query TraceCountTimeSeriesQuery(
+      query LLMSpanCountTimeSeriesQuery(
         $projectId: ID!
         $timeRange: TimeRange!
         $timeBinConfig: TimeBinConfig!
+        $filterCondition: String!
       ) {
         project: node(id: $projectId) {
           ... on Project {
-            traceCountByStatusTimeSeries(
+            spanCountTimeSeries(
               timeRange: $timeRange
               timeBinConfig: $timeBinConfig
+              filterCondition: $filterCondition
             ) {
               data {
                 timestamp
                 okCount
                 errorCount
+                unsetCount
               }
             }
           }
@@ -107,14 +117,16 @@ export function TraceCountTimeSeries({ projectId }: { projectId: string }) {
         scale,
         utcOffsetMinutes,
       },
+      filterCondition: 'span_kind == "LLM"',
     }
   );
 
-  const chartData = (data.project.traceCountByStatusTimeSeries?.data ?? []).map(
+  const chartData = (data.project.spanCountTimeSeries?.data ?? []).map(
     (datum) => ({
       timestamp: datum.timestamp,
-      ok: datum.okCount,
       error: datum.errorCount,
+      unset: datum.unsetCount,
+      ok: datum.okCount,
     })
   );
 
@@ -165,13 +177,13 @@ export function TraceCountTimeSeries({ projectId }: { projectId: string }) {
           cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
         />
         <Bar dataKey="error" stackId="a" fill={SemanticChartColors.danger} />
+        <Bar dataKey="unset" stackId="a" fill={colors.gray300} />
         <Bar
           dataKey="ok"
           stackId="a"
           fill={colors.default}
           radius={[2, 2, 0, 0]}
         />
-
         <Legend align="left" iconType="circle" iconSize={8} />
       </BarChart>
     </ResponsiveContainer>

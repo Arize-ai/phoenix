@@ -110,7 +110,23 @@ def llm_span(start_time: int, end_time: int) -> ReadableSpan:
         row = df.sample(1).iloc[0]
         span.set_attribute("llm.provider", str(row.provider))
         span.set_attribute("llm.model_name", str(row.model_name))
-    if random() < 0.01:
+    if random() < 0.15:
+        span.set_status(StatusCode.UNSET)
+    elif random() < 0.2:
+        span.set_status(StatusCode.ERROR)
+    else:
+        span.set_status(StatusCode.OK)
+    span.end(end_time=end_time)
+    return span
+
+
+def tool_span(start_time: int, end_time: int) -> ReadableSpan:
+    with tracer.start_as_current_span(
+        token_hex(6), start_time=start_time, end_on_exit=False
+    ) as span:
+        span.set_attribute("openinference.span.kind", "TOOL")
+
+    if random() < 0.15:
         span.set_status(StatusCode.UNSET)
     elif random() < 0.2:
         span.set_status(StatusCode.ERROR)
@@ -195,8 +211,16 @@ for t in sorted(generate_timestamps(), reverse=True):
         start_time=start_time,
         end_on_exit=False,
     ) as root_span:
-        llm_span(start_time, end_time)
-        llm_span(start_time, end_time)
+        # Generate 1-3 LLM spans
+        num_llm_spans = randint(1, 3)
+        for _ in range(num_llm_spans):
+            llm_span(start_time, end_time)
+
+        # Generate 0-2 tool spans
+        if random() < 0.7:
+            num_tool_spans = randint(1, 2)
+            for _ in range(num_tool_spans):
+                tool_span(start_time, end_time)
     root_span.end(end_time=end_time)
     spans.append(root_span)
     span_id = format_span_id(root_span.get_span_context().span_id)

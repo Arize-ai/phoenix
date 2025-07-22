@@ -18,7 +18,6 @@ import {
   defaultCartesianGridProps,
   defaultXAxisProps,
   defaultYAxisProps,
-  useChartColors,
   useSemanticChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
@@ -28,7 +27,7 @@ import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
-import type { TraceCountTimeSeriesQuery } from "./__generated__/TraceCountTimeSeriesQuery.graphql";
+import type { ToolSpanErrorsTimeSeriesQuery } from "./__generated__/ToolSpanErrorsTimeSeriesQuery.graphql";
 
 function TooltipContent({
   active,
@@ -36,12 +35,8 @@ function TooltipContent({
   label,
 }: TooltipContentProps<number, string>) {
   const SemanticChartColors = useSemanticChartColors();
-  const chartColors = useChartColors();
   if (active && payload && payload.length) {
-    // For stacked bar charts, payload[0] is the first bar (error), payload[1] is the second bar (ok)
     const errorValue = payload[0]?.value ?? null;
-    const okValue = payload[1]?.value ?? null;
-    const okString = intFormatter(okValue);
     const errorString = intFormatter(errorValue);
     return (
       <ChartTooltip>
@@ -56,12 +51,6 @@ function TooltipContent({
           name="error"
           value={errorString}
         />
-        <ChartTooltipItem
-          color={chartColors.default}
-          shape="circle"
-          name="ok"
-          value={okString}
-        />
       </ChartTooltip>
     );
   }
@@ -69,27 +58,28 @@ function TooltipContent({
   return null;
 }
 
-export function TraceCountTimeSeries({ projectId }: { projectId: string }) {
+export function ToolSpanErrorsTimeSeries({ projectId }: { projectId: string }) {
   const { timeRange } = useTimeRange();
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
 
-  const data = useLazyLoadQuery<TraceCountTimeSeriesQuery>(
+  const data = useLazyLoadQuery<ToolSpanErrorsTimeSeriesQuery>(
     graphql`
-      query TraceCountTimeSeriesQuery(
+      query ToolSpanErrorsTimeSeriesQuery(
         $projectId: ID!
         $timeRange: TimeRange!
         $timeBinConfig: TimeBinConfig!
+        $filterCondition: String!
       ) {
         project: node(id: $projectId) {
           ... on Project {
-            traceCountByStatusTimeSeries(
+            spanCountTimeSeries(
               timeRange: $timeRange
               timeBinConfig: $timeBinConfig
+              filterCondition: $filterCondition
             ) {
               data {
                 timestamp
-                okCount
                 errorCount
               }
             }
@@ -107,13 +97,13 @@ export function TraceCountTimeSeries({ projectId }: { projectId: string }) {
         scale,
         utcOffsetMinutes,
       },
+      filterCondition: 'span_kind == "TOOL"',
     }
   );
 
-  const chartData = (data.project.traceCountByStatusTimeSeries?.data ?? []).map(
+  const chartData = (data.project.spanCountTimeSeries?.data ?? []).map(
     (datum) => ({
       timestamp: datum.timestamp,
-      ok: datum.okCount,
       error: datum.errorCount,
     })
   );
@@ -131,7 +121,6 @@ export function TraceCountTimeSeries({ projectId }: { projectId: string }) {
     })(),
   });
 
-  const colors = useChartColors();
   const SemanticChartColors = useSemanticChartColors();
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -164,11 +153,10 @@ export function TraceCountTimeSeries({ projectId }: { projectId: string }) {
           // TODO formalize this
           cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
         />
-        <Bar dataKey="error" stackId="a" fill={SemanticChartColors.danger} />
         <Bar
-          dataKey="ok"
+          dataKey="error"
           stackId="a"
-          fill={colors.default}
+          fill={SemanticChartColors.danger}
           radius={[2, 2, 0, 0]}
         />
 
