@@ -140,8 +140,9 @@ async def test_prompts_without_filter(
 
     response = await gql_client.execute(query=query)
     assert not response.errors
-    assert len(response.data["prompts"]["edges"]) == 3
-    prompt_names = [edge["prompt"]["name"] for edge in response.data["prompts"]["edges"]]
+    assert (data := response.data) is not None
+    assert len(data["prompts"]["edges"]) == 3
+    prompt_names = [edge["prompt"]["name"] for edge in data["prompts"]["edges"]]
     assert "test_prompt_one" in prompt_names
     assert "test_prompt_two" in prompt_names
     assert "production_prompt" in prompt_names
