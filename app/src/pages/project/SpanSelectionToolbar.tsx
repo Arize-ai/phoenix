@@ -14,7 +14,6 @@ import {
   Modal,
   ModalOverlay,
   Popover,
-  Separator,
   Text,
   Toolbar,
   View,
@@ -151,17 +150,16 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
       <Toolbar>
         <Group aria-label="Span selection">
           <IconButton
-            size="S"
+            size="M"
             onPress={onClearSelection}
             aria-label="Clear selection"
           >
             <Icon svg={<Icons.CloseOutline />} />
           </IconButton>
-          <View minWidth={200}>
+          <View paddingEnd="size-100">
             <Text>{`${selectedSpans.length} span${isPlural ? "s" : ""} selected`}</Text>
           </View>
         </Group>
-        <Separator orientation="vertical" />
         <Group aria-label="Span selection actions">
           <DialogTrigger
             isOpen={isDatasetPopoverOpen}
@@ -171,7 +169,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
           >
             <Button
               variant="primary"
-              size="S"
+              size="M"
               leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
               onPress={() => {
                 setIsDatasetPopoverOpen(true);
@@ -244,15 +242,14 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
               </ModalOverlay>
             </Popover>
           </DialogTrigger>
-          <IconButton
-            size="S"
+          <Button
+            size="M"
             aria-label="Delete Traces"
             isDisabled={isDeletingTraces}
             onPress={onDeletePress}
-            color="danger"
-          >
-            <Icon svg={<Icons.TrashOutline />} />
-          </IconButton>
+            variant="danger"
+            leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+          ></Button>
           {/* Delete traces dialog */}
           <DialogTrigger
             isOpen={isDeletingTracesDialogOpen}

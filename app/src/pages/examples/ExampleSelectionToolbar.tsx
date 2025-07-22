@@ -1,6 +1,5 @@
 import { ReactNode, useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
-import { css } from "@emotion/react";
 
 import { DialogContainer } from "@arizeai/components";
 
@@ -11,6 +10,7 @@ import {
   IconButton,
   Icons,
   Text,
+  Toolbar,
   Tooltip,
   TooltipTrigger,
   View,
@@ -88,12 +88,12 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
   ]);
   return (
     <FloatingToolbarContainer>
-      <Flex direction="row" justifyContent="space-between" alignItems="center">
-        <View minWidth={300}>
+      <Toolbar>
+        <View paddingEnd="size-100">
           <Flex direction="row" gap="size-100" alignItems="center">
             <TooltipTrigger>
               <IconButton
-                size="S"
+                size="M"
                 onPress={onClearSelection}
                 aria-label="Clear selection"
               >
@@ -104,27 +104,27 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
             <Text>{`${selectedExamples.length} example${isPlural ? "s" : ""} selected`}</Text>
           </Flex>
         </View>
-        <Flex direction="row" gap="size-100">
-          <Button
-            variant="danger"
-            size="S"
-            leadingVisual={
-              <Icon
-                svg={
-                  isDeletingExamples ? (
-                    <Icons.LoadingOutline />
-                  ) : (
-                    <Icons.TrashOutline />
-                  )
-                }
-              />
-            }
-            isDisabled={isDeletingExamples}
-            onPress={onDeleteExamples}
-            aria-label="Delete Examples"
-          />
-        </Flex>
-      </Flex>
+        <Button
+          variant="danger"
+          size="M"
+          leadingVisual={
+            <Icon
+              svg={
+                isDeletingExamples ? (
+                  <Icons.LoadingOutline />
+                ) : (
+                  <Icons.TrashOutline />
+                )
+              }
+            />
+          }
+          isDisabled={isDeletingExamples}
+          onPress={onDeleteExamples}
+          aria-label="Delete Examples"
+        >
+          Delete
+        </Button>
+      </Toolbar>
       <DialogContainer
         onDismiss={() => {
           setDialog(null);

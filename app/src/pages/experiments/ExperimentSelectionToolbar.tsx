@@ -7,10 +7,12 @@ import {
   Button,
   Dialog,
   Flex,
+  Group,
   Icon,
   IconButton,
   Icons,
   Text,
+  Toolbar,
   View,
 } from "@phoenix/components";
 import {
@@ -129,28 +131,23 @@ export function ExperimentSelectionToolbar(
 
   return (
     <FloatingToolbarContainer>
-      <Flex
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        gap="size-100"
-      >
-        <View minWidth={300}>
-          <Flex direction="row" gap="size-100" alignItems="center">
-            <IconButton
-              size="S"
-              onPress={onClearSelection}
-              aria-label="Clear selection"
-            >
-              <Icon svg={<Icons.CloseOutline />} />
-            </IconButton>
-            <Text>{`${selectedExperiments.length} experiment${isPlural ? "s" : ""} selected`}</Text>
-          </Flex>
-        </View>
-        <Flex direction="row" gap="size-100">
+      <Toolbar aria-label="Experiment selection">
+        <Group aria-label="Experiment selection">
+          <View paddingEnd="size-100">
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <IconButton
+                size="S"
+                onPress={onClearSelection}
+                aria-label="Clear selection"
+              >
+                <Icon svg={<Icons.CloseOutline />} />
+              </IconButton>
+              <Text>{`${selectedExperiments.length} experiment${isPlural ? "s" : ""} selected`}</Text>
+            </Flex>
+          </View>
           <Button
             variant="primary"
-            size="S"
+            size="M"
             onPress={() => {
               const baselineExperimentId =
                 selectedExperiments[selectedExperiments.length - 1].id; // treat the oldest experiment as the baseline
@@ -170,7 +167,7 @@ export function ExperimentSelectionToolbar(
           </Button>
           <Button
             variant="danger"
-            size="S"
+            size="M"
             leadingVisual={
               <Icon
                 svg={
@@ -186,8 +183,8 @@ export function ExperimentSelectionToolbar(
             onPress={onPressDelete}
             aria-label="Delete Experiments"
           />
-        </Flex>
-      </Flex>
+        </Group>
+      </Toolbar>
       {dialog}
     </FloatingToolbarContainer>
   );

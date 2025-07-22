@@ -64,7 +64,7 @@ export function DatasetSelectorPopoverContent(
           css={css`
             height: 400px;
             overflow-y: auto;
-            min-width: 300px;
+            min-width: 400px;
           `}
         >
           <DatasetsListBox
