@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7f0545561fdbd9a02eaf754ef1bbcc67>>
+ * @generated SignedSource<<c7ab0b5e7e3b432ad4706b1ab857ef91>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -88,7 +88,13 @@ v4 = {
         },
         {
           "alias": null,
-          "args": null,
+          "args": [
+            {
+              "kind": "Variable",
+              "name": "projectId",
+              "variableName": "projectId"
+            }
+          ],
           "concreteType": "SpanCostSummary",
           "kind": "LinkedField",
           "name": "costSummary",
@@ -186,16 +192,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "3ff72c7d1677035f68129b86a3ce00f0",
+    "cacheID": "4c5625e9c3e8ef290751dca667053c55",
     "id": null,
     "metadata": {},
     "name": "TopModelsByCostQuery",
     "operationKind": "query",
-    "text": "query TopModelsByCostQuery(\n  $projectId: ID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      topModelsByCost {\n        id\n        name\n        costSummary {\n          prompt {\n            cost\n          }\n          completion {\n            cost\n          }\n          total {\n            cost\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query TopModelsByCostQuery(\n  $projectId: ID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      topModelsByCost {\n        id\n        name\n        costSummary(projectId: $projectId) {\n          prompt {\n            cost\n          }\n          completion {\n            cost\n          }\n          total {\n            cost\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c2cc688706061fb768bcb5182e78c7b4";
+(node as any).hash = "41f5611c137b7f8167b184570d8c770d";
 
 export default node;

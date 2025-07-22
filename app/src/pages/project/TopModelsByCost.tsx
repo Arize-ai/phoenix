@@ -67,7 +67,7 @@ export function TopModelsByCost({ projectId }: { projectId: string }) {
             topModelsByCost {
               id
               name
-              costSummary {
+              costSummary(projectId: $projectId) {
                 prompt {
                   cost
                 }
