@@ -12,8 +12,18 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Button, Flex, Icon, Icons, Text } from "@phoenix/components";
+import {
+  Button,
+  Icon,
+  IconButton,
+  Icons,
+  Text,
+  Tooltip,
+  TooltipTrigger,
+  View,
+} from "@phoenix/components";
 import { FloatCell, IntCell, TextCell } from "@phoenix/components/table";
+import { Separator, Toolbar } from "@phoenix/components/toolbar";
 import { FloatingToolbarContainer } from "@phoenix/components/toolbar/FloatingToolbarContainer";
 
 import { IndeterminateCheckboxCell } from "../src/components/table/IndeterminateCheckboxCell";
@@ -623,19 +633,28 @@ const SelectableStoryComponent = () => {
     <div style={{ position: "relative" }}>
       {selectedCount > 0 && (
         <FloatingToolbarContainer>
-          <Flex
-            direction="row"
-            gap="size-100"
-            alignItems="center"
-            justifyContent="space-between"
-          >
-            <Text>{`${selectedCount} row${selectedCount > 1 ? "s" : ""} selected`}</Text>
-            <Button
-              variant="danger"
-              size="S"
-              leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
-            />
-          </Flex>
+          <Toolbar>
+            <TooltipTrigger>
+              <IconButton>
+                <Icon svg={<Icons.CloseOutline />} />
+              </IconButton>
+            </TooltipTrigger>
+            <Tooltip>Clear selection</Tooltip>
+            <View minWidth={300}>
+              <Text>{`${selectedCount} row${selectedCount > 1 ? "s" : ""} selected`}</Text>
+            </View>
+            <Separator orientation="vertical" />
+            <TooltipTrigger>
+              <Button
+                variant="danger"
+                size="S"
+                leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+              />
+              <Tooltip>
+                <Text>Delete</Text>
+              </Tooltip>
+            </TooltipTrigger>
+          </Toolbar>
         </FloatingToolbarContainer>
       )}
       <PersonTableSelectable
