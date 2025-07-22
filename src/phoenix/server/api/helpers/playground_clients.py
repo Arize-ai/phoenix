@@ -386,7 +386,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                             )
                             yield tool_call_chunk
         if token_usage is not None:
-            self._attributes.update(dict(_llm_token_counts(token_usage)))
+            self._attributes.update(dict(self._llm_token_counts(token_usage)))
 
     def to_openai_chat_completion_param(
         self,
@@ -430,7 +430,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                         "content": content,
                         "role": "assistant",
                         "tool_calls": [
-                            _to_openai_tool_call_param(tool_call) for tool_call in tool_calls
+                            self.to_openai_tool_call_param(tool_call) for tool_call in tool_calls
                         ],
                     }
                 )
@@ -442,49 +442,55 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
             )
         assert_never(role)
 
+    def to_openai_tool_call_param(
+        self,
+        tool_call: JSONScalarType,
+    ) -> "ChatCompletionMessageToolCallParam":
+        from openai.types.chat import ChatCompletionMessageToolCallParam
 
-def _to_openai_tool_call_param(
-    tool_call: JSONScalarType,
-) -> "ChatCompletionMessageToolCallParam":
-    from openai.types.chat import ChatCompletionMessageToolCallParam
+        return ChatCompletionMessageToolCallParam(
+            id=tool_call.get("id", ""),
+            function={
+                "name": tool_call.get("function", {}).get("name", ""),
+                "arguments": safe_json_dumps(tool_call.get("function", {}).get("arguments", "")),
+            },
+            type="function",
+        )
 
-    return ChatCompletionMessageToolCallParam(
-        id=tool_call.get("id", ""),
-        function={
-            "name": tool_call.get("function", {}).get("name", ""),
-            "arguments": safe_json_dumps(tool_call.get("function", {}).get("arguments", "")),
-        },
-        type="function",
-    )
+    @staticmethod
+    def _llm_token_counts(usage: "CompletionUsage") -> Iterator[tuple[str, Any]]:
+        yield LLM_TOKEN_COUNT_PROMPT, usage.prompt_tokens
+        yield LLM_TOKEN_COUNT_COMPLETION, usage.completion_tokens
+        yield LLM_TOKEN_COUNT_TOTAL, usage.total_tokens
 
+        if hasattr(usage, "prompt_tokens_details") and usage.prompt_tokens_details is not None:
+            prompt_details = usage.prompt_tokens_details
+            if (
+                hasattr(prompt_details, "cached_tokens")
+                and prompt_details.cached_tokens is not None
+            ):
+                yield LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ, prompt_details.cached_tokens
+            if hasattr(prompt_details, "audio_tokens") and prompt_details.audio_tokens is not None:
+                yield LLM_TOKEN_COUNT_PROMPT_DETAILS_AUDIO, prompt_details.audio_tokens
 
-def _llm_token_counts(usage: "CompletionUsage") -> Iterator[tuple[str, Any]]:
-    yield LLM_TOKEN_COUNT_PROMPT, usage.prompt_tokens
-    yield LLM_TOKEN_COUNT_COMPLETION, usage.completion_tokens
-    yield LLM_TOKEN_COUNT_TOTAL, usage.total_tokens
-
-    if hasattr(usage, "prompt_tokens_details") and usage.prompt_tokens_details is not None:
-        prompt_details = usage.prompt_tokens_details
-        if hasattr(prompt_details, "cached_tokens") and prompt_details.cached_tokens is not None:
-            yield LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ, prompt_details.cached_tokens
-        if hasattr(prompt_details, "audio_tokens") and prompt_details.audio_tokens is not None:
-            yield LLM_TOKEN_COUNT_PROMPT_DETAILS_AUDIO, prompt_details.audio_tokens
-
-    if hasattr(usage, "completion_tokens_details") and usage.completion_tokens_details is not None:
-        completion_details = usage.completion_tokens_details
         if (
-            hasattr(completion_details, "reasoning_tokens")
-            and completion_details.reasoning_tokens is not None
+            hasattr(usage, "completion_tokens_details")
+            and usage.completion_tokens_details is not None
         ):
-            yield (
-                LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING,
-                completion_details.reasoning_tokens,
-            )
-        if (
-            hasattr(completion_details, "audio_tokens")
-            and completion_details.audio_tokens is not None
-        ):
-            yield LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO, completion_details.audio_tokens
+            completion_details = usage.completion_tokens_details
+            if (
+                hasattr(completion_details, "reasoning_tokens")
+                and completion_details.reasoning_tokens is not None
+            ):
+                yield (
+                    LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING,
+                    completion_details.reasoning_tokens,
+                )
+            if (
+                hasattr(completion_details, "audio_tokens")
+                and completion_details.audio_tokens is not None
+            ):
+                yield LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO, completion_details.audio_tokens
 
 
 def _get_credential_value(
@@ -1153,7 +1159,7 @@ _OPENAI_REASONING_MODELS = [
 ]
 
 
-class OpenAIReasoningReasoningModelsSupportedInvocationParametersMixin:
+class OpenAIReasoningReasoningModelsMixin:
     """Mixin class for OpenAI-style reasoning model clients (o1, o3 series)."""
 
     @classmethod
@@ -1203,17 +1209,17 @@ class OpenAIReasoningReasoningModelsSupportedInvocationParametersMixin:
             if openai_message is not None:
                 openai_messages.append(openai_message)
 
-        throttled_create = self.rate_limiter._alimit(self.client.chat.completions.create)
+        throttled_create = super().rate_limiter._alimit(super().client.chat.completions.create)  # type: ignore[misc]
         response = await throttled_create(
             messages=openai_messages,
-            model=self.model_name,
+            model=super().model_name,  # type: ignore[misc]
             stream=False,
             tools=tools or NOT_GIVEN,
             **invocation_parameters,
         )
 
         if response.usage is not None:
-            self._attributes.update(dict(_llm_token_counts(response.usage)))
+            super()._attributes.update(dict(super()._llm_token_counts(response.usage)))  # type: ignore[misc]
 
         choice = response.choices[0]
         if choice.message.content:
@@ -1271,7 +1277,8 @@ class OpenAIReasoningReasoningModelsSupportedInvocationParametersMixin:
                         "content": content,
                         "role": "assistant",
                         "tool_calls": [
-                            _to_openai_tool_call_param(tool_call) for tool_call in tool_calls
+                            super()._to_openai_tool_call_param(tool_call)  # type: ignore[misc]
+                            for tool_call in tool_calls
                         ],
                     }
                 )
@@ -1289,7 +1296,7 @@ class OpenAIReasoningReasoningModelsSupportedInvocationParametersMixin:
     model_names=_OPENAI_REASONING_MODELS,
 )
 class OpenAIReasoningStreamingClient(
-    OpenAIReasoningReasoningModelsSupportedInvocationParametersMixin,
+    OpenAIReasoningReasoningModelsMixin,
     OpenAIStreamingClient,
 ):
     pass
@@ -1352,7 +1359,7 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
     model_names=_OPENAI_REASONING_MODELS,
 )
 class AzureOpenAIReasoningStreamingClient(
-    OpenAIReasoningReasoningModelsSupportedInvocationParametersMixin,
+    OpenAIReasoningReasoningModelsMixin,
     AzureOpenAIStreamingClient,
 ):
     pass
