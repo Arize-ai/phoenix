@@ -56,16 +56,16 @@ const iconButtonCSS = (color: TextColorValue) => css`
   padding: 0;
 
   &[data-size="S"] {
-    width: 30px;
-    height: 30px;
+    width: var(--ac-global-button-height-s);
+    height: var(--ac-global-button-height-s);
     .ac-icon-wrap {
       font-size: var(--icon-button-font-size-s);
     }
   }
 
   &[data-size="M"] {
-    width: 38px;
-    height: 38px;
+    width: var(--ac-global-button-height-m);
+    height: var(--ac-global-button-height-m);
     .ac-icon-wrap {
       font-size: var(--icon-button-font-size-m);
     }

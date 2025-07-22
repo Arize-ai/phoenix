@@ -75,6 +75,12 @@ const staticCSS = css`
     --ac-global-static-color-black-900: rgba(0, 0, 0, 0.9);
     --ac-global-static-color-black-700: rgba(0, 0, 0, 0.7);
     --ac-global-static-color-black-300: rgba(0, 0, 0, 0.3);
+
+    // component sizing
+    --ac-global-input-height-s: 30px;
+    --ac-global-input-height-m: 38px;
+    --ac-global-button-height-s: var(--ac-global-input-height-s);
+    --ac-global-button-height-m: var(--ac-global-input-height-m);
   }
 `;
 
