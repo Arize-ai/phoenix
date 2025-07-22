@@ -163,7 +163,6 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
         </Group>
         <Separator orientation="vertical" />
         <Group aria-label="Span selection actions">
-          {/* Dataset Selector Dialog */}
           <DialogTrigger
             isOpen={isDatasetPopoverOpen}
             onOpenChange={(isOpen) => {
@@ -187,7 +186,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
             >
               {isAddingSpansToDataset ? "Adding..." : "Add to Dataset"}
             </Button>
-            <Popover placement="top" crossOffset={300}>
+            <Popover placement="top end">
               <Suspense>
                 <DatasetSelectorPopoverContent
                   onDatasetSelected={(datasetId) => {
