@@ -174,15 +174,9 @@ class LiteLLMAdapter(BaseLLMAdapter):
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        """
-        Async generate structured output using LiteLLM.
-
-        Returns:
-            A dictionary containing the structured data that conforms to the provided schema.
-        """
-        supported_params = self._litellm.get_supported_openai_params(model=self.client.model)  # pyright: ignore
-        supports_structured_output = "response_format" in (supported_params or [])
-        supports_tool_calls = "tools" in (supported_params or [])
+        supported_params = self._litellm.get_supported_openai_params(model=self.client.model)
+        supports_structured_output = "response_format" in supported_params
+        supports_tool_calls = "tools" in supported_params
 
         if not supports_structured_output and not supports_tool_calls:
             raise ValueError(
@@ -208,13 +202,13 @@ class LiteLLMAdapter(BaseLLMAdapter):
             )
             content = response.choices[0].message.content  # pyright: ignore
             if content is None:
-                raise ValueError("LiteLLM returned None content")
+                raise ValueError("LiteLLM returned no content")
             return json.loads(content)
         else:
             tool_definition = self._schema_to_tool(schema)
             messages = self._build_messages(prompt)
 
-            response = await self._litellm.acompletion(  # pyright: ignore
+            response = await self._litellm.acompletion(
                 model=self.client.model_string,
                 messages=messages,
                 tools=[tool_definition],
@@ -222,12 +216,12 @@ class LiteLLMAdapter(BaseLLMAdapter):
                 **kwargs,
             )
 
-            tool_call = response.choices[0].message.tool_calls[0]  # pyright: ignore
-            arguments = tool_call.function.arguments  # pyright: ignore
+            tool_call = response.choices[0].message.tool_calls[0]
+            arguments = tool_call.function.arguments
             if isinstance(arguments, str):
                 return json.loads(arguments)
             else:
-                return arguments  # pyright: ignore
+                return arguments
 
     @property
     def model_name(self) -> str:
