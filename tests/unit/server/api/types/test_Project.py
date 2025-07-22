@@ -2056,46 +2056,42 @@ class TestProject:
                 }
 
             # Execute GraphQL query
-            for obj in ["span"]:
-                response = await gql_client.execute(
-                    query=query.format(obj=obj), variables=variables
-                )
-                assert not response.errors
-                assert (data := response.data) is not None
-                res = data["node"][f"{obj}CountTimeSeries"]
+            obj = "span"
+            response = await gql_client.execute(query=query.format(obj=obj), variables=variables)
+            assert not response.errors
+            assert (data := response.data) is not None
+            res = data["node"][f"{obj}CountTimeSeries"]
 
-                # Verify the structure of the response
-                assert "data" in res
-                assert isinstance(res["data"], list)
+            # Verify the structure of the response
+            assert "data" in res
+            assert isinstance(res["data"], list)
 
-                # Convert response to DataFrame for comparison
-                if not res["data"]:
-                    actual_summary = pd.DataFrame(columns=["timestamp", "count"])
-                else:
-                    actual_data = []
-                    for data_point in res["data"]:
-                        timestamp = datetime.fromisoformat(data_point["timestamp"])
-                        if (value := data_point["value"]) is not None:
-                            actual_data.append({"timestamp": timestamp, "count": value})
-                    actual_summary = pd.DataFrame(
-                        actual_data,
-                        columns=["timestamp", "count"],
-                    ).sort_values("timestamp")
+            # Convert response to DataFrame for comparison
+            if not res["data"]:
+                actual_summary = pd.DataFrame(columns=["timestamp", "count"])
+            else:
+                actual_data = []
+                for data_point in res["data"]:
+                    timestamp = datetime.fromisoformat(data_point["timestamp"])
+                    if (value := data_point["value"]) is not None:
+                        actual_data.append({"timestamp": timestamp, "count": value})
+                actual_summary = pd.DataFrame(
+                    actual_data,
+                    columns=["timestamp", "count"],
+                ).sort_values("timestamp")
 
-                # Handle empty results
-                if expected_summary.empty:
-                    assert actual_summary.empty, f"Expected empty summary for {obj} in {test_desc}"
-                    continue
+            # Handle empty results
+            if expected_summary.empty:
+                assert actual_summary.empty, f"Expected empty summary for {obj} in {test_desc}"
+                continue
 
-                actual_summary["timestamp"] = pd.to_datetime(actual_summary["timestamp"])
+            actual_summary["timestamp"] = pd.to_datetime(actual_summary["timestamp"])
 
-                # Verify SQL results match pandas calculation
-                try:
-                    pd.testing.assert_frame_equal(
-                        actual_summary, expected_summary, check_dtype=False
-                    )
-                except AssertionError as e:
-                    raise AssertionError(f"Test failed for {obj} in {test_desc}") from e
+            # Verify SQL results match pandas calculation
+            try:
+                pd.testing.assert_frame_equal(actual_summary, expected_summary, check_dtype=False)
+            except AssertionError as e:
+                raise AssertionError(f"Test failed for {obj} in {test_desc}") from e
 
     async def test_trace_count_time_series(
         self,
@@ -2460,46 +2456,42 @@ class TestProject:
                 }
 
             # Execute GraphQL query
-            for obj in ["trace"]:
-                response = await gql_client.execute(
-                    query=query.format(obj=obj), variables=variables
-                )
-                assert not response.errors
-                assert (data := response.data) is not None
-                res = data["node"][f"{obj}CountTimeSeries"]
+            obj = "trace"
+            response = await gql_client.execute(query=query.format(obj=obj), variables=variables)
+            assert not response.errors
+            assert (data := response.data) is not None
+            res = data["node"][f"{obj}CountTimeSeries"]
 
-                # Verify the structure of the response
-                assert "data" in res
-                assert isinstance(res["data"], list)
+            # Verify the structure of the response
+            assert "data" in res
+            assert isinstance(res["data"], list)
 
-                # Convert response to DataFrame for comparison
-                if not res["data"]:
-                    actual_summary = pd.DataFrame(columns=["timestamp", "count"])
-                else:
-                    actual_data = []
-                    for data_point in res["data"]:
-                        timestamp = datetime.fromisoformat(data_point["timestamp"])
-                        if (value := data_point["value"]) is not None:
-                            actual_data.append({"timestamp": timestamp, "count": value})
-                    actual_summary = pd.DataFrame(
-                        actual_data,
-                        columns=["timestamp", "count"],
-                    ).sort_values("timestamp")
+            # Convert response to DataFrame for comparison
+            if not res["data"]:
+                actual_summary = pd.DataFrame(columns=["timestamp", "count"])
+            else:
+                actual_data = []
+                for data_point in res["data"]:
+                    timestamp = datetime.fromisoformat(data_point["timestamp"])
+                    if (value := data_point["value"]) is not None:
+                        actual_data.append({"timestamp": timestamp, "count": value})
+                actual_summary = pd.DataFrame(
+                    actual_data,
+                    columns=["timestamp", "count"],
+                ).sort_values("timestamp")
 
-                # Handle empty results
-                if expected_summary.empty:
-                    assert actual_summary.empty, f"Expected empty summary for {obj} in {test_desc}"
-                    continue
+            # Handle empty results
+            if expected_summary.empty:
+                assert actual_summary.empty, f"Expected empty summary for {obj} in {test_desc}"
+                continue
 
-                actual_summary["timestamp"] = pd.to_datetime(actual_summary["timestamp"])
+            actual_summary["timestamp"] = pd.to_datetime(actual_summary["timestamp"])
 
-                # Verify SQL results match pandas calculation
-                try:
-                    pd.testing.assert_frame_equal(
-                        actual_summary, expected_summary, check_dtype=False
-                    )
-                except AssertionError as e:
-                    raise AssertionError(f"Test failed for {obj} in {test_desc}") from e
+            # Verify SQL results match pandas calculation
+            try:
+                pd.testing.assert_frame_equal(actual_summary, expected_summary, check_dtype=False)
+            except AssertionError as e:
+                raise AssertionError(f"Test failed for {obj} in {test_desc}") from e
 
     @pytest.mark.parametrize(
         "expectation,condition",
