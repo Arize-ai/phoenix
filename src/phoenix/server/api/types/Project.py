@@ -1423,7 +1423,7 @@ class Project(Node):
                         total=CostBreakdown(tokens=total_tokens, cost=total_tokens),
                     )
                 )
-            return TopModelsByCostPayload(models=results, cost_summaries=cost_summaries)
+            return TopModelsByTokenCountPayload(models=results, cost_summaries=cost_summaries)
 
 
 @strawberry.type
