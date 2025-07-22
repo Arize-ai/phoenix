@@ -19,11 +19,11 @@ const containerCSS = css`
   transform: translateX(-50%);
   z-index: 10;
   box-shadow: 8px 8px 20px 0 rgba(0, 0, 0, 0.4);
-  border-radius: var(--ac-global-rounding-medium);
-  padding: var(--ac-global-dimension-size-200);
+  border-radius: var(--ac-global-rounding-small);
+  padding: var(--ac-global-dimension-size-100);
   background-color: var(--ac-global-color-grey-75);
   border: 1px solid var(--ac-global-color-grey-200);
-  animation: ${riseIn} 0.3s ease-out;
+  animation: ${riseIn} 0.2s ease-in-out;
 `;
 
 /**

@@ -157,7 +157,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
           >
             <Icon svg={<Icons.CloseOutline />} />
           </IconButton>
-          <View minWidth={300}>
+          <View minWidth={200}>
             <Text>{`${selectedSpans.length} span${isPlural ? "s" : ""} selected`}</Text>
           </View>
         </Group>
@@ -172,13 +172,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
             <Button
               variant="primary"
               size="S"
-              leadingVisual={
-                isAddingSpansToDataset ? (
-                  <Icons.LoadingOutline />
-                ) : (
-                  <Icons.DatabaseOutline />
-                )
-              }
+              leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
               onPress={() => {
                 setIsDatasetPopoverOpen(true);
               }}
@@ -250,24 +244,15 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
               </ModalOverlay>
             </Popover>
           </DialogTrigger>
-          <Button
-            variant="danger"
+          <IconButton
             size="S"
-            leadingVisual={
-              <Icon
-                svg={
-                  isDeletingTraces ? (
-                    <Icons.LoadingOutline />
-                  ) : (
-                    <Icons.TrashOutline />
-                  )
-                }
-              />
-            }
             aria-label="Delete Traces"
             isDisabled={isDeletingTraces}
             onPress={onDeletePress}
-          />
+            color="danger"
+          >
+            <Icon svg={<Icons.TrashOutline />} />
+          </IconButton>
           {/* Delete traces dialog */}
           <DialogTrigger
             isOpen={isDeletingTracesDialogOpen}

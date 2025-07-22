@@ -13,14 +13,14 @@ const separatorCSS = css`
 
   &[aria-orientation="vertical"] {
     width: 1px;
-    margin: 0 var(--ac-global-dimension-size-100);
+    margin: 0 var(--ac-global-dimension-size-50);
   }
 
   &:not([aria-orientation="vertical"]) {
     border: none;
     height: 1px;
     width: 100%;
-    margin: var(--ac-global-dimension-size-100) 0;
+    margin: var(--ac-global-dimension-size-50) 0;
   }
 `;
 
