@@ -6,7 +6,6 @@ import strawberry
 from openinference.semconv.trace import OpenInferenceLLMProviderValues
 from sqlalchemy import inspect
 from strawberry.relay import Node, NodeID
-from strawberry.relay.types import GlobalID
 from strawberry.types import Info
 from typing_extensions import assert_never
 
@@ -15,7 +14,6 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.ModelInterface import ModelInterface
-from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.TokenPrice import TokenKind, TokenPrice
@@ -57,16 +55,9 @@ class GenerativeModel(Node, ModelInterface):
         return token_prices
 
     @strawberry.field
-    async def cost_summary(
-        self, info: Info[Context, None], project_id: Optional[GlobalID] = strawberry.UNSET
-    ) -> SpanCostSummary:
-        project_rowid = (
-            from_global_id_with_expected_type(project_id, models.Project.__name__)
-            if project_id
-            else None
-        )
+    async def cost_summary(self, info: Info[Context, None]) -> SpanCostSummary:
         loader = info.context.data_loaders.span_cost_summary_by_generative_model
-        summary = await loader.load((self.id_attr, project_rowid))
+        summary = await loader.load(self.id_attr)
         return SpanCostSummary(
             prompt=CostBreakdown(
                 tokens=summary.prompt.tokens,
