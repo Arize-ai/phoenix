@@ -1,4 +1,5 @@
 import { FocusScope } from "react-aria";
+import { Button as AriaButton } from "react-aria-components";
 import { css } from "@emotion/react";
 
 import {
@@ -30,7 +31,7 @@ export const AnnotationInputExplanation = ({
 
   return (
     <DialogTrigger>
-      <Button
+      <AriaButton
         excludeFromTabOrder
         type="button"
         isDisabled={!annotation?.id}
@@ -38,7 +39,7 @@ export const AnnotationInputExplanation = ({
         css={css`
           position: absolute;
           top: 6px;
-          right: 4px;
+          right: 0;
           width: ${EXPLANATION_LABEL_WIDTH};
           font-size: var(--ac-global-dimension-static-font-size-75);
           background: none;
@@ -59,7 +60,7 @@ export const AnnotationInputExplanation = ({
         `}
       >
         explain
-      </Button>
+      </AriaButton>
       <Popover placement="bottom end">
         <PopoverArrow />
         <Dialog>
@@ -91,7 +92,7 @@ export const AnnotationInputExplanation = ({
                         Why did you give this score?
                       </Text>
                     </TextField>
-                    <Button type="submit" variant="primary">
+                    <Button type="submit" variant="primary" size="S">
                       Save
                     </Button>
                   </Flex>

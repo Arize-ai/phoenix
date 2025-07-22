@@ -14,7 +14,8 @@ export const fieldBaseCSS = css`
   .react-aria-Label {
     padding: 5px 0;
     display: inline-block;
-    font-size: var(--ac-global-dimension-static-font-size-75);
+    font-size: var(--ac-global-font-size-xs);
+    line-height: var(--ac-global-line-height-xs);
     font-weight: var(--px-font-weight-heavy);
   }
 
@@ -87,12 +88,12 @@ export const textFieldCSS = css`
   width: 100%;
 
   &[data-size="S"] {
-    --textfield-input-height: 30px;
+    --textfield-input-height: var(--ac-global-input-height-s);
     --textfield-vertical-padding: 6px;
     --textfield-horizontal-padding: 6px;
   }
   &[data-size="M"] {
-    --textfield-input-height: 38px;
+    --textfield-input-height: var(--ac-global-input-height-m);
     --textfield-vertical-padding: 10px;
     --textfield-horizontal-padding: var(--ac-global-dimension-static-size-200);
     --icon-size: var(--ac-global-font-size-l);

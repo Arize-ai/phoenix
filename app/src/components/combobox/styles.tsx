@@ -4,13 +4,13 @@ import { fieldPopoverCSS } from "../field/styles";
 
 export const comboBoxCSS = css`
   &[data-size="M"] {
-    --combobox-input-height: 30px;
+    --combobox-input-height: var(--ac-global-input-height-s);
     --combobox-vertical-padding: 6px;
     --combobox-start-padding: var(--ac-global-dimension-static-size-100);
     --combobox-end-padding: var(--ac-global-dimension-static-size-50);
   }
   &[data-size="L"] {
-    --combobox-input-height: 38px;
+    --combobox-input-height: var(--ac-global-input-height-m);
     --combobox-vertical-padding: 10px;
     --combobox-start-padding: var(--ac-global-dimension-static-size-200);
     --combobox-end-padding: var(--ac-global-dimension-static-size-100);
