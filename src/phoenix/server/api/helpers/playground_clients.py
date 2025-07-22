@@ -1209,17 +1209,17 @@ class OpenAIReasoningReasoningModelsMixin:
             if openai_message is not None:
                 openai_messages.append(openai_message)
 
-        throttled_create = super().rate_limiter._alimit(super().client.chat.completions.create)  # type: ignore[misc]
+        throttled_create = self.rate_limiter._alimit(self.client.chat.completions.create)  # type: ignore[misc]
         response = await throttled_create(
             messages=openai_messages,
-            model=super().model_name,  # type: ignore[misc]
+            model=self.model_name,  # type: ignore[misc]
             stream=False,
             tools=tools or NOT_GIVEN,
             **invocation_parameters,
         )
 
         if response.usage is not None:
-            super()._attributes.update(dict(super()._llm_token_counts(response.usage)))  # type: ignore[misc]
+            self._attributes.update(dict(self._llm_token_counts(response.usage)))  # type: ignore[misc]
 
         choice = response.choices[0]
         if choice.message.content:
@@ -1277,7 +1277,7 @@ class OpenAIReasoningReasoningModelsMixin:
                         "content": content,
                         "role": "assistant",
                         "tool_calls": [
-                            super()._to_openai_tool_call_param(tool_call)  # type: ignore[misc]
+                            super().to_openai_tool_call_param(tool_call)  # type: ignore[misc]
                             for tool_call in tool_calls
                         ],
                     }
