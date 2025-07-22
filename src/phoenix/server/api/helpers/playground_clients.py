@@ -1197,7 +1197,7 @@ class OpenAIReasoningReasoningModelsMixin:
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=_OPENAI_REASONING_MODELS,
 )
-class OpenAIReasoningStreamingClient(
+class OpenAIReasoningNonStreamingClient(
     OpenAIReasoningReasoningModelsMixin,
     OpenAIStreamingClient,
 ):
@@ -1356,7 +1356,7 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
     provider_key=GenerativeProviderKey.AZURE_OPENAI,
     model_names=_OPENAI_REASONING_MODELS,
 )
-class AzureOpenAIReasoningStreamingClient(
+class AzureOpenAIReasoningNonStreamingClient(
     OpenAIReasoningReasoningModelsMixin,
     AzureOpenAIStreamingClient,
 ):
