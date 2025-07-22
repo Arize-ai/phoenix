@@ -8,8 +8,8 @@ from typing import Any, Dict, Optional, Union
 
 from phoenix.evals.templates import MultimodalPrompt
 
-from ...core.base import BaseLLMAdapter
-from ...core.registries import register_provider
+from ...types import BaseLLMAdapter
+from ...registries import register_provider
 from .client import LiteLLMClient
 from .factories import (
     create_anthropic_client,
@@ -31,10 +31,9 @@ class LiteLLMAdapter(BaseLLMAdapter):
     """Adapter for LiteLLM function-based interface."""
 
     def __init__(self, client: LiteLLMClient):
-        """Initialize adapter with validation."""
-        super().__init__(client)
+        self.client = client
         self._validate_client()
-        self._init_litellm()
+        self._import_litellm()
 
     def _validate_client(self) -> None:
         """Validate that the client is a LiteLLMClient."""
@@ -43,7 +42,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
                 f"LiteLLMAdapter requires a LiteLLMClient instance, got {type(self.client)}"
             )
 
-    def _init_litellm(self) -> None:
+    def _import_litellm(self) -> None:
         """Initialize LiteLLM library."""
         try:
             import litellm

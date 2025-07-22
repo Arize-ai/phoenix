@@ -7,3 +7,8 @@ __all__ = [
     "LangChainModelAdapter",
     "LiteLLMAdapter",
 ]
+
+
+def register_adapters() -> None:
+    """Imports and registers all adapters"""
+    pass

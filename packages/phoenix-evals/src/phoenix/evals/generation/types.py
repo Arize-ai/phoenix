@@ -19,10 +19,6 @@ class BaseLLMAdapter(ABC):
     tool calling, structured output, and fallback mechanisms internally.
     """
 
-    def __init__(self, client: Any):
-        """Initialize adapter with the underlying SDK client/model."""
-        self.client = client
-
     @abstractmethod
     def generate_text(
         self, prompt: Union[str, MultimodalPrompt], instruction: Optional[str] = None, **kwargs: Any

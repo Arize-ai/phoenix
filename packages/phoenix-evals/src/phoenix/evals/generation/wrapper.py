@@ -1,4 +1,10 @@
-from typing import Any, Optional
+from typing import Any, Dict, Optional
+
+from .adapters import register_adapters
+from .registries import ADAPTER_REGISTRY, PROVIDER_REGISTRY
+
+
+register_adapters()
 
 
 class LLMBase:
@@ -26,27 +32,27 @@ class LLMBase:
 
         if by_provider:
             try:
-                provider_registrations = _provider_registry.get_provider_registrations(provider)
+                provider_registrations = PROVIDER_REGISTRY.get_provider_registrations(provider)
                 if not provider_registrations:
-                    available_providers = _provider_registry.list_providers()
+                    available_providers = PROVIDER_REGISTRY.list_providers()
                     raise ValueError(
                         f"Unknown provider '{provider}'. Available providers: {available_providers}"
                     )
 
                 registration = provider_registrations[0]
                 client = registration.client_factory(model=model)
-                adapter = registration.adapter_class
+                adapter_class = registration.adapter_class
 
             except Exception as e:
-                available_providers = _provider_registry.list_providers()
+                available_providers = PROVIDER_REGISTRY.list_providers()
                 raise ValueError(
                     f"Failed to create client for provider '{provider}': {e}\n"
                     f"Available providers: {available_providers}"
                 ) from e
         elif by_sdk:
-            adapter_class = _adapter_registry.find_adapter(client)
+            adapter_class = ADAPTER_REGISTRY.find_adapter(client)
             if adapter_class is None:
-                available_adapters = _adapter_registry.list_adapters()
+                available_adapters = ADAPTER_REGISTRY.list_adapters()
                 raise ValueError(
                     f"No suitable adapter found for client of type {type(client)}. "
                     f"Available adapters: {available_adapters}. "
@@ -68,9 +74,9 @@ class LLM(LLMBase):
 
 class AsyncLLM(LLMBase):
     async def generate_text(self, prompt: str, **kwargs: Any) -> str:
-        return await self._adapter.async_generate_text(prompt, **kwargs)
+        return await self._adapter.agenerate_text(prompt, **kwargs)
 
     async def generate_object(
         self, prompt: str, schema: Dict[str, Any], **kwargs: Any
     ) -> Dict[str, Any]:
-        return await self._adapter.async_generate_object(prompt, schema, **kwargs)
+        return await self._adapter.agenerate_object(prompt, schema, **kwargs)

@@ -1,12 +1,21 @@
 import logging
-from typing import Any, Callable, List, Optional, Type
+from typing import Any, Callable, Dict, List, Optional, Type
 
 from .types import AdapterRegistration, BaseLLMAdapter, ProviderRegistration
 
 logger = logging.getLogger(__name__)
 
 
-class AdapterRegistry:
+class SingletonMeta(type):
+    _instances: dict[Any, Any] = dict()
+
+    def __call__(cls, *args: Any, **kwargs: Any) -> Any:
+        if cls not in cls._instances:
+            cls._instances[cls] = super(SingletonMeta, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+
+class AdapterRegistry(metaclass=SingletonMeta):
     def __init__(self) -> None:
         self._adapters: List[AdapterRegistration] = []
 
@@ -43,7 +52,7 @@ class AdapterRegistry:
         return None
 
 
-class ProviderRegistry:
+class ProviderRegistry(metaclass=SingletonMeta):
     def __init__(self) -> None:
         self._providers: Dict[str, List[ProviderRegistration]] = {}
         self._disabled_providers: List[ProviderRegistration] = []
@@ -108,8 +117,8 @@ class ProviderRegistry:
 
 
 # Global registry instances
-_adapter_registry = AdapterRegistry()
-_provider_registry = ProviderRegistry()
+ADAPTER_REGISTRY = AdapterRegistry()
+PROVIDER_REGISTRY = ProviderRegistry()
 
 
 def register_adapter(
@@ -128,7 +137,6 @@ def register_adapter(
     Example:
         @register_adapter(
             identifier=lambda client: "langchain" in client.__module__,
-            priority=10,
             name="langchain"
         )
         class LangChainModelAdapter(BaseLLMAdapter):
@@ -136,7 +144,7 @@ def register_adapter(
     """
 
     def decorator(adapter_class: Type["BaseLLMAdapter"]) -> Type["BaseLLMAdapter"]:
-        _adapter_registry.register_adapter(adapter_class, identifier, priority, name)
+        ADAPTER_REGISTRY.register_adapter(adapter_class, identifier, name)
         return adapter_class
 
     return decorator
@@ -166,7 +174,7 @@ def register_provider(
     """
 
     def decorator(adapter_class: Type["BaseLLMAdapter"]) -> Type["BaseLLMAdapter"]:
-        _provider_registry.register_provider(provider, adapter_class, client_factory, dependencies)
+        PROVIDER_REGISTRY.register_provider(provider, adapter_class, client_factory, dependencies)
         return adapter_class
 
     return decorator

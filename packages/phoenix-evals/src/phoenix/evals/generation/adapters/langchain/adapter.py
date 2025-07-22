@@ -7,8 +7,8 @@ from typing import Any, Dict, Optional, Union
 
 from phoenix.evals.templates import MultimodalPrompt
 
-from ...core.base import BaseLLMAdapter
-from ...core.registries import register_adapter, register_provider
+from ...types import BaseLLMAdapter
+from ...registries import register_adapter, register_provider
 from .factories import (
     create_anthropic_langchain_client,
     create_openai_langchain_client,
@@ -17,15 +17,19 @@ from .factories import (
 logger = logging.getLogger(__name__)
 
 
-@register_adapter(
-    identifier=lambda client: (
+def identify_langchain_client(client: Any) -> bool:
+    return (
         hasattr(client, "__module__")
         and client.__module__ is not None
         and (
             "langchain" in client.__module__
             or (hasattr(client, "invoke") or hasattr(client, "predict"))
         )
-    ),
+    )
+
+
+@register_adapter(
+    identifier=identify_langchain_client,
     priority=10,
     name="langchain",
 )
@@ -34,21 +38,19 @@ logger = logging.getLogger(__name__)
     client_factory=create_openai_langchain_client,
     dependencies=["langchain", "langchain_openai"]
 )
-# @register_provider(
-#     provider="anthropic",
-#     client_factory=_create_anthropic_langchain_client,
-#     dependencies=["langchain", "langchain_anthropic"]
-# )
+@register_provider(
+    provider="anthropic",
+    client_factory=create_anthropic_langchain_client,
+    dependencies=["langchain", "langchain_anthropic"]
+)
 class LangChainModelAdapter(BaseLLMAdapter):
     """Adapter for LangChain model objects."""
 
     def __init__(self, client: Any):
-        """Initialize adapter with validation."""
-        super().__init__(client)
+        self.client = client
         self._validate_client()
 
     def _validate_client(self) -> None:
-        """Validate that the client is a LangChain model."""
         # Check for common LangChain model methods
         if not (hasattr(self.client, "invoke") or hasattr(self.client, "predict")):
             raise ValueError(
@@ -278,7 +280,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
 
     def _normalize_schema_for_langchain(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Normalize schema for LangChain's with_structured_output requirements.
+        Normalize JSON schema for LangChain's with_structured_output requirements.
 
         LangChain requires JSON schemas to have 'title' and 'description' at the top level.
         This method automatically adds them if missing.
