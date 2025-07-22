@@ -1376,6 +1376,55 @@ class Project(Node):
                 )
             return TopModelsByCostPayload(models=results, cost_summaries=cost_summaries)
 
+    @strawberry.field
+    async def top_models_by_token_count(
+        self, info: Info[Context, None], time_range: TimeRange
+    ) -> TopModelsByTokenCountPayload:
+        if time_range.start is None:
+            raise BadRequest("Start time is required")
+        if time_range.end is None:
+            time_range.end = datetime.now(timezone.utc)
+        async with info.context.db() as session:
+            stmt = (
+                select(
+                    models.GenerativeModel,
+                    func.sum(models.SpanCost.total_tokens).label("total_tokens"),
+                    func.sum(models.SpanCost.prompt_tokens).label("prompt_tokens"),
+                    func.sum(models.SpanCost.completion_tokens).label("completion_tokens"),
+                )
+                .join(
+                    models.SpanCost,
+                    models.SpanCost.model_id == models.GenerativeModel.id,
+                )
+                .join(
+                    models.Trace,
+                    models.SpanCost.trace_rowid == models.Trace.id,
+                )
+                .where(models.Trace.project_rowid == self.project_rowid)
+                .where(models.SpanCost.model_id.isnot(None))
+                .where(models.SpanCost.span_start_time >= time_range.start)
+                .where(models.SpanCost.span_start_time < time_range.end)
+                .group_by(models.SpanCost.model_id)
+                .order_by(func.sum(models.SpanCost.total_tokens).desc())
+            )
+            results = []
+            cost_summaries = []
+            async for (
+                model,
+                total_tokens,
+                prompt_tokens,
+                completion_tokens,
+            ) in await session.stream(stmt):
+                results.append(to_gql_generative_model(model))
+                cost_summaries.append(
+                    SpanCostSummary(
+                        prompt=CostBreakdown(tokens=prompt_tokens, cost=prompt_tokens),
+                        completion=CostBreakdown(tokens=completion_tokens, cost=completion_tokens),
+                        total=CostBreakdown(tokens=total_tokens, cost=total_tokens),
+                    )
+                )
+            return TopModelsByCostPayload(models=results, cost_summaries=cost_summaries)
+
 
 @strawberry.type
 class SpanCountTimeSeriesDataPoint:
@@ -1472,6 +1521,12 @@ class SpanAnnotationScoreTimeSeries:
 
 @strawberry.type
 class TopModelsByCostPayload:
+    models: list[GenerativeModel]
+    cost_summaries: list[SpanCostSummary]
+
+
+@strawberry.type
+class TopModelsByTokenCountPayload:
     models: list[GenerativeModel]
     cost_summaries: list[SpanCostSummary]
 
