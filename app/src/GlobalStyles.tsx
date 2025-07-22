@@ -8,7 +8,8 @@ import { ThemeContextType } from "./contexts";
  * Medium size root CSS variables
  */
 export const mediumRootCSS = css`
-  :root {
+  :root,
+  .ac-theme {
     --ac-global-dimension-scale-factor: 1;
     --ac-global-dimension-size-0: 0px;
     --ac-global-dimension-size-10: 1px;
@@ -65,7 +66,8 @@ export const mediumRootCSS = css`
 `;
 
 const staticCSS = css`
-  :root {
+  :root,
+  .ac-theme {
     // static colors
     --ac-global-static-color-white-900: rgba(255, 255, 255, 0.9);
     --ac-global-static-color-white-700: rgba(255, 255, 255, 0.7);
@@ -77,7 +79,8 @@ const staticCSS = css`
 `;
 
 const dimensionsCSS = css`
-  :root {
+  :root,
+  .ac-theme {
     --ac-global-dimension-static-size-0: 0px;
     --ac-global-dimension-static-size-10: 1px;
     --ac-global-dimension-static-size-25: 2px;
@@ -1071,7 +1074,8 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
 `;
 
 const opacitiesCSS = css`
-  :root {
+  :root,
+  .ac-theme {
     --ac-opacity-disabled: 0.6;
   }
 `;
@@ -1079,13 +1083,17 @@ const opacitiesCSS = css`
 const appGlobalStylesCSS = css`
   body,
   input,
-  button {
+  button,
+  .ac-theme // We scope it to the theme so we can mount two at the same time
+  {
     font-family: "Geist", sans-serif;
     font-optical-sizing: auto;
     font-weight: 400;
     font-style: normal;
   }
-  body {
+  body,
+  .ac-theme // We scope it to the theme so we can mount two at the same time (e.x. storybook)
+  {
     background-color: var(--ac-global-color-grey-75);
     color: var(--ac-global-text-color-900);
     font-size: var(--ac-global-font-size-s);
@@ -1139,7 +1147,8 @@ const appGlobalStylesCSS = css`
     }
   }
 
-  :root {
+  :root,
+  .ac-theme {
     --px-section-background-color: #2f353d;
 
     /** The color of shadows on menus etc. */
