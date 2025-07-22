@@ -2,6 +2,7 @@ import re
 from collections import defaultdict
 from datetime import datetime
 from typing import Iterable, Iterator, Optional, Union
+from typing import cast as type_cast
 
 import numpy as np
 import numpy.typing as npt
@@ -1002,7 +1003,7 @@ class Query:
             """).bindparams(nspname=nspname)
             try:
                 async with info.context.db() as session:
-                    stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
+                    stats = type_cast(Iterable[tuple[str, int]], await session.execute(stmt))
             except Exception:
                 # TODO: temporary workaround until we can reproduce the error
                 return []
