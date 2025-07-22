@@ -1277,7 +1277,7 @@ class OpenAIReasoningReasoningModelsMixin:
                         "content": content,
                         "role": "assistant",
                         "tool_calls": [
-                            super().to_openai_tool_call_param(tool_call)  # type: ignore[misc]
+                            self.to_openai_tool_call_param(tool_call)  # type: ignore[attr-defined]
                             for tool_call in tool_calls
                         ],
                     }
