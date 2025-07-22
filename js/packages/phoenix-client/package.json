@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-client",
-  "version": "2.3.4",
+  "version": "2.3.5",
   "description": "A client for the Phoenix API",
   "main": "dist/src/index.js",
   "module": "dist/esm/index.js",
@@ -47,12 +47,19 @@
     "build": "tsc --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
     "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json && rimraf dist/test dist/examples",
     "type:check": "tsc --noEmit",
-    "test": "vitest --typecheck",
-    "docs": "typedoc",
-    "docs:preview": "pnpx http-server ./docs -p 8080 -o"
+    "test": "vitest --typecheck"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "phoenix",
+    "arize",
+    "llm",
+    "tracing",
+    "evaluation",
+    "prompts",
+    "datasets",
+    "experiments"
+  ],
+  "author": "oss@arize.com",
   "license": "ELv2",
   "devDependencies": {
     "@ai-sdk/openai": "^1.1.15",
@@ -63,7 +70,6 @@
     "openai": "^4.77.0",
     "openapi-typescript": "^7.6.1",
     "tsx": "^4.19.3",
-    "typedoc": "^0.27.9",
     "vitest": "^2.1.9"
   },
   "dependencies": {

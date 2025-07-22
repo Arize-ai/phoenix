@@ -22,7 +22,7 @@ export interface IconButtonProps extends Omit<ButtonProps, "children"> {
    * The size of the button
    * @default 'M'
    */
-  size?: Omit<ComponentSize, "L">;
+  size?: Exclude<ComponentSize, "L">;
   /**
    * The icon to display
    */
@@ -53,18 +53,19 @@ const iconButtonCSS = (color: TextColorValue) => css`
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
+  padding: 0;
 
   &[data-size="S"] {
-    width: 30px;
-    height: 30px;
+    width: var(--ac-global-button-height-s);
+    height: var(--ac-global-button-height-s);
     .ac-icon-wrap {
       font-size: var(--icon-button-font-size-s);
     }
   }
 
   &[data-size="M"] {
-    width: 38px;
-    height: 38px;
+    width: var(--ac-global-button-height-m);
+    height: var(--ac-global-button-height-m);
     .ac-icon-wrap {
       font-size: var(--icon-button-font-size-m);
     }

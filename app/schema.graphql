@@ -424,6 +424,13 @@ type CreateModelMutationPayload {
   query: Query!
 }
 
+input CreateProjectInput {
+  name: String!
+  description: String
+  gradientStartColor: String
+  gradientEndColor: String
+}
+
 input CreateProjectTraceRetentionPolicyInput {
   name: String!
   cronExpression: CronExpression!
@@ -1518,6 +1525,7 @@ type Mutation {
   createModel(input: CreateModelMutationInput!): CreateModelMutationPayload!
   updateModel(input: UpdateModelMutationInput!): UpdateModelMutationPayload!
   deleteModel(input: DeleteModelMutationInput!): DeleteModelMutationPayload!
+  createProject(input: CreateProjectInput!): ProjectMutationPayload!
   deleteProject(id: ID!): Query!
   clearProject(input: ClearProjectInput!): Query!
   createProjectTraceRetentionPolicy(input: CreateProjectTraceRetentionPolicyInput!): ProjectTraceRetentionPolicyMutationPayload!
@@ -1715,8 +1723,13 @@ type Project implements Node {
   traceRetentionPolicy: ProjectTraceRetentionPolicy!
   createdAt: DateTime!
   updatedAt: DateTime!
-  spanCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): SpanCountTimeSeries!
+  spanCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig, filterCondition: String): SpanCountTimeSeries!
   traceCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceCountTimeSeries!
+  traceCountByStatusTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceCountByStatusTimeSeries!
+  traceLatencyMsPercentileTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceLatencyPercentileTimeSeries!
+  traceTokenCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceTokenCountTimeSeries!
+  traceTokenCostTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceTokenCostTimeSeries!
+  spanAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): SpanAnnotationScoreTimeSeries!
 }
 
 enum ProjectColumn {
@@ -1750,6 +1763,11 @@ input ProjectFilter {
 
 enum ProjectFilterColumn {
   name
+}
+
+type ProjectMutationPayload {
+  project: Project!
+  query: Query!
 }
 
 type ProjectSession implements Node {
@@ -2310,6 +2328,21 @@ type SpanAnnotationMutationPayload {
   query: Query!
 }
 
+type SpanAnnotationScoreTimeSeries {
+  data: [SpanAnnotationScoreTimeSeriesDataPoint!]!
+  names: [String!]!
+}
+
+type SpanAnnotationScoreTimeSeriesDataPoint {
+  timestamp: DateTime!
+  scoresWithLabels: [SpanAnnotationScoreWithLabel!]!
+}
+
+type SpanAnnotationScoreWithLabel {
+  label: String!
+  score: Float!
+}
+
 """The sort key and direction for SpanAnnotation connections"""
 input SpanAnnotationSort {
   col: SpanAnnotationColumn!
@@ -2362,8 +2395,16 @@ type SpanCostSummary {
   total: CostBreakdown!
 }
 
-type SpanCountTimeSeries implements TimeSeries {
-  data: [TimeSeriesDataPoint!]!
+type SpanCountTimeSeries {
+  data: [SpanCountTimeSeriesDataPoint!]!
+}
+
+type SpanCountTimeSeriesDataPoint {
+  timestamp: DateTime!
+  okCount: Int
+  errorCount: Int
+  unsetCount: Int
+  totalCount: Int
 }
 
 """An edge in a connection."""
@@ -2652,6 +2693,17 @@ type TraceConnection {
   edges: [TraceEdge!]!
 }
 
+type TraceCountByStatusTimeSeries {
+  data: [TraceCountByStatusTimeSeriesDataPoint!]!
+}
+
+type TraceCountByStatusTimeSeriesDataPoint {
+  timestamp: DateTime!
+  okCount: Int!
+  errorCount: Int!
+  totalCount: Int!
+}
+
 type TraceCountTimeSeries implements TimeSeries {
   data: [TimeSeriesDataPoint!]!
 }
@@ -2663,6 +2715,21 @@ type TraceEdge {
 
   """The item at the end of the edge"""
   node: Trace!
+}
+
+type TraceLatencyMsPercentileTimeSeriesDataPoint {
+  timestamp: DateTime!
+  p50: Float
+  p75: Float
+  p90: Float
+  p95: Float
+  p99: Float
+  p999: Float
+  max: Float
+}
+
+type TraceLatencyPercentileTimeSeries {
+  data: [TraceLatencyMsPercentileTimeSeriesDataPoint!]!
 }
 
 union TraceRetentionRule = TraceRetentionRuleMaxDays | TraceRetentionRuleMaxCount | TraceRetentionRuleMaxDaysOrCount
@@ -2678,6 +2745,28 @@ type TraceRetentionRuleMaxDays {
 type TraceRetentionRuleMaxDaysOrCount {
   maxDays: Float!
   maxCount: Int!
+}
+
+type TraceTokenCostTimeSeries {
+  data: [TraceTokenCostTimeSeriesDataPoint!]!
+}
+
+type TraceTokenCostTimeSeriesDataPoint {
+  timestamp: DateTime!
+  promptCost: Float
+  completionCost: Float
+  totalCost: Float
+}
+
+type TraceTokenCountTimeSeries {
+  data: [TraceTokenCountTimeSeriesDataPoint!]!
+}
+
+type TraceTokenCountTimeSeriesDataPoint {
+  timestamp: DateTime!
+  promptTokenCount: Float
+  completionTokenCount: Float
+  totalTokenCount: Float
 }
 
 type UMAPPoint {
