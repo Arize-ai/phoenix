@@ -3,6 +3,8 @@ import { useParams } from "react-router";
 import { css } from "@emotion/react";
 
 import { Flex, Heading, Text, View } from "@phoenix/components";
+import { TopModelsByCost } from "@phoenix/pages/project/TopModelsByCost";
+import { TopModelsByToken } from "@phoenix/pages/project/TopModelsByToken";
 import { TraceErrorsTimeSeries } from "@phoenix/pages/project/TraceErrorsTimeSeries";
 
 import { LLMSpanCountTimeSeries } from "./LLMSpanCountTimeSeries";
@@ -159,6 +161,15 @@ export function ProjectMetricsPage() {
           subtitle="Tool spans with errors over time"
         >
           <ToolSpanErrorsTimeSeries projectId={projectId} />
+        </MetricPanel>
+      </Flex>
+      <Flex direction="row" gap="size-100">
+        <MetricPanel title="Top models by cost">
+          <TopModelsByCost />
+        </MetricPanel>
+
+        <MetricPanel title="Top models by tokens">
+          <TopModelsByToken />
         </MetricPanel>
       </Flex>
     </main>
