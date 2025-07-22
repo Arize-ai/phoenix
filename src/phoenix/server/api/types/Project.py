@@ -1330,7 +1330,7 @@ class Project(Node):
     @strawberry.field
     async def top_models_by_cost(
         self, info: Info[Context, None], time_range: TimeRange
-    ) -> TopModelsByCost:
+    ) -> TopModelsByCostPayload:
         if time_range.start is None:
             raise BadRequest("Start time is required")
         if time_range.end is None:
@@ -1374,7 +1374,7 @@ class Project(Node):
                         total=CostBreakdown(tokens=total_cost, cost=total_cost),
                     )
                 )
-            return TopModelsByCost(models=results, cost_summaries=cost_summaries)
+            return TopModelsByCostPayload(models=results, cost_summaries=cost_summaries)
 
 
 @strawberry.type
@@ -1471,7 +1471,7 @@ class SpanAnnotationScoreTimeSeries:
 
 
 @strawberry.type
-class TopModelsByCost:
+class TopModelsByCostPayload:
     models: list[GenerativeModel]
     cost_summaries: list[SpanCostSummary]
 

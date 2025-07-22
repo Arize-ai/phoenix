@@ -167,7 +167,6 @@ export function ProjectMetricsPage() {
         <MetricPanel title="Top models by cost">
           <TopModelsByCost projectId={projectId} />
         </MetricPanel>
-
         <MetricPanel title="Top models by tokens">
           <TopModelsByToken />
         </MetricPanel>
