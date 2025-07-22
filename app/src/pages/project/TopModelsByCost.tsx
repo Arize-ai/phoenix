@@ -19,44 +19,6 @@ import {
 import { useTimeRange } from "@phoenix/components/datetime";
 import type { TopModelsByCostQuery } from "@phoenix/pages/project/__generated__/TopModelsByCostQuery.graphql";
 
-const chartData = [
-  {
-    model: "gpt-4o",
-    prompt_cost: 400,
-    completion_cost: 500,
-    other_cost: 100,
-    total_cost: 1000,
-  },
-  {
-    model: "gpt-4o-mini",
-    prompt_cost: 300,
-    completion_cost: 400,
-    other_cost: 100,
-    total_cost: 800,
-  },
-  {
-    model: "claude-3-5-sonnet",
-    prompt_cost: 250,
-    completion_cost: 350,
-    other_cost: 100,
-    total_cost: 700,
-  },
-  {
-    model: "claude-3-5-haiku",
-    prompt_cost: 100,
-    completion_cost: 200,
-    other_cost: 50,
-    total_cost: 350,
-  },
-  {
-    model: "gemini-2.0-flash",
-    prompt_cost: 30,
-    completion_cost: 60,
-    other_cost: 10,
-    total_cost: 100,
-  },
-];
-
 export function TopModelsByCost({ projectId }: { projectId: string }) {
   const { timeRange } = useTimeRange();
   const colors = useCategoryChartColors();
@@ -109,8 +71,6 @@ export function TopModelsByCost({ projectId }: { projectId: string }) {
       };
     });
   }, [data]);
-
-  console.log(chartData);
 
   return (
     <ResponsiveContainer width="100%" height="100%">
