@@ -12,9 +12,11 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Icon, Icons } from "@phoenix/components";
+import { Button, Flex, Icon, Icons, Text } from "@phoenix/components";
 import { FloatCell, IntCell, TextCell } from "@phoenix/components/table";
+import { FloatingToolbarContainer } from "@phoenix/components/toolbar/FloatingToolbarContainer";
 
+import { IndeterminateCheckboxCell } from "../src/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "../src/components/table/styles";
 import { TableEmpty } from "../src/components/table/TableEmpty";
 
@@ -85,6 +87,51 @@ const mockPeople: Person[] = [
     status: "active",
     department: "Management",
   },
+  {
+    id: "6",
+    name: "David Kim",
+    age: 29,
+    email: "david.kim@example.com",
+    salary: 70000,
+    status: "active",
+    department: "Engineering",
+  },
+  {
+    id: "7",
+    name: "Emily Clark",
+    age: 26,
+    email: "emily.clark@example.com",
+    salary: 65000,
+    status: "inactive",
+    department: "Support",
+  },
+  {
+    id: "8",
+    name: "Frank Garcia",
+    age: 38,
+    email: "frank.garcia@example.com",
+    salary: 88000,
+    status: "active",
+    department: "Sales",
+  },
+  {
+    id: "9",
+    name: "Grace Lee",
+    age: 31,
+    email: "grace.lee@example.com",
+    salary: 93500,
+    status: "active",
+    department: "Marketing",
+  },
+  {
+    id: "10",
+    name: "Hank Miller",
+    age: 42,
+    email: "hank.miller@example.com",
+    salary: 112000,
+    status: "inactive",
+    department: "HR",
+  },
 ];
 
 const mockProducts: Product[] = [
@@ -120,6 +167,46 @@ const mockProducts: Product[] = [
     inStock: true,
     rating: 4.0,
   },
+  {
+    id: "5",
+    name: "Smartphone X",
+    price: 999.99,
+    category: "Electronics",
+    inStock: true,
+    rating: 4.6,
+  },
+  {
+    id: "6",
+    name: "Noise-Cancelling Headphones",
+    price: 199.99,
+    category: "Electronics",
+    inStock: false,
+    rating: 4.4,
+  },
+  {
+    id: "7",
+    name: "Gaming Keyboard",
+    price: 129.99,
+    category: "Electronics",
+    inStock: true,
+    rating: 4.3,
+  },
+  {
+    id: "8",
+    name: "Standing Desk",
+    price: 499.99,
+    category: "Furniture",
+    inStock: true,
+    rating: 4.8,
+  },
+  {
+    id: "9",
+    name: "LED Monitor",
+    price: 249.99,
+    category: "Electronics",
+    inStock: true,
+    rating: 4.5,
+  },
 ];
 
 // Base Table Component
@@ -128,11 +215,13 @@ function BaseTable<T>({
   data,
   enableResizing = true,
   enableSorting = true,
+  onSelectionChange,
 }: {
   columns: ColumnDef<T>[];
   data: T[];
   enableResizing?: boolean;
   enableSorting?: boolean;
+  onSelectionChange?: (selectedCount: number) => void;
 }) {
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -151,7 +240,13 @@ function BaseTable<T>({
     enableRowSelection: true,
     onColumnSizingChange: setColumnSizing,
     onSortingChange: setSorting,
-    onRowSelectionChange: setRowSelection,
+    onRowSelectionChange: (updater) =>
+      setRowSelection((prev) => {
+        const next =
+          typeof updater === "function" ? updater(prev) : (updater ?? {});
+        onSelectionChange?.(Object.keys(next).length);
+        return next;
+      }),
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
   });
@@ -383,6 +478,56 @@ const productColumns: ColumnDef<Product>[] = [
   },
 ];
 
+// ------------------------------
+// Selection Support
+// ------------------------------
+
+// Column used to display row selection checkboxes – adapted from project SpansTable
+const selectionColumn: ColumnDef<Person> = {
+  id: "select",
+  size: 30,
+  maxSize: 30,
+  header: ({ table }) => (
+    <IndeterminateCheckboxCell
+      checked={table.getIsAllRowsSelected()}
+      indeterminate={table.getIsSomeRowsSelected()}
+      onChange={table.getToggleAllRowsSelectedHandler()}
+    />
+  ),
+  cell: ({ row }) => (
+    <IndeterminateCheckboxCell
+      checked={row.getIsSelected()}
+      disabled={!row.getCanSelect()}
+      indeterminate={row.getIsSomeSelected()}
+      onChange={row.getToggleSelectedHandler()}
+    />
+  ),
+  enableSorting: false,
+};
+
+// Table component that prepends the selection column
+const PersonTableSelectable = (props: {
+  enableResizing?: boolean;
+  enableSorting?: boolean;
+  data?: Person[];
+  onSelectionChange?: (count: number) => void;
+}) => {
+  const columns = useMemo<ColumnDef<Person>[]>(
+    () => [selectionColumn, ...personColumns],
+    []
+  );
+
+  return (
+    <BaseTable
+      columns={columns}
+      data={props.data || mockPeople}
+      enableResizing={props.enableResizing}
+      enableSorting={props.enableSorting}
+      onSelectionChange={props.onSelectionChange}
+    />
+  );
+};
+
 // Story Components
 const PersonTable = (props: {
   enableResizing?: boolean;
@@ -470,4 +615,38 @@ export const Empty: Story = {
     enableSorting: true,
     data: [],
   },
+};
+
+const SelectableStoryComponent = () => {
+  const [selectedCount, setSelectedCount] = useState(0);
+  return (
+    <div style={{ position: "relative" }}>
+      {selectedCount > 0 && (
+        <FloatingToolbarContainer>
+          <Flex
+            direction="row"
+            gap="size-100"
+            alignItems="center"
+            justifyContent="space-between"
+          >
+            <Text>{`${selectedCount} row${selectedCount > 1 ? "s" : ""} selected`}</Text>
+            <Button
+              variant="danger"
+              size="S"
+              leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+            />
+          </Flex>
+        </FloatingToolbarContainer>
+      )}
+      <PersonTableSelectable
+        enableResizing={true}
+        enableSorting={true}
+        onSelectionChange={setSelectedCount}
+      />
+    </div>
+  );
+};
+
+export const Selectable = {
+  render: () => <SelectableStoryComponent />,
 };

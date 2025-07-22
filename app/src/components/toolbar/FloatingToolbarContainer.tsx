@@ -22,6 +22,7 @@ const containerCSS = css`
   border-radius: var(--ac-global-rounding-medium);
   padding: var(--ac-global-dimension-size-200);
   background-color: var(--ac-global-color-grey-75);
+  border: 1px solid var(--ac-global-color-grey-200);
   animation: ${riseIn} 0.3s ease-out;
 `;
 
