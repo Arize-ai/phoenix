@@ -7,13 +7,16 @@ import {
   Dialog,
   DialogTrigger,
   Flex,
+  Group,
   Icon,
   IconButton,
   Icons,
   Modal,
   ModalOverlay,
   Popover,
+  Separator,
   Text,
+  Toolbar,
   View,
 } from "@phoenix/components";
 import { CreateDatasetForm } from "@phoenix/components/dataset/CreateDatasetForm";
@@ -145,29 +148,21 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
 
   return (
     <FloatingToolbarContainer>
-      <Flex direction="row" justifyContent="space-between" alignItems="center">
-        <View minWidth={300}>
-<<<<<<< HEAD
-          <Flex direction="row" gap="size-100" alignItems="center">
-            <IconButton
-              size="S"
-              onPress={onClearSelection}
-              aria-label="Clear selection"
-            >
-              <Icon svg={<Icons.CloseOutline />} />
-            </IconButton>
+      <Toolbar>
+        <Group aria-label="Span selection">
+          <IconButton
+            size="S"
+            onPress={onClearSelection}
+            aria-label="Clear selection"
+          >
+            <Icon svg={<Icons.CloseOutline />} />
+          </IconButton>
+          <View minWidth={300}>
             <Text>{`${selectedSpans.length} span${isPlural ? "s" : ""} selected`}</Text>
-          </Flex>
-        </View>
-        <Flex direction="row" gap="size-100">
-=======
-          <Text>{`${selectedSpans.length} span${isPlural ? "s" : ""} selected`}</Text>
-        </View>
-        <Flex direction="row" gap="size-100">
-          <Button variant="default" size="S" onPress={onClearSelection}>
-            Cancel
-          </Button>
->>>>>>> dac6b3645a196c46d0d9d3d3547c8d6fd1ed5091
+          </View>
+        </Group>
+        <Separator orientation="vertical" />
+        <Group aria-label="Span selection actions">
           {/* Dataset Selector Dialog */}
           <DialogTrigger
             isOpen={isDatasetPopoverOpen}
@@ -176,11 +171,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
             }}
           >
             <Button
-<<<<<<< HEAD
               variant="primary"
-=======
-              variant="default"
->>>>>>> dac6b3645a196c46d0d9d3d3547c8d6fd1ed5091
               size="S"
               leadingVisual={
                 isAddingSpansToDataset ? (
@@ -196,12 +187,8 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
             >
               {isAddingSpansToDataset ? "Adding..." : "Add to Dataset"}
             </Button>
-            <Suspense>
-<<<<<<< HEAD
-              <Popover placement="top start" crossOffset={300}>
-=======
-              <Popover placement="top end" crossOffset={300}>
->>>>>>> dac6b3645a196c46d0d9d3d3547c8d6fd1ed5091
+            <Popover placement="top" crossOffset={300}>
+              <Suspense>
                 <DatasetSelectorPopoverContent
                   onDatasetSelected={(datasetId) => {
                     onAddSpansToDataset(datasetId);
@@ -212,8 +199,8 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
                     setIsCreatingDataset(true);
                   }}
                 />
-              </Popover>
-            </Suspense>
+              </Suspense>
+            </Popover>
           </DialogTrigger>
           {/* Add dataset dialog */}
           <DialogTrigger
@@ -278,18 +265,10 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
                 }
               />
             }
-<<<<<<< HEAD
             aria-label="Delete Traces"
             isDisabled={isDeletingTraces}
             onPress={onDeletePress}
           />
-=======
-            isDisabled={isDeletingTraces}
-            onPress={onDeletePress}
-          >
-            {isDeletingTraces ? "Deleting..." : "Delete"}
-          </Button>
->>>>>>> dac6b3645a196c46d0d9d3d3547c8d6fd1ed5091
           {/* Delete traces dialog */}
           <DialogTrigger
             isOpen={isDeletingTracesDialogOpen}
@@ -340,8 +319,8 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
               </Modal>
             </ModalOverlay>
           </DialogTrigger>
-        </Flex>
-      </Flex>
+        </Group>
+      </Toolbar>
     </FloatingToolbarContainer>
   );
 }
