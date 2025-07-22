@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<074e960751d1a2715d778ed9ea410804>>
+ * @generated SignedSource<<40a407ecc2288b28869dd5e2a96f00a0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -28,10 +28,10 @@ export type ToolSpanCountTimeSeriesQuery$data = {
   readonly project: {
     readonly spanCountTimeSeries?: {
       readonly data: ReadonlyArray<{
-        readonly errorCount: number;
-        readonly okCount: number;
+        readonly errorCount: number | null;
+        readonly okCount: number | null;
         readonly timestamp: string;
-        readonly unsetCount: number;
+        readonly unsetCount: number | null;
       }>;
     };
   };

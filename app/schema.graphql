@@ -2401,10 +2401,10 @@ type SpanCountTimeSeries {
 
 type SpanCountTimeSeriesDataPoint {
   timestamp: DateTime!
-  okCount: Int!
-  errorCount: Int!
-  unsetCount: Int!
-  totalCount: Int!
+  okCount: Int
+  errorCount: Int
+  unsetCount: Int
+  totalCount: Int
 }
 
 """An edge in a connection."""
