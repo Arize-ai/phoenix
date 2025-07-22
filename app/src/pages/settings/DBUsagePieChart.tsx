@@ -120,6 +120,32 @@ export function DBUsagePieChart({
           {`Used`}
         </text>
         <g>
+          {typeof data.dbStorageCapacityBytes === "number" && (
+            <>
+              <text
+                x="0%"
+                y="0%"
+                dx={10}
+                dy={15}
+                textAnchor="left"
+                fill="var(--ac-global-text-color-500)"
+                fontSize="var(--ac-global-font-size-xs)"
+              >
+                {"Capacity:"}
+              </text>
+              <text
+                x="0%"
+                y="0%"
+                dx={10}
+                dy={28}
+                textAnchor="left"
+                fill="var(--ac-global-text-color-500)"
+                fontSize="var(--ac-global-font-size-xs)"
+              >
+                {storageSizeFormatter(data.dbStorageCapacityBytes)}
+              </text>
+            </>
+          )}
           <text
             x="100%"
             y="100%"
