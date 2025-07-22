@@ -20,7 +20,7 @@ from openinference.semconv.trace import (
 )
 from strawberry import UNSET
 from strawberry.scalars import JSON as JSONScalarType
-from typing_extensions import TypeAlias, assert_never
+from typing_extensions import TypeAlias, assert_never, override
 
 from phoenix.config import getenv
 from phoenix.evals.models.rate_limiters import (
@@ -1192,6 +1192,16 @@ class OpenAIReasoningReasoningModelsMixin:
             ),
         ]
 
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.OPENAI,
+    model_names=_OPENAI_REASONING_MODELS,
+)
+class OpenAIReasoningStreamingClient(
+    OpenAIReasoningReasoningModelsMixin,
+    OpenAIStreamingClient,
+):
+    @override
     async def chat_completion_create(
         self,
         messages: list[
@@ -1209,17 +1219,17 @@ class OpenAIReasoningReasoningModelsMixin:
             if openai_message is not None:
                 openai_messages.append(openai_message)
 
-        throttled_create = self.rate_limiter._alimit(self.client.chat.completions.create)  # type: ignore[attr-defined]
+        throttled_create = self.rate_limiter._alimit(self.client.chat.completions.create)
         response = await throttled_create(
             messages=openai_messages,
-            model=self.model_name,  # type: ignore[attr-defined]
+            model=self.model_name,
             stream=False,
             tools=tools or NOT_GIVEN,
             **invocation_parameters,
         )
 
         if response.usage is not None:
-            self._attributes.update(dict(self._llm_token_counts(response.usage)))  # type: ignore[attr-defined]
+            self._attributes.update(dict(self._llm_token_counts(response.usage)))
 
         choice = response.choices[0]
         if choice.message.content:
@@ -1277,8 +1287,7 @@ class OpenAIReasoningReasoningModelsMixin:
                         "content": content,
                         "role": "assistant",
                         "tool_calls": [
-                            self.to_openai_tool_call_param(tool_call)  # type: ignore[attr-defined]
-                            for tool_call in tool_calls
+                            self.to_openai_tool_call_param(tool_call) for tool_call in tool_calls
                         ],
                     }
                 )
@@ -1289,17 +1298,6 @@ class OpenAIReasoningReasoningModelsMixin:
                 {"content": content, "role": "tool", "tool_call_id": tool_call_id}
             )
         assert_never(role)
-
-
-@register_llm_client(
-    provider_key=GenerativeProviderKey.OPENAI,
-    model_names=_OPENAI_REASONING_MODELS,
-)
-class OpenAIReasoningStreamingClient(
-    OpenAIReasoningReasoningModelsMixin,
-    OpenAIStreamingClient,
-):
-    pass
 
 
 @register_llm_client(
@@ -1362,7 +1360,103 @@ class AzureOpenAIReasoningStreamingClient(
     OpenAIReasoningReasoningModelsMixin,
     AzureOpenAIStreamingClient,
 ):
-    pass
+    @override
+    async def chat_completion_create(
+        self,
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+        ],
+        tools: list[JSONScalarType],
+        **invocation_parameters: Any,
+    ) -> AsyncIterator[ChatCompletionChunk]:
+        from openai import NOT_GIVEN
+
+        # Convert standard messages to OpenAI messages
+        openai_messages = []
+        for message in messages:
+            openai_message = self.to_openai_chat_completion_param(*message)
+            if openai_message is not None:
+                openai_messages.append(openai_message)
+
+        throttled_create = self.rate_limiter._alimit(self.client.chat.completions.create)
+        response = await throttled_create(
+            messages=openai_messages,
+            model=self.model_name,
+            stream=False,
+            tools=tools or NOT_GIVEN,
+            **invocation_parameters,
+        )
+
+        if response.usage is not None:
+            self._attributes.update(dict(self._llm_token_counts(response.usage)))
+
+        choice = response.choices[0]
+        if choice.message.content:
+            yield TextChunk(content=choice.message.content)
+
+        if choice.message.tool_calls:
+            for tool_call in choice.message.tool_calls:
+                yield ToolCallChunk(
+                    id=tool_call.id,
+                    function=FunctionCallChunk(
+                        name=tool_call.function.name,
+                        arguments=tool_call.function.arguments,
+                    ),
+                )
+
+    def to_openai_chat_completion_param(
+        self,
+        role: ChatCompletionMessageRole,
+        content: JSONScalarType,
+        tool_call_id: Optional[str] = None,
+        tool_calls: Optional[list[JSONScalarType]] = None,
+    ) -> Optional["ChatCompletionMessageParam"]:
+        from openai.types.chat import (
+            ChatCompletionAssistantMessageParam,
+            ChatCompletionDeveloperMessageParam,
+            ChatCompletionToolMessageParam,
+            ChatCompletionUserMessageParam,
+        )
+
+        if role is ChatCompletionMessageRole.USER:
+            return ChatCompletionUserMessageParam(
+                {
+                    "content": content,
+                    "role": "user",
+                }
+            )
+        if role is ChatCompletionMessageRole.SYSTEM:
+            return ChatCompletionDeveloperMessageParam(
+                {
+                    "content": content,
+                    "role": "developer",
+                }
+            )
+        if role is ChatCompletionMessageRole.AI:
+            if tool_calls is None:
+                return ChatCompletionAssistantMessageParam(
+                    {
+                        "content": content,
+                        "role": "assistant",
+                    }
+                )
+            else:
+                return ChatCompletionAssistantMessageParam(
+                    {
+                        "content": content,
+                        "role": "assistant",
+                        "tool_calls": [
+                            self.to_openai_tool_call_param(tool_call) for tool_call in tool_calls
+                        ],
+                    }
+                )
+        if role is ChatCompletionMessageRole.TOOL:
+            if tool_call_id is None:
+                raise ValueError("tool_call_id is required for tool messages")
+            return ChatCompletionToolMessageParam(
+                {"content": content, "role": "tool", "tool_call_id": tool_call_id}
+            )
+        assert_never(role)
 
 
 @register_llm_client(
