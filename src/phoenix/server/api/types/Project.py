@@ -1329,13 +1329,19 @@ class Project(Node):
 
     @strawberry.field
     async def top_models_by_cost(
-        self,
-        info: Info[Context, None],
-    ) -> list[GenerativeModel]:
+        self, info: Info[Context, None], time_range: TimeRange
+    ) -> TopModelsByCost:
+        if time_range.start is None:
+            raise BadRequest("Start time is required")
+        if time_range.end is None:
+            time_range.end = datetime.now(timezone.utc)
         async with info.context.db() as session:
             stmt = (
                 select(
                     models.GenerativeModel,
+                    func.sum(models.SpanCost.total_cost).label("total_cost"),
+                    func.sum(models.SpanCost.prompt_cost).label("prompt_cost"),
+                    func.sum(models.SpanCost.completion_cost).label("completion_cost"),
                 )
                 .join(
                     models.SpanCost,
@@ -1347,13 +1353,28 @@ class Project(Node):
                 )
                 .where(models.Trace.project_rowid == self.project_rowid)
                 .where(models.SpanCost.model_id.isnot(None))
+                .where(models.SpanCost.span_start_time >= time_range.start)
+                .where(models.SpanCost.span_start_time < time_range.end)
                 .group_by(models.SpanCost.model_id)
                 .order_by(func.sum(models.SpanCost.total_cost).desc())
             )
             results = []
-            async for model in await session.stream_scalars(stmt):
+            cost_summaries = []
+            async for (
+                model,
+                total_cost,
+                prompt_cost,
+                completion_cost,
+            ) in await session.stream(stmt):
                 results.append(to_gql_generative_model(model))
-            return results
+                cost_summaries.append(
+                    SpanCostSummary(
+                        prompt=CostBreakdown(tokens=prompt_cost, cost=prompt_cost),
+                        completion=CostBreakdown(tokens=completion_cost, cost=completion_cost),
+                        total=CostBreakdown(tokens=total_cost, cost=total_cost),
+                    )
+                )
+            return TopModelsByCost(models=results, cost_summaries=cost_summaries)
 
 
 @strawberry.type
@@ -1447,6 +1468,12 @@ class SpanAnnotationScoreTimeSeriesDataPoint:
 class SpanAnnotationScoreTimeSeries:
     data: list[SpanAnnotationScoreTimeSeriesDataPoint]
     names: list[str]
+
+
+@strawberry.type
+class TopModelsByCost:
+    models: list[GenerativeModel]
+    cost_summaries: list[SpanCostSummary]
 
 
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")

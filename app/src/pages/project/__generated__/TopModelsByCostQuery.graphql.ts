@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c7ab0b5e7e3b432ad4706b1ab857ef91>>
+ * @generated SignedSource<<2e7df0997ce80c4622658445a89fb998>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,13 +9,18 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type TimeRange = {
+  end?: string | null;
+  start?: string | null;
+};
 export type TopModelsByCostQuery$variables = {
   projectId: string;
+  timeRange: TimeRange;
 };
 export type TopModelsByCostQuery$data = {
   readonly project: {
-    readonly topModelsByCost?: ReadonlyArray<{
-      readonly costSummary: {
+    readonly topModelsByCost?: {
+      readonly costSummaries: ReadonlyArray<{
         readonly completion: {
           readonly cost: number | null;
         };
@@ -25,10 +30,12 @@ export type TopModelsByCostQuery$data = {
         readonly total: {
           readonly cost: number | null;
         };
-      };
-      readonly id: string;
-      readonly name: string;
-    }>;
+      }>;
+      readonly models: ReadonlyArray<{
+        readonly id: string;
+        readonly name: string;
+      }>;
+    };
   };
 };
 export type TopModelsByCostQuery = {
@@ -42,6 +49,11 @@ var v0 = [
     "defaultValue": null,
     "kind": "LocalArgument",
     "name": "projectId"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "timeRange"
   }
 ],
 v1 = [
@@ -72,33 +84,44 @@ v4 = {
   "selections": [
     {
       "alias": null,
-      "args": null,
-      "concreteType": "GenerativeModel",
+      "args": [
+        {
+          "kind": "Variable",
+          "name": "timeRange",
+          "variableName": "timeRange"
+        }
+      ],
+      "concreteType": "TopModelsByCost",
       "kind": "LinkedField",
       "name": "topModelsByCost",
-      "plural": true,
+      "plural": false,
       "selections": [
-        (v2/*: any*/),
         {
           "alias": null,
           "args": null,
-          "kind": "ScalarField",
-          "name": "name",
+          "concreteType": "GenerativeModel",
+          "kind": "LinkedField",
+          "name": "models",
+          "plural": true,
+          "selections": [
+            (v2/*: any*/),
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "name",
+              "storageKey": null
+            }
+          ],
           "storageKey": null
         },
         {
           "alias": null,
-          "args": [
-            {
-              "kind": "Variable",
-              "name": "projectId",
-              "variableName": "projectId"
-            }
-          ],
+          "args": null,
           "concreteType": "SpanCostSummary",
           "kind": "LinkedField",
-          "name": "costSummary",
-          "plural": false,
+          "name": "costSummaries",
+          "plural": true,
           "selections": [
             {
               "alias": null,
@@ -192,16 +215,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "4c5625e9c3e8ef290751dca667053c55",
+    "cacheID": "fe17116b114a3212c3b182786c827a62",
     "id": null,
     "metadata": {},
     "name": "TopModelsByCostQuery",
     "operationKind": "query",
-    "text": "query TopModelsByCostQuery(\n  $projectId: ID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      topModelsByCost {\n        id\n        name\n        costSummary(projectId: $projectId) {\n          prompt {\n            cost\n          }\n          completion {\n            cost\n          }\n          total {\n            cost\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query TopModelsByCostQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      topModelsByCost(timeRange: $timeRange) {\n        models {\n          id\n          name\n        }\n        costSummaries {\n          prompt {\n            cost\n          }\n          completion {\n            cost\n          }\n          total {\n            cost\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "41f5611c137b7f8167b184570d8c770d";
+(node as any).hash = "0c48def9d01a9cf39d677fd7a6c0fba6";
 
 export default node;

@@ -1730,7 +1730,7 @@ type Project implements Node {
   traceTokenCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceTokenCountTimeSeries!
   traceTokenCostTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceTokenCostTimeSeries!
   spanAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): SpanAnnotationScoreTimeSeries!
-  topModelsByCost: [GenerativeModel!]!
+  topModelsByCost(timeRange: TimeRange!): TopModelsByCost!
 }
 
 enum ProjectColumn {
@@ -2631,6 +2631,11 @@ type ToolResultContentValue {
 input ToolResultContentValueInput {
   toolCallId: String!
   result: JSON!
+}
+
+type TopModelsByCost {
+  models: [GenerativeModel!]!
+  costSummaries: [SpanCostSummary!]!
 }
 
 type Trace implements Node {

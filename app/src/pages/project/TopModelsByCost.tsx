@@ -16,6 +16,7 @@ import {
   defaultYAxisProps,
   useCategoryChartColors,
 } from "@phoenix/components/chart";
+import { useTimeRange } from "@phoenix/components/datetime";
 import type { TopModelsByCostQuery } from "@phoenix/pages/project/__generated__/TopModelsByCostQuery.graphql";
 
 const chartData = [
@@ -57,17 +58,20 @@ const chartData = [
 ];
 
 export function TopModelsByCost({ projectId }: { projectId: string }) {
+  const { timeRange } = useTimeRange();
   const colors = useCategoryChartColors();
 
   const data = useLazyLoadQuery<TopModelsByCostQuery>(
     graphql`
-      query TopModelsByCostQuery($projectId: ID!) {
+      query TopModelsByCostQuery($projectId: ID!, $timeRange: TimeRange!) {
         project: node(id: $projectId) {
           ... on Project {
-            topModelsByCost {
-              id
-              name
-              costSummary(projectId: $projectId) {
+            topModelsByCost(timeRange: $timeRange) {
+              models {
+                id
+                name
+              }
+              costSummaries {
                 prompt {
                   cost
                 }
@@ -85,16 +89,23 @@ export function TopModelsByCost({ projectId }: { projectId: string }) {
     `,
     {
       projectId,
+      timeRange: {
+        start: timeRange.start?.toISOString(),
+        end: timeRange.end?.toISOString(),
+      },
     }
   );
 
   const chartData = useMemo(() => {
-    return data.project?.topModelsByCost?.map((model) => {
+    const models = data.project?.topModelsByCost?.models ?? [];
+    const costSummaries = data.project?.topModelsByCost?.costSummaries ?? [];
+    return models.map((model, idx) => {
+      const costSummary = costSummaries[idx];
       return {
         model: model.name,
-        prompt_cost: model.costSummary.prompt.cost,
-        completion_cost: model.costSummary.completion.cost,
-        total_cost: model.costSummary.total.cost,
+        prompt_cost: costSummary?.prompt?.cost,
+        completion_cost: costSummary?.completion?.cost,
+        total_cost: costSummary?.total?.cost,
       };
     });
   }, [data]);
