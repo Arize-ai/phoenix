@@ -2036,7 +2036,7 @@ class TestProject:
                         spanCountTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {
                             data {
                                 timestamp
-                                value
+                                totalCount
                             }
                         }
                     }
@@ -2075,7 +2075,7 @@ class TestProject:
             actual_data = []
             for data_point in res["data"]:
                 timestamp = datetime.fromisoformat(data_point["timestamp"])
-                if (value := data_point["value"]) is not None:
+                if (value := data_point["totalCount"]) is not None:
                     actual_data.append({"timestamp": timestamp, "count": value})
             actual_summary = pd.DataFrame(
                 actual_data,
