@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a6b7d6f135ce7a1a40a6d229d0bb1fc0>>
+ * @generated SignedSource<<8562882bfa9e7ae9dcee13d5cb6a540e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,8 +10,14 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type PromptFilterColumn = "description" | "name";
+export type PromptFilter = {
+  col: PromptFilterColumn;
+  value: string;
+};
 export type PromptsTablePromptsQuery$variables = {
   after?: string | null;
+  filter?: PromptFilter | null;
   first?: number | null;
 };
 export type PromptsTablePromptsQuery$data = {
@@ -30,6 +36,11 @@ var v0 = [
     "name": "after"
   },
   {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "filter"
+  },
+  {
     "defaultValue": 100,
     "kind": "LocalArgument",
     "name": "first"
@@ -40,6 +51,11 @@ v1 = [
     "kind": "Variable",
     "name": "after",
     "variableName": "after"
+  },
+  {
+    "kind": "Variable",
+    "name": "filter",
+    "variableName": "filter"
   },
   {
     "kind": "Variable",
@@ -199,7 +215,9 @@ return {
       {
         "alias": null,
         "args": (v1/*: any*/),
-        "filters": null,
+        "filters": [
+          "filter"
+        ],
         "handle": "connection",
         "key": "PromptsTable_prompts",
         "kind": "LinkedHandle",
@@ -208,16 +226,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d34de7b5cd9490100a935debc9b71892",
+    "cacheID": "d96abf0eb9e0d5b5134a3285af01f910",
     "id": null,
     "metadata": {},
     "name": "PromptsTablePromptsQuery",
     "operationKind": "query",
-    "text": "query PromptsTablePromptsQuery(\n  $after: String = null\n  $first: Int = 100\n) {\n  ...PromptsTable_prompts_2HEEH6\n}\n\nfragment PromptsTable_prompts_2HEEH6 on Query {\n  prompts(first: $first, after: $after) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        createdAt\n        version {\n          createdAt\n          id\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query PromptsTablePromptsQuery(\n  $after: String = null\n  $filter: PromptFilter = null\n  $first: Int = 100\n) {\n  ...PromptsTable_prompts_G9cLv\n}\n\nfragment PromptsTable_prompts_G9cLv on Query {\n  prompts(first: $first, after: $after, filter: $filter) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        createdAt\n        version {\n          createdAt\n          id\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "829c7cff273e0ebcfba1c0606c052d8b";
+(node as any).hash = "3cedad98de2e041440caa5c8c03b17fa";
 
 export default node;

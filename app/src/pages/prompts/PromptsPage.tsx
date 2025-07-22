@@ -56,7 +56,7 @@ export function PromptsPage() {
       >
         <PromptsSearch onChange={setSearchFilter} />
       </View>
-      <PromptsTable query={loaderData} filter={searchFilter} />
+      <PromptsTable query={loaderData} searchFilter={searchFilter} />
     </Flex>
   );
 }

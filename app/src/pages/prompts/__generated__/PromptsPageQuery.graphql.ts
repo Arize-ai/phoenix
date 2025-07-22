@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2223cd6ec9b657055d79133a1fc5775e>>
+ * @generated SignedSource<<0f053582726870590a6e6edc301af218>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,31 +10,54 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type promptsLoaderQuery$variables = Record<PropertyKey, never>;
-export type promptsLoaderQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"PromptsTable_prompts">;
+export type PromptFilterColumn = "description" | "name";
+export type PromptFilter = {
+  col: PromptFilterColumn;
+  value: string;
 };
-export type promptsLoaderQuery = {
-  response: promptsLoaderQuery$data;
-  variables: promptsLoaderQuery$variables;
+export type PromptsPageQuery$variables = {
+  filter?: PromptFilter | null;
+  first?: number | null;
+};
+export type PromptsPageQuery$data = {
+  readonly " $fragmentSpreads": FragmentRefs<"PromptsPagePromptsFragment">;
+};
+export type PromptsPageQuery = {
+  response: PromptsPageQuery$data;
+  variables: PromptsPageQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
+var v0 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "filter"
+},
+v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "first"
+},
+v2 = [
   {
-    "kind": "Literal",
+    "kind": "Variable",
+    "name": "filter",
+    "variableName": "filter"
+  },
+  {
+    "kind": "Variable",
     "name": "first",
-    "value": 100
+    "variableName": "first"
   }
 ],
-v1 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v2 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -43,15 +66,18 @@ v2 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": [],
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v1/*: any*/)
+    ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "promptsLoaderQuery",
+    "name": "PromptsPageQuery",
     "selections": [
       {
-        "args": null,
+        "args": (v2/*: any*/),
         "kind": "FragmentSpread",
-        "name": "PromptsTable_prompts"
+        "name": "PromptsPagePromptsFragment"
       }
     ],
     "type": "Query",
@@ -59,13 +85,16 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [],
+    "argumentDefinitions": [
+      (v1/*: any*/),
+      (v0/*: any*/)
+    ],
     "kind": "Operation",
-    "name": "promptsLoaderQuery",
+    "name": "PromptsPageQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v0/*: any*/),
+        "args": (v2/*: any*/),
         "concreteType": "PromptConnection",
         "kind": "LinkedField",
         "name": "prompts",
@@ -87,7 +116,7 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v1/*: any*/),
+                  (v3/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -102,7 +131,7 @@ return {
                     "name": "description",
                     "storageKey": null
                   },
-                  (v2/*: any*/),
+                  (v4/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -111,8 +140,8 @@ return {
                     "name": "version",
                     "plural": false,
                     "selections": [
-                      (v2/*: any*/),
-                      (v1/*: any*/)
+                      (v4/*: any*/),
+                      (v3/*: any*/)
                     ],
                     "storageKey": null
                   }
@@ -141,7 +170,7 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  (v1/*: any*/)
+                  (v3/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -174,32 +203,32 @@ return {
             "storageKey": null
           }
         ],
-        "storageKey": "prompts(first:100)"
+        "storageKey": null
       },
       {
         "alias": null,
-        "args": (v0/*: any*/),
+        "args": (v2/*: any*/),
         "filters": [
           "filter"
         ],
         "handle": "connection",
-        "key": "PromptsTable_prompts",
+        "key": "PromptsPage_prompts",
         "kind": "LinkedHandle",
         "name": "prompts"
       }
     ]
   },
   "params": {
-    "cacheID": "9a3e6a185a7a63d9d2c115e80e22b495",
+    "cacheID": "619ac62c721c4cc6556230c15c04b589",
     "id": null,
     "metadata": {},
-    "name": "promptsLoaderQuery",
+    "name": "PromptsPageQuery",
     "operationKind": "query",
-    "text": "query promptsLoaderQuery {\n  ...PromptsTable_prompts\n}\n\nfragment PromptsTable_prompts on Query {\n  prompts(first: 100) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        createdAt\n        version {\n          createdAt\n          id\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query PromptsPageQuery(\n  $first: Int\n  $filter: PromptFilter\n) {\n  ...PromptsPagePromptsFragment_1qzYLD\n}\n\nfragment PromptsPagePromptsFragment_1qzYLD on Query {\n  prompts(first: $first, filter: $filter) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        createdAt\n        version {\n          createdAt\n          id\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ed4295f193bd2a6d2402a82966d45a7f";
+(node as any).hash = "9d035e15afdfb0b81f4d78b3f15bed9f";
 
 export default node;
