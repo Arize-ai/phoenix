@@ -33,6 +33,7 @@ from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_a
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
+from phoenix.server.api.types.GenerativeModel import GenerativeModel
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     Cursor,
@@ -1325,6 +1326,13 @@ class Project(Node):
             data=sorted(data.values(), key=lambda x: x.timestamp),
             names=sorted(list(unique_names)),
         )
+
+    @strawberry.field
+    async def top_models_by_cost(
+        self,
+        info: Info[Context, None],
+    ) -> list[GenerativeModel]:
+        return []
 
 
 @strawberry.type
