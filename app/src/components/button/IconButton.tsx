@@ -53,6 +53,7 @@ const iconButtonCSS = (color: TextColorValue) => css`
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
+  padding: 0;
 
   &[data-size="S"] {
     width: 30px;
