@@ -1,5 +1,12 @@
 # Changelog
 
+## [11.10.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.10.0...arize-phoenix-v11.10.1) (2025-07-22)
+
+
+### Bug Fixes
+
+* duplicate OpenAIReasoningStreamingClient for AzureOpenAIReasoningStreamingClient ([#8661](https://github.com/Arize-ai/phoenix/issues/8661)) ([26384a4](https://github.com/Arize-ai/phoenix/commit/26384a49b6f5b849c363cbb79b9701166061c255))
+
 ## [11.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.9.0...arize-phoenix-v11.10.0) (2025-07-22)
 
 
