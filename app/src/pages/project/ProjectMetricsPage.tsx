@@ -165,7 +165,7 @@ export function ProjectMetricsPage() {
       </Flex>
       <Flex direction="row" gap="size-100">
         <MetricPanel title="Top models by cost">
-          <TopModelsByCost />
+          <TopModelsByCost projectId={projectId} />
         </MetricPanel>
 
         <MetricPanel title="Top models by tokens">

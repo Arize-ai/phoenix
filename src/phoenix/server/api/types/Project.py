@@ -33,7 +33,7 @@ from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_a
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
-from phoenix.server.api.types.GenerativeModel import GenerativeModel
+from phoenix.server.api.types.GenerativeModel import GenerativeModel, to_gql_generative_model
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     Cursor,
@@ -1332,7 +1332,28 @@ class Project(Node):
         self,
         info: Info[Context, None],
     ) -> list[GenerativeModel]:
-        return []
+        async with info.context.db() as session:
+            stmt = (
+                select(
+                    models.GenerativeModel,
+                )
+                .join(
+                    models.SpanCost,
+                    models.SpanCost.model_id == models.GenerativeModel.id,
+                )
+                .join(
+                    models.Trace,
+                    models.SpanCost.trace_rowid == models.Trace.id,
+                )
+                .where(models.Trace.project_rowid == self.project_rowid)
+                .where(models.SpanCost.model_id.isnot(None))
+                .group_by(models.SpanCost.model_id)
+                .order_by(func.sum(models.SpanCost.total_cost).desc())
+            )
+            results = []
+            async for model in await session.stream_scalars(stmt):
+                results.append(to_gql_generative_model(model))
+            return results
 
 
 @strawberry.type

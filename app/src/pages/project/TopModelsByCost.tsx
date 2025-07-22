@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   Bar,
   BarChart,
@@ -14,6 +16,7 @@ import {
   defaultYAxisProps,
   useCategoryChartColors,
 } from "@phoenix/components/chart";
+import type { TopModelsByCostQuery } from "@phoenix/pages/project/__generated__/TopModelsByCostQuery.graphql";
 
 const chartData = [
   {
@@ -53,8 +56,50 @@ const chartData = [
   },
 ];
 
-export function TopModelsByCost() {
+export function TopModelsByCost({ projectId }: { projectId: string }) {
   const colors = useCategoryChartColors();
+
+  const data = useLazyLoadQuery<TopModelsByCostQuery>(
+    graphql`
+      query TopModelsByCostQuery($projectId: ID!) {
+        project: node(id: $projectId) {
+          ... on Project {
+            topModelsByCost {
+              id
+              name
+              costSummary {
+                prompt {
+                  cost
+                }
+                completion {
+                  cost
+                }
+                total {
+                  cost
+                }
+              }
+            }
+          }
+        }
+      }
+    `,
+    {
+      projectId,
+    }
+  );
+
+  const chartData = useMemo(() => {
+    return data.project?.topModelsByCost?.map((model) => {
+      return {
+        model: model.name,
+        prompt_cost: model.costSummary.prompt.cost,
+        completion_cost: model.costSummary.completion.cost,
+        total_cost: model.costSummary.total.cost,
+      };
+    });
+  }, [data]);
+
+  console.log(chartData);
 
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -83,10 +128,9 @@ export function TopModelsByCost() {
           stackId="a"
           radius={[2, 0, 0, 2]}
         />
-        <Bar dataKey="completion_cost" fill={colors.category2} stackId="a" />
         <Bar
-          dataKey="other_cost"
-          fill={colors.category3}
+          dataKey="completion_cost"
+          fill={colors.category2}
           stackId="a"
           radius={[0, 2, 2, 0]}
         />
