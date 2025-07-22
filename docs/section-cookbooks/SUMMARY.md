@@ -11,7 +11,7 @@
 
 ## Annotations
 
-* [Using Annotations for Eval-Driven Development](annotations/using-annotations-for-eval-driven-development.md)
+* [Using Human Annotations for Eval-Driven Development](annotations/using-human-annotations-for-eval-driven-development.md)
 
 ## Prompt Engineering
 

@@ -4,7 +4,7 @@ description: >-
   improve your system
 ---
 
-# Using Annotations for Eval-Driven Development
+# Using Human Annotations for Eval-Driven Development
 
 {% embed url="https://youtu.be/JK2JQUqpcqM" %}
 
@@ -100,7 +100,7 @@ How to annotate your traces in Lovable:
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/custom-annotations-UI.mp4" %}
 
-This tool was built using the Phoenix [REST API](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/yYiH3D9rUbrh3jUtdpK4/). For more details on how to build your own custom annotations tool to fit your needs, see [here](using-annotations-for-eval-driven-development.md#tips-for-building-your-custom-annotation-ui).&#x20;
+This tool was built using the Phoenix [REST API](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/yYiH3D9rUbrh3jUtdpK4/). For more details on how to build your own custom annotations tool to fit your needs, see [here](using-human-annotations-for-eval-driven-development.md#tips-for-building-your-custom-annotation-ui).&#x20;
 
 ## Create a dataset from annotated spans
 
