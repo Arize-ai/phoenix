@@ -634,26 +634,23 @@ const SelectableStoryComponent = () => {
       {selectedCount > 0 && (
         <FloatingToolbarContainer>
           <Toolbar>
-            <TooltipTrigger>
-              <IconButton>
+            <TooltipTrigger delay={0}>
+              <IconButton onPress={() => setSelectedCount(0)}>
                 <Icon svg={<Icons.CloseOutline />} />
               </IconButton>
+              <Tooltip>Clear selection</Tooltip>
             </TooltipTrigger>
-            <Tooltip>Clear selection</Tooltip>
-            <View minWidth={300}>
+            <View paddingEnd="size-100">
               <Text>{`${selectedCount} row${selectedCount > 1 ? "s" : ""} selected`}</Text>
             </View>
-            <Separator orientation="vertical" />
-            <TooltipTrigger>
-              <Button
-                variant="danger"
-                size="S"
-                leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
-              />
-              <Tooltip>
-                <Text>Delete</Text>
-              </Tooltip>
-            </TooltipTrigger>
+
+            <Button
+              variant="danger"
+              size="M"
+              leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+            >
+              Delete
+            </Button>
           </Toolbar>
         </FloatingToolbarContainer>
       )}
