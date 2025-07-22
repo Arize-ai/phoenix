@@ -1,15 +1,15 @@
-"""
-LiteLLM adapter implementation for the Universal LLM Wrapper.
-"""
-
+import base64
 import json
 import logging
 from typing import Any, Dict, Optional, Union
+from urllib.parse import urlparse
 
-from phoenix.evals.templates import MultimodalPrompt
+from phoenix.evals.exceptions import PhoenixUnsupportedAudioFormat
+from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
+from phoenix.evals.utils import SUPPORTED_AUDIO_FORMATS, get_audio_format_from_base64
 
-from ...types import BaseLLMAdapter
 from ...registries import register_provider
+from ...types import BaseLLMAdapter
 from .client import LiteLLMClient
 from .factories import (
     create_anthropic_client,
@@ -71,10 +71,13 @@ class LiteLLMAdapter(BaseLLMAdapter):
         call_kwargs = {**self.client.config, **kwargs}
 
         try:
-            response = self._litellm.completion(
+            response = self._litellm.completion(  # pyright: ignore
                 model=self.client.model_string, messages=messages, **call_kwargs
             )
-            return response.choices[0].message.content
+            content = response.choices[0].message.content  # pyright: ignore
+            if content is None:
+                raise ValueError("LiteLLM returned None content")
+            return content
         except Exception as e:
             logger.error(f"LiteLLM completion failed: {e}")
             raise
@@ -99,10 +102,13 @@ class LiteLLMAdapter(BaseLLMAdapter):
         call_kwargs = {**self.client.config, **kwargs}
 
         try:
-            response = await self._litellm.acompletion(
+            response = await self._litellm.acompletion(  # pyright: ignore
                 model=self.client.model_string, messages=messages, **call_kwargs
             )
-            return response.choices[0].message.content
+            content = response.choices[0].message.content  # pyright: ignore
+            if content is None:
+                raise ValueError("LiteLLM returned None content")
+            return content
         except Exception as e:
             logger.error(f"LiteLLM async completion failed: {e}")
             raise
@@ -113,28 +119,54 @@ class LiteLLMAdapter(BaseLLMAdapter):
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        """
-        Generate structured output using LiteLLM.
+        supported_params = self._litellm.get_supported_openai_params(model=self.client.model)
+        supports_structured_output = "response_format" in supported_params
+        supports_tool_calls = "tools" in supported_params
 
-        Since LiteLLM doesn't have native structured output, we use JSON parsing.
+        if not supports_structured_output and not supports_tool_calls:
+            raise ValueError(
+                f"LiteLLM model {self.client.model} does not support structured "
+                "output or tool calls"
+            )
 
-        Returns:
-            A dictionary containing the structured data that conforms to the provided schema.
-        """
-        # Build structured instruction
-        structured_prompt = self._build_structured_instruction(prompt, schema)
+        if supports_structured_output:
+            response_format = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "extract_structured_data",
+                    "schema": schema,
+                    "strict": True,
+                },
+            }
+            messages = self._build_messages(prompt)
+            response = self._litellm.completion(  # pyright: ignore
+                model=self.client.model_string,
+                messages=messages,
+                response_format=response_format,
+                **kwargs,
+            )
+            content = response.choices[0].message.content  # pyright: ignore
+            if content is None:
+                raise ValueError("LiteLLM returned no content")
+            return json.loads(content)
+        else:
+            tool_definition = self._schema_to_tool(schema)
+            messages = self._build_messages(prompt)
 
-        # Generate text response
-        text = self.generate_text(structured_prompt, None, **kwargs)
+            response = self._litellm.completion(
+                model=self.client.model_string,
+                messages=messages,
+                tools=[tool_definition],
+                tool_choice={"type": "function", "function": {"name": "extract_structured_data"}},
+                **kwargs,
+            )
 
-        # Parse JSON from response
-        try:
-            data = json.loads(text)
-            return data
-        except (json.JSONDecodeError, TypeError) as e:
-            logger.warning(f"Failed to parse JSON from LiteLLM response: {e}")
-            logger.warning(f"Raw response: {text}")
-            return {}
+            tool_call = response.choices[0].message.tool_calls[0]
+            arguments = tool_call.function.arguments
+            if isinstance(arguments, str):
+                return json.loads(arguments)
+            else:
+                return arguments
 
     async def agenerate_object(
         self,
@@ -145,66 +177,137 @@ class LiteLLMAdapter(BaseLLMAdapter):
         """
         Async generate structured output using LiteLLM.
 
-        Since LiteLLM doesn't have native structured output, we use JSON parsing.
-
         Returns:
             A dictionary containing the structured data that conforms to the provided schema.
         """
-        # Build structured instruction
-        structured_prompt = self._build_structured_instruction(prompt, schema)
+        supported_params = self._litellm.get_supported_openai_params(model=self.client.model)  # pyright: ignore
+        supports_structured_output = "response_format" in (supported_params or [])
+        supports_tool_calls = "tools" in (supported_params or [])
 
-        # Generate text response
-        text = await self.agenerate_text(structured_prompt, None, **kwargs)
+        if not supports_structured_output and not supports_tool_calls:
+            raise ValueError(
+                f"LiteLLM model {self.client.model} does not support structured "
+                "output or tool calls"
+            )
 
-        # Parse JSON from response
-        try:
-            data = json.loads(text)
-            return data
-        except (json.JSONDecodeError, TypeError) as e:
-            logger.warning(f"Failed to parse JSON from LiteLLM async response: {e}")
-            logger.warning(f"Raw response: {text}")
-            return {}
+        if supports_structured_output:
+            response_format = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "extract_structured_data",
+                    "schema": schema,
+                    "strict": True,
+                },
+            }
+            messages = self._build_messages(prompt)
+            response = await self._litellm.acompletion(  # pyright: ignore
+                model=self.client.model_string,
+                messages=messages,
+                response_format=response_format,
+                **kwargs,
+            )
+            content = response.choices[0].message.content  # pyright: ignore
+            if content is None:
+                raise ValueError("LiteLLM returned None content")
+            return json.loads(content)
+        else:
+            tool_definition = self._schema_to_tool(schema)
+            messages = self._build_messages(prompt)
+
+            response = await self._litellm.acompletion(  # pyright: ignore
+                model=self.client.model_string,
+                messages=messages,
+                tools=[tool_definition],
+                tool_choice={"type": "function", "function": {"name": "extract_structured_data"}},
+                **kwargs,
+            )
+
+            tool_call = response.choices[0].message.tool_calls[0]  # pyright: ignore
+            arguments = tool_call.function.arguments  # pyright: ignore
+            if isinstance(arguments, str):
+                return json.loads(arguments)
+            else:
+                return arguments  # pyright: ignore
 
     @property
     def model_name(self) -> str:
         """Return the LiteLLM model name."""
         return self.client.model_string
 
-    def _build_structured_instruction(
-        self,
-        prompt: Union[str, MultimodalPrompt],
-        schema: Dict[str, Any],
-    ) -> str:
+    def _schema_to_tool(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Build a standardized instruction for structured output generation.
+        Convert a JSON schema to a tool definition for LiteLLM.
+
+        Args:
+            schema: JSON schema defining the expected structure
+
+        Returns:
+            Tool definition in OpenAI format for LiteLLM
         """
-        if isinstance(prompt, MultimodalPrompt):
-            prompt_text = prompt.to_text_only_prompt()
-        else:
-            prompt_text = prompt
-
-        # Validate schema before processing
-        self._validate_schema(schema)
-
-        # Build the structured output instruction
-        structured_instruction = (
-            "You must respond with valid JSON that conforms to the provided schema. "
-            "Do not include any additional text, explanations, or formatting outside of the JSON response."
+        # Create tool description from schema
+        description = schema.get(
+            "description", "Extract structured data according to the provided schema"
         )
 
-        # Add schema information if available
-        if schema:
-            try:
-                schema_str = json.dumps(schema, indent=2)
-                structured_instruction += f"\n\nRequired JSON Schema:\n{schema_str}"
-            except (TypeError, ValueError):
-                # If schema can't be serialized, provide a general instruction
-                structured_instruction += (
-                    "\n\nThe response must conform to the provided schema structure."
-                )
+        # Build the tool definition
+        tool_definition = {
+            "type": "function",
+            "function": {
+                "name": "extract_structured_data",
+                "description": description,
+                "parameters": schema,
+            },
+        }
 
-        # Combine instruction with prompt
-        return f"{structured_instruction}\n\n{prompt_text}"
+        return tool_definition
+
+    def _build_messages(self, prompt: Union[str, MultimodalPrompt]) -> list[dict[str, Any]]:
+        messages: list[dict[str, Any]] = []
+        if isinstance(prompt, str):
+            return [{"role": "user", "content": prompt}]
+        else:
+            for part in prompt.parts:
+                if part.content_type == PromptPartContentType.TEXT:
+                    messages.append({"role": "user", "content": part.content})
+                elif part.content_type == PromptPartContentType.AUDIO:
+                    format = str(get_audio_format_from_base64(part.content))
+                    if format not in SUPPORTED_AUDIO_FORMATS:
+                        raise PhoenixUnsupportedAudioFormat(f"Unsupported audio format: {format}")
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "input_audio",
+                                    "input_audio": {
+                                        "data": part.content,
+                                        "format": str(get_audio_format_from_base64(part.content)),
+                                    },
+                                }
+                            ],
+                        }
+                    )
+                elif part.content_type == PromptPartContentType.IMAGE:
+                    if _is_base64(part.content):
+                        content_url = f"data:image/jpeg;base64,{part.content}"
+                    elif _is_url(part.content):
+                        content_url = part.content
+                    else:
+                        raise ValueError("Only base64 encoded images or image URLs are supported")
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "image_url",
+                                    "image_url": {"url": content_url},
+                                }
+                            ],
+                        }
+                    )
+                else:
+                    raise ValueError(f"Unsupported content type: {part.content_type}")
+        return messages
 
     def _validate_schema(self, schema: Dict[str, Any]) -> None:
         """
@@ -212,7 +315,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
         Checks for common issues like required fields not matching properties.
         """
-        if not isinstance(schema, dict):
+        if not isinstance(schema, dict):  # pyright: ignore
             raise ValueError(f"Schema must be a dictionary, got {type(schema)}")
 
         # Check if schema has properties and required fields
@@ -231,3 +334,16 @@ class LiteLLMAdapter(BaseLLMAdapter):
                     f"are not defined in properties. "
                     f"Properties: {list(property_names)}, Required: {list(required_names)}"
                 )
+
+
+def _is_url(url: str) -> bool:
+    parsed_url = urlparse(url)
+    return bool(parsed_url.scheme and parsed_url.netloc)
+
+
+def _is_base64(s: str) -> bool:
+    try:
+        base64.b64decode(s, validate=True)
+        return True
+    except Exception:
+        return False
