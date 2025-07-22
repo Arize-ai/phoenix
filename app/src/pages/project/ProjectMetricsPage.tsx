@@ -168,7 +168,7 @@ export function ProjectMetricsPage() {
           <TopModelsByCost projectId={projectId} />
         </MetricPanel>
         <MetricPanel title="Top models by tokens">
-          <TopModelsByToken />
+          <TopModelsByToken projectId={projectId} />
         </MetricPanel>
       </Flex>
     </main>

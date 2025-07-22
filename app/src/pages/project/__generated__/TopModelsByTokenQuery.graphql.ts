@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2867476bdf1af9c9aeeec01716cea336>>
+ * @generated SignedSource<<f7334e6ac9fb7817e1521189ce0d51af>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,22 +13,22 @@ export type TimeRange = {
   end?: string | null;
   start?: string | null;
 };
-export type TopModelsByCostQuery$variables = {
+export type TopModelsByTokenQuery$variables = {
   projectId: string;
   timeRange: TimeRange;
 };
-export type TopModelsByCostQuery$data = {
+export type TopModelsByTokenQuery$data = {
   readonly project: {
-    readonly topModelsByCost?: {
+    readonly topModelsByTokenCount?: {
       readonly costSummaries: ReadonlyArray<{
         readonly completion: {
-          readonly cost: number | null;
+          readonly tokens: number | null;
         };
         readonly prompt: {
-          readonly cost: number | null;
+          readonly tokens: number | null;
         };
         readonly total: {
-          readonly cost: number | null;
+          readonly tokens: number | null;
         };
       }>;
       readonly models: ReadonlyArray<{
@@ -38,9 +38,9 @@ export type TopModelsByCostQuery$data = {
     };
   };
 };
-export type TopModelsByCostQuery = {
-  response: TopModelsByCostQuery$data;
-  variables: TopModelsByCostQuery$variables;
+export type TopModelsByTokenQuery = {
+  response: TopModelsByTokenQuery$data;
+  variables: TopModelsByTokenQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -75,7 +75,7 @@ v3 = [
     "alias": null,
     "args": null,
     "kind": "ScalarField",
-    "name": "cost",
+    "name": "tokens",
     "storageKey": null
   }
 ],
@@ -91,9 +91,9 @@ v4 = {
           "variableName": "timeRange"
         }
       ],
-      "concreteType": "TopModelsByCostPayload",
+      "concreteType": "TopModelsByTokenCountPayload",
       "kind": "LinkedField",
-      "name": "topModelsByCost",
+      "name": "topModelsByTokenCount",
       "plural": false,
       "selections": [
         {
@@ -168,7 +168,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "TopModelsByCostQuery",
+    "name": "TopModelsByTokenQuery",
     "selections": [
       {
         "alias": "project",
@@ -190,7 +190,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "TopModelsByCostQuery",
+    "name": "TopModelsByTokenQuery",
     "selections": [
       {
         "alias": "project",
@@ -215,16 +215,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "fe17116b114a3212c3b182786c827a62",
+    "cacheID": "44d5c8a3bbbb3c9f1550e97b2f88026d",
     "id": null,
     "metadata": {},
-    "name": "TopModelsByCostQuery",
+    "name": "TopModelsByTokenQuery",
     "operationKind": "query",
-    "text": "query TopModelsByCostQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      topModelsByCost(timeRange: $timeRange) {\n        models {\n          id\n          name\n        }\n        costSummaries {\n          prompt {\n            cost\n          }\n          completion {\n            cost\n          }\n          total {\n            cost\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query TopModelsByTokenQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      topModelsByTokenCount(timeRange: $timeRange) {\n        models {\n          id\n          name\n        }\n        costSummaries {\n          prompt {\n            tokens\n          }\n          completion {\n            tokens\n          }\n          total {\n            tokens\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0c48def9d01a9cf39d677fd7a6c0fba6";
+(node as any).hash = "0855d506d5979d980c6e2a5e2660a6c5";
 
 export default node;
