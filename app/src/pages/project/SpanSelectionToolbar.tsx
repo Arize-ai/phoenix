@@ -8,6 +8,7 @@ import {
   DialogTrigger,
   Flex,
   Icon,
+  IconButton,
   Icons,
   Modal,
   ModalOverlay,
@@ -146,12 +147,18 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
     <FloatingToolbarContainer>
       <Flex direction="row" justifyContent="space-between" alignItems="center">
         <View minWidth={300}>
-          <Text>{`${selectedSpans.length} span${isPlural ? "s" : ""} selected`}</Text>
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <IconButton
+              size="S"
+              onPress={onClearSelection}
+              aria-label="Clear selection"
+            >
+              <Icon svg={<Icons.CloseOutline />} />
+            </IconButton>
+            <Text>{`${selectedSpans.length} span${isPlural ? "s" : ""} selected`}</Text>
+          </Flex>
         </View>
         <Flex direction="row" gap="size-100">
-          <Button variant="default" size="S" onPress={onClearSelection}>
-            Cancel
-          </Button>
           {/* Dataset Selector Dialog */}
           <DialogTrigger
             isOpen={isDatasetPopoverOpen}
@@ -160,7 +167,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
             }}
           >
             <Button
-              variant="default"
+              variant="primary"
               size="S"
               leadingVisual={
                 isAddingSpansToDataset ? (
@@ -177,7 +184,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
               {isAddingSpansToDataset ? "Adding..." : "Add to Dataset"}
             </Button>
             <Suspense>
-              <Popover placement="top end" crossOffset={300}>
+              <Popover placement="top start" crossOffset={300}>
                 <DatasetSelectorPopoverContent
                   onDatasetSelected={(datasetId) => {
                     onAddSpansToDataset(datasetId);
@@ -254,11 +261,10 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
                 }
               />
             }
+            aria-label="Delete Traces"
             isDisabled={isDeletingTraces}
             onPress={onDeletePress}
-          >
-            {isDeletingTraces ? "Deleting..." : "Delete"}
-          </Button>
+          />
           {/* Delete traces dialog */}
           <DialogTrigger
             isOpen={isDeletingTracesDialogOpen}

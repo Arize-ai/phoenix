@@ -4,7 +4,18 @@ import { css } from "@emotion/react";
 
 import { DialogContainer } from "@arizeai/components";
 
-import { Button, Flex, Icon, Icons, Text, View } from "@phoenix/components";
+import {
+  Button,
+  Flex,
+  Icon,
+  IconButton,
+  Icons,
+  Text,
+  Tooltip,
+  TooltipTrigger,
+  View,
+} from "@phoenix/components";
+import { FloatingToolbarContainer } from "@phoenix/components/toolbar/FloatingToolbarContainer";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -76,56 +87,44 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
     notifyError,
   ]);
   return (
-    <div
-      css={css`
-        position: absolute;
-        bottom: var(--ac-global-dimension-size-400);
-        left: 50%;
-        transform: translateX(-50%);
-      `}
-    >
-      <View
-        backgroundColor="light"
-        padding="size-200"
-        borderColor="light"
-        borderWidth="thin"
-        borderRadius="medium"
-        minWidth="size-6000"
-      >
-        <Flex
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-        >
-          <Text>{`${selectedExamples.length} example${isPlural ? "s" : ""} selected`}</Text>
-          <Flex direction="row" gap="size-100">
-            <Button variant="default" size="S" onPress={onClearSelection}>
-              Cancel
-            </Button>
-            <Button
-              variant="danger"
-              size="S"
-              leadingVisual={
-                <Icon
-                  svg={
-                    isDeletingExamples ? (
-                      <Icons.LoadingOutline />
-                    ) : (
-                      <Icons.TrashOutline />
-                    )
-                  }
-                />
-              }
-              isDisabled={isDeletingExamples}
-              onPress={onDeleteExamples}
-            >
-              {isDeletingExamples
-                ? "Deleting..."
-                : "Delete Example" + (isPlural ? "s" : "")}
-            </Button>
+    <FloatingToolbarContainer>
+      <Flex direction="row" justifyContent="space-between" alignItems="center">
+        <View minWidth={300}>
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <TooltipTrigger>
+              <IconButton
+                size="S"
+                onPress={onClearSelection}
+                aria-label="Clear selection"
+              >
+                <Icon svg={<Icons.CloseOutline />} />
+              </IconButton>
+              <Tooltip>Clear selection</Tooltip>
+            </TooltipTrigger>
+            <Text>{`${selectedExamples.length} example${isPlural ? "s" : ""} selected`}</Text>
           </Flex>
+        </View>
+        <Flex direction="row" gap="size-100">
+          <Button
+            variant="danger"
+            size="S"
+            leadingVisual={
+              <Icon
+                svg={
+                  isDeletingExamples ? (
+                    <Icons.LoadingOutline />
+                  ) : (
+                    <Icons.TrashOutline />
+                  )
+                }
+              />
+            }
+            isDisabled={isDeletingExamples}
+            onPress={onDeleteExamples}
+            aria-label="Delete Examples"
+          />
         </Flex>
-      </View>
+      </Flex>
       <DialogContainer
         onDismiss={() => {
           setDialog(null);
@@ -133,6 +132,6 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
       >
         {dialog}
       </DialogContainer>
-    </div>
+    </FloatingToolbarContainer>
   );
 }
