@@ -2027,18 +2027,18 @@ class TestProject:
             variables: dict[str, Any] = {"id": project_gid}
 
             query = """
-                query($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {{
-                    node(id: $id) {{
-                        ... on Project {{
-                            {obj}CountTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {{
-                                data {{
+                query($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {
+                    node(id: $id) {
+                        ... on Project {
+                            spanCountTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {
+                                data {
                                     timestamp
                                     value
-                                }}
-                            }}
-                        }}
-                    }}
-                }}
+                                }
+                            }
+                        }
+                    }
+                }
             """
 
             if time_range:
@@ -2056,11 +2056,10 @@ class TestProject:
                 }
 
             # Execute GraphQL query
-            obj = "span"
-            response = await gql_client.execute(query=query.format(obj=obj), variables=variables)
+            response = await gql_client.execute(query=query, variables=variables)
             assert not response.errors
             assert (data := response.data) is not None
-            res = data["node"][f"{obj}CountTimeSeries"]
+            res = data["node"]["spanCountTimeSeries"]
 
             # Verify the structure of the response
             assert "data" in res
@@ -2082,7 +2081,7 @@ class TestProject:
 
             # Handle empty results
             if expected_summary.empty:
-                assert actual_summary.empty, f"Expected empty summary for {obj} in {test_desc}"
+                assert actual_summary.empty, f"Expected empty summary for span in {test_desc}"
                 continue
 
             actual_summary["timestamp"] = pd.to_datetime(actual_summary["timestamp"])
@@ -2091,7 +2090,7 @@ class TestProject:
             try:
                 pd.testing.assert_frame_equal(actual_summary, expected_summary, check_dtype=False)
             except AssertionError as e:
-                raise AssertionError(f"Test failed for {obj} in {test_desc}") from e
+                raise AssertionError(f"Test failed for span in {test_desc}") from e
 
     async def test_trace_count_time_series(
         self,
@@ -2427,18 +2426,18 @@ class TestProject:
             variables: dict[str, Any] = {"id": project_gid}
 
             query = """
-                query($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {{
-                    node(id: $id) {{
-                        ... on Project {{
-                            {obj}CountTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {{
-                                data {{
+                query($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {
+                    node(id: $id) {
+                        ... on Project {
+                            traceCountTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {
+                                data {
                                     timestamp
                                     value
-                                }}
-                            }}
-                        }}
-                    }}
-                }}
+                                }
+                            }
+                        }
+                    }
+                }
             """
 
             if time_range:
@@ -2456,11 +2455,10 @@ class TestProject:
                 }
 
             # Execute GraphQL query
-            obj = "trace"
-            response = await gql_client.execute(query=query.format(obj=obj), variables=variables)
+            response = await gql_client.execute(query=query, variables=variables)
             assert not response.errors
             assert (data := response.data) is not None
-            res = data["node"][f"{obj}CountTimeSeries"]
+            res = data["node"]["traceCountTimeSeries"]
 
             # Verify the structure of the response
             assert "data" in res
@@ -2482,7 +2480,7 @@ class TestProject:
 
             # Handle empty results
             if expected_summary.empty:
-                assert actual_summary.empty, f"Expected empty summary for {obj} in {test_desc}"
+                assert actual_summary.empty, f"Expected empty summary for trace in {test_desc}"
                 continue
 
             actual_summary["timestamp"] = pd.to_datetime(actual_summary["timestamp"])
@@ -2491,7 +2489,7 @@ class TestProject:
             try:
                 pd.testing.assert_frame_equal(actual_summary, expected_summary, check_dtype=False)
             except AssertionError as e:
-                raise AssertionError(f"Test failed for {obj} in {test_desc}") from e
+                raise AssertionError(f"Test failed for trace in {test_desc}") from e
 
     @pytest.mark.parametrize(
         "expectation,condition",
