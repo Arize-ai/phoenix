@@ -744,7 +744,9 @@ class Query:
             # Cast Identifier columns to String for ilike operations
             if filter.col.value == "name":
                 column = cast(column, String)
-            stmt = stmt.where(column.ilike(f"%{filter.value}%"))
+            stmt = stmt.where(column.ilike(f"%{filter.value}%")).order_by(
+                models.Prompt.updated_at.desc()
+            )
         async with info.context.db() as session:
             orm_prompts = await session.stream_scalars(stmt)
             data = [to_gql_prompt_from_orm(orm_prompt) async for orm_prompt in orm_prompts]

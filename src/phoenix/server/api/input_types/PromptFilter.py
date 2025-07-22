@@ -6,7 +6,6 @@ import strawberry
 @strawberry.enum
 class PromptFilterColumn(Enum):
     name = "name"
-    description = "description"
 
 
 @strawberry.input(description="The filter key and value for prompt connections")

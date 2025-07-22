@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8562882bfa9e7ae9dcee13d5cb6a540e>>
+ * @generated SignedSource<<feb4fa07b26d18df4e098ab18a3c3ea4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type PromptFilterColumn = "description" | "name";
+export type PromptFilterColumn = "name";
 export type PromptFilter = {
   col: PromptFilterColumn;
   value: string;

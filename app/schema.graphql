@@ -1924,7 +1924,6 @@ input PromptFilter {
 
 enum PromptFilterColumn {
   name
-  description
 }
 
 type PromptLabel implements Node {

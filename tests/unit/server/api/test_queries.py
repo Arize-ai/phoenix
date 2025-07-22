@@ -7,6 +7,15 @@ from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.model_provider import ModelProvider
+from phoenix.server.api.helpers.prompts.models import (
+    PromptOpenAIInvocationParameters,
+    PromptOpenAIInvocationParametersContent,
+    PromptStringTemplate,
+    PromptTemplateFormat,
+    PromptTemplateType,
+)
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -41,6 +50,101 @@ async def test_projects_omits_experiment_projects(
             ]
         }
     }
+
+
+async def test_prompts_filter_by_name(
+    gql_client: AsyncGraphQLClient,
+    prompts_for_filtering: Any,
+) -> None:
+    """Test that prompts can be filtered by name using partial matching."""
+    query = """
+      query ($filter: PromptFilter) {
+        prompts(filter: $filter) {
+          edges {
+            prompt: node {
+              id
+              name
+            }
+          }
+        }
+      }
+    """
+
+    # Test filtering by partial name match
+    response = await gql_client.execute(
+        query=query, variables={"filter": {"col": "name", "value": "test"}}
+    )
+    assert not response.errors
+    assert response.data == {
+        "prompts": {
+            "edges": [
+                {
+                    "prompt": {
+                        "id": str(GlobalID("Prompt", str(1))),
+                        "name": "test_prompt_one",
+                    }
+                },
+                {
+                    "prompt": {
+                        "id": str(GlobalID("Prompt", str(2))),
+                        "name": "test_prompt_two",
+                    }
+                },
+            ]
+        }
+    }
+
+    # Test filtering with no matches
+    response = await gql_client.execute(
+        query=query, variables={"filter": {"col": "name", "value": "nonexistent"}}
+    )
+    assert not response.errors
+    assert response.data == {"prompts": {"edges": []}}
+
+    # Test filtering with specific match
+    response = await gql_client.execute(
+        query=query, variables={"filter": {"col": "name", "value": "production"}}
+    )
+    assert not response.errors
+    assert response.data == {
+        "prompts": {
+            "edges": [
+                {
+                    "prompt": {
+                        "id": str(GlobalID("Prompt", str(3))),
+                        "name": "production_prompt",
+                    }
+                }
+            ]
+        }
+    }
+
+
+async def test_prompts_without_filter(
+    gql_client: AsyncGraphQLClient,
+    prompts_for_filtering: Any,
+) -> None:
+    """Test that prompts query returns all prompts when no filter is applied."""
+    query = """
+      query {
+        prompts {
+          edges {
+            prompt: node {
+              id
+              name
+            }
+          }
+        }
+      }
+    """
+
+    response = await gql_client.execute(query=query)
+    assert not response.errors
+    assert len(response.data["prompts"]["edges"]) == 3
+    prompt_names = [edge["prompt"]["name"] for edge in response.data["prompts"]["edges"]]
+    assert "test_prompt_one" in prompt_names
+    assert "test_prompt_two" in prompt_names
+    assert "production_prompt" in prompt_names
 
 
 async def test_compare_experiments_returns_expected_comparisons(
@@ -265,6 +369,58 @@ async def test_db_table_stats(gql_client: AsyncGraphQLClient) -> None:
     assert not response.errors
     assert (data := response.data) is not None
     assert set(s["tableName"] for s in data["dbTableStats"]) == set(models.Base.metadata.tables)
+
+
+@pytest.fixture
+async def prompts_for_filtering(
+    db: DbSessionFactory,
+) -> None:
+    """
+    Insert test prompts with different names for testing filtering functionality.
+    """
+    async with db() as session:
+        # Create prompts with different names to test filtering
+        prompts = [
+            models.Prompt(
+                name=Identifier(root="test_prompt_one"),
+                description="First test prompt",
+                metadata_={"type": "test"},
+            ),
+            models.Prompt(
+                name=Identifier(root="test_prompt_two"),
+                description="Second test prompt",
+                metadata_={"type": "test"},
+            ),
+            models.Prompt(
+                name=Identifier(root="production_prompt"),
+                description="Production prompt",
+                metadata_={"type": "production"},
+            ),
+        ]
+
+        for prompt in prompts:
+            session.add(prompt)
+
+        await session.flush()  # Flush to get IDs for creating versions
+
+        # Create a prompt version for each prompt
+        for prompt in prompts:
+            prompt_version = models.PromptVersion(
+                prompt_id=prompt.id,
+                description=f"Version for {prompt.name.root}",
+                template_type=PromptTemplateType.STRING,
+                template_format=PromptTemplateFormat.F_STRING,
+                template=PromptStringTemplate(type="string", template="Hello, {name}!"),
+                invocation_parameters=PromptOpenAIInvocationParameters(
+                    type="openai", openai=PromptOpenAIInvocationParametersContent()
+                ),
+                model_provider=ModelProvider.OPENAI,
+                model_name="gpt-3.5-turbo",
+                metadata_={},
+            )
+            session.add(prompt_version)
+
+        await session.commit()
 
 
 @pytest.fixture
