@@ -105,7 +105,6 @@ export function TopModelsByCost({ projectId }: { projectId: string }) {
           stackId="a"
           radius={[0, 2, 2, 0]}
         />
-
         <Legend align="left" iconType="circle" iconSize={8} />
       </BarChart>
     </ResponsiveContainer>
