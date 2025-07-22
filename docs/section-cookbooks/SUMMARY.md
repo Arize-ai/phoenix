@@ -9,6 +9,10 @@
 * [Cookbooks](tracing/cookbooks.md)
 * [Structured Data Extraction](tracing/structured-data-extraction.md)
 
+## Annotations
+
+* [Using Annotations for Eval-Driven Development](annotations/using-annotations-for-eval-driven-development.md)
+
 ## Prompt Engineering
 
 * [Few Shot Prompting](prompt-engineering/few-shot-prompting.md)
