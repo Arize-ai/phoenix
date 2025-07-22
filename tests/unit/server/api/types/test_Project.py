@@ -1693,8 +1693,269 @@ class TestProject:
         t = t.dt.tz_convert(timezone.utc)
         return df.groupby(t).size().reset_index(name="count")
 
+    @pytest.mark.parametrize(
+        "time_range, time_bin_config",
+        [
+            # === BASIC HOURLY TESTS ===
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
+                ),
+                None,
+                id="default-hourly-no-offset",
+            ),
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T03:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
+                id="hourly-no-offset",
+            ),
+            # === MINUTE GRANULARITY TESTS ===
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T01:30:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=0),
+                id="minute-no-offset",
+            ),
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T02:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=60),
+                id="minute-with-positive-offset",
+            ),
+            # === DAILY GRANULARITY TESTS ===
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.DAY, utc_offset_minutes=0),
+                id="daily-no-offset",
+            ),
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.DAY, utc_offset_minutes=-480),  # PST offset
+                id="daily-with-negative-offset",
+            ),
+            # === WEEKLY GRANULARITY TESTS ===
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-08T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.WEEK, utc_offset_minutes=0),
+                id="weekly-no-offset",
+            ),
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-08T00:00:00+00:00"),
+                ),
+                TimeBinConfig(
+                    scale=TimeBinScale.WEEK, utc_offset_minutes=330
+                ),  # India Standard Time
+                id="weekly-with-positive-offset",
+            ),
+            # === MONTHLY GRANULARITY TESTS ===
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-02-01T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.MONTH, utc_offset_minutes=0),
+                id="monthly-no-offset",
+            ),
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-03-01T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.MONTH, utc_offset_minutes=-300),  # EST offset
+                id="monthly-with-negative-offset",
+            ),
+            # === YEARLY GRANULARITY TESTS ===
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2025-01-01T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.YEAR, utc_offset_minutes=0),
+                id="yearly-no-offset",
+            ),
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2023-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2025-01-01T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.YEAR, utc_offset_minutes=540),  # JST offset
+                id="yearly-with-positive-offset",
+            ),
+            # === EDGE CASES ===
+            # Empty result set (time range with no data)
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2023-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2023-01-01T01:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
+                id="empty-result-set",
+            ),
+            # Very narrow time range
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T12:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T12:00:01+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=0),
+                id="narrow-time-range",
+            ),
+            # Limited data points
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T00:30:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=0),
+                id="limited-data-points",
+            ),
+            # Boundary condition: Start equals end
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T12:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T12:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
+                id="zero-duration-range",
+            ),
+            # === PARTIAL TIME RANGE TESTS ===
+            # Only start time specified
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T12:00:00+00:00"),
+                    end=None,
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
+                id="only-start-time",
+            ),
+            # === LARGE UTC OFFSET TESTS ===
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=780),  # +13 hours
+                id="large-positive-offset",
+            ),
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=-720),  # -12 hours
+                id="large-negative-offset",
+            ),
+            # === BOUNDARY CONDITION TESTS ===
+            # Cross-day boundary with offset
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T22:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T02:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=480),  # +8 hours
+                id="cross-day-boundary",
+            ),
+            # Test with fractional hour offset
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T06:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=90),  # +1.5 hours
+                id="fractional-hour-offset",
+            ),
+            # Test with leap year boundaries
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-02-28T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-03-01T00:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.DAY, utc_offset_minutes=0),
+                id="leap-year-boundary",
+            ),
+            # Test with month boundary at different scales
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-31T22:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-02-01T02:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
+                id="month-boundary-hourly",
+            ),
+            # Test with daylight saving time-like offset changes
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T06:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=-480),  # PST
+                id="dst-like-offset",
+            ),
+            # Test with extreme small time range at minute level
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T12:30:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-01T12:31:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=0),
+                id="single-minute-range",
+            ),
+            # Test with year-end boundary
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-12-31T22:00:00+00:00"),
+                    end=datetime.fromisoformat("2025-01-01T02:00:00+00:00"),
+                ),
+                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
+                id="year-end-boundary",
+            ),
+            # Test with maximum reasonable offset (UTC+14)
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
+                ),
+                TimeBinConfig(
+                    scale=TimeBinScale.HOUR, utc_offset_minutes=840
+                ),  # +14 hours (Line Islands)
+                id="maximum-positive-offset",
+            ),
+            # Test with minimum reasonable offset (UTC-12)
+            pytest.param(
+                TimeRange(
+                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
+                ),
+                TimeBinConfig(
+                    scale=TimeBinScale.HOUR, utc_offset_minutes=-720
+                ),  # -12 hours (Baker Island)
+                id="minimum-negative-offset",
+            ),
+        ],
+    )
     async def test_span_count_time_series(
         self,
+        time_range: TimeRange,
+        time_bin_config: TimeBinConfig,
         _time_series_data: _Data,
         gql_client: AsyncGraphQLClient,
     ) -> None:
@@ -1743,354 +2004,93 @@ class TestProject:
         """
         project = _time_series_data.projects[0]
 
-        test_cases = [
-            # === BASIC HOURLY TESTS ===
-            (
-                TimeRange(
-                    start=datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
-                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
-                ),
-                None,
-                "default_hourly_no_offset",
-            ),
-            (
-                TimeRange(
-                    start=datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
-                    end=datetime.fromisoformat("2024-01-01T03:00:00+00:00"),
-                ),
-                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
-                "hourly_no_offset",
-            ),
-            # === MINUTE GRANULARITY TESTS ===
-            (
-                TimeRange(
-                    start=datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
-                    end=datetime.fromisoformat("2024-01-01T01:30:00+00:00"),
-                ),
-                TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=0),
-                "minute_no_offset",
-            ),
-            (
-                TimeRange(
-                    start=datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
-                    end=datetime.fromisoformat("2024-01-01T02:00:00+00:00"),
-                ),
-                TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=60),
-                "minute_with_positive_offset",
-            ),
-            # === DAILY GRANULARITY TESTS ===
-            (
-                TimeRange(
-                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
-                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
-                ),
-                TimeBinConfig(scale=TimeBinScale.DAY, utc_offset_minutes=0),
-                "daily_no_offset",
-            ),
-            (
-                TimeRange(
-                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
-                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
-                ),
-                TimeBinConfig(scale=TimeBinScale.DAY, utc_offset_minutes=-480),  # PST offset
-                "daily_with_negative_offset",
-            ),
-            # === WEEKLY GRANULARITY TESTS ===
-            (
-                TimeRange(
-                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
-                    end=datetime.fromisoformat("2024-01-08T00:00:00+00:00"),
-                ),
-                TimeBinConfig(scale=TimeBinScale.WEEK, utc_offset_minutes=0),
-                "weekly_no_offset",
-            ),
-            (
-                TimeRange(
-                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
-                    end=datetime.fromisoformat("2024-01-08T00:00:00+00:00"),
-                ),
-                TimeBinConfig(
-                    scale=TimeBinScale.WEEK, utc_offset_minutes=330
-                ),  # India Standard Time
-                "weekly_with_positive_offset",
-            ),
-            # === MONTHLY GRANULARITY TESTS ===
-            (
-                TimeRange(
-                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
-                    end=datetime.fromisoformat("2024-02-01T00:00:00+00:00"),
-                ),
-                TimeBinConfig(scale=TimeBinScale.MONTH, utc_offset_minutes=0),
-                "monthly_no_offset",
-            ),
-            (
-                TimeRange(
-                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
-                    end=datetime.fromisoformat("2024-03-01T00:00:00+00:00"),
-                ),
-                TimeBinConfig(scale=TimeBinScale.MONTH, utc_offset_minutes=-300),  # EST offset
-                "monthly_with_negative_offset",
-            ),
-            # === YEARLY GRANULARITY TESTS ===
-            (
-                TimeRange(
-                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
-                    end=datetime.fromisoformat("2025-01-01T00:00:00+00:00"),
-                ),
-                TimeBinConfig(scale=TimeBinScale.YEAR, utc_offset_minutes=0),
-                "yearly_no_offset",
-            ),
-            (
-                TimeRange(
-                    start=datetime.fromisoformat("2023-01-01T00:00:00+00:00"),
-                    end=datetime.fromisoformat("2025-01-01T00:00:00+00:00"),
-                ),
-                TimeBinConfig(scale=TimeBinScale.YEAR, utc_offset_minutes=540),  # JST offset
-                "yearly_with_positive_offset",
-            ),
-            # === EDGE CASES ===
-            # Empty result set (time range with no data)
-            (
-                TimeRange(
-                    start=datetime.fromisoformat("2023-01-01T00:00:00+00:00"),
-                    end=datetime.fromisoformat("2023-01-01T01:00:00+00:00"),
-                ),
-                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
-                "empty_result_set",
-            ),
-            # Very narrow time range
-            (
-                TimeRange(
-                    start=datetime.fromisoformat("2024-01-01T12:00:00+00:00"),
-                    end=datetime.fromisoformat("2024-01-01T12:00:01+00:00"),
-                ),
-                TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=0),
-                "narrow_time_range",
-            ),
-            # Limited data points
-            (
-                TimeRange(
-                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
-                    end=datetime.fromisoformat("2024-01-01T00:30:00+00:00"),
-                ),
-                TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=0),
-                "limited_data_points",
-            ),
-            # Boundary condition: Start equals end
-            (
-                TimeRange(
-                    start=datetime.fromisoformat("2024-01-01T12:00:00+00:00"),
-                    end=datetime.fromisoformat("2024-01-01T12:00:00+00:00"),
-                ),
-                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
-                "zero_duration_range",
-            ),
-            # === PARTIAL TIME RANGE TESTS ===
-            # Only start time specified
-            (
-                TimeRange(
-                    start=datetime.fromisoformat("2024-01-01T12:00:00+00:00"),
-                    end=None,
-                ),
-                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
-                "only_start_time",
-            ),
-            # === LARGE UTC OFFSET TESTS ===
-            (
-                TimeRange(
-                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
-                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
-                ),
-                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=780),  # +13 hours
-                "large_positive_offset",
-            ),
-            (
-                TimeRange(
-                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
-                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
-                ),
-                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=-720),  # -12 hours
-                "large_negative_offset",
-            ),
-            # === BOUNDARY CONDITION TESTS ===
-            # Cross-day boundary with offset
-            (
-                TimeRange(
-                    start=datetime.fromisoformat("2024-01-01T22:00:00+00:00"),
-                    end=datetime.fromisoformat("2024-01-02T02:00:00+00:00"),
-                ),
-                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=480),  # +8 hours
-                "cross_day_boundary",
-            ),
-            # Test with fractional hour offset
-            (
-                TimeRange(
-                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
-                    end=datetime.fromisoformat("2024-01-01T06:00:00+00:00"),
-                ),
-                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=90),  # +1.5 hours
-                "fractional_hour_offset",
-            ),
-            # Test with leap year boundaries
-            (
-                TimeRange(
-                    start=datetime.fromisoformat("2024-02-28T00:00:00+00:00"),
-                    end=datetime.fromisoformat("2024-03-01T00:00:00+00:00"),
-                ),
-                TimeBinConfig(scale=TimeBinScale.DAY, utc_offset_minutes=0),
-                "leap_year_boundary",
-            ),
-            # Test with month boundary at different scales
-            (
-                TimeRange(
-                    start=datetime.fromisoformat("2024-01-31T22:00:00+00:00"),
-                    end=datetime.fromisoformat("2024-02-01T02:00:00+00:00"),
-                ),
-                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
-                "month_boundary_hourly",
-            ),
-            # Test with daylight saving time-like offset changes
-            (
-                TimeRange(
-                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
-                    end=datetime.fromisoformat("2024-01-01T06:00:00+00:00"),
-                ),
-                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=-480),  # PST
-                "dst_like_offset",
-            ),
-            # Test with extreme small time range at minute level
-            (
-                TimeRange(
-                    start=datetime.fromisoformat("2024-01-01T12:30:00+00:00"),
-                    end=datetime.fromisoformat("2024-01-01T12:31:00+00:00"),
-                ),
-                TimeBinConfig(scale=TimeBinScale.MINUTE, utc_offset_minutes=0),
-                "single_minute_range",
-            ),
-            # Test with year-end boundary
-            (
-                TimeRange(
-                    start=datetime.fromisoformat("2024-12-31T22:00:00+00:00"),
-                    end=datetime.fromisoformat("2025-01-01T02:00:00+00:00"),
-                ),
-                TimeBinConfig(scale=TimeBinScale.HOUR, utc_offset_minutes=0),
-                "year_end_boundary",
-            ),
-            # Test with maximum reasonable offset (UTC+14)
-            (
-                TimeRange(
-                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
-                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
-                ),
-                TimeBinConfig(
-                    scale=TimeBinScale.HOUR, utc_offset_minutes=840
-                ),  # +14 hours (Line Islands)
-                "maximum_positive_offset",
-            ),
-            # Test with minimum reasonable offset (UTC-12)
-            (
-                TimeRange(
-                    start=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
-                    end=datetime.fromisoformat("2024-01-02T00:00:00+00:00"),
-                ),
-                TimeBinConfig(
-                    scale=TimeBinScale.HOUR, utc_offset_minutes=-720
-                ),  # -12 hours (Baker Island)
-                "minimum_negative_offset",
-            ),
-        ]
+        # Calculate expected results using pandas (same logic as SQL)
+        records = _time_series_data.spans
+        data_df = pd.DataFrame([{"timestamp": s.start_time} for s in records]).sort_values(
+            "timestamp"
+        )
 
-        for time_range, time_bin_config, test_desc in test_cases:
-            # Calculate expected results using pandas (same logic as SQL)
-            records = _time_series_data.spans
-            data_df = pd.DataFrame([{"timestamp": s.start_time} for s in records]).sort_values(
-                "timestamp"
+        # Apply time range filtering if specified
+        if time_range and time_range.start:
+            data_df = data_df[data_df["timestamp"] >= time_range.start]
+        if time_range and time_range.end:
+            data_df = data_df[data_df["timestamp"] < time_range.end]
+
+        if data_df.empty:
+            expected_summary = pd.DataFrame(columns=["timestamp", "count"])
+        else:
+            expected_summary = self._count_rows(
+                data_df,
+                field=time_bin_config.scale.value if time_bin_config else "hour",
+                utc_offset_minutes=time_bin_config.utc_offset_minutes if time_bin_config else 0,
             )
 
-            # Apply time range filtering if specified
-            if time_range and time_range.start:
-                data_df = data_df[data_df["timestamp"] >= time_range.start]
-            if time_range and time_range.end:
-                data_df = data_df[data_df["timestamp"] < time_range.end]
+        # Execute GraphQL query
+        project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+        variables: dict[str, Any] = {"id": project_gid}
 
-            if data_df.empty:
-                expected_summary = pd.DataFrame(columns=["timestamp", "count"])
-            else:
-                expected_summary = self._count_rows(
-                    data_df,
-                    field=time_bin_config.scale.value if time_bin_config else "hour",
-                    utc_offset_minutes=time_bin_config.utc_offset_minutes if time_bin_config else 0,
-                )
-
-            # Execute GraphQL query
-            project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
-            variables: dict[str, Any] = {"id": project_gid}
-
-            query = """
-                query($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {
-                    node(id: $id) {
-                        ... on Project {
-                            spanCountTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {
-                                data {
-                                    timestamp
-                                    value
-                                }
+        query = """
+            query($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {
+                node(id: $id) {
+                    ... on Project {
+                        spanCountTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {
+                            data {
+                                timestamp
+                                value
                             }
                         }
                     }
                 }
-            """
+            }
+        """
 
-            if time_range:
-                time_range_vars = {}
-                if time_range.start:
-                    time_range_vars["start"] = time_range.start.isoformat()
-                if time_range.end:
-                    time_range_vars["end"] = time_range.end.isoformat()
-                if time_range_vars:
-                    variables["timeRange"] = time_range_vars
-            if time_bin_config:
-                variables["timeBinConfig"] = {
-                    "scale": time_bin_config.scale.value.upper(),
-                    "utcOffsetMinutes": time_bin_config.utc_offset_minutes,
-                }
+        if time_range:
+            time_range_vars = {}
+            if time_range.start:
+                time_range_vars["start"] = time_range.start.isoformat()
+            if time_range.end:
+                time_range_vars["end"] = time_range.end.isoformat()
+            if time_range_vars:
+                variables["timeRange"] = time_range_vars
+        if time_bin_config:
+            variables["timeBinConfig"] = {
+                "scale": time_bin_config.scale.value.upper(),
+                "utcOffsetMinutes": time_bin_config.utc_offset_minutes,
+            }
 
-            # Execute GraphQL query
-            response = await gql_client.execute(query=query, variables=variables)
-            assert not response.errors
-            assert (data := response.data) is not None
-            res = data["node"]["spanCountTimeSeries"]
+        # Execute GraphQL query
+        response = await gql_client.execute(query=query, variables=variables)
+        assert not response.errors
+        assert (data := response.data) is not None
+        res = data["node"]["spanCountTimeSeries"]
 
-            # Verify the structure of the response
-            assert "data" in res
-            assert isinstance(res["data"], list)
+        # Verify the structure of the response
+        assert "data" in res
+        assert isinstance(res["data"], list)
 
-            # Convert response to DataFrame for comparison
-            if not res["data"]:
-                actual_summary = pd.DataFrame(columns=["timestamp", "count"])
-            else:
-                actual_data = []
-                for data_point in res["data"]:
-                    timestamp = datetime.fromisoformat(data_point["timestamp"])
-                    if (value := data_point["value"]) is not None:
-                        actual_data.append({"timestamp": timestamp, "count": value})
-                actual_summary = pd.DataFrame(
-                    actual_data,
-                    columns=["timestamp", "count"],
-                ).sort_values("timestamp")
+        # Convert response to DataFrame for comparison
+        if not res["data"]:
+            actual_summary = pd.DataFrame(columns=["timestamp", "count"])
+        else:
+            actual_data = []
+            for data_point in res["data"]:
+                timestamp = datetime.fromisoformat(data_point["timestamp"])
+                if (value := data_point["value"]) is not None:
+                    actual_data.append({"timestamp": timestamp, "count": value})
+            actual_summary = pd.DataFrame(
+                actual_data,
+                columns=["timestamp", "count"],
+            ).sort_values("timestamp")
 
-            # Handle empty results
-            if expected_summary.empty:
-                assert actual_summary.empty, f"Expected empty summary for span in {test_desc}"
-                continue
+        # Handle empty results
+        if expected_summary.empty:
+            assert actual_summary.empty, "Expected empty summary for span"
+            return
 
-            actual_summary["timestamp"] = pd.to_datetime(actual_summary["timestamp"])
+        actual_summary["timestamp"] = pd.to_datetime(actual_summary["timestamp"])
 
-            # Verify SQL results match pandas calculation
-            try:
-                pd.testing.assert_frame_equal(actual_summary, expected_summary, check_dtype=False)
-            except AssertionError as e:
-                raise AssertionError(f"Test failed for span in {test_desc}") from e
+        # Verify SQL results match pandas calculation
+        pd.testing.assert_frame_equal(actual_summary, expected_summary, check_dtype=False)
 
     async def test_trace_count_time_series(
         self,
