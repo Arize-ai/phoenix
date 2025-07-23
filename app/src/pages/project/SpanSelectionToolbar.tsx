@@ -16,6 +16,8 @@ import {
   Popover,
   Text,
   Toolbar,
+  Tooltip,
+  TooltipTrigger,
   View,
 } from "@phoenix/components";
 import { CreateDatasetForm } from "@phoenix/components/dataset/CreateDatasetForm";
@@ -242,6 +244,17 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
               </ModalOverlay>
             </Popover>
           </DialogTrigger>
+          <TooltipTrigger>
+            <Button
+              size="M"
+              aria-label="Transfer / Move Spans"
+              variant="default"
+              leadingVisual={<Icon svg={<Icons.SwapOutline />} />}
+            >
+              Transfer
+            </Button>
+            <Tooltip>Move Traces</Tooltip>
+          </TooltipTrigger>
           <Button
             size="M"
             aria-label="Delete Traces"
