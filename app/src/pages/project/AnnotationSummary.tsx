@@ -254,7 +254,7 @@ function useAnnotationSummaryChartColors(name: string) {
     primaryColor,
     chartColors.default,
     chartColors.grey600,
-    chartColors.gray400,
+    chartColors.grey400,
     chartColors.gray200,
   ];
   return colors;
