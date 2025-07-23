@@ -236,7 +236,7 @@ export function TraceLatencyPercentilesTimeSeries({
         <Line
           type="monotone"
           dataKey="max"
-          stroke={colors.gray700}
+          stroke={colors.grey700}
           strokeWidth={1}
           strokeDasharray="5 5"
           dot={false}
