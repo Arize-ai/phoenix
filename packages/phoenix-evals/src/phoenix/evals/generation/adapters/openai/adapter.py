@@ -133,11 +133,14 @@ class OpenAIAdapter(BaseLLMAdapter):
 
         # Try structured output first (JSON schema with strict mode)
         try:
+            # Ensure schema has additionalProperties: false for OpenAI structured output
+            formatted_schema = self._ensure_additional_properties_false(schema)
+            
             response_format = {
                 "type": "json_schema",
                 "json_schema": {
                     "name": "extract_structured_data",
-                    "schema": schema,
+                    "schema": formatted_schema,
                     "strict": True,
                 },
             }
@@ -212,11 +215,14 @@ class OpenAIAdapter(BaseLLMAdapter):
 
         # Try structured output first (JSON schema with strict mode)
         try:
+            # Ensure schema has additionalProperties: false for OpenAI structured output
+            formatted_schema = self._ensure_additional_properties_false(schema)
+            
             response_format = {
                 "type": "json_schema",
                 "json_schema": {
                     "name": "extract_structured_data",
-                    "schema": schema,
+                    "schema": formatted_schema,
                     "strict": True,
                 },
             }
@@ -375,6 +381,47 @@ class OpenAIAdapter(BaseLLMAdapter):
             else:
                 raise ValueError(f"Unsupported content type: {part.content_type}")
         return messages
+
+    def _ensure_additional_properties_false(self, schema: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Ensure that additionalProperties is set to false for OpenAI structured output.
+        
+        OpenAI's structured output API requires additionalProperties: false to be 
+        explicitly set on all object types in the schema.
+        
+        Args:
+            schema: The original JSON schema
+            
+        Returns:
+            Schema with additionalProperties: false added where needed
+        """
+        import json
+        
+        # Use JSON serialization for deep copy to avoid type issues
+        schema_str = json.dumps(schema)
+        formatted_schema = json.loads(schema_str)
+        
+        def add_additional_properties_false(obj: Any) -> None:
+            if isinstance(obj, dict):
+                # If this is an object type, ensure additionalProperties is false
+                if obj.get("type") == "object" and "additionalProperties" not in obj:  # pyright: ignore
+                    obj["additionalProperties"] = False  # pyright: ignore
+                
+                # Recursively process nested objects
+                for value in obj.values():  # pyright: ignore
+                    add_additional_properties_false(value)
+                    
+            elif isinstance(obj, list):
+                for item in obj:  # pyright: ignore
+                    add_additional_properties_false(item)
+        
+        add_additional_properties_false(formatted_schema)
+        
+        # Ensure the root level has additionalProperties: false if it's an object
+        if formatted_schema.get("type") == "object" and "additionalProperties" not in formatted_schema:
+            formatted_schema["additionalProperties"] = False
+            
+        return formatted_schema
 
     def _validate_schema(self, schema: Dict[str, Any]) -> None:
         """
