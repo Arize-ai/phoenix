@@ -100,6 +100,12 @@ const chartColors: ChartColors = Object.freeze({
   reference: cssVar("--px-reference-color"),
 });
 
+/**
+ * The list of colors that are available for use in the charting components.
+ * This is a list of the keys of the chartColors object.
+ */
+export const CHART_COLORS = Object.keys(chartColors) as (keyof ChartColors)[];
+
 export const useChartColors = (): ChartColors => {
   // We call useTheme() to subscribe to theme changes so that React components
   // using these colors will re-render when the theme toggles, even though the

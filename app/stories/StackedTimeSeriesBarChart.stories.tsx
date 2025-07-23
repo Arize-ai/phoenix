@@ -12,8 +12,8 @@ import {
 } from "recharts";
 
 import { Text } from "@phoenix/components";
-// Apply phoenix charting defaults for consistent styling
 import {
+  CHART_COLORS,
   ChartColors,
   ChartTooltip,
   ChartTooltipItem,
@@ -26,8 +26,6 @@ import {
 } from "@phoenix/components/chart";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 import { calculateGranularity } from "@phoenix/utils/timeSeriesUtils";
-
-import { CHART_COLORS } from "./constants/colorConstants";
 
 const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
