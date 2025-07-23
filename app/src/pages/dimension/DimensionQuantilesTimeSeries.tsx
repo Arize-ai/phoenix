@@ -63,7 +63,7 @@ function formatValue(value: number | null) {
 const useColors = () => {
   const colors = useChartColors();
   return {
-    outerColor: colors.gray500,
+    outerColor: colors.grey500,
     innerColor: colors.grey300,
     lineColor: colors.default,
   };
