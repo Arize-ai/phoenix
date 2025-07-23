@@ -1,7 +1,7 @@
 import base64
 import json
 import logging
-from typing import Any, Dict, Union
+from typing import Any, Dict, Union, cast
 from urllib.parse import urlparse
 
 from phoenix.evals.exceptions import PhoenixUnsupportedAudioFormat
@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 
 
 def identify_openai_client(client: Any) -> bool:
-    """Identify if a client is an OpenAI client."""
     if isinstance(client, OpenAIClientWrapper):
         return True
 
@@ -48,8 +47,6 @@ class OpenAIAdapter(BaseLLMAdapter):
         self._is_async = self._check_if_async_client()
 
     def _validate_client(self) -> None:
-        """Validate that the client is an OpenAI client."""
-        # Handle both wrapper and direct client
         actual_client = getattr(self.client, "client", self.client)
         if not (hasattr(actual_client, "chat") and hasattr(actual_client.chat, "completions")):
             raise ValueError(
@@ -58,18 +55,13 @@ class OpenAIAdapter(BaseLLMAdapter):
             )
 
     def _check_if_async_client(self) -> bool:
-        """Check if the client is async (AsyncOpenAI) or sync (OpenAI)."""
-        # Handle both wrapper and direct client
         actual_client = getattr(self.client, "client", self.client)
 
-        # Check module name for AsyncOpenAI
         if hasattr(actual_client, "__module__") and actual_client.__module__:
             if "openai" in actual_client.__module__:
-                # Check if it's AsyncOpenAI by looking at the class name
                 class_name = actual_client.__class__.__name__
                 return "Async" in class_name
 
-        # Fallback: check if the chat.completions.create method is async
         create_method = actual_client.chat.completions.create
         import inspect
 
@@ -90,7 +82,7 @@ class OpenAIAdapter(BaseLLMAdapter):
             content = response.choices[0].message.content
             if content is None:
                 raise ValueError("OpenAI returned None content")
-            return content
+            return cast(str, content)
         except Exception as e:
             logger.error(f"OpenAI completion failed: {e}")
             raise
@@ -110,7 +102,7 @@ class OpenAIAdapter(BaseLLMAdapter):
             content = response.choices[0].message.content
             if content is None:
                 raise ValueError("OpenAI returned None content")
-            return content
+            return cast(str, content)
         except Exception as e:
             logger.error(f"OpenAI async completion failed: {e}")
             raise
@@ -131,11 +123,9 @@ class OpenAIAdapter(BaseLLMAdapter):
 
         messages = self._build_messages(prompt)
 
-        # Try structured output first (JSON schema with strict mode)
         try:
-            # Ensure schema has additionalProperties: false for OpenAI structured output
             formatted_schema = self._ensure_additional_properties_false(schema)
-            
+
             response_format = {
                 "type": "json_schema",
                 "json_schema": {
@@ -153,13 +143,12 @@ class OpenAIAdapter(BaseLLMAdapter):
             content = response.choices[0].message.content
             if content is None:
                 raise ValueError("OpenAI returned no content")
-            return json.loads(content)
+            return cast(Dict[str, Any], json.loads(content))
         except Exception as e:
             logger.warning(
                 f"Structured output failed: {e}, falling back to tool calling"
             )
 
-        # Fall back to tool calling
         try:
             tool_definition = self._schema_to_tool(schema)
 
@@ -181,9 +170,9 @@ class OpenAIAdapter(BaseLLMAdapter):
             tool_call = tool_calls[0]
             arguments = tool_call.function.arguments
             if isinstance(arguments, str):
-                return json.loads(arguments)
+                return cast(Dict[str, Any], json.loads(arguments))
             else:
-                return arguments
+                return cast(Dict[str, Any], arguments)
         except Exception as e:
             error_str = str(e).lower()
             if any(
@@ -213,11 +202,9 @@ class OpenAIAdapter(BaseLLMAdapter):
 
         messages = self._build_messages(prompt)
 
-        # Try structured output first (JSON schema with strict mode)
         try:
-            # Ensure schema has additionalProperties: false for OpenAI structured output
             formatted_schema = self._ensure_additional_properties_false(schema)
-            
+
             response_format = {
                 "type": "json_schema",
                 "json_schema": {
@@ -235,13 +222,12 @@ class OpenAIAdapter(BaseLLMAdapter):
             content = response.choices[0].message.content
             if content is None:
                 raise ValueError("OpenAI returned no content")
-            return json.loads(content)
+            return cast(Dict[str, Any], json.loads(content))
         except Exception as e:
             logger.warning(
                 f"Async structured output failed: {e}, falling back to tool calling"
             )
 
-        # Fall back to tool calling
         try:
             tool_definition = self._schema_to_tool(schema)
 
@@ -263,9 +249,9 @@ class OpenAIAdapter(BaseLLMAdapter):
             tool_call = tool_calls[0]
             arguments = tool_call.function.arguments
             if isinstance(arguments, str):
-                return json.loads(arguments)
+                return cast(Dict[str, Any], json.loads(arguments))
             else:
-                return arguments
+                return cast(Dict[str, Any], arguments)
         except Exception as e:
             error_str = str(e).lower()
             if any(
@@ -282,28 +268,20 @@ class OpenAIAdapter(BaseLLMAdapter):
 
     @property
     def model_name(self) -> str:
-        """Return the OpenAI model name."""
-        # Check if we have a wrapper with model attribute
         if hasattr(self.client, "model"):
             return str(self.client.model)
-        # Check if the underlying client has model information
         elif hasattr(self.client, "_default_params") and "model" in self.client._default_params:
             return str(self.client._default_params["model"])
         else:
             return "openai-model"
 
     def _supports_structured_output(self) -> bool:
-        """Check if the model supports structured output (JSON schema)."""
         model_name = self.model_name.lower()
-        # GPT-4o and newer models support structured output
         structured_output_models = ["gpt-4o", "gpt-4o-mini", "gpt-4o-2024", "chatgpt-4o-latest"]
         return any(model in model_name for model in structured_output_models)
 
     def _supports_tool_calls(self) -> bool:
-        """Check if the model supports tool calls/function calling."""
         model_name = self.model_name.lower()
-        # Most modern GPT models support function calling
-        # O1 models generally don't support tools/functions
         if any(model in model_name for model in ["o1-preview", "o1-mini", "o1", "o3"]):
             return False
         return True
@@ -385,43 +363,39 @@ class OpenAIAdapter(BaseLLMAdapter):
     def _ensure_additional_properties_false(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         """
         Ensure that additionalProperties is set to false for OpenAI structured output.
-        
-        OpenAI's structured output API requires additionalProperties: false to be 
+
+        OpenAI's structured output API requires additionalProperties: false to be
         explicitly set on all object types in the schema.
-        
+
         Args:
             schema: The original JSON schema
-            
+
         Returns:
             Schema with additionalProperties: false added where needed
         """
         import json
-        
-        # Use JSON serialization for deep copy to avoid type issues
+
         schema_str = json.dumps(schema)
         formatted_schema = json.loads(schema_str)
-        
+
         def add_additional_properties_false(obj: Any) -> None:
             if isinstance(obj, dict):
-                # If this is an object type, ensure additionalProperties is false
                 if obj.get("type") == "object" and "additionalProperties" not in obj:  # pyright: ignore
                     obj["additionalProperties"] = False  # pyright: ignore
-                
-                # Recursively process nested objects
+
                 for value in obj.values():  # pyright: ignore
                     add_additional_properties_false(value)
-                    
+
             elif isinstance(obj, list):
                 for item in obj:  # pyright: ignore
                     add_additional_properties_false(item)
-        
+
         add_additional_properties_false(formatted_schema)
-        
-        # Ensure the root level has additionalProperties: false if it's an object
+
         if formatted_schema.get("type") == "object" and "additionalProperties" not in formatted_schema:
             formatted_schema["additionalProperties"] = False
-            
-        return formatted_schema
+
+        return cast(Dict[str, Any], formatted_schema)
 
     def _validate_schema(self, schema: Dict[str, Any]) -> None:
         """

@@ -33,6 +33,9 @@ class LLMBase:
 
         if by_provider:
             try:
+                if provider is None:
+                    raise ValueError("Provider must be specified for provider-based initialization")
+                    
                 provider_registrations = PROVIDER_REGISTRY.get_provider_registrations(provider)
                 if not provider_registrations:
                     available_providers = PROVIDER_REGISTRY.list_providers()
@@ -51,8 +54,8 @@ class LLMBase:
                     f"Available providers: {available_providers}"
                 ) from e
         elif by_sdk:
-            adapter_class = ADAPTER_REGISTRY.find_adapter(client)
-            if adapter_class is None:
+            adapter_class_maybe = ADAPTER_REGISTRY.find_adapter(client)
+            if adapter_class_maybe is None:
                 available_adapters = ADAPTER_REGISTRY.list_adapters()
                 raise ValueError(
                     f"No suitable adapter found for client of type {type(client)}. "
@@ -60,6 +63,10 @@ class LLMBase:
                     f"Please ensure you have the correct SDK installed and the client is properly "
                     "initialized."
                 )
+            adapter_class = adapter_class_maybe
+        else:
+            # This should never happen due to the initial validation
+            raise ValueError("Internal error: neither by_provider nor by_sdk is True")
 
         self._client = client
         self._adapter = adapter_class(client)

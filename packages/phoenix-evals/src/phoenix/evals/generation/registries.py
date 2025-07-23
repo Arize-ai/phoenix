@@ -197,13 +197,13 @@ def print_available_adapters() -> None:
         print("\n❌ DISABLED PROVIDERS: None")
 
     # 3. SDK Adapters
-    sdk_adapters = []
-    for reg in ADAPTER_REGISTRY._adapters:
+    sdk_adapters: List[AdapterInfo] = []
+    for adapter_reg in ADAPTER_REGISTRY._adapters:
         sdk_adapters.append(
             {
-                "name": reg.name,
-                "adapter": reg.adapter_class.__name__,
-                "description": _get_adapter_description(reg.name),
+                "name": adapter_reg.name,
+                "adapter": adapter_reg.adapter_class.__name__,
+                "description": _get_adapter_description(adapter_reg.name),
             }
         )
 

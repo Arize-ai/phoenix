@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from typing import Any, Callable, Dict, List, Type, Union
 
 from phoenix.evals.templates import MultimodalPrompt
 
@@ -18,6 +18,10 @@ class BaseLLMAdapter(ABC):
     The adapter is responsible for handling all implementation details including
     tool calling, structured output, and fallback mechanisms internally.
     """
+
+    def __init__(self, client: Any) -> None:
+        """Initialize the adapter with a client."""
+        self.client = client
 
     @abstractmethod
     def generate_text(

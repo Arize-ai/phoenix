@@ -1,29 +1,21 @@
-"""
-Factory functions for creating OpenAI clients.
-"""
-
-from typing import Any
+from typing import Any, Union
 
 
 class OpenAIClientWrapper:
-    """Wrapper to store model name with OpenAI client."""
-
     def __init__(self, client: Any, model: str):
         self.client = client
         self.model = model
 
     def __getattr__(self, name: str) -> Any:
-        """Delegate all attribute access to the wrapped client."""
         return getattr(self.client, name)
 
 
 def create_openai_client(model: str, is_async: bool, **kwargs: Any) -> Any:
-    """Factory function to create sync OpenAI clients."""
     try:
-        from openai import OpenAI
+        from openai import AsyncOpenAI, OpenAI
 
         if is_async:
-            client = AsyncOpenAI(**kwargs)
+            client: Union[AsyncOpenAI, OpenAI] = AsyncOpenAI(**kwargs)
         else:
             client = OpenAI(**kwargs)
 
