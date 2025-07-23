@@ -95,9 +95,14 @@ class LiteLLMAdapter(BaseLLMAdapter):
     ) -> Dict[str, Any]:
         self._validate_schema(schema)
 
-        supported_params = self._litellm.get_supported_openai_params(model=self.client.model)
-        supports_structured_output = "response_format" in supported_params
-        supports_tool_calls = "tools" in supported_params
+        try:
+            supported_params = getattr(self._litellm, 'get_supported_openai_params', lambda model: ["response_format", "tools"])(model=self.client.model)
+            supported_params_list = supported_params if isinstance(supported_params, list) else ["response_format", "tools"]
+        except Exception:
+            supported_params_list = ["response_format", "tools"]
+        
+        supports_structured_output = "response_format" in supported_params_list
+        supports_tool_calls = "tools" in supported_params_list
 
         if not supports_structured_output and not supports_tool_calls:
             raise ValueError(
@@ -127,7 +132,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
             content = response.choices[0].message.content  # pyright: ignore
             if content is None:
                 raise ValueError("LiteLLM returned no content")
-            return json.loads(content)
+            return cast(Dict[str, Any], json.loads(content))
         else:
             tool_definition = self._schema_to_tool(schema)
             messages = self._build_messages(prompt)
@@ -143,9 +148,9 @@ class LiteLLMAdapter(BaseLLMAdapter):
             tool_call = response.choices[0].message.tool_calls[0]
             arguments = tool_call.function.arguments
             if isinstance(arguments, str):
-                return json.loads(arguments)
+                return cast(Dict[str, Any], json.loads(arguments))
             else:
-                return arguments
+                return cast(Dict[str, Any], arguments)
 
     async def agenerate_object(
         self,
@@ -155,9 +160,16 @@ class LiteLLMAdapter(BaseLLMAdapter):
     ) -> Dict[str, Any]:
         self._validate_schema(schema)
 
-        supported_params = self._litellm.get_supported_openai_params(model=self.client.model)
-        supports_structured_output = "response_format" in supported_params
-        supports_tool_calls = "tools" in supported_params
+        try:
+            # Try to get supported params, fall back to assuming both are supported  
+            supported_params = getattr(self._litellm, 'get_supported_openai_params', lambda model: ["response_format", "tools"])(model=self.client.model)
+            supported_params_list = supported_params if isinstance(supported_params, list) else ["response_format", "tools"]
+        except Exception:
+            # If the function doesn't exist or fails, assume both are supported
+            supported_params_list = ["response_format", "tools"]
+        
+        supports_structured_output = "response_format" in supported_params_list
+        supports_tool_calls = "tools" in supported_params_list
 
         if not supports_structured_output and not supports_tool_calls:
             raise ValueError(
@@ -187,7 +199,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
             content = response.choices[0].message.content  # pyright: ignore
             if content is None:
                 raise ValueError("LiteLLM returned no content")
-            return json.loads(content)
+            return cast(Dict[str, Any], json.loads(content))
         else:
             tool_definition = self._schema_to_tool(schema)
             messages = self._build_messages(prompt)
@@ -203,14 +215,14 @@ class LiteLLMAdapter(BaseLLMAdapter):
             tool_call = response.choices[0].message.tool_calls[0]
             arguments = tool_call.function.arguments
             if isinstance(arguments, str):
-                return json.loads(arguments)
+                return cast(Dict[str, Any], json.loads(arguments))
             else:
-                return arguments
+                return cast(Dict[str, Any], arguments)
 
     @property
     def model_name(self) -> str:
         """Return the LiteLLM model name."""
-        return self.client.model_string
+        return cast(str, self.client.model_string)
 
     def _schema_to_tool(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         """

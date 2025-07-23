@@ -112,14 +112,15 @@ class LangChainModelAdapter(BaseLLMAdapter):
                 response = structured_model.invoke(prompt_input, **kwargs)
 
                 if isinstance(response, dict):
-                    return response  # pyright: ignore
+                    return response
                 else:
                     import json
 
                     if hasattr(response, "__dict__"):
-                        return response.__dict__  # pyright: ignore
+                        result = response.__dict__
+                        return cast(Dict[str, Any], result)
                     else:
-                        return json.loads(str(response))  # pyright: ignore
+                        return cast(Dict[str, Any], json.loads(str(response)))
 
             except Exception as e:
                 logger.warning(f"Structured output failed: {e}, falling back to tool calling")
@@ -217,9 +218,9 @@ class LangChainModelAdapter(BaseLLMAdapter):
                 if hasattr(response, "tool_calls") and response.tool_calls:
                     tool_call = response.tool_calls[0]
                     if isinstance(tool_call, dict) and "args" in tool_call:
-                        return tool_call["args"]  # pyright: ignore
-                    elif hasattr(tool_call, "args"):  # pyright: ignore
-                        return tool_call.args  # pyright: ignore
+                        return cast(Dict[str, Any], tool_call["args"])
+                    elif hasattr(tool_call, "args"):
+                        return cast(Dict[str, Any], tool_call.args)
 
             except Exception as e:
                 logger.warning(f"Async tool calling failed: {e}")

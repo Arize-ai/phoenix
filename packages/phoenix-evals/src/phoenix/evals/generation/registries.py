@@ -72,6 +72,10 @@ class AdapterRegistry(metaclass=SingletonMeta):
                 continue
         return None
 
+    def list_adapters(self) -> List[str]:
+        """List all available adapter names."""
+        return [registration.name for registration in self._adapters]
+
 
 class ProviderRegistry(metaclass=SingletonMeta):
     def __init__(self) -> None:
@@ -156,17 +160,16 @@ def print_available_adapters() -> None:
     print("=" * 80)
 
     # 1. Available Providers
-    available_providers = []
+    available_providers: List[ProviderInfo] = []
     for provider_name, registrations in PROVIDER_REGISTRY._providers.items():
         for reg in registrations:
-            available_providers.append(
-                {
-                    "provider": provider_name,
-                    "adapter": reg.adapter_class.__name__,
-                    "dependencies": reg.dependencies,
-                    "status": "✓ Available",
-                }
-            )
+            provider_info: ProviderInfo = {
+                "provider": provider_name,
+                "adapter": reg.adapter_class.__name__,
+                "dependencies": reg.dependencies,
+                "status": "✓ Available",
+            }
+            available_providers.append(provider_info)
 
     if available_providers:
         print("\n📦 AVAILABLE PROVIDERS (Dependencies Satisfied)")
@@ -176,18 +179,17 @@ def print_available_adapters() -> None:
         print("\n📦 AVAILABLE PROVIDERS: None")
 
     # 2. Disabled Providers
-    disabled_providers = []
+    disabled_providers: List[DisabledProviderInfo] = []
     for reg in PROVIDER_REGISTRY._disabled_providers:
         missing_deps = _get_missing_dependencies(reg.dependencies)
-        disabled_providers.append(
-            {
-                "provider": reg.provider,
-                "adapter": reg.adapter_class.__name__,
-                "dependencies": reg.dependencies,
-                "missing": missing_deps,
-                "status": "✗ Missing Dependencies",
-            }
-        )
+        disabled_info: DisabledProviderInfo = {
+            "provider": reg.provider,
+            "adapter": reg.adapter_class.__name__,
+            "dependencies": reg.dependencies,
+            "missing": missing_deps,
+            "status": "✗ Missing Dependencies",
+        }
+        disabled_providers.append(disabled_info)
 
     if disabled_providers:
         print("\n❌ DISABLED PROVIDERS (Missing Dependencies)")
