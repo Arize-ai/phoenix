@@ -39,10 +39,10 @@ import {
 import { DimensionDriftTimeSeriesQuery } from "./__generated__/DimensionDriftTimeSeriesQuery.graphql";
 import { timeSeriesChartMargins } from "./dimensionChartConstants";
 const useColors = () => {
-  const { orange300, gray300 } = useChartColors();
+  const { orange500, grey300 } = useChartColors();
   return {
-    color: orange300,
-    barColor: gray300,
+    color: orange500,
+    barColor: grey300,
   };
 };
 

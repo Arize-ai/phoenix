@@ -64,7 +64,7 @@ const useColors = () => {
   const colors = useChartColors();
   return {
     outerColor: colors.gray500,
-    innerColor: colors.gray300,
+    innerColor: colors.grey300,
     lineColor: colors.default,
   };
 };

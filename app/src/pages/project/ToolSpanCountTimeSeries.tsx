@@ -59,7 +59,7 @@ function TooltipContent({
           value={errorString}
         />
         <ChartTooltipItem
-          color={chartColors.gray300}
+          color={chartColors.grey300}
           shape="circle"
           name="unset"
           value={unsetString}
@@ -178,7 +178,7 @@ export function ToolSpanCountTimeSeries({ projectId }: { projectId: string }) {
           cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
         />
         <Bar dataKey="error" stackId="a" fill={SemanticChartColors.danger} />
-        <Bar dataKey="unset" stackId="a" fill={colors.gray300} />
+        <Bar dataKey="unset" stackId="a" fill={colors.grey300} />
         <Bar
           dataKey="ok"
           stackId="a"

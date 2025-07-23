@@ -18,23 +18,23 @@ export type ChartColors = {
   readonly purple300: string;
   readonly purple400: string;
   readonly purple500: string;
-  readonly pink100: string;
-  readonly pink200: string;
-  readonly pink300: string;
-  readonly pink400: string;
-  readonly pink500: string;
+  readonly magenta100: string;
+  readonly magenta200: string;
+  readonly magenta300: string;
+  readonly magenta400: string;
+  readonly magenta500: string;
   readonly red100: string;
   readonly red200: string;
   readonly red300: string;
   readonly red400: string;
   readonly red500: string;
-  readonly gray100: string;
-  readonly gray200: string;
-  readonly gray300: string;
-  readonly gray400: string;
-  readonly gray500: string;
-  readonly gray600: string;
-  readonly gray700: string;
+  readonly grey100: string;
+  readonly grey200: string;
+  readonly grey300: string;
+  readonly grey400: string;
+  readonly grey500: string;
+  readonly grey600: string;
+  readonly grey700: string;
   readonly default: string;
   // Colors specific to the inferences role
   readonly primary: string;
@@ -70,11 +70,11 @@ const chartColors: ChartColors = Object.freeze({
   purple500: cssVar("--ac-global-color-purple-500"),
 
   // Pinks / Magentas
-  pink100: cssVar("--ac-global-color-magenta-100"),
-  pink200: cssVar("--ac-global-color-magenta-200"),
-  pink300: cssVar("--ac-global-color-magenta-300"),
-  pink400: cssVar("--ac-global-color-magenta-400"),
-  pink500: cssVar("--ac-global-color-magenta-500"),
+  magenta100: cssVar("--ac-global-color-magenta-100"),
+  magenta200: cssVar("--ac-global-color-magenta-200"),
+  magenta300: cssVar("--ac-global-color-magenta-300"),
+  magenta400: cssVar("--ac-global-color-magenta-400"),
+  magenta500: cssVar("--ac-global-color-magenta-500"),
 
   // Reds
   red100: cssVar("--ac-global-color-red-100"),
@@ -84,13 +84,13 @@ const chartColors: ChartColors = Object.freeze({
   red500: cssVar("--ac-global-color-red-500"),
 
   // Grays (note: CSS variable names use "grey")
-  gray100: cssVar("--ac-global-color-grey-100"),
-  gray200: cssVar("--ac-global-color-grey-200"),
-  gray300: cssVar("--ac-global-color-grey-300"),
-  gray400: cssVar("--ac-global-color-grey-400"),
-  gray500: cssVar("--ac-global-color-grey-500"),
-  gray600: cssVar("--ac-global-color-grey-600"),
-  gray700: cssVar("--ac-global-color-grey-700"),
+  grey100: cssVar("--ac-global-color-grey-100"),
+  grey200: cssVar("--ac-global-color-grey-200"),
+  grey300: cssVar("--ac-global-color-grey-300"),
+  grey400: cssVar("--ac-global-color-grey-400"),
+  grey500: cssVar("--ac-global-color-grey-500"),
+  grey600: cssVar("--ac-global-color-grey-600"),
+  grey700: cssVar("--ac-global-color-grey-700"),
 
   // Fallback / default
   default: cssVar("--ac-global-text-color-900"),

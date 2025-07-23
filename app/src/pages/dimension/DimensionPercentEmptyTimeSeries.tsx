@@ -30,10 +30,10 @@ const numberFormatter = new Intl.NumberFormat([], {
 });
 
 const useColors = () => {
-  const { gray100 } = useChartColors();
+  const { grey100 } = useChartColors();
 
   return {
-    color: gray100,
+    color: grey100,
   };
 };
 function TooltipContent({

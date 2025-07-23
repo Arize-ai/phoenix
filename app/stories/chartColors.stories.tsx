@@ -177,7 +177,7 @@ function ChartColors({ showOnlyPrimary = false }: ChartColorsProps) {
 }
 
 const meta: Meta<typeof ChartColors> = {
-  title: "charts/Chart Colors",
+  title: "Charting/Chart Colors",
   component: ChartColors,
   parameters: {
     layout: "padded",

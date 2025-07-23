@@ -31,9 +31,9 @@ const numberFormatter = new Intl.NumberFormat([], {
 });
 
 const useColors = () => {
-  const { gray300 } = useChartColors();
+  const { grey300 } = useChartColors();
   return {
-    barColor: gray300,
+    barColor: grey300,
   };
 };
 

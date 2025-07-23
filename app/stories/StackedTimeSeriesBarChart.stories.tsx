@@ -262,7 +262,7 @@ function StackedBarChart({
 }
 
 const meta: Meta<typeof StackedBarChart> = {
-  title: "Charts/StackedTimeSeriesBarChart",
+  title: "Charting/StackedTimeSeriesBarChart",
   component: StackedBarChart,
   parameters: {
     layout: "padded",
