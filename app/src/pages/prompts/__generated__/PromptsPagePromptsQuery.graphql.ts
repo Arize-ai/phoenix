@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2223cd6ec9b657055d79133a1fc5775e>>
+ * @generated SignedSource<<6127f7e8ec193496b0f4354c0565eff6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,31 +10,67 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type promptsLoaderQuery$variables = Record<PropertyKey, never>;
-export type promptsLoaderQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"PromptsTable_prompts">;
+export type PromptFilterColumn = "description" | "name";
+export type PromptFilter = {
+  col: PromptFilterColumn;
+  value: string;
 };
-export type promptsLoaderQuery = {
-  response: promptsLoaderQuery$data;
-  variables: promptsLoaderQuery$variables;
+export type PromptsPagePromptsQuery$variables = {
+  after?: string | null;
+  filter?: PromptFilter | null;
+  first?: number | null;
+};
+export type PromptsPagePromptsQuery$data = {
+  readonly " $fragmentSpreads": FragmentRefs<"PromptsPagePromptsFragment">;
+};
+export type PromptsPagePromptsQuery = {
+  response: PromptsPagePromptsQuery$data;
+  variables: PromptsPagePromptsQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
 var v0 = [
   {
-    "kind": "Literal",
-    "name": "first",
-    "value": 100
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "after"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "filter"
+  },
+  {
+    "defaultValue": 100,
+    "kind": "LocalArgument",
+    "name": "first"
   }
 ],
-v1 = {
+v1 = [
+  {
+    "kind": "Variable",
+    "name": "after",
+    "variableName": "after"
+  },
+  {
+    "kind": "Variable",
+    "name": "filter",
+    "variableName": "filter"
+  },
+  {
+    "kind": "Variable",
+    "name": "first",
+    "variableName": "first"
+  }
+],
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v2 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -43,15 +79,15 @@ v2 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": [],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "promptsLoaderQuery",
+    "name": "PromptsPagePromptsQuery",
     "selections": [
       {
-        "args": null,
+        "args": (v1/*: any*/),
         "kind": "FragmentSpread",
-        "name": "PromptsTable_prompts"
+        "name": "PromptsPagePromptsFragment"
       }
     ],
     "type": "Query",
@@ -59,13 +95,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "promptsLoaderQuery",
+    "name": "PromptsPagePromptsQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v0/*: any*/),
+        "args": (v1/*: any*/),
         "concreteType": "PromptConnection",
         "kind": "LinkedField",
         "name": "prompts",
@@ -87,7 +123,7 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v1/*: any*/),
+                  (v2/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -102,7 +138,7 @@ return {
                     "name": "description",
                     "storageKey": null
                   },
-                  (v2/*: any*/),
+                  (v3/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -111,8 +147,8 @@ return {
                     "name": "version",
                     "plural": false,
                     "selections": [
-                      (v2/*: any*/),
-                      (v1/*: any*/)
+                      (v3/*: any*/),
+                      (v2/*: any*/)
                     ],
                     "storageKey": null
                   }
@@ -141,7 +177,7 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  (v1/*: any*/)
+                  (v2/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -174,32 +210,32 @@ return {
             "storageKey": null
           }
         ],
-        "storageKey": "prompts(first:100)"
+        "storageKey": null
       },
       {
         "alias": null,
-        "args": (v0/*: any*/),
+        "args": (v1/*: any*/),
         "filters": [
           "filter"
         ],
         "handle": "connection",
-        "key": "PromptsTable_prompts",
+        "key": "PromptsPage_prompts",
         "kind": "LinkedHandle",
         "name": "prompts"
       }
     ]
   },
   "params": {
-    "cacheID": "9a3e6a185a7a63d9d2c115e80e22b495",
+    "cacheID": "1084c0a6390256307d47d4d6d0c86f59",
     "id": null,
     "metadata": {},
-    "name": "promptsLoaderQuery",
+    "name": "PromptsPagePromptsQuery",
     "operationKind": "query",
-    "text": "query promptsLoaderQuery {\n  ...PromptsTable_prompts\n}\n\nfragment PromptsTable_prompts on Query {\n  prompts(first: 100) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        createdAt\n        version {\n          createdAt\n          id\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query PromptsPagePromptsQuery(\n  $after: String = null\n  $filter: PromptFilter = null\n  $first: Int = 100\n) {\n  ...PromptsPagePromptsFragment_G9cLv\n}\n\nfragment PromptsPagePromptsFragment_G9cLv on Query {\n  prompts(first: $first, after: $after, filter: $filter) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        createdAt\n        version {\n          createdAt\n          id\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ed4295f193bd2a6d2402a82966d45a7f";
+(node as any).hash = "74340179b94517d4c115afbe4bc7a45e";
 
 export default node;

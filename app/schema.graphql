@@ -1916,6 +1916,16 @@ type PromptEdge {
   node: Prompt!
 }
 
+"""The filter key and value for prompt connections"""
+input PromptFilter {
+  col: PromptFilterColumn!
+  value: String!
+}
+
+enum PromptFilterColumn {
+  name
+}
+
 type PromptLabel implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -2070,7 +2080,7 @@ type Query {
   model: InferenceModel!
   node(id: ID!): Node!
   viewer: User
-  prompts(first: Int = 50, last: Int, after: String, before: String): PromptConnection!
+  prompts(first: Int = 50, last: Int, after: String, before: String, filter: PromptFilter): PromptConnection!
   promptLabels(first: Int = 50, last: Int, after: String, before: String): PromptLabelConnection!
   annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
   clusters(clusters: [ClusterInput!]!): [Cluster!]!

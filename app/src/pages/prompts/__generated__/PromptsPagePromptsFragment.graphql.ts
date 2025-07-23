@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1bc698fbef191f315cf81805e923c6ad>>
+ * @generated SignedSource<<42b71d79cc5dfbf02c9a3612b67a32b8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type PromptsTable_prompts$data = {
+export type PromptsPagePromptsFragment$data = {
   readonly prompts: {
     readonly edges: ReadonlyArray<{
       readonly prompt: {
@@ -24,14 +24,14 @@ export type PromptsTable_prompts$data = {
       };
     }>;
   };
-  readonly " $fragmentType": "PromptsTable_prompts";
+  readonly " $fragmentType": "PromptsPagePromptsFragment";
 };
-export type PromptsTable_prompts$key = {
-  readonly " $data"?: PromptsTable_prompts$data;
-  readonly " $fragmentSpreads": FragmentRefs<"PromptsTable_prompts">;
+export type PromptsPagePromptsFragment$key = {
+  readonly " $data"?: PromptsPagePromptsFragment$data;
+  readonly " $fragmentSpreads": FragmentRefs<"PromptsPagePromptsFragment">;
 };
 
-import PromptsTablePromptsQuery_graphql from './PromptsTablePromptsQuery.graphql';
+import PromptsPagePromptsQuery_graphql from './PromptsPagePromptsQuery.graphql';
 
 const node: ReaderFragment = (function(){
 var v0 = [
@@ -82,10 +82,10 @@ return {
         "path": (v0/*: any*/)
       },
       "fragmentPathInResult": [],
-      "operation": PromptsTablePromptsQuery_graphql
+      "operation": PromptsPagePromptsQuery_graphql
     }
   },
-  "name": "PromptsTable_prompts",
+  "name": "PromptsPagePromptsFragment",
   "selections": [
     {
       "alias": "prompts",
@@ -98,7 +98,7 @@ return {
       ],
       "concreteType": "PromptConnection",
       "kind": "LinkedField",
-      "name": "__PromptsTable_prompts_connection",
+      "name": "__PromptsPage_prompts_connection",
       "plural": false,
       "selections": [
         {
@@ -216,6 +216,6 @@ return {
 };
 })();
 
-(node as any).hash = "3cedad98de2e041440caa5c8c03b17fa";
+(node as any).hash = "74340179b94517d4c115afbe4bc7a45e";
 
 export default node;
