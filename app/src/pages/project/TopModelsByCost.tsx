@@ -29,11 +29,8 @@ export function TopModelsByCost({ projectId }: { projectId: string }) {
         project: node(id: $projectId) {
           ... on Project {
             topModelsByCost(timeRange: $timeRange) {
-              models {
-                id
-                name
-              }
-              costSummaries {
+              name
+              costSummary {
                 prompt {
                   cost
                 }
@@ -59,15 +56,14 @@ export function TopModelsByCost({ projectId }: { projectId: string }) {
   );
 
   const chartData = useMemo(() => {
-    const models = data.project?.topModelsByCost?.models ?? [];
-    const costSummaries = data.project?.topModelsByCost?.costSummaries ?? [];
-    return models.map((model, idx) => {
-      const costSummary = costSummaries[idx];
+    const models = data.project.topModelsByCost ?? [];
+    return models.map((model) => {
+      const costSummary = model.costSummary;
       return {
         model: model.name,
-        prompt_cost: costSummary?.prompt?.cost,
-        completion_cost: costSummary?.completion?.cost,
-        total_cost: costSummary?.total?.cost,
+        prompt_cost: costSummary.prompt.cost,
+        completion_cost: costSummary.completion.cost,
+        total_cost: costSummary.total.cost,
       };
     });
   }, [data]);

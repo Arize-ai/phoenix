@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f7334e6ac9fb7817e1521189ce0d51af>>
+ * @generated SignedSource<<f864c0b79680c064dfd024d7a71f96c4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,8 +19,8 @@ export type TopModelsByTokenQuery$variables = {
 };
 export type TopModelsByTokenQuery$data = {
   readonly project: {
-    readonly topModelsByTokenCount?: {
-      readonly costSummaries: ReadonlyArray<{
+    readonly topModelsByTokenCount?: ReadonlyArray<{
+      readonly costSummary: {
         readonly completion: {
           readonly tokens: number | null;
         };
@@ -30,12 +30,9 @@ export type TopModelsByTokenQuery$data = {
         readonly total: {
           readonly tokens: number | null;
         };
-      }>;
-      readonly models: ReadonlyArray<{
-        readonly id: string;
-        readonly name: string;
-      }>;
-    };
+      };
+      readonly name: string;
+    }>;
   };
 };
 export type TopModelsByTokenQuery = {
@@ -63,14 +60,21 @@ v1 = [
     "variableName": "projectId"
   }
 ],
-v2 = {
+v2 = [
+  {
+    "kind": "Variable",
+    "name": "timeRange",
+    "variableName": "timeRange"
+  }
+],
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "id",
+  "name": "name",
   "storageKey": null
 },
-v3 = [
+v4 = [
   {
     "alias": null,
     "args": null,
@@ -79,89 +83,53 @@ v3 = [
     "storageKey": null
   }
 ],
-v4 = {
-  "kind": "InlineFragment",
+v5 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "SpanCostSummary",
+  "kind": "LinkedField",
+  "name": "costSummary",
+  "plural": false,
   "selections": [
     {
       "alias": null,
-      "args": [
-        {
-          "kind": "Variable",
-          "name": "timeRange",
-          "variableName": "timeRange"
-        }
-      ],
-      "concreteType": "TopModelsByTokenCountPayload",
+      "args": null,
+      "concreteType": "CostBreakdown",
       "kind": "LinkedField",
-      "name": "topModelsByTokenCount",
+      "name": "prompt",
       "plural": false,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "GenerativeModel",
-          "kind": "LinkedField",
-          "name": "models",
-          "plural": true,
-          "selections": [
-            (v2/*: any*/),
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "name",
-              "storageKey": null
-            }
-          ],
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "SpanCostSummary",
-          "kind": "LinkedField",
-          "name": "costSummaries",
-          "plural": true,
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "concreteType": "CostBreakdown",
-              "kind": "LinkedField",
-              "name": "prompt",
-              "plural": false,
-              "selections": (v3/*: any*/),
-              "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "concreteType": "CostBreakdown",
-              "kind": "LinkedField",
-              "name": "completion",
-              "plural": false,
-              "selections": (v3/*: any*/),
-              "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "concreteType": "CostBreakdown",
-              "kind": "LinkedField",
-              "name": "total",
-              "plural": false,
-              "selections": (v3/*: any*/),
-              "storageKey": null
-            }
-          ],
-          "storageKey": null
-        }
-      ],
+      "selections": (v4/*: any*/),
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "CostBreakdown",
+      "kind": "LinkedField",
+      "name": "completion",
+      "plural": false,
+      "selections": (v4/*: any*/),
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "CostBreakdown",
+      "kind": "LinkedField",
+      "name": "total",
+      "plural": false,
+      "selections": (v4/*: any*/),
       "storageKey": null
     }
   ],
-  "type": "Project",
-  "abstractKey": null
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -178,7 +146,26 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v4/*: any*/)
+          {
+            "kind": "InlineFragment",
+            "selections": [
+              {
+                "alias": null,
+                "args": (v2/*: any*/),
+                "concreteType": "GenerativeModel",
+                "kind": "LinkedField",
+                "name": "topModelsByTokenCount",
+                "plural": true,
+                "selections": [
+                  (v3/*: any*/),
+                  (v5/*: any*/)
+                ],
+                "storageKey": null
+              }
+            ],
+            "type": "Project",
+            "abstractKey": null
+          }
         ],
         "storageKey": null
       }
@@ -207,24 +194,44 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v4/*: any*/),
-          (v2/*: any*/)
+          {
+            "kind": "InlineFragment",
+            "selections": [
+              {
+                "alias": null,
+                "args": (v2/*: any*/),
+                "concreteType": "GenerativeModel",
+                "kind": "LinkedField",
+                "name": "topModelsByTokenCount",
+                "plural": true,
+                "selections": [
+                  (v3/*: any*/),
+                  (v5/*: any*/),
+                  (v6/*: any*/)
+                ],
+                "storageKey": null
+              }
+            ],
+            "type": "Project",
+            "abstractKey": null
+          },
+          (v6/*: any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "44d5c8a3bbbb3c9f1550e97b2f88026d",
+    "cacheID": "9add624eb0c6ae6331623dc0776a89f7",
     "id": null,
     "metadata": {},
     "name": "TopModelsByTokenQuery",
     "operationKind": "query",
-    "text": "query TopModelsByTokenQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      topModelsByTokenCount(timeRange: $timeRange) {\n        models {\n          id\n          name\n        }\n        costSummaries {\n          prompt {\n            tokens\n          }\n          completion {\n            tokens\n          }\n          total {\n            tokens\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query TopModelsByTokenQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      topModelsByTokenCount(timeRange: $timeRange) {\n        name\n        costSummary {\n          prompt {\n            tokens\n          }\n          completion {\n            tokens\n          }\n          total {\n            tokens\n          }\n        }\n        id\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0855d506d5979d980c6e2a5e2660a6c5";
+(node as any).hash = "db20eb71c77294915ce19bd4faea55ae";
 
 export default node;

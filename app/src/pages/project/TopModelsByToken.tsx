@@ -28,11 +28,8 @@ export function TopModelsByToken({ projectId }: { projectId: string }) {
         project: node(id: $projectId) {
           ... on Project {
             topModelsByTokenCount(timeRange: $timeRange) {
-              models {
-                id
-                name
-              }
-              costSummaries {
+              name
+              costSummary {
                 prompt {
                   tokens
                 }
@@ -58,15 +55,12 @@ export function TopModelsByToken({ projectId }: { projectId: string }) {
   );
 
   const chartData = useMemo(() => {
-    const models = data.project.topModelsByTokenCount?.models ?? [];
-    const costSummaries =
-      data.project.topModelsByTokenCount?.costSummaries ?? [];
-    return models.map((model, idx) => {
-      const costSummary = costSummaries[idx];
+    const models = data.project.topModelsByTokenCount ?? [];
+    return models.map((model) => {
+      const costSummary = model.costSummary;
       const promptTokens = costSummary.prompt.tokens;
       const completionTokens = costSummary.completion.tokens;
       const totalTokens = costSummary.total.tokens;
-
       return {
         model: model.name,
         prompt_tokens: promptTokens,
