@@ -22,6 +22,7 @@ from typing import (
 
 from tqdm.auto import tqdm
 import random
+import subprocess, shlex
 
 from phoenix.evals.exceptions import PhoenixException
 
@@ -346,8 +347,67 @@ class AsyncExecutor(Executor):
         progress_bar: tqdm[Any],
     ) -> None:
         termination_event_watcher = None
+        worker_id = id(asyncio.current_task())  # Unique identifier for this worker
+        
         while True:
             marked_done = False
+            
+            # ──────────────────────────────────────────────────────────
+            # (NEW) Dynamic concurrency control - AFTER grabbing task
+            # If rate limiter has collapsed, inactive workers put their
+            # task back and sleep, reducing token contention.
+            # ──────────────────────────────────────────────────────────
+            try:
+                gen_self = getattr(self.generate, "__self__", None)
+                _rate_limiter = getattr(gen_self, "_rate_limiter", None)
+                _throttler = getattr(_rate_limiter, "_throttler", None)
+                
+                if _throttler is not None:
+                    current_rate = float(getattr(_throttler, "rate", 10.0))
+                    # Calculate how many workers we actually want active
+                    if current_rate <= 0.1:
+                        # Very slow rate: only 1 worker active
+                        effective_concurrency = 1
+                        sleep_duration = 8.0
+                    elif current_rate <= 0.5:
+                        # Slow rate: 2-3 workers active  
+                        effective_concurrency = max(1, int(current_rate * 6))
+                        sleep_duration = 5.0
+                    elif current_rate <= 1.0:
+                        # Moderate rate: proportional workers
+                        effective_concurrency = max(1, min(self.concurrency, int(current_rate * 10)))
+                        sleep_duration = 2.0
+                    else:
+                        # Normal rate: all workers active
+                        effective_concurrency = self.concurrency
+                        sleep_duration = 0.0
+                    
+                    # Determine if this worker should be active
+                    # Use consistent hash-based assignment  
+                    worker_index = hash(worker_id) % self.concurrency
+                    should_be_active = worker_index < effective_concurrency
+                    
+                    if not should_be_active:
+                        # DEADLOCK PREVENTION: Check if putting this task back would
+                        # leave no active workers. If queue is non-empty and we're
+                        # the last potential active worker, stay active.
+                        tasks_in_queue = queue.qsize()
+                        if tasks_in_queue > 0 and effective_concurrency == 1 and worker_index == 0:
+                            # This is the designated active worker, don't sleep
+                            pass  
+                        else:
+                            # Put task back in queue and sleep to reduce contention
+                            await queue.put((priority, item))
+                            queue.task_done()  # Mark current task as done since we're putting it back
+                            marked_done = True
+                            # Use shorter sleep to re-evaluate concurrency decisions more frequently
+                            await asyncio.sleep(min(sleep_duration, 3.0))
+                            continue
+                        
+            except Exception:
+                # Best-effort only; continue normally if anything fails
+                pass
+            
             try:
                 priority, item = await asyncio.wait_for(queue.get(), timeout=1)
             except asyncio.TimeoutError:
@@ -361,10 +421,114 @@ class AsyncExecutor(Executor):
                 continue
 
             index, payload = item
+            # Track which retry attempt we're on (priority is negative for retries)
             attempt_no = abs(priority)
 
-            # Dequeued
+            # Log that we've dequeued this task
             execution_details[index].log_event("Q")
+
+            # ──────────────────────────────────────────────────────────
+            # (NEW) Pre-wait outside the task stopwatch
+            # If the generation function belongs to a model that has a
+            # ``_rate_limiter`` with an underlying ``_throttler`` (e.g.
+            # OpenAIModel, AnthropicModel, BedrockModel, …), acquire a
+            # token *before* we record ``task_start_time`` and start the
+            # executor-level timeout.  This way the 20-second (or user-
+            # supplied) ``task_timeout`` only measures the true network
+            # round-trip to the provider, not the time the coroutine
+            # spends waiting for the adaptive token bucket after a burst
+            # of 429s.
+            #
+            # If we can't detect a throttler we simply continue – the
+            # behaviour is unchanged for non-Phoenix generation
+            # functions.
+            # ──────────────────────────────────────────────────────────
+            try:
+                print(f"🚨🚨🚨 JASON'S UPDATED CODE IS RUNNING - TASK {index} 🚨🚨🚨")
+                print(f"🔧 TIMEOUT DEBUG: Starting timeout calculation for task {index}")
+                gen_self = getattr(self.generate, "__self__", None)
+                print(f"🔧 TIMEOUT DEBUG: gen_self = {gen_self}")
+                
+                # Enhanced introspection: if gen_self is None, try to find Phoenix models
+                # in the function's closure or global scope
+                if gen_self is None:
+                    print(f" TIMEOUT DEBUG: gen_self is None, searching for Phoenix models...")
+                    
+                    # Check if it's a closure with captured Phoenix models
+                    if hasattr(self.generate, '__closure__') and self.generate.__closure__:
+                        print(f"🔧 TIMEOUT DEBUG: Found closure with {len(self.generate.__closure__)} cells")
+                        for i, cell in enumerate(self.generate.__closure__):
+                            try:
+                                cell_value = cell.cell_contents
+                                print(f"🔧 TIMEOUT DEBUG: Closure cell {i}: {type(cell_value)} = {cell_value}")
+                                if hasattr(cell_value, '_rate_limiter'):
+                                    print(f"🔧 TIMEOUT DEBUG: Found Phoenix model in closure: {cell_value}")
+                                    gen_self = cell_value
+                                    break
+                            except ValueError:
+                                print(f"🔧 TIMEOUT DEBUG: Closure cell {i}: <empty>")
+                    
+                    # Check global scope for common Phoenix model variable names
+                    if gen_self is None and hasattr(self.generate, '__globals__'):
+                        print(f"🔧 TIMEOUT DEBUG: Searching globals for Phoenix models...")
+                        globals_dict = self.generate.__globals__
+                        for name, obj in globals_dict.items():
+                            if hasattr(obj, '_rate_limiter') and hasattr(obj, '_throttler'):
+                                print(f"🔧 TIMEOUT DEBUG: Found Phoenix model in globals: {name} = {obj}")
+                                gen_self = obj
+                                break
+                
+                _rate_limiter = getattr(gen_self, "_rate_limiter", None)
+                print(f"🔧 TIMEOUT DEBUG: _rate_limiter = {_rate_limiter}")
+                _throttler = getattr(_rate_limiter, "_throttler", None)
+                print(f"🔧 TIMEOUT DEBUG: _throttler = {_throttler}")
+                if _throttler is not None and hasattr(_throttler, "async_wait_until_ready"):
+                    print(f"🔧 TIMEOUT DEBUG: Found valid throttler, awaiting token...")
+                    await _throttler.async_wait_until_ready()
+                # derive an adaptive timeout: at least self.task_timeout, but
+                # if the token bucket rate drops below 1 rps, give tasks a
+                # bigger budget (~2× the inter-arrival time between tokens)
+                effective_timeout = self.task_timeout
+                print(f"🔧 TIMEOUT DEBUG: Base effective_timeout = {effective_timeout}s")
+                if _throttler is not None:
+                    print(f"🔧 TIMEOUT DEBUG: Throttler found, calculating adaptive timeout...")
+                    try:
+                        rate = float(getattr(_throttler, "rate", 0.0)) or 0.001
+                        print(f"🔧 TIMEOUT DEBUG: Current rate = {rate:.6f} req/s")
+                        # Number of tasks that may be contending for tokens:
+                        active_workers = max(1, self.concurrency)
+                        expected_wait = active_workers / rate  # seconds until last worker gets a token
+                        
+                        # AGGRESSIVE timeout scaling for severely rate-limited scenarios
+                        print(f"🔧 TIMEOUT DEBUG: Rate={rate:.6f}, Active workers={active_workers}, Expected wait={expected_wait:.2f}s")
+                        if rate <= 0.05:
+                            # Extremely slow rate: 5+ minutes timeout to handle worst case
+                            effective_timeout = max(effective_timeout, 300)  # 300 seconds = 5 minutes
+                            print(f"🔧 TIMEOUT DEBUG: VERY SLOW RATE! Extended timeout to {effective_timeout}s")
+                        elif rate <= 0.1:
+                            # Very slow rate: 3+ minutes timeout  
+                            effective_timeout = max(effective_timeout, 180)  # 180 seconds = 3 minutes
+                            print(f"🔧 TIMEOUT DEBUG: SLOW RATE! Extended timeout to {effective_timeout}s")
+                        elif rate <= 0.5:
+                            # Slow rate: larger multiplier for expected wait
+                            effective_timeout = max(effective_timeout, int(expected_wait * 2.0))
+                            print(f"🔧 TIMEOUT DEBUG: MODERATE RATE! Extended timeout to {effective_timeout}s")
+                        else:
+                            # Moderate rate: standard head-room
+                            effective_timeout = max(effective_timeout, int(expected_wait * 1.3))
+                            print(f"🔧 TIMEOUT DEBUG: NORMAL RATE! Timeout = {effective_timeout}s")
+                    except Exception:
+                        # Best-effort; fallback to base timeout on any error
+                        print(f"🔧 TIMEOUT DEBUG: Exception in timeout calculation, using base timeout")
+                        pass
+                else:
+                    print(f"🔧 TIMEOUT DEBUG: No throttler found, using base timeout = {effective_timeout}s")
+                    effective_timeout = self.task_timeout
+                print(f"🔧 TIMEOUT DEBUG: FINAL effective_timeout = {effective_timeout}s for task {index}")
+            except Exception:
+                print(f"🔧 TIMEOUT DEBUG: Exception in pre-wait logic, using base timeout")
+                # Best-effort only – never block execution if inspection fails
+                pass
 
             try:
                 task_start_time = time.time()
@@ -373,7 +537,7 @@ class AsyncExecutor(Executor):
                 termination_event_watcher = asyncio.create_task(termination_event.wait())
                 done, pending = await asyncio.wait(
                     [generate_task, termination_event_watcher],
-                    timeout=self.task_timeout,
+                    timeout=effective_timeout,
                     return_when=asyncio.FIRST_COMPLETED,
                 )
 
@@ -427,7 +591,7 @@ class AsyncExecutor(Executor):
                     continue
                 else:
                     retry_count = abs(priority)
-                    tqdm.write(f"Worker timeout after {self.task_timeout}s, requeuing (task {index}, attempt {retry_count + 1})")
+                    tqdm.write(f"Worker timeout after {effective_timeout}s, requeuing (task {index}, attempt {retry_count + 1})")
                     
                     # Cancel the hanging task to prevent resource leaks
                     if not generate_task.done():
@@ -462,7 +626,7 @@ class AsyncExecutor(Executor):
                         execution_details[index].log_event("X")  # Failed permanently
                         tqdm.write(f"❌ Task {index}-a{attempt_no}: Max retries ({self.max_retries}) reached, FAILING permanently")
                         progress_bar.update()
-                        continue
+                        continue  # ← Task is abandoned, no requeue
                     
                     # Exponential backoff with jitter
                     delay = min(self.max_backoff, self.backoff_base * (2 ** retry_count))
@@ -477,6 +641,14 @@ class AsyncExecutor(Executor):
                     execution_details[index].log_event("R")  # Re-queued after backoff
                     await queue.put((priority - 1, item))
             except Exception as exc:
+                # Debug print of exception hierarchy
+                root = exc
+                depth = 0
+                while getattr(root, "__cause__", None) and depth < 5:
+                    print(f"[DBG] cause {depth}: {type(root)} – {root}")
+                    root = root.__cause__
+                    depth += 1
+                print(f"[DBG] final: {type(root)} – {root}")
                 execution_details[index].log_exception(exc)
                 execution_details[index].log_runtime(task_start_time)
                 execution_details[index].log_event("E")  # Generic error
@@ -789,6 +961,14 @@ class SyncExecutor(Executor):
                             progress_bar.update()
                             break
                         except Exception as exc:
+                            # Debug print of exception hierarchy
+                            root = exc
+                            depth = 0
+                            while getattr(root, "__cause__", None) and depth < 5:
+                                print(f"[DBG] cause {depth}: {type(root)} – {root}")
+                                root = root.__cause__
+                                depth += 1
+                            print(f"[DBG] final: {type(root)} – {root}")
                             execution_details[index].log_exception(exc)
                             is_phoenix_exception = isinstance(exc, PhoenixException)
                             if attempt >= self.max_retries or is_phoenix_exception:

@@ -397,20 +397,8 @@ class OpenAIModel(BaseModel):
                     res = await self._async_client.chat.completions.create(**kwargs)
                 return res.model_dump()
             except self._openai._exceptions.APIConnectionError as e:
-                # Treat transient network/connectivity issues as rate-limit equivalents to trigger back-off
-                # Create a minimal mock response to satisfy RateLimitError constructor
-                class MockResponse:
-                    def __init__(self):
-                        self.request = None
-                        self.status_code = 429
-                        self.headers = {}
-                
-                mock_response = MockResponse()
-                raise self._openai.RateLimitError(
-                    f"APIConnectionError treated as rate limit: {e}",
-                    response=mock_response,
-                    body=None,
-                ) from e
+                # Propagate the original connection error instead of converting it to a RateLimitError.
+                raise e
             except self._openai._exceptions.BadRequestError as e:
                 exception_message = e.args[0]
                 if exception_message and "maximum context length" in exception_message:
@@ -434,20 +422,8 @@ class OpenAIModel(BaseModel):
                     return self._client.completions.create(**kwargs).model_dump()
                 return self._client.chat.completions.create(**kwargs).model_dump()
             except self._openai._exceptions.APIConnectionError as e:
-                # Treat transient network/connectivity issues as rate-limit equivalents to trigger back-off
-                # Create a minimal mock response to satisfy RateLimitError constructor
-                class MockResponse:
-                    def __init__(self):
-                        self.request = None
-                        self.status_code = 429
-                        self.headers = {}
-                
-                mock_response = MockResponse()
-                raise self._openai.RateLimitError(
-                    f"APIConnectionError treated as rate limit: {e}",
-                    response=mock_response,
-                    body=None,
-                ) from e
+                # Propagate the original connection error instead of converting it to a RateLimitError.
+                raise e
             except self._openai._exceptions.BadRequestError as e:
                 exception_message = e.args[0]
                 if exception_message and "maximum context length" in exception_message:
