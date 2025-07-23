@@ -93,36 +93,74 @@ class LangChainModelAdapter(BaseLLMAdapter):
     ) -> Dict[str, Any]:
         self._validate_schema(schema)
 
-        if hasattr(self.client, "with_structured_output"):
+        supports_structured_output = hasattr(self.client, "with_structured_output")
+        supports_tool_calls = hasattr(self.client, "bind_tools") or hasattr(
+            self.client, "bind_functions"
+        )
+
+        if not supports_structured_output and not supports_tool_calls:
+            raise ValueError(
+                f"LangChain model {type(self.client).__name__} does not support structured "
+                "output or tool calls"
+            )
+
+        if supports_structured_output:
             try:
                 normalized_schema = self._normalize_schema_for_langchain(schema)
-                structured_prompt = self._build_structured_instruction(prompt, schema)
+                prompt_input = self._build_prompt(prompt)
                 structured_model = self.client.with_structured_output(normalized_schema)
 
-                response = structured_model.invoke(structured_prompt, **kwargs)
+                response = structured_model.invoke(prompt_input, **kwargs)
 
                 if isinstance(response, dict):
-                    return response
+                    return response  # pyright: ignore
                 else:
                     import json
 
                     if hasattr(response, "__dict__"):
-                        return response.__dict__
+                        return response.__dict__  # pyright: ignore
                     else:
-                        return json.loads(str(response))
+                        return json.loads(str(response))  # pyright: ignore
 
             except Exception as e:
-                logger.warning(f"Structured output failed: {e}, falling back to text parsing")
+                logger.warning(f"Structured output failed: {e}, falling back to tool calling")
 
-        structured_prompt = self._build_structured_instruction(prompt, schema)
-        text = self.generate_text(structured_prompt, **kwargs)
-        import json
+        if supports_tool_calls:
+            try:
+                tool_definition = self._schema_to_tool(schema)
+                prompt_input = self._build_prompt(prompt)
 
-        try:
-            return json.loads(text)
-        except (json.JSONDecodeError, TypeError):
-            logger.warning("Failed to parse JSON from text response, returning empty object")
-            return {}
+                if hasattr(self.client, "bind_tools"):
+                    tool_model = self.client.bind_tools([tool_definition])
+                    response = tool_model.invoke(prompt_input, **kwargs)
+                elif hasattr(self.client, "bind_functions"):
+                    tool_model = self.client.bind_functions([tool_definition])
+                    response = tool_model.invoke(prompt_input, **kwargs)
+                else:
+                    raise ValueError("No tool binding method available")
+
+                if hasattr(response, "tool_calls") and response.tool_calls:
+                    tool_call = response.tool_calls[0]
+                    if hasattr(tool_call, "args"):
+                        return tool_call.args  # pyright: ignore
+                    elif hasattr(tool_call, "function") and hasattr(
+                        tool_call.function, "arguments"
+                    ):
+                        import json
+
+                        args = tool_call.function.arguments
+                        if isinstance(args, str):
+                            return json.loads(args)  # pyright: ignore
+                        else:
+                            return args  # pyright: ignore
+
+            except Exception as e:
+                logger.warning(f"Tool calling failed: {e}")
+
+        raise ValueError(
+            "Failed to generate structured output: neither structured output nor tool "
+            "calling succeeded"
+        )
 
     async def agenerate_object(
         self,
@@ -132,39 +170,80 @@ class LangChainModelAdapter(BaseLLMAdapter):
     ) -> Dict[str, Any]:
         self._validate_schema(schema)
 
-        if hasattr(self.client, "with_structured_output"):
+        supports_structured_output = hasattr(self.client, "with_structured_output")
+        supports_tool_calls = hasattr(self.client, "bind_tools") or hasattr(
+            self.client, "bind_functions"
+        )
+
+        if not supports_structured_output and not supports_tool_calls:
+            raise ValueError(
+                f"LangChain model {type(self.client).__name__} does not support structured "
+                "output or tool calls"
+            )
+
+        if supports_structured_output:
             try:
                 normalized_schema = self._normalize_schema_for_langchain(schema)
-                structured_prompt = self._build_structured_instruction(prompt, schema)
+                prompt_input = self._build_prompt(prompt)
                 structured_model = self.client.with_structured_output(normalized_schema)
 
                 if hasattr(structured_model, "ainvoke"):
-                    response = await structured_model.ainvoke(structured_prompt, **kwargs)
+                    response = await structured_model.ainvoke(prompt_input, **kwargs)
                 else:
-                    response = structured_model.invoke(structured_prompt, **kwargs)
+                    response = structured_model.invoke(prompt_input, **kwargs)
 
                 if isinstance(response, dict):
-                    return response
+                    return response  # pyright: ignore
                 else:
                     import json
 
                     if hasattr(response, "__dict__"):
-                        return response.__dict__
+                        return response.__dict__  # pyright: ignore
                     else:
-                        return json.loads(str(response))
+                        return json.loads(str(response))  # pyright: ignore
 
             except Exception as e:
-                logger.warning(f"Async structured output failed: {e}, falling back to text parsing")
+                logger.warning(f"Async structured output failed: {e}, falling back to tool calling")
 
-        structured_prompt = self._build_structured_instruction(prompt, schema)
-        text = await self.agenerate_text(structured_prompt, **kwargs)
-        import json
+        if supports_tool_calls:
+            try:
+                tool_definition = self._schema_to_tool(schema)
+                prompt_input = self._build_prompt(prompt)
 
-        try:
-            return json.loads(text)
-        except (json.JSONDecodeError, TypeError):
-            logger.warning("Failed to parse JSON from async text response, returning empty object")
-            return {}
+                if hasattr(self.client, "bind_tools"):
+                    tool_model = self.client.bind_tools([tool_definition])
+                elif hasattr(self.client, "bind_functions"):
+                    tool_model = self.client.bind_functions([tool_definition])
+                else:
+                    raise ValueError("No tool binding method available")
+
+                if hasattr(tool_model, "ainvoke"):
+                    response = await tool_model.ainvoke(prompt_input, **kwargs)
+                else:
+                    response = tool_model.invoke(prompt_input, **kwargs)
+
+                if hasattr(response, "tool_calls") and response.tool_calls:
+                    tool_call = response.tool_calls[0]
+                    if hasattr(tool_call, "args"):
+                        return tool_call.args  # pyright: ignore
+                    elif hasattr(tool_call, "function") and hasattr(
+                        tool_call.function, "arguments"
+                    ):
+                        import json
+
+                        args = tool_call.function.arguments
+                        if isinstance(args, str):
+                            return json.loads(args)  # pyright: ignore
+                        else:
+                            return args  # pyright: ignore
+
+            except Exception as e:
+                logger.warning(f"Async tool calling failed: {e}")
+
+        raise ValueError(
+            "Failed to generate structured output: neither structured output nor tool "
+            "calling succeeded"
+        )
 
     @property
     def model_name(self) -> str:
@@ -181,31 +260,21 @@ class LangChainModelAdapter(BaseLLMAdapter):
         else:
             return prompt
 
-    def _build_structured_instruction(
-        self,
-        prompt: Union[str, MultimodalPrompt],
-        schema: Dict[str, Any],
-    ) -> str:
-        prompt_text = self._build_prompt(prompt)
-        self._validate_schema(schema)
-
-        structured_instruction = (
-            "You must respond with valid JSON that conforms to the provided schema. "
-            "Do not include any additional text, explanations, or formatting outside of the JSON response."
+    def _schema_to_tool(self, schema: Dict[str, Any]) -> Dict[str, Any]:
+        description = schema.get(
+            "description", "Extract structured data according to the provided schema"
         )
 
-        if schema:
-            import json
+        tool_definition = {
+            "type": "function",
+            "function": {
+                "name": "extract_structured_data",
+                "description": description,
+                "parameters": schema,
+            },
+        }
 
-            try:
-                schema_str = json.dumps(schema, indent=2)
-                structured_instruction += f"\n\nRequired JSON Schema:\n{schema_str}"
-            except (TypeError, ValueError):
-                structured_instruction += (
-                    f"\n\nThe response must conform to the provided schema structure."
-                )
-
-        return f"{structured_instruction}\n\n{prompt_text}"
+        return tool_definition
 
     def _normalize_schema_for_langchain(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         normalized = schema.copy()
