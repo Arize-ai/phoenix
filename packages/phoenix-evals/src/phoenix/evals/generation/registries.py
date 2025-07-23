@@ -277,7 +277,8 @@ def _print_disabled_provider_table(providers: List[DisabledProviderInfo]) -> Non
     # Header
     header = (
         f"{'Provider':<{provider_width}} | {'Adapter':<{adapter_width}} | "
-        f"{'Missing Deps':<{missing_width}} | Install Command")
+        f"{'Missing Deps':<{missing_width}} | Install Command"
+    )
     print(header)
     print("-" * len(header))
 

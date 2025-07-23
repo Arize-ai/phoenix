@@ -3,7 +3,6 @@ from typing import Any, Dict, Optional
 from .adapters import register_adapters
 from .registries import ADAPTER_REGISTRY, PROVIDER_REGISTRY
 
-
 register_adapters()
 
 
@@ -35,7 +34,7 @@ class LLMBase:
             try:
                 if provider is None:
                     raise ValueError("Provider must be specified for provider-based initialization")
-                    
+
                 provider_registrations = PROVIDER_REGISTRY.get_provider_registrations(provider)
                 if not provider_registrations:
                     available_providers = PROVIDER_REGISTRY.list_providers()

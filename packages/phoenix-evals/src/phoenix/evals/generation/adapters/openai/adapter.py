@@ -70,9 +70,7 @@ class OpenAIAdapter(BaseLLMAdapter):
     def generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
         """Generate text using OpenAI client."""
         if self._is_async:
-            raise ValueError(
-                "Cannot call sync method generate_text() on async OpenAI client."
-            )
+            raise ValueError("Cannot call sync method generate_text() on async OpenAI client.")
         messages = self._build_messages(prompt)
 
         try:
@@ -90,9 +88,7 @@ class OpenAIAdapter(BaseLLMAdapter):
     async def agenerate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
         """Async text generation using OpenAI client."""
         if not self._is_async:
-            raise ValueError(
-                "Cannot call async method agenerate_text() on sync OpenAI client."
-            )
+            raise ValueError("Cannot call async method agenerate_text() on sync OpenAI client.")
         messages = self._build_messages(prompt)
 
         try:
@@ -145,9 +141,7 @@ class OpenAIAdapter(BaseLLMAdapter):
                 raise ValueError("OpenAI returned no content")
             return cast(Dict[str, Any], json.loads(content))
         except Exception as e:
-            logger.warning(
-                f"Structured output failed: {e}, falling back to tool calling"
-            )
+            logger.warning(f"Structured output failed: {e}, falling back to tool calling")
 
         try:
             tool_definition = self._schema_to_tool(schema)
@@ -195,9 +189,7 @@ class OpenAIAdapter(BaseLLMAdapter):
     ) -> Dict[str, Any]:
         """Async structured output generation using OpenAI client."""
         if not self._is_async:
-            raise ValueError(
-                "Cannot call async method agenerate_object() on sync OpenAI client."
-            )
+            raise ValueError("Cannot call async method agenerate_object() on sync OpenAI client.")
         self._validate_schema(schema)
 
         messages = self._build_messages(prompt)
@@ -224,9 +216,7 @@ class OpenAIAdapter(BaseLLMAdapter):
                 raise ValueError("OpenAI returned no content")
             return cast(Dict[str, Any], json.loads(content))
         except Exception as e:
-            logger.warning(
-                f"Async structured output failed: {e}, falling back to tool calling"
-            )
+            logger.warning(f"Async structured output failed: {e}, falling back to tool calling")
 
         try:
             tool_definition = self._schema_to_tool(schema)
@@ -259,8 +249,8 @@ class OpenAIAdapter(BaseLLMAdapter):
                 for phrase in ["does not support", "not supported", "tools", "function"]
             ):
                 raise ValueError(
-                    f"OpenAI model {self.model_name} does not support structured output or tool calls. "
-                    "Please use a model that supports these features."
+                    f"OpenAI model {self.model_name} does not support structured output or tool "
+                    "calls. Please use a model that supports these features."
                 ) from e
             else:
                 logger.error(f"Async tool calling failed: {e}")
@@ -392,7 +382,10 @@ class OpenAIAdapter(BaseLLMAdapter):
 
         add_additional_properties_false(formatted_schema)
 
-        if formatted_schema.get("type") == "object" and "additionalProperties" not in formatted_schema:
+        if (
+            formatted_schema.get("type") == "object"
+            and "additionalProperties" not in formatted_schema
+        ):
             formatted_schema["additionalProperties"] = False
 
         return cast(Dict[str, Any], formatted_schema)

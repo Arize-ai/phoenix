@@ -51,9 +51,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
         except ImportError:
             raise ImportError("LiteLLM package not installed. Run: pip install litellm")
 
-    def generate_text(
-        self, prompt: Union[str, MultimodalPrompt], **kwargs: Any
-    ) -> str:
+    def generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
         """Generate text using LiteLLM."""
         messages = self._build_messages(prompt)
 
@@ -69,9 +67,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
             logger.error(f"LiteLLM completion failed: {e}")
             raise
 
-    async def agenerate_text(
-        self, prompt: Union[str, MultimodalPrompt], **kwargs: Any
-    ) -> str:
+    async def agenerate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
         """Async text generation using LiteLLM."""
         messages = self._build_messages(prompt)
 
@@ -96,11 +92,19 @@ class LiteLLMAdapter(BaseLLMAdapter):
         self._validate_schema(schema)
 
         try:
-            supported_params = getattr(self._litellm, 'get_supported_openai_params', lambda model: ["response_format", "tools"])(model=self.client.model)
-            supported_params_list = supported_params if isinstance(supported_params, list) else ["response_format", "tools"]
+            supported_params = getattr(
+                self._litellm,
+                "get_supported_openai_params",
+                lambda model: ["response_format", "tools"],
+            )(model=self.client.model)
+            supported_params_list = (
+                supported_params
+                if isinstance(supported_params, list)
+                else ["response_format", "tools"]
+            )
         except Exception:
             supported_params_list = ["response_format", "tools"]
-        
+
         supports_structured_output = "response_format" in supported_params_list
         supports_tool_calls = "tools" in supported_params_list
 
@@ -161,13 +165,21 @@ class LiteLLMAdapter(BaseLLMAdapter):
         self._validate_schema(schema)
 
         try:
-            # Try to get supported params, fall back to assuming both are supported  
-            supported_params = getattr(self._litellm, 'get_supported_openai_params', lambda model: ["response_format", "tools"])(model=self.client.model)
-            supported_params_list = supported_params if isinstance(supported_params, list) else ["response_format", "tools"]
+            # Try to get supported params, fall back to assuming both are supported
+            supported_params = getattr(
+                self._litellm,
+                "get_supported_openai_params",
+                lambda model: ["response_format", "tools"],
+            )(model=self.client.model)
+            supported_params_list = (
+                supported_params
+                if isinstance(supported_params, list)
+                else ["response_format", "tools"]
+            )
         except Exception:
             # If the function doesn't exist or fails, assume both are supported
             supported_params_list = ["response_format", "tools"]
-        
+
         supports_structured_output = "response_format" in supported_params_list
         supports_tool_calls = "tools" in supported_params_list
 
@@ -335,7 +347,10 @@ class LiteLLMAdapter(BaseLLMAdapter):
         add_additional_properties_false(formatted_schema)
 
         # Ensure the root level has additionalProperties: false if it's an object
-        if formatted_schema.get("type") == "object" and "additionalProperties" not in formatted_schema:
+        if (
+            formatted_schema.get("type") == "object"
+            and "additionalProperties" not in formatted_schema
+        ):
             formatted_schema["additionalProperties"] = False
 
         return cast(Dict[str, Any], formatted_schema)
