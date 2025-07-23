@@ -80,8 +80,8 @@ class GenerativeModel(Node, ModelInterface):
     async def cost_summary(
         self,
         info: Info[Context, None],
-        time_range: Optional[TimeRange] = UNSET,
         project_id: Optional[GlobalID] = UNSET,
+        time_range: Optional[TimeRange] = UNSET,
     ) -> SpanCostSummary:
         if self.cached_cost_summary is not None:
             time_range_key = (time_range.start, time_range.end) if time_range else (None, None)
