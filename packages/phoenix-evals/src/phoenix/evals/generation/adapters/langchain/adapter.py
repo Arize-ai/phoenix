@@ -141,18 +141,10 @@ class LangChainModelAdapter(BaseLLMAdapter):
 
                 if hasattr(response, "tool_calls") and response.tool_calls:
                     tool_call = response.tool_calls[0]
-                    if hasattr(tool_call, "args"):
+                    if isinstance(tool_call, dict) and "args" in tool_call:
+                        return tool_call["args"]  # pyright: ignore
+                    elif hasattr(tool_call, "args"):  # pyright: ignore
                         return tool_call.args  # pyright: ignore
-                    elif hasattr(tool_call, "function") and hasattr(
-                        tool_call.function, "arguments"
-                    ):
-                        import json
-
-                        args = tool_call.function.arguments
-                        if isinstance(args, str):
-                            return json.loads(args)  # pyright: ignore
-                        else:
-                            return args  # pyright: ignore
 
             except Exception as e:
                 logger.warning(f"Tool calling failed: {e}")
@@ -224,18 +216,10 @@ class LangChainModelAdapter(BaseLLMAdapter):
 
                 if hasattr(response, "tool_calls") and response.tool_calls:
                     tool_call = response.tool_calls[0]
-                    if hasattr(tool_call, "args"):
+                    if isinstance(tool_call, dict) and "args" in tool_call:
+                        return tool_call["args"]  # pyright: ignore
+                    elif hasattr(tool_call, "args"):  # pyright: ignore
                         return tool_call.args  # pyright: ignore
-                    elif hasattr(tool_call, "function") and hasattr(
-                        tool_call.function, "arguments"
-                    ):
-                        import json
-
-                        args = tool_call.function.arguments
-                        if isinstance(args, str):
-                            return json.loads(args)  # pyright: ignore
-                        else:
-                            return args  # pyright: ignore
 
             except Exception as e:
                 logger.warning(f"Async tool calling failed: {e}")
