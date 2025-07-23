@@ -146,61 +146,50 @@ ADAPTER_REGISTRY = AdapterRegistry()
 PROVIDER_REGISTRY = ProviderRegistry()
 
 
-def print_available_adapters() -> None:
-    """
-    Print a consolidated table of LLM providers and adapters with color-coded status.
+def adapter_availability_table() -> str:
+    """Return a consolidated table of LLM providers and adapters with color-coded status."""
+    output = ["\n" + "=" * 80]
+    output.append("PHOENIX LLM WRAPPER - PROVIDERS & ADAPTERS")
+    output.append("=" * 80)
 
-    Shows all providers in a single table with:
-    - Green status for enabled providers (dependencies satisfied)
-    - Red status for disabled providers (missing dependencies)
-    - Required dependencies for each provider
-    - SDK adapters section for wrapping existing clients
-    """
-    print("\n" + "=" * 80)
-    print("PHOENIX LLM WRAPPER - PROVIDERS & ADAPTERS")
-    print("=" * 80)
-
-    # Collect all providers (enabled and disabled) into a single list
     all_providers: List[ProviderInfo] = []
 
-    # Add enabled providers
     for provider_name, registrations in PROVIDER_REGISTRY._providers.items():
         for reg in registrations:
-            provider_info: ProviderInfo = {
+            enabled_provider: ProviderInfo = {
                 "provider": provider_name,
                 "adapter": reg.adapter_class.__name__,
                 "dependencies": reg.dependencies,
                 "status": "✓ Available",
                 "is_enabled": True,
             }
-            all_providers.append(provider_info)
+            all_providers.append(enabled_provider)
 
-    # Add disabled providers
     for reg in PROVIDER_REGISTRY._disabled_providers:
-        provider_info: ProviderInfo = {
+        disabled_provider: ProviderInfo = {
             "provider": reg.provider,
             "adapter": reg.adapter_class.__name__,
             "dependencies": reg.dependencies,
             "status": "✗ Disabled",
             "is_enabled": False,
         }
-        all_providers.append(provider_info)
+        all_providers.append(disabled_provider)
 
-    # Print consolidated providers table
     if all_providers:
-        print("\n📦 PROVIDERS")
-        print("-" * 60)
-        _print_consolidated_provider_table(all_providers)
+        output.append("\n📦 PROVIDERS")
+        output.append("-" * 60)
+        output.append(_get_consolidated_provider_table(all_providers))
     else:
-        print("\n📦 PROVIDERS: None")
+        output.append("\n📦 PROVIDERS: None")
+
+    return "\n".join(output)
 
 
-def _print_consolidated_provider_table(providers: List[ProviderInfo]) -> None:
-    """Print a consolidated table of all providers with color-coded status."""
+def _get_consolidated_provider_table(providers: List[ProviderInfo]) -> str:
+    """Return a consolidated table of all providers with color-coded status."""
     if not providers:
-        return
+        return ""
 
-    # Calculate column widths
     max_provider = max(len(p["provider"]) for p in providers)
     max_adapter = max(len(p["adapter"]) for p in providers)
     max_deps = max(len(", ".join(p["dependencies"])) for p in providers)
@@ -209,28 +198,28 @@ def _print_consolidated_provider_table(providers: List[ProviderInfo]) -> None:
     adapter_width = max(max_adapter, 7)
     deps_width = max(max_deps, 12)
 
-    # Header
     header = (
         f"{'Provider':<{provider_width}} | {'Status':<8} | {'Adapter':<{adapter_width}} | "
         f"{'Dependencies':<{deps_width}}"
     )
-    print(header)
-    print("-" * len(header))
 
-    # Rows with color coding
+    output = [header, "-" * len(header)]
+
     for p in providers:
         deps_str = ", ".join(p["dependencies"]) if p["dependencies"] else "None"
 
-        # Apply color coding based on status
         if p["is_enabled"]:
             status_colored = f"{Colors.GREEN}{p['status']}{Colors.RESET}"
         else:
             status_colored = f"{Colors.RED}{p['status']}{Colors.RESET}"
 
-        print(
+        row = (
             f"{p['provider']:<{provider_width}} | {status_colored:<16} | "
             f"{p['adapter']:<{adapter_width}} | {deps_str:<{deps_width}}"
         )
+        output.append(row)
+
+    return "\n".join(output)
 
 
 def register_adapter(

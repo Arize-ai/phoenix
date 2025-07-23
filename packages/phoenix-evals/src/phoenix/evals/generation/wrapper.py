@@ -1,7 +1,7 @@
 from typing import Any, Dict, Optional
 
 from .adapters import register_adapters
-from .registries import ADAPTER_REGISTRY, PROVIDER_REGISTRY
+from .registries import ADAPTER_REGISTRY, PROVIDER_REGISTRY, adapter_availability_table
 
 register_adapters()
 
@@ -37,9 +37,8 @@ class LLMBase:
 
                 provider_registrations = PROVIDER_REGISTRY.get_provider_registrations(provider)
                 if not provider_registrations:
-                    available_providers = PROVIDER_REGISTRY.list_providers()
                     raise ValueError(
-                        f"Unknown provider '{provider}'. Available providers: {available_providers}"
+                        f"Unknown provider '{provider}'. {adapter_availability_table()}"
                     )
 
                 registration = provider_registrations[0]
@@ -47,18 +46,16 @@ class LLMBase:
                 adapter_class = registration.adapter_class
 
             except Exception as e:
-                available_providers = PROVIDER_REGISTRY.list_providers()
                 raise ValueError(
                     f"Failed to create client for provider '{provider}': {e}\n"
-                    f"Available providers: {available_providers}"
+                    f"{adapter_availability_table()}"
                 ) from e
         elif by_sdk:
             adapter_class_maybe = ADAPTER_REGISTRY.find_adapter(client)
             if adapter_class_maybe is None:
-                available_adapters = ADAPTER_REGISTRY.list_adapters()
                 raise ValueError(
                     f"No suitable adapter found for client of type {type(client)}. "
-                    f"Available adapters: {available_adapters}. "
+                    f"{adapter_availability_table()}"
                     f"Please ensure you have the correct SDK installed and the client is properly "
                     "initialized."
                 )
