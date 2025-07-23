@@ -19,7 +19,7 @@ import {
   defaultLegendProps,
   defaultXAxisProps,
   defaultYAxisProps,
-  useChartColors,
+  useSequentialChartColors,
   useSemanticChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
@@ -37,7 +37,7 @@ function TooltipContent({
   label,
 }: TooltipContentProps<number, string>) {
   const SemanticChartColors = useSemanticChartColors();
-  const chartColors = useChartColors();
+  const chartColors = useSequentialChartColors();
   if (active && payload && payload.length) {
     const errorValue = payload[0]?.value ?? null;
     const unsetValue = payload[1]?.value ?? null;
@@ -144,7 +144,7 @@ export function LLMSpanCountTimeSeries({ projectId }: { projectId: string }) {
     })(),
   });
 
-  const colors = useChartColors();
+  const colors = useSequentialChartColors();
   const SemanticChartColors = useSemanticChartColors();
   return (
     <ResponsiveContainer width="100%" height="100%">

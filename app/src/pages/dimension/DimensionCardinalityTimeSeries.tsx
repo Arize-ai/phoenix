@@ -16,7 +16,7 @@ import {
   ChartTooltipDivider,
   ChartTooltipItem,
   defaultTimeXAxisProps,
-  useChartColors,
+  useSequentialChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
@@ -31,7 +31,7 @@ const numberFormatter = new Intl.NumberFormat([], {
 });
 
 const useColors = () => {
-  const { grey300 } = useChartColors();
+  const { grey300 } = useSequentialChartColors();
   return {
     color: grey300,
   };

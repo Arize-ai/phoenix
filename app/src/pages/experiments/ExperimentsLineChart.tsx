@@ -21,7 +21,7 @@ import { Flex, Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
-  useChartColors,
+  useSequentialChartColors,
 } from "@phoenix/components/chart";
 import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
 import { getWordColor } from "@phoenix/utils/colorUtils";
@@ -50,7 +50,7 @@ function TooltipContent({
   payload,
   label,
 }: TooltipContentProps<number, string>) {
-  const { grey300 } = useChartColors();
+  const { grey300 } = useSequentialChartColors();
   // Use the same color logic as the chart lines
   if (active && payload && payload.length) {
     // Filter out avgLatency and show all other annotation scores
@@ -147,7 +147,7 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
     return { chartData, scoreKeys: Array.from(allAnnotationNames) };
   }, [data.dataset?.experiments?.edges]);
 
-  const { grey300 } = useChartColors();
+  const { grey300 } = useSequentialChartColors();
   // Memoize colors for each annotation name (scoreKey) using the same logic as useWordColor
   const lineColors = useMemo(() => {
     const colorMap: Record<string, string> = {};

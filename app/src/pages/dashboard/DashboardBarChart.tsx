@@ -17,7 +17,7 @@ import {
   defaultCartesianGridProps,
   defaultXAxisProps,
   defaultYAxisProps,
-  useChartColors,
+  useSequentialChartColors,
 } from "@phoenix/components/chart";
 import { useBinTimeTickFormatter } from "@phoenix/components/chart/useBinTimeTickFormatter";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
@@ -30,7 +30,7 @@ type DashboardBarChartProps = {
 };
 
 export function DashboardBarChart({ data, scale }: DashboardBarChartProps) {
-  const colors = useChartColors();
+  const colors = useSequentialChartColors();
 
   // Custom tooltip content - defined inside component to access scale
   const TooltipContent = ({

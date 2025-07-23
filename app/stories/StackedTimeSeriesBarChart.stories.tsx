@@ -21,7 +21,7 @@ import {
   defaultCartesianGridProps,
   defaultXAxisProps,
   defaultYAxisProps,
-  useChartColors,
+  useSequentialChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
@@ -150,7 +150,7 @@ function TooltipContent({
   payload,
   label,
 }: TooltipContentProps<number, string>) {
-  const chartColors = useChartColors();
+  const chartColors = useSequentialChartColors();
   if (active && payload && payload.length) {
     const metricValue = payload[1]?.value ?? null;
     const count = payload[0]?.value ?? null;
@@ -213,7 +213,7 @@ function StackedBarChart({
     samplingIntervalMinutes: granularity.samplingIntervalMinutes,
   });
 
-  const colors = useChartColors();
+  const colors = useSequentialChartColors();
 
   return (
     <div style={{ width: "100%", height }}>

@@ -16,8 +16,8 @@ import {
   ChartTooltip,
   ChartTooltipItem,
   defaultLegendProps,
-  useChartColors,
   useSemanticChartColors,
+  useSequentialChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/components/datetime";
@@ -34,7 +34,7 @@ function TooltipContent({
   label,
 }: TooltipContentProps<number, string>) {
   const SemanticChartColors = useSemanticChartColors();
-  const chartColors = useChartColors();
+  const chartColors = useSequentialChartColors();
   if (active && payload && payload.length) {
     const promptValue = payload[0]?.value;
     const completionValue = payload[1]?.value;
@@ -133,7 +133,7 @@ export function TraceTokenCostTimeSeries({ projectId }: { projectId: string }) {
     })(),
   });
 
-  const colors = useChartColors();
+  const colors = useSequentialChartColors();
   const SemanticChartColors = useSemanticChartColors();
   return (
     <ResponsiveContainer width="100%" height="100%">

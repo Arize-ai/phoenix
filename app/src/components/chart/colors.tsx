@@ -2,7 +2,7 @@ import { useMemo } from "react";
 
 import { useTheme } from "@phoenix/contexts";
 
-export type ChartColors = {
+export type SequentialChartColors = {
   readonly blue100: string;
   readonly blue200: string;
   readonly blue300: string;
@@ -47,20 +47,20 @@ export type ChartColors = {
 
 const cssVar = (name: string) => `var(${name})`;
 
-const chartColors: ChartColors = Object.freeze({
+const darkSequentialChartColors: SequentialChartColors = Object.freeze({
   // Blues
-  blue100: cssVar("--ac-global-color-blue-100"),
-  blue200: cssVar("--ac-global-color-blue-200"),
-  blue300: cssVar("--ac-global-color-blue-300"),
-  blue400: cssVar("--ac-global-color-blue-400"),
-  blue500: cssVar("--ac-global-color-blue-500"),
+  blue100: cssVar("--ac-global-color-blue-200"),
+  blue200: cssVar("--ac-global-color-blue-300"),
+  blue300: cssVar("--ac-global-color-blue-400"),
+  blue400: cssVar("--ac-global-color-blue-500"),
+  blue500: cssVar("--ac-global-color-blue-600"),
 
   // Oranges
-  orange100: cssVar("--ac-global-color-orange-100"),
-  orange200: cssVar("--ac-global-color-orange-200"),
-  orange300: cssVar("--ac-global-color-orange-300"),
-  orange400: cssVar("--ac-global-color-orange-400"),
-  orange500: cssVar("--ac-global-color-orange-500"),
+  orange100: cssVar("--ac-global-color-orange-500"),
+  orange200: cssVar("--ac-global-color-orange-600"),
+  orange300: cssVar("--ac-global-color-orange-700"),
+  orange400: cssVar("--ac-global-color-orange-800"),
+  orange500: cssVar("--ac-global-color-orange-900"),
 
   // Purples
   purple100: cssVar("--ac-global-color-purple-100"),
@@ -70,18 +70,71 @@ const chartColors: ChartColors = Object.freeze({
   purple500: cssVar("--ac-global-color-purple-500"),
 
   // Pinks / Magentas
-  magenta100: cssVar("--ac-global-color-magenta-100"),
-  magenta200: cssVar("--ac-global-color-magenta-200"),
-  magenta300: cssVar("--ac-global-color-magenta-300"),
-  magenta400: cssVar("--ac-global-color-magenta-400"),
-  magenta500: cssVar("--ac-global-color-magenta-500"),
+  magenta100: cssVar("--ac-global-color-magenta-200"),
+  magenta200: cssVar("--ac-global-color-magenta-300"),
+  magenta300: cssVar("--ac-global-color-magenta-400"),
+  magenta400: cssVar("--ac-global-color-magenta-500"),
+  magenta500: cssVar("--ac-global-color-magenta-600"),
 
   // Reds
-  red100: cssVar("--ac-global-color-red-100"),
-  red200: cssVar("--ac-global-color-red-200"),
-  red300: cssVar("--ac-global-color-red-300"),
-  red400: cssVar("--ac-global-color-red-400"),
-  red500: cssVar("--ac-global-color-red-500"),
+  red100: cssVar("--ac-global-color-red-200"),
+  red200: cssVar("--ac-global-color-red-300"),
+  red300: cssVar("--ac-global-color-red-400"),
+  red400: cssVar("--ac-global-color-red-500"),
+  red500: cssVar("--ac-global-color-red-600"),
+
+  // Grays (note: CSS variable names use "grey")
+  grey100: cssVar("--ac-global-color-grey-100"),
+  grey200: cssVar("--ac-global-color-grey-200"),
+  grey300: cssVar("--ac-global-color-grey-300"),
+  grey400: cssVar("--ac-global-color-grey-400"),
+  grey500: cssVar("--ac-global-color-grey-500"),
+  grey600: cssVar("--ac-global-color-grey-600"),
+  grey700: cssVar("--ac-global-color-grey-700"),
+
+  // Fallback / default
+  default: cssVar("--ac-global-text-color-900"),
+
+  // Semantic colors for inferences
+  primary: cssVar("--px-primary-color"),
+  reference: cssVar("--px-reference-color"),
+});
+
+const lightSequentialChartColors: SequentialChartColors = Object.freeze({
+  // Blues
+  blue100: cssVar("--ac-global-color-blue-200"),
+  blue200: cssVar("--ac-global-color-blue-300"),
+  blue300: cssVar("--ac-global-color-blue-400"),
+  blue400: cssVar("--ac-global-color-blue-500"),
+  blue500: cssVar("--ac-global-color-blue-600"),
+
+  // Oranges
+  orange100: cssVar("--ac-global-color-orange-500"),
+  orange200: cssVar("--ac-global-color-orange-600"),
+  orange300: cssVar("--ac-global-color-orange-700"),
+  orange400: cssVar("--ac-global-color-orange-800"),
+  orange500: cssVar("--ac-global-color-orange-900"),
+
+  // Purples
+  purple100: cssVar("--ac-global-color-purple-100"),
+  purple200: cssVar("--ac-global-color-purple-200"),
+  purple300: cssVar("--ac-global-color-purple-300"),
+  purple400: cssVar("--ac-global-color-purple-400"),
+  purple500: cssVar("--ac-global-color-purple-500"),
+
+  // Pinks / Magentas
+  magenta100: cssVar("--ac-global-color-magenta-200"),
+  magenta200: cssVar("--ac-global-color-magenta-300"),
+  magenta300: cssVar("--ac-global-color-magenta-400"),
+  magenta400: cssVar("--ac-global-color-magenta-500"),
+  magenta500: cssVar("--ac-global-color-magenta-600"),
+
+  // Reds
+  red100: cssVar("--ac-global-color-red-200"),
+  red200: cssVar("--ac-global-color-red-300"),
+  red300: cssVar("--ac-global-color-red-400"),
+  red400: cssVar("--ac-global-color-red-500"),
+  red500: cssVar("--ac-global-color-red-600"),
 
   // Grays (note: CSS variable names use "grey")
   grey100: cssVar("--ac-global-color-grey-100"),
@@ -104,14 +157,20 @@ const chartColors: ChartColors = Object.freeze({
  * The list of colors that are available for use in the charting components.
  * This is a list of the keys of the chartColors object.
  */
-export const CHART_COLORS = Object.keys(chartColors) as (keyof ChartColors)[];
+export const CHART_COLORS = Object.keys(
+  darkSequentialChartColors
+) as (keyof SequentialChartColors)[];
 
-export const useChartColors = (): ChartColors => {
+export const useSequentialChartColors = (): SequentialChartColors => {
   // We call useTheme() to subscribe to theme changes so that React components
   // using these colors will re-render when the theme toggles, even though the
   // color map itself is constant (CSS variables swap automatically).
-  useTheme();
-  return useMemo(() => chartColors, []);
+  const { theme } = useTheme();
+  return useMemo(
+    () =>
+      theme === "dark" ? darkSequentialChartColors : lightSequentialChartColors,
+    [theme]
+  );
 };
 
 /**
@@ -130,7 +189,7 @@ export const useChartColors = (): ChartColors => {
  * // ...
  * ```
  * @param index - item index that will be mapped into a color
- * @param colors - the colors to use, typically the result of useChartColors()
+ * @param colors - the colors to use, typically the result of useSequentialChartColors()
  * @returns a color from the chart colors based on the incoming index
  */
 export const getChartColor = (index: number, colors: ChartColors) => {

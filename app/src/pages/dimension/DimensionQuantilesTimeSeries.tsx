@@ -20,7 +20,7 @@ import {
   ChartTooltip,
   ChartTooltipItem,
   defaultTimeXAxisProps,
-  useChartColors,
+  useSequentialChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
@@ -61,7 +61,7 @@ function formatValue(value: number | null) {
 }
 
 const useColors = () => {
-  const colors = useChartColors();
+  const colors = useSequentialChartColors();
   return {
     outerColor: colors.grey500,
     innerColor: colors.grey300,

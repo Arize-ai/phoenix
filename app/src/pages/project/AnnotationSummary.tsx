@@ -17,7 +17,7 @@ import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import {
   ChartTooltipDivider,
   ChartTooltipItem,
-  useChartColors,
+  useSequentialChartColors,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { ComponentSize, SizingProps } from "@phoenix/components/types";
@@ -248,7 +248,7 @@ function getStableColor(
 }
 
 function useAnnotationSummaryChartColors(name: string) {
-  const chartColors = useChartColors();
+  const chartColors = useSequentialChartColors();
   const primaryColor = useWordColor(name);
   const colors = [
     primaryColor,

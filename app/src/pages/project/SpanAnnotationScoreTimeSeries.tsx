@@ -15,7 +15,7 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
-  useChartColors,
+  useSequentialChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import {
@@ -36,7 +36,7 @@ function TooltipContent({
   payload,
   label,
 }: TooltipContentProps<number, string>) {
-  const chartColors = useChartColors();
+  const chartColors = useSequentialChartColors();
   if (active && payload && payload.length) {
     return (
       <ChartTooltip>
@@ -151,7 +151,7 @@ export function SpanAnnotationScoreTimeSeries({
     })(),
   });
 
-  const colors = useChartColors();
+  const colors = useSequentialChartColors();
   const colorMap = [
     colors.blue400,
     colors.orange400,
