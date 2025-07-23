@@ -1,21 +1,25 @@
 import { ReactNode, useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
-
-import { DialogContainer } from "@arizeai/components";
+import { css } from "@emotion/react";
 
 import {
   Button,
+  Dialog,
   Flex,
   Icon,
-  IconButton,
   Icons,
+  Modal,
+  ModalOverlay,
   Text,
-  Toolbar,
-  Tooltip,
-  TooltipTrigger,
   View,
 } from "@phoenix/components";
-import { FloatingToolbarContainer } from "@phoenix/components/toolbar/FloatingToolbarContainer";
+import {
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+} from "@phoenix/components/dialog";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -87,52 +91,106 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
     notifyError,
   ]);
   return (
-    <FloatingToolbarContainer>
-      <Toolbar>
-        <View paddingEnd="size-100">
-          <Flex direction="row" gap="size-100" alignItems="center">
-            <TooltipTrigger>
-              <IconButton
-                size="M"
-                onPress={onClearSelection}
-                aria-label="Clear selection"
-              >
-                <Icon svg={<Icons.CloseOutline />} />
-              </IconButton>
-              <Tooltip>Clear selection</Tooltip>
-            </TooltipTrigger>
-            <Text>{`${selectedExamples.length} example${isPlural ? "s" : ""} selected`}</Text>
-          </Flex>
-        </View>
-        <Button
-          variant="danger"
-          size="M"
-          leadingVisual={
-            <Icon
-              svg={
-                isDeletingExamples ? (
-                  <Icons.LoadingOutline />
-                ) : (
-                  <Icons.TrashOutline />
-                )
-              }
-            />
-          }
-          isDisabled={isDeletingExamples}
-          onPress={onDeleteExamples}
-          aria-label="Delete Examples"
+    <div
+      css={css`
+        position: absolute;
+        bottom: var(--ac-global-dimension-size-400);
+        left: 50%;
+        transform: translateX(-50%);
+      `}
+    >
+      <View
+        backgroundColor="light"
+        padding="size-200"
+        borderColor="light"
+        borderWidth="thin"
+        borderRadius="medium"
+        minWidth="size-6000"
+      >
+        <Flex
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
         >
-          Delete
-        </Button>
-      </Toolbar>
-      <DialogContainer
-        onDismiss={() => {
-          setDialog(null);
+          <Text>{`${selectedExamples.length} example${isPlural ? "s" : ""} selected`}</Text>
+          <Flex direction="row" gap="size-100">
+            <Button variant="default" size="S" onPress={onClearSelection}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              size="S"
+              leadingVisual={
+                <Icon
+                  svg={
+                    isDeletingExamples ? (
+                      <Icons.LoadingOutline />
+                    ) : (
+                      <Icons.TrashOutline />
+                    )
+                  }
+                />
+              }
+              isDisabled={isDeletingExamples}
+              onPress={() => setDialog(true)}
+            >
+              {isDeletingExamples
+                ? "Deleting..."
+                : "Delete Example" + (isPlural ? "s" : "")}
+            </Button>
+          </Flex>
+        </Flex>
+      </View>
+      <ModalOverlay
+        isOpen={!!dialog}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setDialog(null);
+          }
         }}
         isDismissable
       >
-        {dialog}
-      </DialogContainer>
-    </FloatingToolbarContainer>
+        <Modal>
+          <Dialog>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Delete Examples</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton />
+                </DialogTitleExtra>
+              </DialogHeader>
+              <View padding="size-200">
+                <Text color="danger">
+                  Are you sure you want to delete these examples?
+                </Text>
+              </View>
+              <View
+                paddingEnd="size-200"
+                paddingTop="size-100"
+                paddingBottom="size-100"
+                borderTopColor="light"
+                borderTopWidth="thin"
+              >
+                <Flex direction="row" justifyContent="end" gap="size-100">
+                  <Button size="S" onPress={() => setDialog(null)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="S"
+                    onPress={() => {
+                      onDeleteExamples();
+                      setDialog(null);
+                    }}
+                  >
+                    Delete
+                  </Button>
+                </Flex>
+              </View>
+            </DialogContent>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+    </div>
   );
 }
