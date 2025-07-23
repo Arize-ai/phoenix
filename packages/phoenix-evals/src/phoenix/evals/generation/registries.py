@@ -5,12 +5,13 @@ from .types import AdapterRegistration, BaseLLMAdapter, ProviderRegistration
 
 logger = logging.getLogger(__name__)
 
+
 # ANSI color codes for terminal output
 class Colors:
-    GREEN = '\033[92m'
-    RED = '\033[91m'
-    RESET = '\033[0m'
-    BOLD = '\033[1m'
+    GREEN = "\033[92m"
+    RED = "\033[91m"
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
 
 
 class ProviderInfo(TypedDict):
