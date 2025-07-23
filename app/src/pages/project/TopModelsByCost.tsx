@@ -30,7 +30,7 @@ export function TopModelsByCost({ projectId }: { projectId: string }) {
           ... on Project {
             topModelsByCost(timeRange: $timeRange) {
               name
-              costSummary {
+              costSummary(timeRange: $timeRange, projectId: $projectId) {
                 prompt {
                   cost
                 }

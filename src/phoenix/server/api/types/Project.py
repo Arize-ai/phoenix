@@ -1335,8 +1335,7 @@ class Project(Node):
     ) -> list[GenerativeModel]:
         if time_range.start is None:
             raise BadRequest("Start time is required")
-        if time_range.end is None:
-            time_range.end = datetime.now(timezone.utc)
+
         async with info.context.db() as session:
             stmt = (
                 select(
@@ -1359,11 +1358,12 @@ class Project(Node):
                 .where(models.Trace.project_rowid == self.project_rowid)
                 .where(models.SpanCost.model_id.isnot(None))
                 .where(models.SpanCost.span_start_time >= time_range.start)
-                .where(models.SpanCost.span_start_time < time_range.end)
                 .group_by(models.SpanCost.model_id)
                 .order_by(func.sum(models.SpanCost.total_cost).desc())
             )
-            results = []
+            if time_range.end:
+                stmt = stmt.where(models.SpanCost.span_start_time < time_range.end)
+            results: list[GenerativeModel] = []
             async for (
                 model,
                 total_tokens,
@@ -1378,14 +1378,15 @@ class Project(Node):
                     completion=CostBreakdown(tokens=completion_tokens, cost=completion_cost),
                     total=CostBreakdown(tokens=total_tokens, cost=total_cost),
                 )
-                results.append(
-                    to_gql_generative_model(
-                        model,
-                        cached_cost_summary=cost_summary,
-                        project_id=self.project_rowid,
-                        time_range=time_range,
-                    )
+                cache_time_range = TimeRange(
+                    start=time_range.start,
+                    end=time_range.end,
                 )
+                gql_model = to_gql_generative_model(model)
+                gql_model.add_cached_cost_summary(
+                    self.project_rowid, cache_time_range, cost_summary
+                )
+                results.append(gql_model)
             return results
 
     @strawberry.field
@@ -1396,8 +1397,7 @@ class Project(Node):
     ) -> list[GenerativeModel]:
         if time_range.start is None:
             raise BadRequest("Start time is required")
-        if time_range.end is None:
-            time_range.end = datetime.now(timezone.utc)
+
         async with info.context.db() as session:
             stmt = (
                 select(
@@ -1420,11 +1420,12 @@ class Project(Node):
                 .where(models.Trace.project_rowid == self.project_rowid)
                 .where(models.SpanCost.model_id.isnot(None))
                 .where(models.SpanCost.span_start_time >= time_range.start)
-                .where(models.SpanCost.span_start_time < time_range.end)
                 .group_by(models.SpanCost.model_id)
                 .order_by(func.sum(models.SpanCost.total_tokens).desc())
             )
-            results = []
+            if time_range.end:
+                stmt = stmt.where(models.SpanCost.span_start_time < time_range.end)
+            results: list[GenerativeModel] = []
             async for (
                 model,
                 total_tokens,
@@ -1439,14 +1440,15 @@ class Project(Node):
                     completion=CostBreakdown(tokens=completion_tokens, cost=completion_cost),
                     total=CostBreakdown(tokens=total_tokens, cost=total_cost),
                 )
-                results.append(
-                    to_gql_generative_model(
-                        model,
-                        cached_cost_summary=cost_summary,
-                        project_id=self.project_rowid,
-                        time_range=time_range,
-                    )
+                cache_time_range = TimeRange(
+                    start=time_range.start,
+                    end=time_range.end,
                 )
+                gql_model = to_gql_generative_model(model)
+                gql_model.add_cached_cost_summary(
+                    self.project_rowid, cache_time_range, cost_summary
+                )
+                results.append(gql_model)
             return results
 
 
@@ -1541,18 +1543,6 @@ class SpanAnnotationScoreTimeSeriesDataPoint:
 class SpanAnnotationScoreTimeSeries:
     data: list[SpanAnnotationScoreTimeSeriesDataPoint]
     names: list[str]
-
-
-@strawberry.type
-class TopModelsByCostPayload:
-    models: list[GenerativeModel]
-    cost_summaries: list[SpanCostSummary]
-
-
-@strawberry.type
-class TopModelsByTokenCountPayload:
-    models: list[GenerativeModel]
-    cost_summaries: list[SpanCostSummary]
 
 
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")

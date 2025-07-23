@@ -29,7 +29,7 @@ export function TopModelsByToken({ projectId }: { projectId: string }) {
           ... on Project {
             topModelsByTokenCount(timeRange: $timeRange) {
               name
-              costSummary {
+              costSummary(timeRange: $timeRange, projectId: $projectId) {
                 prompt {
                   tokens
                 }
