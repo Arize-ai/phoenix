@@ -41,87 +41,71 @@ export type ChartColors = {
   readonly reference: string;
 };
 
-const darkColors: ChartColors = Object.freeze({
-  blue100: "#A4C7E0",
-  blue200: "#7EB0D2",
-  blue300: "#5899C5",
-  blue400: "#3C80AE",
-  blue500: "#2F6488",
-  orange100: "#FECC95",
-  orange200: "#FDB462",
-  orange300: "#FC9C31",
-  orange400: "#F78403",
-  orange500: "#C46903",
-  purple100: "#BEBADA",
-  purple200: "#9E98C8",
-  purple300: "#7F77B6",
-  purple400: "#6157A3",
-  purple500: "#4D4581",
-  pink100: "#FCCDE5",
-  pink200: "#F99FCD",
-  pink300: "#F66FB4",
-  pink400: "#F33F9B",
-  pink500: "#F10E82",
-  red100: "#FFCACA",
-  red200: "#FFA6A6",
-  red300: "#FF7171",
-  red400: "#FF3235",
-  red500: "#F80707",
-  gray100: "#f0f0f0",
-  gray200: "#d9d9d9",
-  gray300: "#bdbdbd",
-  gray400: "#969696",
-  gray500: "#737373",
-  gray600: "#525252",
-  gray700: "#252525",
-  default: "#ffffff",
-  // Colors specific to the inferences role
-  primary: "#9efcfd",
-  reference: "#baa1f9",
-});
+// Unified color palette using global CSS variables defined in `GlobalStyles.tsx`.
+// The underlying CSS variable values change automatically with the active theme,
+// so we can reference the same variables for both light and dark modes.
 
-const lightColors: ChartColors = Object.freeze({
-  default: "#000000",
-  blue100: "#2F6488",
-  blue200: "#3C80AE",
-  blue300: "#5899C5",
-  blue400: "#7EB0D2",
-  blue500: "#A4C7E0",
-  orange100: "#C46903",
-  orange200: "#F78403",
-  orange300: "#FC9C31",
-  orange400: "#FDB462",
-  orange500: "#FECC95",
-  purple100: "#4D4581",
-  purple200: "#6157A3",
-  purple300: "#7F77B6",
-  purple400: "#9E98C8",
-  purple500: "#BEBADA",
-  pink100: "#F10E82",
-  pink200: "#F33F9B",
-  pink300: "#F66FB4",
-  pink400: "#F99FCD",
-  pink500: "#FCCDE5",
-  red100: "#FFCACA",
-  red200: "#FFA6A6",
-  red300: "#FF7171",
-  red400: "#FF3235",
-  red500: "#F80707",
-  gray100: "#252525",
-  gray200: "#525252",
-  gray300: "#737373",
-  gray400: "#969696",
-  gray500: "#bdbdbd",
-  gray600: "#d9d9d9",
-  gray700: "#f0f0f0",
-  // Colors specific to the inferences role
-  primary: "#00add0",
-  reference: "#4500d9",
+const cssVar = (name: string) => `var(${name})`;
+
+const chartColors: ChartColors = Object.freeze({
+  // Blues
+  blue100: cssVar("--ac-global-color-blue-100"),
+  blue200: cssVar("--ac-global-color-blue-200"),
+  blue300: cssVar("--ac-global-color-blue-300"),
+  blue400: cssVar("--ac-global-color-blue-400"),
+  blue500: cssVar("--ac-global-color-blue-500"),
+
+  // Oranges
+  orange100: cssVar("--ac-global-color-orange-100"),
+  orange200: cssVar("--ac-global-color-orange-200"),
+  orange300: cssVar("--ac-global-color-orange-300"),
+  orange400: cssVar("--ac-global-color-orange-400"),
+  orange500: cssVar("--ac-global-color-orange-500"),
+
+  // Purples
+  purple100: cssVar("--ac-global-color-purple-100"),
+  purple200: cssVar("--ac-global-color-purple-200"),
+  purple300: cssVar("--ac-global-color-purple-300"),
+  purple400: cssVar("--ac-global-color-purple-400"),
+  purple500: cssVar("--ac-global-color-purple-500"),
+
+  // Pinks / Magentas
+  pink100: cssVar("--ac-global-color-magenta-100"),
+  pink200: cssVar("--ac-global-color-magenta-200"),
+  pink300: cssVar("--ac-global-color-magenta-300"),
+  pink400: cssVar("--ac-global-color-magenta-400"),
+  pink500: cssVar("--ac-global-color-magenta-500"),
+
+  // Reds
+  red100: cssVar("--ac-global-color-red-100"),
+  red200: cssVar("--ac-global-color-red-200"),
+  red300: cssVar("--ac-global-color-red-300"),
+  red400: cssVar("--ac-global-color-red-400"),
+  red500: cssVar("--ac-global-color-red-500"),
+
+  // Grays (note: CSS variable names use "grey")
+  gray100: cssVar("--ac-global-color-grey-100"),
+  gray200: cssVar("--ac-global-color-grey-200"),
+  gray300: cssVar("--ac-global-color-grey-300"),
+  gray400: cssVar("--ac-global-color-grey-400"),
+  gray500: cssVar("--ac-global-color-grey-500"),
+  gray600: cssVar("--ac-global-color-grey-600"),
+  gray700: cssVar("--ac-global-color-grey-700"),
+
+  // Fallback / default
+  default: cssVar("--ac-global-text-color-900"),
+
+  // Semantic colors for inferences
+  primary: cssVar("--px-primary-color"),
+  reference: cssVar("--px-reference-color"),
 });
 
 export const useChartColors = (): ChartColors => {
-  const { theme } = useTheme();
-  return useMemo(() => (theme === "dark" ? darkColors : lightColors), [theme]);
+  // We call useTheme() to subscribe to theme changes so that React components
+  // using these colors will re-render when the theme toggles, even though the
+  // color map itself is constant (CSS variables swap automatically).
+  useTheme();
+  return useMemo(() => chartColors, []);
 };
 
 /**
