@@ -1,7 +1,7 @@
 import { ReactNode, useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
-import { css } from "@emotion/react";
 
+<<<<<<< HEAD
 import {
   Button,
   Dialog,
@@ -20,6 +20,23 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
+=======
+import { DialogContainer } from "@arizeai/components";
+
+import {
+  Button,
+  Flex,
+  Icon,
+  IconButton,
+  Icons,
+  Text,
+  Toolbar,
+  Tooltip,
+  TooltipTrigger,
+  View,
+} from "@phoenix/components";
+import { FloatingToolbarContainer } from "@phoenix/components/toolbar/FloatingToolbarContainer";
+>>>>>>> 9ae502751b04da8ddd0da0964c349b98941eddca
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -91,54 +108,23 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
     notifyError,
   ]);
   return (
-    <div
-      css={css`
-        position: absolute;
-        bottom: var(--ac-global-dimension-size-400);
-        left: 50%;
-        transform: translateX(-50%);
-      `}
-    >
-      <View
-        backgroundColor="light"
-        padding="size-200"
-        borderColor="light"
-        borderWidth="thin"
-        borderRadius="medium"
-        minWidth="size-6000"
-      >
-        <Flex
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-        >
-          <Text>{`${selectedExamples.length} example${isPlural ? "s" : ""} selected`}</Text>
-          <Flex direction="row" gap="size-100">
-            <Button variant="default" size="S" onPress={onClearSelection}>
-              Cancel
-            </Button>
-            <Button
-              variant="danger"
-              size="S"
-              leadingVisual={
-                <Icon
-                  svg={
-                    isDeletingExamples ? (
-                      <Icons.LoadingOutline />
-                    ) : (
-                      <Icons.TrashOutline />
-                    )
-                  }
-                />
-              }
-              isDisabled={isDeletingExamples}
-              onPress={onDeleteExamples}
-            >
-              {isDeletingExamples
-                ? "Deleting..."
-                : "Delete Example" + (isPlural ? "s" : "")}
-            </Button>
+    <FloatingToolbarContainer>
+      <Toolbar>
+        <View paddingEnd="size-100">
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <TooltipTrigger>
+              <IconButton
+                size="M"
+                onPress={onClearSelection}
+                aria-label="Clear selection"
+              >
+                <Icon svg={<Icons.CloseOutline />} />
+              </IconButton>
+              <Tooltip>Clear selection</Tooltip>
+            </TooltipTrigger>
+            <Text>{`${selectedExamples.length} example${isPlural ? "s" : ""} selected`}</Text>
           </Flex>
+<<<<<<< HEAD
         </Flex>
       </View>
       <ModalOverlay
@@ -147,9 +133,37 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
           if (!isOpen) {
             setDialog(null);
           }
+=======
+        </View>
+        <Button
+          variant="danger"
+          size="M"
+          leadingVisual={
+            <Icon
+              svg={
+                isDeletingExamples ? (
+                  <Icons.LoadingOutline />
+                ) : (
+                  <Icons.TrashOutline />
+                )
+              }
+            />
+          }
+          isDisabled={isDeletingExamples}
+          onPress={onDeleteExamples}
+          aria-label="Delete Examples"
+        >
+          Delete
+        </Button>
+      </Toolbar>
+      <DialogContainer
+        onDismiss={() => {
+          setDialog(null);
+>>>>>>> 9ae502751b04da8ddd0da0964c349b98941eddca
         }}
         isDismissable
       >
+<<<<<<< HEAD
         <Modal>
           <Dialog>
             <DialogContent>
@@ -192,5 +206,10 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
         </Modal>
       </ModalOverlay>
     </div>
+=======
+        {dialog}
+      </DialogContainer>
+    </FloatingToolbarContainer>
+>>>>>>> 9ae502751b04da8ddd0da0964c349b98941eddca
   );
 }

@@ -6,16 +6,21 @@ import {
   Legend,
   ResponsiveContainer,
   Tooltip,
-  TooltipProps,
+  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";
 
 import { Text } from "@phoenix/components";
+// Apply phoenix charting defaults for consistent styling
 import {
   ChartColors,
   ChartTooltip,
   ChartTooltipItem,
+  defaultBarChartTooltipProps,
+  defaultCartesianGridProps,
+  defaultXAxisProps,
+  defaultYAxisProps,
   useChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
@@ -146,7 +151,7 @@ function TooltipContent({
   active,
   payload,
   label,
-}: TooltipProps<number, string>) {
+}: TooltipContentProps<number, string>) {
   const chartColors = useChartColors();
   if (active && payload && payload.length) {
     const metricValue = payload[1]?.value ?? null;
@@ -159,9 +164,11 @@ function TooltipContent({
       typeof count === "number" ? numberFormatter.format(count) : "--";
     return (
       <ChartTooltip>
-        <Text weight="heavy" size="S">{`${fullTimeFormatter(
-          new Date(label)
-        )}`}</Text>
+        {label && (
+          <Text weight="heavy" size="S">{`${fullTimeFormatter(
+            new Date(label)
+          )}`}</Text>
+        )}
         <ChartTooltipItem
           color={chartColors.red300}
           shape="circle"
@@ -219,13 +226,12 @@ function StackedBarChart({
           barSize={10}
         >
           <XAxis
+            {...defaultXAxisProps}
             dataKey="timestamp"
             tickFormatter={(x) => timeTickFormatter(new Date(x))}
-            style={{ fill: "var(--ac-global-text-color-700)" }}
-            stroke="var(--ac-global-color-grey-400)"
           />
           <YAxis
-            stroke="var(--ac-global-color-grey-500)"
+            {...defaultYAxisProps}
             width={50}
             label={{
               value: "Trace Count",
@@ -233,22 +239,13 @@ function StackedBarChart({
               dx: -10,
               style: {
                 textAnchor: "middle",
-                fill: "var(--ac-global-text-color-900)",
+                fill: "var(--chart-axis-label-color)",
               },
             }}
-            style={{ fill: "var(--ac-global-text-color-700)" }}
           />
 
-          <CartesianGrid
-            strokeDasharray="4 4"
-            stroke="var(--ac-global-color-grey-500)"
-            strokeOpacity={0.5}
-            vertical={false}
-          />
-          <Tooltip
-            content={<TooltipContent />}
-            cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
-          />
+          <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
+          <Tooltip {...defaultBarChartTooltipProps} content={TooltipContent} />
           <Bar dataKey="error" stackId="a" fill={colors[firstColor]} />
           <Bar
             dataKey="ok"

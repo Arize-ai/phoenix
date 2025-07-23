@@ -41,6 +41,9 @@ importers:
       tsc-alias:
         specifier: ^1.8.11
         version: 1.8.16
+      typedoc:
+        specifier: ^0.27.9
+        version: 0.27.9(typescript@5.8.3)
       typescript:
         specifier: ^5.8.2
         version: 5.8.3
@@ -106,6 +109,28 @@ importers:
         specifier: ^5.7.2
         version: 5.8.3
 
+  packages/phoenix-cli:
+    dependencies:
+      commander:
+        specifier: ^12.1.0
+        version: 12.1.0
+    devDependencies:
+      '@types/node':
+        specifier: ^18.19.0
+        version: 18.19.103
+      rimraf:
+        specifier: ^5.0.10
+        version: 5.0.10
+      tsc-alias:
+        specifier: ^1.8.11
+        version: 1.8.16
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.3
+      vitest:
+        specifier: ^2.1.9
+        version: 2.1.9(@types/node@18.19.103)(tsx@4.19.4)(yaml@2.8.0)
+
   packages/phoenix-client:
     dependencies:
       '@arizeai/openinference-semantic-conventions':
@@ -166,9 +191,6 @@ importers:
       tsx:
         specifier: ^4.19.3
         version: 4.19.4
-      typedoc:
-        specifier: ^0.27.9
-        version: 0.27.9(typescript@5.8.3)
       vitest:
         specifier: ^2.1.9
         version: 2.1.9(@types/node@20.17.50)(tsx@4.19.4)(yaml@2.8.0)
@@ -1299,6 +1321,10 @@ packages:
   combined-stream@1.0.8:
     resolution: {integrity: sha512-FQN4MRfuJeHf7cBbBMJFXhKSDq+2kAArBlmRBvcvFE5BB1HZKXtSFASDhdlz9zOYwxh8lDdnvmMOe/+5cdoEdg==}
     engines: {node: '>= 0.8'}
+
+  commander@12.1.0:
+    resolution: {integrity: sha512-Vw8qHK3bZM9y/P10u3Vib8o/DdkvA2OtPtZvD871QKjy74Wj1WSKFILMPRPSdUSx5RFK1arlJzEtA4PkFgnbuA==}
+    engines: {node: '>=18'}
 
   commander@9.5.0:
     resolution: {integrity: sha512-KRs7WVDKg86PWiuAqhDrAQnTXZKraVcCc6vFdL14qrZ/DcWwuRo7VoiYXalXO7S5GKpqYiVEwCbgFDfxNHKJBQ==}
@@ -3758,6 +3784,14 @@ snapshots:
       chai: 5.2.0
       tinyrainbow: 1.2.0
 
+  '@vitest/mocker@2.1.9(vite@6.3.5(@types/node@18.19.103)(tsx@4.19.4)(yaml@2.8.0))':
+    dependencies:
+      '@vitest/spy': 2.1.9
+      estree-walker: 3.0.3
+      magic-string: 0.30.17
+    optionalDependencies:
+      vite: 6.3.5(@types/node@18.19.103)(tsx@4.19.4)(yaml@2.8.0)
+
   '@vitest/mocker@2.1.9(vite@6.3.5(@types/node@20.17.50)(tsx@4.19.4)(yaml@2.8.0))':
     dependencies:
       '@vitest/spy': 2.1.9
@@ -4020,6 +4054,8 @@ snapshots:
   combined-stream@1.0.8:
     dependencies:
       delayed-stream: 1.0.0
+
+  commander@12.1.0: {}
 
   commander@9.5.0: {}
 
@@ -5413,6 +5449,27 @@ snapshots:
 
   vary@1.1.2: {}
 
+  vite-node@2.1.9(@types/node@18.19.103)(tsx@4.19.4)(yaml@2.8.0):
+    dependencies:
+      cac: 6.7.14
+      debug: 4.4.1(supports-color@10.0.0)
+      es-module-lexer: 1.7.0
+      pathe: 1.1.2
+      vite: 6.3.5(@types/node@18.19.103)(tsx@4.19.4)(yaml@2.8.0)
+    transitivePeerDependencies:
+      - '@types/node'
+      - jiti
+      - less
+      - lightningcss
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - supports-color
+      - terser
+      - tsx
+      - yaml
+
   vite-node@2.1.9(@types/node@20.17.50)(tsx@4.19.4)(yaml@2.8.0):
     dependencies:
       cac: 6.7.14
@@ -5455,6 +5512,20 @@ snapshots:
       - tsx
       - yaml
 
+  vite@6.3.5(@types/node@18.19.103)(tsx@4.19.4)(yaml@2.8.0):
+    dependencies:
+      esbuild: 0.25.4
+      fdir: 6.4.4(picomatch@4.0.2)
+      picomatch: 4.0.2
+      postcss: 8.5.3
+      rollup: 4.41.1
+      tinyglobby: 0.2.13
+    optionalDependencies:
+      '@types/node': 18.19.103
+      fsevents: 2.3.3
+      tsx: 4.19.4
+      yaml: 2.8.0
+
   vite@6.3.5(@types/node@20.17.50)(tsx@4.19.4)(yaml@2.8.0):
     dependencies:
       esbuild: 0.25.4
@@ -5482,6 +5553,44 @@ snapshots:
       fsevents: 2.3.3
       tsx: 4.19.4
       yaml: 2.8.0
+
+  vitest@2.1.9(@types/node@18.19.103)(tsx@4.19.4)(yaml@2.8.0):
+    dependencies:
+      '@vitest/expect': 2.1.9
+      '@vitest/mocker': 2.1.9(vite@6.3.5(@types/node@18.19.103)(tsx@4.19.4)(yaml@2.8.0))
+      '@vitest/pretty-format': 2.1.9
+      '@vitest/runner': 2.1.9
+      '@vitest/snapshot': 2.1.9
+      '@vitest/spy': 2.1.9
+      '@vitest/utils': 2.1.9
+      chai: 5.2.0
+      debug: 4.4.1(supports-color@10.0.0)
+      expect-type: 1.2.1
+      magic-string: 0.30.17
+      pathe: 1.1.2
+      std-env: 3.9.0
+      tinybench: 2.9.0
+      tinyexec: 0.3.2
+      tinypool: 1.0.2
+      tinyrainbow: 1.2.0
+      vite: 6.3.5(@types/node@18.19.103)(tsx@4.19.4)(yaml@2.8.0)
+      vite-node: 2.1.9(@types/node@18.19.103)(tsx@4.19.4)(yaml@2.8.0)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@types/node': 18.19.103
+    transitivePeerDependencies:
+      - jiti
+      - less
+      - lightningcss
+      - msw
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - supports-color
+      - terser
+      - tsx
+      - yaml
 
   vitest@2.1.9(@types/node@20.17.50)(tsx@4.19.4)(yaml@2.8.0):
     dependencies:

@@ -7,7 +7,7 @@ import {
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
-  TooltipProps,
+  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";
@@ -40,9 +40,9 @@ function TooltipContent({
   active,
   payload,
   label,
-}: TooltipProps<BarChartItem["percent"], BarChartItem["name"]>) {
+}: TooltipContentProps<BarChartItem["percent"], BarChartItem["name"]>) {
   const { color } = useColors();
-  if (active && payload && payload.length) {
+  if (active && payload && payload.length && typeof label === "string") {
     const value = payload[0]?.value;
     return (
       <ChartTooltip>
@@ -162,10 +162,7 @@ export function DimensionSegmentsBarChart(props: {
           stroke="var(--ac-global-color-grey-500)"
           strokeOpacity={0.5}
         />
-        <Tooltip
-          {...defaultBarChartTooltipProps}
-          content={<TooltipContent />}
-        />
+        <Tooltip {...defaultBarChartTooltipProps} content={TooltipContent} />
         <Bar
           dataKey="percent"
           fill="url(#dimensionSegmentsBarColor)"

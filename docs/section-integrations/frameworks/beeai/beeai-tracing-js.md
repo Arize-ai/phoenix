@@ -127,6 +127,39 @@ diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
 
 If traces aren't appearing, a common cause is an outdated `beeai-framework` package. Check the diagnostic logs for version or initialization errors and update your package as needed.
 
+## Custom Tracer Provider
+
+You can specify a custom tracer provider for BeeAI instrumentation in multiple ways:
+
+### Method 1: Pass tracerProvider on instantiation
+
+```typescript
+const beeAIInstrumentation = new BeeAIInstrumentation({
+  tracerProvider: customTracerProvider,
+});
+beeAIInstrumentation.manuallyInstrument(beeaiFramework);
+```
+
+### Method 2: Set tracerProvider after instantiation
+
+```typescript
+const beeAIInstrumentation = new BeeAIInstrumentation();
+beeAIInstrumentation.setTracerProvider(customTracerProvider);
+beeAIInstrumentation.manuallyInstrument(beeaiFramework);
+```
+
+### Method 3: Pass tracerProvider to registerInstrumentations
+
+```typescript
+const beeAIInstrumentation = new BeeAIInstrumentation();
+beeAIInstrumentation.manuallyInstrument(beeaiFramework);
+
+registerInstrumentations({
+  instrumentations: [beeAIInstrumentation],
+  tracerProvider: customTracerProvider,
+});
+```
+
 ## Resources
 
 * [BeeAI Framework GitHub](https://github.com/i-am-bee/beeai-framework)

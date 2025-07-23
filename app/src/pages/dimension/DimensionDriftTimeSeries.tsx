@@ -5,14 +5,15 @@ import {
   Bar,
   CartesianGrid,
   ComposedChart,
+  Label,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
-  TooltipProps,
+  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";
-import { CategoricalChartFunc } from "recharts/types/chart/generateCategoricalChart";
+import { CategoricalChartFunc } from "recharts/types/chart/types";
 import { css } from "@emotion/react";
 
 import { Icon, Icons, Text } from "@phoenix/components";
@@ -20,6 +21,7 @@ import {
   ChartTooltip,
   ChartTooltipDivider,
   ChartTooltipItem,
+  defaultSelectedTimestampReferenceLineLabelProps,
   defaultSelectedTimestampReferenceLineProps,
   defaultTimeXAxisProps,
   useChartColors,
@@ -48,16 +50,18 @@ function TooltipContent({
   active,
   payload,
   label,
-}: TooltipProps<number, string>) {
+}: TooltipContentProps<number, string>) {
   const { color } = useColors();
   if (active && payload && payload.length) {
     const euclideanDistance = payload[1]?.value ?? null;
 
     return (
       <ChartTooltip>
-        <Text weight="heavy" size="S">{`${fullTimeFormatter(
-          new Date(label)
-        )}`}</Text>
+        {label && (
+          <Text weight="heavy" size="S">{`${fullTimeFormatter(
+            new Date(label)
+          )}`}</Text>
+        )}
         <ChartTooltipItem
           color={color}
           name="PSI"
@@ -164,13 +168,22 @@ export function DimensionDriftTimeSeries({
   const onClick: CategoricalChartFunc = useCallback(
     (state) => {
       // Parse out the timestamp from the first chart
-      const { activePayload } = state;
-      if (activePayload != null && activePayload.length > 0) {
-        const payload = activePayload[0].payload;
+      const { activeIndex } = state;
+      let index: number | undefined;
+      if (typeof activeIndex === "number") {
+        index = activeIndex;
+      } else if (
+        typeof activeIndex === "string" &&
+        !isNaN(Number(activeIndex))
+      ) {
+        index = Number(activeIndex);
+      }
+      if (typeof index === "number" && chartData[index]) {
+        const payload = chartData[index];
         setSelectedTimestamp(new Date(payload.timestamp));
       }
     },
-    [setSelectedTimestamp]
+    [setSelectedTimestamp, chartData]
   );
 
   const { color, barColor } = useColors();
@@ -227,7 +240,7 @@ export function DimensionDriftTimeSeries({
           stroke="var(--ac-global-color-grey-500)"
           strokeOpacity={0.5}
         />
-        <Tooltip content={<TooltipContent />} />
+        <Tooltip content={TooltipContent} />
         <Bar
           yAxisId="right"
           dataKey="traffic"
@@ -245,6 +258,9 @@ export function DimensionDriftTimeSeries({
           <ReferenceLine
             {...defaultSelectedTimestampReferenceLineProps}
             x={selectedTimestamp.getTime()}
+            label={
+              <Label {...defaultSelectedTimestampReferenceLineLabelProps} />
+            }
           />
         ) : null}
       </ComposedChart>

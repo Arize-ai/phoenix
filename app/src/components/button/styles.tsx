@@ -29,6 +29,12 @@ export const buttonCSS = css`
     cursor: default;
     opacity: var(--ac-opacity-disabled);
   }
+  &[data-size="S"] {
+    height: var(--ac-global-button-height-s);
+  }
+  &[data-size="M"] {
+    height: var(--ac-global-button-height-m);
+  }
   &[data-size="M"][data-childless="false"] {
     padding: var(--ac-global-dimension-static-size-100)
       var(--ac-global-dimension-static-size-200);

@@ -684,8 +684,10 @@ async function runEvaluator({
  *
  * @experimental This feature is not complete, and will change in the future.
  *
- * @param name - The name of the evaluator.
- * @param evaluate - The evaluator function.
+ * @param params - The parameters for creating the evaluator
+ * @param params.name - The name of the evaluator.
+ * @param params.kind - The kind of evaluator (e.g., "CODE", "LLM")
+ * @param params.evaluate - The evaluator function.
  * @returns The evaluator object.
  */
 export function asEvaluator({

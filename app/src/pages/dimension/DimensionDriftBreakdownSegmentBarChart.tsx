@@ -8,7 +8,7 @@ import {
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
-  TooltipProps,
+  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";
@@ -49,7 +49,7 @@ function TooltipContent({
   active,
   payload,
   label,
-}: TooltipProps<BarChartItem["primaryPercent"], BarChartItem["name"]>) {
+}: TooltipContentProps<BarChartItem["primaryPercent"], BarChartItem["name"]>) {
   const { primaryBarColor, referenceBarColor } = useColors();
   if (active && payload && payload.length) {
     const primaryLabel = payload[0]?.payload?.primaryName;
@@ -258,7 +258,7 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
             />
             <Tooltip
               {...defaultBarChartTooltipProps}
-              content={<TooltipContent />}
+              content={TooltipContent}
             />
             <Bar
               dataKey="primaryPercent"

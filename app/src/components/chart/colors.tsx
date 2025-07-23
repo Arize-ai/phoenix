@@ -160,3 +160,95 @@ export const getChartColor = (index: number, colors: ChartColors) => {
   const colorKey = `${group}${shade}` as keyof ChartColors;
   return colors[colorKey] || colors.default;
 };
+
+export type SemanticChartColor = "danger" | "success" | "warning" | "info";
+
+const SemanticChartLightColors: Record<SemanticChartColor, string> = {
+  danger: "var(--ac-global-color-red-700)",
+  success: "var(--ac-global-color-celery-700)",
+  warning: "var(--ac-global-color-orange-700)",
+  info: "var(--ac-global-color-blue-700)",
+};
+
+const SemanticChartDarkColors: Record<SemanticChartColor, string> = {
+  danger: "var(--ac-global-color-red-700)",
+  success: "var(--ac-global-color-celery-700)",
+  warning: "var(--ac-global-color-orange-700)",
+  info: "var(--ac-global-color-blue-700)",
+};
+
+export const SEMANTIC_CHART_COLORS = Object.keys(
+  SemanticChartLightColors
+) as SemanticChartColor[];
+
+export const useSemanticChartColors = (): Record<
+  SemanticChartColor,
+  string
+> => {
+  const { theme } = useTheme();
+  return useMemo(
+    () =>
+      theme === "dark" ? SemanticChartDarkColors : SemanticChartLightColors,
+    [theme]
+  );
+};
+
+type CategoricalChartColor =
+  | "category1"
+  | "category2"
+  | "category3"
+  | "category4"
+  | "category5"
+  | "category6"
+  | "category7"
+  | "category8"
+  | "category9"
+  | "category10"
+  | "category11"
+  | "category12";
+
+const CategoryChartLightColors: Record<CategoricalChartColor, string> = {
+  category1: "var(--ac-global-color-blue-900)",
+  category2: "var(--ac-global-color-purple-1100)",
+  category3: "var(--ac-global-color-magenta-800)",
+  category4: "var(--ac-global-color-indigo-600)",
+  category5: "var(--ac-global-color-blue-700)",
+  category6: "var(--ac-global-color-indigo-1100)",
+  category7: "var(--ac-global-color-orange-600)",
+  category8: "var(--ac-global-color-celery-400)",
+  category9: "var(--ac-global-color-seafoam-600)",
+  category10: "var(--ac-global-color-green-1000)",
+  category11: "var(--ac-global-color-yellow-400)",
+  category12: "var(--ac-global-color-red-1100)",
+};
+
+const CategoryChartDarkColors: Record<CategoricalChartColor, string> = {
+  category1: "var(--ac-global-color-blue-900)",
+  category2: "var(--ac-global-color-purple-1100)",
+  category3: "var(--ac-global-color-magenta-800)",
+  category4: "var(--ac-global-color-indigo-600)",
+  category5: "var(--ac-global-color-blue-700)",
+  category6: "var(--ac-global-color-indigo-1100)",
+  category7: "var(--ac-global-color-orange-600)",
+  category8: "var(--ac-global-color-celery-400)",
+  category9: "var(--ac-global-color-seafoam-600)",
+  category10: "var(--ac-global-color-green-1000)",
+  category11: "var(--ac-global-color-yellow-400)",
+  category12: "var(--ac-global-color-red-1100)",
+};
+
+export const useCategoryChartColors = (): Record<
+  CategoricalChartColor,
+  string
+> => {
+  const { theme } = useTheme();
+  return useMemo(
+    () =>
+      theme === "dark" ? CategoryChartDarkColors : CategoryChartLightColors,
+    [theme]
+  );
+};
+
+export const CATEGORICAL_CHART_COLORS = Object.keys(
+  CategoryChartLightColors
+) as CategoricalChartColor[];

@@ -28,7 +28,6 @@ export function TraceTokenCostsDetails(props: { traceNodeId: string }) {
               value {
                 cost
                 tokens
-                costPerToken
               }
             }
           }

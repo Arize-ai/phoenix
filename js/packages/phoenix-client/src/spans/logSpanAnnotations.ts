@@ -5,7 +5,7 @@ import { SpanAnnotation, toSpanAnnotationData } from "./types";
 /**
  * Parameters to log multiple span annotations
  */
-interface LogSpanAnnotationsParams extends ClientFn {
+export interface LogSpanAnnotationsParams extends ClientFn {
   /**
    * The span annotations to log
    */

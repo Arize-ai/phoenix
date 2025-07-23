@@ -343,7 +343,8 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
               background-color: var(--ac-global-color-grey-300);
               padding-left: var(--ac-global-dimension-static-size-100);
               padding-right: var(--ac-global-dimension-static-size-100);
-              height: 100%;
+              border-radius: 0;
+              height: 36px !important;
             `}
             className="button--reset"
           >

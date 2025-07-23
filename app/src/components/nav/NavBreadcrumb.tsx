@@ -1,6 +1,6 @@
-import { useMatches, useNavigate } from "react-router";
+import { Link, useMatches } from "react-router";
 
-import { Breadcrumbs, Item } from "@arizeai/components";
+import { Breadcrumb, Breadcrumbs } from "@phoenix/components";
 
 export type CrumbFn = (data: unknown) => string;
 type Matches = ReturnType<typeof useMatches>;
@@ -20,21 +20,19 @@ function isRouteMatchWithCrumb(match: Match): match is RouteMatchWithCrumb {
 }
 
 export function NavBreadcrumb() {
-  const navigate = useNavigate();
   const matches = useMatches();
   // Get rid of any matches that don't have handle and crumb
   const matchesWithCrumb = matches.filter(isRouteMatchWithCrumb);
 
   return (
-    <Breadcrumbs
-      onAction={(index) => {
-        // Action here is the index of the breadcrumb
-        navigate(matchesWithCrumb[Number(index)].pathname);
-      }}
-    >
-      {matchesWithCrumb.map((match, index) => (
-        <Item key={index}>{match.handle.crumb(match.data)}</Item>
-      ))}
+    <Breadcrumbs>
+      {matchesWithCrumb.map((match, index) => {
+        return (
+          <Breadcrumb key={index}>
+            <Link to={match.pathname}>{match.handle.crumb(match.data)}</Link>
+          </Breadcrumb>
+        );
+      })}
     </Breadcrumbs>
   );
 }

@@ -12,7 +12,7 @@ import {
   Line,
   ResponsiveContainer,
   Tooltip,
-  TooltipProps,
+  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";
@@ -49,7 +49,7 @@ function TooltipContent({
   active,
   payload,
   label,
-}: TooltipProps<number, string>) {
+}: TooltipContentProps<number, string>) {
   const { gray300 } = useChartColors();
   // Use the same color logic as the chart lines
   if (active && payload && payload.length) {
@@ -245,7 +245,7 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
             yAxisId={0}
           />
         ))}
-        <Tooltip content={<TooltipContent />} />
+        <Tooltip content={TooltipContent} />
       </ComposedChart>
     </ResponsiveContainer>
   );

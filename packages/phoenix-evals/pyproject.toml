@@ -22,7 +22,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
 ]
-version = "0.22.0"
+version = "0.23.1"
 dependencies = [
   "pandas",
   "tqdm",

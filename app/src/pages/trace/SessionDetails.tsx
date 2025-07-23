@@ -130,17 +130,14 @@ export function SessionDetails(props: SessionDetailsProps) {
               total {
                 cost
                 tokens
-                costPerToken
               }
               prompt {
                 cost
                 tokens
-                costPerToken
               }
               completion {
                 cost
                 tokens
-                costPerToken
               }
             }
             sessionId

@@ -2,11 +2,12 @@ import { useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Card, Item, ListBox } from "@arizeai/components";
+import { Item, ListBox } from "@arizeai/components";
 
 import {
   Button,
   Flex,
+  Heading,
   Input,
   SearchField,
   Text,
@@ -36,18 +37,19 @@ export function DatasetSelectorPopoverContent(
     { fetchPolicy: "network-only" }
   );
   return (
-    <Card
-      title="Add to Dataset"
-      variant="compact"
-      backgroundColor="light"
-      borderColor="light"
-      bodyStyle={{ padding: 0 }}
-      extra={
-        <Button variant="default" size="S" onPress={onCreateNewDataset}>
-          New Dataset
-        </Button>
-      }
-    >
+    <View>
+      <View padding="size-100" borderBottomWidth="thin" borderColor="light">
+        <Flex
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+        >
+          <Heading level={3}>Add to Dataset</Heading>
+          <Button variant="default" size="S" onPress={onCreateNewDataset}>
+            New Dataset
+          </Button>
+        </Flex>
+      </View>
       <View padding="size-100">
         <SearchField
           onChange={(newSearch) => {
@@ -62,7 +64,7 @@ export function DatasetSelectorPopoverContent(
           css={css`
             height: 400px;
             overflow-y: auto;
-            min-width: 300px;
+            min-width: 400px;
           `}
         >
           <DatasetsListBox
@@ -72,7 +74,7 @@ export function DatasetSelectorPopoverContent(
           />
         </div>
       </View>
-    </Card>
+    </View>
   );
 }
 

@@ -1,5 +1,6 @@
 import React, {
   ReactNode,
+  RefObject,
   startTransition,
   Suspense,
   useCallback,
@@ -19,6 +20,7 @@ import {
   Table,
   useReactTable,
 } from "@tanstack/react-table";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { css } from "@emotion/react";
 
 import { Card, CardProps } from "@arizeai/components";
@@ -63,11 +65,7 @@ import {
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
 import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
 import { resizeHandleCSS } from "@phoenix/components/resize";
-import {
-  CellTop,
-  CompactJSONCell,
-  LoadMoreRow,
-} from "@phoenix/components/table";
+import { CellTop, CompactJSONCell } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import {
@@ -157,6 +155,7 @@ const annotationTooltipExtraCSS = css`
   gap: var(--ac-global-dimension-size-50);
 `;
 
+const PAGE_SIZE = 50;
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const [dialog, setDialog] = useState<ReactNode>(null);
   const {
@@ -542,7 +541,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           !isLoadingNext &&
           hasNext
         ) {
-          loadNext(50);
+          loadNext(PAGE_SIZE);
         }
       }
     },
@@ -555,7 +554,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       refetch(
         {
           after: null,
-          first: 50,
+          first: PAGE_SIZE,
           filterCondition,
           baselineExperimentId,
           compareExperimentIds,
@@ -669,17 +668,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               /* When resizing any column we will render this special memoized version of our table body */
               <MemoizedTableBody
                 table={table}
-                hasNext={hasNext}
-                onLoadNext={() => loadNext(50)}
-                isLoadingNext={isLoadingNext}
+                tableContainerRef={tableContainerRef}
               />
             ) : (
-              <TableBody
-                table={table}
-                hasNext={hasNext}
-                onLoadNext={() => loadNext(50)}
-                isLoadingNext={isLoadingNext}
-              />
+              <TableBody table={table} tableContainerRef={tableContainerRef} />
             )}
           </table>
         </div>
@@ -705,42 +697,65 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
 //un-memoized normal table body component - see memoized version below
 function TableBody<T>({
   table,
-  hasNext,
-  onLoadNext,
-  isLoadingNext,
+  tableContainerRef,
 }: {
   table: Table<T>;
-  hasNext: boolean;
-  onLoadNext: () => void;
-  isLoadingNext: boolean;
+  tableContainerRef: RefObject<HTMLDivElement>;
 }) {
+  const rows = table.getRowModel().rows;
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => tableContainerRef.current,
+    estimateSize: () => 350,
+    overscan: 5,
+  });
+  const virtualRows = virtualizer.getVirtualItems();
+  const totalHeight = virtualizer.getTotalSize();
+  const spacerRowHeight = useMemo(() => {
+    return totalHeight - virtualRows.reduce((acc, item) => acc + item.size, 0);
+  }, [totalHeight, virtualRows]);
+
   return (
     <tbody>
-      {table.getRowModel().rows.map((row) => (
-        <tr key={row.id}>
-          {row.getVisibleCells().map((cell) => {
-            return (
-              <td
-                key={cell.id}
-                style={{
-                  width: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
-                  maxWidth: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
-                  padding: 0,
-                }}
-              >
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-              </td>
-            );
-          })}
-        </tr>
-      ))}
-      {hasNext ? (
-        <LoadMoreRow
-          onLoadMore={onLoadNext}
-          key="load-more"
-          isLoadingNext={isLoadingNext}
+      {virtualRows.map((virtualRow, index) => {
+        const row = rows[virtualRow.index];
+        return (
+          <tr
+            key={row.id}
+            style={{
+              height: `${virtualRow.size}px`,
+              transform: `translateY(${
+                virtualRow.start - index * virtualRow.size
+              }px)`,
+            }}
+          >
+            {row.getVisibleCells().map((cell) => {
+              return (
+                <td
+                  key={cell.id}
+                  style={{
+                    width: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
+                    maxWidth: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
+                    padding: 0,
+                  }}
+                >
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </td>
+              );
+            })}
+          </tr>
+        );
+      })}
+      {/* Add a spacer row to ensure the sticky header does not scroll out of view and to make scrolling smoother */}
+      <tr>
+        <td
+          style={{
+            height: `${spacerRowHeight}px`,
+            padding: 0,
+          }}
+          colSpan={table.getAllColumns().length}
         />
-      ) : null}
+      </tr>
     </tbody>
   );
 }
