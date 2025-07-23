@@ -8,7 +8,7 @@ description: >-
 
 **Website:** [https://www.langchain.com/](https://www.langchain.com/)
 
-<table data-card-size="large" data-view="cards"><thead><tr><th></th><th data-hidden data-card-cover data-type="files"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td><a href="langchain-tracing.md"><strong>LangChain Tracing</strong></a></td><td><a href="../../.gitbook/assets/langchain.avif">langchain.avif</a></td><td><a href="langchain-tracing.md">langchain-tracing.md</a></td></tr><tr><td><a href="langchain.js.md"><strong>LangChain.js</strong></a></td><td><a href="../../.gitbook/assets/langchain.avif">langchain.avif</a></td><td></td></tr></tbody></table>
+<table data-card-size="large" data-view="cards"><thead><tr><th></th><th data-hidden data-card-cover data-type="files"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td><a href="langchain-tracing.md"><strong>LangChain Tracing</strong></a></td><td><a href="../../.gitbook/assets/langchain.avif">langchain.avif</a></td><td><a href="langchain-tracing.md">langchain-tracing.md</a></td></tr><tr><td><a href="langchain-js.md"><strong>LangChain.js</strong></a></td><td><a href="../../.gitbook/assets/langchain.avif">langchain.avif</a></td><td></td></tr></tbody></table>
 
 ### Featured Tutorials&#x20;
 

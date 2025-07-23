@@ -64,7 +64,7 @@
   * [LlamaIndex Workflows Tracing](frameworks/llamaindex/llamaindex-workflows-tracing.md)
 * [LangChain](frameworks/langchain/README.md)
   * [LangChain Tracing](frameworks/langchain/langchain-tracing.md)
-  * [LangChain.js](frameworks/langchain/langchain.js.md)
+  * [LangChain.js](frameworks/langchain/langchain-js.md)
 * [LangGraph](frameworks/langgraph/README.md)
   * [LangGraph Tracing](frameworks/langgraph/langgraph-tracing.md)
 
