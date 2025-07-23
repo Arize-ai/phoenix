@@ -5,20 +5,20 @@ from .types import AdapterRegistration, BaseLLMAdapter, ProviderRegistration
 
 logger = logging.getLogger(__name__)
 
+# ANSI color codes for terminal output
+class Colors:
+    GREEN = '\033[92m'
+    RED = '\033[91m'
+    RESET = '\033[0m'
+    BOLD = '\033[1m'
+
 
 class ProviderInfo(TypedDict):
     provider: str
     adapter: str
     dependencies: List[str]
     status: str
-
-
-class DisabledProviderInfo(TypedDict):
-    provider: str
-    adapter: str
-    dependencies: List[str]
-    missing: List[str]
-    status: str
+    is_enabled: bool
 
 
 class AdapterInfo(TypedDict):
@@ -148,19 +148,22 @@ PROVIDER_REGISTRY = ProviderRegistry()
 
 def print_available_adapters() -> None:
     """
-    Print a comprehensive table of available LLM adapters and providers.
+    Print a consolidated table of LLM providers and adapters with color-coded status.
 
-    Shows:
-    1. Available providers (dependencies satisfied)
-    2. Disabled providers (missing dependencies)
-    3. SDK adapters (for wrapping existing clients)
+    Shows all providers in a single table with:
+    - Green status for enabled providers (dependencies satisfied)
+    - Red status for disabled providers (missing dependencies)
+    - Required dependencies for each provider
+    - SDK adapters section for wrapping existing clients
     """
     print("\n" + "=" * 80)
-    print("PHOENIX LLM WRAPPER - AVAILABLE ADAPTERS & PROVIDERS")
+    print("PHOENIX LLM WRAPPER - PROVIDERS & ADAPTERS")
     print("=" * 80)
 
-    # 1. Available Providers
-    available_providers: List[ProviderInfo] = []
+    # Collect all providers (enabled and disabled) into a single list
+    all_providers: List[ProviderInfo] = []
+
+    # Add enabled providers
     for provider_name, registrations in PROVIDER_REGISTRY._providers.items():
         for reg in registrations:
             provider_info: ProviderInfo = {
@@ -168,37 +171,30 @@ def print_available_adapters() -> None:
                 "adapter": reg.adapter_class.__name__,
                 "dependencies": reg.dependencies,
                 "status": "✓ Available",
+                "is_enabled": True,
             }
-            available_providers.append(provider_info)
+            all_providers.append(provider_info)
 
-    if available_providers:
-        print("\n📦 AVAILABLE PROVIDERS (Dependencies Satisfied)")
-        print("-" * 60)
-        _print_provider_table(available_providers)
-    else:
-        print("\n📦 AVAILABLE PROVIDERS: None")
-
-    # 2. Disabled Providers
-    disabled_providers: List[DisabledProviderInfo] = []
+    # Add disabled providers
     for reg in PROVIDER_REGISTRY._disabled_providers:
-        missing_deps = _get_missing_dependencies(reg.dependencies)
-        disabled_info: DisabledProviderInfo = {
+        provider_info: ProviderInfo = {
             "provider": reg.provider,
             "adapter": reg.adapter_class.__name__,
             "dependencies": reg.dependencies,
-            "missing": missing_deps,
-            "status": "✗ Missing Dependencies",
+            "status": "✗ Disabled",
+            "is_enabled": False,
         }
-        disabled_providers.append(disabled_info)
+        all_providers.append(provider_info)
 
-    if disabled_providers:
-        print("\n❌ DISABLED PROVIDERS (Missing Dependencies)")
+    # Print consolidated providers table
+    if all_providers:
+        print("\n📦 PROVIDERS")
         print("-" * 60)
-        _print_disabled_provider_table(disabled_providers)
+        _print_consolidated_provider_table(all_providers)
     else:
-        print("\n❌ DISABLED PROVIDERS: None")
+        print("\n📦 PROVIDERS: None")
 
-    # 3. SDK Adapters
+    # SDK Adapters section
     sdk_adapters: List[AdapterInfo] = []
     for adapter_reg in ADAPTER_REGISTRY._adapters:
         sdk_adapters.append(
@@ -213,8 +209,6 @@ def print_available_adapters() -> None:
         print("\n🔧 SDK ADAPTERS (For Wrapping Existing Clients)")
         print("-" * 60)
         _print_sdk_adapter_table(sdk_adapters)
-    else:
-        print("\n🔧 SDK ADAPTERS: None")
 
     print("\n" + "=" * 80)
     print("USAGE EXAMPLES:")
@@ -229,8 +223,8 @@ def print_available_adapters() -> None:
     print("=" * 80 + "\n")
 
 
-def _print_provider_table(providers: List[ProviderInfo]) -> None:
-    """Print a formatted table of available providers."""
+def _print_consolidated_provider_table(providers: List[ProviderInfo]) -> None:
+    """Print a consolidated table of all providers with color-coded status."""
     if not providers:
         return
 
@@ -245,54 +239,25 @@ def _print_provider_table(providers: List[ProviderInfo]) -> None:
 
     # Header
     header = (
-        f"{'Provider':<{provider_width}} | {'Adapter':<{adapter_width}} | "
-        f"{'Dependencies':<{deps_width}} | Status"
+        f"{'Provider':<{provider_width}} | {'Status':<8} | {'Adapter':<{adapter_width}} | "
+        f"{'Dependencies':<{deps_width}}"
     )
     print(header)
     print("-" * len(header))
 
-    # Rows
+    # Rows with color coding
     for p in providers:
         deps_str = ", ".join(p["dependencies"]) if p["dependencies"] else "None"
+
+        # Apply color coding based on status
+        if p["is_enabled"]:
+            status_colored = f"{Colors.GREEN}{p['status']}{Colors.RESET}"
+        else:
+            status_colored = f"{Colors.RED}{p['status']}{Colors.RESET}"
+
         print(
-            f"{p['provider']:<{provider_width}} | {p['adapter']:<{adapter_width}} | "
-            f"{deps_str:<{deps_width}} | {p['status']}"
-        )
-
-
-def _print_disabled_provider_table(providers: List[DisabledProviderInfo]) -> None:
-    """Print a formatted table of disabled providers."""
-    if not providers:
-        return
-
-    # Calculate column widths
-    max_provider = max(len(p["provider"]) for p in providers)
-    max_adapter = max(len(p["adapter"]) for p in providers)
-    max_missing = max(len(", ".join(p["missing"])) for p in providers)
-
-    provider_width = max(max_provider, 8)
-    adapter_width = max(max_adapter, 7)
-    missing_width = max(max_missing, 12)
-
-    # Header
-    header = (
-        f"{'Provider':<{provider_width}} | {'Adapter':<{adapter_width}} | "
-        f"{'Missing Deps':<{missing_width}} | Install Command"
-    )
-    print(header)
-    print("-" * len(header))
-
-    # Rows
-    for p in providers:
-        missing_str = ", ".join(p["missing"]) if p["missing"] else "Unknown"
-        install_cmd = (
-            f"pip install {' '.join(p['missing'])}"
-            if p["missing"]
-            else "pip install " + " ".join(p["dependencies"])
-        )
-        print(
-            f"{p['provider']:<{provider_width}} | {p['adapter']:<{adapter_width}} | "
-            f"{missing_str:<{missing_width}} | {install_cmd}"
+            f"{p['provider']:<{provider_width}} | {status_colored:<16} | "
+            f"{p['adapter']:<{adapter_width}} | {deps_str:<{deps_width}}"
         )
 
 
@@ -323,17 +288,6 @@ def _print_sdk_adapter_table(adapters: List[AdapterInfo]) -> None:
             f"{a['name']:<{name_width}} | {a['adapter']:<{adapter_width}} | "
             f"{a['description']:<{desc_width}}"
         )
-
-
-def _get_missing_dependencies(dependencies: List[str]) -> List[str]:
-    """Check which dependencies are missing."""
-    missing = []
-    for dep in dependencies:
-        try:
-            __import__(dep)
-        except ImportError:
-            missing.append(dep)
-    return missing
 
 
 def _get_adapter_description(adapter_name: str) -> str:
