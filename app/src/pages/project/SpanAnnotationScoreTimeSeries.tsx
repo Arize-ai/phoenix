@@ -157,7 +157,7 @@ export function SpanAnnotationScoreTimeSeries({
     colors.orange400,
     colors.red400,
     colors.purple400,
-    colors.gray600,
+    colors.grey600,
     colors.gray700,
   ];
 

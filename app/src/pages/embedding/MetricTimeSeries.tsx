@@ -53,7 +53,7 @@ const numberFormatter = new Intl.NumberFormat([], {
 const useColors = () => {
   const colors = useChartColors();
   const color = colors.blue400;
-  const barColor = colors.gray500;
+  const barColor = colors.grey500;
   return {
     color,
     barColor,

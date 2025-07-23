@@ -124,7 +124,7 @@ export const useChartColors = (): ChartColors => {
  * getChartColor(1, ChartColors) // returns ChartColors.orange500
  * getChartColor(2, ChartColors) // returns ChartColors.purple500
  * getChartColor(3, ChartColors) // returns ChartColors.pink500
- * getChartColor(4, ChartColors) // returns ChartColors.gray500
+ * getChartColor(4, ChartColors) // returns ChartColors.grey500
  * getChartColor(5, ChartColors) // returns ChartColors.blue400
  * getChartColor(6, ChartColors) // returns ChartColors.orange400
  * // ...

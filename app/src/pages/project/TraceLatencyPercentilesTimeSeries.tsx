@@ -227,7 +227,7 @@ export function TraceLatencyPercentilesTimeSeries({
         <Line
           type="monotone"
           dataKey="p999"
-          stroke={colors.gray600}
+          stroke={colors.grey600}
           strokeWidth={2}
           dot={false}
           activeDot={{ r: 4 }}
