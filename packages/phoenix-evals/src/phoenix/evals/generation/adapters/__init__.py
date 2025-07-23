@@ -2,10 +2,12 @@
 
 from .langchain import LangChainModelAdapter
 from .litellm import LiteLLMAdapter
+from .openai import OpenAIAdapter
 
 __all__ = [
     "LangChainModelAdapter",
     "LiteLLMAdapter",
+    "OpenAIAdapter",
 ]
 
 

@@ -26,7 +26,6 @@ def identify_langchain_client(client: Any) -> bool:
 
 @register_adapter(
     identifier=identify_langchain_client,
-    priority=10,
     name="langchain",
 )
 @register_provider(

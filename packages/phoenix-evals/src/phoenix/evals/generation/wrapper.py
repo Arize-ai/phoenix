@@ -15,6 +15,7 @@ class LLMBase:
         provider: Optional[str] = None,
         model: Optional[str] = None,
     ):
+        self._is_async: bool = getattr(self, "_is_async", False)
         self.client = client
         self.provider = provider
         self.model = model
@@ -40,7 +41,7 @@ class LLMBase:
                     )
 
                 registration = provider_registrations[0]
-                client = registration.client_factory(model=model)
+                client = registration.client_factory(model=model, is_async=self._is_async)
                 adapter_class = registration.adapter_class
 
             except Exception as e:
@@ -65,6 +66,10 @@ class LLMBase:
 
 
 class LLM(LLMBase):
+    def __init__(self, *args: Any, **kwargs: Any):
+        self._is_async = False
+        super().__init__(*args, **kwargs)
+
     def generate_text(self, prompt: str, **kwargs: Any) -> str:
         return self._adapter.generate_text(prompt, **kwargs)
 
@@ -73,6 +78,10 @@ class LLM(LLMBase):
 
 
 class AsyncLLM(LLMBase):
+    def __init__(self, *args: Any, **kwargs: Any):
+        self._is_async = True
+        super().__init__(*args, **kwargs)
+
     async def generate_text(self, prompt: str, **kwargs: Any) -> str:
         return await self._adapter.agenerate_text(prompt, **kwargs)
 
