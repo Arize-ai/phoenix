@@ -32,9 +32,8 @@ import {
 } from "relay-runtime";
 import { css } from "@emotion/react";
 
-import { DialogContainer } from "@arizeai/components";
-
 import {
+  Dialog,
   DialogTrigger,
   Flex,
   Icon,
@@ -470,10 +469,16 @@ export function PlaygroundDatasetExamplesTable({
   );
 
   const [dialog, setDialog] = useState<ReactNode>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [, setSearchParams] = useSearchParams();
   const hasSomeRunIds = instances.some(
     (instance) => instance.activeRunId !== null
   );
+
+  // Sync dialog state with modal open state
+  useEffect(() => {
+    setIsDialogOpen(dialog !== null);
+  }, [dialog]);
 
   const credentials = useCredentialsContext((state) => state);
   const markPlaygroundInstanceComplete = usePlaygroundContext(
@@ -994,19 +999,24 @@ export function PlaygroundDatasetExamplesTable({
           <TableBody table={table} />
         )}
       </table>
-      <DialogContainer
-        isDismissable
-        type="slideOver"
-        onDismiss={() => {
-          setDialog(null);
-          setSearchParams((searchParams) => {
-            searchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
-            return searchParams;
-          });
+      <ModalOverlay
+        isOpen={isDialogOpen}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setIsDialogOpen(false);
+            setDialog(null);
+            setSearchParams((searchParams) => {
+              searchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+              return searchParams;
+            });
+          }
         }}
+        isDismissable
       >
-        {dialog}
-      </DialogContainer>
+        <Modal variant="slideover" size="L">
+          <Dialog>{dialog}</Dialog>
+        </Modal>
+      </ModalOverlay>
     </div>
   );
 }
