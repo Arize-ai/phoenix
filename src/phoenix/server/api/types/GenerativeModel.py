@@ -95,7 +95,9 @@ class GenerativeModel(Node, ModelInterface):
                 return self.cached_cost_summary[cache_key]
 
         if time_range or project_id:
-            raise BadRequest("Cost summaries for specific projects or time ranges are not yet implemented")
+            raise BadRequest(
+                "Cost summaries for specific projects or time ranges are not yet implemented"
+            )
 
         loader = info.context.data_loaders.span_cost_summary_by_generative_model
         summary = await loader.load(self.id_attr)
