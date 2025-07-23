@@ -166,7 +166,10 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
                 borderTopWidth="thin"
               >
                 <Flex direction="row" justifyContent="end" gap="size-100">
-                  <Button size="S" onPress={() => setDialog(null)}>
+                  <Button
+                    size="S"
+                    onPress={() => setIsDeleteConfirmationDialogOpen(false)}
+                  >
                     Cancel
                   </Button>
                   <Button
@@ -174,7 +177,7 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
                     size="S"
                     onPress={() => {
                       onDeleteExamples();
-                      setDialog(null);
+                      setIsDeleteConfirmationDialogOpen(false);
                     }}
                   >
                     Delete
