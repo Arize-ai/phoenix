@@ -1382,6 +1382,8 @@ class Project(Node):
                     to_gql_generative_model(
                         model,
                         cached_cost_summary=cost_summary,
+                        project_id=self.project_rowid,
+                        time_range=time_range,
                     )
                 )
             return results
@@ -1437,7 +1439,14 @@ class Project(Node):
                     completion=CostBreakdown(tokens=completion_tokens, cost=completion_cost),
                     total=CostBreakdown(tokens=total_tokens, cost=total_cost),
                 )
-                results.append(to_gql_generative_model(model, cached_cost_summary=cost_summary))
+                results.append(
+                    to_gql_generative_model(
+                        model,
+                        cached_cost_summary=cost_summary,
+                        project_id=self.project_rowid,
+                        time_range=time_range,
+                    )
+                )
             return results
 
 

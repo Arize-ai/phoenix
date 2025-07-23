@@ -11,6 +11,7 @@ from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.ModelInterface import ModelInterface
@@ -37,7 +38,10 @@ class GenerativeModel(Node, ModelInterface):
     provider_key: Optional[GenerativeProviderKey]
     costs: strawberry.Private[Optional[list[models.TokenPrice]]] = None
     start_time: Optional[datetime] = None
-    cached_cost_summary: strawberry.Private[Optional[SpanCostSummary]] = None
+    # cached_cost_summary is keyed by (project_id, (start_iso, end_iso))
+    cached_cost_summary: strawberry.Private[
+        Optional[dict[tuple[Optional[int], tuple[Optional[str], Optional[str]]], SpanCostSummary]]
+    ] = None
 
     @strawberry.field
     async def token_prices(self) -> list[TokenPrice]:
@@ -56,9 +60,21 @@ class GenerativeModel(Node, ModelInterface):
         return token_prices
 
     @strawberry.field
-    async def cost_summary(self, info: Info[Context, None]) -> SpanCostSummary:
+    async def cost_summary(
+        self,
+        info: Info[Context, None],
+        time_range: Optional[TimeRange] = None,
+        project_id: Optional[int] = None,
+    ) -> SpanCostSummary:
         if self.cached_cost_summary is not None:
-            return self.cached_cost_summary
+            time_range_key = (
+                time_range.start.isoformat() if time_range and time_range.start else None,
+                time_range.end.isoformat() if time_range and time_range.end else None,
+            )
+            cache_key = (project_id, time_range_key)
+            if cache_key in self.cached_cost_summary:
+                return self.cached_cost_summary[cache_key]
+
         loader = info.context.data_loaders.span_cost_summary_by_generative_model
         summary = await loader.load(self.id_attr)
         return SpanCostSummary(
@@ -104,6 +120,8 @@ class GenerativeModel(Node, ModelInterface):
 def to_gql_generative_model(
     model: models.GenerativeModel,
     cached_cost_summary: Optional[SpanCostSummary] = None,
+    project_id: Optional[int] = None,
+    time_range: Optional[TimeRange] = None,
 ) -> GenerativeModel:
     costs_are_loaded = isinstance(inspect(model).attrs.token_prices.loaded_value, list)
     name_pattern = model.name_pattern.pattern
@@ -121,7 +139,17 @@ def to_gql_generative_model(
         if model.provider
         else None,
         costs=model.token_prices if costs_are_loaded else None,
-        cached_cost_summary=cached_cost_summary,
+        cached_cost_summary={
+            (
+                project_id,
+                (
+                    time_range.start.isoformat() if time_range and time_range.start else None,
+                    time_range.end.isoformat() if time_range and time_range.end else None,
+                ),
+            ): cached_cost_summary
+        }
+        if cached_cost_summary is not None
+        else None,
     )
 
 
