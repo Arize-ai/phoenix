@@ -98,22 +98,6 @@ export const ArrowDownFill = () => (
   </svg>
 );
 
-export const ArrowDownFilled = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-    <g data-name="Layer 2">
-      <g data-name="arrow-downward">
-        <rect
-          width="24"
-          height="24"
-          transform="rotate(-90 12 12)"
-          opacity="0"
-        />
-        <path d="M12 17a1.72 1.72 0 0 1-1.33-.64l-4.21-5.1a2.1 2.1 0 0 1-.26-2.21A1.76 1.76 0 0 1 7.79 8h8.42a1.76 1.76 0 0 1 1.59 1.05 2.1 2.1 0 0 1-.26 2.21l-4.21 5.1A1.72 1.72 0 0 1 12 17z" />
-      </g>
-    </g>
-  </svg>
-);
-
 export const ArrowIosDownwardOutline = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">
@@ -217,17 +201,6 @@ export const ArrowHeadRight = () => (
 );
 
 export const ArrowUp = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-    <g data-name="Layer 2">
-      <g data-name="arrow-up">
-        <rect width="24" height="24" transform="rotate(90 12 12)" opacity="0" />
-        <path d="M16.21 16H7.79a1.76 1.76 0 0 1-1.59-1 2.1 2.1 0 0 1 .26-2.21l4.21-5.1a1.76 1.76 0 0 1 2.66 0l4.21 5.1A2.1 2.1 0 0 1 17.8 15a1.76 1.76 0 0 1-1.59 1z" />
-      </g>
-    </g>
-  </svg>
-);
-
-export const ArrowUpFilled = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">
       <g data-name="arrow-up">
@@ -401,34 +374,6 @@ export const BookOpen = () => (
           opacity="0"
         />
         <path d="M20.62 4.22a1 1 0 0 0-.84-.2L12 5.77 4.22 4A1 1 0 0 0 3 5v12.2a1 1 0 0 0 .78 1l8 1.8h.44l8-1.8a1 1 0 0 0 .78-1V5a1 1 0 0 0-.38-.78zM5 6.25l6 1.35v10.15L5 16.4zM19 16.4l-6 1.35V7.6l6-1.35z" />
-      </g>
-    </g>
-  </svg>
-);
-
-export const BookOpenFilled = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-    <g data-name="Layer 2">
-      <g data-name="book-open">
-        <rect
-          width="24"
-          height="24"
-          transform="rotate(180 12 12)"
-          opacity="0"
-        />
-        <path d="M21 4.34a1.24 1.24 0 0 0-1.08-.23L13 5.89v14.27l7.56-1.94A1.25 1.25 0 0 0 21.5 17V5.32a1.25 1.25 0 0 0-.5-.98z" />
-        <path d="M11 5.89L4.06 4.11A1.27 1.27 0 0 0 3 4.34a1.25 1.25 0 0 0-.48 1V17a1.25 1.25 0 0 0 .94 1.21L11 20.16z" />
-      </g>
-    </g>
-  </svg>
-);
-
-export const BookFilled = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-    <g data-name="Layer 2">
-      <g data-name="book">
-        <rect width="24" height="24" opacity="0" />
-        <path d="M19 3H7a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h12a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1zM7 19a1 1 0 0 1 0-2h11v2z" />
       </g>
     </g>
   </svg>
@@ -1287,17 +1232,6 @@ export const FireOutline = () => (
   </svg>
 );
 
-export const FolderFilled = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-    <g data-name="Layer 2">
-      <g data-name="folder">
-        <rect width="24" height="24" opacity="0" />
-        <path d="M19.5 20.5h-15A2.47 2.47 0 0 1 2 18.07V5.93A2.47 2.47 0 0 1 4.5 3.5h4.6a1 1 0 0 1 .77.37l2.6 3.18h7A2.47 2.47 0 0 1 22 9.48v8.59a2.47 2.47 0 0 1-2.5 2.43z" />
-      </g>
-    </g>
-  </svg>
-);
-
 export const FolderOutline = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">
@@ -1398,17 +1332,6 @@ export const Globe = () => (
 );
 
 //H
-export const HardDriveFilled = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-    <g data-name="Layer 2">
-      <g data-name="hard-drive">
-        <rect width="24" height="24" opacity="0" />
-        <path d="M20.79 11.34l-3.34-6.68A3 3 0 0 0 14.76 3H9.24a3 3 0 0 0-2.69 1.66l-3.34 6.68a2 2 0 0 0-.21.9V18a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-5.76a2 2 0 0 0-.21-.9zM8 17a1 1 0 1 1 1-1 1 1 0 0 1-1 1zm8 0h-4a1 1 0 0 1 0-2h4a1 1 0 0 1 0 2zM5.62 11l2.72-5.45a1 1 0 0 1 .9-.55h5.52a1 1 0 0 1 .9.55L18.38 11z" />
-      </g>
-    </g>
-  </svg>
-);
-
 export const HardDriveOutline = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">
@@ -1642,17 +1565,6 @@ export const MaximizeOutline = () => (
         <rect width="24" height="24" opacity="0" />
         <path d="M20.71 19.29l-3.4-3.39A7.92 7.92 0 0 0 19 11a8 8 0 1 0-8 8 7.92 7.92 0 0 0 4.9-1.69l3.39 3.4a1 1 0 0 0 1.42 0 1 1 0 0 0 0-1.42zM5 11a6 6 0 1 1 6 6 6 6 0 0 1-6-6z" />
         <path d="M13 10h-1V9a1 1 0 0 0-2 0v1H9a1 1 0 0 0 0 2h1v1a1 1 0 0 0 2 0v-1h1a1 1 0 0 0 0-2z" />
-      </g>
-    </g>
-  </svg>
-);
-
-export const MessageSquareFilled = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-    <g data-name="Layer 2">
-      <g data-name="message-square">
-        <rect width="24" height="24" opacity="0" />
-        <path d="M19 3H5a3 3 0 0 0-3 3v15a1 1 0 0 0 .51.87A1 1 0 0 0 3 22a1 1 0 0 0 .51-.14L8 19.14a1 1 0 0 1 .55-.14H19a3 3 0 0 0 3-3V6a3 3 0 0 0-3-3zM8 12a1 1 0 1 1 1-1 1 1 0 0 1-1 1zm4 0a1 1 0 1 1 1-1 1 1 0 0 1-1 1zm4 0a1 1 0 1 1 1-1 1 1 0 0 1-1 1z" />
       </g>
     </g>
   </svg>
@@ -2022,20 +1934,8 @@ export const RowExpandOutline = () => (
     />
   </svg>
 );
+
 //S
-export const SaveFilled = () => {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-      <g data-name="Layer 2">
-        <g data-name="save">
-          <rect width="24" height="24" opacity="0" />
-          <rect x="10" y="17" width="4" height="4" />
-          <path d="M20.12 8.71l-4.83-4.83A3 3 0 0 0 13.17 3H10v6h5a1 1 0 0 1 0 2H9a1 1 0 0 1-1-1V3H6a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h2v-4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v4h2a3 3 0 0 0 3-3v-7.17a3 3 0 0 0-.88-2.12z" />
-        </g>
-      </g>
-    </svg>
-  );
-};
 
 export const SaveOutline = () => {
   return (
