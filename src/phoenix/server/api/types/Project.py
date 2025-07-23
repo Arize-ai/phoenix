@@ -1332,8 +1332,7 @@ class Project(Node):
         self,
         info: Info[Context, None],
         time_range: TimeRange,
-        limit: int = 5,
-    ) -> TopModelsByCostPayload:
+    ) -> list[GenerativeModel]:
         if time_range.start is None:
             raise BadRequest("Start time is required")
         if time_range.end is None:
@@ -1363,10 +1362,8 @@ class Project(Node):
                 .where(models.SpanCost.span_start_time < time_range.end)
                 .group_by(models.SpanCost.model_id)
                 .order_by(func.sum(models.SpanCost.total_cost).desc())
-                .limit(limit)
             )
             results = []
-            cost_summaries = []
             async for (
                 model,
                 total_tokens,
@@ -1376,23 +1373,25 @@ class Project(Node):
                 prompt_cost,
                 completion_cost,
             ) in await session.stream(stmt):
-                results.append(to_gql_generative_model(model))
-                cost_summaries.append(
-                    SpanCostSummary(
-                        prompt=CostBreakdown(tokens=prompt_tokens, cost=prompt_cost),
-                        completion=CostBreakdown(tokens=completion_tokens, cost=completion_cost),
-                        total=CostBreakdown(tokens=total_tokens, cost=total_cost),
+                cost_summary = SpanCostSummary(
+                    prompt=CostBreakdown(tokens=prompt_tokens, cost=prompt_cost),
+                    completion=CostBreakdown(tokens=completion_tokens, cost=completion_cost),
+                    total=CostBreakdown(tokens=total_tokens, cost=total_cost),
+                )
+                results.append(
+                    to_gql_generative_model(
+                        model,
+                        cached_cost_summary=cost_summary,
                     )
                 )
-            return TopModelsByCostPayload(models=results, cost_summaries=cost_summaries)
+            return results
 
     @strawberry.field
     async def top_models_by_token_count(
         self,
         info: Info[Context, None],
         time_range: TimeRange,
-        limit: int = 5,
-    ) -> TopModelsByTokenCountPayload:
+    ) -> list[GenerativeModel]:
         if time_range.start is None:
             raise BadRequest("Start time is required")
         if time_range.end is None:
@@ -1422,10 +1421,8 @@ class Project(Node):
                 .where(models.SpanCost.span_start_time < time_range.end)
                 .group_by(models.SpanCost.model_id)
                 .order_by(func.sum(models.SpanCost.total_tokens).desc())
-                .limit(limit)
             )
             results = []
-            cost_summaries = []
             async for (
                 model,
                 total_tokens,
@@ -1435,15 +1432,13 @@ class Project(Node):
                 prompt_cost,
                 completion_cost,
             ) in await session.stream(stmt):
-                results.append(to_gql_generative_model(model))
-                cost_summaries.append(
-                    SpanCostSummary(
-                        prompt=CostBreakdown(tokens=prompt_tokens, cost=prompt_cost),
-                        completion=CostBreakdown(tokens=completion_tokens, cost=completion_cost),
-                        total=CostBreakdown(tokens=total_tokens, cost=total_cost),
-                    )
+                cost_summary = SpanCostSummary(
+                    prompt=CostBreakdown(tokens=prompt_tokens, cost=prompt_cost),
+                    completion=CostBreakdown(tokens=completion_tokens, cost=completion_cost),
+                    total=CostBreakdown(tokens=total_tokens, cost=total_cost),
                 )
-            return TopModelsByTokenCountPayload(models=results, cost_summaries=cost_summaries)
+                results.append(to_gql_generative_model(model, cached_cost_summary=cost_summary))
+            return results
 
 
 @strawberry.type

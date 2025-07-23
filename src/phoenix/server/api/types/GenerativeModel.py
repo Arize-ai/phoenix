@@ -37,6 +37,7 @@ class GenerativeModel(Node, ModelInterface):
     provider_key: Optional[GenerativeProviderKey]
     costs: strawberry.Private[Optional[list[models.TokenPrice]]] = None
     start_time: Optional[datetime] = None
+    cached_cost_summary: strawberry.Private[Optional[SpanCostSummary]] = None
 
     @strawberry.field
     async def token_prices(self) -> list[TokenPrice]:
@@ -56,6 +57,8 @@ class GenerativeModel(Node, ModelInterface):
 
     @strawberry.field
     async def cost_summary(self, info: Info[Context, None]) -> SpanCostSummary:
+        if self.cached_cost_summary is not None:
+            return self.cached_cost_summary
         loader = info.context.data_loaders.span_cost_summary_by_generative_model
         summary = await loader.load(self.id_attr)
         return SpanCostSummary(
@@ -98,7 +101,10 @@ class GenerativeModel(Node, ModelInterface):
         return await info.context.data_loaders.last_used_times_by_generative_model_id.load(model_id)
 
 
-def to_gql_generative_model(model: models.GenerativeModel) -> GenerativeModel:
+def to_gql_generative_model(
+    model: models.GenerativeModel,
+    cached_cost_summary: Optional[SpanCostSummary] = None,
+) -> GenerativeModel:
     costs_are_loaded = isinstance(inspect(model).attrs.token_prices.loaded_value, list)
     name_pattern = model.name_pattern.pattern
     assert isinstance(name_pattern, str)
@@ -115,6 +121,7 @@ def to_gql_generative_model(model: models.GenerativeModel) -> GenerativeModel:
         if model.provider
         else None,
         costs=model.token_prices if costs_are_loaded else None,
+        cached_cost_summary=cached_cost_summary,
     )
 
 
