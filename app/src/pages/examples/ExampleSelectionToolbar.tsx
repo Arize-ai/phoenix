@@ -1,4 +1,4 @@
-import { ReactNode, useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import {
@@ -43,7 +43,8 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
     (state) => state.refreshLatestVersion
   );
   const { selectedExamples, onExamplesDeleted, onClearSelection } = props;
-  const [dialog, setDialog] = useState<ReactNode>(null);
+  const [isDeleteConfirmationDialogOpen, setIsDeleteConfirmationDialogOpen] =
+    useState(false);
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
   const [deleteExamples, isDeletingExamples] = useMutation(graphql`
@@ -127,17 +128,17 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
             />
           }
           isDisabled={isDeletingExamples}
-          onPress={() => setDialog(true)}
+          onPress={() => setIsDeleteConfirmationDialogOpen(true)}
           aria-label="Delete Examples"
         >
           {isDeletingExamples ? "Deleting..." : "Delete"}
         </Button>
       </Toolbar>
       <ModalOverlay
-        isOpen={!!dialog}
+        isOpen={isDeleteConfirmationDialogOpen}
         onOpenChange={(isOpen) => {
           if (!isOpen) {
-            setDialog(null);
+            setIsDeleteConfirmationDialogOpen(false);
           }
         }}
         isDismissable
