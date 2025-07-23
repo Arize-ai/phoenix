@@ -48,7 +48,6 @@ class LLMBase:
             except Exception as e:
                 raise ValueError(
                     f"Failed to create client for provider '{provider}': {e}\n"
-                    f"{adapter_availability_table()}"
                 ) from e
         elif by_sdk:
             adapter_class_maybe = ADAPTER_REGISTRY.find_adapter(client)

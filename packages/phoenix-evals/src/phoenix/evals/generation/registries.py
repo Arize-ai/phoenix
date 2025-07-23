@@ -170,7 +170,7 @@ def adapter_availability_table() -> str:
             "provider": reg.provider,
             "adapter": reg.adapter_class.__name__,
             "dependencies": reg.dependencies,
-            "status": "✗ Disabled",
+            "status": "✗ Disabled ",
             "is_enabled": False,
         }
         all_providers.append(disabled_provider)
@@ -193,14 +193,16 @@ def _get_consolidated_provider_table(providers: List[ProviderInfo]) -> str:
     max_provider = max(len(p["provider"]) for p in providers)
     max_adapter = max(len(p["adapter"]) for p in providers)
     max_deps = max(len(", ".join(p["dependencies"])) for p in providers)
+    max_status = max(len(p["status"]) for p in providers)
 
     provider_width = max(max_provider, 8)
     adapter_width = max(max_adapter, 7)
     deps_width = max(max_deps, 12)
+    status_width = max(max_status, 6)
 
     header = (
-        f"{'Provider':<{provider_width}} | {'Status':<8} | {'Adapter':<{adapter_width}} | "
-        f"{'Dependencies':<{deps_width}}"
+        f"{'Provider':<{provider_width}} | {'Status':<{status_width}} | "
+        f"{'Adapter':<{adapter_width}} | {'Dependencies':<{deps_width}}"
     )
 
     output = [header, "-" * len(header)]
@@ -209,12 +211,12 @@ def _get_consolidated_provider_table(providers: List[ProviderInfo]) -> str:
         deps_str = ", ".join(p["dependencies"]) if p["dependencies"] else "None"
 
         if p["is_enabled"]:
-            status_colored = f"{Colors.GREEN}{p['status']}{Colors.RESET}"
+            status_colored = f"{Colors.GREEN}{p['status']:<{status_width}}{Colors.RESET}"
         else:
-            status_colored = f"{Colors.RED}{p['status']}{Colors.RESET}"
+            status_colored = f"{Colors.RED}{p['status']:<{status_width}}{Colors.RESET}"
 
         row = (
-            f"{p['provider']:<{provider_width}} | {status_colored:<16} | "
+            f"{p['provider']:<{provider_width}} | {status_colored} | "
             f"{p['adapter']:<{adapter_width}} | {deps_str:<{deps_width}}"
         )
         output.append(row)
