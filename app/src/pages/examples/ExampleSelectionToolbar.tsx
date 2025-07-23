@@ -5,7 +5,6 @@ import { css } from "@emotion/react";
 import {
   Button,
   Dialog,
-  DialogTrigger,
   Flex,
   Icon,
   Icons,
@@ -142,57 +141,56 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
           </Flex>
         </Flex>
       </View>
-      <DialogTrigger
+      <ModalOverlay
         isOpen={!!dialog}
         onOpenChange={(isOpen) => {
           if (!isOpen) {
             setDialog(null);
           }
         }}
+        isDismissable
       >
-        <ModalOverlay isDismissable>
-          <Modal>
-            <Dialog>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Delete Examples</DialogTitle>
-                  <DialogTitleExtra>
-                    <DialogCloseButton slot="close" />
-                  </DialogTitleExtra>
-                </DialogHeader>
-                <View padding="size-200">
-                  <Text color="danger">
-                    Are you sure you want to delete these examples?
-                  </Text>
-                </View>
-                <View
-                  paddingEnd="size-200"
-                  paddingTop="size-100"
-                  paddingBottom="size-100"
-                  borderTopColor="light"
-                  borderTopWidth="thin"
-                >
-                  <Flex direction="row" justifyContent="end" gap="size-100">
-                    <Button size="S" onPress={() => setDialog(null)}>
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="danger"
-                      size="S"
-                      onPress={() => {
-                        onDeleteExamples();
-                        setDialog(null);
-                      }}
-                    >
-                      Delete
-                    </Button>
-                  </Flex>
-                </View>
-              </DialogContent>
-            </Dialog>
-          </Modal>
-        </ModalOverlay>
-      </DialogTrigger>
+        <Modal>
+          <Dialog>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Delete Examples</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton />
+                </DialogTitleExtra>
+              </DialogHeader>
+              <View padding="size-200">
+                <Text color="danger">
+                  Are you sure you want to delete these examples?
+                </Text>
+              </View>
+              <View
+                paddingEnd="size-200"
+                paddingTop="size-100"
+                paddingBottom="size-100"
+                borderTopColor="light"
+                borderTopWidth="thin"
+              >
+                <Flex direction="row" justifyContent="end" gap="size-100">
+                  <Button size="S" onPress={() => setDialog(null)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="S"
+                    onPress={() => {
+                      onDeleteExamples();
+                      setDialog(null);
+                    }}
+                  >
+                    Delete
+                  </Button>
+                </Flex>
+              </View>
+            </DialogContent>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
     </div>
   );
 }
