@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b16e94253c3a1c0f5b0ef99e2687ae84>>
+ * @generated SignedSource<<28e8f97c9a6f2ea707988b7a9f029c37>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -230,16 +230,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "cb66d6854d48f78872a243b936a514e7",
+    "cacheID": "72eb0f60cae5139d787a911c29d7b600",
     "id": null,
     "metadata": {},
     "name": "TopModelsByTokenQuery",
     "operationKind": "query",
-    "text": "query TopModelsByTokenQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      topModelsByTokenCount(timeRange: $timeRange) {\n        name\n        costSummary(timeRange: $timeRange, projectId: $projectId) {\n          prompt {\n            tokens\n          }\n          completion {\n            tokens\n          }\n          total {\n            tokens\n          }\n        }\n        id\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query TopModelsByTokenQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      topModelsByTokenCount(timeRange: $timeRange) {\n        name\n        costSummary(projectId: $projectId, timeRange: $timeRange) {\n          prompt {\n            tokens\n          }\n          completion {\n            tokens\n          }\n          total {\n            tokens\n          }\n        }\n        id\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d30c86916eeb1eb5fdecfbfec77bd7fc";
+(node as any).hash = "68024c3ccb1477417cea20a939d0d378";
 
 export default node;
