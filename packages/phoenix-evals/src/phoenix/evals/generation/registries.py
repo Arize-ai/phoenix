@@ -194,34 +194,6 @@ def print_available_adapters() -> None:
     else:
         print("\n📦 PROVIDERS: None")
 
-    # SDK Adapters section
-    sdk_adapters: List[AdapterInfo] = []
-    for adapter_reg in ADAPTER_REGISTRY._adapters:
-        sdk_adapters.append(
-            {
-                "name": adapter_reg.name,
-                "adapter": adapter_reg.adapter_class.__name__,
-                "description": _get_adapter_description(adapter_reg.name),
-            }
-        )
-
-    if sdk_adapters:
-        print("\n🔧 SDK ADAPTERS (For Wrapping Existing Clients)")
-        print("-" * 60)
-        _print_sdk_adapter_table(sdk_adapters)
-
-    print("\n" + "=" * 80)
-    print("USAGE EXAMPLES:")
-    print("=" * 80)
-    print("# Using a provider (Phoenix creates the client):")
-    print("llm = LLM(provider='openai', model='gpt-4')")
-    print()
-    print("# Using an existing SDK client:")
-    print("import openai")
-    print("client = openai.OpenAI()")
-    print("llm = LLM(client=client)")
-    print("=" * 80 + "\n")
-
 
 def _print_consolidated_provider_table(providers: List[ProviderInfo]) -> None:
     """Print a consolidated table of all providers with color-coded status."""
@@ -259,45 +231,6 @@ def _print_consolidated_provider_table(providers: List[ProviderInfo]) -> None:
             f"{p['provider']:<{provider_width}} | {status_colored:<16} | "
             f"{p['adapter']:<{adapter_width}} | {deps_str:<{deps_width}}"
         )
-
-
-def _print_sdk_adapter_table(adapters: List[AdapterInfo]) -> None:
-    """Print a formatted table of SDK adapters."""
-    if not adapters:
-        return
-
-    # Calculate column widths
-    max_name = max(len(a["name"]) for a in adapters)
-    max_adapter = max(len(a["adapter"]) for a in adapters)
-    max_desc = max(len(a["description"]) for a in adapters)
-
-    name_width = max(max_name, 4)
-    adapter_width = max(max_adapter, 7)
-    desc_width = max(max_desc, 11)
-
-    # Header
-    header = (
-        f"{'Name':<{name_width}} | {'Adapter':<{adapter_width}} | {'Description':<{desc_width}}"
-    )
-    print(header)
-    print("-" * len(header))
-
-    # Rows
-    for a in adapters:
-        print(
-            f"{a['name']:<{name_width}} | {a['adapter']:<{adapter_width}} | "
-            f"{a['description']:<{desc_width}}"
-        )
-
-
-def _get_adapter_description(adapter_name: str) -> str:
-    """Get a description for the adapter based on its name."""
-    descriptions = {
-        "openai": "Wraps OpenAI SDK clients (openai.OpenAI, openai.AsyncOpenAI)",
-        "langchain": "Wraps LangChain model instances with invoke/predict methods",
-        "litellm": "Wraps LiteLLM clients for multi-provider support",
-    }
-    return descriptions.get(adapter_name, f"Wraps {adapter_name} SDK clients")
 
 
 def register_adapter(
