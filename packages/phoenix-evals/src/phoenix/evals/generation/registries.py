@@ -197,6 +197,20 @@ def _calculate_table_width(providers: List[ProviderInfo]) -> int:
     return provider_width + status_width + client_width + deps_width + 9  # 9 for " | " separators
 
 
+def _color_dependencies(dependencies: List[str]) -> str:
+    """Color-code dependencies based on their availability."""
+    colored_deps: List[str] = []
+
+    for dep in dependencies:
+        try:
+            __import__(dep)
+            colored_deps.append(f"{Colors.GREEN}{dep}{Colors.RESET}")
+        except ImportError:
+            colored_deps.append(f"{Colors.RED}{dep}{Colors.RESET}")
+
+    return ", ".join(colored_deps)
+
+
 def _get_consolidated_provider_table(providers: List[ProviderInfo]) -> str:
     """Return a consolidated table of all providers with color-coded status."""
     if not providers:
@@ -221,7 +235,7 @@ def _get_consolidated_provider_table(providers: List[ProviderInfo]) -> str:
     output = [header, "-" * total_width]
 
     for p in providers:
-        deps_str = ", ".join(p["dependencies"]) if p["dependencies"] else "None"
+        deps_colored = _color_dependencies(p["dependencies"]) if p["dependencies"] else "None"
 
         if p["is_enabled"]:
             status_colored = f"{Colors.GREEN}{p['status']:<{status_width}}{Colors.RESET}"
@@ -230,7 +244,7 @@ def _get_consolidated_provider_table(providers: List[ProviderInfo]) -> str:
 
         row = (
             f"{p['provider']:<{provider_width}} | {status_colored} | "
-            f"{p['client']:<{client_width}} | {deps_str:<{deps_width}}"
+            f"{p['client']:<{client_width}} | {deps_colored:<{deps_width}}"
         )
         output.append(row)
 

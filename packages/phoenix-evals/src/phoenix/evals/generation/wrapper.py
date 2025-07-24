@@ -37,32 +37,28 @@ class LLMBase:
             )
 
         if by_provider:
-            try:
-                if provider is None:
-                    raise ValueError("Provider must be specified for provider-based initialization")
+            if provider is None:
+                raise ValueError("Provider must be specified for provider-based initialization")
 
-                provider_registrations = PROVIDER_REGISTRY.get_provider_registrations(provider)
-                if not provider_registrations:
-                    raise ValueError(
-                        f"Unknown provider '{provider}'. {adapter_availability_table()}"
-                    )
+            provider_registrations = PROVIDER_REGISTRY.get_provider_registrations(provider)
+            if not provider_registrations:
+                raise ValueError(f"Unknown provider '{provider}'. {adapter_availability_table()}")
 
-                if client is not None:
-                    for r in provider_registrations:
-                        if r.client_name == client:
-                            registration = r
-                            break
-                    else:
-                        raise ValueError(
-                            f"Unknown client '{client}'. {adapter_availability_table()}"
-                        )
+            if client is not None:
+                for r in provider_registrations:
+                    if r.client_name == client:
+                        registration = r
+                        break
                 else:
-                    registration = provider_registrations[0]
+                    raise ValueError(f"Unknown client '{client}'. {adapter_availability_table()}")
+            else:
+                registration = provider_registrations[0]
+
+            try:
                 client = registration.client_factory(model=model, is_async=self._is_async)
                 adapter_class = registration.adapter_class
-
             except Exception as e:
-                raise ValueError(f"Failed to create client for provider '{provider}': {e}\n") from e
+                raise ValueError(f"Failed to create client for provider '{provider}': {e}") from e
         # elif by_sdk:
         #     adapter_class_maybe = ADAPTER_REGISTRY.find_adapter(client)
         #     if adapter_class_maybe is None:
