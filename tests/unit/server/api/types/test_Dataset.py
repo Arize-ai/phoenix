@@ -651,6 +651,7 @@ async def test_experiments_filter_by_name(
         },
     )
     assert not response.errors
+    assert response.data is not None
     # Should find test-experiment-one and test-experiment-two
     assert len(response.data["node"]["experiments"]["edges"]) == 2
     names = [edge["node"]["name"] for edge in response.data["node"]["experiments"]["edges"]]
