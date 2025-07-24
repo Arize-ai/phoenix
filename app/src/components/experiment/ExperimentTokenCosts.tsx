@@ -10,7 +10,7 @@ import {
 } from "@phoenix/components";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 
-import { ExperimentTokenCostDetails } from "./ExperimentTokenCostDetails";
+import { ExperimentTokenCostsDetails } from "./ExperimentTokenCostsDetails";
 
 type ExperimentTokenCostsProps = {
   /**
@@ -41,7 +41,7 @@ export function ExperimentTokenCosts(props: ExperimentTokenCostsProps) {
       <RichTooltip>
         <TooltipArrow />
         <Suspense fallback={<Loading />}>
-          <ExperimentTokenCostDetails experimentId={props.experimentId} />
+          <ExperimentTokenCostsDetails experimentId={props.experimentId} />
         </Suspense>
       </RichTooltip>
     </TooltipTrigger>

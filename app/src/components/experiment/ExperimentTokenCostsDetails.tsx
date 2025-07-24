@@ -3,16 +3,16 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { TokenCostsDetails } from "@phoenix/components/trace/TokenCostsDetails";
 
-import type { ExperimentTokenCostDetailsQuery } from "./__generated__/ExperimentTokenCostDetailsQuery.graphql";
+import type { ExperimentTokenCostsDetailsQuery } from "./__generated__/ExperimentTokenCostsDetailsQuery.graphql";
 
-export function ExperimentTokenCostDetails({
+export function ExperimentTokenCostsDetails({
   experimentId,
 }: {
   experimentId: string;
 }) {
-  const data = useLazyLoadQuery<ExperimentTokenCostDetailsQuery>(
+  const data = useLazyLoadQuery<ExperimentTokenCostsDetailsQuery>(
     graphql`
-      query ExperimentTokenCostDetailsQuery($experimentId: ID!) {
+      query ExperimentTokenCostsDetailsQuery($experimentId: ID!) {
         experiment: node(id: $experimentId) {
           __typename
           ... on Experiment {

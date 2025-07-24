@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6ce1f66026ce0a02a72681f56b1d3702>>
+ * @generated SignedSource<<0d3e202c443d201ff53e7c2dc178ef51>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,10 +9,10 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type ExperimentTokenCostDetailsQuery$variables = {
+export type ExperimentTokenCostsDetailsQuery$variables = {
   experimentId: string;
 };
-export type ExperimentTokenCostDetailsQuery$data = {
+export type ExperimentTokenCostsDetailsQuery$data = {
   readonly experiment: {
     readonly __typename: "Experiment";
     readonly costDetailSummaryEntries: ReadonlyArray<{
@@ -40,9 +40,9 @@ export type ExperimentTokenCostDetailsQuery$data = {
     readonly __typename: "%other";
   };
 };
-export type ExperimentTokenCostDetailsQuery = {
-  response: ExperimentTokenCostDetailsQuery$data;
-  variables: ExperimentTokenCostDetailsQuery$variables;
+export type ExperimentTokenCostsDetailsQuery = {
+  response: ExperimentTokenCostsDetailsQuery$data;
+  variables: ExperimentTokenCostsDetailsQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -174,7 +174,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "ExperimentTokenCostDetailsQuery",
+    "name": "ExperimentTokenCostsDetailsQuery",
     "selections": [
       {
         "alias": "experiment",
@@ -197,7 +197,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "ExperimentTokenCostDetailsQuery",
+    "name": "ExperimentTokenCostsDetailsQuery",
     "selections": [
       {
         "alias": "experiment",
@@ -222,16 +222,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "4403f3fff0ebf350744ef3984d51e732",
+    "cacheID": "3b4a585ebf1e46fed5f48bb8d74eec68",
     "id": null,
     "metadata": {},
-    "name": "ExperimentTokenCostDetailsQuery",
+    "name": "ExperimentTokenCostsDetailsQuery",
     "operationKind": "query",
-    "text": "query ExperimentTokenCostDetailsQuery(\n  $experimentId: ID!\n) {\n  experiment: node(id: $experimentId) {\n    __typename\n    ... on Experiment {\n      costSummary {\n        total {\n          cost\n        }\n        prompt {\n          cost\n        }\n        completion {\n          cost\n        }\n      }\n      costDetailSummaryEntries {\n        tokenType\n        isPrompt\n        value {\n          cost\n          tokens\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ExperimentTokenCostsDetailsQuery(\n  $experimentId: ID!\n) {\n  experiment: node(id: $experimentId) {\n    __typename\n    ... on Experiment {\n      costSummary {\n        total {\n          cost\n        }\n        prompt {\n          cost\n        }\n        completion {\n          cost\n        }\n      }\n      costDetailSummaryEntries {\n        tokenType\n        isPrompt\n        value {\n          cost\n          tokens\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "134cd7c1cbcc4ca44513391bcd23c21b";
+(node as any).hash = "2101043bf625b3499039a269191c9269";
 
 export default node;
