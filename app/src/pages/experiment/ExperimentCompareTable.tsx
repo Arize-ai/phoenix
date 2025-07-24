@@ -876,23 +876,23 @@ function ExperimentMetadata(props: { experiment: Experiment }) {
 
 function ExperimentRunMetadata(props: ExperimentRun) {
   const { id, startTime, endTime, costSummary } = props;
-  const totalTokens = costSummary?.total?.tokens;
-  const totalCost = costSummary?.total?.cost;
+  const tokenCountTotal = costSummary.total.tokens;
+  const costTotal = costSummary.total.cost;
   return (
     <Flex direction="row" gap="size-100">
       <RunLatency startTime={startTime} endTime={endTime} />
-      {totalTokens != null && id ? (
+      {tokenCountTotal != null && id ? (
         <ExperimentRunTokenCount
-          tokenCountTotal={totalTokens}
+          tokenCountTotal={tokenCountTotal}
           experimentRunId={id}
           size="S"
         />
       ) : (
-        <TokenCount size="S">{totalTokens}</TokenCount>
+        <TokenCount size="S">{tokenCountTotal}</TokenCount>
       )}
-      {totalCost != null && id ? (
+      {costTotal != null && id ? (
         <ExperimentRunTokenCosts
-          totalCost={totalCost}
+          costTotal={costTotal}
           experimentRunId={id}
           size="S"
         />
