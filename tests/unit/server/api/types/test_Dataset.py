@@ -702,6 +702,7 @@ async def test_experiments_filter_by_description(
         },
     )
     assert not response.errors
+    assert response.data is not None
     assert len(response.data["node"]["experiments"]["edges"]) == 1
     assert (
         response.data["node"]["experiments"]["edges"][0]["node"]["name"] == "production-experiment"
@@ -735,6 +736,7 @@ async def test_experiments_without_filter(
         variables={"datasetId": str(GlobalID("Dataset", str(1)))},
     )
     assert not response.errors
+    assert response.data is not None
     # experiments_for_filtering fixture creates 4 experiments for dataset 1
     assert len(response.data["node"]["experiments"]["edges"]) == 4
 
