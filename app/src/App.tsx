@@ -3,6 +3,7 @@ import { RelayEnvironmentProvider } from "react-relay";
 
 import { Provider } from "@arizeai/components";
 
+import { StorageAlert } from "./components/StorageAlert";
 import { CredentialsProvider } from "./contexts/CredentialsContext";
 import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext";
 import { FunctionalityProvider } from "./contexts/FunctionalityContext";
@@ -31,6 +32,7 @@ export function AppContent() {
     <Provider theme={componentsTheme} mountGlobalStyles={false}>
       <RelayEnvironmentProvider environment={RelayEnvironment}>
         <GlobalStyles />
+        <StorageAlert />
         <FeatureFlagsProvider>
           <PreferencesProvider>
             <CredentialsProvider>

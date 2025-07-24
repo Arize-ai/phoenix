@@ -79,6 +79,7 @@ from phoenix.server.api.types.Prompt import Prompt, to_gql_prompt_from_orm
 from phoenix.server.api.types.PromptLabel import PromptLabel, to_gql_prompt_label
 from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version
 from phoenix.server.api.types.PromptVersionTag import PromptVersionTag, to_gql_prompt_version_tag
+from phoenix.server.api.types.ServerStatus import ServerStatus
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_annotation
@@ -1015,6 +1016,15 @@ class Query:
             DbTableStats(table_name=table_name, num_bytes=num_bytes)
             for table_name, num_bytes in stats
         ]
+
+    @strawberry.field
+    async def server_status(
+        self,
+        info: Info[Context, None],
+    ) -> ServerStatus:
+        return ServerStatus(
+            insufficient_storage=info.context.db.should_not_insert_or_update,
+        )
 
     @strawberry.field
     def validate_regular_expression(self, regex: str) -> ValidationResult:
