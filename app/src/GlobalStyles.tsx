@@ -1105,12 +1105,13 @@ const appGlobalStylesCSS = css`
     font-weight: 400;
     font-style: normal;
   }
-  body,
-  .ac-theme // We scope it to the theme so we can mount two at the same time (e.x. storybook)
-  {
-    background-color: var(--ac-global-color-grey-75);
+  .ac-theme {
     color: var(--ac-global-text-color-900);
     font-size: var(--ac-global-font-size-s);
+  }
+  body {
+    background-color: var(--ac-global-color-grey-75);
+
     margin: 0;
     overflow: hidden;
     #root,

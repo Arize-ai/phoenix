@@ -269,7 +269,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
         }}
         isDismissable
       >
-        <Modal size="M">{dialog}</Modal>
+        <Modal size="S">{dialog}</Modal>
       </ModalOverlay>
     </table>
   );
