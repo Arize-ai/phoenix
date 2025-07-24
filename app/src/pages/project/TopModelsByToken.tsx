@@ -6,11 +6,16 @@ import {
   CartesianGrid,
   Legend,
   ResponsiveContainer,
+  Tooltip,
+  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";
 
+import { Text } from "@phoenix/components";
 import {
+  ChartTooltip,
+  ChartTooltipItem,
   defaultCartesianGridProps,
   defaultLegendProps,
   defaultXAxisProps,
@@ -19,6 +24,44 @@ import {
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/components/datetime";
 import type { TopModelsByTokenQuery } from "@phoenix/pages/project/__generated__/TopModelsByTokenQuery.graphql";
+import { intFormatter } from "@phoenix/utils/numberFormatUtils";
+
+function TooltipContent({
+  active,
+  payload,
+  label,
+}: TooltipContentProps<number, string>) {
+  const colors = useCategoryChartColors();
+
+  if (active && payload && payload.length) {
+    const promptTokens = payload[0]?.value ?? null;
+    const completionTokens = payload[1]?.value ?? null;
+
+    return (
+      <ChartTooltip>
+        {label && (
+          <Text weight="heavy" size="S">
+            {label}
+          </Text>
+        )}
+        <ChartTooltipItem
+          color={colors.category1}
+          shape="circle"
+          name="Prompt tokens"
+          value={intFormatter(promptTokens)}
+        />
+        <ChartTooltipItem
+          color={colors.category2}
+          shape="circle"
+          name="Completion tokens"
+          value={intFormatter(completionTokens)}
+        />
+      </ChartTooltip>
+    );
+  }
+
+  return null;
+}
 
 export function TopModelsByToken({ projectId }: { projectId: string }) {
   const { timeRange } = useTimeRange();
@@ -80,6 +123,11 @@ export function TopModelsByToken({ projectId }: { projectId: string }) {
         barSize={6}
       >
         <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
+        <Tooltip
+          content={TooltipContent}
+          // TODO formalize this
+          cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+        />
         <XAxis {...defaultXAxisProps} type="number" tickLine={false} />
         <YAxis
           {...defaultYAxisProps}
