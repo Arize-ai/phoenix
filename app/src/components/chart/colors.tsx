@@ -154,10 +154,10 @@ const lightSequentialChartColors: SequentialChartColors = Object.freeze({
 });
 
 /**
- * The list of colors that are available for use in the charting components.
- * This is a list of the keys of the chartColors object.
+ * The list of sequential colors that are available for use in the charting components.
+ * This is a list of the keys of the darkSequentialChartColors object.
  */
-export const CHART_COLORS = Object.keys(
+export const SEQUENTIAL_CHART_COLORS = Object.keys(
   darkSequentialChartColors
 ) as (keyof SequentialChartColors)[];
 
@@ -192,7 +192,7 @@ export const useSequentialChartColors = (): SequentialChartColors => {
  * @param colors - the colors to use, typically the result of useSequentialChartColors()
  * @returns a color from the chart colors based on the incoming index
  */
-export const getChartColor = (index: number, colors: ChartColors) => {
+export const getChartColor = (index: number, colors: SequentialChartColors) => {
   const colorGroups = [
     ["blue", 5],
     ["orange", 5],
@@ -206,7 +206,7 @@ export const getChartColor = (index: number, colors: ChartColors) => {
   const [group, maxShades] = colorGroups[groupIndex];
   // reduce in shades by 100 for each group, each iteration
   const shade = 500 - 100 * (shadeIndex % maxShades);
-  const colorKey = `${group}${shade}` as keyof ChartColors;
+  const colorKey = `${group}${shade}` as keyof SequentialChartColors;
   return colors[colorKey] || colors.default;
 };
 

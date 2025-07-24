@@ -1,4 +1,3 @@
-import { ChartColors } from "@phoenix/components/chart";
 import { ColorValue } from "@phoenix/components/types";
 
 export const GLOBAL_COLORS: ColorValue[] = [

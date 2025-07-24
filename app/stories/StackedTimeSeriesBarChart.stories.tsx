@@ -13,14 +13,15 @@ import {
 
 import { Text } from "@phoenix/components";
 import {
-  CHART_COLORS,
-  ChartColors,
+  SEQUENTIAL_CHART_COLORS,
   ChartTooltip,
   ChartTooltipItem,
   defaultBarChartTooltipProps,
   defaultCartesianGridProps,
+  defaultLegendProps,
   defaultXAxisProps,
   defaultYAxisProps,
+  SequentialChartColors,
   useSequentialChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
@@ -193,8 +194,8 @@ interface StackedBarChartProps {
     error: number;
   }>;
   height?: number | string;
-  firstColor?: keyof ChartColors;
-  secondColor?: keyof ChartColors;
+  firstColor?: keyof SequentialChartColors;
+  secondColor?: keyof SequentialChartColors;
 }
 
 function StackedBarChart({
@@ -214,6 +215,7 @@ function StackedBarChart({
   });
 
   const colors = useSequentialChartColors();
+  alert(JSON.stringify(colors));
 
   return (
     <div style={{ width: "100%", height }}>
@@ -252,7 +254,12 @@ function StackedBarChart({
             radius={[2, 2, 0, 0]}
           />
 
-          <Legend align="left" iconType="circle" iconSize={8} />
+          <Legend
+            align="left"
+            iconType="circle"
+            iconSize={8}
+            {...defaultLegendProps}
+          />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -272,11 +279,11 @@ const meta: Meta<typeof StackedBarChart> = {
     },
     firstColor: {
       control: { type: "select" },
-      options: CHART_COLORS,
+      options: SEQUENTIAL_CHART_COLORS,
     },
     secondColor: {
       control: { type: "select" },
-      options: CHART_COLORS,
+      options: SEQUENTIAL_CHART_COLORS,
     },
   },
 };
