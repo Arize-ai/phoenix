@@ -296,7 +296,7 @@ class AsyncExecutor(Executor):
         generation_fn: Callable[[Any], Coroutine[Any, Any, Any]],
         concurrency: int = 3,
         tqdm_bar_format: Optional[str] = None,
-        max_retries: int = 4,
+        max_retries: int = 7,
         exit_on_error: bool = True,
         fallback_return_value: Union[Unset, Any] = _unset,
         termination_signal: signal.Signals = signal.SIGINT,
@@ -444,90 +444,85 @@ class AsyncExecutor(Executor):
             # functions.
             # ──────────────────────────────────────────────────────────
             try:
-                print(f"🚨🚨🚨 JASON'S UPDATED CODE IS RUNNING - TASK {index} 🚨🚨🚨")
-                print(f"🔧 TIMEOUT DEBUG: Starting timeout calculation for task {index}")
+                # Debug prints removed for conciseness
                 gen_self = getattr(self.generate, "__self__", None)
-                print(f"🔧 TIMEOUT DEBUG: gen_self = {gen_self}")
                 
                 # Enhanced introspection: if gen_self is None, try to find Phoenix models
                 # in the function's closure or global scope
                 if gen_self is None:
-                    print(f" TIMEOUT DEBUG: gen_self is None, searching for Phoenix models...")
+                    # verbose debug removed
                     
                     # Check if it's a closure with captured Phoenix models
                     if hasattr(self.generate, '__closure__') and self.generate.__closure__:
-                        print(f"🔧 TIMEOUT DEBUG: Found closure with {len(self.generate.__closure__)} cells")
+                        # verbose debug removed
                         for i, cell in enumerate(self.generate.__closure__):
                             try:
                                 cell_value = cell.cell_contents
-                                print(f"🔧 TIMEOUT DEBUG: Closure cell {i}: {type(cell_value)} = {cell_value}")
+                                # verbose debug removed
                                 if hasattr(cell_value, '_rate_limiter'):
-                                    print(f"🔧 TIMEOUT DEBUG: Found Phoenix model in closure: {cell_value}")
+                                    # verbose debug removed
                                     gen_self = cell_value
                                     break
                             except ValueError:
-                                print(f"🔧 TIMEOUT DEBUG: Closure cell {i}: <empty>")
+                                pass  # silent when cell is empty
                     
                     # Check global scope for common Phoenix model variable names
                     if gen_self is None and hasattr(self.generate, '__globals__'):
-                        print(f"🔧 TIMEOUT DEBUG: Searching globals for Phoenix models...")
+                        # verbose debug removed
                         globals_dict = self.generate.__globals__
                         for name, obj in globals_dict.items():
                             if hasattr(obj, '_rate_limiter') and hasattr(obj, '_throttler'):
-                                print(f"🔧 TIMEOUT DEBUG: Found Phoenix model in globals: {name} = {obj}")
+                                # verbose debug removed
                                 gen_self = obj
                                 break
                 
                 _rate_limiter = getattr(gen_self, "_rate_limiter", None)
-                print(f"🔧 TIMEOUT DEBUG: _rate_limiter = {_rate_limiter}")
                 _throttler = getattr(_rate_limiter, "_throttler", None)
-                print(f"🔧 TIMEOUT DEBUG: _throttler = {_throttler}")
                 if _throttler is not None and hasattr(_throttler, "async_wait_until_ready"):
-                    print(f"🔧 TIMEOUT DEBUG: Found valid throttler, awaiting token...")
+                    # verbose debug removed
                     await _throttler.async_wait_until_ready()
                 # derive an adaptive timeout: at least self.task_timeout, but
                 # if the token bucket rate drops below 1 rps, give tasks a
                 # bigger budget (~2× the inter-arrival time between tokens)
                 effective_timeout = self.task_timeout
-                print(f"🔧 TIMEOUT DEBUG: Base effective_timeout = {effective_timeout}s")
+                # verbose debug removed
                 if _throttler is not None:
-                    print(f"🔧 TIMEOUT DEBUG: Throttler found, calculating adaptive timeout...")
+                    # verbose debug removed
                     try:
                         rate = float(getattr(_throttler, "rate", 0.0)) or 0.001
-                        print(f"🔧 TIMEOUT DEBUG: Current rate = {rate:.6f} req/s")
+                        # verbose debug removed
                         # Number of tasks that may be contending for tokens:
                         active_workers = max(1, self.concurrency)
                         expected_wait = active_workers / rate  # seconds until last worker gets a token
                         
                         # AGGRESSIVE timeout scaling for severely rate-limited scenarios
-                        print(f"🔧 TIMEOUT DEBUG: Rate={rate:.6f}, Active workers={active_workers}, Expected wait={expected_wait:.2f}s")
+                        # verbose debug removed
                         if rate <= 0.05:
                             # Extremely slow rate: 5+ minutes timeout to handle worst case
                             effective_timeout = max(effective_timeout, 300)  # 300 seconds = 5 minutes
-                            print(f"🔧 TIMEOUT DEBUG: VERY SLOW RATE! Extended timeout to {effective_timeout}s")
+                            # verbose debug removed
                         elif rate <= 0.1:
                             # Very slow rate: 3+ minutes timeout  
                             effective_timeout = max(effective_timeout, 180)  # 180 seconds = 3 minutes
-                            print(f"🔧 TIMEOUT DEBUG: SLOW RATE! Extended timeout to {effective_timeout}s")
+                            # verbose debug removed
                         elif rate <= 0.5:
                             # Slow rate: larger multiplier for expected wait
                             effective_timeout = max(effective_timeout, int(expected_wait * 2.0))
-                            print(f"🔧 TIMEOUT DEBUG: MODERATE RATE! Extended timeout to {effective_timeout}s")
+                            # verbose debug removed
                         else:
                             # Moderate rate: standard head-room
                             effective_timeout = max(effective_timeout, int(expected_wait * 1.3))
-                            print(f"🔧 TIMEOUT DEBUG: NORMAL RATE! Timeout = {effective_timeout}s")
+                            # verbose debug removed
                     except Exception:
                         # Best-effort; fallback to base timeout on any error
-                        print(f"🔧 TIMEOUT DEBUG: Exception in timeout calculation, using base timeout")
+                        # verbose debug removed
                         pass
                 else:
-                    print(f"🔧 TIMEOUT DEBUG: No throttler found, using base timeout = {effective_timeout}s")
+                    # verbose debug removed
                     effective_timeout = self.task_timeout
-                print(f"🔧 TIMEOUT DEBUG: FINAL effective_timeout = {effective_timeout}s for task {index}")
+                # verbose debug removed
             except Exception:
-                print(f"🔧 TIMEOUT DEBUG: Exception in pre-wait logic, using base timeout")
-                # Best-effort only – never block execution if inspection fails
+                # silent fall-back on inspection error
                 pass
 
             try:
@@ -906,7 +901,7 @@ class SyncExecutor(Executor):
         self,
         generation_fn: Callable[[Any], Any],
         tqdm_bar_format: Optional[str] = None,
-        max_retries: int = 4,
+        max_retries: int = 7,
         exit_on_error: bool = True,
         fallback_return_value: Union[Unset, Any] = _unset,
         termination_signal: Optional[signal.Signals] = signal.SIGINT,
@@ -996,7 +991,7 @@ def get_executor_on_sync_context(
     run_sync: bool = False,
     concurrency: int = 3,
     tqdm_bar_format: Optional[str] = None,
-    max_retries: int = 4,
+    max_retries: int = 7,
     exit_on_error: bool = True,
     fallback_return_value: Union[Unset, Any] = _unset,
     task_timeout: int = 20,
