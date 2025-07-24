@@ -619,16 +619,16 @@ async def experiments_for_filtering(db: DbSessionFactory) -> None:
         )
 
 
-async def test_experiments_filter_by_name(
+async def test_experiments_filter_by_search_term(
     gql_client: AsyncGraphQLClient,
     experiments_for_filtering: Any,
 ) -> None:
-    """Test that experiments can be filtered by name using partial matching."""
+    """Test that experiments can be filtered by search term across name and description."""
     query = """
-      query ($datasetId: ID!, $filter: ExperimentFilter) {
+      query ($datasetId: ID!, $filterCondition: String) {
         node(id: $datasetId) {
           ... on Dataset {
-            experiments(filter: $filter) {
+            experiments(filterCondition: $filterCondition) {
               edges {
                 node {
                   id
@@ -647,13 +647,13 @@ async def test_experiments_filter_by_name(
         query=query,
         variables={
             "datasetId": str(GlobalID("Dataset", str(1))),
-            "filter": {"col": "name", "value": "test-experiment"},
+            "filterCondition": "test-experiment",
         },
     )
     assert not response.errors
     assert response.data is not None
     data = response.data
-    # Should find test-experiment-one and test-experiment-two
+    # Should find test-experiment-one and test-experiment-two (matches name)
     assert len(data["node"]["experiments"]["edges"]) == 2
     names = [edge["node"]["name"] for edge in data["node"]["experiments"]["edges"]]
     assert "test-experiment-one" in names
@@ -664,23 +664,23 @@ async def test_experiments_filter_by_name(
         query=query,
         variables={
             "datasetId": str(GlobalID("Dataset", str(1))),
-            "filter": {"col": "name", "value": "nonexistent"},
+            "filterCondition": "nonexistent",
         },
     )
     assert not response.errors
     assert response.data == {"node": {"experiments": {"edges": []}}}
 
 
-async def test_experiments_filter_by_description(
+async def test_experiments_filter_by_description_search(
     gql_client: AsyncGraphQLClient,
     experiments_for_filtering: Any,
 ) -> None:
-    """Test that experiments can be filtered by description using partial matching."""
+    """Test that experiments can be found by searching their description."""
     query = """
-      query ($datasetId: ID!, $filter: ExperimentFilter) {
+      query ($datasetId: ID!, $filterCondition: String) {
         node(id: $datasetId) {
           ... on Dataset {
-            experiments(filter: $filter) {
+            experiments(filterCondition: $filterCondition) {
               edges {
                 node {
                   id
@@ -699,7 +699,7 @@ async def test_experiments_filter_by_description(
         query=query,
         variables={
             "datasetId": str(GlobalID("Dataset", str(1))),
-            "filter": {"col": "description", "value": "production ready"},
+            "filterCondition": "production ready",
         },
     )
     assert not response.errors
@@ -707,6 +707,20 @@ async def test_experiments_filter_by_description(
     data = response.data
     assert len(data["node"]["experiments"]["edges"]) == 1
     assert data["node"]["experiments"]["edges"][0]["node"]["name"] == "production-experiment"
+
+    # Test searching for "demo" which appears in both name and description
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "datasetId": str(GlobalID("Dataset", str(1))),
+            "filterCondition": "demo",
+        },
+    )
+    assert not response.errors
+    assert response.data is not None
+    data = response.data
+    assert len(data["node"]["experiments"]["edges"]) == 1
+    assert data["node"]["experiments"]["edges"][0]["node"]["name"] == "demo-experiment"
 
 
 async def test_experiments_without_filter(

@@ -545,7 +545,7 @@ type Dataset implements Node {
   Number of experiments for a specific version if version is specified, or for all versions if version is not specified.
   """
   experimentCount(datasetVersionId: ID): Int!
-  experiments(first: Int = 50, last: Int, after: String, before: String, filter: ExperimentFilter): ExperimentConnection!
+  experiments(first: Int = 50, last: Int, after: String, before: String, filterCondition: String): ExperimentConnection!
   experimentAnnotationSummaries: [ExperimentAnnotationSummary!]!
   lastUpdatedAt: DateTime
 }
@@ -1138,17 +1138,6 @@ type ExperimentEdge {
 
   """The item at the end of the edge"""
   node: Experiment!
-}
-
-"""The filter key and value for experiment connections"""
-input ExperimentFilter {
-  col: ExperimentFilterColumn!
-  value: String!
-}
-
-enum ExperimentFilterColumn {
-  name
-  description
 }
 
 type ExperimentMutationPayload {
