@@ -130,7 +130,7 @@ export function TopModelsByCost({ projectId }: { projectId: string }) {
           {...defaultXAxisProps}
           type="number"
           tickLine={false}
-          tickFormatter={(value) => `$${value}`}
+          tickFormatter={costFormatter}
         />
         <YAxis
           {...defaultYAxisProps}
