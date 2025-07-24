@@ -856,13 +856,11 @@ function ExperimentMetadata(props: { experiment: Experiment }) {
       {averageRunLatencyMs != null && (
         <LatencyText size="S" latencyMs={averageRunLatencyMs} />
       )}
-      {totalTokens != null && (
-        <ExperimentTokenCount
-          tokenCountTotal={totalTokens}
-          experimentId={experiment.id}
-          size="S"
-        />
-      )}
+      <ExperimentTokenCount
+        tokenCountTotal={totalTokens}
+        experimentId={experiment.id}
+        size="S"
+      />
     </Flex>
   );
 }
