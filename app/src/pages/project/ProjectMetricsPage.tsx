@@ -163,7 +163,7 @@ export function ProjectMetricsPage() {
           <ToolSpanErrorsTimeSeries projectId={projectId} />
         </MetricPanel>
       </Flex>
-      <Flex direction="row" gap="size-100">
+      <Flex direction="row" gap="size-200">
         <MetricPanel title="Top models by cost">
           <TopModelsByCost projectId={projectId} />
         </MetricPanel>

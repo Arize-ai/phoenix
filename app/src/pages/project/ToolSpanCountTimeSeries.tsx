@@ -16,6 +16,7 @@ import {
   ChartTooltip,
   ChartTooltipItem,
   defaultCartesianGridProps,
+  defaultLegendProps,
   defaultXAxisProps,
   defaultYAxisProps,
   useChartColors,
@@ -184,7 +185,7 @@ export function ToolSpanCountTimeSeries({ projectId }: { projectId: string }) {
           fill={colors.default}
           radius={[2, 2, 0, 0]}
         />
-        <Legend align="left" iconType="circle" iconSize={8} />
+        <Legend {...defaultLegendProps} iconType="circle" iconSize={8} />
       </BarChart>
     </ResponsiveContainer>
   );
