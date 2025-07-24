@@ -13,10 +13,6 @@ const breadcrumbCSS = css`
   display: flex;
   align-items: center;
 
-  .ac-icon-wrap {
-    padding: 0 var(--ac-global-dimension-size-50);
-  }
-
   a {
     color: var(--ac-global-text-color-700);
     text-decoration: none;

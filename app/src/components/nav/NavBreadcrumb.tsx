@@ -25,7 +25,7 @@ export function NavBreadcrumb() {
   const matchesWithCrumb = matches.filter(isRouteMatchWithCrumb);
 
   return (
-    <Breadcrumbs>
+    <Breadcrumbs size="L">
       {matchesWithCrumb.map((match, index) => {
         return (
           <Breadcrumb key={index}>

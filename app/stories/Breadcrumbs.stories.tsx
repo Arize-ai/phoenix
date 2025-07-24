@@ -9,14 +9,26 @@ const meta: Meta<typeof Breadcrumbs> = {
     layout: "centered",
   },
   tags: ["autodocs"],
+  argTypes: {
+    size: {
+      control: "select",
+      options: ["S", "M", "L"],
+      description: "The size of the breadcrumb text and separator spacing",
+      defaultValue: "M",
+    },
+  },
 };
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
-  render: () => (
+  args: {
+    size: "M",
+  },
+  render: (args) => (
     <Breadcrumbs
+      {...args}
       onAction={() => {
         /* Handle breadcrumb click */
       }}
@@ -30,8 +42,11 @@ export const Default: Story = {
 };
 
 export const WithoutAction: Story = {
-  render: () => (
-    <Breadcrumbs>
+  args: {
+    size: "M",
+  },
+  render: (args) => (
+    <Breadcrumbs {...args}>
       <Breadcrumb>Home</Breadcrumb>
       <Breadcrumb>Dashboard</Breadcrumb>
       <Breadcrumb>Current Page</Breadcrumb>
@@ -40,8 +55,11 @@ export const WithoutAction: Story = {
 };
 
 export const SingleItem: Story = {
-  render: () => (
-    <Breadcrumbs>
+  args: {
+    size: "M",
+  },
+  render: (args) => (
+    <Breadcrumbs {...args}>
       <Breadcrumb>Home</Breadcrumb>
     </Breadcrumbs>
   ),
