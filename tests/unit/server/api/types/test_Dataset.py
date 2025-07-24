@@ -706,9 +706,7 @@ async def test_experiments_filter_by_description(
     assert response.data is not None
     data = response.data
     assert len(data["node"]["experiments"]["edges"]) == 1
-    assert (
-        data["node"]["experiments"]["edges"][0]["node"]["name"] == "production-experiment"
-    )
+    assert data["node"]["experiments"]["edges"][0]["node"]["name"] == "production-experiment"
 
 
 async def test_experiments_without_filter(
