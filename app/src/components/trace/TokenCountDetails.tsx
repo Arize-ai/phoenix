@@ -90,6 +90,10 @@ export interface TokenCountDetailsProps {
    * Additional completion token details as key-value pairs
    */
   completionDetails?: Record<string, number | null | undefined>;
+  /**
+   * The label for the count details. Defaults to "Total".
+   */
+  label?: "Total" | "Average";
 }
 
 export function TokenCountDetails({
@@ -98,6 +102,7 @@ export function TokenCountDetails({
   completion,
   promptDetails,
   completionDetails,
+  label = "Total",
 }: TokenCountDetailsProps) {
   const hasPromptDetails =
     promptDetails &&
@@ -114,7 +119,7 @@ export function TokenCountDetails({
     <div css={tokenCountDetailsCSS}>
       {/* Main three rows */}
       {total != null && (
-        <TokenCountRow label="Total" count={total} isTotal={true} />
+        <TokenCountRow label={label} count={total} isTotal={true} />
       )}
 
       {prompt != null && <TokenCountRow label="Prompt" count={prompt} />}

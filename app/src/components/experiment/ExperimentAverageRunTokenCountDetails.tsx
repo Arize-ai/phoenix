@@ -55,5 +55,5 @@ export function ExperimentAverageRunTokenCountDetails({
     };
   }, [data.experiment]);
 
-  return <TokenCountDetails {...tokenData} />;
+  return <TokenCountDetails {...tokenData} label="Average" />;
 }
