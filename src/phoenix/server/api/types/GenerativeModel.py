@@ -6,14 +6,19 @@ import strawberry
 from openinference.semconv.trace import OpenInferenceLLMProviderValues
 from sqlalchemy import inspect
 from strawberry.relay import Node, NodeID
+from strawberry.relay.types import GlobalID
 from strawberry.types import Info
-from typing_extensions import assert_never
+from strawberry.types.unset import UNSET
+from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.ModelInterface import ModelInterface
+from phoenix.server.api.types.node import from_global_id
 from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.TokenPrice import TokenKind, TokenPrice
@@ -23,6 +28,11 @@ from phoenix.server.api.types.TokenPrice import TokenKind, TokenPrice
 class GenerativeModelKind(Enum):
     CUSTOM = "CUSTOM"
     BUILT_IN = "BUILT_IN"
+
+
+ProjectId: TypeAlias = int
+TimeRangeKey: TypeAlias = tuple[Optional[datetime], Optional[datetime]]
+CachedCostSummaryKey: TypeAlias = tuple[Optional[ProjectId], TimeRangeKey]
 
 
 @strawberry.type
@@ -37,6 +47,18 @@ class GenerativeModel(Node, ModelInterface):
     provider_key: Optional[GenerativeProviderKey]
     costs: strawberry.Private[Optional[list[models.TokenPrice]]] = None
     start_time: Optional[datetime] = None
+    cached_cost_summary: strawberry.Private[
+        Optional[dict[CachedCostSummaryKey, SpanCostSummary]]
+    ] = None
+
+    def add_cached_cost_summary(
+        self, project_id: Optional[int], time_range: TimeRange, cost_summary: SpanCostSummary
+    ) -> None:
+        if self.cached_cost_summary is None:
+            self.cached_cost_summary = {}
+        time_range_key = (time_range.start, time_range.end) if time_range else (None, None)
+        cache_key = (project_id, time_range_key)
+        self.cached_cost_summary[cache_key] = cost_summary
 
     @strawberry.field
     async def token_prices(self) -> list[TokenPrice]:
@@ -55,7 +77,28 @@ class GenerativeModel(Node, ModelInterface):
         return token_prices
 
     @strawberry.field
-    async def cost_summary(self, info: Info[Context, None]) -> SpanCostSummary:
+    async def cost_summary(
+        self,
+        info: Info[Context, None],
+        project_id: Optional[GlobalID] = UNSET,
+        time_range: Optional[TimeRange] = UNSET,
+    ) -> SpanCostSummary:
+        if self.cached_cost_summary is not None:
+            time_range_key = (time_range.start, time_range.end) if time_range else (None, None)
+            project_rowid: Optional[int] = None
+            if project_id:
+                type_name, project_rowid = from_global_id(project_id)
+                if type_name != models.Project.__name__:
+                    raise BadRequest("Invalid Project ID")
+            cache_key = (project_rowid, time_range_key)
+            if cache_key in self.cached_cost_summary:
+                return self.cached_cost_summary[cache_key]
+
+        if time_range or project_id:
+            raise BadRequest(
+                "Cost summaries for specific projects or time ranges are not yet implemented"
+            )
+
         loader = info.context.data_loaders.span_cost_summary_by_generative_model
         summary = await loader.load(self.id_attr)
         return SpanCostSummary(
@@ -98,7 +141,9 @@ class GenerativeModel(Node, ModelInterface):
         return await info.context.data_loaders.last_used_times_by_generative_model_id.load(model_id)
 
 
-def to_gql_generative_model(model: models.GenerativeModel) -> GenerativeModel:
+def to_gql_generative_model(
+    model: models.GenerativeModel,
+) -> GenerativeModel:
     costs_are_loaded = isinstance(inspect(model).attrs.token_prices.loaded_value, list)
     name_pattern = model.name_pattern.pattern
     assert isinstance(name_pattern, str)

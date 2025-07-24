@@ -1273,7 +1273,7 @@ type GenerativeModel implements Node & ModelInterface {
   updatedAt: DateTime!
   startTime: DateTime
   tokenPrices: [TokenPrice!]!
-  costSummary: SpanCostSummary!
+  costSummary(projectId: ID, timeRange: TimeRange): SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
   lastUsedAt: DateTime
 }
@@ -1730,6 +1730,8 @@ type Project implements Node {
   traceTokenCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceTokenCountTimeSeries!
   traceTokenCostTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceTokenCostTimeSeries!
   spanAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): SpanAnnotationScoreTimeSeries!
+  topModelsByCost(timeRange: TimeRange!): [GenerativeModel!]!
+  topModelsByTokenCount(timeRange: TimeRange!): [GenerativeModel!]!
 }
 
 enum ProjectColumn {
