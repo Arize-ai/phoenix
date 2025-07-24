@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<df9dabc57fb99cfbca148c26fcdac282>>
+ * @generated SignedSource<<4820f0d7545d60823e289ce9ad84921a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -65,13 +65,13 @@ export type ExperimentCompareTable_comparisons$data = {
     readonly experiments?: {
       readonly edges: ReadonlyArray<{
         readonly experiment: {
-          readonly averageRunLatencyMs: number | null;
-          readonly costSummary: {
+          readonly averageRunCostSummary: {
             readonly total: {
               readonly cost: number | null;
               readonly tokens: number | null;
             };
           };
+          readonly averageRunLatencyMs: number | null;
           readonly id: string;
           readonly metadata: any;
           readonly name: string;
@@ -566,7 +566,7 @@ return {
                           "args": null,
                           "concreteType": "SpanCostSummary",
                           "kind": "LinkedField",
-                          "name": "costSummary",
+                          "name": "averageRunCostSummary",
                           "plural": false,
                           "selections": [
                             {
@@ -614,6 +614,6 @@ return {
 };
 })();
 
-(node as any).hash = "da2d2216d13b2a8a046d0b805c6bd31d";
+(node as any).hash = "814be05ca1744f2f04d8551f4ff91426";
 
 export default node;

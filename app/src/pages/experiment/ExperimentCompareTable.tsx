@@ -59,11 +59,12 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
 import {
+  ExperimentAverageRunTokenCosts,
   ExperimentRunTokenCosts,
   ExperimentRunTokenCount,
-  ExperimentTokenCount,
 } from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
+import { ExperimentAverageRunTokenCount } from "@phoenix/components/experiment/ExperimentAverageRunTokenCount";
 import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { CellTop, CompactJSONCell } from "@phoenix/components/table";
@@ -247,7 +248,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                     project {
                       id
                     }
-                    costSummary {
+                    averageRunCostSummary {
                       total {
                         cost
                         tokens
@@ -849,18 +850,26 @@ function ExperimentRowActionMenu(props: {
 function ExperimentMetadata(props: { experiment: Experiment }) {
   const { experiment } = props;
   const averageRunLatencyMs = experiment.averageRunLatencyMs;
-  const costSummary = experiment.costSummary;
-  const totalTokens = costSummary?.total?.tokens;
+  const averageRunCostTotal = experiment.averageRunCostSummary.total.cost;
+  const averageRunTokenCountTotal =
+    experiment.averageRunCostSummary.total.tokens;
   return (
     <Flex direction="row" gap="size-100">
       {averageRunLatencyMs != null && (
         <LatencyText size="S" latencyMs={averageRunLatencyMs} />
       )}
-      <ExperimentTokenCount
-        tokenCountTotal={totalTokens}
+      <ExperimentAverageRunTokenCount
+        averageRunTokenCountTotal={averageRunTokenCountTotal}
         experimentId={experiment.id}
         size="S"
       />
+      {averageRunCostTotal != null && (
+        <ExperimentAverageRunTokenCosts
+          averageRunCostTotal={averageRunCostTotal}
+          experimentId={experiment.id}
+          size="S"
+        />
+      )}
     </Flex>
   );
 }
