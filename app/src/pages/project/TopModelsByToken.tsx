@@ -128,7 +128,12 @@ export function TopModelsByToken({ projectId }: { projectId: string }) {
           // TODO formalize this
           cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
         />
-        <XAxis {...defaultXAxisProps} type="number" tickLine={false} />
+        <XAxis
+          {...defaultXAxisProps}
+          type="number"
+          tickLine={false}
+          tickFormatter={intFormatter}
+        />
         <YAxis
           {...defaultYAxisProps}
           dataKey="model"
