@@ -17,7 +17,6 @@ import {
   ChartTooltipItem,
   useBinTimeTickFormatter,
   useSequentialChartColors,
-  useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import {
   defaultCartesianGridProps,
