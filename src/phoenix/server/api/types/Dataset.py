@@ -231,7 +231,7 @@ class Dataset(Node):
             .where(models.Experiment.dataset_id == dataset_id)
             .order_by(models.Experiment.id.desc())
         )
-        if filter_condition:
+        if filter_condition is not UNSET and filter_condition:
             # Search both name and description columns with case-insensitive partial matching
             search_filter = or_(
                 models.Experiment.name.ilike(f"%{filter_condition}%"),
