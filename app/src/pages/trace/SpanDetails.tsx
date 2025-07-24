@@ -387,7 +387,14 @@ export function SpanDetails({
             </LazyTabPanel>
 
             <LazyTabPanel id="events">
-              <SpanEventsList events={span.events} />
+              <View
+                padding="size-200"
+                height="100%"
+                maxHeight="100%"
+                overflow="auto"
+              >
+                <SpanEventsList events={span.events} />
+              </View>
             </LazyTabPanel>
           </Tabs>
         </Flex>
