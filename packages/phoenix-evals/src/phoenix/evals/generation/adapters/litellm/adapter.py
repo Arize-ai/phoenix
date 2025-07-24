@@ -13,7 +13,6 @@ from ...types import BaseLLMAdapter
 from .client import LiteLLMClient
 from .factories import (
     create_anthropic_client,
-    create_litellm_client,
     create_openai_client,
 )
 
@@ -21,19 +20,24 @@ logger = logging.getLogger(__name__)
 
 
 @register_provider(
-    provider="anthropic", client_factory=create_anthropic_client, dependencies=["litellm"]
+    provider="anthropic",
+    client_factory=create_anthropic_client,
+    dependencies=["litellm"],
 )
-@register_provider(provider="openai", client_factory=create_openai_client, dependencies=["litellm"])
 @register_provider(
-    provider="litellm", client_factory=create_litellm_client, dependencies=["litellm"]
+    provider="openai",
+    client_factory=create_openai_client,
+    dependencies=["litellm"],
 )
 class LiteLLMAdapter(BaseLLMAdapter):
-    """Adapter for LiteLLM function-based interface."""
-
     def __init__(self, client: LiteLLMClient):
         self.client = client
         self._validate_client()
         self._import_litellm()
+
+    @classmethod
+    def client_name(cls) -> str:
+        return "litellm"
 
     def _validate_client(self) -> None:
         """Validate that the client is a LiteLLMClient."""

@@ -39,12 +39,14 @@ def identify_openai_client(client: Any) -> bool:
     dependencies=["openai"],
 )
 class OpenAIAdapter(BaseLLMAdapter):
-    """Adapter for OpenAI SDK."""
-
     def __init__(self, client: Any):
         self.client = client
         self._validate_client()
         self._is_async = self._check_if_async_client()
+
+    @classmethod
+    def client_name(cls) -> str:
+        return "openai"
 
     def _validate_client(self) -> None:
         actual_client = getattr(self.client, "client", self.client)

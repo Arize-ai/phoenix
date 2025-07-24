@@ -43,6 +43,10 @@ class LangChainModelAdapter(BaseLLMAdapter):
         self.client = client
         self._validate_client()
 
+    @classmethod
+    def client_name(cls) -> str:
+        return "langchain"
+
     def _validate_client(self) -> None:
         if not (hasattr(self.client, "invoke") or hasattr(self.client, "predict")):
             raise ValueError(

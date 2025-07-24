@@ -23,6 +23,12 @@ class BaseLLMAdapter(ABC):
         """Initialize the adapter with a client."""
         self.client = client
 
+    @classmethod
+    @abstractmethod
+    def client_name(cls) -> str:
+        """Return the name of the client."""
+        pass
+
     @abstractmethod
     def generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
         """Generate text response from the model."""
@@ -83,5 +89,6 @@ class AdapterRegistration:
 class ProviderRegistration:
     provider: str
     adapter_class: Type["BaseLLMAdapter"]
+    client_name: str
     client_factory: Callable[..., Any]
     dependencies: List[str]

@@ -16,16 +16,10 @@ class Colors:
 
 class ProviderInfo(TypedDict):
     provider: str
-    adapter: str
+    client: str
     dependencies: List[str]
     status: str
     is_enabled: bool
-
-
-class AdapterInfo(TypedDict):
-    name: str
-    adapter: str
-    description: str
 
 
 class SingletonMeta(type):
@@ -95,6 +89,7 @@ class ProviderRegistry(metaclass=SingletonMeta):
             adapter_class=adapter_class,
             client_factory=client_factory,
             dependencies=dependencies or [],
+            client_name=adapter_class.client_name(),
         )
 
         try:
@@ -149,17 +144,14 @@ PROVIDER_REGISTRY = ProviderRegistry()
 
 def adapter_availability_table() -> str:
     """Return a consolidated table of LLM providers and adapters with color-coded status."""
-    output = ["\n" + "=" * 80]
-    output.append("PHOENIX LLM WRAPPER - PROVIDERS & ADAPTERS")
-    output.append("=" * 80)
-
     all_providers: List[ProviderInfo] = []
+    output: List[str] = []
 
     for provider_name, registrations in PROVIDER_REGISTRY._providers.items():
         for reg in registrations:
             enabled_provider: ProviderInfo = {
                 "provider": provider_name,
-                "adapter": reg.adapter_class.__name__,
+                "client": reg.client_name,
                 "dependencies": reg.dependencies,
                 "status": "✓ Available",
                 "is_enabled": True,
@@ -169,7 +161,7 @@ def adapter_availability_table() -> str:
     for reg in PROVIDER_REGISTRY._disabled_providers:
         disabled_provider: ProviderInfo = {
             "provider": reg.provider,
-            "adapter": reg.adapter_class.__name__,
+            "client": reg.client_name,
             "dependencies": reg.dependencies,
             "status": "✗ Disabled ",
             "is_enabled": False,
@@ -177,13 +169,32 @@ def adapter_availability_table() -> str:
         all_providers.append(disabled_provider)
 
     if all_providers:
-        output.append("\n📦 PROVIDERS")
-        output.append("-" * 60)
+        table_width = _calculate_table_width(all_providers)
+        output.append("\n📦 AVAILABLE PROVIDERS")
+        output.append("-" * table_width)
         output.append(_get_consolidated_provider_table(all_providers))
     else:
         output.append("\n📦 PROVIDERS: None")
 
     return "\n".join(output)
+
+
+def _calculate_table_width(providers: List[ProviderInfo]) -> int:
+    """Calculate the total visual width of the provider table."""
+    if not providers:
+        return 0
+
+    max_provider = max(len(p["provider"]) for p in providers)
+    max_client = max(len(p["client"]) for p in providers)
+    max_deps = max(len(", ".join(p["dependencies"])) for p in providers)
+    max_status = max(len(p["status"]) for p in providers)
+
+    provider_width = max(max_provider, 8)
+    client_width = max(max_client, 7)
+    deps_width = max(max_deps, 12)
+    status_width = max(max_status, 6)
+
+    return provider_width + status_width + client_width + deps_width + 9  # 9 for " | " separators
 
 
 def _get_consolidated_provider_table(providers: List[ProviderInfo]) -> str:
@@ -192,21 +203,22 @@ def _get_consolidated_provider_table(providers: List[ProviderInfo]) -> str:
         return ""
 
     max_provider = max(len(p["provider"]) for p in providers)
-    max_adapter = max(len(p["adapter"]) for p in providers)
+    max_client = max(len(p["client"]) for p in providers)
     max_deps = max(len(", ".join(p["dependencies"])) for p in providers)
     max_status = max(len(p["status"]) for p in providers)
 
     provider_width = max(max_provider, 8)
-    adapter_width = max(max_adapter, 7)
+    client_width = max(max_client, 7)
     deps_width = max(max_deps, 12)
     status_width = max(max_status, 6)
 
     header = (
         f"{'Provider':<{provider_width}} | {'Status':<{status_width}} | "
-        f"{'Adapter':<{adapter_width}} | {'Dependencies':<{deps_width}}"
+        f"{'Client':<{client_width}} | {'Dependencies':<{deps_width}}"
     )
 
-    output = [header, "-" * len(header)]
+    total_width = _calculate_table_width(providers)
+    output = [header, "-" * total_width]
 
     for p in providers:
         deps_str = ", ".join(p["dependencies"]) if p["dependencies"] else "None"
@@ -218,7 +230,7 @@ def _get_consolidated_provider_table(providers: List[ProviderInfo]) -> str:
 
         row = (
             f"{p['provider']:<{provider_width}} | {status_colored} | "
-            f"{p['adapter']:<{adapter_width}} | {deps_str:<{deps_width}}"
+            f"{p['client']:<{client_width}} | {deps_str:<{deps_width}}"
         )
         output.append(row)
 
@@ -277,7 +289,12 @@ def register_provider(
     """
 
     def decorator(adapter_class: Type["BaseLLMAdapter"]) -> Type["BaseLLMAdapter"]:
-        PROVIDER_REGISTRY.register_provider(provider, adapter_class, client_factory, dependencies)
+        PROVIDER_REGISTRY.register_provider(
+            provider=provider,
+            adapter_class=adapter_class,
+            client_factory=client_factory,
+            dependencies=dependencies,
+        )
         return adapter_class
 
     return decorator
