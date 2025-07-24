@@ -10,8 +10,9 @@ import { Logo } from "./Logo";
 
 const topNavCSS = css`
   padding: var(--ac-global-dimension-static-size-100)
+    var(--ac-global-dimension-static-size-200)
     var(--ac-global-dimension-static-size-100)
-    var(--ac-global-dimension-static-size-100) 12px;
+    var(--ac-global-dimension-static-size-200);
   border-bottom: 1px solid var(--ac-global-color-grey-200);
   flex: none;
   display: flex;
