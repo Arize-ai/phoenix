@@ -16,6 +16,7 @@ import {
   ChartTooltip,
   ChartTooltipItem,
   defaultLegendProps,
+  useBinTimeTickFormatter,
   useSemanticChartColors,
   useSequentialChartColors,
   useTimeTickFormatter,
@@ -120,18 +121,7 @@ export function TraceTokenCostTimeSeries({ projectId }: { projectId: string }) {
     })
   );
 
-  const timeTickFormatter = useTimeTickFormatter({
-    samplingIntervalMinutes: (() => {
-      switch (scale) {
-        case "MINUTE":
-          return 1;
-        case "HOUR":
-          return 60;
-        default:
-          return 60 * 24;
-      }
-    })(),
-  });
+  const timeTickFormatter = useBinTimeTickFormatter({ scale });
 
   const colors = useSequentialChartColors();
   const SemanticChartColors = useSemanticChartColors();
