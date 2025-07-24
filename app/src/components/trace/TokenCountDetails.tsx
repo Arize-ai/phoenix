@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 
 import { Text } from "@phoenix/components";
+import { formatNumber } from "@phoenix/utils/numberFormatUtils";
 
 const tokenCountDetailsCSS = css`
   display: flex;
@@ -41,7 +42,7 @@ function TokenCountRow({
   isTotal = false,
   isSubItem = false,
 }: TokenCountRowProps) {
-  const displayCount = typeof count === "number" ? count : "--";
+  const displayCount = typeof count === "number" ? formatNumber(count) : "--";
 
   return (
     <div css={tokenCountRowCSS}>
