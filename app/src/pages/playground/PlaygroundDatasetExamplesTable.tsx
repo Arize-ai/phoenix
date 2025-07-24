@@ -469,16 +469,10 @@ export function PlaygroundDatasetExamplesTable({
   );
 
   const [dialog, setDialog] = useState<ReactNode>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [, setSearchParams] = useSearchParams();
   const hasSomeRunIds = instances.some(
     (instance) => instance.activeRunId !== null
   );
-
-  // Sync dialog state with modal open state
-  useEffect(() => {
-    setIsDialogOpen(dialog !== null);
-  }, [dialog]);
 
   const credentials = useCredentialsContext((state) => state);
   const markPlaygroundInstanceComplete = usePlaygroundContext(
@@ -1000,10 +994,9 @@ export function PlaygroundDatasetExamplesTable({
         )}
       </table>
       <ModalOverlay
-        isOpen={isDialogOpen}
+        isOpen={dialog !== null}
         onOpenChange={(isOpen) => {
           if (!isOpen) {
-            setIsDialogOpen(false);
             setDialog(null);
             setSearchParams((searchParams) => {
               searchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
