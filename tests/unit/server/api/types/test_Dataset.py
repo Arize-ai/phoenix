@@ -550,7 +550,8 @@ class TestDatasetExperimentsResolver:
 @pytest.fixture
 async def experiments_for_filtering(db: DbSessionFactory) -> None:
     """
-    Creates a dataset with a few experiments with specific names and descriptions for filtering tests.
+    Creates a dataset with a few experiments with specific names and descriptions for
+    filtering tests.
     """
     async with db() as session:
         # Insert dataset
@@ -579,40 +580,42 @@ async def experiments_for_filtering(db: DbSessionFactory) -> None:
         await session.scalars(
             insert(models.Experiment)
             .returning(models.Experiment.id)
-            .values([
-                {
-                    "dataset_id": dataset_id,
-                    "dataset_version_id": version_id,
-                    "name": "test-experiment-one",
-                    "description": "first test experiment description",
-                    "repetitions": 1,
-                    "metadata_": {"meta": "one"},
-                },
-                {
-                    "dataset_id": dataset_id,
-                    "dataset_version_id": version_id,
-                    "name": "test-experiment-two",
-                    "description": "second test experiment description",
-                    "repetitions": 1,
-                    "metadata_": {"meta": "two"},
-                },
-                {
-                    "dataset_id": dataset_id,
-                    "dataset_version_id": version_id,
-                    "name": "production-experiment",
-                    "description": "production ready experiment",
-                    "repetitions": 1,
-                    "metadata_": {"meta": "prod"},
-                },
-                {
-                    "dataset_id": dataset_id,
-                    "dataset_version_id": version_id,
-                    "name": "demo-experiment",
-                    "description": "demo experiment for testing",
-                    "repetitions": 1,
-                    "metadata_": {"meta": "demo"},
-                },
-            ])
+            .values(
+                [
+                    {
+                        "dataset_id": dataset_id,
+                        "dataset_version_id": version_id,
+                        "name": "test-experiment-one",
+                        "description": "first test experiment description",
+                        "repetitions": 1,
+                        "metadata_": {"meta": "one"},
+                    },
+                    {
+                        "dataset_id": dataset_id,
+                        "dataset_version_id": version_id,
+                        "name": "test-experiment-two",
+                        "description": "second test experiment description",
+                        "repetitions": 1,
+                        "metadata_": {"meta": "two"},
+                    },
+                    {
+                        "dataset_id": dataset_id,
+                        "dataset_version_id": version_id,
+                        "name": "production-experiment",
+                        "description": "production ready experiment",
+                        "repetitions": 1,
+                        "metadata_": {"meta": "prod"},
+                    },
+                    {
+                        "dataset_id": dataset_id,
+                        "dataset_version_id": version_id,
+                        "name": "demo-experiment",
+                        "description": "demo experiment for testing",
+                        "repetitions": 1,
+                        "metadata_": {"meta": "demo"},
+                    },
+                ]
+            )
         )
 
 
@@ -699,7 +702,9 @@ async def test_experiments_filter_by_description(
     )
     assert not response.errors
     assert len(response.data["node"]["experiments"]["edges"]) == 1
-    assert response.data["node"]["experiments"]["edges"][0]["node"]["name"] == "production-experiment"
+    assert (
+        response.data["node"]["experiments"]["edges"][0]["node"]["name"] == "production-experiment"
+    )
 
 
 async def test_experiments_without_filter(
