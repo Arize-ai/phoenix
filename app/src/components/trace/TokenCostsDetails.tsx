@@ -85,7 +85,7 @@ export interface TokenCostsDetailsProps {
   /**
    * The label for the cost details. Defaults to "Total".
    */
-  label?: "Total" | "Average";
+  label?: string;
 }
 
 export function TokenCostsDetails({
