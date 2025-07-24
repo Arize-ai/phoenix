@@ -1,5 +1,123 @@
+import sys
+import warnings
+from importlib.abc import Loader, MetaPathFinder
+from importlib.machinery import ModuleSpec
 from importlib.metadata import version
+from types import ModuleType
+from typing import Any, Dict, List, Optional, Set
 
+# Configuration for experimental modules
+EXPERIMENTAL_MODULES: Dict[str, Dict[str, Any]] = {
+    "phoenix.evals.llm": {
+        "warning_message": (
+            "\n\n⚠️  EXPERIMENTAL: The phoenix.evals.llm module and all its components "
+            "are experimental and subject to change without notice. This code should not be "
+            "used in production."
+        ),
+        "warn_on_access": True,
+        "warning_on_import": False,
+    },
+}
+
+# Track which experimental modules have shown warnings
+_experimental_warnings_shown: Set[str] = set()
+
+
+class ExperimentalModuleWrapper:
+    """Wrapper that intercepts attribute access to show experimental warnings."""
+
+    def __init__(self, real_module: Any, module_config: Dict[str, Any]):
+        self._real_module = real_module
+        self._module_config = module_config
+        self._module_name = real_module.__name__
+
+    def __getattr__(self, name: str) -> Any:
+        # Show warning on any access to experimental module contents
+        if (
+            self._module_config.get("warn_on_access", False)
+            and self._module_name not in _experimental_warnings_shown
+        ):
+            warnings.warn(
+                self._module_config["warning_message"],
+                UserWarning,
+                stacklevel=2,
+            )
+            _experimental_warnings_shown.add(self._module_name)
+
+        return getattr(self._real_module, name)
+
+    def __dir__(self) -> List[str]:
+        return dir(self._real_module)
+
+    def __repr__(self) -> str:
+        return repr(self._real_module)
+
+    def __getitem__(self, key: Any) -> Any:
+        return self._real_module[key]
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name.startswith("_"):
+            super().__setattr__(name, value)
+        else:
+            setattr(self._real_module, name, value)
+
+
+class ExperimentalModuleFinder(MetaPathFinder):
+    """MetaPathFinder that intercepts imports of experimental modules."""
+
+    def find_spec(self, fullname: str, path: Any, target: Any = None) -> Optional[ModuleSpec]:
+        if fullname in EXPERIMENTAL_MODULES:
+            # Find the real spec first by asking other finders
+            for finder in sys.meta_path:
+                if finder is self:
+                    continue
+                spec = finder.find_spec(fullname, path, target)
+                if spec is not None:
+                    # Replace the loader with our experimental wrapper
+                    original_loader = spec.loader
+                    spec.loader = ExperimentalModuleLoader(
+                        original_loader, EXPERIMENTAL_MODULES[fullname]
+                    )
+                    return spec
+        return None
+
+
+class ExperimentalModuleLoader(Loader):
+    """Loader that wraps experimental modules after loading them."""
+
+    def __init__(self, real_loader: Optional[Loader], module_config: Dict[str, Any]):
+        self.real_loader = real_loader
+        self.module_config = module_config
+
+    def create_module(self, spec: ModuleSpec) -> Optional[ModuleType]:
+        if self.real_loader is None:
+            return None
+        return self.real_loader.create_module(spec)
+
+    def exec_module(self, module: ModuleType) -> None:
+        if self.real_loader is None:
+            return
+
+        self.real_loader.exec_module(module)
+
+        if self.module_config.get("warn_on_access", False):
+            wrapper = ExperimentalModuleWrapper(module, self.module_config)
+            sys.modules[module.__name__] = wrapper  # type: ignore[assignment]
+
+            module_parts = module.__name__.split(".")
+            if len(module_parts) > 1:
+                parent_name = ".".join(module_parts[:-1])
+                module_attr_name = module_parts[-1]
+                if parent_name in sys.modules:
+                    parent_module = sys.modules[parent_name]
+                    if hasattr(parent_module, module_attr_name):
+                        setattr(parent_module, module_attr_name, wrapper)
+
+
+# Install the experimental module finder
+sys.meta_path.insert(0, ExperimentalModuleFinder())
+
+from . import llm  # noqa: F401
 from .classify import llm_classify, run_evals
 from .default_templates import (
     CODE_FUNCTIONALITY_PROMPT_RAILS_MAP,
@@ -61,6 +179,7 @@ __version__ = version("arize-phoenix-evals")
 __all__ = [
     "compute_precisions_at_k",
     "download_benchmark_dataset",
+    "llm",
     "llm_classify",
     "llm_generate",
     "OpenAIModel",
