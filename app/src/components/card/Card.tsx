@@ -1,17 +1,28 @@
 import { forwardRef, PropsWithChildren, Ref } from "react";
 import { css } from "@emotion/react";
 
+import { Card as OldCard } from "@arizeai/components";
+
 import { Heading } from "@phoenix/components";
 import { ViewStyleProps } from "@phoenix/components/types";
-import { useStyleProps } from "@phoenix/components/utils";
+import { useStyleProps, viewStyleProps } from "@phoenix/components/utils";
+
+type CardVariant = "default" | "compact";
 
 interface CardProps extends PropsWithChildren<ViewStyleProps> {
   title: string;
+  variant?: CardVariant;
+  bodyStyle?: ViewStyleProps;
+  useOldComponent?: boolean; // TODO: delete
 }
 
 const cardCSS = css`
   --scope-border-color: var(--ac-global-border-color-default);
   --card-header-height: 68px;
+
+  &[data-variant="compact"] {
+    --card-header-height: 46px;
+  }
 
   display: flex;
   flex-direction: column;
@@ -40,18 +51,43 @@ const cardBodyCSS = css`
 `;
 
 function Card(
-  { title, children, ...otherProps }: CardProps,
+  {
+    title,
+    children,
+    variant = "default",
+    useOldComponent = false,
+    bodyStyle = {},
+    ...otherProps
+  }: CardProps,
   ref: Ref<HTMLElement>
 ) {
-  const { styleProps } = useStyleProps(otherProps);
+  const { styleProps } = useStyleProps(otherProps, viewStyleProps);
+  const { styleProps: bodyStyleProps } = useStyleProps(
+    bodyStyle,
+    viewStyleProps
+  );
+  if (useOldComponent) {
+    return (
+      <OldCard title={title} {...styleProps}>
+        {children}
+      </OldCard>
+    );
+  }
   return (
-    <section {...styleProps} ref={ref} css={cardCSS}>
+    <section
+      ref={ref}
+      css={cardCSS}
+      data-variant={variant}
+      style={styleProps.style}
+    >
       <header css={cardHeaderCSS}>
         <Heading level={3} weight="heavy">
           {title}
         </Heading>
       </header>
-      <div css={cardBodyCSS}>{children}</div>
+      <div css={cardBodyCSS} style={bodyStyleProps.style}>
+        {children}
+      </div>
     </section>
   );
 }
