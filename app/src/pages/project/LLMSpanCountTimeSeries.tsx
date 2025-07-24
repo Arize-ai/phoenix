@@ -19,8 +19,8 @@ import {
   defaultLegendProps,
   defaultXAxisProps,
   defaultYAxisProps,
-  useSequentialChartColors,
   useSemanticChartColors,
+  useSequentialChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/components/datetime";
