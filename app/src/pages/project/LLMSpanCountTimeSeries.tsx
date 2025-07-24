@@ -19,6 +19,7 @@ import {
   defaultLegendProps,
   defaultXAxisProps,
   defaultYAxisProps,
+  useBinInterval,
   useBinTimeTickFormatter,
   useSemanticChartColors,
   useSequentialChartColors,
@@ -138,6 +139,7 @@ export function LLMSpanCountTimeSeries({ projectId }: { projectId: string }) {
 
   const colors = useSequentialChartColors();
   const SemanticChartColors = useSemanticChartColors();
+  const interval = useBinInterval({ scale });
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart
@@ -148,6 +150,7 @@ export function LLMSpanCountTimeSeries({ projectId }: { projectId: string }) {
         <XAxis
           {...defaultXAxisProps}
           dataKey="timestamp"
+          interval={interval}
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
         />
         <YAxis

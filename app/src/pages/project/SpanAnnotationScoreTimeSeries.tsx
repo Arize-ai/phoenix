@@ -15,6 +15,7 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
+  useBinInterval,
   useBinTimeTickFormatter,
   useSequentialChartColors,
 } from "@phoenix/components/chart";
@@ -140,7 +141,7 @@ export function SpanAnnotationScoreTimeSeries({
   });
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
-
+  const interval = useBinInterval({ scale });
   const colors = useSequentialChartColors();
   const colorMap = [
     colors.blue400,
@@ -160,6 +161,7 @@ export function SpanAnnotationScoreTimeSeries({
         <XAxis
           dataKey="timestamp"
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
+          interval={interval}
           {...defaultXAxisProps}
         />
         <YAxis
@@ -176,13 +178,11 @@ export function SpanAnnotationScoreTimeSeries({
           }}
           {...defaultYAxisProps}
         />
-
         <CartesianGrid vertical={false} {...defaultCartesianGridProps} />
         <Tooltip
           content={TooltipContent}
           cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
         />
-
         {annotationNames.map((name, index) => (
           <Line
             key={name}

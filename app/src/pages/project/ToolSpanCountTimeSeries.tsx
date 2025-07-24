@@ -19,6 +19,7 @@ import {
   defaultLegendProps,
   defaultXAxisProps,
   defaultYAxisProps,
+  useBinInterval,
   useBinTimeTickFormatter,
   useSemanticChartColors,
   useSequentialChartColors,
@@ -135,6 +136,7 @@ export function ToolSpanCountTimeSeries({ projectId }: { projectId: string }) {
   );
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
+  const interval = useBinInterval({ scale });
   const colors = useSequentialChartColors();
   const SemanticChartColors = useSemanticChartColors();
   return (
@@ -148,6 +150,7 @@ export function ToolSpanCountTimeSeries({ projectId }: { projectId: string }) {
           {...defaultXAxisProps}
           dataKey="timestamp"
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
+          interval={interval}
         />
         <YAxis
           {...defaultYAxisProps}

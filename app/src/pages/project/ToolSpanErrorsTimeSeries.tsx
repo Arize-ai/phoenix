@@ -19,6 +19,7 @@ import {
   defaultLegendProps,
   defaultXAxisProps,
   defaultYAxisProps,
+  useBinInterval,
   useBinTimeTickFormatter,
   useSemanticChartColors,
 } from "@phoenix/components/chart";
@@ -113,7 +114,7 @@ export function ToolSpanErrorsTimeSeries({ projectId }: { projectId: string }) {
   );
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
-
+  const interval = useBinInterval({ scale });
   const SemanticChartColors = useSemanticChartColors();
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -125,6 +126,7 @@ export function ToolSpanErrorsTimeSeries({ projectId }: { projectId: string }) {
         <XAxis
           {...defaultXAxisProps}
           dataKey="timestamp"
+          interval={interval}
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
         />
         <YAxis

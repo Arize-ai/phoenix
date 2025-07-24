@@ -15,6 +15,7 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
+  useBinInterval,
   useBinTimeTickFormatter,
   useSequentialChartColors,
 } from "@phoenix/components/chart";
@@ -134,6 +135,7 @@ export function TraceLatencyPercentilesTimeSeries({
   }));
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
+  const interval = useBinInterval({ scale });
 
   const colors = useSequentialChartColors();
 
@@ -146,6 +148,7 @@ export function TraceLatencyPercentilesTimeSeries({
         <CartesianGrid vertical={false} {...defaultCartesianGridProps} />
         <XAxis
           dataKey="timestamp"
+          interval={interval}
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
           {...defaultXAxisProps}
         />

@@ -19,6 +19,7 @@ import {
   defaultLegendProps,
   defaultXAxisProps,
   defaultYAxisProps,
+  useBinInterval,
   useBinTimeTickFormatter,
   useSemanticChartColors,
   useSequentialChartColors,
@@ -127,6 +128,7 @@ export function TraceTokenCostTimeSeries({ projectId }: { projectId: string }) {
   );
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
+  const interval = useBinInterval({ scale });
 
   const colors = useSequentialChartColors();
   const SemanticChartColors = useSemanticChartColors();
@@ -141,6 +143,7 @@ export function TraceTokenCostTimeSeries({ projectId }: { projectId: string }) {
         <XAxis
           {...defaultXAxisProps}
           dataKey="timestamp"
+          interval={interval}
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
         />
         <YAxis

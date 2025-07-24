@@ -22,6 +22,7 @@ import {
   useBinTimeTickFormatter,
   useSemanticChartColors,
 } from "@phoenix/components/chart";
+import { useBinInterval } from "@phoenix/components/chart/useBinInterval";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
@@ -114,6 +115,7 @@ export function TraceErrorsTimeSeries({ projectId }: { projectId: string }) {
   );
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
+  const interval = useBinInterval({ scale });
 
   const SemanticChartColors = useSemanticChartColors();
   return (
@@ -126,6 +128,7 @@ export function TraceErrorsTimeSeries({ projectId }: { projectId: string }) {
         <XAxis
           {...defaultXAxisProps}
           dataKey="timestamp"
+          interval={interval}
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
         />
         <YAxis

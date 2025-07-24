@@ -19,6 +19,7 @@ import {
   defaultLegendProps,
   defaultXAxisProps,
   defaultYAxisProps,
+  useBinInterval,
   useBinTimeTickFormatter,
   useSemanticChartColors,
 } from "@phoenix/components/chart";
@@ -65,6 +66,7 @@ function TooltipContent({
 export function LLMSpanErrorsTimeSeries({ projectId }: { projectId: string }) {
   const { timeRange } = useTimeRange();
   const scale = useTimeBinScale({ timeRange });
+  const interval = useBinInterval({ scale });
   const utcOffsetMinutes = useUTCOffsetMinutes();
 
   const data = useLazyLoadQuery<LLMSpanErrorsTimeSeriesQuery>(
@@ -125,6 +127,7 @@ export function LLMSpanErrorsTimeSeries({ projectId }: { projectId: string }) {
         <XAxis
           {...defaultXAxisProps}
           dataKey="timestamp"
+          interval={interval}
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
         />
         <YAxis

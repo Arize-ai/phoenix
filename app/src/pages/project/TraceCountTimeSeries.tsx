@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   Bar,
@@ -23,6 +24,7 @@ import {
   useSemanticChartColors,
   useSequentialChartColors,
 } from "@phoenix/components/chart";
+import { useBinInterval } from "@phoenix/components/chart/useBinInterval";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
@@ -111,15 +113,18 @@ export function TraceCountTimeSeries({ projectId }: { projectId: string }) {
     }
   );
 
-  const chartData = (data.project.traceCountByStatusTimeSeries?.data ?? []).map(
-    (datum) => ({
-      timestamp: datum.timestamp,
-      ok: datum.okCount,
-      error: datum.errorCount,
-    })
+  const chartData = useMemo(
+    () =>
+      (data.project.traceCountByStatusTimeSeries?.data ?? []).map((datum) => ({
+        timestamp: new Date(datum.timestamp),
+        ok: datum.okCount,
+        error: datum.errorCount,
+      })),
+    [data.project.traceCountByStatusTimeSeries?.data]
   );
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
+  const interval = useBinInterval({ scale });
 
   const colors = useSequentialChartColors();
   const SemanticChartColors = useSemanticChartColors();
@@ -133,6 +138,7 @@ export function TraceCountTimeSeries({ projectId }: { projectId: string }) {
         <XAxis
           {...defaultXAxisProps}
           dataKey="timestamp"
+          interval={interval}
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
         />
         <YAxis
