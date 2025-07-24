@@ -21,8 +21,8 @@ import {
   defaultXAxisProps,
   defaultYAxisProps,
   useBinTimeTickFormatter,
+  useCategoryChartColors,
   useSemanticChartColors,
-  useSequentialChartColors,
 } from "@phoenix/components/chart";
 import { useBinInterval } from "@phoenix/components/chart/useBinInterval";
 import { useTimeRange } from "@phoenix/components/datetime";
@@ -39,7 +39,7 @@ function TooltipContent({
   label,
 }: TooltipContentProps<number, string>) {
   const SemanticChartColors = useSemanticChartColors();
-  const chartColors = useSequentialChartColors();
+  const chartColors = useCategoryChartColors();
   if (active && payload && payload.length) {
     // For stacked bar charts, payload[0] is the first bar (error), payload[1] is the second bar (ok)
     const errorValue = payload[0]?.value ?? null;
@@ -60,7 +60,7 @@ function TooltipContent({
           value={errorString}
         />
         <ChartTooltipItem
-          color={chartColors.default}
+          color={chartColors.category1}
           shape="circle"
           name="ok"
           value={okString}
@@ -126,7 +126,7 @@ export function TraceCountTimeSeries({ projectId }: { projectId: string }) {
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
   const interval = useBinInterval({ scale });
 
-  const colors = useSequentialChartColors();
+  const colors = useCategoryChartColors();
   const SemanticChartColors = useSemanticChartColors();
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -165,7 +165,7 @@ export function TraceCountTimeSeries({ projectId }: { projectId: string }) {
         <Bar
           dataKey="ok"
           stackId="a"
-          fill={colors.default}
+          fill={colors.category1}
           radius={[2, 2, 0, 0]}
         />
 

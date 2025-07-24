@@ -13,7 +13,7 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
-import { useSequentialChartColors } from "@phoenix/components/chart/colors";
+import { useCategoryChartColors } from "@phoenix/components/chart/colors";
 import { RichTokenBreakdown } from "@phoenix/components/RichTokenCostBreakdown";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
@@ -81,7 +81,7 @@ export function ProjectPageHeader(props: {
   );
   const documentEvaluationNames = data?.documentEvaluationNames;
 
-  const { orange500, purple500 } = useSequentialChartColors();
+  const colors = useCategoryChartColors();
   return (
     <View
       paddingStart="size-200"
@@ -158,12 +158,12 @@ export function ProjectPageHeader(props: {
                         {
                           name: "Prompt",
                           value: data?.costSummary?.prompt?.cost ?? 0,
-                          color: orange500,
+                          color: colors.category1,
                         },
                         {
                           name: "Completion",
                           value: data?.costSummary?.completion?.cost ?? 0,
-                          color: purple500,
+                          color: colors.category2,
                         },
                       ]}
                     />

@@ -24,6 +24,7 @@ import {
   useSequentialChartColors,
 } from "@phoenix/components/chart";
 import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
+import { useTheme } from "@phoenix/contexts";
 import { getWordColor } from "@phoenix/utils/colorUtils";
 
 import type { ExperimentsLineChartQuery } from "./__generated__/ExperimentsLineChartQuery.graphql";
@@ -51,6 +52,7 @@ function TooltipContent({
   label,
 }: TooltipContentProps<number, string>) {
   const { grey300 } = useSequentialChartColors();
+  const { theme } = useTheme();
   // Use the same color logic as the chart lines
   if (active && payload && payload.length) {
     // Filter out avgLatency and show all other annotation scores
@@ -69,7 +71,7 @@ function TooltipContent({
         {annotationEntries.map((entry) => (
           <ChartTooltipItem
             key={String(entry.dataKey)}
-            color={getWordColor(String(entry.dataKey))}
+            color={getWordColor(String(entry.dataKey), theme)}
             shape="line"
             name={String(entry.dataKey)}
             value={
@@ -100,6 +102,7 @@ function TooltipContent({
 }
 
 export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
+  const { theme } = useTheme();
   const data = useLazyLoadQuery<ExperimentsLineChartQuery>(
     graphql`
       query ExperimentsLineChartQuery($id: ID!) {
@@ -152,10 +155,10 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
   const lineColors = useMemo(() => {
     const colorMap: Record<string, string> = {};
     for (const key of scoreKeys) {
-      colorMap[key] = getWordColor(key);
+      colorMap[key] = getWordColor(key, theme);
     }
     return colorMap;
-  }, [scoreKeys]);
+  }, [scoreKeys, theme]);
 
   // Memoize yDomain calculation
   const yDomain = useMemo(() => {
