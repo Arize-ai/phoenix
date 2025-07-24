@@ -71,7 +71,7 @@ function TooltipContent({
         {annotationEntries.map((entry) => (
           <ChartTooltipItem
             key={String(entry.dataKey)}
-            color={getWordColor(String(entry.dataKey), theme)}
+            color={getWordColor({ word: String(entry.dataKey), theme })}
             shape="line"
             name={String(entry.dataKey)}
             value={
@@ -155,7 +155,7 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
   const lineColors = useMemo(() => {
     const colorMap: Record<string, string> = {};
     for (const key of scoreKeys) {
-      colorMap[key] = getWordColor(key, theme);
+      colorMap[key] = getWordColor({ word: key, theme });
     }
     return colorMap;
   }, [scoreKeys, theme]);
