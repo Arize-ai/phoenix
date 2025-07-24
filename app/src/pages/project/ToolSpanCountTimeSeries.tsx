@@ -19,14 +19,18 @@ import {
   defaultLegendProps,
   defaultXAxisProps,
   defaultYAxisProps,
+  useBinInterval,
+  useBinTimeTickFormatter,
   useSemanticChartColors,
   useSequentialChartColors,
-  useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
-import { intFormatter } from "@phoenix/utils/numberFormatUtils";
+import {
+  intFormatter,
+  intShortFormatter,
+} from "@phoenix/utils/numberFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import type { ToolSpanCountTimeSeriesQuery } from "./__generated__/ToolSpanCountTimeSeriesQuery.graphql";
@@ -131,19 +135,8 @@ export function ToolSpanCountTimeSeries({ projectId }: { projectId: string }) {
     })
   );
 
-  const timeTickFormatter = useTimeTickFormatter({
-    samplingIntervalMinutes: (() => {
-      switch (scale) {
-        case "MINUTE":
-          return 1;
-        case "HOUR":
-          return 60;
-        default:
-          return 60 * 24;
-      }
-    })(),
-  });
-
+  const timeTickFormatter = useBinTimeTickFormatter({ scale });
+  const interval = useBinInterval({ scale });
   const colors = useSequentialChartColors();
   const SemanticChartColors = useSemanticChartColors();
   return (
@@ -157,14 +150,16 @@ export function ToolSpanCountTimeSeries({ projectId }: { projectId: string }) {
           {...defaultXAxisProps}
           dataKey="timestamp"
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
+          interval={interval}
         />
         <YAxis
           {...defaultYAxisProps}
-          width={50}
+          width={55}
+          tickFormatter={(x) => intShortFormatter(x)}
           label={{
             value: "Count",
             angle: -90,
-            dx: -10,
+            dx: -20,
             style: {
               textAnchor: "middle",
               fill: "var(--chart-axis-label-color)",

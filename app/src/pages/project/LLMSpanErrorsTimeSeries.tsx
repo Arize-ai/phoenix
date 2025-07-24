@@ -19,13 +19,17 @@ import {
   defaultLegendProps,
   defaultXAxisProps,
   defaultYAxisProps,
+  useBinInterval,
+  useBinTimeTickFormatter,
   useSemanticChartColors,
-  useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
-import { intFormatter } from "@phoenix/utils/numberFormatUtils";
+import {
+  intFormatter,
+  intShortFormatter,
+} from "@phoenix/utils/numberFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import type { LLMSpanErrorsTimeSeriesQuery } from "./__generated__/LLMSpanErrorsTimeSeriesQuery.graphql";
@@ -62,6 +66,7 @@ function TooltipContent({
 export function LLMSpanErrorsTimeSeries({ projectId }: { projectId: string }) {
   const { timeRange } = useTimeRange();
   const scale = useTimeBinScale({ timeRange });
+  const interval = useBinInterval({ scale });
   const utcOffsetMinutes = useUTCOffsetMinutes();
 
   const data = useLazyLoadQuery<LLMSpanErrorsTimeSeriesQuery>(
@@ -109,18 +114,7 @@ export function LLMSpanErrorsTimeSeries({ projectId }: { projectId: string }) {
     })
   );
 
-  const timeTickFormatter = useTimeTickFormatter({
-    samplingIntervalMinutes: (() => {
-      switch (scale) {
-        case "MINUTE":
-          return 1;
-        case "HOUR":
-          return 60;
-        default:
-          return 60 * 24;
-      }
-    })(),
-  });
+  const timeTickFormatter = useBinTimeTickFormatter({ scale });
 
   const SemanticChartColors = useSemanticChartColors();
   return (
@@ -133,15 +127,17 @@ export function LLMSpanErrorsTimeSeries({ projectId }: { projectId: string }) {
         <XAxis
           {...defaultXAxisProps}
           dataKey="timestamp"
+          interval={interval}
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
         />
         <YAxis
           {...defaultYAxisProps}
-          width={50}
+          width={55}
+          tickFormatter={(x) => intShortFormatter(x)}
           label={{
             value: "Count",
             angle: -90,
-            dx: -10,
+            dx: -20,
             style: {
               textAnchor: "middle",
               fill: "var(--chart-axis-label-color)",
