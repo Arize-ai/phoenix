@@ -16,7 +16,7 @@ export function ExperimentAverageRunTokenCostsDetails({
         experiment: node(id: $experimentId) {
           __typename
           ... on Experiment {
-            averageRunCostSummary {
+            costSummary {
               total {
                 cost
               }
@@ -27,7 +27,7 @@ export function ExperimentAverageRunTokenCostsDetails({
                 cost
               }
             }
-            averageRunCostDetailSummaryEntries {
+            costDetailSummaryEntries {
               tokenType
               isPrompt
               value {
@@ -35,6 +35,7 @@ export function ExperimentAverageRunTokenCostsDetails({
                 tokens
               }
             }
+            runCount
           }
         }
       }
@@ -44,7 +45,7 @@ export function ExperimentAverageRunTokenCostsDetails({
 
   const costData = useMemo(() => {
     if (data.experiment.__typename === "Experiment") {
-      const details = data.experiment.averageRunCostDetailSummaryEntries;
+      const details = data.experiment.costDetailSummaryEntries;
       if (!details) {
         return {
           total: null,
@@ -58,9 +59,18 @@ export function ExperimentAverageRunTokenCostsDetails({
       const promptEntries = details.filter((detail) => detail.isPrompt);
       const completionEntries = details.filter((detail) => !detail.isPrompt);
 
-      const total = data.experiment.averageRunCostSummary.total.cost;
-      const prompt = data.experiment.averageRunCostSummary.prompt.cost;
-      const completion = data.experiment.averageRunCostSummary.completion.cost;
+      const costTotal = data.experiment.costSummary.total.cost;
+      const costPrompt = data.experiment.costSummary.prompt.cost;
+      const costCompletion = data.experiment.costSummary.completion.cost;
+      const runCount = data.experiment.runCount;
+      const averageRunCostTotal =
+        costTotal == null || runCount == 0 ? null : costTotal / runCount;
+      const averageRunCostPrompt =
+        costPrompt == null || runCount == 0 ? null : costPrompt / runCount;
+      const averageRunCostCompletion =
+        costCompletion == null || runCount == 0
+          ? null
+          : costCompletion / runCount;
 
       const promptDetails: Record<string, number> = {};
       promptEntries.forEach((detail) => {
@@ -77,9 +87,9 @@ export function ExperimentAverageRunTokenCostsDetails({
       });
 
       return {
-        total,
-        prompt,
-        completion,
+        total: averageRunCostTotal,
+        prompt: averageRunCostPrompt,
+        completion: averageRunCostCompletion,
         promptDetails:
           Object.keys(promptDetails).length > 0 ? promptDetails : null,
         completionDetails:

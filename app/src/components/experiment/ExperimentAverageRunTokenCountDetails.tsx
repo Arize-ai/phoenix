@@ -16,7 +16,8 @@ export function ExperimentAverageRunTokenCountDetails({
         experiment: node(id: $experimentId) {
           __typename
           ... on Experiment {
-            averageRunCostSummary {
+            runCount
+            costSummary {
               total {
                 tokens
               }
@@ -36,15 +37,28 @@ export function ExperimentAverageRunTokenCountDetails({
 
   const tokenData = useMemo(() => {
     if (data.experiment.__typename === "Experiment") {
-      const prompt = data.experiment.averageRunCostSummary.prompt.tokens;
-      const completion =
-        data.experiment.averageRunCostSummary.completion.tokens;
-      const total = data.experiment.averageRunCostSummary.total.tokens;
+      const tokenCountPrompt = data.experiment.costSummary.prompt.tokens;
+      const tokenCountCompletion =
+        data.experiment.costSummary.completion.tokens;
+      const tokenCountTotal = data.experiment.costSummary.total.tokens;
+      const runCount = data.experiment.runCount;
+      const averageRunTokenCountTotal =
+        tokenCountTotal == null || runCount == 0
+          ? null
+          : tokenCountTotal / runCount;
+      const averageRunTokenCountPrompt =
+        tokenCountPrompt == null || runCount == 0
+          ? null
+          : tokenCountPrompt / runCount;
+      const averageRunTokenCountCompletion =
+        tokenCountCompletion == null || runCount == 0
+          ? null
+          : tokenCountCompletion / runCount;
 
       return {
-        total,
-        prompt,
-        completion,
+        total: averageRunTokenCountTotal,
+        prompt: averageRunTokenCountPrompt,
+        completion: averageRunTokenCountCompletion,
       };
     }
 

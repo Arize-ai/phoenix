@@ -156,42 +156,6 @@ class Experiment(Node):
         )
 
     @strawberry.field
-    async def average_run_cost_summary(self, info: Info[Context, None]) -> SpanCostSummary:
-        experiment_id = self.id_attr
-        run_count = await info.context.data_loaders.experiment_run_counts.load(experiment_id)
-        if run_count == 0:
-            return SpanCostSummary(
-                prompt=CostBreakdown(),
-                completion=CostBreakdown(),
-                total=CostBreakdown(),
-            )
-        summary = await info.context.data_loaders.span_cost_summary_by_experiment.load(
-            experiment_id
-        )
-        return SpanCostSummary(
-            prompt=CostBreakdown(
-                tokens=summary.prompt.tokens / run_count
-                if summary.prompt.tokens is not None
-                else None,
-                cost=summary.prompt.cost / run_count if summary.prompt.cost is not None else None,
-            ),
-            completion=CostBreakdown(
-                tokens=summary.completion.tokens / run_count
-                if summary.completion.tokens is not None
-                else None,
-                cost=summary.completion.cost / run_count
-                if summary.completion.cost is not None
-                else None,
-            ),
-            total=CostBreakdown(
-                tokens=summary.total.tokens / run_count
-                if summary.total.tokens is not None
-                else None,
-                cost=summary.total.cost / run_count if summary.total.cost is not None else None,
-            ),
-        )
-
-    @strawberry.field
     async def cost_detail_summary_entries(
         self, info: Info[Context, None]
     ) -> list[SpanCostDetailSummaryEntry]:
@@ -220,46 +184,6 @@ class Experiment(Node):
                     token_type=token_type,
                     is_prompt=is_prompt,
                     value=CostBreakdown(tokens=tokens, cost=cost),
-                )
-                async for token_type, is_prompt, cost, tokens in data
-            ]
-
-    @strawberry.field
-    async def average_run_cost_detail_summary_entries(
-        self, info: Info[Context, None]
-    ) -> list[SpanCostDetailSummaryEntry]:
-        experiment_id = self.id_attr
-
-        run_count = await info.context.data_loaders.experiment_run_counts.load(experiment_id)
-        if run_count == 0:
-            return []
-
-        stmt = (
-            select(
-                models.SpanCostDetail.token_type,
-                models.SpanCostDetail.is_prompt,
-                coalesce(func.sum(models.SpanCostDetail.cost), 0).label("cost"),
-                coalesce(func.sum(models.SpanCostDetail.tokens), 0).label("tokens"),
-            )
-            .select_from(models.SpanCostDetail)
-            .join(models.SpanCost, models.SpanCostDetail.span_cost_id == models.SpanCost.id)
-            .join(models.Span, models.SpanCost.span_rowid == models.Span.id)
-            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-            .join(models.ExperimentRun, models.ExperimentRun.trace_id == models.Trace.trace_id)
-            .where(models.ExperimentRun.experiment_id == experiment_id)
-            .group_by(models.SpanCostDetail.token_type, models.SpanCostDetail.is_prompt)
-        )
-
-        async with info.context.db() as session:
-            data = await session.stream(stmt)
-            return [
-                SpanCostDetailSummaryEntry(
-                    token_type=token_type,
-                    is_prompt=is_prompt,
-                    value=CostBreakdown(
-                        tokens=tokens / run_count if tokens is not None else None,
-                        cost=cost / run_count if cost is not None else None,
-                    ),
                 )
                 async for token_type, is_prompt, cost, tokens in data
             ]

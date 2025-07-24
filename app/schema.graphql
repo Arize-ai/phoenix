@@ -1085,9 +1085,7 @@ type Experiment implements Node {
   project: Project
   lastUpdatedAt: DateTime
   costSummary: SpanCostSummary!
-  averageRunCostSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
-  averageRunCostDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
 type ExperimentAnnotationSummary {

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4e590e9565cb314ab4467260ad760fc2>>
+ * @generated SignedSource<<8633d339c9b17adbf1382fff049075fa>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -537,7 +537,7 @@ return {
                             "args": null,
                             "concreteType": "SpanCostSummary",
                             "kind": "LinkedField",
-                            "name": "averageRunCostSummary",
+                            "name": "costSummary",
                             "plural": false,
                             "selections": [
                               {
@@ -562,6 +562,13 @@ return {
                             "kind": "ScalarField",
                             "name": "averageRunLatencyMs",
                             "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "runCount",
+                            "storageKey": null
                           }
                         ],
                         "storageKey": null
@@ -582,16 +589,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "1e3d3a7498a1ea9638cddeb746ca95d0",
+    "cacheID": "19b99cee7b44df858aad5fa433dd0ed2",
     "id": null,
     "metadata": {},
     "name": "ExperimentCompareTableQuery",
     "operationKind": "query",
-    "text": "query ExperimentCompareTableQuery(\n  $after: String = null\n  $baselineExperimentId: ID!\n  $compareExperimentIds: [ID!]!\n  $datasetId: ID!\n  $filterCondition: String = null\n  $first: Int = 50\n) {\n  ...ExperimentCompareTable_comparisons_1EMHxr\n}\n\nfragment ExperimentCompareTable_comparisons_1EMHxr on Query {\n  compareExperiments(first: $first, after: $after, baselineExperimentId: $baselineExperimentId, compareExperimentIds: $compareExperimentIds, filterCondition: $filterCondition) {\n    edges {\n      comparison: node {\n        example {\n          id\n          revision {\n            input\n            referenceOutput: output\n          }\n        }\n        runComparisonItems {\n          experimentId\n          runs {\n            id\n            output\n            error\n            startTime\n            endTime\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  score\n                  label\n                  annotatorKind\n                  explanation\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n        }\n        id\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experiments {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            metadata\n            project {\n              id\n            }\n            averageRunCostSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            averageRunLatencyMs\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query ExperimentCompareTableQuery(\n  $after: String = null\n  $baselineExperimentId: ID!\n  $compareExperimentIds: [ID!]!\n  $datasetId: ID!\n  $filterCondition: String = null\n  $first: Int = 50\n) {\n  ...ExperimentCompareTable_comparisons_1EMHxr\n}\n\nfragment ExperimentCompareTable_comparisons_1EMHxr on Query {\n  compareExperiments(first: $first, after: $after, baselineExperimentId: $baselineExperimentId, compareExperimentIds: $compareExperimentIds, filterCondition: $filterCondition) {\n    edges {\n      comparison: node {\n        example {\n          id\n          revision {\n            input\n            referenceOutput: output\n          }\n        }\n        runComparisonItems {\n          experimentId\n          runs {\n            id\n            output\n            error\n            startTime\n            endTime\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  score\n                  label\n                  annotatorKind\n                  explanation\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n        }\n        id\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experiments {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            metadata\n            project {\n              id\n            }\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            averageRunLatencyMs\n            runCount\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "814be05ca1744f2f04d8551f4ff91426";
+(node as any).hash = "1b1046fc73951ce93e4ee9e5f6e90490";
 
 export default node;

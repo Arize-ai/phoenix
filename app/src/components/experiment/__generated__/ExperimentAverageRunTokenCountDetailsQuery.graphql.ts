@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c4ecb360f8c462e794500621508f2e35>>
+ * @generated SignedSource<<b5c9523b408ccb52cbdfe7c449665814>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,7 +15,7 @@ export type ExperimentAverageRunTokenCountDetailsQuery$variables = {
 export type ExperimentAverageRunTokenCountDetailsQuery$data = {
   readonly experiment: {
     readonly __typename: "Experiment";
-    readonly averageRunCostSummary: {
+    readonly costSummary: {
       readonly completion: {
         readonly tokens: number | null;
       };
@@ -26,6 +26,7 @@ export type ExperimentAverageRunTokenCountDetailsQuery$data = {
         readonly tokens: number | null;
       };
     };
+    readonly runCount: number;
   } | {
     // This will never be '%other', but we need some
     // value in case none of the concrete values match.
@@ -74,9 +75,16 @@ v4 = {
     {
       "alias": null,
       "args": null,
+      "kind": "ScalarField",
+      "name": "runCount",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
       "concreteType": "SpanCostSummary",
       "kind": "LinkedField",
-      "name": "averageRunCostSummary",
+      "name": "costSummary",
       "plural": false,
       "selections": [
         {
@@ -169,16 +177,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "2987a6898eeb2684be105b5880566408",
+    "cacheID": "0e70281a4361949908af5866b8aa6c4e",
     "id": null,
     "metadata": {},
     "name": "ExperimentAverageRunTokenCountDetailsQuery",
     "operationKind": "query",
-    "text": "query ExperimentAverageRunTokenCountDetailsQuery(\n  $experimentId: ID!\n) {\n  experiment: node(id: $experimentId) {\n    __typename\n    ... on Experiment {\n      averageRunCostSummary {\n        total {\n          tokens\n        }\n        prompt {\n          tokens\n        }\n        completion {\n          tokens\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ExperimentAverageRunTokenCountDetailsQuery(\n  $experimentId: ID!\n) {\n  experiment: node(id: $experimentId) {\n    __typename\n    ... on Experiment {\n      runCount\n      costSummary {\n        total {\n          tokens\n        }\n        prompt {\n          tokens\n        }\n        completion {\n          tokens\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "abe47efdc96f3cd1872470830ce7ffd0";
+(node as any).hash = "7772e95d9d4cf1f8435cb8fcf8e77081";
 
 export default node;

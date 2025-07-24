@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e308e8f84ba9ff0c1a10a82be4d86c89>>
+ * @generated SignedSource<<3b3ed29ce77172c810785512ff7cca10>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,7 +15,7 @@ export type ExperimentAverageRunTokenCostsDetailsQuery$variables = {
 export type ExperimentAverageRunTokenCostsDetailsQuery$data = {
   readonly experiment: {
     readonly __typename: "Experiment";
-    readonly averageRunCostDetailSummaryEntries: ReadonlyArray<{
+    readonly costDetailSummaryEntries: ReadonlyArray<{
       readonly isPrompt: boolean;
       readonly tokenType: string;
       readonly value: {
@@ -23,7 +23,7 @@ export type ExperimentAverageRunTokenCostsDetailsQuery$data = {
         readonly tokens: number | null;
       };
     }>;
-    readonly averageRunCostSummary: {
+    readonly costSummary: {
       readonly completion: {
         readonly cost: number | null;
       };
@@ -34,6 +34,7 @@ export type ExperimentAverageRunTokenCostsDetailsQuery$data = {
         readonly cost: number | null;
       };
     };
+    readonly runCount: number;
   } | {
     // This will never be '%other', but we need some
     // value in case none of the concrete values match.
@@ -85,7 +86,7 @@ v5 = {
       "args": null,
       "concreteType": "SpanCostSummary",
       "kind": "LinkedField",
-      "name": "averageRunCostSummary",
+      "name": "costSummary",
       "plural": false,
       "selections": [
         {
@@ -126,7 +127,7 @@ v5 = {
       "args": null,
       "concreteType": "SpanCostDetailSummaryEntry",
       "kind": "LinkedField",
-      "name": "averageRunCostDetailSummaryEntries",
+      "name": "costDetailSummaryEntries",
       "plural": true,
       "selections": [
         {
@@ -163,6 +164,13 @@ v5 = {
           "storageKey": null
         }
       ],
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "runCount",
       "storageKey": null
     }
   ],
@@ -222,16 +230,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f76e605888ff86c5347c22452e8279b4",
+    "cacheID": "84d979fc0c4a2f43c63f82ffdb4d77be",
     "id": null,
     "metadata": {},
     "name": "ExperimentAverageRunTokenCostsDetailsQuery",
     "operationKind": "query",
-    "text": "query ExperimentAverageRunTokenCostsDetailsQuery(\n  $experimentId: ID!\n) {\n  experiment: node(id: $experimentId) {\n    __typename\n    ... on Experiment {\n      averageRunCostSummary {\n        total {\n          cost\n        }\n        prompt {\n          cost\n        }\n        completion {\n          cost\n        }\n      }\n      averageRunCostDetailSummaryEntries {\n        tokenType\n        isPrompt\n        value {\n          cost\n          tokens\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ExperimentAverageRunTokenCostsDetailsQuery(\n  $experimentId: ID!\n) {\n  experiment: node(id: $experimentId) {\n    __typename\n    ... on Experiment {\n      costSummary {\n        total {\n          cost\n        }\n        prompt {\n          cost\n        }\n        completion {\n          cost\n        }\n      }\n      costDetailSummaryEntries {\n        tokenType\n        isPrompt\n        value {\n          cost\n          tokens\n        }\n      }\n      runCount\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e7e5696395bee452f1e5c31a4bb310c8";
+(node as any).hash = "77037c928e3745c36b74597c172eb5ee";
 
 export default node;

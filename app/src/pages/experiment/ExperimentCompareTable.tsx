@@ -248,13 +248,14 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                     project {
                       id
                     }
-                    averageRunCostSummary {
+                    costSummary {
                       total {
                         cost
                         tokens
                       }
                     }
                     averageRunLatencyMs
+                    runCount
                   }
                 }
               }
@@ -850,9 +851,15 @@ function ExperimentRowActionMenu(props: {
 function ExperimentMetadata(props: { experiment: Experiment }) {
   const { experiment } = props;
   const averageRunLatencyMs = experiment.averageRunLatencyMs;
-  const averageRunCostTotal = experiment.averageRunCostSummary.total.cost;
+  const runCount = experiment.runCount;
+  const costTotal = experiment.costSummary.total.cost;
+  const tokenCountTotal = experiment.costSummary.total.tokens;
+  const averageRunCostTotal =
+    costTotal == null || runCount == 0 ? null : costTotal / runCount;
   const averageRunTokenCountTotal =
-    experiment.averageRunCostSummary.total.tokens;
+    tokenCountTotal == null || runCount == 0
+      ? null
+      : tokenCountTotal / runCount;
   return (
     <Flex direction="row" gap="size-100">
       {averageRunLatencyMs != null && (
