@@ -3,7 +3,7 @@ import { css } from "@emotion/react";
 
 import { Card as OldCard } from "@arizeai/components";
 
-import { Heading } from "@phoenix/components";
+import { Button, Heading } from "@phoenix/components";
 import { ViewStyleProps } from "@phoenix/components/types";
 import { useStyleProps, viewStyleProps } from "@phoenix/components/utils";
 
@@ -11,7 +11,9 @@ type CardVariant = "default" | "compact";
 
 interface CardProps extends PropsWithChildren<ViewStyleProps> {
   title: string;
+  subTitle?: string;
   variant?: CardVariant;
+  collapsible?: boolean;
   bodyStyle?: ViewStyleProps;
   useOldComponent?: boolean; // TODO: delete
 }
@@ -43,6 +45,33 @@ const cardHeaderCSS = css`
   height: var(--card-header-height);
   transition: background-color 0.2s ease-in-out;
   border-bottom: 1px solid var(--scope-border-color);
+
+  &[data-collapsible="true"] {
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+  }
+`;
+
+const collapsibleHeadingCSS = css`
+  width: 100%;
+  height: 100%;
+`;
+
+const collapsibleButtonCSS = css`
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  text-align: left;
+  width: 100%;
+  height: 100%;
+  appearance: none;
+  background-color: inherit;
+  cursor: pointer;
+  padding: 0;
+  border: 0;
+  outline: none;
+  color: var(--ac-global-text-color-900);
 `;
 
 const cardBodyCSS = css`
@@ -53,8 +82,10 @@ const cardBodyCSS = css`
 function Card(
   {
     title,
+    subTitle,
     children,
     variant = "default",
+    collapsible = false,
     useOldComponent = false,
     bodyStyle = {},
     ...otherProps
@@ -73,6 +104,18 @@ function Card(
       </OldCard>
     );
   }
+  const headingContents = (
+    <>
+      <Heading
+        level={3}
+        weight="heavy"
+        css={collapsible ? collapsibleHeadingCSS : undefined}
+      >
+        {title}
+      </Heading>
+      {subTitle && <Heading level={4}>{subTitle}</Heading>}
+    </>
+  );
   return (
     <section
       ref={ref}
@@ -80,10 +123,12 @@ function Card(
       data-variant={variant}
       style={styleProps.style}
     >
-      <header css={cardHeaderCSS}>
-        <Heading level={3} weight="heavy">
-          {title}
-        </Heading>
+      <header css={cardHeaderCSS} data-collapsible={collapsible}>
+        {collapsible ? (
+          <button css={collapsibleButtonCSS}>{headingContents}</button>
+        ) : (
+          headingContents
+        )}
       </header>
       <div css={cardBodyCSS} style={bodyStyleProps.style}>
         {children}

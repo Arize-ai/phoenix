@@ -3,11 +3,12 @@ import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Card, CardProps } from "@arizeai/components";
+import { Card as OldCard, CardProps } from "@arizeai/components";
 
 import {
   Alert,
   Button,
+  Card,
   Dialog,
   FieldError,
   Flex,
@@ -153,7 +154,7 @@ export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
                       field: { onChange, onBlur, value },
                       fieldState: { invalid, error },
                     }) => (
-                      <Card
+                      <OldCard
                         title="Input"
                         subTitle="The input to the LLM, retriever, program, etc."
                         {...defaultCardProps}
@@ -168,7 +169,7 @@ export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
                           onChange={onChange}
                           onBlur={onBlur}
                         />
-                      </Card>
+                      </OldCard>
                     )}
                   />
                   <Controller
