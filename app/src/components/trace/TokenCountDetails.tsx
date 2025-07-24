@@ -94,7 +94,7 @@ export interface TokenCountDetailsProps {
   /**
    * The label for the count details. Defaults to "Total".
    */
-  label?: "Total" | "Average";
+  label?: string;
 }
 
 export function TokenCountDetails({
