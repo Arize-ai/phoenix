@@ -123,7 +123,7 @@ export function ProjectMetricsPage() {
         </MetricPanel>
       </Flex>
       <Flex direction="row" gap="size-200">
-        <MetricPanel title="Latency" subtitle="Latency percentiles">
+        <MetricPanel title="Trace Latency" subtitle="Latency percentiles">
           <TraceLatencyPercentilesTimeSeries projectId={projectId} />
         </MetricPanel>
         <MetricPanel
@@ -137,7 +137,10 @@ export function ProjectMetricsPage() {
         <MetricPanel title="Cost" subtitle="Estimated cost in USD">
           <TraceTokenCostTimeSeries projectId={projectId} />
         </MetricPanel>
-        <MetricPanel title="Feedback scores" subtitle="Average feedback scores">
+        <MetricPanel
+          title="Annotation scores"
+          subtitle="Average annotation scores"
+        >
           <SpanAnnotationScoreTimeSeries projectId={projectId} />
         </MetricPanel>
       </Flex>

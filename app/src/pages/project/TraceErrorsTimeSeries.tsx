@@ -19,8 +19,8 @@ import {
   defaultLegendProps,
   defaultXAxisProps,
   defaultYAxisProps,
+  useBinTimeTickFormatter,
   useSemanticChartColors,
-  useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
@@ -112,18 +112,7 @@ export function TraceErrorsTimeSeries({ projectId }: { projectId: string }) {
     })
   );
 
-  const timeTickFormatter = useTimeTickFormatter({
-    samplingIntervalMinutes: (() => {
-      switch (scale) {
-        case "MINUTE":
-          return 1;
-        case "HOUR":
-          return 60;
-        default:
-          return 60 * 24;
-      }
-    })(),
-  });
+  const timeTickFormatter = useBinTimeTickFormatter({ scale });
 
   const SemanticChartColors = useSemanticChartColors();
   return (

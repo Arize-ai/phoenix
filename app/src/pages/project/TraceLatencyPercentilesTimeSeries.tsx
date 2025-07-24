@@ -15,6 +15,7 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
+  useBinTimeTickFormatter,
   useSequentialChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
@@ -133,18 +134,7 @@ export function TraceLatencyPercentilesTimeSeries({
     max: datum.max,
   }));
 
-  const timeTickFormatter = useTimeTickFormatter({
-    samplingIntervalMinutes: (() => {
-      switch (scale) {
-        case "MINUTE":
-          return 1;
-        case "HOUR":
-          return 60;
-        default:
-          return 60 * 24;
-      }
-    })(),
-  });
+  const timeTickFormatter = useBinTimeTickFormatter({ scale });
 
   const colors = useSequentialChartColors();
 
