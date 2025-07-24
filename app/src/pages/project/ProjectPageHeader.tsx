@@ -141,7 +141,7 @@ export function ProjectPageHeader(props: {
               </Text>
               <TooltipTrigger delay={0}>
                 <Focusable>
-                  <Text size="L">
+                  <Text size="L" role="button">
                     {costFormatter(data?.costSummary?.total?.cost ?? 0)}
                   </Text>
                 </Focusable>

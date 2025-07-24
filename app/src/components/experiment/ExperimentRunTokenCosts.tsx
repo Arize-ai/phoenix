@@ -34,7 +34,7 @@ export function ExperimentRunTokenCosts(props: ExperimentRunTokenCostsProps) {
   return (
     <TooltipTrigger>
       <Pressable>
-        <TokenCosts size={props.size} role="button">
+        <TokenCosts size={props.size} aria-role="button">
           {props.totalCost}
         </TokenCosts>
       </Pressable>
