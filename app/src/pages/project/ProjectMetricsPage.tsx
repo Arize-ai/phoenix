@@ -56,7 +56,7 @@ export const MetricPanel = forwardRef(function MetricPanel(
   return (
     <View
       borderWidth="thin"
-      borderColor="dark"
+      borderColor="grey-200"
       borderRadius="medium"
       height="100%"
       width="100%"
@@ -102,11 +102,11 @@ export function ProjectMetricsPage() {
         flex: 1 1 auto;
         display: flex;
         flex-direction: column;
-        gap: var(--ac-global-dimension-size-100);
-        padding: var(--ac-global-dimension-size-100);
+        gap: var(--ac-global-dimension-size-200);
+        padding: var(--ac-global-dimension-size-200);
       `}
     >
-      <Flex direction="row" gap="size-100">
+      <Flex direction="row" gap="size-200">
         <MetricPanel
           title="Traces over time"
           subtitle="Overall volume of traces"
@@ -120,7 +120,7 @@ export function ProjectMetricsPage() {
           <TraceErrorsTimeSeries projectId={projectId} />
         </MetricPanel>
       </Flex>
-      <Flex direction="row" gap="size-100">
+      <Flex direction="row" gap="size-200">
         <MetricPanel title="Latency" subtitle="Latency percentiles">
           <TraceLatencyPercentilesTimeSeries projectId={projectId} />
         </MetricPanel>
@@ -131,7 +131,7 @@ export function ProjectMetricsPage() {
           <TraceTokenCountTimeSeries projectId={projectId} />
         </MetricPanel>
       </Flex>
-      <Flex direction="row" gap="size-100">
+      <Flex direction="row" gap="size-200">
         <MetricPanel title="Cost" subtitle="Estimated cost in USD">
           <TraceTokenCostTimeSeries projectId={projectId} />
         </MetricPanel>
@@ -139,7 +139,7 @@ export function ProjectMetricsPage() {
           <SpanAnnotationScoreTimeSeries projectId={projectId} />
         </MetricPanel>
       </Flex>
-      <Flex direction="row" gap="size-100">
+      <Flex direction="row" gap="size-200">
         <MetricPanel title="LLM spans" subtitle="LLM span count over time">
           <LLMSpanCountTimeSeries projectId={projectId} />
         </MetricPanel>
@@ -150,7 +150,7 @@ export function ProjectMetricsPage() {
           <LLMSpanErrorsTimeSeries projectId={projectId} />
         </MetricPanel>
       </Flex>
-      <Flex direction="row" gap="size-100">
+      <Flex direction="row" gap="size-200">
         <MetricPanel title="Tool spans" subtitle="Tool span count over time">
           <ToolSpanCountTimeSeries projectId={projectId} />
         </MetricPanel>
