@@ -17,7 +17,8 @@ import {
   ChartTooltipItem,
   useBinInterval,
   useBinTimeTickFormatter,
-  useSequentialChartColors,
+  useCategoryChartColors,
+  useSemanticChartColors,
 } from "@phoenix/components/chart";
 import {
   defaultCartesianGridProps,
@@ -38,7 +39,7 @@ function TooltipContent({
   payload,
   label,
 }: TooltipContentProps<number, string>) {
-  const chartColors = useSequentialChartColors();
+  const chartColors = useCategoryChartColors();
   if (active && payload && payload.length) {
     return (
       <ChartTooltip>
@@ -56,7 +57,7 @@ function TooltipContent({
             return (
               <ChartTooltipItem
                 key={index}
-                color={entry.color || chartColors.default}
+                color={entry.color || chartColors.category1}
                 shape="line"
                 name={entry.dataKey || "unknown"}
                 value={`${formatFloat(entry.value)} s`}
@@ -137,7 +138,8 @@ export function TraceLatencyPercentilesTimeSeries({
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
   const interval = useBinInterval({ scale });
 
-  const colors = useSequentialChartColors();
+  const colors = useCategoryChartColors();
+  const SemanticChartColors = useSemanticChartColors();
 
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -169,7 +171,7 @@ export function TraceLatencyPercentilesTimeSeries({
         <Line
           type="monotone"
           dataKey="p50"
-          stroke={colors.blue400}
+          stroke={colors.category1}
           strokeWidth={2}
           dot={false}
           activeDot={{ r: 4 }}
@@ -178,7 +180,7 @@ export function TraceLatencyPercentilesTimeSeries({
         <Line
           type="monotone"
           dataKey="p75"
-          stroke={colors.orange400}
+          stroke={colors.category2}
           strokeWidth={2}
           dot={false}
           activeDot={{ r: 4 }}
@@ -187,7 +189,7 @@ export function TraceLatencyPercentilesTimeSeries({
         <Line
           type="monotone"
           dataKey="p90"
-          stroke={colors.orange400}
+          stroke={colors.category3}
           strokeWidth={2}
           dot={false}
           activeDot={{ r: 4 }}
@@ -196,7 +198,7 @@ export function TraceLatencyPercentilesTimeSeries({
         <Line
           type="monotone"
           dataKey="p95"
-          stroke={colors.red400}
+          stroke={colors.category4}
           strokeWidth={2}
           dot={false}
           activeDot={{ r: 4 }}
@@ -205,7 +207,7 @@ export function TraceLatencyPercentilesTimeSeries({
         <Line
           type="monotone"
           dataKey="p99"
-          stroke={colors.purple400}
+          stroke={colors.category5}
           strokeWidth={2}
           dot={false}
           activeDot={{ r: 4 }}
@@ -214,7 +216,7 @@ export function TraceLatencyPercentilesTimeSeries({
         <Line
           type="monotone"
           dataKey="p999"
-          stroke={colors.grey600}
+          stroke={colors.category6}
           strokeWidth={2}
           dot={false}
           activeDot={{ r: 4 }}
@@ -223,8 +225,8 @@ export function TraceLatencyPercentilesTimeSeries({
         <Line
           type="monotone"
           dataKey="max"
-          stroke={colors.grey700}
-          strokeWidth={1}
+          stroke={SemanticChartColors.danger}
+          strokeWidth={2}
           strokeDasharray="5 5"
           dot={false}
           activeDot={{ r: 4 }}

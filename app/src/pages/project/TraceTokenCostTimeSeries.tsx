@@ -21,8 +21,7 @@ import {
   defaultYAxisProps,
   useBinInterval,
   useBinTimeTickFormatter,
-  useSemanticChartColors,
-  useSequentialChartColors,
+  useCategoryChartColors,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
@@ -40,8 +39,7 @@ function TooltipContent({
   payload,
   label,
 }: TooltipContentProps<number, string>) {
-  const SemanticChartColors = useSemanticChartColors();
-  const chartColors = useSequentialChartColors();
+  const chartColors = useCategoryChartColors();
   if (active && payload && payload.length) {
     const promptValue = payload[0]?.value;
     const completionValue = payload[1]?.value;
@@ -55,13 +53,13 @@ function TooltipContent({
           )}`}</Text>
         )}
         <ChartTooltipItem
-          color={SemanticChartColors.info}
+          color={chartColors.category1}
           shape="circle"
           name="prompt"
           value={promptString}
         />
         <ChartTooltipItem
-          color={chartColors.default}
+          color={chartColors.category2}
           shape="circle"
           name="completion"
           value={completionString}
@@ -130,8 +128,7 @@ export function TraceTokenCostTimeSeries({ projectId }: { projectId: string }) {
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
   const interval = useBinInterval({ scale });
 
-  const colors = useSequentialChartColors();
-  const SemanticChartColors = useSemanticChartColors();
+  const colors = useCategoryChartColors();
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart
@@ -165,11 +162,11 @@ export function TraceTokenCostTimeSeries({ projectId }: { projectId: string }) {
           // TODO formalize this
           cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
         />
-        <Bar dataKey="prompt" stackId="a" fill={SemanticChartColors.info} />
+        <Bar dataKey="prompt" stackId="a" fill={colors.category1} />
         <Bar
           dataKey="completion"
           stackId="a"
-          fill={colors.default}
+          fill={colors.category2}
           radius={[2, 2, 0, 0]}
         />
 

@@ -257,11 +257,11 @@ type CategoricalChartColor =
   | "category12";
 
 const CategoryChartLightColors: Record<CategoricalChartColor, string> = {
-  category1: "var(--ac-global-color-blue-900)",
-  category2: "var(--ac-global-color-purple-1100)",
-  category3: "var(--ac-global-color-magenta-800)",
+  category1: "var(--ac-global-color-blue-700)",
+  category2: "var(--ac-global-color-purple-900)",
+  category3: "var(--ac-global-color-magenta-600)",
   category4: "var(--ac-global-color-indigo-600)",
-  category5: "var(--ac-global-color-blue-700)",
+  category5: "var(--ac-global-color-blue-900)",
   category6: "var(--ac-global-color-indigo-1100)",
   category7: "var(--ac-global-color-orange-600)",
   category8: "var(--ac-global-color-celery-400)",
@@ -272,11 +272,11 @@ const CategoryChartLightColors: Record<CategoricalChartColor, string> = {
 };
 
 const CategoryChartDarkColors: Record<CategoricalChartColor, string> = {
-  category1: "var(--ac-global-color-blue-900)",
-  category2: "var(--ac-global-color-purple-1100)",
+  category1: "var(--ac-global-color-blue-700)",
+  category2: "var(--ac-global-color-purple-800)",
   category3: "var(--ac-global-color-magenta-800)",
   category4: "var(--ac-global-color-indigo-600)",
-  category5: "var(--ac-global-color-blue-700)",
+  category5: "var(--ac-global-color-blue-900)",
   category6: "var(--ac-global-color-indigo-1100)",
   category7: "var(--ac-global-color-orange-600)",
   category8: "var(--ac-global-color-celery-400)",
