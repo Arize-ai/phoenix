@@ -6,7 +6,7 @@ import { Icon, Icons, Text } from "@phoenix/components";
 import { GitHubStarCount } from "@phoenix/components/nav/GitHubStarCount";
 import { useTheme, useViewer } from "@phoenix/contexts";
 
-import { Logo } from "./Logo";
+import { Logo, LogoText } from "./Logo";
 
 const topNavCSS = css`
   padding: var(--ac-global-dimension-static-size-100)
@@ -40,6 +40,11 @@ const sideNavCSS = css`
   &[data-expanded="true"] {
     width: var(--px-nav-expanded-width);
     box-shadow: 0 0 30px 0 rgba(0, 0, 0, 0.2);
+  }
+  &[data-expanded="false"] {
+    .brand-text-wrap {
+      opacity: 0;
+    }
   }
 `;
 
@@ -82,6 +87,21 @@ const brandCSS = css`
   font-size: var(--ac-global-font-size-xl);
   text-decoration: none;
   margin: 0 0 var(--ac-global-dimension-static-size-200) 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--ac-global-dimension-static-size-150);
+  overflow: hidden;
+  & > * {
+    flex: none;
+  }
+  .brand-text-wrap {
+    opacity: 1;
+    transition: all 0.8s ease-in-out;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+  }
 `;
 
 function ExternalLink(props: {
@@ -149,6 +169,9 @@ export function Brand() {
       title={`version: ${window.Config.platformVersion}`}
     >
       <Logo />
+      <div className="brand-text-wrap">
+        <LogoText className="brand-text" />
+      </div>
     </Link>
   );
 }
