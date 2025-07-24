@@ -20,6 +20,7 @@ import {
 } from "@phoenix/components/chart";
 import {
   defaultCartesianGridProps,
+  defaultLegendProps,
   defaultXAxisProps,
   defaultYAxisProps,
 } from "@phoenix/components/chart/defaults";
@@ -243,7 +244,12 @@ export function TraceLatencyPercentilesTimeSeries({
           name="Max"
         />
 
-        <Legend align="left" iconType="line" iconSize={8} />
+        <Legend
+          {...defaultLegendProps}
+          align="left"
+          iconType="line"
+          iconSize={8}
+        />
       </LineChart>
     </ResponsiveContainer>
   );

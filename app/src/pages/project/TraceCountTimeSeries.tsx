@@ -16,6 +16,7 @@ import {
   ChartTooltip,
   ChartTooltipItem,
   defaultCartesianGridProps,
+  defaultLegendProps,
   defaultXAxisProps,
   defaultYAxisProps,
   useChartColors,
@@ -172,7 +173,12 @@ export function TraceCountTimeSeries({ projectId }: { projectId: string }) {
           radius={[2, 2, 0, 0]}
         />
 
-        <Legend align="left" iconType="circle" iconSize={8} />
+        <Legend
+          align="left"
+          iconType="circle"
+          iconSize={8}
+          {...defaultLegendProps}
+        />
       </BarChart>
     </ResponsiveContainer>
   );

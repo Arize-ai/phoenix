@@ -15,6 +15,7 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
+  defaultLegendProps,
   useChartColors,
   useSemanticChartColors,
   useTimeTickFormatter,
@@ -181,7 +182,12 @@ export function TraceTokenCostTimeSeries({ projectId }: { projectId: string }) {
           radius={[2, 2, 0, 0]}
         />
 
-        <Legend align="left" iconType="circle" iconSize={8} />
+        <Legend
+          {...defaultLegendProps}
+          align="left"
+          iconType="circle"
+          iconSize={8}
+        />
       </BarChart>
     </ResponsiveContainer>
   );

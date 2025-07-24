@@ -16,6 +16,7 @@ import {
   ChartTooltip,
   ChartTooltipItem,
   defaultCartesianGridProps,
+  defaultLegendProps,
   defaultXAxisProps,
   defaultYAxisProps,
   useSemanticChartColors,
@@ -160,7 +161,12 @@ export function LLMSpanErrorsTimeSeries({ projectId }: { projectId: string }) {
           radius={[2, 2, 0, 0]}
         />
 
-        <Legend align="left" iconType="circle" iconSize={8} />
+        <Legend
+          {...defaultLegendProps}
+          align="left"
+          iconType="circle"
+          iconSize={8}
+        />
       </BarChart>
     </ResponsiveContainer>
   );
