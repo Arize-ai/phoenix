@@ -147,10 +147,10 @@ export function TraceLatencyPercentilesTimeSeries({
       >
         <CartesianGrid vertical={false} {...defaultCartesianGridProps} />
         <XAxis
+          {...defaultXAxisProps}
           dataKey="timestamp"
           interval={interval}
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
-          {...defaultXAxisProps}
         />
         <YAxis
           width={55}

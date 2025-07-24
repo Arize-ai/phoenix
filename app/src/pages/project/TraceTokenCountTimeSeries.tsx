@@ -27,7 +27,10 @@ import {
 import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
-import { intFormatter } from "@phoenix/utils/numberFormatUtils";
+import {
+  intFormatter,
+  intShortFormatter,
+} from "@phoenix/utils/numberFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import type { TraceTokenCountTimeSeriesQuery } from "./__generated__/TraceTokenCountTimeSeriesQuery.graphql";
@@ -151,7 +154,7 @@ export function TraceTokenCountTimeSeries({
         <YAxis
           {...defaultYAxisProps}
           width={55}
-          tickFormatter={(x) => intFormatter(x)}
+          tickFormatter={(x) => intShortFormatter(x)}
           label={{
             value: "Tokens",
             angle: -90,
