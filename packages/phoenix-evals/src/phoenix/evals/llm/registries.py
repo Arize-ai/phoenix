@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Callable, Dict, List, Optional, Type, TypedDict
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypedDict
 
 from .types import AdapterRegistration, BaseLLMAdapter, ProviderRegistration
 
@@ -23,7 +23,9 @@ class ProviderInfo(TypedDict):
 
 
 class SingletonMeta(type):
-    _instances: dict[Any, Any] = dict()
+    def __init__(cls, name: str, bases: Tuple[type, ...], attrs: Dict[str, Any]) -> None:
+        super().__init__(name, bases, attrs)
+        cls._instances: dict[Any, Any] = {}
 
     def __call__(cls, *args: Any, **kwargs: Any) -> Any:
         if cls not in cls._instances:
@@ -54,7 +56,6 @@ class AdapterRegistry(metaclass=SingletonMeta):
         self._adapters.append(registration)
 
     def find_adapter(self, client: Any) -> Optional[Type["BaseLLMAdapter"]]:
-        """Find the best matching adapter for the given client."""
         for registration in self._adapters:
             try:
                 if registration.identifier(client):
@@ -103,7 +104,6 @@ class ProviderRegistry(metaclass=SingletonMeta):
         self._providers[provider].append(registration)
 
     def create_client(self, provider: str, model: str, **kwargs: Any) -> Any:
-        """Create a client for the specified provider and model."""
         provider_registrations = self._providers.get(provider)
         if not provider_registrations:
             available_providers = list(self._providers.keys())
@@ -121,7 +121,6 @@ class ProviderRegistry(metaclass=SingletonMeta):
             ) from e
 
     def _check_dependencies(self, registration: ProviderRegistration) -> None:
-        """Check if all required dependencies are available."""
         if not registration.dependencies:
             return
 
@@ -143,7 +142,6 @@ PROVIDER_REGISTRY = ProviderRegistry()
 
 
 def adapter_availability_table() -> str:
-    """Return a consolidated table of LLM providers and adapters with color-coded status."""
     all_providers: List[ProviderInfo] = []
     output: List[str] = []
 
@@ -180,7 +178,6 @@ def adapter_availability_table() -> str:
 
 
 def _calculate_table_width(providers: List[ProviderInfo]) -> int:
-    """Calculate the total visual width of the provider table."""
     if not providers:
         return 0
 
@@ -198,7 +195,6 @@ def _calculate_table_width(providers: List[ProviderInfo]) -> int:
 
 
 def _color_dependencies(dependencies: List[str]) -> str:
-    """Color-code dependencies based on their availability."""
     colored_deps: List[str] = []
 
     for dep in dependencies:
@@ -212,7 +208,6 @@ def _color_dependencies(dependencies: List[str]) -> str:
 
 
 def _get_consolidated_provider_table(providers: List[ProviderInfo]) -> str:
-    """Return a consolidated table of all providers with color-coded status."""
     if not providers:
         return ""
 
