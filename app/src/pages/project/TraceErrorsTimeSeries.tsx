@@ -25,6 +25,7 @@ import {
 import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
+import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import type { TraceErrorsTimeSeriesQuery } from "./__generated__/TraceErrorsTimeSeriesQuery.graphql";
@@ -129,11 +130,12 @@ export function TraceErrorsTimeSeries({ projectId }: { projectId: string }) {
         />
         <YAxis
           {...defaultYAxisProps}
-          width={50}
+          width={55}
+          tickFormatter={(x) => intFormatter(x)}
           label={{
             value: "Count",
             angle: -90,
-            dx: -10,
+            dx: -20,
             style: {
               textAnchor: "middle",
               fill: "var(--chart-axis-label-color)",

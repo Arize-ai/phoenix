@@ -137,11 +137,12 @@ export function TraceCountTimeSeries({ projectId }: { projectId: string }) {
         />
         <YAxis
           {...defaultYAxisProps}
-          width={50}
+          width={55}
+          tickFormatter={(x) => intFormatter(x)}
           label={{
             value: "Count",
             angle: -90,
-            dx: -10,
+            dx: -20,
             style: {
               textAnchor: "middle",
               fill: "var(--chart-axis-label-color)",

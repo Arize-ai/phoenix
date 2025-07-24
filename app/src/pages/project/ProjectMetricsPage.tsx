@@ -78,7 +78,6 @@ export const MetricPanel = forwardRef(function MetricPanel(
           css={css`
             flex: 1 1 auto;
             padding: var(--ac-global-dimension-size-200);
-
             height: 200px;
           `}
         >
