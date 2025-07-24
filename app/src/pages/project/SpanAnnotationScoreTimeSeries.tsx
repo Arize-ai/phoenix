@@ -205,12 +205,7 @@ export function SpanAnnotationScoreTimeSeries({
           />
         ))}
 
-        <Legend
-          {...defaultLegendProps}
-          align="left"
-          iconType="line"
-          iconSize={8}
-        />
+        <Legend {...defaultLegendProps} iconType="line" iconSize={8} />
       </LineChart>
     </ResponsiveContainer>
   );

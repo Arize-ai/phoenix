@@ -56,6 +56,7 @@ export const defaultYAxisProps: YAxisProps = {
 };
 
 export const defaultLegendProps: LegendProps = {
+  align: "right",
   formatter: (value) => (
     <span style={{ color: "var(--chart-legend-text-color)" }}>{value}</span>
   ),

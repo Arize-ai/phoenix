@@ -173,12 +173,7 @@ export function TraceCountTimeSeries({ projectId }: { projectId: string }) {
           radius={[2, 2, 0, 0]}
         />
 
-        <Legend
-          align="left"
-          iconType="circle"
-          iconSize={8}
-          {...defaultLegendProps}
-        />
+        <Legend iconType="circle" iconSize={8} {...defaultLegendProps} />
       </BarChart>
     </ResponsiveContainer>
   );
