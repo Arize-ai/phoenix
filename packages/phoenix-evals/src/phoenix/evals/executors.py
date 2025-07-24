@@ -274,7 +274,7 @@ class AsyncExecutor(Executor):
             Defaults to None.
 
         max_retries (int, optional): The maximum number of times to retry on exceptions.
-            Defaults to 4.
+            Defaults to 7.
 
         exit_on_error (bool, optional): Whether to exit execution on the first encountered error.
             Defaults to True.
@@ -540,18 +540,7 @@ class AsyncExecutor(Executor):
                     result_obj = generate_task.result()
                     outputs[index] = result_obj
 
-                    # Try to extract OpenAI request id if available
-                    rid: Optional[str] = None
-                    try:
-                        if hasattr(result_obj, "headers") and result_obj.headers is not None:
-                            rid = result_obj.headers.get("x-request-id")
-                        elif isinstance(result_obj, dict):
-                            # common patterns: {'request_id': "..."} or {'id': "..."}
-                            rid = result_obj.get("request_id") or result_obj.get("id")
-                    except Exception:
-                        pass
-                    if rid:
-                        rid = str(rid)[:8]
+                    # rid tracking removed
 
                     execution_details[index].complete()
                     execution_details[index].log_runtime(task_start_time)
@@ -559,7 +548,6 @@ class AsyncExecutor(Executor):
                     runtime = time.time() - task_start_time
                     tqdm.write(
                         f"✅ Task {index}-a{attempt_no}: Completed in {runtime:.2f}s"
-                        + (f" rid={rid}" if rid else "")
                     )
                     progress_bar.update()
                     execution_details[index].attempt_history.append({
@@ -569,7 +557,6 @@ class AsyncExecutor(Executor):
                         "latency": runtime,
                         "status": "COMPLETED",
                         "snippet": (str(outputs[index])[:40] if isinstance(outputs[index], str) else None),
-                        "rid": rid,
                     })
                 elif termination_event.is_set():
                     # discard the pending task and remaining items in the queue
@@ -612,7 +599,6 @@ class AsyncExecutor(Executor):
                         "latency": self.task_timeout,
                         "status": "TIMEOUT",
                         "snippet": None,
-                        "rid": None,
                     })
                     
                     # Check if we should keep retrying
@@ -636,14 +622,6 @@ class AsyncExecutor(Executor):
                     execution_details[index].log_event("R")  # Re-queued after backoff
                     await queue.put((priority - 1, item))
             except Exception as exc:
-                # Debug print of exception hierarchy
-                root = exc
-                depth = 0
-                while getattr(root, "__cause__", None) and depth < 5:
-                    print(f"[DBG] cause {depth}: {type(root)} – {root}")
-                    root = root.__cause__
-                    depth += 1
-                print(f"[DBG] final: {type(root)} – {root}")
                 execution_details[index].log_exception(exc)
                 execution_details[index].log_runtime(task_start_time)
                 execution_details[index].log_event("E")  # Generic error
@@ -655,7 +633,6 @@ class AsyncExecutor(Executor):
                     "latency": time.time() - task_start_time,
                     "status": "ERROR",
                     "snippet": None,
-                    "rid": None,
                 })
                 is_phoenix_exception = isinstance(exc, PhoenixException)
                 if (retry_count := abs(priority)) < self.max_retries and not is_phoenix_exception:
@@ -833,41 +810,8 @@ class AsyncExecutor(Executor):
         tqdm.write(f"📊 FINAL SUMMARY: {successful_tasks} success, {total_failures} failed, {len(pending_tasks)} pending | {total_timeouts} timeouts, {total_retries} retries")
         if pending_tasks:
             tqdm.write(f"⚠️  Tasks that never completed: {pending_tasks[:10]}{'...' if len(pending_tasks) > 10 else ''}")
-        if total_failures > 0:
-            failed_tasks = [i for i, details in enumerate(execution_details) if details.status == ExecutionStatus.FAILED]
-            tqdm.write(f"❌ Failed tasks: {failed_tasks[:10]}{'...' if len(failed_tasks) > 10 else ''}")
+            # removed verbose failed/succeeded task attempt history printing
 
-            # Print attempt table for first few failed tasks
-            for task_id in failed_tasks[:3]:
-                det = execution_details[task_id]
-                tqdm.write(f"\n📜 Attempt history for task {task_id}:")
-                for record in det.attempt_history:
-                    lat = f"{record['latency']:.2f}s" if record['latency'] is not None else "-"
-                    tqdm.write(
-                        f"  a{record['attempt']}: {record['status']:<8} start={record['start']-det.attempt_history[0]['start']:+.2f}s lat={lat}"
-                        + (f" snippet=\"{record['snippet']}\"" if record['snippet'] else "")
-                    )
-
-            # Print detailed traceback for each failed task (first 5 to avoid overwhelming logs)
-            for task_id in failed_tasks[:5]:
-                tb_list = execution_details[task_id].tracebacks
-                if tb_list:
-                    tqdm.write(f"\n🔍 Traceback for failed task {task_id} (most recent attempt):\n{tb_list[-1]}")
-
-        # Print attempt history for tasks that succeeded but had timeouts
-        successful_retried = [i for i, d in enumerate(execution_details) if d.status != ExecutionStatus.FAILED and d.timeout_count > 0]
-        if successful_retried:
-            tqdm.write(f"\n⏱️  Tasks that timed out but eventually succeeded ({len(successful_retried)}): {successful_retried[:10]}{'...' if len(successful_retried) > 10 else ''}")
-            for task_id in successful_retried[:3]:
-                det = execution_details[task_id]
-                tqdm.write(f"\n📜 Attempt history for task {task_id} (succeeded):")
-                for record in det.attempt_history:
-                    lat = f"{record['latency']:.2f}s" if record['latency'] is not None else "-"
-                    rid_info = f" rid={record['rid']}" if record.get('rid') else ""
-                    tqdm.write(
-                        f"  a{record['attempt']}: {record['status']:<8} start={record['start']-det.attempt_history[0]['start']:+.2f}s lat={lat}{rid_info}"
-                        + (f" snippet=\"{record['snippet']}\"" if record['snippet'] else "")
-                    )
         # Final ASCII timeline
         VIS_WIDTH = 80
         final_timeline = _ascii_timeline(
@@ -970,14 +914,6 @@ class SyncExecutor(Executor):
                             progress_bar.update()
                             break
                         except Exception as exc:
-                            # Debug print of exception hierarchy
-                            root = exc
-                            depth = 0
-                            while getattr(root, "__cause__", None) and depth < 5:
-                                print(f"[DBG] cause {depth}: {type(root)} – {root}")
-                                root = root.__cause__
-                                depth += 1
-                            print(f"[DBG] final: {type(root)} – {root}")
                             execution_details[index].log_exception(exc)
                             is_phoenix_exception = isinstance(exc, PhoenixException)
                             if attempt >= self.max_retries or is_phoenix_exception:
