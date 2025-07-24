@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useFragment } from "react-relay";
 import { Outlet, useLocation, useNavigate } from "react-router";
 import { graphql } from "relay-runtime";
@@ -7,7 +6,6 @@ import { css } from "@emotion/react";
 import {
   Button,
   Counter,
-  Dialog,
   DialogTrigger,
   Flex,
   Heading,
@@ -57,7 +55,6 @@ const mainCSS = css`
 `;
 
 export function PromptLayout() {
-  const [dialog, setDialog] = useState<React.ReactNode | null>(null);
   const loaderData = usePromptIdLoader();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -177,21 +174,6 @@ export function PromptLayout() {
           <Outlet />
         </LazyTabPanel>
       </Tabs>
-      <ModalOverlay
-        isOpen={dialog !== null}
-        onOpenChange={(isOpen) => {
-          if (!isOpen) {
-            setDialog(null);
-          }
-        }}
-        isDismissable
-      >
-        <Modal variant="slideover" size="L">
-          <Dialog>
-            {dialog}
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
     </main>
   );
 }
