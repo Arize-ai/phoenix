@@ -13,6 +13,7 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.DatasetVersionSort import DatasetVersionSort
+from phoenix.server.api.input_types.ExperimentFilter import ExperimentFilter
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
@@ -216,6 +217,7 @@ class Dataset(Node):
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        filter: Optional[ExperimentFilter] = UNSET,
     ) -> Connection[Experiment]:
         args = ConnectionArgs(
             first=first,
@@ -230,6 +232,9 @@ class Dataset(Node):
             .where(models.Experiment.dataset_id == dataset_id)
             .order_by(models.Experiment.id.desc())
         )
+        if filter:
+            column = getattr(models.Experiment, filter.col.value)
+            query = query.where(column.ilike(f"%{filter.value}%"))
         async with info.context.db() as session:
             experiments = [
                 to_gql_experiment(experiment, sequence_number)

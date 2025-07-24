@@ -548,6 +548,192 @@ class TestDatasetExperimentsResolver:
 
 
 @pytest.fixture
+async def experiments_for_filtering(db: DbSessionFactory) -> None:
+    """
+    Creates a dataset with a few experiments with specific names and descriptions for filtering tests.
+    """
+    async with db() as session:
+        # Insert dataset
+        dataset_id = await session.scalar(
+            insert(models.Dataset)
+            .returning(models.Dataset.id)
+            .values(
+                name="filter-test-dataset",
+                description="dataset-description",
+                metadata_={"dataset-metadata-key": "dataset-metadata-value"},
+            )
+        )
+
+        # Insert dataset version
+        version_id = await session.scalar(
+            insert(models.DatasetVersion)
+            .returning(models.DatasetVersion.id)
+            .values(
+                dataset_id=dataset_id,
+                description="version-description",
+                metadata_={"version-metadata-key": "version-metadata-value"},
+            )
+        )
+
+        # Insert experiments with specific names and descriptions
+        await session.scalars(
+            insert(models.Experiment)
+            .returning(models.Experiment.id)
+            .values([
+                {
+                    "dataset_id": dataset_id,
+                    "dataset_version_id": version_id,
+                    "name": "test-experiment-one",
+                    "description": "first test experiment description",
+                    "repetitions": 1,
+                    "metadata_": {"meta": "one"},
+                },
+                {
+                    "dataset_id": dataset_id,
+                    "dataset_version_id": version_id,
+                    "name": "test-experiment-two",
+                    "description": "second test experiment description",
+                    "repetitions": 1,
+                    "metadata_": {"meta": "two"},
+                },
+                {
+                    "dataset_id": dataset_id,
+                    "dataset_version_id": version_id,
+                    "name": "production-experiment",
+                    "description": "production ready experiment",
+                    "repetitions": 1,
+                    "metadata_": {"meta": "prod"},
+                },
+                {
+                    "dataset_id": dataset_id,
+                    "dataset_version_id": version_id,
+                    "name": "demo-experiment",
+                    "description": "demo experiment for testing",
+                    "repetitions": 1,
+                    "metadata_": {"meta": "demo"},
+                },
+            ])
+        )
+
+
+async def test_experiments_filter_by_name(
+    gql_client: AsyncGraphQLClient,
+    experiments_for_filtering: Any,
+) -> None:
+    """Test that experiments can be filtered by name using partial matching."""
+    query = """
+      query ($datasetId: ID!, $filter: ExperimentFilter) {
+        node(id: $datasetId) {
+          ... on Dataset {
+            experiments(filter: $filter) {
+              edges {
+                node {
+                  id
+                  name
+                  description
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+
+    # Test filtering by partial name match
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "datasetId": str(GlobalID("Dataset", str(1))),
+            "filter": {"col": "name", "value": "test-experiment"},
+        },
+    )
+    assert not response.errors
+    # Should find test-experiment-one and test-experiment-two
+    assert len(response.data["node"]["experiments"]["edges"]) == 2
+    names = [edge["node"]["name"] for edge in response.data["node"]["experiments"]["edges"]]
+    assert "test-experiment-one" in names
+    assert "test-experiment-two" in names
+
+    # Test filtering with no matches
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "datasetId": str(GlobalID("Dataset", str(1))),
+            "filter": {"col": "name", "value": "nonexistent"},
+        },
+    )
+    assert not response.errors
+    assert response.data == {"node": {"experiments": {"edges": []}}}
+
+
+async def test_experiments_filter_by_description(
+    gql_client: AsyncGraphQLClient,
+    experiments_for_filtering: Any,
+) -> None:
+    """Test that experiments can be filtered by description using partial matching."""
+    query = """
+      query ($datasetId: ID!, $filter: ExperimentFilter) {
+        node(id: $datasetId) {
+          ... on Dataset {
+            experiments(filter: $filter) {
+              edges {
+                node {
+                  id
+                  name
+                  description
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+
+    # Test filtering by partial description match
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "datasetId": str(GlobalID("Dataset", str(1))),
+            "filter": {"col": "description", "value": "production ready"},
+        },
+    )
+    assert not response.errors
+    assert len(response.data["node"]["experiments"]["edges"]) == 1
+    assert response.data["node"]["experiments"]["edges"][0]["node"]["name"] == "production-experiment"
+
+
+async def test_experiments_without_filter(
+    gql_client: AsyncGraphQLClient,
+    experiments_for_filtering: Any,
+) -> None:
+    """Test that all experiments are returned when no filter is applied."""
+    query = """
+      query ($datasetId: ID!) {
+        node(id: $datasetId) {
+          ... on Dataset {
+            experiments {
+              edges {
+                node {
+                  id
+                  name
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+
+    response = await gql_client.execute(
+        query=query,
+        variables={"datasetId": str(GlobalID("Dataset", str(1)))},
+    )
+    assert not response.errors
+    # experiments_for_filtering fixture creates 4 experiments for dataset 1
+    assert len(response.data["node"]["experiments"]["edges"]) == 4
+
+
+@pytest.fixture
 async def dataset_with_patch_revision(db: DbSessionFactory) -> None:
     """
     A dataset with a single example and two versions. In the first version, the
