@@ -61,6 +61,7 @@ import {
 import {
   ExperimentRunTokenCosts,
   ExperimentRunTokenCount,
+  ExperimentTokenCount,
 } from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
 import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
@@ -100,16 +101,11 @@ type ExampleCompareTableProps = {
   displayFullText: boolean;
 };
 
-type ExperimentInfoMap = Record<
-  string,
-  | {
-      name: string;
-      sequenceNumber: number;
-      metadata: object;
-      projectId: string | null;
-    }
-  | undefined
->;
+type Experiment = NonNullable<
+  ExperimentCompareTable_comparisons$data["dataset"]["experiments"]
+>["edges"][number]["experiment"];
+
+type ExperimentInfoMap = Record<string, Experiment | null>;
 
 type TableRow =
   ExperimentCompareTable_comparisons$data["compareExperiments"]["edges"][number]["comparison"] & {
@@ -251,6 +247,13 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                     project {
                       id
                     }
+                    costSummary {
+                      total {
+                        cost
+                        tokens
+                      }
+                    }
+                    averageRunLatencyMs
                   }
                 }
               }
@@ -265,7 +268,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       data.dataset?.experiments?.edges.reduce((acc, edge) => {
         acc[edge.experiment.id] = {
           ...edge.experiment,
-          projectId: edge.experiment?.project?.id || null,
         };
         return acc;
       }, {} as ExperimentInfoMap) || {}
@@ -301,6 +303,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       {
         header: "input",
         accessorKey: "input",
+        enableSorting: false,
         cell: ({ row }) => {
           return (
             <>
@@ -348,6 +351,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       {
         header: "reference output",
         accessorKey: "referenceOutput",
+        enableSorting: false,
         cell: (props) => (
           <>
             <CellTop>
@@ -368,11 +372,11 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     return [baselineExperimentId, ...compareExperimentIds].map(
       (experimentId) => ({
         header: () => {
-          const name = experimentInfoById[experimentId]?.name;
-          const metadata = experimentInfoById[experimentId]?.metadata;
-          const projectId = experimentInfoById[experimentId]?.projectId;
-          const sequenceNumber =
-            experimentInfoById[experimentId]?.sequenceNumber || 0;
+          const experiment = experimentInfoById[experimentId];
+          const name = experiment?.name;
+          const metadata = experiment?.metadata;
+          const projectId = experiment?.project?.id;
+          const sequenceNumber = experiment?.sequenceNumber || 0;
           return (
             <Flex
               direction="row"
@@ -384,19 +388,28 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               <Flex direction="row" gap="size-100" wrap alignItems="center">
                 <SequenceNumberToken sequenceNumber={sequenceNumber} />
                 <Text>{name}</Text>
+                {experiment && <ExperimentMetadata experiment={experiment} />}
               </Flex>
-              <ExperimentActionMenu
-                experimentId={experimentId}
-                metadata={metadata}
-                isQuiet={true}
-                projectId={projectId}
-                canDeleteExperiment={false}
-              />
+              <Flex
+                direction="row"
+                wrap
+                justifyContent="end"
+                alignItems="center"
+              >
+                <ExperimentActionMenu
+                  experimentId={experimentId}
+                  metadata={metadata}
+                  isQuiet={true}
+                  projectId={projectId}
+                  canDeleteExperiment={false}
+                />
+              </Flex>
             </Flex>
           );
         },
         accessorKey: experimentId,
         minSize: 500,
+        enableSorting: false,
         cell: ({ row }) => {
           const runComparisonItem = row.original.runComparisonMap[experimentId];
           const numRuns = runComparisonItem?.runs.length || 0;
@@ -830,6 +843,27 @@ function ExperimentRowActionMenu(props: {
         </Popover>
       </DialogTrigger>
     </div>
+  );
+}
+
+function ExperimentMetadata(props: { experiment: Experiment }) {
+  const { experiment } = props;
+  const averageRunLatencyMs = experiment.averageRunLatencyMs;
+  const costSummary = experiment.costSummary;
+  const totalTokens = costSummary?.total?.tokens;
+  return (
+    <Flex direction="row" gap="size-100">
+      {averageRunLatencyMs != null && (
+        <LatencyText size="S" latencyMs={averageRunLatencyMs} />
+      )}
+      {totalTokens != null && (
+        <ExperimentTokenCount
+          tokenCountTotal={totalTokens}
+          experimentId={experiment.id}
+          size="S"
+        />
+      )}
+    </Flex>
   );
 }
 

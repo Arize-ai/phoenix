@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f11744bf3704989b6c4a15e374b502b3>>
+ * @generated SignedSource<<61f026f0569ee641b40abcf4b878f9fb>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -128,10 +128,24 @@ v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "name",
+  "name": "tokens",
   "storageKey": null
 },
 v10 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "cost",
+  "storageKey": null
+},
+v11 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -301,20 +315,8 @@ return {
                                 "name": "total",
                                 "plural": false,
                                 "selections": [
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "tokens",
-                                    "storageKey": null
-                                  },
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "cost",
-                                    "storageKey": null
-                                  }
+                                  (v9/*: any*/),
+                                  (v10/*: any*/)
                                 ],
                                 "storageKey": null
                               }
@@ -346,7 +348,7 @@ return {
                                     "plural": false,
                                     "selections": [
                                       (v7/*: any*/),
-                                      (v9/*: any*/),
+                                      (v11/*: any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -410,7 +412,7 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v10/*: any*/),
+                  (v12/*: any*/),
                   (v7/*: any*/)
                 ],
                 "storageKey": null
@@ -473,7 +475,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v10/*: any*/),
+          (v12/*: any*/),
           (v7/*: any*/),
           {
             "kind": "InlineFragment",
@@ -503,7 +505,7 @@ return {
                         "plural": false,
                         "selections": [
                           (v7/*: any*/),
-                          (v9/*: any*/),
+                          (v11/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -529,6 +531,37 @@ return {
                               (v7/*: any*/)
                             ],
                             "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "SpanCostSummary",
+                            "kind": "LinkedField",
+                            "name": "costSummary",
+                            "plural": false,
+                            "selections": [
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "CostBreakdown",
+                                "kind": "LinkedField",
+                                "name": "total",
+                                "plural": false,
+                                "selections": [
+                                  (v10/*: any*/),
+                                  (v9/*: any*/)
+                                ],
+                                "storageKey": null
+                              }
+                            ],
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "averageRunLatencyMs",
+                            "storageKey": null
                           }
                         ],
                         "storageKey": null
@@ -549,16 +582,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f548db2b91285cdb50b8c52efa109de0",
+    "cacheID": "5b378f306e6121ad8ed05334c64b3660",
     "id": null,
     "metadata": {},
     "name": "ExperimentCompareTableQuery",
     "operationKind": "query",
-    "text": "query ExperimentCompareTableQuery(\n  $after: String = null\n  $baselineExperimentId: ID!\n  $compareExperimentIds: [ID!]!\n  $datasetId: ID!\n  $filterCondition: String = null\n  $first: Int = 50\n) {\n  ...ExperimentCompareTable_comparisons_1EMHxr\n}\n\nfragment ExperimentCompareTable_comparisons_1EMHxr on Query {\n  compareExperiments(first: $first, after: $after, baselineExperimentId: $baselineExperimentId, compareExperimentIds: $compareExperimentIds, filterCondition: $filterCondition) {\n    edges {\n      comparison: node {\n        example {\n          id\n          revision {\n            input\n            referenceOutput: output\n          }\n        }\n        runComparisonItems {\n          experimentId\n          runs {\n            id\n            output\n            error\n            startTime\n            endTime\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  score\n                  label\n                  annotatorKind\n                  explanation\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n        }\n        id\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experiments {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            metadata\n            project {\n              id\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query ExperimentCompareTableQuery(\n  $after: String = null\n  $baselineExperimentId: ID!\n  $compareExperimentIds: [ID!]!\n  $datasetId: ID!\n  $filterCondition: String = null\n  $first: Int = 50\n) {\n  ...ExperimentCompareTable_comparisons_1EMHxr\n}\n\nfragment ExperimentCompareTable_comparisons_1EMHxr on Query {\n  compareExperiments(first: $first, after: $after, baselineExperimentId: $baselineExperimentId, compareExperimentIds: $compareExperimentIds, filterCondition: $filterCondition) {\n    edges {\n      comparison: node {\n        example {\n          id\n          revision {\n            input\n            referenceOutput: output\n          }\n        }\n        runComparisonItems {\n          experimentId\n          runs {\n            id\n            output\n            error\n            startTime\n            endTime\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  score\n                  label\n                  annotatorKind\n                  explanation\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n        }\n        id\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experiments {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            metadata\n            project {\n              id\n            }\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            averageRunLatencyMs\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a4625896f8c59c20b5b08c9a498658aa";
+(node as any).hash = "da2d2216d13b2a8a046d0b805c6bd31d";
 
 export default node;
