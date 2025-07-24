@@ -652,9 +652,10 @@ async def test_experiments_filter_by_name(
     )
     assert not response.errors
     assert response.data is not None
+    data = response.data
     # Should find test-experiment-one and test-experiment-two
-    assert len(response.data["node"]["experiments"]["edges"]) == 2
-    names = [edge["node"]["name"] for edge in response.data["node"]["experiments"]["edges"]]
+    assert len(data["node"]["experiments"]["edges"]) == 2
+    names = [edge["node"]["name"] for edge in data["node"]["experiments"]["edges"]]
     assert "test-experiment-one" in names
     assert "test-experiment-two" in names
 
@@ -703,9 +704,10 @@ async def test_experiments_filter_by_description(
     )
     assert not response.errors
     assert response.data is not None
-    assert len(response.data["node"]["experiments"]["edges"]) == 1
+    data = response.data
+    assert len(data["node"]["experiments"]["edges"]) == 1
     assert (
-        response.data["node"]["experiments"]["edges"][0]["node"]["name"] == "production-experiment"
+        data["node"]["experiments"]["edges"][0]["node"]["name"] == "production-experiment"
     )
 
 
@@ -737,8 +739,9 @@ async def test_experiments_without_filter(
     )
     assert not response.errors
     assert response.data is not None
+    data = response.data
     # experiments_for_filtering fixture creates 4 experiments for dataset 1
-    assert len(response.data["node"]["experiments"]["edges"]) == 4
+    assert len(data["node"]["experiments"]["edges"]) == 4
 
 
 @pytest.fixture
