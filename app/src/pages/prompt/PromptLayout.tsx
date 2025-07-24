@@ -4,11 +4,10 @@ import { Outlet, useLocation, useNavigate } from "react-router";
 import { graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
-import { DialogContainer } from "@arizeai/components";
-
 import {
   Button,
   Counter,
+  Dialog,
   DialogTrigger,
   Flex,
   Heading,
@@ -178,9 +177,21 @@ export function PromptLayout() {
           <Outlet />
         </LazyTabPanel>
       </Tabs>
-      <DialogContainer onDismiss={() => setDialog(null)}>
-        {dialog}
-      </DialogContainer>
+      <ModalOverlay
+        isOpen={dialog !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setDialog(null);
+          }
+        }}
+        isDismissable
+      >
+        <Modal variant="slideover" size="L">
+          <Dialog>
+            {dialog}
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
     </main>
   );
 }
