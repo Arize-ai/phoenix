@@ -6,7 +6,6 @@ from importlib.metadata import version
 from types import ModuleType
 from typing import Any, Dict, List, Optional, Set
 
-# Configuration for experimental modules
 EXPERIMENTAL_MODULES: Dict[str, Dict[str, Any]] = {
     "phoenix.evals.llm": {
         "warning_message": (
@@ -19,20 +18,16 @@ EXPERIMENTAL_MODULES: Dict[str, Dict[str, Any]] = {
     },
 }
 
-# Track which experimental modules have shown warnings
 _experimental_warnings_shown: Set[str] = set()
 
 
 class ExperimentalModuleWrapper:
-    """Wrapper that intercepts attribute access to show experimental warnings."""
-
     def __init__(self, real_module: Any, module_config: Dict[str, Any]):
         self._real_module = real_module
         self._module_config = module_config
         self._module_name = real_module.__name__
 
     def __getattr__(self, name: str) -> Any:
-        # Show warning on any access to experimental module contents
         if (
             self._module_config.get("warn_on_access", False)
             and self._module_name not in _experimental_warnings_shown
@@ -67,13 +62,11 @@ class ExperimentalModuleFinder(MetaPathFinder):
 
     def find_spec(self, fullname: str, path: Any, target: Any = None) -> Optional[ModuleSpec]:
         if fullname in EXPERIMENTAL_MODULES:
-            # Find the real spec first by asking other finders
             for finder in sys.meta_path:
                 if finder is self:
                     continue
                 spec = finder.find_spec(fullname, path, target)
                 if spec is not None:
-                    # Replace the loader with our experimental wrapper
                     original_loader = spec.loader
                     spec.loader = ExperimentalModuleLoader(
                         original_loader, EXPERIMENTAL_MODULES[fullname]
@@ -114,7 +107,6 @@ class ExperimentalModuleLoader(Loader):
                         setattr(parent_module, module_attr_name, wrapper)
 
 
-# Install the experimental module finder
 sys.meta_path.insert(0, ExperimentalModuleFinder())
 
 from . import llm  # noqa: F401
