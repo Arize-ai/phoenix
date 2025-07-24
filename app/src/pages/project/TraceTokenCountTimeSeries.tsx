@@ -15,7 +15,10 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
+  defaultCartesianGridProps,
   defaultLegendProps,
+  defaultXAxisProps,
+  defaultYAxisProps,
   useBinTimeTickFormatter,
   useSemanticChartColors,
   useSequentialChartColors,
@@ -136,32 +139,26 @@ export function TraceTokenCountTimeSeries({
         margin={{ top: 0, right: 18, left: 0, bottom: 0 }}
         barSize={10}
       >
+        <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
         <XAxis
+          {...defaultXAxisProps}
           dataKey="timestamp"
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
-          style={{ fill: "var(--ac-global-text-color-700)" }}
-          stroke="var(--ac-global-color-grey-400)"
         />
         <YAxis
-          stroke="var(--ac-global-color-grey-500)"
-          width={50}
+          {...defaultYAxisProps}
+          width={55}
+          tickFormatter={(x) => intFormatter(x)}
           label={{
             value: "Tokens",
             angle: -90,
-            dx: -10,
+            dx: -20,
             style: {
               textAnchor: "middle",
               fill: "var(--ac-global-text-color-900)",
             },
           }}
           style={{ fill: "var(--ac-global-text-color-700)" }}
-        />
-
-        <CartesianGrid
-          strokeDasharray="4 4"
-          stroke="var(--ac-global-color-grey-500)"
-          strokeOpacity={0.5}
-          vertical={false}
         />
         <Tooltip
           content={TooltipContent}

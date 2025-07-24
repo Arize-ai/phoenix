@@ -27,7 +27,7 @@ import {
 import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
-import { intFormatter } from "@phoenix/utils/numberFormatUtils";
+import { formatFloat, intFormatter } from "@phoenix/utils/numberFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import type { TraceLatencyPercentilesTimeSeriesQuery } from "./__generated__/TraceLatencyPercentilesTimeSeriesQuery.graphql";
@@ -58,7 +58,7 @@ function TooltipContent({
                 color={entry.color || chartColors.default}
                 shape="line"
                 name={entry.dataKey || "unknown"}
-                value={`${intFormatter(entry.value)}ms`} // TODO: format times in a more readable way
+                value={`${formatFloat(entry.value)} s`}
               />
             );
           }
@@ -124,13 +124,13 @@ export function TraceLatencyPercentilesTimeSeries({
     data.project.traceLatencyMsPercentileTimeSeries?.data ?? []
   ).map((datum) => ({
     timestamp: datum.timestamp,
-    p50: datum.p50,
-    p75: datum.p75,
-    p90: datum.p90,
-    p95: datum.p95,
-    p99: datum.p99,
-    p999: datum.p999,
-    max: datum.max,
+    p50: typeof datum.p50 === "number" ? datum.p50 / 1000 : null,
+    p75: typeof datum.p75 === "number" ? datum.p75 / 1000 : null,
+    p90: typeof datum.p90 === "number" ? datum.p90 / 1000 : null,
+    p95: typeof datum.p95 === "number" ? datum.p95 / 1000 : null,
+    p99: typeof datum.p99 === "number" ? datum.p99 / 1000 : null,
+    p999: typeof datum.p999 === "number" ? datum.p999 / 1000 : null,
+    max: typeof datum.max === "number" ? datum.max / 1000 : null,
   }));
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
@@ -143,17 +143,19 @@ export function TraceLatencyPercentilesTimeSeries({
         data={chartData}
         margin={{ top: 0, right: 18, left: 0, bottom: 0 }}
       >
+        <CartesianGrid vertical={false} {...defaultCartesianGridProps} />
         <XAxis
           dataKey="timestamp"
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
           {...defaultXAxisProps}
         />
         <YAxis
-          width={50}
+          width={55}
+          tickFormatter={(x) => intFormatter(x)}
           label={{
-            value: "Latency (ms)",
+            value: "Latency (sec)",
             angle: -90,
-            dx: -10,
+            dx: -20,
             style: {
               textAnchor: "middle",
               fill: "var(--chart-axis-label-color)",
@@ -161,13 +163,6 @@ export function TraceLatencyPercentilesTimeSeries({
           }}
           {...defaultYAxisProps}
         />
-
-        <CartesianGrid vertical={false} {...defaultCartesianGridProps} />
-        <Tooltip
-          content={TooltipContent}
-          cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
-        />
-
         <Line
           type="monotone"
           dataKey="p50"
@@ -232,8 +227,11 @@ export function TraceLatencyPercentilesTimeSeries({
           activeDot={{ r: 4 }}
           name="Max"
         />
-
         <Legend {...defaultLegendProps} iconType="line" iconSize={8} />
+        <Tooltip
+          content={TooltipContent}
+          cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+        />
       </LineChart>
     </ResponsiveContainer>
   );

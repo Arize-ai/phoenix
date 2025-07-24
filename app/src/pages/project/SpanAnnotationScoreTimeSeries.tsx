@@ -27,6 +27,7 @@ import {
 import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
+import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import type { SpanAnnotationScoreTimeSeriesQuery } from "./__generated__/SpanAnnotationScoreTimeSeriesQuery.graphql";
@@ -162,11 +163,12 @@ export function SpanAnnotationScoreTimeSeries({
           {...defaultXAxisProps}
         />
         <YAxis
-          width={50}
+          width={55}
+          tickFormatter={(x) => formatFloat(x)}
           label={{
             value: "Score",
             angle: -90,
-            dx: -10,
+            dx: -20,
             style: {
               textAnchor: "middle",
               fill: "var(--chart-axis-label-color)",

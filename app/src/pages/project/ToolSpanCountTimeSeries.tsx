@@ -26,7 +26,10 @@ import {
 import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
-import { intFormatter } from "@phoenix/utils/numberFormatUtils";
+import {
+  intFormatter,
+  intShortFormatter,
+} from "@phoenix/utils/numberFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import type { ToolSpanCountTimeSeriesQuery } from "./__generated__/ToolSpanCountTimeSeriesQuery.graphql";
@@ -148,11 +151,12 @@ export function ToolSpanCountTimeSeries({ projectId }: { projectId: string }) {
         />
         <YAxis
           {...defaultYAxisProps}
-          width={50}
+          width={55}
+          tickFormatter={(x) => intShortFormatter(x)}
           label={{
             value: "Count",
             angle: -90,
-            dx: -10,
+            dx: -20,
             style: {
               textAnchor: "middle",
               fill: "var(--chart-axis-label-color)",
