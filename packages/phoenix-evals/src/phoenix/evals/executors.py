@@ -758,11 +758,20 @@ class AsyncExecutor(Executor):
                     if pending:
                         tqdm.write(f"   📋 Pending tasks: {pending[:10]}{'...' if len(pending) > 10 else ''}")
                     # ASCII timeline snapshot (limited to first 20 tasks to avoid log spam)
-                    timeline_snapshot = _ascii_timeline(execution_details, width=60, max_tasks=20)
+                    VIS_WIDTH = 80
+                    timeline_snapshot = _ascii_timeline(
+                        execution_details,
+                        width=VIS_WIDTH,
+                        max_tasks=len(execution_details),  # show all tasks
+                    )
                     if timeline_snapshot:
                         tqdm.write("\n" + timeline_snapshot + "\n")
 
-                    tick_snapshot = _ascii_tickbar(execution_details, width=60, focus_tags=("S",))
+                    tick_snapshot = _ascii_tickbar(
+                        execution_details,
+                        width=VIS_WIDTH,
+                        focus_tags=("S",),
+                    )
                     if tick_snapshot:
                         tqdm.write(tick_snapshot + "\n")
         
@@ -860,13 +869,18 @@ class AsyncExecutor(Executor):
                         + (f" snippet=\"{record['snippet']}\"" if record['snippet'] else "")
                     )
         # Final ASCII timeline
-        final_timeline = _ascii_timeline(execution_details, width=80, max_tasks=50)
+        VIS_WIDTH = 80
+        final_timeline = _ascii_timeline(
+            execution_details,
+            width=VIS_WIDTH,
+            max_tasks=len(execution_details),  # show all tasks
+        )
         if final_timeline:
-            tqdm.write("\n📊 Timeline Legend: P=Queued, Q=Dequeued, S=Started, *=Executing, T=Timeout, B=Backoff-timeout, W=Waiting, R=Re-queued, E=Error, F=Fast completion S&C, C=Completed, X=Failed")
+            tqdm.write("\n�� Timeline Legend: P=Queued, Q=Dequeued, S=Started, *=Executing, T=Timeout, B=Backoff-timeout, W=Waiting, R=Re-queued, E=Error, F=Fast completion S&C, C=Completed, X=Failed")
             tqdm.write("   Note: Fast tasks (<1s) show as 'F' when S&C events occur at same timeline position due to compression")
             tqdm.write("\n" + final_timeline + "\n")
 
-        final_tickbar = _ascii_tickbar(execution_details, width=80, focus_tags=("S",))
+        final_tickbar = _ascii_tickbar(execution_details, width=VIS_WIDTH, focus_tags=("S",))
         if final_tickbar:
             tqdm.write(final_tickbar + "\n")
         
