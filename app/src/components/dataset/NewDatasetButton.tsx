@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { css } from "@emotion/react";
 
-import { Card as OldCard } from "@arizeai/components";
-
 import {
   Alert,
   Button,
@@ -50,11 +48,11 @@ export function NewDatasetButton({
         `}
       >
         <Card
-          title="Card: Create New Dataset"
-          // bodyStyle={{ padding: 0 }}
-          // variant="compact"
-          // borderColor="light"
-          // backgroundColor="light"
+          title="Create New Dataset"
+          bodyStyle={{ padding: 0 }}
+          variant="compact"
+          borderColor="light"
+          backgroundColor="light"
         >
           <View width="500px">
             {error ? <Alert variant="danger">{error}</Alert> : null}

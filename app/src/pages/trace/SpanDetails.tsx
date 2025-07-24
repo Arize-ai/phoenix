@@ -451,7 +451,6 @@ function AddSpanToDatasetButton({
         size="S"
         leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
       >
-        this is the button you're looking for
         {buttonText}
       </Button>
       <ModalOverlay>

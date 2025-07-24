@@ -147,9 +147,7 @@ export function SpanToDatasetExampleDialog({
       {({ close }) => (
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              SPANTODATASETEXAMPLEDIALOG: Add Example to Dataset
-            </DialogTitle>
+            <DialogTitle>Add Example to Dataset</DialogTitle>
             <DialogTitleExtra>
               <Button
                 variant="primary"
