@@ -16,8 +16,8 @@ import {
   ChartTooltip,
   ChartTooltipItem,
   defaultLegendProps,
-  useChartColors,
   useSemanticChartColors,
+  useSequentialChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/components/datetime";
@@ -34,7 +34,7 @@ function TooltipContent({
   label,
 }: TooltipContentProps<number, string>) {
   const SemanticChartColors = useSemanticChartColors();
-  const chartColors = useChartColors();
+  const chartColors = useSequentialChartColors();
   if (active && payload && payload.length) {
     // For stacked bar charts, payload[0] is the first bar (prompt), payload[1] is the second bar (completion)
     const promptValue = payload[0]?.value ?? null;
@@ -138,7 +138,7 @@ export function TraceTokenCountTimeSeries({
     })(),
   });
 
-  const colors = useChartColors();
+  const colors = useSequentialChartColors();
   const SemanticChartColors = useSemanticChartColors();
   return (
     <ResponsiveContainer width="100%" height="100%">

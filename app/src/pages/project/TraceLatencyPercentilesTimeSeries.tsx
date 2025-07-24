@@ -15,7 +15,7 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
-  useChartColors,
+  useSequentialChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import {
@@ -37,7 +37,7 @@ function TooltipContent({
   payload,
   label,
 }: TooltipContentProps<number, string>) {
-  const chartColors = useChartColors();
+  const chartColors = useSequentialChartColors();
   if (active && payload && payload.length) {
     return (
       <ChartTooltip>
@@ -146,7 +146,7 @@ export function TraceLatencyPercentilesTimeSeries({
     })(),
   });
 
-  const colors = useChartColors();
+  const colors = useSequentialChartColors();
 
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -227,7 +227,7 @@ export function TraceLatencyPercentilesTimeSeries({
         <Line
           type="monotone"
           dataKey="p999"
-          stroke={colors.gray600}
+          stroke={colors.grey600}
           strokeWidth={2}
           dot={false}
           activeDot={{ r: 4 }}
@@ -236,7 +236,7 @@ export function TraceLatencyPercentilesTimeSeries({
         <Line
           type="monotone"
           dataKey="max"
-          stroke={colors.gray700}
+          stroke={colors.grey700}
           strokeWidth={1}
           strokeDasharray="5 5"
           dot={false}

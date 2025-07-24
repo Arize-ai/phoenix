@@ -26,7 +26,7 @@ import {
   defaultSelectedTimestampReferenceLineLabelProps,
   defaultSelectedTimestampReferenceLineProps,
   defaultTimeXAxisProps,
-  useChartColors,
+  useSequentialChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { usePointCloudContext } from "@phoenix/contexts";
@@ -51,9 +51,9 @@ const numberFormatter = new Intl.NumberFormat([], {
 });
 
 const useColors = () => {
-  const colors = useChartColors();
+  const colors = useSequentialChartColors();
   const color = colors.blue400;
-  const barColor = colors.gray500;
+  const barColor = colors.grey500;
   return {
     color,
     barColor,

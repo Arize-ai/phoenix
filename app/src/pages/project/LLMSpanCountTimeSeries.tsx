@@ -19,8 +19,8 @@ import {
   defaultLegendProps,
   defaultXAxisProps,
   defaultYAxisProps,
-  useChartColors,
   useSemanticChartColors,
+  useSequentialChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/components/datetime";
@@ -37,7 +37,7 @@ function TooltipContent({
   label,
 }: TooltipContentProps<number, string>) {
   const SemanticChartColors = useSemanticChartColors();
-  const chartColors = useChartColors();
+  const chartColors = useSequentialChartColors();
   if (active && payload && payload.length) {
     const errorValue = payload[0]?.value ?? null;
     const unsetValue = payload[1]?.value ?? null;
@@ -59,7 +59,7 @@ function TooltipContent({
           value={errorString}
         />
         <ChartTooltipItem
-          color={chartColors.gray300}
+          color={chartColors.grey300}
           shape="circle"
           name="unset"
           value={unsetString}
@@ -144,7 +144,7 @@ export function LLMSpanCountTimeSeries({ projectId }: { projectId: string }) {
     })(),
   });
 
-  const colors = useChartColors();
+  const colors = useSequentialChartColors();
   const SemanticChartColors = useSemanticChartColors();
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -178,7 +178,7 @@ export function LLMSpanCountTimeSeries({ projectId }: { projectId: string }) {
           cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
         />
         <Bar dataKey="error" stackId="a" fill={SemanticChartColors.danger} />
-        <Bar dataKey="unset" stackId="a" fill={colors.gray300} />
+        <Bar dataKey="unset" stackId="a" fill={colors.grey300} />
         <Bar
           dataKey="ok"
           stackId="a"

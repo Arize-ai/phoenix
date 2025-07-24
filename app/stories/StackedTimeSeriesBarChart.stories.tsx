@@ -12,22 +12,21 @@ import {
 } from "recharts";
 
 import { Text } from "@phoenix/components";
-// Apply phoenix charting defaults for consistent styling
 import {
-  ChartColors,
+  SEQUENTIAL_CHART_COLORS,
   ChartTooltip,
   ChartTooltipItem,
   defaultBarChartTooltipProps,
   defaultCartesianGridProps,
+  defaultLegendProps,
   defaultXAxisProps,
   defaultYAxisProps,
-  useChartColors,
+  SequentialChartColors,
+  useSequentialChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 import { calculateGranularity } from "@phoenix/utils/timeSeriesUtils";
-
-import { CHART_COLORS } from "./constants/colorConstants";
 
 const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
@@ -152,7 +151,7 @@ function TooltipContent({
   payload,
   label,
 }: TooltipContentProps<number, string>) {
-  const chartColors = useChartColors();
+  const chartColors = useSequentialChartColors();
   if (active && payload && payload.length) {
     const metricValue = payload[1]?.value ?? null;
     const count = payload[0]?.value ?? null;
@@ -195,8 +194,8 @@ interface StackedBarChartProps {
     error: number;
   }>;
   height?: number | string;
-  firstColor?: keyof ChartColors;
-  secondColor?: keyof ChartColors;
+  firstColor?: keyof SequentialChartColors;
+  secondColor?: keyof SequentialChartColors;
 }
 
 function StackedBarChart({
@@ -215,7 +214,8 @@ function StackedBarChart({
     samplingIntervalMinutes: granularity.samplingIntervalMinutes,
   });
 
-  const colors = useChartColors();
+  const colors = useSequentialChartColors();
+  alert(JSON.stringify(colors));
 
   return (
     <div style={{ width: "100%", height }}>
@@ -254,7 +254,12 @@ function StackedBarChart({
             radius={[2, 2, 0, 0]}
           />
 
-          <Legend align="left" iconType="circle" iconSize={8} />
+          <Legend
+            align="left"
+            iconType="circle"
+            iconSize={8}
+            {...defaultLegendProps}
+          />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -262,7 +267,7 @@ function StackedBarChart({
 }
 
 const meta: Meta<typeof StackedBarChart> = {
-  title: "Charts/StackedTimeSeriesBarChart",
+  title: "Charting/StackedTimeSeriesBarChart",
   component: StackedBarChart,
   parameters: {
     layout: "padded",
@@ -274,11 +279,11 @@ const meta: Meta<typeof StackedBarChart> = {
     },
     firstColor: {
       control: { type: "select" },
-      options: CHART_COLORS,
+      options: SEQUENTIAL_CHART_COLORS,
     },
     secondColor: {
       control: { type: "select" },
-      options: CHART_COLORS,
+      options: SEQUENTIAL_CHART_COLORS,
     },
   },
 };

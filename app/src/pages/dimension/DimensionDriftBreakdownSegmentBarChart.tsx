@@ -19,7 +19,7 @@ import {
   ChartTooltipItem,
   defaultBarChartTooltipProps,
   getBinName,
-  useChartColors,
+  useSequentialChartColors,
 } from "@phoenix/components/chart";
 import { useInferences } from "@phoenix/contexts";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
@@ -38,7 +38,7 @@ type BarChartItem = {
 const formatter = format(".2f");
 
 const useColors = () => {
-  const { primary, reference } = useChartColors();
+  const { primary, reference } = useSequentialChartColors();
   return {
     primaryBarColor: primary,
     referenceBarColor: reference,
