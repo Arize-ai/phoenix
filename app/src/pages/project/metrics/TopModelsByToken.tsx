@@ -22,7 +22,6 @@ import {
   defaultYAxisProps,
   useCategoryChartColors,
 } from "@phoenix/components/chart";
-import { useTimeRange } from "@phoenix/components/datetime";
 import { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
@@ -65,8 +64,10 @@ function TooltipContent({
   return null;
 }
 
-export function TopModelsByToken({ projectId }: ProjectMetricViewProps) {
-  const { timeRange } = useTimeRange();
+export function TopModelsByToken({
+  projectId,
+  timeRange,
+}: ProjectMetricViewProps) {
   const colors = useCategoryChartColors();
   const data = useLazyLoadQuery<TopModelsByTokenQuery>(
     graphql`

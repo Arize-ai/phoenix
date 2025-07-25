@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import { forwardRef, useMemo } from "react";
 import { useParams } from "react-router";
 import { css } from "@emotion/react";
 
@@ -10,6 +10,7 @@ import {
   useTimeRange,
   View,
 } from "@phoenix/components";
+import { ONE_MONTH_MS } from "@phoenix/constants/timeConstants";
 import { TopModelsByCost } from "@phoenix/pages/project/metrics/TopModelsByCost";
 import { TopModelsByToken } from "@phoenix/pages/project/metrics/TopModelsByToken";
 import { TraceErrorsTimeSeries } from "@phoenix/pages/project/metrics/TraceErrorsTimeSeries";
@@ -102,9 +103,28 @@ export function ProjectMetricsPage() {
   if (!projectId) {
     throw new Error("projectId is required");
   }
-  const { timeRange } = useTimeRange();
-  const isOpenTimeRange = timeRange.start === null && timeRange.end === null;
+  const { timeRange: contextTimeRange } = useTimeRange();
+  const isOpenTimeRange =
+    contextTimeRange.start === null || contextTimeRange.end === null;
 
+  const timeRange = useMemo<TimeRange>(() => {
+    const start = contextTimeRange.start;
+    const end = contextTimeRange.end;
+
+    if (start && end) {
+      return { start, end };
+    } else if (!start && end) {
+      return { start: new Date(end.getTime() - ONE_MONTH_MS), end };
+    } else if (start && !end) {
+      return { start, end: new Date(start.getTime() + ONE_MONTH_MS) };
+    } else if (!start && !end) {
+      return { start: new Date(Date.now() - ONE_MONTH_MS), end: new Date() };
+    } else {
+      throw new Error(
+        `Invalid time range: ${JSON.stringify(contextTimeRange)}`
+      );
+    }
+  }, [contextTimeRange]);
   return (
     <main
       css={css`
@@ -115,7 +135,7 @@ export function ProjectMetricsPage() {
       `}
     >
       {isOpenTimeRange && (
-        <Alert variant="warning">
+        <Alert variant="info" banner title="Time Range Adjusted">
           {`This view does not support open-ended time ranges. Your time range has
           been set to ${fullTimeFormatter(timeRange.start)} to ${fullTimeFormatter(timeRange.end)}`}
         </Alert>
