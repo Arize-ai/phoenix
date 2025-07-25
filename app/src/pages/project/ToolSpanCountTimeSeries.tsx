@@ -21,8 +21,8 @@ import {
   defaultYAxisProps,
   useBinInterval,
   useBinTimeTickFormatter,
+  useCategoryChartColors,
   useSemanticChartColors,
-  useSequentialChartColors,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
@@ -41,7 +41,7 @@ function TooltipContent({
   label,
 }: TooltipContentProps<number, string>) {
   const SemanticChartColors = useSemanticChartColors();
-  const chartColors = useSequentialChartColors();
+  const chartColors = useCategoryChartColors();
   if (active && payload && payload.length) {
     const errorValue = payload[0]?.value ?? null;
     const unsetValue = payload[1]?.value ?? null;
@@ -63,13 +63,13 @@ function TooltipContent({
           value={errorString}
         />
         <ChartTooltipItem
-          color={chartColors.grey300}
+          color={chartColors.category2}
           shape="circle"
           name="unset"
           value={unsetString}
         />
         <ChartTooltipItem
-          color={chartColors.default}
+          color={chartColors.category1}
           shape="circle"
           name="ok"
           value={okString}
@@ -137,7 +137,7 @@ export function ToolSpanCountTimeSeries({ projectId }: { projectId: string }) {
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
   const interval = useBinInterval({ scale });
-  const colors = useSequentialChartColors();
+  const colors = useCategoryChartColors();
   const SemanticChartColors = useSemanticChartColors();
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -173,11 +173,11 @@ export function ToolSpanCountTimeSeries({ projectId }: { projectId: string }) {
           cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
         />
         <Bar dataKey="error" stackId="a" fill={SemanticChartColors.danger} />
-        <Bar dataKey="unset" stackId="a" fill={colors.grey300} />
+        <Bar dataKey="unset" stackId="a" fill={colors.category2} />
         <Bar
           dataKey="ok"
           stackId="a"
-          fill={colors.default}
+          fill={colors.category1}
           radius={[2, 2, 0, 0]}
         />
         <Legend {...defaultLegendProps} iconType="circle" iconSize={8} />

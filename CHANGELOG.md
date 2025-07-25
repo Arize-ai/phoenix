@@ -1,5 +1,25 @@
 # Changelog
 
+## [11.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.10.1...arize-phoenix-v11.11.0) (2025-07-24)
+
+
+### Features
+
+* add basic tops bar charts ([#8711](https://github.com/Arize-ai/phoenix/issues/8711)) ([6cffc82](https://github.com/Arize-ai/phoenix/commit/6cffc82b5bc49a4b72ad74532eed151a93bb2a3e))
+* Add search bar functionality to prompts page ([#8703](https://github.com/Arize-ai/phoenix/issues/8703)) ([9ae5027](https://github.com/Arize-ai/phoenix/commit/9ae502751b04da8ddd0da0964c349b98941eddca))
+* **design:** align chart colors with base ([#8730](https://github.com/Arize-ai/phoenix/issues/8730)) ([8bcb4d3](https://github.com/Arize-ai/phoenix/commit/8bcb4d31102b93a3f81de6bcdb907cbf70e92c91))
+* **design:** floating toolbar ([#8717](https://github.com/Arize-ai/phoenix/issues/8717)) ([75e65c0](https://github.com/Arize-ai/phoenix/commit/75e65c0d42abfedd2cd4afa11acfd83813f70df5))
+* **design:** legend text as un-colored ([#8745](https://github.com/Arize-ai/phoenix/issues/8745)) ([9395857](https://github.com/Arize-ai/phoenix/commit/9395857a003eca35f40176819990956e77335278))
+* **design:** show logo text ([#8740](https://github.com/Arize-ai/phoenix/issues/8740)) ([2157b50](https://github.com/Arize-ai/phoenix/commit/2157b505f4bac13a68b29a6351945f802e7b3b46))
+* **metrics:** consistant time range formatting based on binning ([#8751](https://github.com/Arize-ai/phoenix/issues/8751)) ([3a6c2d5](https://github.com/Arize-ai/phoenix/commit/3a6c2d52ae3defc7ef9b4a3a5bd01b44db6afc81))
+
+
+### Bug Fixes
+
+* format x axis labels on tops bar charts consistently with tooltips ([#8750](https://github.com/Arize-ai/phoenix/issues/8750)) ([c25763c](https://github.com/Arize-ai/phoenix/commit/c25763c7d43e12277859429c5c5da63665d08850))
+* json highlighting ([#8731](https://github.com/Arize-ai/phoenix/issues/8731)) ([1f957a5](https://github.com/Arize-ai/phoenix/commit/1f957a5029bd850be1c89e61af914712ffc6ce77))
+* make span event list scrollable ([#8763](https://github.com/Arize-ai/phoenix/issues/8763)) ([1c612ec](https://github.com/Arize-ai/phoenix/commit/1c612ecfeb6942d51d0f9b6db6223df5b3dded21))
+
 ## [11.10.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.10.0...arize-phoenix-v11.10.1) (2025-07-22)
 
 

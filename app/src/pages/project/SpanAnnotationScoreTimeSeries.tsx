@@ -17,7 +17,6 @@ import {
   ChartTooltipItem,
   useBinInterval,
   useBinTimeTickFormatter,
-  useSequentialChartColors,
 } from "@phoenix/components/chart";
 import {
   defaultCartesianGridProps,
@@ -28,6 +27,7 @@ import {
 import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
+import { useWordColor } from "@phoenix/hooks/useWordColor";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
@@ -38,7 +38,6 @@ function TooltipContent({
   payload,
   label,
 }: TooltipContentProps<number, string>) {
-  const chartColors = useSequentialChartColors();
   if (active && payload && payload.length) {
     return (
       <ChartTooltip>
@@ -60,7 +59,7 @@ function TooltipContent({
             return (
               <ChartTooltipItem
                 key={index}
-                color={entry.color || chartColors.default}
+                color={entry.color || "#FF00FF"} // hot pink, fail loudly.
                 shape="line"
                 name={String(entry.dataKey || "unknown")}
                 value={entry.value.toFixed(2)}
@@ -73,6 +72,21 @@ function TooltipContent({
   }
 
   return null;
+}
+
+function AnnotationLine({ name }: { name: string }) {
+  const color = useWordColor(name);
+  return (
+    <Line
+      type="monotone"
+      dataKey={name}
+      stroke={color}
+      strokeWidth={2}
+      dot={false}
+      activeDot={{ r: 4 }}
+      name={name}
+    />
+  );
 }
 
 export function SpanAnnotationScoreTimeSeries({
@@ -142,15 +156,6 @@ export function SpanAnnotationScoreTimeSeries({
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
   const interval = useBinInterval({ scale });
-  const colors = useSequentialChartColors();
-  const colorMap = [
-    colors.blue400,
-    colors.orange400,
-    colors.red400,
-    colors.purple400,
-    colors.grey600,
-    colors.grey700,
-  ];
 
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -183,18 +188,10 @@ export function SpanAnnotationScoreTimeSeries({
           content={TooltipContent}
           cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
         />
-        {annotationNames.map((name, index) => (
-          <Line
-            key={name}
-            type="monotone"
-            dataKey={name}
-            stroke={colorMap[index % colorMap.length]}
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4 }}
-            name={name}
-          />
-        ))}
+
+        {annotationNames.map((name) => {
+          return <AnnotationLine key={name} name={name} />;
+        })}
 
         <Legend {...defaultLegendProps} iconType="line" iconSize={8} />
       </LineChart>

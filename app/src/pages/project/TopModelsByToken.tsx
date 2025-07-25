@@ -120,7 +120,7 @@ export function TopModelsByToken({ projectId }: { projectId: string }) {
         data={chartData}
         margin={{ top: 0, right: 18, left: 0, bottom: 0 }}
         layout="vertical"
-        barSize={6}
+        barSize={10}
       >
         <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
         <Tooltip
