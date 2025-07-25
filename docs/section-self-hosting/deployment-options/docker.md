@@ -40,7 +40,7 @@ docker pull arizephoenix/phoenix
 Pick an image you would like to run or simply run the latest:
 
 {% hint style="danger" %}
-Note, you should pin the phoenix version for production to the version of phoenix you plan on using. Phoenix now supports both semver-compatible tags (e.g. `arizephoenix/phoenix:4.0.0`, `arizephoenix/phoenix:4.0.0-nonroot`) and the traditional format (e.g. `arizephoenix/phoenix:version-4.0.0`, `arizephoenix/phoenix:version-4.0.0-nonroot`). For better enterprise compatibility, we recommend using the semver format.
+Note, you should pin the phoenix version for production to the version of phoenix you plan on using. E.x. arizephoenix/phoenix:4.0.0
 {% endhint %}
 
 ```
