@@ -94,8 +94,8 @@ const TAB_INDEX_MAP: Record<(typeof TABS)[number], number> = {
   spans: 0,
   traces: 1,
   sessions: 2,
-  config: 3,
-  metrics: 4,
+  metrics: 3,
+  config: 4,
 };
 
 export function ProjectPageContent({
@@ -151,23 +151,23 @@ export function ProjectPageContent({
   );
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
   useEffect(() => {
-    if (tabIndex === 0) {
+    if (tabIndex === TAB_INDEX_MAP.spans) {
       loadSpansQuery({
         id: projectId as string,
         timeRange: timeRangeVariable,
         orphanSpanAsRootSpan: treatOrphansAsRoots,
       });
-    } else if (tabIndex === 1) {
+    } else if (tabIndex === TAB_INDEX_MAP.traces) {
       loadTracesQuery({
         id: projectId as string,
         timeRange: timeRangeVariable,
       });
-    } else if (tabIndex === 2) {
+    } else if (tabIndex === TAB_INDEX_MAP.sessions) {
       loadSessionsQuery({
         id: projectId as string,
         timeRange: timeRangeVariable,
       });
-    } else if (tabIndex === 3) {
+    } else if (tabIndex === TAB_INDEX_MAP.config) {
       loadProjectConfigQuery({
         id: projectId as string,
       });
@@ -204,11 +204,11 @@ export function ProjectPageContent({
           // navigate to the sessions tab
           navigate(`${rootPath}/sessions`);
         } else if (index === 3) {
-          // navigate to the config tab
-          navigate(`${rootPath}/config`);
-        } else if (index === 4) {
           // navigate to the metrics tab
           navigate(`${rootPath}/metrics`);
+        } else if (index === 4) {
+          // navigate to the config tab
+          navigate(`${rootPath}/config`);
         } else {
           // navigate to the spans tab
           navigate(`${rootPath}/spans`);
@@ -262,10 +262,10 @@ export function ProjectPageContent({
             <LazyTabPanel padded={false} id="sessions">
               <Outlet />
             </LazyTabPanel>
-            <LazyTabPanel padded={false} id="config">
+            <LazyTabPanel padded={false} id="metrics">
               <Outlet />
             </LazyTabPanel>
-            <LazyTabPanel padded={false} id="metrics">
+            <LazyTabPanel padded={false} id="config">
               <Outlet />
             </LazyTabPanel>
           </Tabs>
