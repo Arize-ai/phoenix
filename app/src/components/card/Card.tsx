@@ -3,6 +3,7 @@ import {
   forwardRef,
   PropsWithChildren,
   Ref,
+  useId,
   useState,
 } from "react";
 import { css } from "@emotion/react";
@@ -43,6 +44,17 @@ const cardCSS = (style?: CSSProperties) => css`
   border-radius: var(--ac-global-rounding-medium);
   border: 1px solid var(--scope-border-color);
   overflow: hidden;
+
+  & .card__body {
+    flex: 1 1 auto;
+    padding: var(--ac-global-dimension-static-size-200);
+  }
+
+  &[data-collapsed="true"] {
+    & .card__body {
+      display: none !important;
+    }
+  }
 `;
 
 const cardHeaderCSS = css`
@@ -114,11 +126,6 @@ const collapsibleButtonCSS = css`
   }
 `;
 
-const cardBodyCSS = css`
-  flex: 1 1 auto;
-  padding: var(--ac-global-dimension-static-size-200);
-`;
-
 function Card(
   {
     title,
@@ -139,6 +146,10 @@ function Card(
     viewStyleProps
   );
   const [isCollapsed, setIsCollapsed] = useState(false);
+
+  const headerId = useId();
+  const collapseButtonId = useId();
+  const bodyId = useId();
 
   if (useOldComponent) {
     return (
@@ -166,22 +177,28 @@ function Card(
       css={cardCSS(styleProps.style)}
       data-variant={variant}
       style={styleProps.style}
+      data-collapsed={isCollapsed}
     >
       <header
         css={cardHeaderCSS}
         data-variant={variant}
         data-collapsible={collapsible}
         data-collapsed={isCollapsed}
+        id={headerId}
       >
         {collapsible ? (
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
             css={collapsibleButtonCSS}
             className="button--reset"
+            id={collapseButtonId}
+            aria-controls={bodyId}
+            aria-expanded={!isCollapsed}
           >
             <Icon
               svg={<Icons.ChevronDown />}
               className="card__collapsible-icon"
+              aria-hidden="true"
             />
             {headingContents}
           </button>
@@ -190,11 +207,17 @@ function Card(
         )}
         {extra}
       </header>
-      {!isCollapsed && (
-        <div css={cardBodyCSS} style={bodyStyleProps.style}>
+      {
+        <div
+          className="card__body"
+          style={bodyStyleProps.style}
+          id={bodyId}
+          aria-labelledby={headerId}
+          aria-hidden={isCollapsed}
+        >
           {children}
         </div>
-      )}
+      }
     </section>
   );
 }
