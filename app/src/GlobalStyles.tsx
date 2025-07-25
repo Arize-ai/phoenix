@@ -1131,6 +1131,15 @@ const appGlobalStylesCSS = css`
     margin-block-start: 0;
   }
 
+  // Default styles for links
+  a {
+    color: var(--ac-global-link-color);
+    text-decoration: none;
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
   /* A reset style for buttons */
   .button--reset {
     background: none;

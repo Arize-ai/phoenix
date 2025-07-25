@@ -2113,6 +2113,7 @@ type Query {
   """
   dbStorageCapacityBytes: Float
   dbTableStats: [DbTableStats!]!
+  serverStatus: ServerStatus!
   validateRegularExpression(regex: String!): ValidationResult!
   getSpanByOtelId(spanId: String!): Span
   getTraceByOtelId(traceId: String!): Trace
@@ -2168,6 +2169,10 @@ type Segment {
 type Segments {
   segments: [Segment!]!
   totalCounts: DatasetValues!
+}
+
+type ServerStatus {
+  insufficientStorage: Boolean!
 }
 
 input SetPromptLabelInput {
