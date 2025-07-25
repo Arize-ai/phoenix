@@ -3,9 +3,9 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { css } from "@emotion/react";
 
-import { Card, CardProps } from "@arizeai/components";
-
 import {
+  Card,
+  CardProps,
   CopyToClipboardButton,
   Dialog,
   DialogCloseButton,

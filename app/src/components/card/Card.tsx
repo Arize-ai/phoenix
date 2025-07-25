@@ -21,6 +21,7 @@ export interface CardProps extends PropsWithChildren<ViewStyleProps> {
   variant?: CardVariant;
   collapsible?: boolean;
   bodyStyle?: ViewStyleProps;
+  extra?: React.ReactNode;
   useOldComponent?: boolean; // TODO: delete
 }
 
@@ -127,6 +128,7 @@ function Card(
     collapsible = false,
     useOldComponent = false,
     bodyStyle = {},
+    extra,
     ...otherProps
   }: CardProps,
   ref: Ref<HTMLElement>
@@ -186,6 +188,7 @@ function Card(
         ) : (
           headingContents
         )}
+        {extra}
       </header>
       {!isCollapsed && (
         <div css={cardBodyCSS} style={bodyStyleProps.style}>
