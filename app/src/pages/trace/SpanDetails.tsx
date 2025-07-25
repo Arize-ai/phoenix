@@ -387,7 +387,9 @@ export function SpanDetails({
             </LazyTabPanel>
 
             <LazyTabPanel id="events">
-              <SpanEventsList events={span.events} />
+              <View overflow="auto">
+                <SpanEventsList events={span.events} />
+              </View>
             </LazyTabPanel>
           </Tabs>
         </Flex>

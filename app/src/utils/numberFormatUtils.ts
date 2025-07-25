@@ -18,6 +18,15 @@ export function formatInt(int: number): string {
 }
 
 /**
+ * Formats ints in a short format.
+ * @param int
+ * @returns {string} the string representation of the int
+ */
+export function formatIntShort(int: number): string {
+  return format("0.2s")(int).replace("G", "B").replace("k", "K");
+}
+
+/**
  * Formats floats cleanly across different sizes.
  * NB: this may not work for every type of float but can be used when you want to display a float
  * without knowing the range of the float
@@ -79,6 +88,7 @@ export function createNumberFormatter(
 }
 
 export const intFormatter = createNumberFormatter(formatInt);
+export const intShortFormatter = createNumberFormatter(formatIntShort);
 export const floatFormatter = createNumberFormatter(formatFloat);
 export const numberFormatter = createNumberFormatter(formatNumber);
 export const percentFormatter = createNumberFormatter(formatPercent);

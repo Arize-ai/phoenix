@@ -15,15 +15,22 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
+  defaultCartesianGridProps,
   defaultLegendProps,
+  defaultXAxisProps,
+  defaultYAxisProps,
+  useBinInterval,
+  useBinTimeTickFormatter,
   useSemanticChartColors,
   useSequentialChartColors,
-  useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
-import { costFormatter } from "@phoenix/utils/numberFormatUtils";
+import {
+  costFormatter,
+  intShortFormatter,
+} from "@phoenix/utils/numberFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import { TraceTokenCostTimeSeriesQuery } from "./__generated__/TraceTokenCostTimeSeriesQuery.graphql";
@@ -120,18 +127,8 @@ export function TraceTokenCostTimeSeries({ projectId }: { projectId: string }) {
     })
   );
 
-  const timeTickFormatter = useTimeTickFormatter({
-    samplingIntervalMinutes: (() => {
-      switch (scale) {
-        case "MINUTE":
-          return 1;
-        case "HOUR":
-          return 60;
-        default:
-          return 60 * 24;
-      }
-    })(),
-  });
+  const timeTickFormatter = useBinTimeTickFormatter({ scale });
+  const interval = useBinInterval({ scale });
 
   const colors = useSequentialChartColors();
   const SemanticChartColors = useSemanticChartColors();
@@ -142,32 +139,26 @@ export function TraceTokenCostTimeSeries({ projectId }: { projectId: string }) {
         margin={{ top: 0, right: 18, left: 0, bottom: 0 }}
         barSize={10}
       >
+        <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
         <XAxis
+          {...defaultXAxisProps}
           dataKey="timestamp"
+          interval={interval}
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
-          style={{ fill: "var(--ac-global-text-color-700)" }}
-          stroke="var(--ac-global-color-grey-400)"
         />
         <YAxis
-          stroke="var(--ac-global-color-grey-500)"
-          width={50}
+          {...defaultYAxisProps}
+          width={55}
+          tickFormatter={(x) => intShortFormatter(x)}
           label={{
             value: "Cost (USD)",
             angle: -90,
-            dx: -10,
+            dx: -20,
             style: {
               textAnchor: "middle",
-              fill: "var(--ac-global-text-color-900)",
+              fill: "var(--chart-axis-label-color)",
             },
           }}
-          style={{ fill: "var(--ac-global-text-color-700)" }}
-        />
-
-        <CartesianGrid
-          strokeDasharray="4 4"
-          stroke="var(--ac-global-color-grey-500)"
-          strokeOpacity={0.5}
-          vertical={false}
         />
         <Tooltip
           content={TooltipContent}

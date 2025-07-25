@@ -15,8 +15,9 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
+  useBinInterval,
+  useBinTimeTickFormatter,
   useSequentialChartColors,
-  useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import {
   defaultCartesianGridProps,
@@ -27,6 +28,7 @@ import {
 import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
+import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import type { SpanAnnotationScoreTimeSeriesQuery } from "./__generated__/SpanAnnotationScoreTimeSeriesQuery.graphql";
@@ -138,19 +140,8 @@ export function SpanAnnotationScoreTimeSeries({
     return transformed;
   });
 
-  const timeTickFormatter = useTimeTickFormatter({
-    samplingIntervalMinutes: (() => {
-      switch (scale) {
-        case "MINUTE":
-          return 1;
-        case "HOUR":
-          return 60;
-        default:
-          return 60 * 24;
-      }
-    })(),
-  });
-
+  const timeTickFormatter = useBinTimeTickFormatter({ scale });
+  const interval = useBinInterval({ scale });
   const colors = useSequentialChartColors();
   const colorMap = [
     colors.blue400,
@@ -170,14 +161,16 @@ export function SpanAnnotationScoreTimeSeries({
         <XAxis
           dataKey="timestamp"
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
+          interval={interval}
           {...defaultXAxisProps}
         />
         <YAxis
-          width={50}
+          width={55}
+          tickFormatter={(x) => formatFloat(x)}
           label={{
             value: "Score",
             angle: -90,
-            dx: -10,
+            dx: -20,
             style: {
               textAnchor: "middle",
               fill: "var(--chart-axis-label-color)",
@@ -185,13 +178,11 @@ export function SpanAnnotationScoreTimeSeries({
           }}
           {...defaultYAxisProps}
         />
-
         <CartesianGrid vertical={false} {...defaultCartesianGridProps} />
         <Tooltip
           content={TooltipContent}
           cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
         />
-
         {annotationNames.map((name, index) => (
           <Line
             key={name}
