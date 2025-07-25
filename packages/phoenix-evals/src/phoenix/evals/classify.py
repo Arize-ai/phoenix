@@ -107,13 +107,13 @@ def llm_classify(
     provide_explanation: bool = False,
     include_prompt: bool = False,
     include_response: bool = False,
-    include_token_usage: bool = False,
     include_exceptions: bool = False,
     max_retries: int = 10,
     exit_on_error: bool = True,
     run_sync: bool = False,
     concurrency: Optional[int] = None,
     progress_bar_format: Optional[str] = get_tqdm_progress_bar_formatter("llm_classify"),
+    include_token_usage: bool = False,
 ) -> pd.DataFrame:
     """
     Classifies each input row of the dataframe using an LLM.
