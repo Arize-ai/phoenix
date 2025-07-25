@@ -78,6 +78,8 @@ export function formatCost(cost: number): string {
   if (cost < 0.01) {
     return "<$0.01";
   }
+  // Show 2 decimal places for small costs under 100
+  if (cost < 100) return `$${format("0.2f")(cost)}`;
   if (cost < 10000) return `$${format(",")(cost)}`;
   return `$${format("0.2s")(cost).replace("G", "B").replace("k", "K")}`;
 }
