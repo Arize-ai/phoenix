@@ -141,15 +141,15 @@ export function TraceLatencyPercentilesTimeSeries({
   const colors = useSequentialChartColors();
 
   // Legend interactivity
-  const [chartState, setChartState] = useState<Record<string, boolean>>(
-    Object.keys(chartData).reduce(
-      (a, key) => {
-        a[key] = false;
-        return a;
-      },
-      {} as Record<string, boolean>
-    )
-  );
+  const [chartState, setChartState] = useState<Record<string, boolean>>({
+    p50: false,
+    p75: false,
+    p90: false,
+    p95: false,
+    p99: false,
+    p999: false,
+    max: false,
+  });
   const selectChartItem: LegendProps["onClick"] = (e) => {
     setChartState({
       ...chartState,
