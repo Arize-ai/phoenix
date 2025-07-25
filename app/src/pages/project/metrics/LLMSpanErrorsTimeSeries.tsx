@@ -22,33 +22,26 @@ import {
   useBinInterval,
   useBinTimeTickFormatter,
   useSemanticChartColors,
-  useSequentialChartColors,
 } from "@phoenix/components/chart";
-import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
+import { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import {
   intFormatter,
   intShortFormatter,
 } from "@phoenix/utils/numberFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
-import type { ToolSpanCountTimeSeriesQuery } from "./__generated__/ToolSpanCountTimeSeriesQuery.graphql";
+import type { LLMSpanErrorsTimeSeriesQuery } from "./__generated__/LLMSpanErrorsTimeSeriesQuery.graphql";
 
 function TooltipContent({
   active,
   payload,
   label,
 }: TooltipContentProps<number, string>) {
+  const SemanticChartColors = useSemanticChartColors();
   if (active && payload && payload.length) {
     const errorValue = payload[0]?.value ?? null;
-    const errorColor = payload[0]?.color ?? null;
-    const unsetValue = payload[1]?.value ?? null;
-    const unsetColor = payload[1]?.color ?? null;
-    const okValue = payload[2]?.value ?? null;
-    const okColor = payload[2]?.color ?? null;
-    const okString = intFormatter(okValue);
-    const unsetString = intFormatter(unsetValue);
     const errorString = intFormatter(errorValue);
     return (
       <ChartTooltip>
@@ -58,22 +51,10 @@ function TooltipContent({
           )}`}</Text>
         )}
         <ChartTooltipItem
-          color={errorColor}
+          color={SemanticChartColors.danger}
           shape="circle"
           name="error"
           value={errorString}
-        />
-        <ChartTooltipItem
-          color={unsetColor}
-          shape="circle"
-          name="unset"
-          value={unsetString}
-        />
-        <ChartTooltipItem
-          color={okColor}
-          shape="circle"
-          name="ok"
-          value={okString}
         />
       </ChartTooltip>
     );
@@ -82,14 +63,17 @@ function TooltipContent({
   return null;
 }
 
-export function ToolSpanCountTimeSeries({ projectId }: { projectId: string }) {
-  const { timeRange } = useTimeRange();
+export function LLMSpanErrorsTimeSeries({
+  projectId,
+  timeRange,
+}: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange });
+  const interval = useBinInterval({ scale });
   const utcOffsetMinutes = useUTCOffsetMinutes();
 
-  const data = useLazyLoadQuery<ToolSpanCountTimeSeriesQuery>(
+  const data = useLazyLoadQuery<LLMSpanErrorsTimeSeriesQuery>(
     graphql`
-      query ToolSpanCountTimeSeriesQuery(
+      query LLMSpanErrorsTimeSeriesQuery(
         $projectId: ID!
         $timeRange: TimeRange!
         $timeBinConfig: TimeBinConfig!
@@ -104,9 +88,7 @@ export function ToolSpanCountTimeSeries({ projectId }: { projectId: string }) {
             ) {
               data {
                 timestamp
-                okCount
                 errorCount
-                unsetCount
               }
             }
           }
@@ -123,7 +105,7 @@ export function ToolSpanCountTimeSeries({ projectId }: { projectId: string }) {
         scale,
         utcOffsetMinutes,
       },
-      filterCondition: 'span_kind == "TOOL"',
+      filterCondition: 'span_kind == "LLM"',
     }
   );
 
@@ -131,14 +113,11 @@ export function ToolSpanCountTimeSeries({ projectId }: { projectId: string }) {
     (datum) => ({
       timestamp: datum.timestamp,
       error: datum.errorCount,
-      unset: datum.unsetCount,
-      ok: datum.okCount,
     })
   );
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
-  const interval = useBinInterval({ scale });
-  const colors = useSequentialChartColors();
+
   const SemanticChartColors = useSemanticChartColors();
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -151,8 +130,8 @@ export function ToolSpanCountTimeSeries({ projectId }: { projectId: string }) {
         <XAxis
           {...defaultXAxisProps}
           dataKey="timestamp"
-          tickFormatter={(x) => timeTickFormatter(new Date(x))}
           interval={interval}
+          tickFormatter={(x) => timeTickFormatter(new Date(x))}
         />
         <YAxis
           {...defaultYAxisProps}
@@ -174,14 +153,13 @@ export function ToolSpanCountTimeSeries({ projectId }: { projectId: string }) {
           // TODO formalize this
           cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
         />
-        <Bar dataKey="error" stackId="a" fill={SemanticChartColors.danger} />
-        <Bar dataKey="unset" stackId="a" fill={colors.grey500} />
         <Bar
-          dataKey="ok"
+          dataKey="error"
           stackId="a"
-          fill={colors.grey300}
+          fill={SemanticChartColors.danger}
           radius={[2, 2, 0, 0]}
         />
+
         <Legend {...defaultLegendProps} iconType="circle" iconSize={8} />
       </BarChart>
     </ResponsiveContainer>

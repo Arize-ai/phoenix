@@ -21,35 +21,35 @@ import {
   defaultYAxisProps,
   useBinInterval,
   useBinTimeTickFormatter,
-  useCategoryChartColors,
+  useSemanticChartColors,
+  useSequentialChartColors,
 } from "@phoenix/components/chart";
-import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
+import { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import {
   intFormatter,
   intShortFormatter,
 } from "@phoenix/utils/numberFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
-import type { TraceTokenCountTimeSeriesQuery } from "./__generated__/TraceTokenCountTimeSeriesQuery.graphql";
+import type { LLMSpanCountTimeSeriesQuery } from "./__generated__/LLMSpanCountTimeSeriesQuery.graphql";
 
 function TooltipContent({
   active,
   payload,
   label,
 }: TooltipContentProps<number, string>) {
-  const chartColors = useCategoryChartColors();
   if (active && payload && payload.length) {
-    // For stacked bar charts, payload[0] is the first bar (prompt), payload[1] is the second bar (completion)
-    const promptValue = payload[0]?.value ?? null;
-    const completionValue = payload[1]?.value ?? null;
-    const promptString =
-      typeof promptValue === "number" ? intFormatter(promptValue) : "--";
-    const completionString =
-      typeof completionValue === "number"
-        ? intFormatter(completionValue)
-        : "--";
+    const errorValue = payload[0]?.value ?? null;
+    const errorColor = payload[0]?.color ?? null;
+    const unsetValue = payload[1]?.value ?? null;
+    const unsetColor = payload[1]?.color ?? null;
+    const okValue = payload[2]?.value ?? null;
+    const okColor = payload[2]?.color ?? null;
+    const okString = intFormatter(okValue);
+    const unsetString = intFormatter(unsetValue);
+    const errorString = intFormatter(errorValue);
     return (
       <ChartTooltip>
         {label && (
@@ -58,16 +58,22 @@ function TooltipContent({
           )}`}</Text>
         )}
         <ChartTooltipItem
-          color={chartColors.category1}
+          color={errorColor}
           shape="circle"
-          name="prompt"
-          value={promptString}
+          name="error"
+          value={errorString}
         />
         <ChartTooltipItem
-          color={chartColors.category2}
+          color={unsetColor}
           shape="circle"
-          name="completion"
-          value={completionString}
+          name="unset"
+          value={unsetString}
+        />
+        <ChartTooltipItem
+          color={okColor}
+          shape="circle"
+          name="ok"
+          value={okString}
         />
       </ChartTooltip>
     );
@@ -76,33 +82,33 @@ function TooltipContent({
   return null;
 }
 
-export function TraceTokenCountTimeSeries({
+export function LLMSpanCountTimeSeries({
   projectId,
-}: {
-  projectId: string;
-}) {
-  const { timeRange } = useTimeRange();
+  timeRange,
+}: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
 
-  const data = useLazyLoadQuery<TraceTokenCountTimeSeriesQuery>(
+  const data = useLazyLoadQuery<LLMSpanCountTimeSeriesQuery>(
     graphql`
-      query TraceTokenCountTimeSeriesQuery(
+      query LLMSpanCountTimeSeriesQuery(
         $projectId: ID!
         $timeRange: TimeRange!
         $timeBinConfig: TimeBinConfig!
+        $filterCondition: String!
       ) {
         project: node(id: $projectId) {
           ... on Project {
-            traceTokenCountTimeSeries(
+            spanCountTimeSeries(
               timeRange: $timeRange
               timeBinConfig: $timeBinConfig
+              filterCondition: $filterCondition
             ) {
               data {
                 timestamp
-                promptTokenCount
-                completionTokenCount
-                totalTokenCount
+                okCount
+                errorCount
+                unsetCount
               }
             }
           }
@@ -119,21 +125,24 @@ export function TraceTokenCountTimeSeries({
         scale,
         utcOffsetMinutes,
       },
+      filterCondition: 'span_kind == "LLM"',
     }
   );
 
-  const chartData = (data.project.traceTokenCountTimeSeries?.data ?? []).map(
+  const chartData = (data.project.spanCountTimeSeries?.data ?? []).map(
     (datum) => ({
       timestamp: datum.timestamp,
-      prompt: datum.promptTokenCount ?? 0,
-      completion: datum.completionTokenCount ?? 0,
+      error: datum.errorCount,
+      unset: datum.unsetCount,
+      ok: datum.okCount,
     })
   );
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
-  const interval = useBinInterval({ scale });
 
-  const colors = useCategoryChartColors();
+  const colors = useSequentialChartColors();
+  const SemanticChartColors = useSemanticChartColors();
+  const interval = useBinInterval({ scale });
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart
@@ -142,7 +151,6 @@ export function TraceTokenCountTimeSeries({
         barSize={10}
         syncId={"projectMetrics"}
       >
-        <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
         <XAxis
           {...defaultXAxisProps}
           dataKey="timestamp"
@@ -154,29 +162,29 @@ export function TraceTokenCountTimeSeries({
           width={55}
           tickFormatter={(x) => intShortFormatter(x)}
           label={{
-            value: "Tokens",
+            value: "Count",
             angle: -90,
             dx: -20,
             style: {
               textAnchor: "middle",
-              fill: "var(--ac-global-text-color-900)",
+              fill: "var(--chart-axis-label-color)",
             },
           }}
-          style={{ fill: "var(--ac-global-text-color-700)" }}
         />
+        <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
         <Tooltip
           content={TooltipContent}
           // TODO formalize this
           cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
         />
-        <Bar dataKey="prompt" stackId="a" fill={colors.category1} />
+        <Bar dataKey="error" stackId="a" fill={SemanticChartColors.danger} />
+        <Bar dataKey="unset" stackId="a" fill={colors.grey500} />
         <Bar
-          dataKey="completion"
+          dataKey="ok"
           stackId="a"
-          fill={colors.category2}
+          fill={colors.grey300}
           radius={[2, 2, 0, 0]}
         />
-
         <Legend {...defaultLegendProps} iconType="circle" iconSize={8} />
       </BarChart>
     </ResponsiveContainer>

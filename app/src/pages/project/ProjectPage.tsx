@@ -21,7 +21,6 @@ import {
   ConnectedLastNTimeRangePicker,
   useTimeRange,
 } from "@phoenix/components/datetime";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
@@ -151,7 +150,6 @@ export function ProjectPageContent({
     ProjectPageQueriesProjectConfigQuery
   );
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
-  const showMetricsTab = useFeatureFlag("projectMetricsTab");
   useEffect(() => {
     if (tabIndex === 0) {
       loadSpansQuery({
@@ -252,8 +250,8 @@ export function ProjectPageContent({
               <Tab id="spans">Spans</Tab>
               <Tab id="traces">Traces</Tab>
               <Tab id="sessions">Sessions</Tab>
+              <Tab id="metrics">Metrics</Tab>
               <Tab id="config">Config</Tab>
-              {showMetricsTab ? <Tab id="metrics">Metrics</Tab> : null}
             </TabList>
             <LazyTabPanel padded={false} id="spans">
               <Outlet />

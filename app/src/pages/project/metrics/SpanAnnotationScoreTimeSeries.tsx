@@ -24,7 +24,6 @@ import {
   defaultXAxisProps,
   defaultYAxisProps,
 } from "@phoenix/components/chart/defaults";
-import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
@@ -32,6 +31,7 @@ import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import type { SpanAnnotationScoreTimeSeriesQuery } from "./__generated__/SpanAnnotationScoreTimeSeriesQuery.graphql";
+import type { ProjectMetricViewProps } from "./types";
 
 function TooltipContent({
   active,
@@ -91,10 +91,8 @@ function AnnotationLine({ name }: { name: string }) {
 
 export function SpanAnnotationScoreTimeSeries({
   projectId,
-}: {
-  projectId: string;
-}) {
-  const { timeRange } = useTimeRange();
+  timeRange,
+}: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
 

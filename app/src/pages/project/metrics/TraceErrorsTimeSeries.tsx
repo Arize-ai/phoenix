@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   Bar,
@@ -22,30 +21,32 @@ import {
   defaultYAxisProps,
   useBinTimeTickFormatter,
   useSemanticChartColors,
-  useSequentialChartColors,
 } from "@phoenix/components/chart";
 import { useBinInterval } from "@phoenix/components/chart/useBinInterval";
-import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
+import { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
-import type { TraceCountTimeSeriesQuery } from "./__generated__/TraceCountTimeSeriesQuery.graphql";
+import type { TraceErrorsTimeSeriesQuery } from "./__generated__/TraceErrorsTimeSeriesQuery.graphql";
+
+const numberFormatter = new Intl.NumberFormat([], {
+  maximumFractionDigits: 2,
+});
 
 function TooltipContent({
   active,
   payload,
   label,
 }: TooltipContentProps<number, string>) {
+  const SemanticChartColors = useSemanticChartColors();
   if (active && payload && payload.length) {
-    // For stacked bar charts, payload[0] is the first bar (error), payload[1] is the second bar (ok)
     const errorValue = payload[0]?.value ?? null;
-    const errorColor = payload[0]?.color ?? null;
-    const okValue = payload[1]?.value ?? null;
-    const okColor = payload[1]?.color ?? null;
-    const okString = intFormatter(okValue);
-    const errorString = intFormatter(errorValue);
+    const errorString =
+      typeof errorValue === "number"
+        ? numberFormatter.format(errorValue)
+        : "--";
     return (
       <ChartTooltip>
         {label && (
@@ -54,16 +55,10 @@ function TooltipContent({
           )}`}</Text>
         )}
         <ChartTooltipItem
-          color={errorColor}
+          color={SemanticChartColors.danger}
           shape="circle"
           name="error"
           value={errorString}
-        />
-        <ChartTooltipItem
-          color={okColor}
-          shape="circle"
-          name="ok"
-          value={okString}
         />
       </ChartTooltip>
     );
@@ -72,14 +67,16 @@ function TooltipContent({
   return null;
 }
 
-export function TraceCountTimeSeries({ projectId }: { projectId: string }) {
-  const { timeRange } = useTimeRange();
+export function TraceErrorsTimeSeries({
+  projectId,
+  timeRange,
+}: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
 
-  const data = useLazyLoadQuery<TraceCountTimeSeriesQuery>(
+  const data = useLazyLoadQuery<TraceErrorsTimeSeriesQuery>(
     graphql`
-      query TraceCountTimeSeriesQuery(
+      query TraceErrorsTimeSeriesQuery(
         $projectId: ID!
         $timeRange: TimeRange!
         $timeBinConfig: TimeBinConfig!
@@ -92,7 +89,6 @@ export function TraceCountTimeSeries({ projectId }: { projectId: string }) {
             ) {
               data {
                 timestamp
-                okCount
                 errorCount
               }
             }
@@ -113,20 +109,16 @@ export function TraceCountTimeSeries({ projectId }: { projectId: string }) {
     }
   );
 
-  const chartData = useMemo(
-    () =>
-      (data.project.traceCountByStatusTimeSeries?.data ?? []).map((datum) => ({
-        timestamp: new Date(datum.timestamp),
-        ok: datum.okCount,
-        error: datum.errorCount,
-      })),
-    [data.project.traceCountByStatusTimeSeries?.data]
+  const chartData = (data.project.traceCountByStatusTimeSeries?.data ?? []).map(
+    (datum) => ({
+      timestamp: datum.timestamp,
+      error: datum.errorCount,
+    })
   );
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
   const interval = useBinInterval({ scale });
 
-  const colors = useSequentialChartColors();
   const SemanticChartColors = useSemanticChartColors();
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -162,15 +154,14 @@ export function TraceCountTimeSeries({ projectId }: { projectId: string }) {
           // TODO formalize this
           cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
         />
-        <Bar dataKey="error" stackId="a" fill={SemanticChartColors.danger} />
         <Bar
-          dataKey="ok"
+          dataKey="error"
           stackId="a"
-          fill={colors.grey300}
+          fill={SemanticChartColors.danger}
           radius={[2, 2, 0, 0]}
         />
 
-        <Legend iconType="circle" iconSize={8} {...defaultLegendProps} />
+        <Legend {...defaultLegendProps} iconType="circle" iconSize={8} />
       </BarChart>
     </ResponsiveContainer>
   );

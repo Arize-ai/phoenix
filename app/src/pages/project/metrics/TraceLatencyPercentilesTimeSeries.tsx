@@ -27,9 +27,9 @@ import {
   defaultXAxisProps,
   defaultYAxisProps,
 } from "@phoenix/components/chart/defaults";
-import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
+import { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import { formatFloat, intFormatter } from "@phoenix/utils/numberFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
@@ -74,10 +74,8 @@ function TooltipContent({
 
 export function TraceLatencyPercentilesTimeSeries({
   projectId,
-}: {
-  projectId: string;
-}) {
-  const { timeRange } = useTimeRange();
+  timeRange,
+}: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
 

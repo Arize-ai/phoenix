@@ -22,9 +22,10 @@ import {
   defaultYAxisProps,
   useCategoryChartColors,
 } from "@phoenix/components/chart";
-import { useTimeRange } from "@phoenix/components/datetime";
-import type { TopModelsByCostQuery } from "@phoenix/pages/project/__generated__/TopModelsByCostQuery.graphql";
-import { costFormatter } from "@phoenix/utils/numberFormatUtils";
+import { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
+import { intFormatter } from "@phoenix/utils/numberFormatUtils";
+
+import type { TopModelsByTokenQuery } from "./__generated__/TopModelsByTokenQuery.graphql";
 
 function TooltipContent({
   active,
@@ -34,8 +35,8 @@ function TooltipContent({
   const colors = useCategoryChartColors();
 
   if (active && payload && payload.length) {
-    const promptCost = payload[0]?.value ?? null;
-    const completionCost = payload[1]?.value ?? null;
+    const promptTokens = payload[0]?.value ?? null;
+    const completionTokens = payload[1]?.value ?? null;
 
     return (
       <ChartTooltip>
@@ -47,14 +48,14 @@ function TooltipContent({
         <ChartTooltipItem
           color={colors.category1}
           shape="circle"
-          name="Prompt cost"
-          value={costFormatter(promptCost)}
+          name="Prompt tokens"
+          value={intFormatter(promptTokens)}
         />
         <ChartTooltipItem
           color={colors.category2}
           shape="circle"
-          name="Completion cost"
-          value={costFormatter(completionCost)}
+          name="Completion tokens"
+          value={intFormatter(completionTokens)}
         />
       </ChartTooltip>
     );
@@ -63,26 +64,27 @@ function TooltipContent({
   return null;
 }
 
-export function TopModelsByCost({ projectId }: { projectId: string }) {
-  const { timeRange } = useTimeRange();
+export function TopModelsByToken({
+  projectId,
+  timeRange,
+}: ProjectMetricViewProps) {
   const colors = useCategoryChartColors();
-
-  const data = useLazyLoadQuery<TopModelsByCostQuery>(
+  const data = useLazyLoadQuery<TopModelsByTokenQuery>(
     graphql`
-      query TopModelsByCostQuery($projectId: ID!, $timeRange: TimeRange!) {
+      query TopModelsByTokenQuery($projectId: ID!, $timeRange: TimeRange!) {
         project: node(id: $projectId) {
           ... on Project {
-            topModelsByCost(timeRange: $timeRange) {
+            topModelsByTokenCount(timeRange: $timeRange) {
               name
               costSummary(projectId: $projectId, timeRange: $timeRange) {
                 prompt {
-                  cost
+                  tokens
                 }
                 completion {
-                  cost
+                  tokens
                 }
                 total {
-                  cost
+                  tokens
                 }
               }
             }
@@ -100,14 +102,17 @@ export function TopModelsByCost({ projectId }: { projectId: string }) {
   );
 
   const chartData = useMemo(() => {
-    const models = data.project.topModelsByCost ?? [];
+    const models = data.project.topModelsByTokenCount ?? [];
     return models.map((model) => {
       const costSummary = model.costSummary;
+      const promptTokens = costSummary.prompt.tokens;
+      const completionTokens = costSummary.completion.tokens;
+      const totalTokens = costSummary.total.tokens;
       return {
         model: model.name,
-        prompt_cost: costSummary.prompt.cost,
-        completion_cost: costSummary.completion.cost,
-        total_cost: costSummary.total.cost,
+        prompt_tokens: promptTokens,
+        completion_tokens: completionTokens,
+        total_tokens: totalTokens,
       };
     });
   }, [data]);
@@ -123,13 +128,14 @@ export function TopModelsByCost({ projectId }: { projectId: string }) {
         <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
         <Tooltip
           content={TooltipContent}
+          // TODO formalize this
           cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
         />
         <XAxis
           {...defaultXAxisProps}
           type="number"
           tickLine={false}
-          tickFormatter={costFormatter}
+          tickFormatter={intFormatter}
         />
         <YAxis
           {...defaultYAxisProps}
@@ -138,15 +144,15 @@ export function TopModelsByCost({ projectId }: { projectId: string }) {
           width={120}
         />
         <Bar
-          dataKey="prompt_cost"
-          fill={colors.category1}
+          dataKey="prompt_tokens"
           stackId="a"
+          fill={colors.category1}
           radius={[2, 0, 0, 2]}
         />
         <Bar
-          dataKey="completion_cost"
-          fill={colors.category2}
+          dataKey="completion_tokens"
           stackId="a"
+          fill={colors.category2}
           radius={[0, 2, 2, 0]}
         />
         <Legend {...defaultLegendProps} iconType="circle" iconSize={8} />
