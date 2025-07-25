@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Alert } from "@phoenix/components";
@@ -15,14 +16,20 @@ const storageAlertQuery = graphql`
 export function StorageAlert() {
   const data = useLazyLoadQuery<StorageAlertQuery>(storageAlertQuery, {});
 
+  const [dismissed, setDismissed] = useState(false);
   const insufficientStorage = data.serverStatus.insufficientStorage;
 
-  if (!insufficientStorage) {
+  if (!insufficientStorage || dismissed) {
     return null;
   }
 
   return (
-    <Alert variant="danger" banner>
+    <Alert
+      variant="danger"
+      banner
+      dismissable
+      onDismissClick={() => setDismissed(true)}
+    >
       Due to insufficient storage, most operations are restricted.
       {window.Config.supportEmail && (
         <>
