@@ -1,5 +1,24 @@
 # Changelog
 
+## [11.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.11.0...arize-phoenix-v11.12.0) (2025-07-25)
+
+
+### Features
+
+* banner alert for insufficient storage ([#8759](https://github.com/Arize-ai/phoenix/issues/8759)) ([9dc453e](https://github.com/Arize-ai/phoenix/commit/9dc453e2fa46f24e928949cb859c5caffd3c5899))
+* **experiments:** display average experiment run data in headers of experiment compare table ([#8737](https://github.com/Arize-ai/phoenix/issues/8737)) ([a8d44f8](https://github.com/Arize-ai/phoenix/commit/a8d44f823e724ab0c843746cac3e8428e42767c6))
+* **metrics:** tooltip syncing ([#8768](https://github.com/Arize-ai/phoenix/issues/8768)) ([968ceed](https://github.com/Arize-ai/phoenix/commit/968ceedc0ac6aed613c9483d1508ce849646091b))
+* **metrics:** update chart colors ([#8753](https://github.com/Arize-ai/phoenix/issues/8753)) ([6d6b793](https://github.com/Arize-ai/phoenix/commit/6d6b7936f2a0f97aa72b4347f9ffdd4d75c10b26))
+* usewordcolor returns less chaotic colors with improved contrast ([6d6b793](https://github.com/Arize-ai/phoenix/commit/6d6b7936f2a0f97aa72b4347f9ffdd4d75c10b26))
+
+
+### Bug Fixes
+
+* experiments chart colors ([6d6b793](https://github.com/Arize-ai/phoenix/commit/6d6b7936f2a0f97aa72b4347f9ffdd4d75c10b26))
+* page header uses categorical colors ([6d6b793](https://github.com/Arize-ai/phoenix/commit/6d6b7936f2a0f97aa72b4347f9ffdd4d75c10b26))
+* restore sinebow ([6d6b793](https://github.com/Arize-ai/phoenix/commit/6d6b7936f2a0f97aa72b4347f9ffdd4d75c10b26))
+* Switch feedback chart to use useWordColor and match rest of annotation UI colors ([6d6b793](https://github.com/Arize-ai/phoenix/commit/6d6b7936f2a0f97aa72b4347f9ffdd4d75c10b26))
+
 ## [11.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.10.1...arize-phoenix-v11.11.0) (2025-07-24)
 
 
