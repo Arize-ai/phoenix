@@ -1,5 +1,13 @@
 # Changelog
 
+## [11.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.12.0...arize-phoenix-v11.13.0) (2025-07-25)
+
+
+### Features
+
+* backend add exp filter on name&description ([#8744](https://github.com/Arize-ai/phoenix/issues/8744)) ([543bf42](https://github.com/Arize-ai/phoenix/commit/543bf42829823126324ff54fa2370f00d10b75a7))
+* **metrics:** release project metrics ([#8782](https://github.com/Arize-ai/phoenix/issues/8782)) ([ca61029](https://github.com/Arize-ai/phoenix/commit/ca61029fbf852cfad176a5c01fc4a1a18aab5be1))
+
 ## [11.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.11.0...arize-phoenix-v11.12.0) (2025-07-25)
 
 
