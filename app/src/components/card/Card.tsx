@@ -53,7 +53,6 @@ const cardHeaderCSS = css`
   padding: 0 var(--ac-global-dimension-static-size-200);
   height: var(--card-header-height);
   transition: background-color 0.2s ease-in-out;
-  border-bottom: 1px solid var(--scope-border-color);
 
   & .card__collapsible-icon {
     width: var(--collapsible-card-icon-size);
@@ -89,6 +88,10 @@ const cardHeaderCSS = css`
       .card__collapsible-icon {
         transform: rotate(-90deg);
       }
+    }
+
+    &[data-collapsed="false"] {
+      border-bottom: 1px solid var(--scope-border-color);
     }
   }
 `;
