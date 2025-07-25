@@ -27,6 +27,7 @@ function MetricPanelHeader({ title, subtitle }: MetricPanelHeaderProps) {
     <div
       css={css`
         padding: var(--ac-global-dimension-size-100)
+          var(--ac-global-dimension-size-200) 0
           var(--ac-global-dimension-size-200);
 
         display: flex;
@@ -78,7 +79,7 @@ export const MetricPanel = forwardRef(function MetricPanel(
           css={css`
             flex: 1 1 auto;
             padding: var(--ac-global-dimension-size-200);
-            height: 200px;
+            height: 190px;
           `}
         >
           {children}
@@ -126,21 +127,29 @@ export function ProjectMetricsPage() {
           <TraceLatencyPercentilesTimeSeries projectId={projectId} />
         </MetricPanel>
         <MetricPanel
-          title="Token usage"
-          subtitle="Token usage by prompt and completion"
+          title="Annotation scores"
+          subtitle="Average annotation scores"
         >
-          <TraceTokenCountTimeSeries projectId={projectId} />
+          <SpanAnnotationScoreTimeSeries projectId={projectId} />
         </MetricPanel>
       </Flex>
       <Flex direction="row" gap="size-200">
         <MetricPanel title="Cost" subtitle="Estimated cost in USD">
           <TraceTokenCostTimeSeries projectId={projectId} />
         </MetricPanel>
+        <MetricPanel title="Top models by cost">
+          <TopModelsByCost projectId={projectId} />
+        </MetricPanel>
+      </Flex>
+      <Flex direction="row" gap="size-200">
         <MetricPanel
-          title="Annotation scores"
-          subtitle="Average annotation scores"
+          title="Token usage"
+          subtitle="Token usage by prompt and completion"
         >
-          <SpanAnnotationScoreTimeSeries projectId={projectId} />
+          <TraceTokenCountTimeSeries projectId={projectId} />
+        </MetricPanel>
+        <MetricPanel title="Top models by tokens">
+          <TopModelsByToken projectId={projectId} />
         </MetricPanel>
       </Flex>
       <Flex direction="row" gap="size-200">
@@ -163,14 +172,6 @@ export function ProjectMetricsPage() {
           subtitle="Tool spans with errors over time"
         >
           <ToolSpanErrorsTimeSeries projectId={projectId} />
-        </MetricPanel>
-      </Flex>
-      <Flex direction="row" gap="size-200">
-        <MetricPanel title="Top models by cost">
-          <TopModelsByCost projectId={projectId} />
-        </MetricPanel>
-        <MetricPanel title="Top models by tokens">
-          <TopModelsByToken projectId={projectId} />
         </MetricPanel>
       </Flex>
     </main>

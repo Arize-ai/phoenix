@@ -123,7 +123,6 @@ export function TopModelsByCost({ projectId }: { projectId: string }) {
         <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
         <Tooltip
           content={TooltipContent}
-          // TODO formalize this
           cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
         />
         <XAxis

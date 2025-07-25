@@ -82,7 +82,7 @@ function AnnotationLine({ name }: { name: string }) {
       dataKey={name}
       stroke={color}
       strokeWidth={2}
-      dot={false}
+      dot={{ r: 2 }}
       activeDot={{ r: 4 }}
       name={name}
     />
@@ -143,8 +143,8 @@ export function SpanAnnotationScoreTimeSeries({
 
   // Transform the data to have one property per annotation label
   const chartData = timeSeriesData.map((datum) => {
-    const transformed: Record<string, string | number> = {
-      timestamp: datum.timestamp,
+    const transformed: Record<string, string | number | Date> = {
+      timestamp: new Date(datum.timestamp),
     };
 
     datum.scoresWithLabels.forEach((scoreWithLabel) => {
@@ -162,12 +162,14 @@ export function SpanAnnotationScoreTimeSeries({
       <LineChart
         data={chartData}
         margin={{ top: 0, right: 18, left: 0, bottom: 0 }}
+        syncId={"projectMetrics"}
       >
         <XAxis
-          dataKey="timestamp"
-          tickFormatter={(x) => timeTickFormatter(new Date(x))}
-          interval={interval}
           {...defaultXAxisProps}
+          dataKey="timestamp"
+          tickFormatter={(x) => timeTickFormatter(x)}
+          interval={interval}
+          padding={{ left: 50, right: 50 }}
         />
         <YAxis
           width={55}

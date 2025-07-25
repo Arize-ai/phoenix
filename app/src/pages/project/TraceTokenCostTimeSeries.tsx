@@ -28,7 +28,7 @@ import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import {
   costFormatter,
-  intShortFormatter,
+  floatShortFormatter,
 } from "@phoenix/utils/numberFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
@@ -135,6 +135,7 @@ export function TraceTokenCostTimeSeries({ projectId }: { projectId: string }) {
         data={chartData}
         margin={{ top: 0, right: 18, left: 0, bottom: 0 }}
         barSize={10}
+        syncId={"projectMetrics"}
       >
         <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
         <XAxis
@@ -146,7 +147,7 @@ export function TraceTokenCostTimeSeries({ projectId }: { projectId: string }) {
         <YAxis
           {...defaultYAxisProps}
           width={55}
-          tickFormatter={(x) => intShortFormatter(x)}
+          tickFormatter={(x) => floatShortFormatter(x)}
           label={{
             value: "Cost (USD)",
             angle: -90,
