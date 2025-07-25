@@ -10,17 +10,17 @@ import {
 } from "@phoenix/components";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 
-import { ExperimentRunTokenCostsDetails } from "./ExperimentRunTokenCostsDetails";
+import { ExperimentTokenCostsDetails } from "./ExperimentTokenCostsDetails";
 
-type ExperimentRunTokenCostsProps = {
+type ExperimentTokenCostsProps = {
   /**
-   * The total cost of the experiment run
+   * The total cost of the experiment
    */
-  costTotal: number;
+  totalCost: number;
   /**
-   * The id of the experiment run node
+   * The id of the experiment
    */
-  experimentRunId: string;
+  experimentId: string;
   /**
    * The size of the icon and text
    */
@@ -28,22 +28,20 @@ type ExperimentRunTokenCostsProps = {
 };
 
 /**
- * Displays the cost of an experiment run with detailed breakdown
+ * Displays the cost of an experiment with detailed breakdown
  */
-export function ExperimentRunTokenCosts(props: ExperimentRunTokenCostsProps) {
+export function ExperimentTokenCosts(props: ExperimentTokenCostsProps) {
   return (
     <TooltipTrigger>
       <Pressable>
-        <TokenCosts size={props.size} aria-role="button">
-          {props.costTotal}
+        <TokenCosts size={props.size} role="button">
+          {props.totalCost}
         </TokenCosts>
       </Pressable>
       <RichTooltip>
         <TooltipArrow />
         <Suspense fallback={<Loading />}>
-          <ExperimentRunTokenCostsDetails
-            experimentRunId={props.experimentRunId}
-          />
+          <ExperimentTokenCostsDetails experimentId={props.experimentId} />
         </Suspense>
       </RichTooltip>
     </TooltipTrigger>
