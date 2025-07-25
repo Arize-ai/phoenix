@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   CartesianGrid,
   ComposedChart,
   Legend,
+  LegendProps,
   Line,
   ResponsiveContainer,
   Tooltip,
@@ -138,6 +140,23 @@ export function TraceLatencyPercentilesTimeSeries({
 
   const colors = useSequentialChartColors();
 
+  // Legend interactivity
+  const [chartState, setChartState] = useState<Record<string, boolean>>(
+    Object.keys(chartData).reduce(
+      (a, key) => {
+        a[key] = false;
+        return a;
+      },
+      {} as Record<string, boolean>
+    )
+  );
+  const selectChartItem: LegendProps["onClick"] = (e) => {
+    setChartState({
+      ...chartState,
+      [String(e.dataKey)]: !chartState[e.dataKey as string],
+    });
+  };
+
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart
@@ -170,66 +189,79 @@ export function TraceLatencyPercentilesTimeSeries({
         <Line
           type="monotone"
           dataKey="p50"
-          stroke={colors.blue100}
-          strokeWidth={2}
+          stroke={colors.blue400}
+          strokeWidth={1}
           activeDot={{ r: 4 }}
           name="P50"
+          hide={chartState["p50"]}
         />
         <Line
           type="monotone"
           dataKey="p75"
-          stroke={colors.blue200}
-          strokeWidth={2}
+          stroke={colors.blue400}
+          strokeWidth={1}
           dot={{ r: 2 }}
           activeDot={{ r: 4 }}
           name="P75"
+          hide={chartState["p75"]}
         />
         <Line
           type="monotone"
           dataKey="p90"
-          stroke={colors.blue300}
-          strokeWidth={2}
-          dot={{ r: 2 }}
-          activeDot={{ r: 4 }}
-          name="P90"
-        />
-        <Line
-          type="monotone"
-          dataKey="p95"
-          stroke={colors.blue400}
-          strokeWidth={2}
-          dot={{ r: 2 }}
-          activeDot={{ r: 4 }}
-          name="P95"
-        />
-        <Line
-          type="monotone"
-          dataKey="p99"
           stroke={colors.blue500}
           strokeWidth={2}
           dot={{ r: 2 }}
           activeDot={{ r: 4 }}
-          name="P99"
+          name="P90"
+          hide={chartState["p90"]}
         />
         <Line
           type="monotone"
-          dataKey="p999"
+          dataKey="p95"
           stroke={colors.blue600}
           strokeWidth={2}
           dot={{ r: 2 }}
           activeDot={{ r: 4 }}
+          name="P95"
+          hide={chartState["p95"]}
+        />
+        <Line
+          type="monotone"
+          dataKey="p99"
+          stroke={colors.blue700}
+          strokeWidth={2}
+          dot={{ r: 2 }}
+          activeDot={{ r: 4 }}
+          name="P99"
+          hide={chartState["p99"]}
+        />
+        <Line
+          type="monotone"
+          dataKey="p999"
+          stroke={colors.blue800}
+          strokeWidth={2}
+          dot={{ r: 2 }}
+          activeDot={{ r: 4 }}
           name="P99.9"
+          hide={chartState["p999"]}
         />
         <Line
           type="monotone"
           dataKey="max"
-          stroke={colors.grey700}
+          stroke={colors.blue900}
           strokeWidth={2}
+          strokeDasharray={"5 5"}
           dot={{ r: 2 }}
           activeDot={{ r: 4 }}
           name="Max"
+          hide={chartState["max"]}
         />
-        <Legend {...defaultLegendProps} iconType="line" iconSize={8} />
+        <Legend
+          {...defaultLegendProps}
+          iconType="line"
+          iconSize={8}
+          onClick={selectChartItem}
+        />
         <Tooltip
           content={TooltipContent}
           cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
