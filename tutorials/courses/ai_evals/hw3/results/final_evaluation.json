@@ -1,0 +1,15 @@
+{
+  "final_evaluation": {
+    "total_traces_evaluated": 120,
+    "raw_observed_success_rate": 0.9,
+    "corrected_success_rate": 0.8857142857142856,
+    "confidence_interval_95": {
+      "lower_bound": 0.8333333333333333,
+      "upper_bound": 0.8999999999999999
+    },
+    "interpretation": {
+      "description": "Corrected success rate accounts for judge errors (TPR/TNR)",
+      "raw_vs_corrected": "Raw rate: 0.900, Corrected rate: 0.886"
+    }
+  }
+}

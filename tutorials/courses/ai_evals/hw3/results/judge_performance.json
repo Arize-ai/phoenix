@@ -1,0 +1,10 @@
+{
+  "test_set_performance": {
+    "true_positive_rate": 1.0,
+    "true_negative_rate": 0.875,
+    "balanced_accuracy": 0.9375,
+    "total_predictions": 42,
+    "correct_predictions": 41,
+    "accuracy": 0.9761904761904762
+  }
+}
