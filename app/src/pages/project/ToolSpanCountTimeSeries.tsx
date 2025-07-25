@@ -21,8 +21,8 @@ import {
   defaultYAxisProps,
   useBinInterval,
   useBinTimeTickFormatter,
-  useCategoryChartColors,
   useSemanticChartColors,
+  useSequentialChartColors,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
@@ -40,12 +40,13 @@ function TooltipContent({
   payload,
   label,
 }: TooltipContentProps<number, string>) {
-  const SemanticChartColors = useSemanticChartColors();
-  const chartColors = useCategoryChartColors();
   if (active && payload && payload.length) {
     const errorValue = payload[0]?.value ?? null;
+    const errorColor = payload[0]?.color ?? null;
     const unsetValue = payload[1]?.value ?? null;
+    const unsetColor = payload[1]?.color ?? null;
     const okValue = payload[2]?.value ?? null;
+    const okColor = payload[2]?.color ?? null;
     const okString = intFormatter(okValue);
     const unsetString = intFormatter(unsetValue);
     const errorString = intFormatter(errorValue);
@@ -57,19 +58,19 @@ function TooltipContent({
           )}`}</Text>
         )}
         <ChartTooltipItem
-          color={SemanticChartColors.danger}
+          color={errorColor}
           shape="circle"
           name="error"
           value={errorString}
         />
         <ChartTooltipItem
-          color={chartColors.category2}
+          color={unsetColor}
           shape="circle"
           name="unset"
           value={unsetString}
         />
         <ChartTooltipItem
-          color={chartColors.category1}
+          color={okColor}
           shape="circle"
           name="ok"
           value={okString}
@@ -137,7 +138,7 @@ export function ToolSpanCountTimeSeries({ projectId }: { projectId: string }) {
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
   const interval = useBinInterval({ scale });
-  const colors = useCategoryChartColors();
+  const colors = useSequentialChartColors();
   const SemanticChartColors = useSemanticChartColors();
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -145,6 +146,7 @@ export function ToolSpanCountTimeSeries({ projectId }: { projectId: string }) {
         data={chartData}
         margin={{ top: 0, right: 18, left: 0, bottom: 0 }}
         barSize={10}
+        syncId={"projectMetrics"}
       >
         <XAxis
           {...defaultXAxisProps}
@@ -173,11 +175,11 @@ export function ToolSpanCountTimeSeries({ projectId }: { projectId: string }) {
           cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
         />
         <Bar dataKey="error" stackId="a" fill={SemanticChartColors.danger} />
-        <Bar dataKey="unset" stackId="a" fill={colors.category2} />
+        <Bar dataKey="unset" stackId="a" fill={colors.grey500} />
         <Bar
           dataKey="ok"
           stackId="a"
-          fill={colors.category1}
+          fill={colors.grey300}
           radius={[2, 2, 0, 0]}
         />
         <Legend {...defaultLegendProps} iconType="circle" iconSize={8} />

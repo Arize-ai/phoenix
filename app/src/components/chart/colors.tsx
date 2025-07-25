@@ -8,6 +8,10 @@ export type SequentialChartColors = {
   readonly blue300: string;
   readonly blue400: string;
   readonly blue500: string;
+  readonly blue600: string;
+  readonly blue700: string;
+  readonly blue800: string;
+  readonly blue900: string;
   readonly orange100: string;
   readonly orange200: string;
   readonly orange300: string;
@@ -54,6 +58,10 @@ const darkSequentialChartColors: SequentialChartColors = Object.freeze({
   blue300: cssVar("--ac-global-color-blue-400"),
   blue400: cssVar("--ac-global-color-blue-500"),
   blue500: cssVar("--ac-global-color-blue-600"),
+  blue600: cssVar("--ac-global-color-blue-700"),
+  blue700: cssVar("--ac-global-color-blue-800"),
+  blue800: cssVar("--ac-global-color-blue-900"),
+  blue900: cssVar("--ac-global-color-blue-1000"),
 
   // Oranges
   orange100: cssVar("--ac-global-color-orange-500"),
@@ -107,6 +115,10 @@ const lightSequentialChartColors: SequentialChartColors = Object.freeze({
   blue300: cssVar("--ac-global-color-blue-400"),
   blue400: cssVar("--ac-global-color-blue-500"),
   blue500: cssVar("--ac-global-color-blue-600"),
+  blue600: cssVar("--ac-global-color-blue-700"),
+  blue700: cssVar("--ac-global-color-blue-800"),
+  blue800: cssVar("--ac-global-color-blue-900"),
+  blue900: cssVar("--ac-global-color-blue-1000"),
 
   // Oranges
   orange100: cssVar("--ac-global-color-orange-500"),

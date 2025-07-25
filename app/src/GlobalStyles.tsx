@@ -1271,7 +1271,7 @@ const chartCSS = css`
     --chart-tooltip-cursor-fill-color: rgba(255, 255, 255, 0.2);
   }
   .ac-theme--light {
-    --chart-tooltip-cursor-fill-color: rgba(0, 0, 0, 0.2);
+    --chart-tooltip-cursor-fill-color: rgba(0, 0, 0, 0.05);
   }
 `;
 

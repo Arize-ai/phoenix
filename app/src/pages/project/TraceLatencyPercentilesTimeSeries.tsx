@@ -1,9 +1,9 @@
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   CartesianGrid,
+  ComposedChart,
   Legend,
   Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   TooltipContentProps,
@@ -17,8 +17,7 @@ import {
   ChartTooltipItem,
   useBinInterval,
   useBinTimeTickFormatter,
-  useCategoryChartColors,
-  useSemanticChartColors,
+  useSequentialChartColors,
 } from "@phoenix/components/chart";
 import {
   defaultCartesianGridProps,
@@ -39,7 +38,6 @@ function TooltipContent({
   payload,
   label,
 }: TooltipContentProps<number, string>) {
-  const chartColors = useCategoryChartColors();
   if (active && payload && payload.length) {
     return (
       <ChartTooltip>
@@ -57,7 +55,7 @@ function TooltipContent({
             return (
               <ChartTooltipItem
                 key={index}
-                color={entry.color || chartColors.category1}
+                color={entry.color || "#ffffff"}
                 shape="line"
                 name={entry.dataKey || "unknown"}
                 value={`${formatFloat(entry.value)} s`}
@@ -125,7 +123,7 @@ export function TraceLatencyPercentilesTimeSeries({
   const chartData = (
     data.project.traceLatencyMsPercentileTimeSeries?.data ?? []
   ).map((datum) => ({
-    timestamp: datum.timestamp,
+    timestamp: new Date(datum.timestamp),
     p50: typeof datum.p50 === "number" ? datum.p50 / 1000 : null,
     p75: typeof datum.p75 === "number" ? datum.p75 / 1000 : null,
     p90: typeof datum.p90 === "number" ? datum.p90 / 1000 : null,
@@ -138,27 +136,28 @@ export function TraceLatencyPercentilesTimeSeries({
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
   const interval = useBinInterval({ scale });
 
-  const colors = useCategoryChartColors();
-  const SemanticChartColors = useSemanticChartColors();
+  const colors = useSequentialChartColors();
 
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <LineChart
+      <ComposedChart
         data={chartData}
         margin={{ top: 0, right: 18, left: 0, bottom: 0 }}
+        syncId={"projectMetrics"}
       >
         <CartesianGrid vertical={false} {...defaultCartesianGridProps} />
         <XAxis
           {...defaultXAxisProps}
           dataKey="timestamp"
           interval={interval}
-          tickFormatter={(x) => timeTickFormatter(new Date(x))}
+          padding={{ left: 50, right: 50 }}
+          tickFormatter={(x) => timeTickFormatter(x)}
         />
         <YAxis
           width={55}
           tickFormatter={(x) => intFormatter(x)}
           label={{
-            value: "Latency (sec)",
+            value: "Latency (s)",
             angle: -90,
             dx: -20,
             style: {
@@ -171,64 +170,62 @@ export function TraceLatencyPercentilesTimeSeries({
         <Line
           type="monotone"
           dataKey="p50"
-          stroke={colors.category1}
+          stroke={colors.blue100}
           strokeWidth={2}
-          dot={false}
           activeDot={{ r: 4 }}
           name="P50"
         />
         <Line
           type="monotone"
           dataKey="p75"
-          stroke={colors.category2}
+          stroke={colors.blue200}
           strokeWidth={2}
-          dot={false}
+          dot={{ r: 2 }}
           activeDot={{ r: 4 }}
           name="P75"
         />
         <Line
           type="monotone"
           dataKey="p90"
-          stroke={colors.category3}
+          stroke={colors.blue300}
           strokeWidth={2}
-          dot={false}
+          dot={{ r: 2 }}
           activeDot={{ r: 4 }}
           name="P90"
         />
         <Line
           type="monotone"
           dataKey="p95"
-          stroke={colors.category4}
+          stroke={colors.blue400}
           strokeWidth={2}
-          dot={false}
+          dot={{ r: 2 }}
           activeDot={{ r: 4 }}
           name="P95"
         />
         <Line
           type="monotone"
           dataKey="p99"
-          stroke={colors.category5}
+          stroke={colors.blue500}
           strokeWidth={2}
-          dot={false}
+          dot={{ r: 2 }}
           activeDot={{ r: 4 }}
           name="P99"
         />
         <Line
           type="monotone"
           dataKey="p999"
-          stroke={colors.category6}
+          stroke={colors.blue600}
           strokeWidth={2}
-          dot={false}
+          dot={{ r: 2 }}
           activeDot={{ r: 4 }}
           name="P99.9"
         />
         <Line
           type="monotone"
           dataKey="max"
-          stroke={SemanticChartColors.danger}
+          stroke={colors.grey700}
           strokeWidth={2}
-          strokeDasharray="5 5"
-          dot={false}
+          dot={{ r: 2 }}
           activeDot={{ r: 4 }}
           name="Max"
         />
@@ -237,7 +234,7 @@ export function TraceLatencyPercentilesTimeSeries({
           content={TooltipContent}
           cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
         />
-      </LineChart>
+      </ComposedChart>
     </ResponsiveContainer>
   );
 }

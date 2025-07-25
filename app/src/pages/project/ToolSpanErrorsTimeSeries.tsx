@@ -122,6 +122,7 @@ export function ToolSpanErrorsTimeSeries({ projectId }: { projectId: string }) {
         data={chartData}
         margin={{ top: 0, right: 18, left: 0, bottom: 0 }}
         barSize={10}
+        syncId={"projectMetrics"}
       >
         <XAxis
           {...defaultXAxisProps}
