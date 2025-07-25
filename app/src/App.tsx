@@ -3,11 +3,11 @@ import { RelayEnvironmentProvider } from "react-relay";
 
 import { Provider } from "@arizeai/components";
 
-import { StorageAlert } from "./components/StorageAlert";
 import { CredentialsProvider } from "./contexts/CredentialsContext";
 import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext";
 import { FunctionalityProvider } from "./contexts/FunctionalityContext";
 import { PreferencesProvider } from "./contexts/PreferencesContext";
+import { AppAlerts } from "./AppAlerts";
 import { NotificationProvider, ThemeProvider, useTheme } from "./contexts";
 import { GlobalStyles } from "./GlobalStyles";
 import RelayEnvironment from "./RelayEnvironment";
@@ -32,12 +32,12 @@ export function AppContent() {
     <Provider theme={componentsTheme} mountGlobalStyles={false}>
       <RelayEnvironmentProvider environment={RelayEnvironment}>
         <GlobalStyles />
-        {window.Config.hasDbThreshold && <StorageAlert />}
         <FeatureFlagsProvider>
           <PreferencesProvider>
             <CredentialsProvider>
               <Suspense>
                 <NotificationProvider>
+                  <AppAlerts />
                   <AppRoutes />
                 </NotificationProvider>
               </Suspense>
