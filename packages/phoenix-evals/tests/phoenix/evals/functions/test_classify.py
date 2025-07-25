@@ -1,6 +1,6 @@
 import json
 from contextlib import ExitStack
-from typing import List
+from typing import List, Optional
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -1687,7 +1687,7 @@ def test_llm_classify_cot(openai_api_key: str) -> None:
         assert NOT_PARSABLE not in result["label"].tolist()
 
 
-def _patch_usage(model, prompt_tokens: int | None, completion_tokens: int | None):
+def _patch_usage(model, prompt_tokens: Optional[int], completion_tokens: Optional[int]):
     """
     Helper: monkey-patch both sync & async meta generators on `model`
     so they return a deterministic usage payload.
@@ -1726,10 +1726,10 @@ def _patch_usage(model, prompt_tokens: int | None, completion_tokens: int | None
 )
 def test_llm_classify_token_usage_columns(
     include_flag: bool,
-    prompt_toks: int | None,
-    comp_toks: int | None,
+    prompt_toks: Optional[int],
+    comp_toks: Optional[int],
     expect_cols: bool,
-    expect_total_nan: bool | None,
+    expect_total_nan: Optional[bool],
 ):
     """
     Covers three scenarios:
