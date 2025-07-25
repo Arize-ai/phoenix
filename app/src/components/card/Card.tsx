@@ -1,15 +1,21 @@
-import { forwardRef, PropsWithChildren, Ref } from "react";
+import {
+  CSSProperties,
+  forwardRef,
+  PropsWithChildren,
+  Ref,
+  useState,
+} from "react";
 import { css } from "@emotion/react";
 
 import { Card as OldCard } from "@arizeai/components";
 
-import { Button, Heading } from "@phoenix/components";
+import { Heading, Icon, Icons } from "@phoenix/components";
 import { ViewStyleProps } from "@phoenix/components/types";
 import { useStyleProps, viewStyleProps } from "@phoenix/components/utils";
 
 type CardVariant = "default" | "compact";
 
-interface CardProps extends PropsWithChildren<ViewStyleProps> {
+export interface CardProps extends PropsWithChildren<ViewStyleProps> {
   title: string;
   subTitle?: string;
   variant?: CardVariant;
@@ -18,9 +24,12 @@ interface CardProps extends PropsWithChildren<ViewStyleProps> {
   useOldComponent?: boolean; // TODO: delete
 }
 
-const cardCSS = css`
-  --scope-border-color: var(--ac-global-border-color-default);
+const cardCSS = (style?: CSSProperties) => css`
+  --scope-border-color: ${style?.borderColor ??
+  "var(--ac-global-border-color-default)"};
   --card-header-height: 68px;
+  --collapsible-card-animation-duration: 200ms;
+  --collapsible-card-icon-size: var(--ac-global-dimension-size-300);
 
   &[data-variant="compact"] {
     --card-header-height: 46px;
@@ -46,16 +55,42 @@ const cardHeaderCSS = css`
   transition: background-color 0.2s ease-in-out;
   border-bottom: 1px solid var(--scope-border-color);
 
+  & .card__collapsible-icon {
+    width: var(--collapsible-card-icon-size);
+    height: var(--collapsible-card-icon-size);
+    font-size: 1.3em;
+    color: inherit;
+    display: flex;
+    margin-right: var(--ac-global-dimension-static-size-100);
+    transition: transform ease var(--collapsible-card-animation-duration);
+  }
+
+  & .card__title {
+    font-size: var(--ac-global-font-size-l);
+    line-height: var(--ac-global-line-height-l);
+  }
+
+  &[data-variant="compact"] {
+    & .card__title {
+      font-size: var(--ac-global-font-size-m);
+      line-height: var(--ac-global-line-height-m);
+    }
+  }
+
+  & .card__sub-title {
+    color: var(--ac-global-text-color-700);
+  }
+
   &[data-collapsible="true"] {
     &:hover {
       background-color: rgba(255, 255, 255, 0.1);
     }
+    &[data-collapsed="true"] {
+      .card__collapsible-icon {
+        transform: rotate(-90deg);
+      }
+    }
   }
-`;
-
-const collapsibleHeadingCSS = css`
-  width: 100%;
-  height: 100%;
 `;
 
 const collapsibleButtonCSS = css`
@@ -66,12 +101,13 @@ const collapsibleButtonCSS = css`
   width: 100%;
   height: 100%;
   appearance: none;
-  background-color: inherit;
   cursor: pointer;
-  padding: 0;
-  border: 0;
-  outline: none;
   color: var(--ac-global-text-color-900);
+
+  & svg {
+    height: var(--collapsible-card-icon-size);
+    width: var(--collapsible-card-icon-size);
+  }
 `;
 
 const cardBodyCSS = css`
@@ -97,6 +133,8 @@ function Card(
     bodyStyle,
     viewStyleProps
   );
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
   if (useOldComponent) {
     return (
       <OldCard title={title} {...styleProps}>
@@ -105,34 +143,52 @@ function Card(
     );
   }
   const headingContents = (
-    <>
-      <Heading
-        level={3}
-        weight="heavy"
-        css={collapsible ? collapsibleHeadingCSS : undefined}
-      >
+    <div>
+      <Heading level={3} weight="heavy" className="card__title">
         {title}
       </Heading>
-      {subTitle && <Heading level={4}>{subTitle}</Heading>}
-    </>
+      {subTitle && (
+        <Heading level={4} className="card__sub-title">
+          {subTitle}
+        </Heading>
+      )}
+    </div>
   );
+
   return (
     <section
       ref={ref}
-      css={cardCSS}
+      css={cardCSS(styleProps.style)}
       data-variant={variant}
       style={styleProps.style}
     >
-      <header css={cardHeaderCSS} data-collapsible={collapsible}>
+      <header
+        css={cardHeaderCSS}
+        data-variant={variant}
+        data-collapsible={collapsible}
+        data-collapsed={isCollapsed}
+      >
         {collapsible ? (
-          <button css={collapsibleButtonCSS}>{headingContents}</button>
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            css={collapsibleButtonCSS}
+            className="button--reset"
+          >
+            <Icon
+              svg={<Icons.ChevronDown />}
+              className="card__collapsible-icon"
+            />
+            {headingContents}
+          </button>
         ) : (
           headingContents
         )}
       </header>
-      <div css={cardBodyCSS} style={bodyStyleProps.style}>
-        {children}
-      </div>
+      {!isCollapsed && (
+        <div css={cardBodyCSS} style={bodyStyleProps.style}>
+          {children}
+        </div>
+      )}
     </section>
   );
 }
