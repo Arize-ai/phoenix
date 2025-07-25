@@ -1,10 +1,21 @@
 import { forwardRef } from "react";
+import { useParams } from "react-router";
 import { css } from "@emotion/react";
 
 import { Flex, Heading, Text, View } from "@phoenix/components";
+import { TopModelsByCost } from "@phoenix/pages/project/TopModelsByCost";
+import { TopModelsByToken } from "@phoenix/pages/project/TopModelsByToken";
 import { TraceErrorsTimeSeries } from "@phoenix/pages/project/TraceErrorsTimeSeries";
 
+import { LLMSpanCountTimeSeries } from "./LLMSpanCountTimeSeries";
+import { LLMSpanErrorsTimeSeries } from "./LLMSpanErrorsTimeSeries";
+import { SpanAnnotationScoreTimeSeries } from "./SpanAnnotationScoreTimeSeries";
+import { ToolSpanCountTimeSeries } from "./ToolSpanCountTimeSeries";
+import { ToolSpanErrorsTimeSeries } from "./ToolSpanErrorsTimeSeries";
 import { TraceCountTimeSeries } from "./TraceCountTimeSeries";
+import { TraceLatencyPercentilesTimeSeries } from "./TraceLatencyPercentilesTimeSeries";
+import { TraceTokenCostTimeSeries } from "./TraceTokenCostTimeSeries";
+import { TraceTokenCountTimeSeries } from "./TraceTokenCountTimeSeries";
 
 interface MetricPanelHeaderProps {
   title: string;
@@ -16,6 +27,7 @@ function MetricPanelHeader({ title, subtitle }: MetricPanelHeaderProps) {
     <div
       css={css`
         padding: var(--ac-global-dimension-size-100)
+          var(--ac-global-dimension-size-200) 0
           var(--ac-global-dimension-size-200);
 
         display: flex;
@@ -47,7 +59,7 @@ export const MetricPanel = forwardRef(function MetricPanel(
   return (
     <View
       borderWidth="thin"
-      borderColor="dark"
+      borderColor="grey-200"
       borderRadius="medium"
       height="100%"
       width="100%"
@@ -67,8 +79,7 @@ export const MetricPanel = forwardRef(function MetricPanel(
           css={css`
             flex: 1 1 auto;
             padding: var(--ac-global-dimension-size-200);
-
-            height: 200px;
+            height: 190px;
           `}
         >
           {children}
@@ -79,6 +90,10 @@ export const MetricPanel = forwardRef(function MetricPanel(
 });
 
 export function ProjectMetricsPage() {
+  const { projectId } = useParams();
+  if (!projectId) {
+    throw new Error("projectId is required");
+  }
   return (
     <main
       css={css`
@@ -89,36 +104,74 @@ export function ProjectMetricsPage() {
         flex: 1 1 auto;
         display: flex;
         flex-direction: column;
-        gap: var(--ac-global-dimension-size-100);
-        padding: var(--ac-global-dimension-size-100);
+        gap: var(--ac-global-dimension-size-200);
+        padding: var(--ac-global-dimension-size-200);
       `}
     >
-      <Flex direction="row" gap="size-100">
+      <Flex direction="row" gap="size-200">
         <MetricPanel
           title="Traces over time"
           subtitle="Overall volume of traces"
         >
-          <TraceCountTimeSeries />
+          <TraceCountTimeSeries projectId={projectId} />
         </MetricPanel>
-        <MetricPanel title="Trace count (errors only)">
-          <TraceErrorsTimeSeries />
-        </MetricPanel>
-      </Flex>
-      <Flex direction="row" gap="size-100">
-        <MetricPanel title="Duration" subtitle="Daily quantiles in seconds">
-          {"Duration chart goes here"}
-        </MetricPanel>
-
-        <MetricPanel title="Token usage" subtitle="Daily totals">
-          {"Token usage chart goes here"}
+        <MetricPanel
+          title="Traces with errors"
+          subtitle="Overall volume of traces with errors"
+        >
+          <TraceErrorsTimeSeries projectId={projectId} />
         </MetricPanel>
       </Flex>
-      <Flex direction="row" gap="size-100">
-        <MetricPanel title="Estimated cost" subtitle="Total daily cost in USD">
-          {"Estimated cost chart goes here"}
+      <Flex direction="row" gap="size-200">
+        <MetricPanel title="Trace Latency" subtitle="Latency percentiles">
+          <TraceLatencyPercentilesTimeSeries projectId={projectId} />
         </MetricPanel>
-        <MetricPanel title="Feedback scores" subtitle="Daily averages">
-          {"Feedback scores chart goes here"}
+        <MetricPanel
+          title="Annotation scores"
+          subtitle="Average annotation scores"
+        >
+          <SpanAnnotationScoreTimeSeries projectId={projectId} />
+        </MetricPanel>
+      </Flex>
+      <Flex direction="row" gap="size-200">
+        <MetricPanel title="Cost" subtitle="Estimated cost in USD">
+          <TraceTokenCostTimeSeries projectId={projectId} />
+        </MetricPanel>
+        <MetricPanel title="Top models by cost">
+          <TopModelsByCost projectId={projectId} />
+        </MetricPanel>
+      </Flex>
+      <Flex direction="row" gap="size-200">
+        <MetricPanel
+          title="Token usage"
+          subtitle="Token usage by prompt and completion"
+        >
+          <TraceTokenCountTimeSeries projectId={projectId} />
+        </MetricPanel>
+        <MetricPanel title="Top models by tokens">
+          <TopModelsByToken projectId={projectId} />
+        </MetricPanel>
+      </Flex>
+      <Flex direction="row" gap="size-200">
+        <MetricPanel title="LLM spans" subtitle="LLM span count over time">
+          <LLMSpanCountTimeSeries projectId={projectId} />
+        </MetricPanel>
+        <MetricPanel
+          title="LLM spans with errors"
+          subtitle="LLM spans with errors over time"
+        >
+          <LLMSpanErrorsTimeSeries projectId={projectId} />
+        </MetricPanel>
+      </Flex>
+      <Flex direction="row" gap="size-200">
+        <MetricPanel title="Tool spans" subtitle="Tool span count over time">
+          <ToolSpanCountTimeSeries projectId={projectId} />
+        </MetricPanel>
+        <MetricPanel
+          title="Tool spans with errors"
+          subtitle="Tool spans with errors over time"
+        >
+          <ToolSpanErrorsTimeSeries projectId={projectId} />
         </MetricPanel>
       </Flex>
     </main>

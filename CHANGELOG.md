@@ -1,5 +1,84 @@
 # Changelog
 
+## [11.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.11.0...arize-phoenix-v11.12.0) (2025-07-25)
+
+
+### Features
+
+* banner alert for insufficient storage ([#8759](https://github.com/Arize-ai/phoenix/issues/8759)) ([9dc453e](https://github.com/Arize-ai/phoenix/commit/9dc453e2fa46f24e928949cb859c5caffd3c5899))
+* **experiments:** display average experiment run data in headers of experiment compare table ([#8737](https://github.com/Arize-ai/phoenix/issues/8737)) ([a8d44f8](https://github.com/Arize-ai/phoenix/commit/a8d44f823e724ab0c843746cac3e8428e42767c6))
+* **metrics:** tooltip syncing ([#8768](https://github.com/Arize-ai/phoenix/issues/8768)) ([968ceed](https://github.com/Arize-ai/phoenix/commit/968ceedc0ac6aed613c9483d1508ce849646091b))
+* **metrics:** update chart colors ([#8753](https://github.com/Arize-ai/phoenix/issues/8753)) ([6d6b793](https://github.com/Arize-ai/phoenix/commit/6d6b7936f2a0f97aa72b4347f9ffdd4d75c10b26))
+* usewordcolor returns less chaotic colors with improved contrast ([6d6b793](https://github.com/Arize-ai/phoenix/commit/6d6b7936f2a0f97aa72b4347f9ffdd4d75c10b26))
+
+
+### Bug Fixes
+
+* experiments chart colors ([6d6b793](https://github.com/Arize-ai/phoenix/commit/6d6b7936f2a0f97aa72b4347f9ffdd4d75c10b26))
+* page header uses categorical colors ([6d6b793](https://github.com/Arize-ai/phoenix/commit/6d6b7936f2a0f97aa72b4347f9ffdd4d75c10b26))
+* restore sinebow ([6d6b793](https://github.com/Arize-ai/phoenix/commit/6d6b7936f2a0f97aa72b4347f9ffdd4d75c10b26))
+* Switch feedback chart to use useWordColor and match rest of annotation UI colors ([6d6b793](https://github.com/Arize-ai/phoenix/commit/6d6b7936f2a0f97aa72b4347f9ffdd4d75c10b26))
+
+## [11.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.10.1...arize-phoenix-v11.11.0) (2025-07-24)
+
+
+### Features
+
+* add basic tops bar charts ([#8711](https://github.com/Arize-ai/phoenix/issues/8711)) ([6cffc82](https://github.com/Arize-ai/phoenix/commit/6cffc82b5bc49a4b72ad74532eed151a93bb2a3e))
+* Add search bar functionality to prompts page ([#8703](https://github.com/Arize-ai/phoenix/issues/8703)) ([9ae5027](https://github.com/Arize-ai/phoenix/commit/9ae502751b04da8ddd0da0964c349b98941eddca))
+* **design:** align chart colors with base ([#8730](https://github.com/Arize-ai/phoenix/issues/8730)) ([8bcb4d3](https://github.com/Arize-ai/phoenix/commit/8bcb4d31102b93a3f81de6bcdb907cbf70e92c91))
+* **design:** floating toolbar ([#8717](https://github.com/Arize-ai/phoenix/issues/8717)) ([75e65c0](https://github.com/Arize-ai/phoenix/commit/75e65c0d42abfedd2cd4afa11acfd83813f70df5))
+* **design:** legend text as un-colored ([#8745](https://github.com/Arize-ai/phoenix/issues/8745)) ([9395857](https://github.com/Arize-ai/phoenix/commit/9395857a003eca35f40176819990956e77335278))
+* **design:** show logo text ([#8740](https://github.com/Arize-ai/phoenix/issues/8740)) ([2157b50](https://github.com/Arize-ai/phoenix/commit/2157b505f4bac13a68b29a6351945f802e7b3b46))
+* **metrics:** consistant time range formatting based on binning ([#8751](https://github.com/Arize-ai/phoenix/issues/8751)) ([3a6c2d5](https://github.com/Arize-ai/phoenix/commit/3a6c2d52ae3defc7ef9b4a3a5bd01b44db6afc81))
+
+
+### Bug Fixes
+
+* format x axis labels on tops bar charts consistently with tooltips ([#8750](https://github.com/Arize-ai/phoenix/issues/8750)) ([c25763c](https://github.com/Arize-ai/phoenix/commit/c25763c7d43e12277859429c5c5da63665d08850))
+* json highlighting ([#8731](https://github.com/Arize-ai/phoenix/issues/8731)) ([1f957a5](https://github.com/Arize-ai/phoenix/commit/1f957a5029bd850be1c89e61af914712ffc6ce77))
+* make span event list scrollable ([#8763](https://github.com/Arize-ai/phoenix/issues/8763)) ([1c612ec](https://github.com/Arize-ai/phoenix/commit/1c612ecfeb6942d51d0f9b6db6223df5b3dded21))
+
+## [11.10.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.10.0...arize-phoenix-v11.10.1) (2025-07-22)
+
+
+### Bug Fixes
+
+* duplicate OpenAIReasoningStreamingClient for AzureOpenAIReasoningStreamingClient ([#8661](https://github.com/Arize-ai/phoenix/issues/8661)) ([26384a4](https://github.com/Arize-ai/phoenix/commit/26384a49b6f5b849c363cbb79b9701166061c255))
+
+## [11.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.9.0...arize-phoenix-v11.10.0) (2025-07-22)
+
+
+### Features
+
+* **design:** add icon button figma link ([#8704](https://github.com/Arize-ai/phoenix/issues/8704)) ([a7a2c82](https://github.com/Arize-ai/phoenix/commit/a7a2c821e5283f7c864a401d84e62e90be68b097))
+* **design:** geist font ([#8690](https://github.com/Arize-ai/phoenix/issues/8690)) ([7aaaea0](https://github.com/Arize-ai/phoenix/commit/7aaaea0a047bab9421a62cf39dfe30cbfbfa356f))
+* **design:** globally define the hights of buttons and inputs ([#8713](https://github.com/Arize-ai/phoenix/issues/8713)) ([4a81bfe](https://github.com/Arize-ai/phoenix/commit/4a81bfec84c8d17be8a2ed1e6d54023a255db30a))
+* display allocated db storage capacity if specified ([#8715](https://github.com/Arize-ai/phoenix/issues/8715)) ([94f9b22](https://github.com/Arize-ai/phoenix/commit/94f9b223d9d5607b43c47266a7b3d01fbc0aa69c))
+* **metrics:** llm and tool span counts ([#8693](https://github.com/Arize-ai/phoenix/issues/8693)) ([2f2f2a1](https://github.com/Arize-ai/phoenix/commit/2f2f2a15aec1ed6cb75b30791556b1023b9a4259))
+
+
+### Bug Fixes
+
+* **design:** scope colors to to theme boundary for split view ([#8712](https://github.com/Arize-ai/phoenix/issues/8712)) ([eab8c07](https://github.com/Arize-ai/phoenix/commit/eab8c072c0913f209294522b418ed92b8646cc52))
+
+## [11.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.8.0...arize-phoenix-v11.9.0) (2025-07-21)
+
+
+### Features
+
+* add trace errors chart + generic bar chart component ([#8650](https://github.com/Arize-ai/phoenix/issues/8650)) ([0c913f2](https://github.com/Arize-ai/phoenix/commit/0c913f273c760f9aab6cc06bc0e5651f1c5d5c42))
+* **charing:** axis colors ([#8656](https://github.com/Arize-ai/phoenix/issues/8656)) ([25b7826](https://github.com/Arize-ai/phoenix/commit/25b7826f1a8f12609d7271bdbe97e2169e7ded3e))
+* createProject GraphQL mutation ([#8660](https://github.com/Arize-ai/phoenix/issues/8660)) ([0d2268b](https://github.com/Arize-ai/phoenix/commit/0d2268b0e2d6bb6a12c663cce21c935edcb8e8fe))
+* **dashboards:** implement and wire up resolvers for project metrics page ([#8641](https://github.com/Arize-ai/phoenix/issues/8641)) ([d667cc6](https://github.com/Arize-ai/phoenix/commit/d667cc63e07fcf7d5da27e7c815d307ecdf95045))
+* **traces:** Implement trace project transfer API ([#8645](https://github.com/Arize-ai/phoenix/issues/8645)) ([5ec669f](https://github.com/Arize-ai/phoenix/commit/5ec669f379f985b0f552b641183cb038fb3d1efc))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#8669](https://github.com/Arize-ai/phoenix/issues/8669)) ([a5ecda5](https://github.com/Arize-ai/phoenix/commit/a5ecda5eedd987093c01ebc36bac2dcaa82b3fbc))
+* race condition on annotation insertion retries ([#8688](https://github.com/Arize-ai/phoenix/issues/8688)) ([49723d5](https://github.com/Arize-ai/phoenix/commit/49723d5c80a156ccee96adc0e29631fcabc5e277))
+
 ## [11.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.7.0...arize-phoenix-v11.8.0) (2025-07-17)
 
 

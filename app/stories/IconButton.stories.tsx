@@ -23,6 +23,10 @@ const meta: Meta = {
   component: IconButton,
   parameters: {
     layout: "centered",
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/rMddnj6eV2TcQqNkejJ9qX/Core?node-id=66-247",
+    },
   },
   argTypes: {
     size: {

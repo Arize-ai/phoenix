@@ -189,6 +189,12 @@ module.exports = {
         module: "@arizeai/components",
         use: "import { ProgressCircle } from '@phoenix/components'",
       },
+      // TODO: Remove this once all DialogContainers are migrated to @phoenix/components
+      // {
+      //   name: "DialogContainer",
+      //   module: "@arizeai/components",
+      //   use: "import { DialogContainer } from '@phoenix/components'",
+      // },
       {
         name: "ProgressBar",
         module: "@arizeai/components",
@@ -203,6 +209,16 @@ module.exports = {
         name: "BreadcrumbItem",
         module: "@arizeai/components",
         use: "import { Breadcrumb } from '@phoenix/components'",
+      },
+      {
+        name: "List",
+        module: "@arizeai/components",
+        use: "import { List } from '@phoenix/components'",
+      },
+      {
+        name: "ListItem",
+        module: "@arizeai/components",
+        use: "import { ListItem } from '@phoenix/components'",
       },
     ],
     "no-duplicate-imports": "error",

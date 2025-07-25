@@ -153,7 +153,7 @@ class UserMutationMixin:
                 logger.error(f"Failed to send welcome email: {error}")
         return UserMutationPayload(user=to_gql_user(user))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin])  # type: ignore
     async def patch_user(
         self,
         info: Info[Context, None],
@@ -199,7 +199,7 @@ class UserMutationMixin:
             await info.context.log_out(user.id)
         return UserMutationPayload(user=to_gql_user(user))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
     async def patch_viewer(
         self,
         info: Info[Context, None],

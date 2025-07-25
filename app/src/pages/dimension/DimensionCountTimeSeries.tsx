@@ -16,7 +16,7 @@ import {
   ChartTooltipItem,
   defaultBarChartTooltipProps,
   defaultTimeXAxisProps,
-  useChartColors,
+  useSequentialChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
@@ -31,9 +31,9 @@ const numberFormatter = new Intl.NumberFormat([], {
 });
 
 const useColors = () => {
-  const { gray300 } = useChartColors();
+  const { grey300 } = useSequentialChartColors();
   return {
-    barColor: gray300,
+    barColor: grey300,
   };
 };
 

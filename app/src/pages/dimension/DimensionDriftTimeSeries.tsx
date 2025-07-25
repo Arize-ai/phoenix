@@ -24,7 +24,7 @@ import {
   defaultSelectedTimestampReferenceLineLabelProps,
   defaultSelectedTimestampReferenceLineProps,
   defaultTimeXAxisProps,
-  useChartColors,
+  useSequentialChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
@@ -39,10 +39,10 @@ import {
 import { DimensionDriftTimeSeriesQuery } from "./__generated__/DimensionDriftTimeSeriesQuery.graphql";
 import { timeSeriesChartMargins } from "./dimensionChartConstants";
 const useColors = () => {
-  const { orange300, gray300 } = useChartColors();
+  const { blue500: lineColor, grey300 } = useSequentialChartColors();
   return {
-    color: orange300,
-    barColor: gray300,
+    color: lineColor,
+    barColor: grey300,
   };
 };
 

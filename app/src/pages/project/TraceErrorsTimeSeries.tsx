@@ -1,3 +1,4 @@
+import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   Bar,
   BarChart,
@@ -14,62 +15,25 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
+  defaultCartesianGridProps,
+  defaultLegendProps,
+  defaultXAxisProps,
+  defaultYAxisProps,
+  useBinTimeTickFormatter,
   useSemanticChartColors,
-  useTimeTickFormatter,
 } from "@phoenix/components/chart";
+import { useBinInterval } from "@phoenix/components/chart/useBinInterval";
+import { useTimeRange } from "@phoenix/components/datetime";
+import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
+import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
+import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
-import { calculateGranularity } from "@phoenix/utils/timeSeriesUtils";
+
+import type { TraceErrorsTimeSeriesQuery } from "./__generated__/TraceErrorsTimeSeriesQuery.graphql";
 
 const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
 });
-
-const chartData = [
-  {
-    timestamp: "2021-01-01",
-    error: 0,
-  },
-  {
-    timestamp: "2021-01-02",
-    error: 0,
-  },
-  {
-    timestamp: "2021-01-03",
-    error: 0,
-  },
-  {
-    timestamp: "2021-01-04",
-    error: 10,
-  },
-  {
-    timestamp: "2021-01-05",
-    error: 30,
-  },
-  {
-    timestamp: "2021-01-06",
-    error: 0,
-  },
-  {
-    timestamp: "2021-01-07",
-    error: 40,
-  },
-  {
-    timestamp: "2021-01-08",
-    error: 0,
-  },
-  {
-    timestamp: "2021-01-09",
-    error: 10,
-  },
-  {
-    timestamp: "2021-01-10",
-    error: 0,
-  },
-  {
-    timestamp: "2021-01-11",
-    error: 0,
-  },
-];
 
 function TooltipContent({
   active,
@@ -103,16 +67,55 @@ function TooltipContent({
   return null;
 }
 
-export function TraceErrorsTimeSeries() {
-  const timeRange = {
-    start: new Date("2021-01-01"),
-    end: new Date("2021-01-11"),
-  };
+export function TraceErrorsTimeSeries({ projectId }: { projectId: string }) {
+  const { timeRange } = useTimeRange();
+  const scale = useTimeBinScale({ timeRange });
+  const utcOffsetMinutes = useUTCOffsetMinutes();
 
-  const granularity = calculateGranularity(timeRange);
-  const timeTickFormatter = useTimeTickFormatter({
-    samplingIntervalMinutes: granularity.samplingIntervalMinutes,
-  });
+  const data = useLazyLoadQuery<TraceErrorsTimeSeriesQuery>(
+    graphql`
+      query TraceErrorsTimeSeriesQuery(
+        $projectId: ID!
+        $timeRange: TimeRange!
+        $timeBinConfig: TimeBinConfig!
+      ) {
+        project: node(id: $projectId) {
+          ... on Project {
+            traceCountByStatusTimeSeries(
+              timeRange: $timeRange
+              timeBinConfig: $timeBinConfig
+            ) {
+              data {
+                timestamp
+                errorCount
+              }
+            }
+          }
+        }
+      }
+    `,
+    {
+      projectId,
+      timeRange: {
+        start: timeRange.start?.toISOString(),
+        end: timeRange.end?.toISOString(),
+      },
+      timeBinConfig: {
+        scale,
+        utcOffsetMinutes,
+      },
+    }
+  );
+
+  const chartData = (data.project.traceCountByStatusTimeSeries?.data ?? []).map(
+    (datum) => ({
+      timestamp: datum.timestamp,
+      error: datum.errorCount,
+    })
+  );
+
+  const timeTickFormatter = useBinTimeTickFormatter({ scale });
+  const interval = useBinInterval({ scale });
 
   const SemanticChartColors = useSemanticChartColors();
   return (
@@ -121,34 +124,29 @@ export function TraceErrorsTimeSeries() {
         data={chartData}
         margin={{ top: 0, right: 18, left: 0, bottom: 0 }}
         barSize={10}
+        syncId={"projectMetrics"}
       >
         <XAxis
+          {...defaultXAxisProps}
           dataKey="timestamp"
+          interval={interval}
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
-          style={{ fill: "var(--ac-global-text-color-700)" }}
-          stroke="var(--ac-global-color-grey-400)"
         />
         <YAxis
-          stroke="var(--ac-global-color-grey-500)"
-          width={50}
+          {...defaultYAxisProps}
+          width={55}
+          tickFormatter={(x) => intFormatter(x)}
           label={{
             value: "Count",
             angle: -90,
-            dx: -10,
+            dx: -20,
             style: {
               textAnchor: "middle",
-              fill: "var(--ac-global-text-color-900)",
+              fill: "var(--chart-axis-label-color)",
             },
           }}
-          style={{ fill: "var(--ac-global-text-color-700)" }}
         />
-
-        <CartesianGrid
-          strokeDasharray="4 4"
-          stroke="var(--ac-global-color-grey-500)"
-          strokeOpacity={0.5}
-          vertical={false}
-        />
+        <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
         <Tooltip
           content={TooltipContent}
           // TODO formalize this
@@ -161,7 +159,7 @@ export function TraceErrorsTimeSeries() {
           radius={[2, 2, 0, 0]}
         />
 
-        <Legend align="left" iconType="circle" iconSize={8} />
+        <Legend {...defaultLegendProps} iconType="circle" iconSize={8} />
       </BarChart>
     </ResponsiveContainer>
   );

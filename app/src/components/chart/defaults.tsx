@@ -1,6 +1,7 @@
 import {
   CartesianGridProps,
   LabelProps,
+  LegendProps,
   TooltipProps,
   XAxisProps,
   YAxisProps,
@@ -52,4 +53,11 @@ export const defaultXAxisProps: XAxisProps = {
 export const defaultYAxisProps: YAxisProps = {
   stroke: "var(--chart-axis-stroke-color)",
   style: { fill: "var(--chart-axis-text-color)" },
+};
+
+export const defaultLegendProps: LegendProps = {
+  align: "right",
+  formatter: (value) => (
+    <span style={{ color: "var(--chart-legend-text-color)" }}>{value}</span>
+  ),
 };
