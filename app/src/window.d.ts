@@ -23,6 +23,7 @@ declare global {
       basicAuthDisabled: boolean;
       oAuth2Idps: OAuth2Idp[];
       managementUrl?: string | null;
+      hasDbThreshold: boolean;
     };
   }
 }

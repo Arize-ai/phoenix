@@ -32,7 +32,7 @@ export function AppContent() {
     <Provider theme={componentsTheme} mountGlobalStyles={false}>
       <RelayEnvironmentProvider environment={RelayEnvironment}>
         <GlobalStyles />
-        <StorageAlert />
+        {window.Config.hasDbThreshold && <StorageAlert />}
         <FeatureFlagsProvider>
           <PreferencesProvider>
             <CredentialsProvider>

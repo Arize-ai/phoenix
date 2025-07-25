@@ -108,8 +108,8 @@
               authenticationEnabled: Boolean("{{authentication_enabled}}" == "True"),
               oAuth2Idps: {{ oauth2_idps | tojson }},
               basicAuthDisabled: Boolean("{{basic_auth_disabled}}" == "True"),
-              websocketsEnabled: Boolean("{{websockets_enabled}}" == "True"),
               managementUrl: {{management_url | tojson}},
+              hasDbThreshold: Boolean("{{has_db_threshold}}" == "True"),
           }),
           writable: false
       });
