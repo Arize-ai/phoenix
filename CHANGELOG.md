@@ -1,5 +1,12 @@
 # Changelog
 
+## [11.13.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.13.0...arize-phoenix-v11.13.1) (2025-07-25)
+
+
+### Bug Fixes
+
+* tab order for projects ([b82980d](https://github.com/Arize-ai/phoenix/commit/b82980d68f74d343c2c9597459ea1f88abf6e97c))
+
 ## [11.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.12.0...arize-phoenix-v11.13.0) (2025-07-25)
 
 
