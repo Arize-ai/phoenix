@@ -10,7 +10,6 @@ const storageAlertQuery = graphql`
   query StorageAlertQuery {
     serverStatus {
       insufficientStorage
-      supportEmail
     }
   }
 `;
@@ -23,8 +22,10 @@ const POLL_INTERVAL_MS = 60000;
 export function StorageAlert() {
   const [insufficientStorage, setInsufficientStorage] =
     useState<boolean>(false);
-  const [supportEmail, setSupportEmail] = useState<string | null>(null);
   const environment = useRelayEnvironment();
+
+  // Get support email from static config instead of GraphQL
+  const supportEmail = window.Config.supportEmail;
 
   const pollServerStatus = useCallback(async () => {
     try {
@@ -36,7 +37,6 @@ export function StorageAlert() {
       if (data) {
         startTransition(() => {
           setInsufficientStorage(data.serverStatus.insufficientStorage);
-          setSupportEmail(data.serverStatus.supportEmail);
         });
       }
     } catch {

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e8e8b9bef15752f539a67ddafa183d0a>>
+ * @generated SignedSource<<6fc461302ecf5870606b8e9a30e3dd9c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,7 +13,6 @@ export type StorageAlertQuery$variables = Record<PropertyKey, never>;
 export type StorageAlertQuery$data = {
   readonly serverStatus: {
     readonly insufficientStorage: boolean;
-    readonly supportEmail: string | null;
   };
 };
 export type StorageAlertQuery = {
@@ -36,13 +35,6 @@ var v0 = [
         "args": null,
         "kind": "ScalarField",
         "name": "insufficientStorage",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "supportEmail",
         "storageKey": null
       }
     ],
@@ -67,16 +59,16 @@ return {
     "selections": (v0/*: any*/)
   },
   "params": {
-    "cacheID": "806ff4e9dcf7058985985fd54664bf1e",
+    "cacheID": "f9f3d6dcbdc1417ed8012eebb951f0e2",
     "id": null,
     "metadata": {},
     "name": "StorageAlertQuery",
     "operationKind": "query",
-    "text": "query StorageAlertQuery {\n  serverStatus {\n    insufficientStorage\n    supportEmail\n  }\n}\n"
+    "text": "query StorageAlertQuery {\n  serverStatus {\n    insufficientStorage\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d8f1960de267cd66dabe56d1971cec38";
+(node as any).hash = "5c04da349a0a5767c71ce3cb72ee8d17";
 
 export default node;

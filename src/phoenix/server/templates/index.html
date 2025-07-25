@@ -109,6 +109,7 @@
               oAuth2Idps: {{ oauth2_idps | tojson }},
               basicAuthDisabled: Boolean("{{basic_auth_disabled}}" == "True"),
               managementUrl: {{management_url | tojson}},
+              supportEmail: {{support_email | e | tojson}},
               hasDbThreshold: Boolean("{{has_db_threshold}}" == "True"),
           }),
           writable: false

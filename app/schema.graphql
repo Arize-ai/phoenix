@@ -2173,7 +2173,6 @@ type Segments {
 
 type ServerStatus {
   insufficientStorage: Boolean!
-  supportEmail: String
 }
 
 input SetPromptLabelInput {
