@@ -1,3 +1,3 @@
-from .wrapper import LLM, AsyncLLM
+from .wrapper import LLM, AsyncLLM, show_provider_availability
 
-__all__ = ["LLM", "AsyncLLM"]
+__all__ = ["LLM", "AsyncLLM", "show_provider_availability"]
