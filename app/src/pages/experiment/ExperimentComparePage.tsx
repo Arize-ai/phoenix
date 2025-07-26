@@ -1,4 +1,4 @@
-import { startTransition, Suspense, useState } from "react";
+import { startTransition, useState } from "react";
 import {
   useLoaderData,
   useNavigate,
@@ -10,18 +10,24 @@ import { css } from "@emotion/react";
 
 import { Switch } from "@arizeai/components";
 
-import { Alert, Flex, Loading, View } from "@phoenix/components";
-import { experimentCompareLoader } from "@phoenix/pages/experiment/experimentCompareLoader";
+import { Flex, View } from "@phoenix/components";
+import {
+  ExperimentCompareLayout,
+  ExperimentCompareLayoutSelect,
+} from "@phoenix/components/experiment/ExperimentCompareLayoutSelect";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
+import { experimentCompareGridLoader } from "@phoenix/pages/experiment/experimentCompareGridLoader";
 
-import { ExperimentCompareTable } from "./ExperimentCompareTable";
+import { ExperimentCompareGridPage } from "./ExperimentCompareGridPage";
 import { ExperimentMultiSelector } from "./ExperimentMultiSelector";
-import { ExperimentRunFilterConditionProvider } from "./ExperimentRunFilterConditionContext";
 
 export function ExperimentComparePage() {
-  const loaderData = useLoaderData<typeof experimentCompareLoader>();
+  const loaderData = useLoaderData<typeof experimentCompareGridLoader>();
+  const showModeSelect = useFeatureFlag("experimentEnhancements");
+  const [layout, setLayout] = useState<ExperimentCompareLayout>("grid");
   invariant(loaderData, "loaderData is required");
   // The text of most IO is too long so default to showing truncated text
-  const [displayFullText, setDisplayFullText] = useState(false);
+  const [, setDisplayFullText] = useState(false);
   const { datasetId } = useParams();
   invariant(datasetId != null, "datasetId is required");
   const [searchParams] = useSearchParams();
@@ -44,26 +50,34 @@ export function ExperimentComparePage() {
         flex="none"
       >
         <Flex direction="row" justifyContent="space-between" alignItems="end">
-          <ExperimentMultiSelector
-            dataRef={loaderData}
-            selectedBaselineExperimentId={baselineExperimentId}
-            selectedCompareExperimentIds={compareExperimentIds}
-            onChange={(newBaselineExperimentId, newCompareExperimentIds) => {
-              startTransition(() => {
-                if (newBaselineExperimentId == null) {
-                  navigate(`/datasets/${datasetId}/compare`);
-                } else {
-                  const queryParams = `?${[
-                    newBaselineExperimentId,
-                    ...newCompareExperimentIds,
-                  ]
-                    .map((id) => `experimentId=${id}`)
-                    .join("&")}`;
-                  navigate(`/datasets/${datasetId}/compare${queryParams}`);
-                }
-              });
-            }}
-          />
+          <Flex direction="row" gap="size-100" justifyContent="start">
+            <ExperimentMultiSelector
+              dataRef={loaderData}
+              selectedBaselineExperimentId={baselineExperimentId}
+              selectedCompareExperimentIds={compareExperimentIds}
+              onChange={(newBaselineExperimentId, newCompareExperimentIds) => {
+                startTransition(() => {
+                  if (newBaselineExperimentId == null) {
+                    navigate(`/datasets/${datasetId}/compare`);
+                  } else {
+                    const queryParams = `?${[
+                      newBaselineExperimentId,
+                      ...newCompareExperimentIds,
+                    ]
+                      .map((id) => `experimentId=${id}`)
+                      .join("&")}`;
+                    navigate(`/datasets/${datasetId}/compare${queryParams}`);
+                  }
+                });
+              }}
+            />
+            {showModeSelect && (
+              <ExperimentCompareLayoutSelect
+                layout={layout}
+                onLayoutChange={setLayout}
+              />
+            )}
+          </Flex>
           <Switch
             onChange={(isSelected) => {
               setDisplayFullText(isSelected);
@@ -75,25 +89,7 @@ export function ExperimentComparePage() {
           </Switch>
         </Flex>
       </View>
-      {baselineExperimentId != null ? (
-        <ExperimentRunFilterConditionProvider>
-          <Suspense fallback={<Loading />}>
-            <ExperimentCompareTable
-              query={loaderData}
-              datasetId={datasetId}
-              baselineExperimentId={baselineExperimentId}
-              compareExperimentIds={compareExperimentIds}
-              displayFullText={displayFullText}
-            />
-          </Suspense>
-        </ExperimentRunFilterConditionProvider>
-      ) : (
-        <View padding="size-200">
-          <Alert variant="info" title="No Baseline Experiment Selected">
-            Please select a baseline experiment.
-          </Alert>
-        </View>
-      )}
+      <ExperimentCompareGridPage />
     </main>
   );
 }

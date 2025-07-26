@@ -13,9 +13,9 @@ export type ExperimentCompareLoaderReturnType =
   | undefined;
 
 /**
- * Loads in the necessary page data for the compare experiment page
+ * Loads in the necessary page data for the compare experiment grid page
  */
-export async function experimentCompareLoader(
+export async function experimentCompareGridLoader(
   args: LoaderFunctionArgs
 ): Promise<ExperimentCompareLoaderReturnType> {
   const { datasetId } = args.params;
@@ -29,7 +29,7 @@ export async function experimentCompareLoader(
   return await fetchQuery<experimentCompareLoaderQuery>(
     RelayEnvironment,
     graphql`
-      query experimentCompareLoaderQuery(
+      query experimentCompareGridLoaderQuery(
         $datasetId: ID!
         $baselineExperimentId: ID!
         $compareExperimentIds: [ID!]!
