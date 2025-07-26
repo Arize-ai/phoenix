@@ -1,5 +1,13 @@
 # Changelog
 
+## [11.13.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.13.1...arize-phoenix-v11.13.2) (2025-07-26)
+
+
+### Bug Fixes
+
+* Add error boundaries to project metrics ([#8793](https://github.com/Arize-ai/phoenix/issues/8793)) ([e902267](https://github.com/Arize-ai/phoenix/commit/e902267e699ee086d41d9248aa6546d75641f8be))
+* Fix graphql error on metrics page ([#8792](https://github.com/Arize-ai/phoenix/issues/8792)) ([be27c20](https://github.com/Arize-ai/phoenix/commit/be27c205e22435e15f777779a245c61bec72123a))
+
 ## [11.13.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v11.13.0...arize-phoenix-v11.13.1) (2025-07-25)
 
 
