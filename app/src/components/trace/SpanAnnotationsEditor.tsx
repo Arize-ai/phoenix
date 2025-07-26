@@ -13,10 +13,9 @@ import {
   useMutation,
 } from "react-relay";
 
-import { Card } from "@arizeai/components";
-
 import {
   Button,
+  Card,
   Dialog,
   DialogTrigger,
   Flex,

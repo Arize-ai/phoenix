@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { css } from "@emotion/react";
 
-import { Card } from "@arizeai/components";
-
 import {
   Alert,
   Button,
+  Card,
   DialogTrigger,
   Icon,
   Icons,

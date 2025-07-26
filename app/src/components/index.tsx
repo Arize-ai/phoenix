@@ -57,3 +57,4 @@ export * from "./breadcrumbs";
 export * from "./progress";
 export * from "./list";
 export * from "./toolbar";
+export * from "./card";

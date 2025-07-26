@@ -1,0 +1,115 @@
+import { CSSProperties } from "react";
+import { css } from "@emotion/react";
+
+export const cardCSS = (style?: CSSProperties) => css`
+  --scope-border-color: ${style?.borderColor ??
+  "var(--ac-global-border-color-default)"};
+  --card-header-height: 68px;
+  --collapsible-card-animation-duration: 200ms;
+  --collapsible-card-icon-size: var(--ac-global-dimension-size-300);
+  --card-variant: default;
+  --card-collapsed: false;
+  --card-collapsible: false;
+
+  &[data-variant="compact"] {
+    --card-header-height: 46px;
+    --card-variant: compact;
+  }
+
+  &[data-collapsed="true"] {
+    --card-collapsed: true;
+  }
+
+  &[data-collapsible="true"] {
+    --card-collapsible: true;
+  }
+
+  display: flex;
+  flex-direction: column;
+  background-color: var(--ac-global-background-color-dark);
+  color: var(--ac-global-text-color-900);
+  border-radius: var(--ac-global-rounding-medium);
+  border: 1px solid var(--scope-border-color);
+  overflow: hidden;
+
+  /* Card Header Styles */
+  & > header {
+    display: flex;
+    flex-direction: row;
+    flex: none;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 var(--ac-global-dimension-static-size-200);
+    height: var(--card-header-height);
+    transition: background-color 0.2s ease-in-out;
+
+    & .card__collapsible-icon {
+      width: var(--collapsible-card-icon-size);
+      height: var(--collapsible-card-icon-size);
+      font-size: 1.3em;
+      color: inherit;
+      display: flex;
+      margin-right: var(--ac-global-dimension-static-size-100);
+      transition: transform ease var(--collapsible-card-animation-duration);
+    }
+
+    & .card__title {
+      font-size: var(--ac-global-font-size-l);
+      line-height: var(--ac-global-line-height-l);
+    }
+
+    & .card__sub-title {
+      color: var(--ac-global-text-color-700);
+    }
+
+    /* Collapsible button styles */
+    & .card__collapsible-button {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      text-align: left;
+      width: 100%;
+      height: 100%;
+      appearance: none;
+      cursor: pointer;
+      color: var(--ac-global-text-color-900);
+
+      & svg {
+        height: var(--collapsible-card-icon-size);
+        width: var(--collapsible-card-icon-size);
+      }
+    }
+  }
+
+  &[data-collapsed="false"] > header {
+    border-bottom: 1px solid var(--scope-border-color);
+  }
+
+  /* Card Body Styles */
+  & .card__body {
+    flex: 1 1 auto;
+    padding: var(--ac-global-dimension-static-size-200);
+  }
+
+  /* Compact variant styles */
+  &[data-variant="compact"] .card__title {
+    font-size: var(--ac-global-font-size-m);
+    line-height: var(--ac-global-line-height-m);
+  }
+
+  /* Collapsible behavior */
+  &[data-collapsible="true"] {
+    & > header:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+  }
+
+  &[data-collapsed="true"] {
+    & .card__body {
+      display: none !important;
+    }
+    & .card__collapsible-icon {
+      transform: rotate(-90deg);
+    }
+  }
+`;
