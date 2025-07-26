@@ -534,8 +534,7 @@ function ProjectItem({
     <div
       css={css`
         padding: var(--ac-global-dimension-size-200);
-        border: 1px solid var(--ac-global-color-grey-400);
-        background-color: var(--ac-global-color-grey-100);
+        border: 1px solid var(--ac-global-color-grey-100);
         box-shadow:
           0 0 1px 0px var(--ac-global-color-grey-400) inset,
           0 0 1px 0px var(--ac-global-color-grey-400);
