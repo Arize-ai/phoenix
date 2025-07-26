@@ -7,6 +7,7 @@ import {
   DialogProps,
   DialogTrigger,
   Popover,
+  type PopoverProps,
   Text,
   View,
 } from "@phoenix/components";
@@ -21,14 +22,43 @@ import {
 const meta: Meta = {
   title: "Dialog",
   component: Dialog,
+  parameters: {
+    layout: "centered",
+  },
+  tags: ["autodocs"],
+  argTypes: {
+    placement: {
+      control: "select",
+      options: [
+        "top",
+        "bottom",
+        "left",
+        "right",
+        "top start",
+        "top end",
+        "bottom start",
+        "bottom end",
+        "left top",
+        "left bottom",
+        "right top",
+        "right bottom",
+      ],
+      description:
+        "The placement of the dialog relative to the trigger element (handled by the underlying Popover)",
+      defaultValue: "bottom",
+    },
+  },
 };
 
 export default meta;
 
-const Template: StoryFn<DialogProps> = (args) => (
+type StoryArgs = DialogProps & { placement?: string };
+
+// eslint-disable-next-line react/prop-types
+const Template: StoryFn<StoryArgs> = ({ placement = "bottom", ...args }) => (
   <DialogTrigger>
     <Button>Open Main Dialog</Button>
-    <Popover>
+    <Popover placement={placement as PopoverProps["placement"]}>
       <Dialog {...args}>
         <DialogContent>
           <DialogHeader>
@@ -51,7 +81,11 @@ const Template: StoryFn<DialogProps> = (args) => (
 
 export const Default = Template.bind({});
 
-const ControlledTemplate: StoryFn<DialogProps> = (args) => {
+// eslint-disable-next-line react/prop-types
+const ControlledTemplate: StoryFn<StoryArgs> = ({
+  placement = "bottom",
+  ...args
+}: StoryArgs) => {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [isMainOpen, setIsMainOpen] = useState(false);
   const [isNestedOpen, setIsNestedOpen] = useState(false);
@@ -60,7 +94,7 @@ const ControlledTemplate: StoryFn<DialogProps> = (args) => {
     <>
       <DialogTrigger isOpen={isMainOpen} onOpenChange={setIsMainOpen}>
         <Button ref={triggerRef}>Open Main Dialog</Button>
-        <Popover>
+        <Popover placement={placement as PopoverProps["placement"]}>
           <Dialog {...args}>
             <DialogContent>
               <DialogHeader>
@@ -88,7 +122,10 @@ const ControlledTemplate: StoryFn<DialogProps> = (args) => {
         </Popover>
       </DialogTrigger>
       <DialogTrigger isOpen={isNestedOpen} onOpenChange={setIsNestedOpen}>
-        <Popover triggerRef={triggerRef}>
+        <Popover
+          triggerRef={triggerRef}
+          placement={placement as PopoverProps["placement"]}
+        >
           <Dialog>
             <DialogContent>
               <DialogHeader>

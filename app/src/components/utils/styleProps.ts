@@ -297,7 +297,6 @@ export function useStyleProps<T extends StyleProps>(
   handlers: StyleHandlers = baseStyleProps,
   options: StylePropsOptions = {}
 ) {
-  const { ...otherProps } = props;
   const { direction } = useLocale();
   const { matchedBreakpoints = ["base"] } = options;
   const styles = convertStyleProps(
@@ -307,20 +306,6 @@ export function useStyleProps<T extends StyleProps>(
     matchedBreakpoints
   );
   const style = { ...styles };
-
-  if (otherProps.className) {
-    // eslint-disable-next-line no-console
-    console.warn(
-      "The className prop is unsafe and is unsupported in phoenix Components"
-    );
-  }
-  // @ts-expect-error - check style even if not advertised
-  if (otherProps.style) {
-    // eslint-disable-next-line no-console
-    console.warn(
-      "The style prop is unsafe and is unsupported in phoenix Components. "
-    );
-  }
 
   const styleProps: HTMLAttributes<HTMLElement> = {
     style,

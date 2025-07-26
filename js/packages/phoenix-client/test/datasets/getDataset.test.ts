@@ -30,6 +30,19 @@ const mockDatasetExamples = {
   ],
 };
 
+const mockDatasetExamplesV2 = {
+  versionId: "v2",
+  examples: [
+    {
+      id: "ex-3",
+      updatedAt: new Date("2024-01-03T00:00:00Z"),
+      input: { text: "input3" },
+      output: { text: "output3" },
+      metadata: {},
+    },
+  ],
+};
+
 describe("getDataset", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -52,6 +65,45 @@ describe("getDataset", () => {
     expect(examples.length).toBe(2);
     expect(examples[0]?.id).toBe("ex-1");
     expect(examples[1]?.id).toBe("ex-2");
+  });
+
+  it("should support getting dataset by version ID", async () => {
+    const getDatasetExamplesSpy = vi
+      .spyOn(getDatasetExamplesModule, "getDatasetExamples")
+      .mockResolvedValue(mockDatasetExamplesV2);
+    vi.spyOn(getDatasetInfoModule, "getDatasetInfo").mockResolvedValue(
+      mockDatasetInfo
+    );
+
+    const dataset = await getDataset({
+      dataset: { datasetId: "dataset-123" },
+      versionId: "v2",
+    });
+
+    expect(getDatasetExamplesSpy).toHaveBeenCalledWith({
+      client: expect.any(Object),
+      dataset: { datasetId: "dataset-123" },
+      versionId: "v2",
+    });
+    expect(dataset.versionId).toBe("v2");
+    expect(dataset.examples.length).toBe(1);
+    expect(dataset.examples[0]?.id).toBe("ex-3");
+  });
+
+  it("should work without versionId (uses latest version)", async () => {
+    vi.spyOn(getDatasetInfoModule, "getDatasetInfo").mockResolvedValue(
+      mockDatasetInfo
+    );
+    vi.spyOn(getDatasetExamplesModule, "getDatasetExamples").mockResolvedValue(
+      mockDatasetExamples
+    );
+
+    const dataset = await getDataset({
+      dataset: { datasetId: "dataset-123" },
+    });
+
+    expect(dataset.versionId).toBe("v1");
+    expect(dataset.examples.length).toBe(2);
   });
 
   it("should propagate errors from getDatasetInfo", async () => {

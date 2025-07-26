@@ -1,7 +1,5 @@
 import { css } from "@emotion/react";
 
-import { getChartColor, useChartColors } from "./colors";
-
 const chartContainerCSS = css`
   width: 100%;
   display: flex;
@@ -40,9 +38,9 @@ export type SegmentChartProps = {
      */
     value: number;
     /**
-     * Optional color override for the segment
+     * the color for the segment
      */
-    color?: string;
+    color: string;
   }[];
 };
 
@@ -51,7 +49,6 @@ export const SegmentChart = ({
   segments,
   totalValue: _totalValue,
 }: SegmentChartProps) => {
-  const colors = useChartColors();
   // if the total value is not provided, we calculate it from the segments
   // this is useful for cases where the total value is not known ahead of time
   const totalValue =
@@ -59,10 +56,10 @@ export const SegmentChart = ({
 
   return (
     <div style={{ height: `${height}px` }} css={chartContainerCSS}>
-      {segments.map((segment, index) => {
+      {segments.map((segment) => {
         const percentage =
           totalValue > 0 ? (segment.value / totalValue) * 100 : 0;
-        const color = segment.color || getChartColor(index, colors);
+        const color = segment.color;
         return (
           <div
             key={segment.name}

@@ -18,6 +18,14 @@ const dateFieldCSS = css`
   --date-field-horizontal-padding: 8px;
   color: var(--ac-global-text-color-900);
 
+  &[data-size="S"] .react-aria-DateInput {
+    height: var(--ac-global-input-height-s);
+  }
+
+  &[data-size="M"] .react-aria-DateInput {
+    height: var(--ac-global-input-height-m);
+  }
+
   .react-aria-DateInput {
     display: flex;
     padding: var(--date-field-vertical-padding)
@@ -79,6 +87,7 @@ function DateField<T extends DateValue>(
     <AriaDateField
       css={css(fieldBaseCSS, dateFieldCSS, propsCSS)}
       {...restProps}
+      data-size={"S"} // TODO: move to a prop. For now we only support S
       ref={ref}
     />
   );

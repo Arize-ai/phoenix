@@ -170,6 +170,9 @@ const ProjectConfigCard = ({
                   <SelectItem key="sessions" id="sessions">
                     Sessions
                   </SelectItem>
+                  <SelectItem key="metrics" id="metrics">
+                    Metrics
+                  </SelectItem>
                 </ListBox>
               </Popover>
             </Select>

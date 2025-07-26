@@ -138,6 +138,7 @@ const Template: StoryFn = () => {
           </TimeField>
           <Select size="S">
             <SelectContent />
+            <Text slot="description">the time of your event</Text>
           </Select>
           <View minWidth="300px">
             <TagGroup selectionMode="multiple">

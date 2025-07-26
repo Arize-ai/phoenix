@@ -2,6 +2,7 @@ import { forwardRef, HTMLAttributes, Ref } from "react";
 import { css } from "@emotion/react";
 
 import { Icon, Icons, Text, TextProps } from "@phoenix/components";
+import { formatNumber } from "@phoenix/utils/numberFormatUtils";
 
 const tokenCountItemCSS = css`
   display: flex;
@@ -25,7 +26,7 @@ interface TokenCountProps extends HTMLAttributes<HTMLDivElement> {
 function TokenCount(props: TokenCountProps, ref: Ref<HTMLDivElement>) {
   const { children, size = "M", ...otherProps } = props;
 
-  const text = typeof children === "number" ? children : "--";
+  const text = typeof children === "number" ? formatNumber(children) : "--";
   return (
     <div
       className="token-count-item"

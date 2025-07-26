@@ -65,7 +65,6 @@ async def span_data(db: DbSessionFactory) -> None:
         await session.commit()
 
 
-@pytest.mark.skip(reason="These flaky tests need to be moved to integration tests")
 class TestSpanAnnotationMutations:
     CREATE_SPAN_ANNOTATIONS_MUTATION = """
     mutation CreateSpanAnnotations($input: [CreateSpanAnnotationInput!]!) {

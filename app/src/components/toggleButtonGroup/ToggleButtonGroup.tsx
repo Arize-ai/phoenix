@@ -28,19 +28,19 @@ const baseToggleButtonGroupCSS = css(`
     }
   }
 
-  & > .ac-toggle-button:not(:first-child):not([data-selected="true"]) {
+  & > .ac-toggle-button:not(:first-of-type):not([data-selected="true"]) {
     border-left: none;
   }
     
-  & > .ac-toggle-button[data-selected="true"]:not(:first-child) {
+  & > .ac-toggle-button[data-selected="true"]:not(:first-of-type) {
     margin-left: -1px;
   }
 
-  & > .ac-toggle-button:first-child {
+  & > .ac-toggle-button:first-of-type {
     border-radius: var(--ac-global-rounding-small) 0 0 var(--ac-global-rounding-small);
   }
 
-  & > .ac-toggle-button:last-child {
+  & > .ac-toggle-button:last-of-type {
     border-radius: 0 var(--ac-global-rounding-small) var(--ac-global-rounding-small) 0;
   }
 

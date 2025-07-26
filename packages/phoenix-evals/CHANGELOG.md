@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.23.0...arize-phoenix-evals-v0.23.1) (2025-07-21)
+
+
+### Bug Fixes
+
+* get response from tool calls function argument ([#8706](https://github.com/Arize-ai/phoenix/issues/8706)) ([0db40ca](https://github.com/Arize-ai/phoenix/commit/0db40cadc5f7bcc015aa13dfa7c2a2a46c41c02f))
+
 ## [0.23.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.22.0...arize-phoenix-evals-v0.23.0) (2025-07-16)
 
 

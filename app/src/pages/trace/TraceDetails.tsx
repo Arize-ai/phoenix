@@ -242,7 +242,7 @@ function TraceHeader({
           </Text>
           <TooltipTrigger delay={0}>
             <Focusable>
-              <Text size="L">
+              <Text size="L" role="button">
                 {costFormatter(costSummary?.total?.cost ?? 0)}
               </Text>
             </Focusable>

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<01c1312ff215390fbc66656de53ab306>>
+ * @generated SignedSource<<d4f5a881503a1161628b3d0cf08f95c4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -243,7 +243,9 @@ return {
               {
                 "alias": null,
                 "args": (v2/*: any*/),
-                "filters": null,
+                "filters": [
+                  "filter"
+                ],
                 "handle": "connection",
                 "key": "PromptsTable_prompts",
                 "kind": "LinkedHandle",

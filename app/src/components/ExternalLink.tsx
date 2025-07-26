@@ -16,14 +16,14 @@ export function ExternalLink({ href, children }: ExternalLinkProps) {
       css={css`
         color: var(--ac-global-link-color);
         text-decoration: none;
-        position: relative;
+        display: inline-flex;
+        align-items: center;
         &:hover {
           text-decoration: underline;
         }
         .ac-icon-wrap {
           display: inline-block;
           margin-left: 0.1em;
-          vertical-align: middle;
           font-size: 1em;
         }
       `}

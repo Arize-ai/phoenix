@@ -13,9 +13,10 @@ function getWebBaseUrl(baseUrl: string): string {
 
 /**
  * Get the URL to view a specific experiment in the Phoenix web UI
- * @param baseUrl The base URL of the Phoenix API
- * @param datasetId The ID of the dataset
- * @param experimentId The ID of the experiment
+ * @param params - The parameters for generating the experiment URL
+ * @param params.baseUrl - The base URL of the Phoenix API
+ * @param params.datasetId - The ID of the dataset
+ * @param params.experimentId - The ID of the experiment
  * @returns The URL to view the experiment
  */
 export function getExperimentUrl({
@@ -32,8 +33,9 @@ export function getExperimentUrl({
 
 /**
  * Get the URL to view experiments for a dataset in the Phoenix web UI
- * @param baseUrl The base URL of the Phoenix API
- * @param datasetId The ID of the dataset
+ * @param params - The parameters for generating the dataset experiments URL
+ * @param params.baseUrl - The base URL of the Phoenix API
+ * @param params.datasetId - The ID of the dataset
  * @returns The URL to view dataset experiments
  */
 export function getDatasetExperimentsUrl({
@@ -48,8 +50,9 @@ export function getDatasetExperimentsUrl({
 
 /**
  * Get the URL to view a dataset in the Phoenix web UI
- * @param baseUrl The base URL of the Phoenix API
- * @param datasetId The ID of the dataset
+ * @param params - The parameters for generating the dataset URL
+ * @param params.baseUrl - The base URL of the Phoenix API
+ * @param params.datasetId - The ID of the dataset
  * @returns The URL to view the dataset
  */
 export function getDatasetUrl({

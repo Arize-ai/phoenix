@@ -1,12 +1,13 @@
 import re
 from collections import defaultdict
 from datetime import datetime
-from typing import Iterable, Iterator, Optional, Union, cast
+from typing import Iterable, Iterator, Optional, Union
+from typing import cast as type_cast
 
 import numpy as np
 import numpy.typing as npt
 import strawberry
-from sqlalchemy import and_, distinct, func, select, text
+from sqlalchemy import String, and_, cast, distinct, func, select, text
 from sqlalchemy.orm import joinedload
 from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
@@ -41,6 +42,7 @@ from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
 from phoenix.server.api.input_types.ProjectFilter import ProjectFilter
 from phoenix.server.api.input_types.ProjectSort import ProjectColumn, ProjectSort
+from phoenix.server.api.input_types.PromptFilter import PromptFilter
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
@@ -77,6 +79,7 @@ from phoenix.server.api.types.Prompt import Prompt, to_gql_prompt_from_orm
 from phoenix.server.api.types.PromptLabel import PromptLabel, to_gql_prompt_label
 from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version
 from phoenix.server.api.types.PromptVersionTag import PromptVersionTag, to_gql_prompt_version_tag
+from phoenix.server.api.types.ServerStatus import ServerStatus
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_annotation
@@ -728,6 +731,7 @@ class Query:
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        filter: Optional[PromptFilter] = UNSET,
     ) -> Connection[Prompt]:
         args = ConnectionArgs(
             first=first,
@@ -736,6 +740,14 @@ class Query:
             before=before if isinstance(before, CursorString) else None,
         )
         stmt = select(models.Prompt)
+        if filter:
+            column = getattr(models.Prompt, filter.col.value)
+            # Cast Identifier columns to String for ilike operations
+            if filter.col.value == "name":
+                column = cast(column, String)
+            stmt = stmt.where(column.ilike(f"%{filter.value}%")).order_by(
+                models.Prompt.updated_at.desc()
+            )
         async with info.context.db() as session:
             orm_prompts = await session.stream_scalars(stmt)
             data = [to_gql_prompt_from_orm(orm_prompt) async for orm_prompt in orm_prompts]
@@ -994,7 +1006,7 @@ class Query:
             """).bindparams(nspname=nspname)
             try:
                 async with info.context.db() as session:
-                    stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
+                    stats = type_cast(Iterable[tuple[str, int]], await session.execute(stmt))
             except Exception:
                 # TODO: temporary workaround until we can reproduce the error
                 return []
@@ -1004,6 +1016,15 @@ class Query:
             DbTableStats(table_name=table_name, num_bytes=num_bytes)
             for table_name, num_bytes in stats
         ]
+
+    @strawberry.field
+    async def server_status(
+        self,
+        info: Info[Context, None],
+    ) -> ServerStatus:
+        return ServerStatus(
+            insufficient_storage=info.context.db.should_not_insert_or_update,
+        )
 
     @strawberry.field
     def validate_regular_expression(self, regex: str) -> ValidationResult:

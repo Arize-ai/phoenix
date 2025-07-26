@@ -49,7 +49,7 @@ export function DatasetsSearch({
 
   return (
     <TextField
-      size="S"
+      size="M"
       css={css`
         width: 100%;
       `}

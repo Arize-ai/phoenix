@@ -386,7 +386,7 @@ function SpanNodeWrap(
           background-color: var(--ac-global-color-primary-100);
           border-color: var(--ac-global-color-primary-200);
         }
-        & > *:first-child {
+        & > *:first-of-type {
           margin-left: calc(
             (${props.nestingLevel} * var(--trace-tree-nesting-indent)) + 16px
           );

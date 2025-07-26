@@ -6,6 +6,8 @@ import { isFullStoryEnabled, setIdentity } from "@phoenix/analytics/fullstory";
 import { ViewerProvider } from "@phoenix/contexts/ViewerContext";
 import { authenticatedRootLoader } from "@phoenix/pages/authenticatedRootLoader";
 
+import { AppAlerts } from "./AppAlerts";
+
 /**
  * The root of the authenticated application. Note that authentication might be entirely disabled
  */
@@ -27,6 +29,7 @@ export function AuthenticatedRoot() {
 
   return (
     <ViewerProvider query={loaderData}>
+      <AppAlerts />
       <Outlet />
     </ViewerProvider>
   );

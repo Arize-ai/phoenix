@@ -5,7 +5,7 @@ import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import CodeMirror from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
-import { Download, List, ListItem } from "@arizeai/components";
+import { Download } from "@arizeai/components";
 
 import {
   Alert,
@@ -18,6 +18,8 @@ import {
   DisclosureTrigger,
   Icon,
   Icons,
+  List,
+  ListItem,
   Loading,
   Modal,
   ModalOverlay,

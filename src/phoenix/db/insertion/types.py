@@ -94,7 +94,10 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT, _DmlEventT]):
     async def insert(self) -> Optional[list[_DmlEventT]]:
         if not self._queue:
             return None
-        self._queue, parcels = [], self._queue
+        parcels = self._queue.copy()
+        # IMPORTANT: Use .clear() instead of reassignment, i.e. self._queue = [], to
+        # avoid potential race conditions when appending postponed items to the queue.
+        self._queue.clear()
         events: list[_DmlEventT] = []
         async with self._db() as session:
             to_insert, to_postpone, _ = await self._partition(session, *parcels)
@@ -104,8 +107,12 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT, _DmlEventT]):
                     to_postpone.extend(to_retry)
         if to_postpone:
             loop = asyncio.get_running_loop()
-            loop.call_later(self._retry_delay_sec, self._queue.extend, to_postpone)
+            loop.call_later(self._retry_delay_sec, self._add_postponed_to_queue, to_postpone)
         return events
+
+    def _add_postponed_to_queue(self, items: list[Postponed[_PrecursorT]]) -> None:
+        """Add postponed items back to the queue for retry."""
+        self._queue.extend(items)
 
     def _insert_on_conflict(self, *records: Mapping[str, Any]) -> Insert:
         return insert_on_conflict(

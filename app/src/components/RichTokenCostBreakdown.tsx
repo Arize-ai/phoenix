@@ -1,6 +1,6 @@
 import {
   getChartColor,
-  useChartColors,
+  useSequentialChartColors,
 } from "@phoenix/components/chart/colors";
 import { SegmentChart } from "@phoenix/components/chart/SegmentChart";
 import { Text } from "@phoenix/components/content";
@@ -23,7 +23,7 @@ export function RichTokenBreakdown({
   formatter,
   segments,
 }: RichTokenCostBreakdownProps) {
-  const colors = useChartColors();
+  const colors = useSequentialChartColors();
   const segmentsWithColor = segments.map((segment, index) => ({
     ...segment,
     color: segment.color || getChartColor(index, colors),

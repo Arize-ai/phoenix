@@ -557,3 +557,51 @@ def test_executor_factory_returns_async_not_in_thread_if_async_context() -> None
 
     if not exception_log.empty():
         raise exception_log.get()
+
+
+@pytest.mark.skipif(platform.system() == "Windows", reason="SIGUSR1 not supported on Windows")
+def test_sync_executor_run_works_in_background_thread() -> None:
+    def sync_fn(x: int) -> int:
+        return x * 2
+
+    outputs = []
+    errors: list[Exception] = []
+
+    def run_in_background() -> None:
+        try:
+            executor = SyncExecutor(sync_fn, termination_signal=signal.SIGUSR1)  # type: ignore[attr-defined, unused-ignore]
+            result, _ = executor.run(range(3))
+            outputs.extend(result)  # pyright: ignore[reportUnknownMemberType]
+        except Exception as e:
+            errors.append(e)
+
+    test_thread = threading.Thread(target=run_in_background)
+    test_thread.start()
+    test_thread.join()
+
+    assert not errors, f"run() failed in background thread: {errors}"
+    assert outputs == [0, 2, 4], f"Expected [0, 2, 4], got {outputs}"
+
+
+@pytest.mark.skipif(platform.system() == "Windows", reason="SIGUSR1 not supported on Windows")
+def test_async_executor_run_works_in_background_thread() -> None:
+    async def async_fn(x: int) -> int:
+        return x * 3
+
+    outputs = []
+    errors: list[Exception] = []
+
+    def run_in_background() -> None:
+        try:
+            executor = AsyncExecutor(async_fn, termination_signal=signal.SIGUSR1)  # type: ignore[attr-defined, unused-ignore]
+            result, _ = executor.run(range(3))
+            outputs.extend(result)  # pyright: ignore[reportUnknownMemberType]
+        except Exception as e:
+            errors.append(e)
+
+    test_thread = threading.Thread(target=run_in_background)
+    test_thread.start()
+    test_thread.join()
+
+    assert not errors, f"run() failed in background thread: {errors}"
+    assert outputs == [0, 3, 6], f"Expected [0, 3, 6], got {outputs}"

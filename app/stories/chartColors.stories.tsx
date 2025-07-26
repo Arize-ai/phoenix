@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { css } from "@emotion/react";
 
 import { Text, View } from "@phoenix/components";
-import { useChartColors } from "@phoenix/components/chart";
+import { useSequentialChartColors } from "@phoenix/components/chart";
 
 const colorGridCSS = css`
   display: grid;
@@ -89,7 +89,7 @@ interface ChartColorsProps {
 }
 
 function ChartColors({ showOnlyPrimary = false }: ChartColorsProps) {
-  const colors = useChartColors();
+  const colors = useSequentialChartColors();
 
   // Get all color entries and sort them
   const colorEntries = Object.entries(colors).sort(([a], [b]) =>
@@ -152,8 +152,8 @@ function ChartColors({ showOnlyPrimary = false }: ChartColorsProps) {
           Chart Colors
         </Text>
         <Text color="text-700">
-          Colors available from the <code>useChartColors</code> hook for chart
-          components.
+          Colors available from the <code>useSequentialChartColors</code> hook
+          for chart components.
         </Text>
       </View>
       <div css={colorGroupCSS}>
@@ -177,23 +177,23 @@ function ChartColors({ showOnlyPrimary = false }: ChartColorsProps) {
 }
 
 const meta: Meta<typeof ChartColors> = {
-  title: "charts/Chart Colors",
+  title: "Charting/Chart Colors",
   component: ChartColors,
   parameters: {
     layout: "padded",
     docs: {
       description: {
         component: `
-Chart colors are provided by the \`useChartColors\` hook and are used consistently across all chart components in Phoenix. 
+Chart colors are provided by the \`useSequentialChartColors\` hook and are used consistently across all chart components in Phoenix. 
 These colors are designed to be accessible and provide good contrast for data visualization.
 
 ## Usage
 
 \`\`\`tsx
-import { useChartColors } from "@phoenix/components/chart";
+import { useSequentialChartColors } from "@phoenix/components/chart";
 
 function MyChart() {
-  const colors = useChartColors();
+  const colors = useSequentialChartColors();
   
   return (
     <Bar dataKey="value" fill={colors.blue500} />

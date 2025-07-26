@@ -49,11 +49,11 @@ jobs:
       - name: Build
         working-directory: ./js
         run: |
-          pnpm run -r docs
+          pnpm run docs:generate
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: "./js/packages/phoenix-client/docs"
+          path: "./js/docs"
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

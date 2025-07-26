@@ -211,7 +211,7 @@ export const fromOpenAIMessage = <
 
 /**
  * Converts a tool call to the OpenAI format if possible
- * @param toolCall a tool call from an unknown LlmProvider
+ * @param maybeToolCall a tool call from an unknown LlmProvider
  * @returns the tool call parsed to the OpenAI format
  */
 export const toOpenAIToolCall = (
@@ -243,8 +243,9 @@ export const toOpenAIToolCall = (
 
 /**
  * Converts a tool call to a target provider format
- * @param toolCall the tool call to convert
- * @param targetProvider the provider to convert the tool call to
+ * @param params the parameters object
+ * @param params.toolCall the tool call to convert
+ * @param params.targetProvider the provider to convert the tool call to
  * @returns the tool call in the target provider format
  */
 export const fromOpenAIToolCall = <
@@ -316,10 +317,11 @@ export const toOpenAIToolChoice = (
 };
 
 /**
- * Converts a tool call to a target provider format
- * @param toolCall the tool call to convert
- * @param targetProvider the provider to convert the tool call to
- * @returns the tool call in the target provider format
+ * Converts a tool choice to a target provider format
+ * @param params the parameters object
+ * @param params.toolChoice the tool choice to convert
+ * @param params.targetProvider the provider to convert the tool choice to
+ * @returns the tool choice in the target provider format
  */
 export const fromOpenAIToolChoice = <
   TargetProviderSDK extends NonNullable<PromptSDKFormat>,

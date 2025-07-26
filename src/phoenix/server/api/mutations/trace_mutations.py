@@ -1,5 +1,5 @@
 import strawberry
-from sqlalchemy import and_, delete, not_, select
+from sqlalchemy import and_, delete, not_, select, update
 from sqlalchemy.orm import load_only
 from sqlalchemy.sql import literal
 from strawberry.relay import GlobalID
@@ -71,4 +71,48 @@ class TraceMutationMixin:
                     )
                 )
             info.context.event_queue.put(SpanDeleteEvent(project_ids))
+        return Query()
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    async def transfer_traces_to_project(
+        self,
+        info: Info[Context, None],
+        trace_ids: list[GlobalID],
+        project_id: GlobalID,
+    ) -> Query:
+        if not trace_ids:
+            raise BadRequest("Must provide at least one trace ID to transfer")
+        trace_ids = list(set(trace_ids))
+        try:
+            trace_rowids = [
+                from_global_id_with_expected_type(global_id=id, expected_type_name="Trace")
+                for id in trace_ids
+            ]
+            dest_project_rowid = from_global_id_with_expected_type(
+                global_id=project_id, expected_type_name="Project"
+            )
+        except ValueError as error:
+            raise BadRequest(str(error))
+
+        async with info.context.db() as session:
+            dest_project = await session.get(models.Project, dest_project_rowid)
+            if dest_project is None:
+                raise BadRequest("Destination project does not exist")
+
+            traces = (
+                await session.scalars(select(models.Trace).where(models.Trace.id.in_(trace_rowids)))
+            ).all()
+            if len(traces) < len(trace_rowids):
+                raise BadRequest("Invalid trace IDs provided")
+
+            source_project_ids = set(trace.project_rowid for trace in traces)
+            if len(source_project_ids) > 1:
+                raise BadRequest("Cannot transfer traces from multiple projects")
+
+            await session.execute(
+                update(models.Trace)
+                .where(models.Trace.id.in_(trace_rowids))
+                .values(project_rowid=dest_project_rowid)
+            )
+
         return Query()

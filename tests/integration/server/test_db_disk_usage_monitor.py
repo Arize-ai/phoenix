@@ -293,6 +293,19 @@ class TestDbDiskUsageMonitor:
             _gql(_app, access_token, query=query)
 
         # ========================================================================
+        # Verify GraphQL mutation patch operations are not blocked
+        # ========================================================================
+        # Patch operations (updates) don't create new data but modify existing
+        # records, so they should continue to work when insertions are blocked.
+        # This allows administrators to update user settings and profiles.
+        for field in [
+            f'patchViewer(input:{{newUsername:"{token_hex(8)}"}}){{user{{id}}}}',
+            f'patchUser(input:{{userId:"VXNlcjox",newUsername:"{token_hex(8)}"}}){{user{{id}}}}',
+        ]:
+            query = "mutation{" + field + "}"
+            _gql(_app, access_token, query=query)
+
+        # ========================================================================
         # Verify GraphQL query is not blocked
         # ========================================================================
         # Read queries don't consume database storage, so they should

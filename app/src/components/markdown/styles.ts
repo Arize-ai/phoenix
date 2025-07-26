@@ -8,10 +8,10 @@ export const markdownCSS = css`
     }
   }
   /* Remove the margin on the first and last paragraph */
-  p:first-child {
+  p:first-of-type {
     margin-top: 0;
   }
-  p:last-child {
+  p:last-of-type {
     margin-bottom: 0;
   }
   code {

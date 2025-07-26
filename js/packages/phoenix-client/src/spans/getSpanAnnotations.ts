@@ -6,7 +6,7 @@ import { ProjectSelector } from "../types/projects";
 /**
  * Parameters to get span annotations from a project using auto-generated types
  */
-interface GetSpanAnnotationsParams extends ClientFn {
+export interface GetSpanAnnotationsParams extends ClientFn {
   /** The project to get span annotations from */
   project: ProjectSelector;
   /** One or more span IDs to fetch annotations for */
@@ -21,7 +21,7 @@ interface GetSpanAnnotationsParams extends ClientFn {
   limit?: number;
 }
 
-type GetSpanAnnotationsResponse =
+export type GetSpanAnnotationsResponse =
   operations["listSpanAnnotationsBySpanIds"]["responses"]["200"];
 
 export type GetSpanAnnotationsResult = {

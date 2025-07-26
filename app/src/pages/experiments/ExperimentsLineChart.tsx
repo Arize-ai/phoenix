@@ -12,7 +12,7 @@ import {
   Line,
   ResponsiveContainer,
   Tooltip,
-  TooltipProps,
+  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";
@@ -21,9 +21,10 @@ import { Flex, Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
-  useChartColors,
+  useSequentialChartColors,
 } from "@phoenix/components/chart";
 import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
+import { useTheme } from "@phoenix/contexts";
 import { getWordColor } from "@phoenix/utils/colorUtils";
 
 import type { ExperimentsLineChartQuery } from "./__generated__/ExperimentsLineChartQuery.graphql";
@@ -49,8 +50,9 @@ function TooltipContent({
   active,
   payload,
   label,
-}: TooltipProps<number, string>) {
-  const { gray300 } = useChartColors();
+}: TooltipContentProps<number, string>) {
+  const { grey300 } = useSequentialChartColors();
+  const { theme } = useTheme();
   // Use the same color logic as the chart lines
   if (active && payload && payload.length) {
     // Filter out avgLatency and show all other annotation scores
@@ -69,7 +71,7 @@ function TooltipContent({
         {annotationEntries.map((entry) => (
           <ChartTooltipItem
             key={String(entry.dataKey)}
-            color={getWordColor(String(entry.dataKey))}
+            color={getWordColor({ word: String(entry.dataKey), theme })}
             shape="line"
             name={String(entry.dataKey)}
             value={
@@ -86,7 +88,7 @@ function TooltipContent({
           return (
             <ChartTooltipItem
               key="avgLatency"
-              color={gray300}
+              color={grey300}
               shape="square"
               name="avg latency"
               value={latencyFormatter(entry.value as number)}
@@ -100,6 +102,7 @@ function TooltipContent({
 }
 
 export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
+  const { theme } = useTheme();
   const data = useLazyLoadQuery<ExperimentsLineChartQuery>(
     graphql`
       query ExperimentsLineChartQuery($id: ID!) {
@@ -147,15 +150,15 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
     return { chartData, scoreKeys: Array.from(allAnnotationNames) };
   }, [data.dataset?.experiments?.edges]);
 
-  const { gray300 } = useChartColors();
+  const { grey300 } = useSequentialChartColors();
   // Memoize colors for each annotation name (scoreKey) using the same logic as useWordColor
   const lineColors = useMemo(() => {
     const colorMap: Record<string, string> = {};
     for (const key of scoreKeys) {
-      colorMap[key] = getWordColor(key);
+      colorMap[key] = getWordColor({ word: key, theme });
     }
     return colorMap;
-  }, [scoreKeys]);
+  }, [scoreKeys, theme]);
 
   // Memoize yDomain calculation
   const yDomain = useMemo(() => {
@@ -183,8 +186,8 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
       >
         <defs>
           <linearGradient id="latencyBarColor" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={gray300} stopOpacity={0.3} />
-            <stop offset="95%" stopColor={gray300} stopOpacity={0} />
+            <stop offset="5%" stopColor={grey300} stopOpacity={0.3} />
+            <stop offset="95%" stopColor={grey300} stopOpacity={0} />
           </linearGradient>
         </defs>
         <CartesianGrid
@@ -245,7 +248,7 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
             yAxisId={0}
           />
         ))}
-        <Tooltip content={<TooltipContent />} />
+        <Tooltip content={TooltipContent} />
       </ComposedChart>
     </ResponsiveContainer>
   );

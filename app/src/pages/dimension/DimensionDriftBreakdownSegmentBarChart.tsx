@@ -8,7 +8,7 @@ import {
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
-  TooltipProps,
+  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";
@@ -19,7 +19,7 @@ import {
   ChartTooltipItem,
   defaultBarChartTooltipProps,
   getBinName,
-  useChartColors,
+  useSequentialChartColors,
 } from "@phoenix/components/chart";
 import { useInferences } from "@phoenix/contexts";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
@@ -38,7 +38,7 @@ type BarChartItem = {
 const formatter = format(".2f");
 
 const useColors = () => {
-  const { primary, reference } = useChartColors();
+  const { primary, reference } = useSequentialChartColors();
   return {
     primaryBarColor: primary,
     referenceBarColor: reference,
@@ -49,7 +49,7 @@ function TooltipContent({
   active,
   payload,
   label,
-}: TooltipProps<BarChartItem["primaryPercent"], BarChartItem["name"]>) {
+}: TooltipContentProps<BarChartItem["primaryPercent"], BarChartItem["name"]>) {
   const { primaryBarColor, referenceBarColor } = useColors();
   if (active && payload && payload.length) {
     const primaryLabel = payload[0]?.payload?.primaryName;
@@ -258,7 +258,7 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
             />
             <Tooltip
               {...defaultBarChartTooltipProps}
-              content={<TooltipContent />}
+              content={TooltipContent}
             />
             <Bar
               dataKey="primaryPercent"

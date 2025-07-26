@@ -7,7 +7,7 @@ import {
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
-  TooltipProps,
+  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";
@@ -17,7 +17,7 @@ import {
   ChartTooltipItem,
   defaultBarChartTooltipProps,
   getBinName,
-  useChartColors,
+  useSequentialChartColors,
 } from "@phoenix/components/chart";
 
 import { DimensionSegmentsBarChart_dimension$key } from "./__generated__/DimensionSegmentsBarChart_dimension.graphql";
@@ -31,7 +31,7 @@ type BarChartItem = {
 const formatter = format(".2f");
 
 const useColors = () => {
-  const { primary } = useChartColors();
+  const { primary } = useSequentialChartColors();
   return {
     color: primary,
   };
@@ -40,9 +40,9 @@ function TooltipContent({
   active,
   payload,
   label,
-}: TooltipProps<BarChartItem["percent"], BarChartItem["name"]>) {
+}: TooltipContentProps<BarChartItem["percent"], BarChartItem["name"]>) {
   const { color } = useColors();
-  if (active && payload && payload.length) {
+  if (active && payload && payload.length && typeof label === "string") {
     const value = payload[0]?.value;
     return (
       <ChartTooltip>
@@ -162,10 +162,7 @@ export function DimensionSegmentsBarChart(props: {
           stroke="var(--ac-global-color-grey-500)"
           strokeOpacity={0.5}
         />
-        <Tooltip
-          {...defaultBarChartTooltipProps}
-          content={<TooltipContent />}
-        />
+        <Tooltip {...defaultBarChartTooltipProps} content={TooltipContent} />
         <Bar
           dataKey="percent"
           fill="url(#dimensionSegmentsBarColor)"

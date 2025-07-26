@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 
 import { Text } from "@phoenix/components";
+import { formatNumber } from "@phoenix/utils/numberFormatUtils";
 
 const tokenCountDetailsCSS = css`
   display: flex;
@@ -41,7 +42,7 @@ function TokenCountRow({
   isTotal = false,
   isSubItem = false,
 }: TokenCountRowProps) {
-  const displayCount = typeof count === "number" ? count : "--";
+  const displayCount = typeof count === "number" ? formatNumber(count) : "--";
 
   return (
     <div css={tokenCountRowCSS}>
@@ -90,6 +91,10 @@ export interface TokenCountDetailsProps {
    * Additional completion token details as key-value pairs
    */
   completionDetails?: Record<string, number | null | undefined>;
+  /**
+   * The label for the count details. Defaults to "Total".
+   */
+  label?: string;
 }
 
 export function TokenCountDetails({
@@ -98,6 +103,7 @@ export function TokenCountDetails({
   completion,
   promptDetails,
   completionDetails,
+  label = "Total",
 }: TokenCountDetailsProps) {
   const hasPromptDetails =
     promptDetails &&
@@ -114,7 +120,7 @@ export function TokenCountDetails({
     <div css={tokenCountDetailsCSS}>
       {/* Main three rows */}
       {total != null && (
-        <TokenCountRow label="Total" count={total} isTotal={true} />
+        <TokenCountRow label={label} count={total} isTotal={true} />
       )}
 
       {prompt != null && <TokenCountRow label="Prompt" count={prompt} />}

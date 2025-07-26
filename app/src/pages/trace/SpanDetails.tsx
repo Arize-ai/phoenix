@@ -22,8 +22,6 @@ import {
   Content,
   ContextualHelp,
   EmptyGraphic,
-  List,
-  ListItem,
   TabbedCard,
 } from "@arizeai/components";
 import {
@@ -56,6 +54,8 @@ import {
   Keyboard,
   LazyTabPanel,
   LinkButton,
+  List,
+  ListItem,
   Loading,
   Modal,
   ModalOverlay,
@@ -387,7 +387,9 @@ export function SpanDetails({
             </LazyTabPanel>
 
             <LazyTabPanel id="events">
-              <SpanEventsList events={span.events} />
+              <View overflow="auto">
+                <SpanEventsList events={span.events} />
+              </View>
             </LazyTabPanel>
           </Tabs>
         </Flex>

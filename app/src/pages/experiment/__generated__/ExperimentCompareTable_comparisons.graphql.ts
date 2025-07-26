@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c0f815052c6d02046dee4250604c7f4f>>
+ * @generated SignedSource<<86d55b2887f767c117e132723d0b3c68>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -65,12 +65,20 @@ export type ExperimentCompareTable_comparisons$data = {
     readonly experiments?: {
       readonly edges: ReadonlyArray<{
         readonly experiment: {
+          readonly averageRunLatencyMs: number | null;
+          readonly costSummary: {
+            readonly total: {
+              readonly cost: number | null;
+              readonly tokens: number | null;
+            };
+          };
           readonly id: string;
           readonly metadata: any;
           readonly name: string;
           readonly project: {
             readonly id: string;
           } | null;
+          readonly runCount: number;
           readonly sequenceNumber: number;
         };
       }>;
@@ -123,6 +131,20 @@ v2 = {
   "storageKey": null
 },
 v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "tokens",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "cost",
+  "storageKey": null
+},
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -333,20 +355,8 @@ return {
                               "name": "total",
                               "plural": false,
                               "selections": [
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "tokens",
-                                  "storageKey": null
-                                },
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "cost",
-                                  "storageKey": null
-                                }
+                                (v3/*: any*/),
+                                (v4/*: any*/)
                               ],
                               "storageKey": null
                             }
@@ -378,7 +388,7 @@ return {
                                   "plural": false,
                                   "selections": [
                                     (v1/*: any*/),
-                                    (v3/*: any*/),
+                                    (v5/*: any*/),
                                     {
                                       "alias": null,
                                       "args": null,
@@ -525,7 +535,7 @@ return {
                       "plural": false,
                       "selections": [
                         (v1/*: any*/),
-                        (v3/*: any*/),
+                        (v5/*: any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -551,6 +561,44 @@ return {
                             (v1/*: any*/)
                           ],
                           "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "SpanCostSummary",
+                          "kind": "LinkedField",
+                          "name": "costSummary",
+                          "plural": false,
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "CostBreakdown",
+                              "kind": "LinkedField",
+                              "name": "total",
+                              "plural": false,
+                              "selections": [
+                                (v4/*: any*/),
+                                (v3/*: any*/)
+                              ],
+                              "storageKey": null
+                            }
+                          ],
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "averageRunLatencyMs",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "runCount",
+                          "storageKey": null
                         }
                       ],
                       "storageKey": null
@@ -574,6 +622,6 @@ return {
 };
 })();
 
-(node as any).hash = "a4625896f8c59c20b5b08c9a498658aa";
+(node as any).hash = "1b1046fc73951ce93e4ee9e5f6e90490";
 
 export default node;

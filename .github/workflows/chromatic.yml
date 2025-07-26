@@ -3,7 +3,11 @@ name: "Chromatic"
 on:
   pull_request:
     paths:
-      - "app/**"
+      - "app/src/**"
+      - "app/stories/**"
+      - "app/package.json"
+      - "app/.storybook/**"
+      - "app/chromatic.config.json"
 
 permissions:
   contents: read

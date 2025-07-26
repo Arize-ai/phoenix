@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 0.0.7
+
+### Patch Changes
+
+- 83748e6: add type exports and better documentation across packages
+
 ## 0.0.6
 
 ### Patch Changes

@@ -56,6 +56,8 @@ from phoenix.config import (
     SERVER_DIR,
     OAuth2ClientConfig,
     get_env_csrf_trusted_origins,
+    get_env_database_allocated_storage_capacity_gibibytes,
+    get_env_database_usage_insertion_blocking_threshold_percentage,
     get_env_fastapi_middleware_paths,
     get_env_gql_extension_paths,
     get_env_grpc_interceptor_paths,
@@ -239,6 +241,10 @@ class AppConfig(NamedTuple):
     """ FullStory organization ID for web analytics tracking """
     management_url: Optional[str] = None
     """ URL for a phoenix management interface, only visible to management users """
+    support_email: Optional[str] = None
+    """ Support email address for user assistance """
+    has_db_threshold: bool = False
+    """ Whether the database has a threshold for usage """
 
 
 class Static(StaticFiles):
@@ -306,6 +312,8 @@ class Static(StaticFiles):
                     "auto_login_idp_name": self._app_config.auto_login_idp_name,
                     "fullstory_org": self._app_config.fullstory_org,
                     "management_url": self._app_config.management_url,
+                    "support_email": self._app_config.support_email,
+                    "has_db_threshold": self._app_config.has_db_threshold,
                 },
             )
         except Exception as e:
@@ -1072,6 +1080,11 @@ def create_app(
                     auto_login_idp_name=auto_login_idp_name,
                     fullstory_org=Settings.fullstory_org,
                     management_url=management_url,
+                    support_email=get_env_support_email(),
+                    has_db_threshold=bool(
+                        get_env_database_allocated_storage_capacity_gibibytes()
+                        and get_env_database_usage_insertion_blocking_threshold_percentage()
+                    ),
                 ),
             ),
             name="static",

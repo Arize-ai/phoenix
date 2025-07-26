@@ -14,7 +14,7 @@ test.describe("Prompt Management", () => {
   test("can create a prompt", async ({ page }) => {
     await page.goto("/prompts");
     await page.waitForURL("**/prompts");
-    await page.getByRole("link", { name: "Create Prompt" }).click();
+    await page.getByRole("link", { name: "New Prompt" }).click();
     await page.waitForURL("**/playground");
     await page
       .getByText("You are a chatbot")

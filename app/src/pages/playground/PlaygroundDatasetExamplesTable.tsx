@@ -1,4 +1,4 @@
-import React, {
+import {
   memo,
   PropsWithChildren,
   ReactNode,
@@ -6,7 +6,6 @@ import React, {
   useEffect,
   useMemo,
   useRef,
-  useState,
 } from "react";
 import {
   Disposable,
@@ -31,8 +30,6 @@ import {
   requestSubscription,
 } from "relay-runtime";
 import { css } from "@emotion/react";
-
-import { DialogContainer } from "@arizeai/components";
 
 import {
   DialogTrigger,
@@ -273,6 +270,7 @@ function ExampleOutputContent({
     exampleData;
   const hasSpan = span != null;
   const hasExperimentRun = experimentRunId != null;
+  const [, setSearchParams] = useSearchParams();
   const spanControls = useMemo(() => {
     if (hasSpan || hasExperimentRun) {
       return (
@@ -299,7 +297,20 @@ function ExampleOutputContent({
           )}
           {hasSpan && (
             <>
-              <DialogTrigger>
+              <DialogTrigger
+                onOpenChange={(open) => {
+                  if (!open) {
+                    setSearchParams(
+                      (prev) => {
+                        const newParams = new URLSearchParams(prev);
+                        newParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+                        return newParams;
+                      },
+                      { replace: true }
+                    );
+                  }
+                }}
+              >
                 <TooltipTrigger>
                   <IconButton size="S" aria-label="View run trace">
                     <Icon svg={<Icons.Trace />} />
@@ -324,7 +335,7 @@ function ExampleOutputContent({
         </>
       );
     }
-  }, [experimentRunId, hasExperimentRun, hasSpan, span]);
+  }, [experimentRunId, hasExperimentRun, hasSpan, span, setSearchParams]);
 
   return (
     <Flex direction="column" height="100%">
@@ -434,7 +445,7 @@ function TableBody<T>({ table }: { table: Table<T> }) {
   );
 }
 // special memoized wrapper for our table body that we will use during column resizing
-export const MemoizedTableBody = React.memo(
+export const MemoizedTableBody = memo(
   TableBody,
   (prev, next) => prev.table.options.data === next.table.options.data
 ) as typeof TableBody;
@@ -469,7 +480,6 @@ export function PlaygroundDatasetExamplesTable({
     (state) => state.appendExampleDataTextChunk
   );
 
-  const [dialog, setDialog] = useState<ReactNode>(null);
   const [, setSearchParams] = useSearchParams();
   const hasSomeRunIds = instances.some(
     (instance) => instance.activeRunId !== null
@@ -917,7 +927,7 @@ export function PlaygroundDatasetExamplesTable({
    * and pass the column sizes down as CSS variables to the <table> element.
    * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
    */
-  const columnSizeVars = React.useMemo(() => {
+  const columnSizeVars = useMemo(() => {
     const headers = table.getFlatHeaders();
     const colSizes: { [key: string]: number } = {};
     for (let i = 0; i < headers.length; i++) {
@@ -994,19 +1004,6 @@ export function PlaygroundDatasetExamplesTable({
           <TableBody table={table} />
         )}
       </table>
-      <DialogContainer
-        isDismissable
-        type="slideOver"
-        onDismiss={() => {
-          setDialog(null);
-          setSearchParams((searchParams) => {
-            searchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
-            return searchParams;
-          });
-        }}
-      >
-        {dialog}
-      </DialogContainer>
     </div>
   );
 }

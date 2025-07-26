@@ -21,15 +21,15 @@ const baseRadioGroupCSS = css(`
   gap: var(--ac-global-dimension-size-200);
   font-size: var(--ac-global-dimension-static-font-size-100);
 
-  & > .ac-radio:not(:first-child) {
+  & > .ac-radio:not(:first-of-type) {
     border-left: none;
   }
 
-  & > .ac-radio:first-child {
+  & > .ac-radio:first-of-type {
     border-radius: var(--ac-global-rounding-small) 0 0 var(--ac-global-rounding-small);
   }
 
-  & > .ac-radio:last-child {
+  & > .ac-radio:last-of-type {
     border-radius: 0 var(--ac-global-rounding-small) var(--ac-global-rounding-small) 0;
   }
 
