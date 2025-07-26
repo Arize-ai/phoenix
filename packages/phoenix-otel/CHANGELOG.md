@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.12.1...arize-phoenix-otel-v0.12.2) (2025-07-26)
+
+
+### Bug Fixes
+
+* Update tests to be more reliable in CI ([#8642](https://github.com/Arize-ai/phoenix/issues/8642)) ([3358ac1](https://github.com/Arize-ai/phoenix/commit/3358ac1154f261f75684946c514e8066e8e25430))
+
 ## [0.12.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.12.0...arize-phoenix-otel-v0.12.1) (2025-06-24)
 
 
