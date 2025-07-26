@@ -136,122 +136,144 @@ export function ProjectMetricsPage() {
         overflow-y: auto;
       `}
     >
-      <ErrorBoundary>
-        {isOpenTimeRange && (
-          <Alert variant="info" banner title="Time Range Adjusted">
-            {`This view does not support open-ended time ranges. Your time range has
+      {isOpenTimeRange && (
+        <Alert variant="info" banner title="Time Range Adjusted">
+          {`This view does not support open-ended time ranges. Your time range has
           been set to ${fullTimeFormatter(timeRange.start)} to ${fullTimeFormatter(timeRange.end)}`}
-          </Alert>
-        )}
-        <div
-          css={css`
-            display: flex;
-            flex-direction: column;
-            gap: var(--ac-global-dimension-size-200);
-            padding: var(--ac-global-dimension-size-200);
-          `}
-        >
-          <Flex direction="row" gap="size-200">
-            <MetricPanel
-              title="Traces over time"
-              subtitle="Overall volume of traces"
-            >
+        </Alert>
+      )}
+      <div
+        css={css`
+          display: flex;
+          flex-direction: column;
+          gap: var(--ac-global-dimension-size-200);
+          padding: var(--ac-global-dimension-size-200);
+        `}
+      >
+        <Flex direction="row" gap="size-200">
+          <MetricPanel
+            title="Traces over time"
+            subtitle="Overall volume of traces"
+          >
+            <ErrorBoundary>
               <TraceCountTimeSeries
                 projectId={projectId}
                 timeRange={timeRange}
               />
-            </MetricPanel>
-            <MetricPanel
-              title="Traces with errors"
-              subtitle="Overall volume of traces with errors"
-            >
+            </ErrorBoundary>
+          </MetricPanel>
+          <MetricPanel
+            title="Traces with errors"
+            subtitle="Overall volume of traces with errors"
+          >
+            <ErrorBoundary>
               <TraceErrorsTimeSeries
                 projectId={projectId}
                 timeRange={timeRange}
               />
-            </MetricPanel>
-          </Flex>
-          <Flex direction="row" gap="size-200">
-            <MetricPanel title="Trace Latency" subtitle="Latency percentiles">
+            </ErrorBoundary>
+          </MetricPanel>
+        </Flex>
+        <Flex direction="row" gap="size-200">
+          <MetricPanel title="Trace Latency" subtitle="Latency percentiles">
+            <ErrorBoundary>
               <TraceLatencyPercentilesTimeSeries
                 projectId={projectId}
                 timeRange={timeRange}
               />
-            </MetricPanel>
-            <MetricPanel
-              title="Annotation scores"
-              subtitle="Average annotation scores"
-            >
+            </ErrorBoundary>
+          </MetricPanel>
+          <MetricPanel
+            title="Annotation scores"
+            subtitle="Average annotation scores"
+          >
+            <ErrorBoundary>
               <SpanAnnotationScoreTimeSeries
                 projectId={projectId}
                 timeRange={timeRange}
               />
-            </MetricPanel>
-          </Flex>
-          <Flex direction="row" gap="size-200">
-            <MetricPanel title="Cost" subtitle="Estimated cost in USD">
+            </ErrorBoundary>
+          </MetricPanel>
+        </Flex>
+        <Flex direction="row" gap="size-200">
+          <MetricPanel title="Cost" subtitle="Estimated cost in USD">
+            <ErrorBoundary>
               <TraceTokenCostTimeSeries
                 projectId={projectId}
                 timeRange={timeRange}
               />
-            </MetricPanel>
-            <MetricPanel title="Top models by cost">
+            </ErrorBoundary>
+          </MetricPanel>
+          <MetricPanel title="Top models by cost">
+            <ErrorBoundary>
               <TopModelsByCost projectId={projectId} timeRange={timeRange} />
-            </MetricPanel>
-          </Flex>
-          <Flex direction="row" gap="size-200">
-            <MetricPanel
-              title="Token usage"
-              subtitle="Token usage by prompt and completion"
-            >
+            </ErrorBoundary>
+          </MetricPanel>
+        </Flex>
+        <Flex direction="row" gap="size-200">
+          <MetricPanel
+            title="Token usage"
+            subtitle="Token usage by prompt and completion"
+          >
+            <ErrorBoundary>
               <TraceTokenCountTimeSeries
                 projectId={projectId}
                 timeRange={timeRange}
               />
-            </MetricPanel>
-            <MetricPanel title="Top models by tokens">
+            </ErrorBoundary>
+          </MetricPanel>
+          <MetricPanel title="Top models by tokens">
+            <ErrorBoundary>
               <TopModelsByToken projectId={projectId} timeRange={timeRange} />
-            </MetricPanel>
-          </Flex>
-          <Flex direction="row" gap="size-200">
-            <MetricPanel title="LLM spans" subtitle="LLM span count over time">
+            </ErrorBoundary>
+          </MetricPanel>
+        </Flex>
+        <Flex direction="row" gap="size-200">
+          <MetricPanel title="LLM spans" subtitle="LLM span count over time">
+            <ErrorBoundary>
               <LLMSpanCountTimeSeries
                 projectId={projectId}
                 timeRange={timeRange}
               />
-            </MetricPanel>
-            <MetricPanel
-              title="LLM spans with errors"
-              subtitle="LLM spans with errors over time"
-            >
+            </ErrorBoundary>
+          </MetricPanel>
+          <MetricPanel
+            title="LLM spans with errors"
+            subtitle="LLM spans with errors over time"
+          >
+            <ErrorBoundary>
               <LLMSpanErrorsTimeSeries
                 projectId={projectId}
                 timeRange={timeRange}
               />
-            </MetricPanel>
-          </Flex>
-          <Flex direction="row" gap="size-200">
-            <MetricPanel
-              title="Tool spans"
-              subtitle="Tool span count over time"
-            >
+            </ErrorBoundary>
+          </MetricPanel>
+        </Flex>
+        <Flex direction="row" gap="size-200">
+          <MetricPanel
+            title="Tool spans"
+            subtitle="Tool span count over time"
+          >
+            <ErrorBoundary>
               <ToolSpanCountTimeSeries
                 projectId={projectId}
                 timeRange={timeRange}
               />
-            </MetricPanel>
-            <MetricPanel
-              title="Tool spans with errors"
-              subtitle="Tool spans with errors over time"
-            >
+            </ErrorBoundary>
+          </MetricPanel>
+          <MetricPanel
+            title="Tool spans with errors"
+            subtitle="Tool spans with errors over time"
+          >
+            <ErrorBoundary>
               <ToolSpanErrorsTimeSeries
                 projectId={projectId}
                 timeRange={timeRange}
               />
-            </MetricPanel>
-          </Flex>
-        </div>
-      </ErrorBoundary>
+            </ErrorBoundary>
+          </MetricPanel>
+        </Flex>
+      </div>
     </main>
   );
 }
