@@ -31,7 +31,7 @@ export function ProjectsSearch({
 
   return (
     <TextField
-      size="S"
+      size="M"
       css={css`
         flex-basis: 100%;
       `}

@@ -43,7 +43,7 @@ import {
   View,
 } from "@phoenix/components";
 import {
-  ConnectedLastNTimeRangePicker,
+  ConnectedTimeRangeSelector,
   useTimeRange,
 } from "@phoenix/components/datetime";
 import { LoadMoreButton } from "@phoenix/components/LoadMoreButton";
@@ -313,10 +313,7 @@ export function ProjectsPageContent({
       ref={projectsContainerRef}
     >
       <View
-        paddingStart="size-200"
-        paddingEnd="size-200"
-        paddingTop="size-100"
-        paddingBottom="size-100"
+        padding="size-200"
         width="100%"
         borderBottomColor="grey-200"
         borderBottomWidth="thin"
@@ -350,7 +347,7 @@ export function ProjectsPageContent({
             `}
           >
             <ProjectViewModeToggle />
-            <ConnectedLastNTimeRangePicker />
+            <ConnectedTimeRangeSelector size="M" />
             <NewProjectButton variant="primary" />
           </Flex>
         </Flex>
