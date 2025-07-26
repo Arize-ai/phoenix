@@ -4,12 +4,12 @@ import { LoaderFunctionArgs } from "react-router";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 import type {
-  experimentCompareLoaderQuery,
-  experimentCompareLoaderQuery$data,
-} from "./__generated__/experimentCompareLoaderQuery.graphql";
+  experimentCompareGridLoaderQuery,
+  experimentCompareGridLoaderQuery$data,
+} from "./__generated__/experimentCompareGridLoaderQuery.graphql";
 
-export type ExperimentCompareLoaderReturnType =
-  | experimentCompareLoaderQuery$data
+export type ExperimentCompareGridLoaderReturnType =
+  | experimentCompareGridLoaderQuery$data
   | undefined;
 
 /**
@@ -17,7 +17,7 @@ export type ExperimentCompareLoaderReturnType =
  */
 export async function experimentCompareGridLoader(
   args: LoaderFunctionArgs
-): Promise<ExperimentCompareLoaderReturnType> {
+): Promise<ExperimentCompareGridLoaderReturnType> {
   const { datasetId } = args.params;
   if (datasetId == null) {
     throw new Error("Dataset ID is required");
@@ -26,7 +26,7 @@ export async function experimentCompareGridLoader(
   const [baselineExperimentId = undefined, ...compareExperimentIds] =
     url.searchParams.getAll("experimentId");
 
-  return await fetchQuery<experimentCompareLoaderQuery>(
+  return await fetchQuery<experimentCompareGridLoaderQuery>(
     RelayEnvironment,
     graphql`
       query experimentCompareGridLoaderQuery(
@@ -42,8 +42,6 @@ export async function experimentCompareGridLoader(
             compareExperimentIds: $compareExperimentIds
             datasetId: $datasetId
           )
-        ...ExperimentMultiSelector__data
-          @arguments(hasBaselineExperimentId: $hasBaselineExperimentId)
       }
     `,
     {

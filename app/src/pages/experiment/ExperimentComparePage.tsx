@@ -1,5 +1,6 @@
 import { startTransition, useState } from "react";
 import {
+  Outlet,
   useLoaderData,
   useNavigate,
   useParams,
@@ -16,16 +17,15 @@ import {
   ExperimentCompareLayoutSelect,
 } from "@phoenix/components/experiment/ExperimentCompareLayoutSelect";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
-import { experimentCompareGridLoader } from "@phoenix/pages/experiment/experimentCompareGridLoader";
+import { experimentCompareLoader } from "@phoenix/pages/experiment/experimentCompareLoader";
 
-import { ExperimentCompareGridPage } from "./ExperimentCompareGridPage";
 import { ExperimentMultiSelector } from "./ExperimentMultiSelector";
 
 export function ExperimentComparePage() {
-  const loaderData = useLoaderData<typeof experimentCompareGridLoader>();
+  const loaderData = useLoaderData<typeof experimentCompareLoader>();
   const showModeSelect = useFeatureFlag("experimentEnhancements");
   const [layout, setLayout] = useState<ExperimentCompareLayout>("grid");
-  invariant(loaderData, "loaderData is required");
+  invariant(loaderData, "loaderData is required on ExperimentComparePage");
   // The text of most IO is too long so default to showing truncated text
   const [, setDisplayFullText] = useState(false);
   const { datasetId } = useParams();
@@ -89,7 +89,7 @@ export function ExperimentComparePage() {
           </Switch>
         </Flex>
       </View>
-      <ExperimentCompareGridPage />
+      <Outlet />
     </main>
   );
 }

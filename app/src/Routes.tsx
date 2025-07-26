@@ -28,6 +28,8 @@ import {
 } from "./pages/dashboards";
 import { datasetLoaderQuery$data } from "./pages/dataset/__generated__/datasetLoaderQuery.graphql";
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
+import { ExperimentCompareGridPage } from "./pages/experiment/ExperimentCompareGridPage";
+import { experimentCompareLoader } from "./pages/experiment/experimentCompareLoader";
 import { Layout } from "./pages/Layout";
 import { spanPlaygroundPageLoaderQuery$data } from "./pages/playground/__generated__/spanPlaygroundPageLoaderQuery.graphql";
 import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
@@ -255,9 +257,15 @@ const router = createBrowserRouter(
               <Route
                 path="compare"
                 element={<ExperimentComparePage />}
-                loader={experimentCompareGridLoader}
                 handle={{ crumb: () => "compare" }}
-              />
+                loader={experimentCompareLoader}
+              >
+                <Route
+                  path="grid"
+                  element={<ExperimentCompareGridPage />}
+                  loader={experimentCompareGridLoader}
+                />
+              </Route>
             </Route>
           </Route>
           <Route
