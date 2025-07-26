@@ -157,10 +157,7 @@ export function ProjectMetricsPage() {
             title="Traces over time"
             subtitle="Overall volume of traces"
           >
-            <TraceCountTimeSeries
-              projectId={projectId}
-              timeRange={timeRange}
-            />
+            <TraceCountTimeSeries projectId={projectId} timeRange={timeRange} />
           </MetricPanel>
           <MetricPanel
             title="Traces with errors"
@@ -232,10 +229,7 @@ export function ProjectMetricsPage() {
           </MetricPanel>
         </Flex>
         <Flex direction="row" gap="size-200">
-          <MetricPanel
-            title="Tool spans"
-            subtitle="Tool span count over time"
-          >
+          <MetricPanel title="Tool spans" subtitle="Tool span count over time">
             <ToolSpanCountTimeSeries
               projectId={projectId}
               timeRange={timeRange}
