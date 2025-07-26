@@ -93,7 +93,9 @@ export const MetricPanel = forwardRef(function MetricPanel(
             height: 190px;
           `}
         >
-          <Suspense fallback={<Loading />}>{children}</Suspense>
+          <ErrorBoundary>
+            <Suspense fallback={<Loading />}>{children}</Suspense>
+          </ErrorBoundary>
         </div>
       </div>
     </View>
@@ -136,122 +138,114 @@ export function ProjectMetricsPage() {
         overflow-y: auto;
       `}
     >
-      <ErrorBoundary>
-        {isOpenTimeRange && (
-          <Alert variant="info" banner title="Time Range Adjusted">
-            {`This view does not support open-ended time ranges. Your time range has
+      {isOpenTimeRange && (
+        <Alert variant="info" banner title="Time Range Adjusted">
+          {`This view does not support open-ended time ranges. Your time range has
           been set to ${fullTimeFormatter(timeRange.start)} to ${fullTimeFormatter(timeRange.end)}`}
-          </Alert>
-        )}
-        <div
-          css={css`
-            display: flex;
-            flex-direction: column;
-            gap: var(--ac-global-dimension-size-200);
-            padding: var(--ac-global-dimension-size-200);
-          `}
-        >
-          <Flex direction="row" gap="size-200">
-            <MetricPanel
-              title="Traces over time"
-              subtitle="Overall volume of traces"
-            >
-              <TraceCountTimeSeries
-                projectId={projectId}
-                timeRange={timeRange}
-              />
-            </MetricPanel>
-            <MetricPanel
-              title="Traces with errors"
-              subtitle="Overall volume of traces with errors"
-            >
-              <TraceErrorsTimeSeries
-                projectId={projectId}
-                timeRange={timeRange}
-              />
-            </MetricPanel>
-          </Flex>
-          <Flex direction="row" gap="size-200">
-            <MetricPanel title="Trace Latency" subtitle="Latency percentiles">
-              <TraceLatencyPercentilesTimeSeries
-                projectId={projectId}
-                timeRange={timeRange}
-              />
-            </MetricPanel>
-            <MetricPanel
-              title="Annotation scores"
-              subtitle="Average annotation scores"
-            >
-              <SpanAnnotationScoreTimeSeries
-                projectId={projectId}
-                timeRange={timeRange}
-              />
-            </MetricPanel>
-          </Flex>
-          <Flex direction="row" gap="size-200">
-            <MetricPanel title="Cost" subtitle="Estimated cost in USD">
-              <TraceTokenCostTimeSeries
-                projectId={projectId}
-                timeRange={timeRange}
-              />
-            </MetricPanel>
-            <MetricPanel title="Top models by cost">
-              <TopModelsByCost projectId={projectId} timeRange={timeRange} />
-            </MetricPanel>
-          </Flex>
-          <Flex direction="row" gap="size-200">
-            <MetricPanel
-              title="Token usage"
-              subtitle="Token usage by prompt and completion"
-            >
-              <TraceTokenCountTimeSeries
-                projectId={projectId}
-                timeRange={timeRange}
-              />
-            </MetricPanel>
-            <MetricPanel title="Top models by tokens">
-              <TopModelsByToken projectId={projectId} timeRange={timeRange} />
-            </MetricPanel>
-          </Flex>
-          <Flex direction="row" gap="size-200">
-            <MetricPanel title="LLM spans" subtitle="LLM span count over time">
-              <LLMSpanCountTimeSeries
-                projectId={projectId}
-                timeRange={timeRange}
-              />
-            </MetricPanel>
-            <MetricPanel
-              title="LLM spans with errors"
-              subtitle="LLM spans with errors over time"
-            >
-              <LLMSpanErrorsTimeSeries
-                projectId={projectId}
-                timeRange={timeRange}
-              />
-            </MetricPanel>
-          </Flex>
-          <Flex direction="row" gap="size-200">
-            <MetricPanel
-              title="Tool spans"
-              subtitle="Tool span count over time"
-            >
-              <ToolSpanCountTimeSeries
-                projectId={projectId}
-                timeRange={timeRange}
-              />
-            </MetricPanel>
-            <MetricPanel
-              title="Tool spans with errors"
-              subtitle="Tool spans with errors over time"
-            >
-              <ToolSpanErrorsTimeSeries
-                projectId={projectId}
-                timeRange={timeRange}
-              />
-            </MetricPanel>
-          </Flex>
-        </div>
-      </ErrorBoundary>
+        </Alert>
+      )}
+      <div
+        css={css`
+          display: flex;
+          flex-direction: column;
+          gap: var(--ac-global-dimension-size-200);
+          padding: var(--ac-global-dimension-size-200);
+        `}
+      >
+        <Flex direction="row" gap="size-200">
+          <MetricPanel
+            title="Traces over time"
+            subtitle="Overall volume of traces"
+          >
+            <TraceCountTimeSeries projectId={projectId} timeRange={timeRange} />
+          </MetricPanel>
+          <MetricPanel
+            title="Traces with errors"
+            subtitle="Overall volume of traces with errors"
+          >
+            <TraceErrorsTimeSeries
+              projectId={projectId}
+              timeRange={timeRange}
+            />
+          </MetricPanel>
+        </Flex>
+        <Flex direction="row" gap="size-200">
+          <MetricPanel title="Trace Latency" subtitle="Latency percentiles">
+            <TraceLatencyPercentilesTimeSeries
+              projectId={projectId}
+              timeRange={timeRange}
+            />
+          </MetricPanel>
+          <MetricPanel
+            title="Annotation scores"
+            subtitle="Average annotation scores"
+          >
+            <SpanAnnotationScoreTimeSeries
+              projectId={projectId}
+              timeRange={timeRange}
+            />
+          </MetricPanel>
+        </Flex>
+        <Flex direction="row" gap="size-200">
+          <MetricPanel title="Cost" subtitle="Estimated cost in USD">
+            <TraceTokenCostTimeSeries
+              projectId={projectId}
+              timeRange={timeRange}
+            />
+          </MetricPanel>
+          <MetricPanel title="Top models by cost">
+            <TopModelsByCost projectId={projectId} timeRange={timeRange} />
+          </MetricPanel>
+        </Flex>
+        <Flex direction="row" gap="size-200">
+          <MetricPanel
+            title="Token usage"
+            subtitle="Token usage by prompt and completion"
+          >
+            <TraceTokenCountTimeSeries
+              projectId={projectId}
+              timeRange={timeRange}
+            />
+          </MetricPanel>
+          <MetricPanel title="Top models by tokens">
+            <TopModelsByToken projectId={projectId} timeRange={timeRange} />
+          </MetricPanel>
+        </Flex>
+        <Flex direction="row" gap="size-200">
+          <MetricPanel title="LLM spans" subtitle="LLM span count over time">
+            <LLMSpanCountTimeSeries
+              projectId={projectId}
+              timeRange={timeRange}
+            />
+          </MetricPanel>
+          <MetricPanel
+            title="LLM spans with errors"
+            subtitle="LLM spans with errors over time"
+          >
+            <LLMSpanErrorsTimeSeries
+              projectId={projectId}
+              timeRange={timeRange}
+            />
+          </MetricPanel>
+        </Flex>
+        <Flex direction="row" gap="size-200">
+          <MetricPanel title="Tool spans" subtitle="Tool span count over time">
+            <ToolSpanCountTimeSeries
+              projectId={projectId}
+              timeRange={timeRange}
+            />
+          </MetricPanel>
+          <MetricPanel
+            title="Tool spans with errors"
+            subtitle="Tool spans with errors over time"
+          >
+            <ToolSpanErrorsTimeSeries
+              projectId={projectId}
+              timeRange={timeRange}
+            />
+          </MetricPanel>
+        </Flex>
+      </div>
     </main>
   );
 }

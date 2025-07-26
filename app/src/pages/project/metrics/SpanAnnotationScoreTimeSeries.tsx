@@ -167,7 +167,6 @@ export function SpanAnnotationScoreTimeSeries({
           dataKey="timestamp"
           tickFormatter={(x) => timeTickFormatter(x)}
           interval={interval}
-          padding={{ left: 50, right: 50 }}
         />
         <YAxis
           width={55}

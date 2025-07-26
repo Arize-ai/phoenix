@@ -167,7 +167,6 @@ export function TraceLatencyPercentilesTimeSeries({
           {...defaultXAxisProps}
           dataKey="timestamp"
           interval={interval}
-          padding={{ left: 50, right: 50 }}
           tickFormatter={(x) => timeTickFormatter(x)}
         />
         <YAxis
