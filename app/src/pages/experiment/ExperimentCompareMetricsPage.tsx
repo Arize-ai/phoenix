@@ -162,11 +162,14 @@ function CompareExperimentMetric({
   const delta = value - baselineValue;
   const isImprovement = delta >= 0;
   const deltaText = isImprovement ? `(+${delta}${unit})` : `(${delta}${unit})`;
+  const percentageDelta = Math.abs((delta / baselineValue) * 100);
+  const percentageDeltaText = `${isImprovement ? "+" : "-"}${percentageDelta.toFixed(0)}%`;
   return (
     <Flex direction="row" justifyContent="space-between">
       <Flex direction="row" alignItems="center" gap="size-50">
         <Text size="M">{valueText}</Text>
         <Text size="S">{deltaText}</Text>
+        <Text size="S">{percentageDeltaText}</Text>
       </Flex>
       <ImprovementAndRegressionCounter
         numImprovements={numImprovements}
