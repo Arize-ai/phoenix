@@ -1177,8 +1177,8 @@ const appGlobalStylesCSS = css`
 
     --px-gradient-bar-height: 8px;
 
-    --px-nav-collapsed-width: 45px;
-    --px-nav-expanded-width: 200px;
+    --px-nav-collapsed-width: 52px;
+    --px-nav-expanded-width: 230px;
 
     --ac-global-opacity-disabled: 0.6;
 

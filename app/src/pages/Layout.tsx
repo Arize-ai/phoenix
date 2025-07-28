@@ -12,11 +12,13 @@ import {
   NavButton,
   NavLink,
   SideNavbar,
+  SideNavToggleButton,
   ThemeToggle,
   TopNavbar,
 } from "@phoenix/components/nav";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
+import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 const layoutCSS = css`
@@ -32,7 +34,6 @@ const mainViewCSS = css`
   flex: 1 1 auto;
   height: 100%;
   overflow: hidden;
-  padding-left: var(--px-nav-collapsed-width);
 `;
 const contentCSS = css`
   flex: 1 1 auto;
@@ -40,6 +41,11 @@ const contentCSS = css`
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+  border-left: 1px solid var(--ac-global-color-grey-200);
+  border-top: 1px solid var(--ac-global-color-grey-200);
+  border-radius: var(--ac-global-rounding-medium) 0 0 0;
+  /* Fill the background of the content */
+  box-shadow: 0 0 10px 10px var(--ac-global-color-grey-100);
 `;
 
 const bottomLinksCSS = css`
@@ -63,6 +69,7 @@ export function Layout() {
       <SideNav />
       <div css={mainViewCSS}>
         <TopNavbar>
+          <SideNavToggleButton />
           <NavBreadcrumb />
         </TopNavbar>
         <div data-testid="content" css={contentCSS}>
@@ -77,6 +84,9 @@ export function Layout() {
 
 function SideNav() {
   const isDashboardsEnabled = useFeatureFlag("dashboards");
+  const isSideNavExpanded = usePreferencesContext(
+    (state) => state.isSideNavExpanded
+  );
   const hasInferences = useMemo(() => {
     return window.Config.hasInferences;
   }, []);
@@ -85,7 +95,7 @@ function SideNav() {
     window.location.replace(prependBasename("/auth/logout"));
   }, []);
   return (
-    <SideNavbar>
+    <SideNavbar isExpanded={isSideNavExpanded}>
       <Brand />
       <Flex direction="column" justifyContent="space-between" flex="1 1 auto">
         <ul css={sideLinksCSS}>
@@ -95,6 +105,7 @@ function SideNav() {
                 to="/model"
                 text="Model"
                 leadingVisual={<Icon svg={<Icons.CubeOutline />} />}
+                isExpanded={isSideNavExpanded}
               />
             </li>
           )}
@@ -103,6 +114,7 @@ function SideNav() {
               to="/projects"
               text="Projects"
               leadingVisual={<Icon svg={<Icons.GridOutline />} />}
+              isExpanded={isSideNavExpanded}
             />
           </li>
           {isDashboardsEnabled && (
@@ -111,14 +123,16 @@ function SideNav() {
                 to="/dashboards"
                 text="Dashboards"
                 leadingVisual={<Icon svg={<Icons.BarChartOutline />} />}
+                isExpanded={isSideNavExpanded}
               />
             </li>
           )}
           <li key="datasets">
             <NavLink
               to="/datasets"
-              text="Datasets"
+              text="Datasets & Experiments"
               leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
+              isExpanded={isSideNavExpanded}
             />
           </li>
           <li key="playground">
@@ -126,6 +140,7 @@ function SideNav() {
               to="/playground"
               text="Playground"
               leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+              isExpanded={isSideNavExpanded}
             />
           </li>
           <li key="prompts">
@@ -133,6 +148,7 @@ function SideNav() {
               to="/prompts"
               text="Prompts"
               leadingVisual={<Icon svg={<Icons.MessageSquareOutline />} />}
+              isExpanded={isSideNavExpanded}
             />
           </li>
           <li key="apis">
@@ -140,32 +156,35 @@ function SideNav() {
               to="/apis"
               text="APIs"
               leadingVisual={<Icon svg={<Icons.Code />} />}
+              isExpanded={isSideNavExpanded}
             />
           </li>
         </ul>
         <ul css={bottomLinksCSS}>
           <li key="github">
-            <GitHubLink />
+            <GitHubLink isExpanded={isSideNavExpanded} />
           </li>
           <li key="settings">
             <NavLink
               to="/settings/general"
               text="Settings"
               leadingVisual={<Icon svg={<Icons.SettingsOutline />} />}
+              isExpanded={isSideNavExpanded}
             />
           </li>
           <li key="docs">
-            <DocsLink />
+            <DocsLink isExpanded={isSideNavExpanded} />
           </li>
           <li key="support">
             <NavLink
               to="/support"
               text="Support"
               leadingVisual={<Icon svg={<Icons.LifeBuoy />} />}
+              isExpanded={isSideNavExpanded}
             />
           </li>
           <li key="theme-toggle">
-            <ThemeToggle />
+            <ThemeToggle isExpanded={isSideNavExpanded} />
           </li>
           {authenticationEnabled && (
             <>
@@ -174,10 +193,11 @@ function SideNav() {
                   to="/profile"
                   text="Profile"
                   leadingVisual={<Icon svg={<Icons.PersonOutline />} />}
+                  isExpanded={isSideNavExpanded}
                 />
               </li>
               <Suspense>
-                <ManagementLink />
+                <ManagementLink isExpanded={isSideNavExpanded} />
               </Suspense>
               <li key="logout">
                 <NavButton

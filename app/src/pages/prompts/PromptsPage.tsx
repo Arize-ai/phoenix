@@ -16,10 +16,7 @@ export function PromptsPage() {
   return (
     <Flex direction="column" height="100%">
       <View
-        paddingStart="size-200"
-        paddingEnd="size-200"
-        paddingTop="size-100"
-        paddingBottom="size-100"
+        padding="size-200"
         borderBottomWidth="thin"
         borderBottomColor="grey-200"
         flex="none"
@@ -32,7 +29,7 @@ export function PromptsPage() {
         >
           <PromptsSearch onChange={setSearchFilter} />
           <LinkButton
-            size="S"
+            size="M"
             leadingVisual={<Icon svg={<Icons.MessageSquareOutline />} />}
             variant="primary"
             to="/playground"

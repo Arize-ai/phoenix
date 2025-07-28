@@ -18,7 +18,7 @@ import {
   Tabs,
 } from "@phoenix/components";
 import {
-  ConnectedLastNTimeRangePicker,
+  ConnectedTimeRangeSelector,
   useTimeRange,
 } from "@phoenix/components/datetime";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
@@ -226,7 +226,7 @@ export function ProjectPageContent({
           extra={
             <Flex direction="row" alignItems="center" gap="size-100">
               <StreamToggle project={data.project} />
-              <ConnectedLastNTimeRangePicker />
+              <ConnectedTimeRangeSelector />
             </Flex>
           }
         />

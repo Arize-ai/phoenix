@@ -29,7 +29,7 @@ export function PromptsSearch({ onChange: propsOnChange }: PromptsSearchProps) {
 
   return (
     <TextField
-      size="S"
+      size="M"
       css={css`
         flex-basis: 100%;
       `}
