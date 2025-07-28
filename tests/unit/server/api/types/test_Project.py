@@ -42,7 +42,7 @@ async def _add_generative_model(
     model = models.GenerativeModel(
         name=name,
         provider=provider,
-        name_pattern=re.compile(name),
+        name_pattern=re.compile(re.escape(name)),
         is_built_in=is_built_in,
     )
     session.add(model)
