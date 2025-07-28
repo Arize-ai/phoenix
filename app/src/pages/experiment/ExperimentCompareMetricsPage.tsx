@@ -44,19 +44,25 @@ export function ExperimentCompareMetricsPage() {
           <div css={metricCardCss}>
             <Flex direction="column" gap="size-200">
               <Heading level={2}>Latency</Heading>
-              <BaseExperimentMetric value="520ms" />
+              <BaseExperimentMetric value={520} unit="ms" />
               <CompareExperimentMetric
-                value="620ms"
+                value={620}
+                unit="ms"
+                baselineValue={520}
                 numImprovements={10}
                 numRegressions={5}
               />
               <CompareExperimentMetric
-                value="420ms"
+                value={420}
+                unit="ms"
+                baselineValue={520}
                 numImprovements={0}
                 numRegressions={10}
               />
               <CompareExperimentMetric
-                value="320ms"
+                value={320}
+                unit="ms"
+                baselineValue={520}
                 numImprovements={10}
                 numRegressions={0}
               />
@@ -124,26 +130,44 @@ export function ExperimentCompareMetricsPage() {
   );
 }
 
-function BaseExperimentMetric({ value }: { value: string }) {
+function BaseExperimentMetric({
+  value,
+  unit,
+}: {
+  value: number;
+  unit: string;
+}) {
+  const valueText = `${value}${unit}`;
   return (
     <Flex direction="row" justifyContent="space-between">
-      <Text size="M">{value}</Text>
+      <Text size="M">{valueText}</Text>
     </Flex>
   );
 }
 
 function CompareExperimentMetric({
   value,
+  unit,
+  baselineValue,
   numImprovements,
   numRegressions,
 }: {
-  value: string;
+  value: number;
+  unit: string;
+  baselineValue: number;
   numImprovements: number;
   numRegressions: number;
 }) {
+  const valueText = `${value}${unit}`;
+  const delta = value - baselineValue;
+  const isImprovement = delta >= 0;
+  const deltaText = isImprovement ? `(+${delta}${unit})` : `(${delta}${unit})`;
   return (
     <Flex direction="row" justifyContent="space-between">
-      <Text size="M">{value}</Text>
+      <Flex direction="row" alignItems="center" gap="size-50">
+        <Text size="M">{valueText}</Text>
+        <Text size="S">{deltaText}</Text>
+      </Flex>
       <ImprovementAndRegressionCounter
         numImprovements={numImprovements}
         numRegressions={numRegressions}
