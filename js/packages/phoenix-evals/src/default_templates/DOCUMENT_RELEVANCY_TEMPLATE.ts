@@ -1,4 +1,4 @@
-export const RAG_RELEVANCY_TEMPLATE = `
+export const DOCUMENT_RELEVANCY_TEMPLATE = `
 You are comparing a reference text to a question and trying to determine if the reference text
 contains information relevant to answering the question. Here is the data:
 
@@ -6,7 +6,7 @@ contains information relevant to answering the question. Here is the data:
     ************
     [Question]: {{input}}
     ************
-    [Reference text]: {{output}}
+    [Document text]: {{documentText}}
     ************
     [END DATA]
 
@@ -19,7 +19,7 @@ and should not contain any text or characters aside from that word.
 "relevant" means the reference text contains an answer to the Question."""
 `;
 
-export const RAG_RELEVANCY_CHOICES = {
+export const DOCUMENT_RELEVANCY_CHOICES = {
   relevant: 1,
   unrelated: 0,
 };

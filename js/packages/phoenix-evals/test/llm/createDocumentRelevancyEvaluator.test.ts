@@ -1,9 +1,9 @@
 import { openai } from "@ai-sdk/openai";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createRagRelevancyEvaluator } from "../../src/llm/createRagRelevancyEvaluator";
+import { createDocumentRelevancyEvaluator } from "../../src/llm/createDocumentRelevancyEvaluator";
 import * as generateClassificationModule from "../../src/llm/generateClassification";
 
-describe("createRagRelevancyEvaluator", () => {
+describe("createDocumentRelevancyEvaluator", () => {
   beforeEach(() => {
     // Mock the OpenAI API key environment variable
     vi.stubEnv("OPENAI_API_KEY", "sk-dummy-test-key-12345");
@@ -17,14 +17,14 @@ describe("createRagRelevancyEvaluator", () => {
 
   const model = openai("gpt-4o-mini");
 
-  const customRagRelevancyTemplate = `
-    Custom template for RAG relevancy detection:
+  const customDocumentRelevancyTemplate = `
+    Custom template for document relevancy detection:
     Question: {{input}}
     Reference: {{reference}}
     Is the reference relevant to the question? Respond with "yes" or "no".
   `;
 
-  it("should create a RAG relevancy evaluator with default template and choices", async () => {
+  it("should create a document relevancy evaluator with default template and choices", async () => {
     // Mock the generateClassification function
     const mockGenerateClassification = vi
       .spyOn(generateClassificationModule, "generateClassification")
@@ -33,7 +33,7 @@ describe("createRagRelevancyEvaluator", () => {
         explanation: "The reference is relevant to the question",
       });
 
-    const evaluator = createRagRelevancyEvaluator({
+    const evaluator = createDocumentRelevancyEvaluator({
       model,
     });
 
@@ -69,9 +69,9 @@ describe("createRagRelevancyEvaluator", () => {
         explanation: "The reference is not relevant to the question",
       });
 
-    const evaluator = createRagRelevancyEvaluator({
+    const evaluator = createDocumentRelevancyEvaluator({
       model,
-      promptTemplate: customRagRelevancyTemplate,
+      promptTemplate: customDocumentRelevancyTemplate,
       choices: { yes: 0, no: 1 }, // Custom choices for custom template
     });
 
@@ -86,7 +86,7 @@ describe("createRagRelevancyEvaluator", () => {
       expect.objectContaining({
         labels: ["yes", "no"],
         prompt: expect.stringContaining(
-          "Custom template for RAG relevancy detection"
+          "Custom template for document relevancy detection"
         ),
       })
     );
@@ -107,7 +107,7 @@ describe("createRagRelevancyEvaluator", () => {
 
     const customChoices = { relevant: 0.8, unrelated: 0.2 };
 
-    const evaluator = createRagRelevancyEvaluator({
+    const evaluator = createDocumentRelevancyEvaluator({
       model,
       choices: customChoices,
     });
@@ -131,7 +131,7 @@ describe("createRagRelevancyEvaluator", () => {
         explanation: "This is a test explanation",
       });
 
-    const evaluator = createRagRelevancyEvaluator({
+    const evaluator = createDocumentRelevancyEvaluator({
       model,
       // Note: we're not explicitly setting telemetry options here
     });
@@ -159,7 +159,7 @@ describe("createRagRelevancyEvaluator", () => {
         explanation: "This is a test explanation",
       });
 
-    const evaluator = createRagRelevancyEvaluator({
+    const evaluator = createDocumentRelevancyEvaluator({
       model,
       telemetry: { isEnabled: false }, // Explicitly disable telemetry
     });
@@ -189,7 +189,7 @@ describe("createRagRelevancyEvaluator", () => {
 
     const customTracer = {} as import("@opentelemetry/api").Tracer; // Mock tracer object
 
-    const evaluator = createRagRelevancyEvaluator({
+    const evaluator = createDocumentRelevancyEvaluator({
       model,
       telemetry: {
         isEnabled: true,
@@ -223,7 +223,7 @@ describe("createRagRelevancyEvaluator", () => {
         explanation: "Template variables correctly interpolated",
       });
 
-    const evaluator = createRagRelevancyEvaluator({
+    const evaluator = createDocumentRelevancyEvaluator({
       model,
     });
 
