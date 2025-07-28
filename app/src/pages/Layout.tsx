@@ -12,7 +12,7 @@ import {
   NavButton,
   NavLink,
   SideNavbar,
-  SideNavToggle,
+  SideNavToggleButton,
   ThemeToggle,
   TopNavbar,
 } from "@phoenix/components/nav";
@@ -69,6 +69,7 @@ export function Layout() {
       <SideNav />
       <div css={mainViewCSS}>
         <TopNavbar>
+          <SideNavToggleButton />
           <NavBreadcrumb />
         </TopNavbar>
         <div data-testid="content" css={contentCSS}>
@@ -184,9 +185,6 @@ function SideNav() {
           </li>
           <li key="theme-toggle">
             <ThemeToggle isExpanded={isSideNavExpanded} />
-          </li>
-          <li key="side-nav-toggle">
-            <SideNavToggle isExpanded={isSideNavExpanded} />
           </li>
           {authenticationEnabled && (
             <>

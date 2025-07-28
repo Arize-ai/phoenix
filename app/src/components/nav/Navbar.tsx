@@ -11,19 +11,19 @@ import {
   TooltipTrigger,
 } from "@phoenix/components";
 import { GitHubStarCount } from "@phoenix/components/nav/GitHubStarCount";
-import { usePreferencesContext, useTheme, useViewer } from "@phoenix/contexts";
+import { useTheme, useViewer } from "@phoenix/contexts";
 
 import { Logo, LogoText } from "./Logo";
 
 const topNavCSS = css`
-  padding: var(--ac-global-dimension-static-size-200)
-    var(--ac-global-dimension-static-size-100);
+  padding: var(--ac-global-dimension-static-size-100);
   background-color: var(--ac-global-color-grey-100);
   flex: none;
   display: flex;
   flex-direction: row;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
+  gap: var(--ac-global-dimension-static-size-100);
 `;
 
 const sideNavCSS = css`
@@ -173,34 +173,6 @@ export function ThemeToggle({ isExpanded }: { isExpanded: boolean }) {
       </Pressable>
       <Tooltip placement="right" offset={10}>
         {isDark ? "Dark" : "Light"}
-      </Tooltip>
-    </TooltipTrigger>
-  );
-}
-
-export function SideNavToggle({ isExpanded }: { isExpanded: boolean }) {
-  const { isSideNavExpanded, setIsSideNavExpanded } = usePreferencesContext(
-    (state) => ({
-      isSideNavExpanded: state.isSideNavExpanded,
-      setIsSideNavExpanded: state.setIsSideNavExpanded,
-    })
-  );
-  return (
-    <TooltipTrigger delay={0} isDisabled={isExpanded}>
-      <Pressable>
-        <button
-          css={navLinkCSS}
-          onClick={() => setIsSideNavExpanded(!isSideNavExpanded)}
-          className="button--reset"
-        >
-          <Icon
-            svg={isSideNavExpanded ? <Icons.SlideOut /> : <Icons.SlideIn />}
-          />
-          <Text>{isSideNavExpanded ? "Collapse" : "Expand"}</Text>
-        </button>
-      </Pressable>
-      <Tooltip placement="right" offset={10}>
-        {isSideNavExpanded ? "Collapse" : "Expand"}
       </Tooltip>
     </TooltipTrigger>
   );
