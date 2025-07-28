@@ -217,10 +217,12 @@ export function NavLink(props: {
   return (
     <TooltipTrigger delay={0} isDisabled={props.isExpanded}>
       <Pressable>
-        <RRNavLink to={props.to} css={navLinkCSS} role="button">
-          {props.leadingVisual}
-          <Text>{props.text}</Text>
-        </RRNavLink>
+        <div role="button">
+          <RRNavLink to={props.to} css={navLinkCSS}>
+            {props.leadingVisual}
+            <Text>{props.text}</Text>
+          </RRNavLink>
+        </div>
       </Pressable>
       <Tooltip placement="right" offset={10}>
         {props.text}
