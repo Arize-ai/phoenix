@@ -44,13 +44,22 @@ export function ExperimentCompareMetricsPage() {
           <div css={metricCardCss}>
             <Flex direction="column" gap="size-200">
               <Heading level={2}>Latency</Heading>
-              <Flex direction="row" justifyContent="space-between">
-                <Text>520ms</Text>
-                <ImprovementAndRegressionCounter
-                  numImprovements={10}
-                  numRegressions={5}
-                />
-              </Flex>
+              <BaseExperimentMetric value="520ms" />
+              <CompareExperimentMetric
+                value="620ms"
+                numImprovements={10}
+                numRegressions={5}
+              />
+              <CompareExperimentMetric
+                value="420ms"
+                numImprovements={0}
+                numRegressions={10}
+              />
+              <CompareExperimentMetric
+                value="320ms"
+                numImprovements={10}
+                numRegressions={0}
+              />
             </Flex>
           </div>
         </li>
@@ -112,6 +121,34 @@ export function ExperimentCompareMetricsPage() {
         </li>
       </ul>
     </View>
+  );
+}
+
+function BaseExperimentMetric({ value }: { value: string }) {
+  return (
+    <Flex direction="row" justifyContent="space-between">
+      <Text size="M">{value}</Text>
+    </Flex>
+  );
+}
+
+function CompareExperimentMetric({
+  value,
+  numImprovements,
+  numRegressions,
+}: {
+  value: string;
+  numImprovements: number;
+  numRegressions: number;
+}) {
+  return (
+    <Flex direction="row" justifyContent="space-between">
+      <Text size="M">{value}</Text>
+      <ImprovementAndRegressionCounter
+        numImprovements={numImprovements}
+        numRegressions={numRegressions}
+      />
+    </Flex>
   );
 }
 
