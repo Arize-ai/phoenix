@@ -36,15 +36,15 @@ class TestGenerateClassificationSchema:
         "labels,expected_one_of",
         [
             (
-                [{"name": "yes"}, {"name": "no"}],
+                {"yes": "", "no": ""},
                 [{"const": "yes"}, {"const": "no"}],
             ),
             (
-                [
-                    {"name": "positive", "description": "Positive sentiment"},
-                    {"name": "negative", "description": "Negative sentiment"},
-                    {"name": "neutral", "description": "Neutral sentiment"},
-                ],
+                {
+                    "positive": "Positive sentiment",
+                    "negative": "Negative sentiment",
+                    "neutral": "Neutral sentiment",
+                },
                 [
                     {"const": "positive", "description": "Positive sentiment"},
                     {"const": "negative", "description": "Negative sentiment"},
@@ -52,13 +52,13 @@ class TestGenerateClassificationSchema:
                 ],
             ),
             (
-                [{"name": "single"}],
+                {"single": ""},
                 [{"const": "single"}],
             ),
         ],
     )
     def test_dict_labels_generate_one_of_schema(
-        self, labels: List[Dict[str, str]], expected_one_of: List[Dict[str, str]]
+        self, labels: Dict[str, str], expected_one_of: List[Dict[str, str]]
     ):
         """Test that dict labels generate proper oneOf schema."""
         schema = generate_classification_schema(labels)
@@ -168,7 +168,7 @@ class TestGenerateClassificationSchema:
                 },
             ),
             (
-                [{"name": "yes"}, {"name": "no"}],
+                {"yes": "Positive response", "no": "Negative response"},
                 "Test description",
                 False,
                 {
@@ -177,7 +177,10 @@ class TestGenerateClassificationSchema:
                         "label": {
                             "type": "string",
                             "description": "Test description",
-                            "oneOf": [{"const": "yes"}, {"const": "no"}],
+                            "oneOf": [
+                                {"const": "yes", "description": "Positive response"},
+                                {"const": "no", "description": "Negative response"},
+                            ],
                         },
                     },
                     "required": ["label"],
@@ -187,7 +190,7 @@ class TestGenerateClassificationSchema:
     )
     def test_complete_schema_generation(
         self,
-        labels: List[Union[Dict[str, str], str]],
+        labels: Union[List[str], Dict[str, str]],
         description: str,
         include_explanation: bool,
         expected_schema: Dict[str, Any],
@@ -199,20 +202,16 @@ class TestGenerateClassificationSchema:
     @pytest.mark.parametrize(
         "invalid_labels,expected_error",
         [
-            (None, "Labels must be a non-empty list."),
-            ("not a list", "Labels must be a non-empty list."),
-            ([], "Labels must be a non-empty list."),
-            ([1, 2, 3], "Labels must be a list of dicts or a list of strings."),
-            (["yes", 123], "Labels must be a list of dicts or a list of strings."),
+            (None, "Labels must be a non-empty list or dictionary."),
+            ("not a list", "Labels must be a list of strings or a dictionary."),
+            ([], "Labels must be a non-empty list or dictionary."),
+            ({}, "Labels must be a non-empty list or dictionary."),
+            ([1, 2, 3], "Labels must be a list of strings or a dictionary."),
+            (["yes", 123], "Labels must be a list of strings or a dictionary."),
             (
-                [{"name": "yes"}, "no"],
-                "Labels must be a list of dicts or a list of strings.",
+                {"yes": "Positive", 123: "Invalid"},
+                "Labels must be a list of strings or a dictionary.",
             ),
-            (
-                [{"name": "yes"}, {"invalid": "no"}],
-                "Each label must have a 'name' key.",
-            ),
-            ([{"name": "yes"}, {}], "Each label must have a 'name' key."),
         ],
     )
     def test_invalid_inputs_raise_errors(self, invalid_labels: Any, expected_error: str):
@@ -222,11 +221,11 @@ class TestGenerateClassificationSchema:
 
     def test_dict_labels_with_optional_description(self):
         """Test that dict labels with optional description field work correctly."""
-        labels = [
-            {"name": "yes", "description": "Positive response"},
-            {"name": "no"},  # No description
-            {"name": "maybe", "description": "Uncertain response"},
-        ]
+        labels = {
+            "yes": "Positive response",
+            "no": "",  # Empty description
+            "maybe": "Uncertain response",
+        }
 
         schema = generate_classification_schema(labels)
         label_schema = schema["properties"]["label"]

@@ -258,7 +258,7 @@ def show_provider_availability() -> None:
 
 
 def generate_classification_schema(
-    labels: List[Union[Dict[str, str], str]],
+    labels: Union[List[str], Dict[str, str]],
     include_explanation: bool = True,
     description: Optional[str] = None,
 ) -> Dict[str, Any]:
@@ -267,12 +267,9 @@ def generate_classification_schema(
     a single criterion.
 
     Args:
-        labels (list of dict or str): A list of labels OR a dictionary of labels and their
-            descriptions.
-            If list of strings, each string is a label.
-            If list of dicts, each dict represents a label and may contain:
-                - 'name' (str): the label's constant value (required)
-                - 'description' (str): a description for the label (optional)
+        labels (Union[List[str], Dict[str, str]]): Either:
+            - A list of strings, where each string is a label
+            - A dictionary where keys are labels and values are descriptions
         include_explanation (bool): Whether to include an explanation field in the schema.
         description (str): A description of the classification task.
     Returns:
@@ -281,17 +278,18 @@ def generate_classification_schema(
 
     # Validate labels
     if not labels:
-        raise ValueError("Labels must be a non-empty list.")
-    if not isinstance(labels, list):
-        raise ValueError("Labels must be a non-empty list.")
+        raise ValueError("Labels must be a non-empty list or dictionary.")
 
     # Determine label type and validate consistency
-    if all(isinstance(label, dict) for label in labels):
+    if isinstance(labels, dict):
+        # Validate that all keys are strings
+        if not all(isinstance(key, str) for key in labels.keys()):
+            raise ValueError("Labels must be a list of strings or a dictionary.")
         is_str_labels = False
-    elif all(isinstance(label, str) for label in labels):
+    elif isinstance(labels, list) and all(isinstance(label, str) for label in labels):
         is_str_labels = True
     else:
-        raise ValueError("Labels must be a list of dicts or a list of strings.")
+        raise ValueError("Labels must be a list of strings or a dictionary.")
 
     # Build label schema base
     label_schema: Dict[str, Any] = {"type": "string"}
@@ -304,17 +302,15 @@ def generate_classification_schema(
         str_labels: List[str] = [label for label in labels if isinstance(label, str)]
         label_schema["enum"] = str_labels
     else:
-        # Cast to List[Dict[str, str]] since we've validated all labels are dicts
-        dict_labels: List[Dict[str, str]] = [label for label in labels if isinstance(label, dict)]
-        one_of_list: List[Dict[str, str]] = []
-        for label in dict_labels:
-            if "name" not in label:
-                raise ValueError("Each label must have a 'name' key.")
-            entry = {"const": label["name"]}
-            if "description" in label:
-                entry["description"] = label["description"]
-            one_of_list.append(entry)
-        label_schema["oneOf"] = one_of_list
+        # Handle dictionary input
+        if isinstance(labels, dict):
+            one_of_list: List[Dict[str, str]] = []
+            for label_name, label_description in labels.items():
+                entry = {"const": label_name}
+                if label_description:
+                    entry["description"] = label_description
+                one_of_list.append(entry)
+            label_schema["oneOf"] = one_of_list
 
     # Build final schema
     properties: Dict[str, Any] = {}
