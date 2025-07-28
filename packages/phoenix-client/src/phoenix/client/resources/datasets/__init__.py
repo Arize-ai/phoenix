@@ -110,7 +110,7 @@ class Dataset:
     def example_count(self) -> int:
         """Number of examples in this version."""
         if "example_count" in self._dataset_info:
-            return self._dataset_info["example_count"]  # type: ignore[no-any-return,typeddict-item]
+            return self._dataset_info["example_count"]
         return len(self.examples)
 
     def __repr__(self) -> str:
@@ -578,7 +578,7 @@ class Datasets:
             ...     next_response = client.datasets.paginate(cursor=response["next_cursor"])
             ...     next_datasets = next_response["data"]
         """  # noqa: E501
-        params = {}
+        params: dict[str, Any] = {}
         if limit is not None:
             params["limit"] = limit
         if cursor is not None:
@@ -644,7 +644,7 @@ class Datasets:
             >>> limited_datasets = client.datasets.list(limit=10)
             >>> print(f"Found {len(limited_datasets)} datasets (limited to 10)")
         """  # noqa: E501
-        all_datasets = []
+        all_datasets: list[v1.Dataset] = []
         cursor = None
 
         while True:
@@ -1294,7 +1294,7 @@ class AsyncDatasets:
             ...     next_response = await client.datasets.paginate(cursor=response["next_cursor"])
             ...     next_datasets = next_response["data"]
         """  # noqa: E501
-        params = {}
+        params: dict[str, Any] = {}
         if limit is not None:
             params["limit"] = limit
         if cursor is not None:
@@ -1362,7 +1362,7 @@ class AsyncDatasets:
             >>> limited_datasets = await client.datasets.list(limit=10)
             >>> print(f"Found {len(limited_datasets)} datasets (limited to 10)")
         """  # noqa: E501
-        all_datasets = []
+        all_datasets: list[v1.Dataset] = []
         cursor = None
 
         while True:
