@@ -80,7 +80,28 @@ export function ExperimentCompareMetricsPage() {
           `}
         >
           <div css={metricCardCss}>
-            <Heading level={2}>Prompt Tokens</Heading>
+            <Flex direction="column" gap="size-200">
+              <Heading level={2}>Prompt Tokens</Heading>
+              <BaseExperimentMetric value={1000} />
+              <CompareExperimentMetric
+                value={1100}
+                baselineValue={1000}
+                numImprovements={10}
+                numRegressions={5}
+              />
+              <CompareExperimentMetric
+                value={900}
+                baselineValue={1000}
+                numImprovements={0}
+                numRegressions={10}
+              />
+              <CompareExperimentMetric
+                value={1200}
+                baselineValue={1000}
+                numImprovements={10}
+                numRegressions={0}
+              />
+            </Flex>
           </div>
         </li>
         <li
@@ -135,14 +156,10 @@ function BaseExperimentMetric({
   unit,
 }: {
   value: number;
-  unit: string;
+  unit?: string;
 }) {
-  const valueText = `${value}${unit}`;
-  return (
-    <Flex direction="row" justifyContent="space-between">
-      <Text size="M">{valueText}</Text>
-    </Flex>
-  );
+  const valueText = unit ? `${value}${unit}` : `${value}`;
+  return <Text size="M">{valueText}</Text>;
 }
 
 function CompareExperimentMetric({
@@ -153,15 +170,15 @@ function CompareExperimentMetric({
   numRegressions,
 }: {
   value: number;
-  unit: string;
+  unit?: string;
   baselineValue: number;
   numImprovements: number;
   numRegressions: number;
 }) {
-  const valueText = `${value}${unit}`;
+  const valueText = unit ? `${value}${unit}` : `${value}`;
   const delta = value - baselineValue;
   const isImprovement = delta >= 0;
-  const deltaText = isImprovement ? `(+${delta}${unit})` : `(${delta}${unit})`;
+  const deltaText = `(${isImprovement ? "+" : "-"}${Math.abs(delta)}${unit ?? ""})`;
   const percentageDelta = Math.abs((delta / baselineValue) * 100);
   const percentageDeltaText = `${isImprovement ? "+" : "-"}${percentageDelta.toFixed(0)}%`;
   return (
