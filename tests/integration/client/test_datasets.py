@@ -9,7 +9,7 @@ import pytest
 from phoenix.client.resources.datasets import Dataset
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
-from .._helpers import _ADMIN, _MEMBER, _AppInfo, _await_or_return, _GetUser
+from .._helpers import _ADMIN, _MEMBER, _AppInfo, _await_or_return, _GetUser, _gql
 
 
 class TestDatasetIntegration:
@@ -733,13 +733,21 @@ Who wrote Hamlet?,Shakespeare,literature
             dataset = await _await_or_return(
                 Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                     name=name,
-                    inputs=[{"text": f"test input for {name}"}],
-                    outputs=[{"result": f"test output for {name}"}],
-                    metadata=[{"index": i}],
+                    inputs=[{"text": f"test input for {name}"}, {}],
+                    outputs=[{"result": f"test output for {name}"}, {}],
+                    metadata=[{"index": i}, {}],
                     dataset_description=f"Test dataset {name}",
                 )
             )
             created_datasets.append(dataset)
+            # Use GraphQL to delete second example
+            _gql(
+                _app,
+                _app.admin_secret,
+                query="mutation($input:DeleteDatasetExamplesInput!){"
+                "deleteDatasetExamples(input:$input){dataset{id}}}",
+                variables={"input": {"exampleIds": [dataset.examples[1]["id"]]}},
+            )
 
         # Test 1: Basic list functionality (get all datasets with counts)
         all_datasets = await _await_or_return(
