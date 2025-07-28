@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import uuid
 from pathlib import Path
+from secrets import token_hex
 from typing import Any
 
 import pandas as pd
 import pytest
+from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
@@ -716,7 +718,24 @@ Who wrote Hamlet?,Shakespeare,literature
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        """Test comprehensive list() and paginate() functionality for datasets."""
+        """
+        Test comprehensive list() and paginate() functionality for datasets.
+
+        This test creates datasets with different example counts and verifies the list/paginate APIs:
+
+        **Setup:**
+        - Creates 5 datasets with 2 examples each, then deletes 1 example via GraphQL (resulting in 1 example each)
+        - Creates 3 datasets with 3 examples each, then deletes all examples via GraphQL (resulting in 0 examples each)
+
+        **Test Coverage:**
+        - list() method with and without example_count parameter
+        - paginate() method with various limits and cursor-based pagination
+        - Verifying dataset structure and metadata fields
+        - Accurate example_count reporting for datasets with 0 and 1 examples
+        - GraphQL example deletion functionality
+        - Consistency between list/paginate and get_dataset APIs
+        - Type safety with proper v1.Dataset annotations
+        """  # noqa: E501
         user = _get_user(_app, role_or_user).log_in(_app)
         api_key = str(user.create_api_key(_app))
 
@@ -725,10 +744,19 @@ Who wrote Hamlet?,Shakespeare,literature
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
-        # Create multiple test datasets for comprehensive testing
-        dataset_names = [f"test_list_{i}_{uuid.uuid4().hex[:8]}" for i in range(5)]
+        # ===== SETUP PHASE: Create test datasets with different example counts =====
 
+        # Create multiple test datasets for comprehensive testing
+        dataset_names = [f"test_list_{i}_{token_hex(4)}" for i in range(5)]
+
+        query = (
+            "mutation($input:DeleteDatasetExamplesInput!){"
+            "deleteDatasetExamples(input:$input){dataset{id}}}"
+        )
+
+        # Part 1: Create datasets with 2 examples, then delete 1 to end up with 1 example each
         created_datasets: list[Dataset] = []
+        test_list_datasets_by_name: dict[str, Dataset] = {}
         for i, name in enumerate(dataset_names):
             dataset = await _await_or_return(
                 Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
@@ -740,17 +768,45 @@ Who wrote Hamlet?,Shakespeare,literature
                 )
             )
             created_datasets.append(dataset)
+            test_list_datasets_by_name[name] = dataset
             # Use GraphQL to delete second example
             _gql(
                 _app,
                 _app.admin_secret,
-                query="mutation($input:DeleteDatasetExamplesInput!){"
-                "deleteDatasetExamples(input:$input){dataset{id}}}",
+                query=query,
                 variables={"input": {"exampleIds": [dataset.examples[1]["id"]]}},
             )
 
+        # Part 2: Create datasets with 3 examples, then delete all to end up with 0 examples each
+        zero_example_dataset_names = [f"test_zero_{i}_{token_hex(4)}" for i in range(3)]
+        zero_example_datasets_by_name: dict[str, Dataset] = {}
+        for i, name in enumerate(zero_example_dataset_names):
+            dataset = await _await_or_return(
+                Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                    name=name,
+                    inputs=[{}, {}, {}],
+                    outputs=[{}, {}, {}],
+                    metadata=[{}, {}, {}],
+                    dataset_description=f"Dataset to be emptied {name}",
+                )
+            )
+
+            # Store in dictionary for precise identification
+            zero_example_datasets_by_name[name] = dataset
+
+            # Delete ALL examples from this dataset using GraphQL
+            all_example_ids = [example["id"] for example in dataset.examples]
+            _gql(
+                _app,
+                _app.admin_secret,
+                query=query,
+                variables={"input": {"exampleIds": all_example_ids}},
+            )
+
+        # ===== TESTING PHASE: Verify list() and paginate() functionality =====
+
         # Test 1: Basic list functionality (get all datasets with counts)
-        all_datasets = await _await_or_return(
+        all_datasets: list[v1.Dataset] = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.list(
                 include_example_count=True
             )
@@ -758,14 +814,15 @@ Who wrote Hamlet?,Shakespeare,literature
 
         # Verify we got a list of all datasets
         assert isinstance(all_datasets, list)
-        assert len(all_datasets) >= len(created_datasets)
+        total_created_datasets = len(created_datasets) + len(zero_example_datasets_by_name)
+        assert len(all_datasets) >= total_created_datasets
 
         # Check that our created datasets are in the list
         dataset_ids = {d["id"] for d in all_datasets}
         for created_dataset in created_datasets:
             assert created_dataset.id in dataset_ids
 
-            # Test 2: Verify structure of returned datasets
+        # Test 2: Verify structure of returned datasets
         for dataset_dict in all_datasets:
             assert "id" in dataset_dict
             assert "name" in dataset_dict
@@ -780,12 +837,52 @@ Who wrote Hamlet?,Shakespeare,literature
             assert dataset_dict["example_count"] >= 0  # Should be non-negative
 
             # For our test datasets with counts enabled, verify expected example counts
-            if dataset_dict["name"].startswith("test_list_"):
+            if dataset_dict["name"] in test_list_datasets_by_name:
                 assert "example_count" in dataset_dict
-                assert dataset_dict["example_count"] == 1
+                example_count = dataset_dict.get("example_count")
+                assert example_count is not None and example_count == 1
+
+            # For our zero-example datasets, verify they have zero examples
+            if dataset_dict["name"] in zero_example_datasets_by_name:
+                assert "example_count" in dataset_dict
+                example_count = dataset_dict.get("example_count")
+                assert (
+                    example_count is not None and example_count == 0
+                ), f"Dataset {dataset_dict['name']} should have 0 examples but has {example_count}"  # noqa: E501
+
+        # Create lookup dictionary for efficient dataset retrieval by name
+        datasets_by_name: dict[str, v1.Dataset] = {d["name"]: d for d in all_datasets}
+
+        # Test 2b: Specifically verify all zero-example datasets from our dictionary
+        for zero_dataset_name, zero_dataset_obj in zero_example_datasets_by_name.items():
+            assert (
+                zero_dataset_name in datasets_by_name
+            ), f"Zero-example dataset {zero_dataset_name} not found in list"
+            listed_dataset = datasets_by_name[zero_dataset_name]
+            assert (
+                listed_dataset["id"] == zero_dataset_obj.id
+            ), f"ID mismatch for {zero_dataset_name}"
+            example_count = listed_dataset.get("example_count")
+            assert (
+                example_count is not None and example_count == 0
+            ), f"Dataset {zero_dataset_name} should have 0 examples but has {example_count}"  # noqa: E501
+
+        # Test 2c: Specifically verify all test_list_ datasets from our dictionary
+        for test_dataset_name, test_dataset_obj in test_list_datasets_by_name.items():
+            assert (
+                test_dataset_name in datasets_by_name
+            ), f"Test list dataset {test_dataset_name} not found in list"
+            listed_dataset = datasets_by_name[test_dataset_name]
+            assert (
+                listed_dataset["id"] == test_dataset_obj.id
+            ), f"ID mismatch for {test_dataset_name}"
+            example_count = listed_dataset.get("example_count")
+            assert (
+                example_count is not None and example_count == 1
+            ), f"Dataset {test_dataset_name} should have 1 example but has {example_count}"  # noqa: E501
 
         # Test 2a: Test without counts (faster, no example_count field)
-        all_datasets_no_counts = await _await_or_return(
+        all_datasets_no_counts: list[v1.Dataset] = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.list()
         )
 
@@ -799,7 +896,7 @@ Who wrote Hamlet?,Shakespeare,literature
             assert "updated_at" in dataset_dict
 
             # example_count should be None when include_example_count=False
-            assert dataset_dict.get("example_count") is None
+            assert "example_count" not in dataset_dict
 
         # Test 3: Test pagination with different limit values
         # Test with limit=2 and counts
@@ -838,6 +935,8 @@ Who wrote Hamlet?,Shakespeare,literature
         default_dataset_names = {d["name"] for d in default_datasets}
         for name in dataset_names:
             assert name in default_dataset_names
+        for name in zero_example_dataset_names:
+            assert name in default_dataset_names
 
         # Test 5: Test cursor-based pagination functionality
         # Test cursor-based pagination if we have a next_cursor
@@ -851,33 +950,7 @@ Who wrote Hamlet?,Shakespeare,literature
             assert "data" in next_page_response
             assert "next_cursor" in next_page_response
 
-            # Test 6: Test list method (get all datasets with counts)
-        all_datasets_list = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.list(
-                include_example_count=True
-            )
-        )
-        assert isinstance(all_datasets_list, list)
-        assert len(all_datasets_list) >= len(created_datasets)
-
-        # Test 6a: Verify example_count for both types of datasets in list_all results
-        for dataset_dict in all_datasets_list:
-            if dataset_dict["name"].startswith("test_list_"):
-                assert "example_count" in dataset_dict
-                assert dataset_dict["example_count"] == 1
-
-        # Test 6b: Test list method without counts (faster)
-        all_datasets_no_counts_list = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.list()
-        )
-        assert isinstance(all_datasets_no_counts_list, list)
-        assert len(all_datasets_no_counts_list) >= len(created_datasets)
-
-        # Verify no example_count when include_example_count=False
-        for dataset_dict in all_datasets_no_counts_list:
-            assert "example_count" not in dataset_dict
-
-        # Test 7: Test list method with limit parameter
+        # Test 6: Test list method with limit parameter
         # Test with small limit
         limited_list_3 = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.list(limit=3)
@@ -891,7 +964,7 @@ Who wrote Hamlet?,Shakespeare,literature
         )
         assert isinstance(large_limit_list, list)
         # Should not exceed the actual number of datasets
-        assert len(large_limit_list) <= len(all_datasets_list)
+        assert len(large_limit_list) <= len(all_datasets)
 
         # Test with limit=1
         single_list = await _await_or_return(
@@ -900,17 +973,14 @@ Who wrote Hamlet?,Shakespeare,literature
         assert isinstance(single_list, list)
         assert len(single_list) == 1
 
-        # Test 8: Consistency with get_dataset
+        # Test 7: Consistency with get_dataset
         test_dataset: Any = created_datasets[0]  # Use first created dataset
 
-        # Find our test dataset in the list using all_datasets from test 1
-        test_dataset_from_list = None
-        for d in all_datasets:
-            if d["id"] == test_dataset.id:
-                test_dataset_from_list = d
-                break
-
-        assert test_dataset_from_list is not None
+        # Find our test dataset in the list using datasets_by_name lookup
+        test_dataset_from_list = datasets_by_name.get(test_dataset.name)
+        assert (
+            test_dataset_from_list is not None
+        ), f"Test dataset {test_dataset.name} not found in list"
 
         # Get the same dataset individually
         individual_dataset = await _await_or_return(
