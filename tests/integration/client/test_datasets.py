@@ -6,6 +6,7 @@ from typing import Any
 
 import pandas as pd
 import pytest
+from phoenix.client.resources.datasets import Dataset
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
 from .._helpers import _ADMIN, _MEMBER, _AppInfo, _await_or_return, _GetUser
@@ -705,3 +706,215 @@ Who wrote Hamlet?,Shakespeare,literature
         invalid_json = {"id": "test", "name": "test"}
         with pytest.raises(ValueError, match="Missing required fields"):
             Dataset.from_dict(invalid_json)
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    async def test_list_and_paginate_datasets(
+        self,
+        is_async: bool,
+        role_or_user: UserRoleInput,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Test comprehensive list() and paginate() functionality for datasets."""
+        user = _get_user(_app, role_or_user).log_in(_app)
+        api_key = str(user.create_api_key(_app))
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        # Create multiple test datasets for comprehensive testing
+        dataset_names = [f"test_list_{i}_{uuid.uuid4().hex[:8]}" for i in range(5)]
+
+        created_datasets: list[Dataset] = []
+        for i, name in enumerate(dataset_names):
+            dataset = await _await_or_return(
+                Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                    name=name,
+                    inputs=[{"text": f"test input for {name}"}],
+                    outputs=[{"result": f"test output for {name}"}],
+                    metadata=[{"index": i}],
+                    dataset_description=f"Test dataset {name}",
+                )
+            )
+            created_datasets.append(dataset)
+
+        # Test 1: Basic list functionality (get all datasets with counts)
+        all_datasets = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.list(
+                include_example_count=True
+            )
+        )
+
+        # Verify we got a list of all datasets
+        assert isinstance(all_datasets, list)
+        assert len(all_datasets) >= len(created_datasets)
+
+        # Check that our created datasets are in the list
+        dataset_ids = {d["id"] for d in all_datasets}
+        for created_dataset in created_datasets:
+            assert created_dataset.id in dataset_ids
+
+            # Test 2: Verify structure of returned datasets
+        for dataset_dict in all_datasets:
+            assert "id" in dataset_dict
+            assert "name" in dataset_dict
+            assert "description" in dataset_dict or dataset_dict.get("description") is None
+            assert "metadata" in dataset_dict
+            assert "created_at" in dataset_dict
+            assert "updated_at" in dataset_dict
+            assert "example_count" in dataset_dict
+
+            # Verify example_count is an integer
+            assert isinstance(dataset_dict["example_count"], int)
+            assert dataset_dict["example_count"] >= 0  # Should be non-negative
+
+            # For our test datasets with counts enabled, verify expected example counts
+            if dataset_dict["name"].startswith("test_list_"):
+                assert "example_count" in dataset_dict
+                assert dataset_dict["example_count"] == 1
+
+        # Test 2a: Test without counts (faster, no example_count field)
+        all_datasets_no_counts = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.list()
+        )
+
+        # Verify structure without counts
+        for dataset_dict in all_datasets_no_counts:
+            assert "id" in dataset_dict
+            assert "name" in dataset_dict
+            assert "description" in dataset_dict or dataset_dict.get("description") is None
+            assert "metadata" in dataset_dict
+            assert "created_at" in dataset_dict
+            assert "updated_at" in dataset_dict
+
+            # example_count should be None when include_example_count=False
+            assert dataset_dict.get("example_count") is None
+
+        # Test 3: Test pagination with different limit values
+        # Test with limit=2 and counts
+        limited_response = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.paginate(
+                limit=2, include_example_count=True
+            )
+        )
+        assert isinstance(limited_response, dict)
+        assert len(limited_response["data"]) == 2
+
+        # Test with limit=1
+        single_response = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.paginate(limit=1)
+        )
+        assert isinstance(single_response, dict)
+        assert len(single_response["data"]) == 1
+
+        # Test with larger limit
+        large_limit_response = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.paginate(limit=100)
+        )
+        assert isinstance(large_limit_response, dict)
+        assert len(large_limit_response["data"]) >= len(dataset_names)
+
+        # Test 4: Test default pagination parameters
+        default_response = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.paginate()
+        )
+        assert isinstance(default_response, dict)
+        default_datasets = default_response["data"]
+        # Should not exceed the default limit (100) unless there are really many datasets
+        assert len(default_datasets) <= 100
+
+        # Verify at least our test datasets are included
+        default_dataset_names = {d["name"] for d in default_datasets}
+        for name in dataset_names:
+            assert name in default_dataset_names
+
+        # Test 5: Test cursor-based pagination functionality
+        # Test cursor-based pagination if we have a next_cursor
+        if limited_response["next_cursor"]:
+            next_page_response = await _await_or_return(
+                Client(base_url=_app.base_url, api_key=api_key).datasets.paginate(
+                    cursor=limited_response["next_cursor"], limit=2
+                )
+            )
+            assert isinstance(next_page_response, dict)
+            assert "data" in next_page_response
+            assert "next_cursor" in next_page_response
+
+            # Test 6: Test list method (get all datasets with counts)
+        all_datasets_list = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.list(
+                include_example_count=True
+            )
+        )
+        assert isinstance(all_datasets_list, list)
+        assert len(all_datasets_list) >= len(created_datasets)
+
+        # Test 6a: Verify example_count for both types of datasets in list_all results
+        for dataset_dict in all_datasets_list:
+            if dataset_dict["name"].startswith("test_list_"):
+                assert "example_count" in dataset_dict
+                assert dataset_dict["example_count"] == 1
+
+        # Test 6b: Test list method without counts (faster)
+        all_datasets_no_counts_list = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.list()
+        )
+        assert isinstance(all_datasets_no_counts_list, list)
+        assert len(all_datasets_no_counts_list) >= len(created_datasets)
+
+        # Verify no example_count when include_example_count=False
+        for dataset_dict in all_datasets_no_counts_list:
+            assert "example_count" not in dataset_dict
+
+        # Test 7: Test list method with limit parameter
+        # Test with small limit
+        limited_list_3 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.list(limit=3)
+        )
+        assert isinstance(limited_list_3, list)
+        assert len(limited_list_3) == 3
+
+        # Test with limit larger than available datasets
+        large_limit_list = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.list(limit=1000)
+        )
+        assert isinstance(large_limit_list, list)
+        # Should not exceed the actual number of datasets
+        assert len(large_limit_list) <= len(all_datasets_list)
+
+        # Test with limit=1
+        single_list = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.list(limit=1)
+        )
+        assert isinstance(single_list, list)
+        assert len(single_list) == 1
+
+        # Test 8: Consistency with get_dataset
+        test_dataset: Any = created_datasets[0]  # Use first created dataset
+
+        # Find our test dataset in the list using all_datasets from test 1
+        test_dataset_from_list = None
+        for d in all_datasets:
+            if d["id"] == test_dataset.id:
+                test_dataset_from_list = d
+                break
+
+        assert test_dataset_from_list is not None
+
+        # Get the same dataset individually
+        individual_dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                dataset=test_dataset.id
+            )
+        )
+
+        # Compare key fields (list/paginate don't include examples)
+        assert test_dataset_from_list["id"] == individual_dataset.id
+        assert test_dataset_from_list["name"] == individual_dataset.name
+        assert test_dataset_from_list["description"] == individual_dataset.description
+        assert test_dataset_from_list["metadata"] == individual_dataset.metadata
+        # Note: created_at and updated_at might have slight differences in precision
+        # so we just verify they exist and are datetime objects
