@@ -280,10 +280,9 @@ def generate_classification_schema(
     """
 
     # Validate labels
-    if not isinstance(labels, list):
-        raise ValueError("Labels must be a list.")
-
     if not labels:
+        raise ValueError("Labels must be a non-empty list.")
+    if not isinstance(labels, list):
         raise ValueError("Labels must be a non-empty list.")
 
     # Determine label type and validate consistency
