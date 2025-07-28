@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 
 import { Flex, Heading, Icon, Icons, Text, View } from "@phoenix/components";
+import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 
 const metricCardCss = css`
   padding: var(--ac-global-dimension-size-200);
@@ -44,24 +45,21 @@ export function ExperimentCompareMetricsPage() {
           <div css={metricCardCss}>
             <Flex direction="column" gap="size-200">
               <Heading level={2}>Latency</Heading>
-              <BaseExperimentMetric value={520} unit="ms" />
+              <BaseExperimentMetric value={520} />
               <CompareExperimentMetric
                 value={620}
-                unit="ms"
                 baselineValue={520}
                 numImprovements={10}
                 numRegressions={5}
               />
               <CompareExperimentMetric
                 value={420}
-                unit="ms"
                 baselineValue={520}
                 numImprovements={0}
                 numRegressions={10}
               />
               <CompareExperimentMetric
                 value={320}
-                unit="ms"
                 baselineValue={520}
                 numImprovements={10}
                 numRegressions={0}
@@ -185,7 +183,31 @@ export function ExperimentCompareMetricsPage() {
           `}
         >
           <div css={metricCardCss}>
-            <Heading level={2}>Cost</Heading>
+            <Flex direction="column" gap="size-200">
+              <Heading level={2}>Cost</Heading>
+              <BaseExperimentMetric value={1000} formatter={costFormatter} />
+              <CompareExperimentMetric
+                value={1100.01}
+                formatter={costFormatter}
+                baselineValue={1000}
+                numImprovements={10}
+                numRegressions={5}
+              />
+              <CompareExperimentMetric
+                value={900}
+                formatter={costFormatter}
+                baselineValue={1000}
+                numImprovements={0}
+                numRegressions={10}
+              />
+              <CompareExperimentMetric
+                value={1200}
+                formatter={costFormatter}
+                baselineValue={1000}
+                numImprovements={10}
+                numRegressions={0}
+              />
+            </Flex>
           </div>
         </li>
       </ul>
@@ -195,32 +217,33 @@ export function ExperimentCompareMetricsPage() {
 
 function BaseExperimentMetric({
   value,
-  unit,
+  formatter,
 }: {
   value: number;
-  unit?: string;
+  formatter?: (value: number) => string;
 }) {
-  const valueText = unit ? `${value}${unit}` : `${value}`;
+  const valueText = formatter ? formatter(value) : value;
   return <Text size="M">{valueText}</Text>;
 }
 
 function CompareExperimentMetric({
   value,
-  unit,
+  formatter,
   baselineValue,
   numImprovements,
   numRegressions,
 }: {
   value: number;
-  unit?: string;
+  formatter?: (value: number) => string;
   baselineValue: number;
   numImprovements: number;
   numRegressions: number;
 }) {
-  const valueText = unit ? `${value}${unit}` : `${value}`;
+  const valueText = formatter ? formatter(value) : value;
   const delta = value - baselineValue;
   const isImprovement = delta >= 0;
-  const deltaText = `(${isImprovement ? "+" : "-"}${Math.abs(delta)}${unit ?? ""})`;
+  const absoluteDelta = Math.abs(delta);
+  const deltaText = `(${isImprovement ? "+" : "-"}${formatter ? formatter(absoluteDelta) : absoluteDelta})`;
   const percentageDelta = Math.abs((delta / baselineValue) * 100);
   const percentageDeltaText = `${isImprovement ? "+" : "-"}${percentageDelta.toFixed(0)}%`;
   return (
