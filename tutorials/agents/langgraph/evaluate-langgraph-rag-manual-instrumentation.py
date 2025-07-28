@@ -68,8 +68,7 @@ def setup_environment():
         use_hosted = input("Use hosted Phoenix? (y/n): ").lower().strip() == "y"
         if use_hosted:
             _set_env("PHOENIX_API_KEY")
-            os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
-            os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={os.getenv('PHOENIX_API_KEY')}"
+            _set_env("PHOENIX_COLLECTOR_ENDPOINT")
 
 
 # Global tracer (will be initialized in main)
