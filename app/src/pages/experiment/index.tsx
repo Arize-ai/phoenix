@@ -1,2 +1,2 @@
 export * from "./ExperimentComparePage";
-export * from "./experimentCompareGridLoader";
+export * from "./experimentCompareLoader";

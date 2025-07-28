@@ -4,19 +4,24 @@ import invariant from "tiny-invariant";
 
 import { Alert, Loading, View } from "@phoenix/components";
 
-import { experimentCompareGridLoader } from "./experimentCompareGridLoader";
+import { experimentCompareLoader } from "./experimentCompareLoader";
 import { ExperimentCompareTable } from "./ExperimentCompareTable";
 import { ExperimentRunFilterConditionProvider } from "./ExperimentRunFilterConditionContext";
 
-export function ExperimentCompareGridPage() {
+export type ExperimentCompareGridPageProps = {
+  displayFullText: boolean;
+};
+
+export function ExperimentCompareGridPage({
+  displayFullText,
+}: ExperimentCompareGridPageProps) {
   const [searchParams] = useSearchParams();
-  const loaderData = useLoaderData<typeof experimentCompareGridLoader>();
+  const loaderData = useLoaderData<typeof experimentCompareLoader>();
   invariant(loaderData, "loaderData is required");
   const [baselineExperimentId = undefined, ...compareExperimentIds] =
     searchParams.getAll("experimentId");
   const { datasetId } = useParams();
   invariant(datasetId != null, "datasetId is required");
-  const displayFullText = false; // todo: add to query parameters
   return baselineExperimentId != null ? (
     <ExperimentRunFilterConditionProvider>
       <Suspense fallback={<Loading />}>

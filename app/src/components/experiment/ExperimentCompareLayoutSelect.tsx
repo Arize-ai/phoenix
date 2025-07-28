@@ -18,7 +18,9 @@ export type ExperimentCompareLayout = "grid" | "metrics";
 /**
  * TypeGuard for the experiment compare layout
  */
-function isExperimentCompareLayout(m: unknown): m is ExperimentCompareLayout {
+export function isExperimentCompareLayout(
+  m: unknown
+): m is ExperimentCompareLayout {
   const experimentCompareLayouts: ExperimentCompareLayout[] = [
     "grid",
     "metrics",

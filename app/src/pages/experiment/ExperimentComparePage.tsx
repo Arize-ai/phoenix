@@ -1,6 +1,5 @@
-import { startTransition, useState } from "react";
+import { startTransition, useCallback, useMemo, useState } from "react";
 import {
-  Outlet,
   useLoaderData,
   useNavigate,
   useParams,
@@ -15,25 +14,45 @@ import { Flex, View } from "@phoenix/components";
 import {
   ExperimentCompareLayout,
   ExperimentCompareLayoutSelect,
+  isExperimentCompareLayout,
 } from "@phoenix/components/experiment/ExperimentCompareLayoutSelect";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { experimentCompareLoader } from "@phoenix/pages/experiment/experimentCompareLoader";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
+import { ExperimentCompareGridPage } from "./ExperimentCompareGridPage";
+import { ExperimentCompareMetricsPage } from "./ExperimentCompareMetricsPage";
 import { ExperimentMultiSelector } from "./ExperimentMultiSelector";
 
 export function ExperimentComparePage() {
   const loaderData = useLoaderData<typeof experimentCompareLoader>();
   const showModeSelect = useFeatureFlag("experimentEnhancements");
-  const [layout, setLayout] = useState<ExperimentCompareLayout>("grid");
   invariant(loaderData, "loaderData is required on ExperimentComparePage");
   // The text of most IO is too long so default to showing truncated text
-  const [, setDisplayFullText] = useState(false);
+  const [displayFullText, setDisplayFullText] = useState(false);
   const { datasetId } = useParams();
   invariant(datasetId != null, "datasetId is required");
   const [searchParams] = useSearchParams();
   const [baselineExperimentId = undefined, ...compareExperimentIds] =
     searchParams.getAll("experimentId");
+  const layout = useMemo(() => {
+    const layout = searchParams.get("layout");
+    if (isExperimentCompareLayout(layout)) {
+      return layout;
+    }
+    return "grid";
+  }, [searchParams]);
   const navigate = useNavigate();
+
+  const onLayoutChange = useCallback(
+    (layout: ExperimentCompareLayout) => {
+      const url = new URL(window.location.href);
+      url.searchParams.set("layout", layout);
+      navigate(url.pathname + url.search);
+    },
+    [navigate]
+  );
+
   return (
     <main
       css={css`
@@ -74,7 +93,7 @@ export function ExperimentComparePage() {
             {showModeSelect && (
               <ExperimentCompareLayoutSelect
                 layout={layout}
-                onLayoutChange={setLayout}
+                onLayoutChange={onLayoutChange}
               />
             )}
           </Flex>
@@ -89,7 +108,27 @@ export function ExperimentComparePage() {
           </Switch>
         </Flex>
       </View>
-      <Outlet />
+      <ExperimentComparePageContent
+        layout={layout}
+        displayFullText={displayFullText}
+      />
     </main>
   );
+}
+
+type ExperimentComparePageContentProps = {
+  layout: ExperimentCompareLayout;
+  displayFullText: boolean;
+};
+
+function ExperimentComparePageContent({
+  layout,
+  displayFullText,
+}: ExperimentComparePageContentProps) {
+  if (layout === "grid") {
+    return <ExperimentCompareGridPage displayFullText={displayFullText} />;
+  } else if (layout === "metrics") {
+    return <ExperimentCompareMetricsPage />;
+  }
+  assertUnreachable(layout);
 }
