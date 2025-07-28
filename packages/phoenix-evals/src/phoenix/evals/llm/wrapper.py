@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from phoenix.evals.templates import MultimodalPrompt
 
@@ -30,10 +30,9 @@ class LLMBase:
             )
 
         if by_provider:
-            if provider is None:
-                raise ValueError("Provider must be specified for provider-based initialization")
-
-            provider_registrations = PROVIDER_REGISTRY.get_provider_registrations(provider)
+            # At this point, provider is guaranteed to be non-None due to by_provider check
+            provider_str: str = provider  # type: ignore
+            provider_registrations = PROVIDER_REGISTRY.get_provider_registrations(provider_str)
             if not provider_registrations:
                 raise ValueError(f"Unknown provider '{provider}'. {adapter_availability_table()}")
 
@@ -125,6 +124,37 @@ class LLM(LLMBase):
         """
         return self._adapter.generate_object(prompt, schema, **kwargs)
 
+    def generate_classification(
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        labels: List[Union[Dict[str, str], str]],
+        include_explanation: bool = True,
+        description: Optional[str] = None,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """
+        Generate a classification given a prompt and a set of labels.
+
+        Args:
+            prompt: The prompt template to go with the tool call.
+            labels (list of dict or str): A list of labels OR a dictionary of labels and their
+                descriptions.
+                If list of strings, each string is a label.
+                If list of dicts, each dict represents a label and may contain:
+                    - 'name' (str): the label's constant value (required)
+                    - 'description' (str): a description for the label (optional)
+            include_explanation: Whether to prompt the LLM for an explanation.
+            description: A description of the classification task.
+            **kwargs: Additional keyword arguments to pass to the LLM SDK.
+
+        Returns:
+            The generated classification.
+        """
+        # Generate schema from labels
+        schema = generate_classification_schema(labels, include_explanation, description)
+
+        return self.generate_object(prompt, schema, **kwargs)
+
 
 class AsyncLLM(LLMBase):
     """
@@ -190,7 +220,116 @@ class AsyncLLM(LLMBase):
         """
         return await self._adapter.agenerate_object(prompt, schema, **kwargs)
 
+    async def generate_classification(
+        self,
+        prompt: Union[str, MultimodalPrompt],
+        labels: List[Union[Dict[str, str], str]],
+        include_explanation: bool = True,
+        description: Optional[str] = None,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """
+        Asynchronously generate a classification given a prompt and a set of labels.
+
+        Args:
+            prompt: The prompt template to go with the tool call.
+            labels (list of dict or str): A list of labels OR a dictionary of labels and their
+                descriptions.
+                If list of strings, each string is a label.
+                If list of dicts, each dict represents a label and may contain:
+                    - 'name' (str): the label's constant value (required)
+                    - 'description' (str): a description for the label (optional)
+            include_explanation: Whether to prompt the LLM for an explanation.
+            description: A description of the classification task.
+            **kwargs: Additional keyword arguments to pass to the LLM SDK.
+
+        Returns:
+            The generated classification.
+        """
+        # Generate schema from labels
+        schema = generate_classification_schema(labels, include_explanation, description)
+
+        return await self.generate_object(prompt, schema, **kwargs)
+
 
 def show_provider_availability() -> None:
     """Show the availability of all providers."""
     print(adapter_availability_table())
+
+
+def generate_classification_schema(
+    labels: List[Union[Dict[str, str], str]],
+    include_explanation: bool = True,
+    description: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Generate a JSON Schema for an LLM function/structured output call that classifies
+    a single criterion.
+
+    Args:
+        labels (list of dict or str): A list of labels OR a dictionary of labels and their
+            descriptions.
+            If list of strings, each string is a label.
+            If list of dicts, each dict represents a label and may contain:
+                - 'name' (str): the label's constant value (required)
+                - 'description' (str): a description for the label (optional)
+        include_explanation (bool): Whether to include an explanation field in the schema.
+        description (str): A description of the classification task.
+    Returns:
+        dict: A JSON Schema dict ready for use in an LLM function/structured output call.
+    """
+
+    # Validate labels
+    if not isinstance(labels, list):
+        raise ValueError("Labels must be a list.")
+
+    if not labels:
+        raise ValueError("Labels must be a non-empty list.")
+
+    # Determine label type and validate consistency
+    if all(isinstance(label, dict) for label in labels):
+        is_str_labels = False
+    elif all(isinstance(label, str) for label in labels):
+        is_str_labels = True
+    else:
+        raise ValueError("Labels must be a list of dicts or a list of strings.")
+
+    # Build label schema base
+    label_schema: Dict[str, Any] = {"type": "string"}
+    if description:
+        label_schema["description"] = description
+
+    # Add labels to schema, either enum or oneOf
+    if is_str_labels:
+        # Cast to List[str] since we've validated all labels are strings
+        str_labels: List[str] = [label for label in labels if isinstance(label, str)]
+        label_schema["enum"] = str_labels
+    else:
+        # Cast to List[Dict[str, str]] since we've validated all labels are dicts
+        dict_labels: List[Dict[str, str]] = [label for label in labels if isinstance(label, dict)]
+        one_of_list: List[Dict[str, str]] = []
+        for label in dict_labels:
+            if "name" not in label:
+                raise ValueError("Each label must have a 'name' key.")
+            entry = {"const": label["name"]}
+            if "description" in label:
+                entry["description"] = label["description"]
+            one_of_list.append(entry)
+        label_schema["oneOf"] = one_of_list
+
+    # Build final schema
+    properties: Dict[str, Any] = {}
+    required: List[str] = []
+
+    # Add explanation if requested
+    if include_explanation:
+        properties["explanation"] = {
+            "type": "string",
+            "description": "A brief explanation of your reasoning.",
+        }
+        required.append("explanation")
+
+    properties["label"] = label_schema
+    required.append("label")
+
+    return {"type": "object", "properties": properties, "required": required}
