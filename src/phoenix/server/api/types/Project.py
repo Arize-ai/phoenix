@@ -404,11 +404,11 @@ class Project(Node):
                 .where(models.Span.parent_id.is_(None))
                 .where(
                     or_(
-                        models.TextContains(
+                        models.CaseInsensitiveContains(
                             models.Span.attributes[INPUT_VALUE].as_string(),
                             filter_io_substring,
                         ),
-                        models.TextContains(
+                        models.CaseInsensitiveContains(
                             models.Span.attributes[OUTPUT_VALUE].as_string(),
                             filter_io_substring,
                         ),

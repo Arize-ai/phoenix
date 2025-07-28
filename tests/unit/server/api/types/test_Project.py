@@ -1537,6 +1537,89 @@ class TestProject:
         res = await self._node(field, project, httpx_client)
         assert {e["node"]["id"] for e in res["edges"]} == set()
 
+    @pytest.fixture
+    async def _case_insensitive_data(
+        self,
+        db: DbSessionFactory,
+    ) -> _Data:
+        """Create test data for case-insensitive filtering"""
+        projects, project_sessions, traces, spans = [], [], [], []
+        async with db() as session:
+            projects.append(await _add_project(session))
+
+            # Session 0: matches "\\'\"hello" and "WÖRLD'\""
+            project_sessions.append(await _add_project_session(session, projects[-1]))
+            traces.append(await _add_trace(session, projects[-1], project_sessions[-1]))
+            attributes = {"input": {"value": "\\'\"Hello Wörld'\""}}
+            spans.append(await _add_span(session, traces[-1], attributes=attributes))
+
+            # Session 1: matches "\\'\"hello" and "WÖRLD'\""
+            project_sessions.append(await _add_project_session(session, projects[-1]))
+            traces.append(await _add_trace(session, projects[-1], project_sessions[-1]))
+            attributes = {"output": {"value": "\\'\"HELLO wörld'\""}}
+            spans.append(await _add_span(session, traces[-1], attributes=attributes))
+
+            # Session 2: matches "%"
+            project_sessions.append(await _add_project_session(session, projects[-1]))
+            traces.append(await _add_trace(session, projects[-1], project_sessions[-1]))
+            attributes = {"input": {"value": "test%data"}}
+            spans.append(await _add_span(session, traces[-1], attributes=attributes))
+
+            # Session 3: matches "_"
+            project_sessions.append(await _add_project_session(session, projects[-1]))
+            traces.append(await _add_trace(session, projects[-1], project_sessions[-1]))
+            attributes = {"output": {"value": "query_pattern"}}
+            spans.append(await _add_span(session, traces[-1], attributes=attributes))
+
+            # Session 4: matches "\\'\"hello"
+            project_sessions.append(await _add_project_session(session, projects[-1]))
+            traces.append(await _add_trace(session, projects[-1], project_sessions[-1]))
+            attributes = {"input": {"value": "\\'\"Hello 世界"}}
+            spans.append(await _add_span(session, traces[-1], attributes=attributes))
+
+        return _Data(
+            spans=spans,
+            traces=traces,
+            project_sessions=project_sessions,
+            projects=projects,
+        )
+
+    async def test_sessions_case_insensitive_filtering(
+        self,
+        _case_insensitive_data: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """Test GraphQL integration for case-insensitive filtering."""
+        project = _case_insensitive_data.projects[0]
+
+        test_cases = [
+            ("\\'\"hello", [0, 1, 4], "Basic case-insensitive matching"),
+            ("WÖRLD'\"", [0, 1], "Unicode case-insensitivity"),
+            ("%", [2], "Special percentage sign"),
+            ("_", [3], "Special underscore"),
+            ("'; DROP TABLE users;--", [], "No matches"),
+        ]
+
+        for filter_substring, expected_session_indices, description in test_cases:
+            # Escape the filter substring for GraphQL
+            escaped_filter = filter_substring.replace("\\", "\\\\").replace('"', '\\"')
+            field = f'sessions(filterIoSubstring:"{escaped_filter}"){{edges{{node{{id}}}}}}'
+
+            res = await self._node(field, project, httpx_client)
+
+            # Get the expected session IDs
+            expected_session_ids = {
+                _gid(_case_insensitive_data.project_sessions[i]) for i in expected_session_indices
+            }
+
+            actual_session_ids = {e["node"]["id"] for e in res["edges"]}
+
+            assert actual_session_ids == expected_session_ids, (
+                f"{description} failed: "
+                f"Expected sessions {expected_session_indices} for filter '{filter_substring}', "
+                f"but got {actual_session_ids}"
+            )
+
     @pytest.mark.parametrize("orphan_span_as_root_span", [False, True])
     async def test_root_spans_only_with_orphan_spans(
         self,
