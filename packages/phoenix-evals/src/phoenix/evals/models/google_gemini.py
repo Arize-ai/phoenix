@@ -198,7 +198,7 @@ class GoogleAIModel(BaseModel):
                 else:
                     raw_image_bytes = base64.b64decode(content)
 
-                format = str(get_image_format_from_base64(part.content))
+                format = str(get_image_format_from_base64(content))
 
                 if format not in SUPPORTED_IMAGE_FORMATS:
                     raise PhoenixUnsupportedImageFormat(f"Unsupported image format: {format}")
