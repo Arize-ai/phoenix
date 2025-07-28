@@ -127,7 +127,7 @@ class LLM(LLMBase):
     def generate_classification(
         self,
         prompt: Union[str, MultimodalPrompt],
-        labels: List[Union[Dict[str, str], str]],
+        labels: Union[List[str], Dict[str, str]],
         include_explanation: bool = True,
         description: Optional[str] = None,
         **kwargs: Any,
@@ -137,18 +137,30 @@ class LLM(LLMBase):
 
         Args:
             prompt: The prompt template to go with the tool call.
-            labels (list of dict or str): A list of labels OR a dictionary of labels and their
-                descriptions.
-                If list of strings, each string is a label.
-                If list of dicts, each dict represents a label and may contain:
-                    - 'name' (str): the label's constant value (required)
-                    - 'description' (str): a description for the label (optional)
+            labels: Either:
+                - A list of strings, where each string is a label
+                - A dictionary where keys are labels and values are descriptions
             include_explanation: Whether to prompt the LLM for an explanation.
             description: A description of the classification task.
             **kwargs: Additional keyword arguments to pass to the LLM SDK.
 
         Returns:
             The generated classification.
+
+        Examples:
+            >>> from phoenix.evals.llm import LLM
+            >>> llm = LLM(provider="openai", model="gpt-4o", client="openai")
+            >>> llm.generate_classification(
+            ...     prompt="Hello, world!",
+            ...     labels=["yes", "no"],
+            ... )
+            {"label": "yes", "explanation": "The answer is yes."}
+            >>> llm.generate_classification(
+            ...     prompt="Hello, world!",
+            ...     labels={"yes": "Positive response", "no": "Negative response"},
+            ...     include_explanation=False,
+            ... )
+            {"label": "yes"}
         """
         # Generate schema from labels
         schema = generate_classification_schema(labels, include_explanation, description)
@@ -223,7 +235,7 @@ class AsyncLLM(LLMBase):
     async def generate_classification(
         self,
         prompt: Union[str, MultimodalPrompt],
-        labels: List[Union[Dict[str, str], str]],
+        labels: Union[List[str], Dict[str, str]],
         include_explanation: bool = True,
         description: Optional[str] = None,
         **kwargs: Any,
@@ -233,12 +245,9 @@ class AsyncLLM(LLMBase):
 
         Args:
             prompt: The prompt template to go with the tool call.
-            labels (list of dict or str): A list of labels OR a dictionary of labels and their
-                descriptions.
-                If list of strings, each string is a label.
-                If list of dicts, each dict represents a label and may contain:
-                    - 'name' (str): the label's constant value (required)
-                    - 'description' (str): a description for the label (optional)
+            labels: Either:
+                - A list of strings, where each string is a label
+                - A dictionary where keys are labels and values are descriptions
             include_explanation: Whether to prompt the LLM for an explanation.
             description: A description of the classification task.
             **kwargs: Additional keyword arguments to pass to the LLM SDK.
@@ -248,7 +257,6 @@ class AsyncLLM(LLMBase):
         """
         # Generate schema from labels
         schema = generate_classification_schema(labels, include_explanation, description)
-
         return await self.generate_object(prompt, schema, **kwargs)
 
 
