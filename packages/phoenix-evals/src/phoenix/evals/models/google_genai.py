@@ -60,7 +60,7 @@ def _get_env_api_key() -> Optional[str]:
 
 
 @dataclass
-class GoogleAIModel(BaseModel):
+class GoogleGenAIModel(BaseModel):
     """
     An interface for using Google Gemini models.
 
@@ -133,7 +133,7 @@ class GoogleAIModel(BaseModel):
     ) -> str:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
-        config = self._google_types.GenerateContentConfig(system_instruction=instruction, **kwargs)
+        config = self._google_types.GenerateContentConfig(system_instruction=instruction, **kwargs)  # type: ignore[arg-type]
         response = self._async_rate_limited_completion(
             model=self.model,
             contents=self._process_prompt(prompt=prompt),
@@ -161,7 +161,7 @@ class GoogleAIModel(BaseModel):
     ) -> str:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
-        config = self._google_types.GenerateContentConfig(system_instruction=instruction, **kwargs)
+        config = self._google_types.GenerateContentConfig(system_instruction=instruction, **kwargs)  # type: ignore[arg-type]
         response = self._rate_limited_completion(
             model=self.model,
             contents=self._process_prompt(prompt=prompt),
@@ -235,7 +235,7 @@ class GoogleAIModel(BaseModel):
                 )
             else:
                 raise ValueError(
-                    f"Unsupported content type for {GoogleAIModel.__name__}: {part.content_type}"
+                    f"Unsupported content type for {GoogleGenAIModel.__name__}: {part.content_type}"
                 )
         return contents
 
