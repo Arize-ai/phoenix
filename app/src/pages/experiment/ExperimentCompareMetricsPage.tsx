@@ -115,7 +115,28 @@ export function ExperimentCompareMetricsPage() {
           `}
         >
           <div css={metricCardCss}>
-            <Heading level={2}>Completion Tokens</Heading>
+            <Flex direction="column" gap="size-200">
+              <Heading level={2}>Completion Tokens</Heading>
+              <BaseExperimentMetric value={1000} />
+              <CompareExperimentMetric
+                value={1100}
+                baselineValue={1000}
+                numImprovements={10}
+                numRegressions={5}
+              />
+              <CompareExperimentMetric
+                value={900}
+                baselineValue={1000}
+                numImprovements={0}
+                numRegressions={10}
+              />
+              <CompareExperimentMetric
+                value={1200}
+                baselineValue={1000}
+                numImprovements={10}
+                numRegressions={0}
+              />
+            </Flex>
           </div>
         </li>
         <li
@@ -129,7 +150,28 @@ export function ExperimentCompareMetricsPage() {
           `}
         >
           <div css={metricCardCss}>
-            <Heading level={2}>Total Tokens</Heading>
+            <Flex direction="column" gap="size-200">
+              <Heading level={2}>Total Tokens</Heading>
+              <BaseExperimentMetric value={1000} />
+              <CompareExperimentMetric
+                value={1100}
+                baselineValue={1000}
+                numImprovements={10}
+                numRegressions={5}
+              />
+              <CompareExperimentMetric
+                value={900}
+                baselineValue={1000}
+                numImprovements={0}
+                numRegressions={10}
+              />
+              <CompareExperimentMetric
+                value={1200}
+                baselineValue={1000}
+                numImprovements={10}
+                numRegressions={0}
+              />
+            </Flex>
           </div>
         </li>
         <li
