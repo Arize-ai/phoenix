@@ -30,9 +30,10 @@ class LLMBase:
             )
 
         if by_provider:
-            # At this point, provider is guaranteed to be non-None due to by_provider check
-            provider_str: str = provider  # type: ignore
-            provider_registrations = PROVIDER_REGISTRY.get_provider_registrations(provider_str)
+            if provider is None:
+                raise ValueError("Provider must be specified for provider-based initialization")
+
+            provider_registrations = PROVIDER_REGISTRY.get_provider_registrations(provider)
             if not provider_registrations:
                 raise ValueError(f"Unknown provider '{provider}'. {adapter_availability_table()}")
 
