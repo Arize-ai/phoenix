@@ -7,11 +7,17 @@ from urllib.parse import urlparse
 
 import requests
 
-from phoenix.evals.exceptions import PhoenixUnsupportedAudioFormat
+from phoenix.evals.exceptions import (
+    PhoenixUnsupportedAudioFormat,
+    PhoenixUnsupportedImageFormat,
+)
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
-from phoenix.evals.utils import get_audio_format_from_base64
+from phoenix.evals.utils import (
+    get_audio_format_from_base64,
+    get_image_format_from_base64,
+)
 
 MINIMUM_GOOGLE_GENAI_VERSION = "1.0.0"
 DEFAULT_GOOGLE_GENAI_MODEL = "gemini-2.5-flash"
@@ -23,6 +29,13 @@ SUPPORTED_AUDIO_FORMATS = {
     "ogg",
     "flac",
 }  # ref: https://ai.google.dev/gemini-api/docs/audio#supported-formats
+SUPPORTED_IMAGE_FORMATS = {
+    "png",
+    "jpeg",
+    "webp",
+    "heic",
+    "heif",
+}  # ref: https://ai.google.dev/gemini-api/docs/image-understanding#supported-formats
 
 logger = logging.getLogger(__name__)
 
@@ -77,10 +90,12 @@ class GoogleAIModel(BaseModel):
     """
 
     model: str = DEFAULT_GOOGLE_GENAI_MODEL
-    api_key: Optional[str] = _get_env_api_key()
+    api_key: Optional[str] = None
     initial_rate_limit: int = 5
 
     def __post_init__(self) -> None:
+        if self.api_key is None:
+            self.api_key = _get_env_api_key()
         self._init_client()
         self._init_rate_limiter()
 
@@ -166,45 +181,40 @@ class GoogleAIModel(BaseModel):
 
         return _completion(**kwargs)
 
-    def _process_prompt(
-        self, prompt: MultimodalPrompt, system_instruction: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+    def _process_prompt(self, prompt: MultimodalPrompt) -> List[Dict[str, Any]]:
         contents: List[Dict[str, Any]] = []
         for part in prompt.parts:
             if part.content_type == PromptPartContentType.TEXT:
                 contents.append({"parts": [{"text": part.content}]})
             elif part.content_type == PromptPartContentType.IMAGE:
-                if _is_base64(part.content):
-                    contents.append(
-                        {
-                            "parts": [
-                                {
-                                    "inline_data": {
-                                        "data": base64.b64decode(part.content),
-                                        "mime_type": "image/jpeg",
-                                    }
-                                }
-                            ]
-                        }
-                    )
-                elif _is_url(part.content):
-                    raw_image_bytes = requests.get(
-                        part.content
-                    ).content  # could throw and error which will be bad
-                    contents.append(
-                        {
-                            "parts": [
-                                {
-                                    "inline_data": {
-                                        "data": raw_image_bytes,
-                                        "mime_type": "image/jpeg",
-                                    }
-                                }
-                            ]
-                        }
-                    )
+                content = part.content
+
+                if _is_url(content):
+                    try:
+                        raw_image_bytes = requests.get(content).content
+                        content = base64.b64encode(raw_image_bytes).decode()
+                    except requests.RequestException as e:
+                        raise e
                 else:
-                    raise ValueError("Only base64 encoded images or image URLs are supported")
+                    raw_image_bytes = base64.b64decode(content)
+
+                format = str(get_image_format_from_base64(part.content))
+
+                if format not in SUPPORTED_IMAGE_FORMATS:
+                    raise PhoenixUnsupportedImageFormat(f"Unsupported image format: {format}")
+
+                contents.append(
+                    {
+                        "parts": [
+                            {
+                                "inline_data": {
+                                    "data": raw_image_bytes,
+                                    "mime_type": f"image/{format}",
+                                }
+                            }
+                        ]
+                    }
+                )
             elif part.content_type == PromptPartContentType.AUDIO:
                 format = str(get_audio_format_from_base64(part.content))
                 if format not in SUPPORTED_AUDIO_FORMATS:
