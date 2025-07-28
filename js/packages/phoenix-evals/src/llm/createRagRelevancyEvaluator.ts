@@ -10,6 +10,11 @@ export interface RAGRelevancyEvaluatorArgs
   choices?: CreateClassifierArgs["choices"];
   promptTemplate?: CreateClassifierArgs["promptTemplate"];
 }
+
+type RAGRelevancyExample = {
+  input: string;
+  documentText: string;
+};
 /**
  * Creates a function that evaluates whether a reference text is relevant to an input question.
  *
@@ -18,13 +23,13 @@ export interface RAGRelevancyEvaluatorArgs
  */
 export function createRagRelevancyEvaluator(
   args: RAGRelevancyEvaluatorArgs
-): EvaluatorFn<string, string> {
+): EvaluatorFn<RAGRelevancyExample> {
   const {
     choices = RAG_RELEVANCY_CHOICES,
     promptTemplate = RAG_RELEVANCY_TEMPLATE,
     ...rest
   } = args;
-  const ragRelevancyEvaluatorFn = createClassifier<string, string>({
+  const ragRelevancyEvaluatorFn = createClassifier<RAGRelevancyExample>({
     ...args,
     promptTemplate,
     choices,

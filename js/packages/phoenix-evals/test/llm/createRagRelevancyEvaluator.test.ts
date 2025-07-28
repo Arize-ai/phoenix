@@ -39,7 +39,7 @@ describe("createRagRelevancyEvaluator", () => {
 
     const result = await evaluator({
       input: "What is Arize Phoenix?",
-      output:
+      documentText:
         "Arize Phoenix is a platform for building and deploying AI applications.",
     });
 
@@ -77,7 +77,7 @@ describe("createRagRelevancyEvaluator", () => {
 
     const result = await evaluator({
       input: "How much does Arize Phoenix cost?",
-      output:
+      documentText:
         "Arize Phoenix is a platform for building and deploying AI applications.",
     });
 
@@ -114,7 +114,7 @@ describe("createRagRelevancyEvaluator", () => {
 
     const result = await evaluator({
       input: "What is Arize Phoenix?",
-      output:
+      documentText:
         "Arize Phoenix is a platform for building and deploying AI applications.",
     });
 
@@ -138,7 +138,7 @@ describe("createRagRelevancyEvaluator", () => {
 
     await evaluator({
       input: "What is Arize Phoenix?",
-      output:
+      documentText:
         "Arize Phoenix is a platform for building and deploying AI applications.",
     });
 
@@ -166,7 +166,7 @@ describe("createRagRelevancyEvaluator", () => {
 
     await evaluator({
       input: "What is Arize Phoenix?",
-      output:
+      documentText:
         "Arize Phoenix is a platform for building and deploying AI applications.",
     });
 
@@ -199,7 +199,7 @@ describe("createRagRelevancyEvaluator", () => {
 
     await evaluator({
       input: "What is Arize Phoenix?",
-      output:
+      documentText:
         "Arize Phoenix is a platform for building and deploying AI applications.",
     });
 
@@ -231,7 +231,7 @@ describe("createRagRelevancyEvaluator", () => {
     const testOutput = "Paris is the capital and largest city of France.";
 
     await evaluator({
-      output: testOutput,
+      documentText: testOutput,
       input: testInput,
     });
 
