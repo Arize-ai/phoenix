@@ -19,6 +19,8 @@ function Card(
   }: CardProps,
   ref: Ref<HTMLElement>
 ) {
+  // TODO: remove default variant and bodyStyle
+  // TODO: inside card body, we have a View with padding
   const { styleProps } = useStyleProps(otherProps, viewStyleProps);
   const { styleProps: bodyStyleProps } = useStyleProps(
     bodyStyle,
