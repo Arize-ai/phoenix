@@ -48,6 +48,34 @@ def _get_env_api_key() -> Optional[str]:
 
 @dataclass
 class GoogleAIModel(BaseModel):
+    """
+    An interface for using Google Gemini models.
+
+    This class wraps the Google GenAI SDK for use with Phoenix LLM evaluations. Calls to the
+    Google GenAI API are dynamically throttled when encountering rate limit errors. Requires the
+    `google-genai` package to be installed.
+
+    Supports Async: ✅
+        If possible, makes LLM calls concurrently.
+
+    Args:
+        model (str, optional): The model name to use. Defaults to "gemini-2.5-flash".
+        api_key (str, optional): Your Google key. If not provided, will be read from the
+            environment variable. Defaults to None.
+        initial_rate_limit (int, optional): The initial internal rate limit in allowed requests
+            per second for making LLM calls. This limit adjusts dynamically based on rate
+            limit errors. Defaults to 5.
+
+    Example:
+        .. code-block:: python
+
+            # Get your own Google API Key: https://aistudio.google.com/apikey
+            # Set the GOOGLE_API_KEY environment variable
+
+            from phoenix.evals import GoogleAIModel
+            model = GoogleAIModel(model="gemini-2.5-flash")
+    """
+
     model: str = DEFAULT_GOOGLE_GENAI_MODEL
     api_key: Optional[str] = _get_env_api_key()
     initial_rate_limit: int = 5
